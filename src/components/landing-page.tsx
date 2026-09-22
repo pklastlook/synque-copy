@@ -279,14 +279,17 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
           </div>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: Layers, t: "7 tabs open", d: "Instagram, X, LinkedIn, TikTok… each its own tab. Copy-paste fatigue." },
-              { icon: ShieldAlert, t: "Accounts suspended", d: "Your team posts too fast, uses banned hashtags, gets flagged." },
-              { icon: Clock, t: "Approvals stuck", d: "Content waits in DMs and spreadsheets. Nobody knows what's approved." },
-              { icon: MessageCircle, t: "Inbox chaos", d: "Comments scattered across 10 accounts. Half go unanswered." },
+              { icon: Layers, t: "7 tabs open", d: "Instagram, X, LinkedIn, TikTok… each its own tab. Copy-paste fatigue.", accent: "oklch(0.62 0.22 300)" },
+              { icon: ShieldAlert, t: "Accounts suspended", d: "Your team posts too fast, uses banned hashtags, gets flagged.", accent: "oklch(0.7 0.2 25)" },
+              { icon: Clock, t: "Approvals stuck", d: "Content waits in DMs and spreadsheets. Nobody knows what's approved.", accent: "oklch(0.72 0.18 75)" },
+              { icon: MessageCircle, t: "Inbox chaos", d: "Comments scattered across 10 accounts. Half go unanswered.", accent: "oklch(0.66 0.18 200)" },
             ].map((p, i) => (
-              <div key={p.t} className="crystal-in glass rounded-2xl p-5 lift-hover" style={{ animationDelay: `${0.1 * i + 0.1}s` }}>
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-rose-500/10 text-rose-500">
-                  <p.icon className="h-5 w-5" />
+              <div key={p.t} className="crystal-in crystal-card glass rounded-2xl p-5 lift-hover group" style={{ animationDelay: `${0.1 * i + 0.1}s` }}>
+                <div className="relative grid h-11 w-11 place-items-center rounded-xl border backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" style={{ background: `${p.accent}15`, borderColor: `${p.accent}30` }}>
+                  <span className="pointer-events-none absolute inset-0 rounded-xl opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70" style={{ background: p.accent }} />
+                  <span className="relative transition-transform duration-300 group-hover:scale-110" style={{ color: p.accent }}>
+                    <p.icon className="h-5 w-5" />
+                  </span>
                 </div>
                 <h3 className="mt-3 text-sm font-semibold">{p.t}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">{p.d}</p>
@@ -317,13 +320,17 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
               className="crystal-in crystal-card glass lift-hover group relative overflow-hidden rounded-3xl p-6"
               style={{ animationDelay: `${0.05 * i + 0.1}s` }}
             >
-              <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[var(--primary)]/10 blur-2xl transition group-hover:bg-[var(--gold)]/15" />
-              <div className="relative grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-white shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
-                <f.icon className="h-5 w-5" />
+              <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-[0.12] blur-2xl transition duration-500 group-hover:opacity-25 group-hover:scale-125" style={{ background: f.accent }} />
+              {/* Premium icon — glass tile with accent color (matches sidebar/KPI style) */}
+              <div className="relative grid h-12 w-12 place-items-center rounded-xl border backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" style={{ background: `${f.accent}15`, borderColor: `${f.accent}30` }}>
+                <span className="pointer-events-none absolute inset-0 rounded-xl opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70" style={{ background: f.accent }} />
+                <span className="relative transition-transform duration-300 group-hover:scale-110" style={{ color: f.accent }}>
+                  <f.icon className="h-5 w-5" />
+                </span>
               </div>
               <h3 className="relative mt-4 text-lg font-semibold">{f.title}</h3>
               <p className="relative mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
-              <div className="relative mt-3 flex items-center gap-1 text-xs font-medium text-[var(--primary)] opacity-0 transition group-hover:opacity-100">
+              <div className="relative mt-3 flex items-center gap-1 text-xs font-medium opacity-0 transition group-hover:opacity-100" style={{ color: f.accent }}>
                 Learn more <ArrowRight className="h-3 w-3" />
               </div>
             </div>
@@ -994,15 +1001,15 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
 
 /* ===================== Data ===================== */
 const FEATURES = [
-  { icon: Wand2, title: "AI Composer", desc: "Generate distinct, platform-native captions for every account from one brief — respecting tone, length & hashtag conventions." },
-  { icon: ShieldCheck, title: "Account Protection", desc: "Anti-suspension guards: posting cadence limits, banned-hashtag blocker, behavior caps, smart cooldowns, and a suspension advisor." },
-  { icon: BarChart3, title: "Advanced Analytics", desc: "Deep insights across every platform — impressions, reach, engagement, audience growth, per-account comparison." },
-  { icon: Users, title: "Team & Roles", desc: "Granular permissions per user — admin, manager, editor, member, viewer. Designations, departments, and access control." },
-  { icon: Calendar, title: "Content Calendar", desc: "Plan and schedule your entire content pipeline with a visual month grid and drag-friendly scheduling." },
-  { icon: Server, title: "Mail Server", desc: "Host your team's email on your own domain — Hostinger, cPanel, Zoho or any provider. Create mailboxes, no Google needed." },
-  { icon: MessageCircle, title: "Unified Inbox", desc: "Comments and DMs from every account in one inbox. Sentiment-tagged, assignable, reply-ready." },
-  { icon: Target, title: "Competitor Tracking", desc: "Benchmark rivals with follower-growth charts, engagement comparisons, and posting-frequency insights." },
-  { icon: Hash, title: "Hashtag Manager", desc: "Save reusable hashtag groups per platform, track trending tags, and block shadowbanned hashtags." },
+  { icon: Wand2, title: "AI Composer", desc: "Generate distinct, platform-native captions for every account from one brief — respecting tone, length & hashtag conventions.", accent: "oklch(0.55 0.2 255)" },
+  { icon: ShieldCheck, title: "Account Protection", desc: "Anti-suspension guards: posting cadence limits, banned-hashtag blocker, behavior caps, smart cooldowns, and a suspension advisor.", accent: "oklch(0.68 0.22 145)" },
+  { icon: BarChart3, title: "Advanced Analytics", desc: "Deep insights across every platform — impressions, reach, engagement, audience growth, per-account comparison.", accent: "oklch(0.62 0.22 300)" },
+  { icon: Users, title: "Team & Roles", desc: "Granular permissions per user — admin, manager, editor, member, viewer. Designations, departments, and access control.", accent: "oklch(0.7 0.2 25)" },
+  { icon: Calendar, title: "Content Calendar", desc: "Plan and schedule your entire content pipeline with a visual month grid and drag-friendly scheduling.", accent: "oklch(0.66 0.18 200)" },
+  { icon: Server, title: "Mail Server", desc: "Host your team's email on your own domain — Hostinger, cPanel, Zoho or any provider. Create mailboxes, no Google needed.", accent: "oklch(0.72 0.18 75)" },
+  { icon: MessageCircle, title: "Unified Inbox", desc: "Comments and DMs from every account in one inbox. Sentiment-tagged, assignable, reply-ready.", accent: "oklch(0.62 0.22 300)" },
+  { icon: Target, title: "Competitor Tracking", desc: "Benchmark rivals with follower-growth charts, engagement comparisons, and posting-frequency insights.", accent: "oklch(0.55 0.2 255)" },
+  { icon: Hash, title: "Hashtag Manager", desc: "Save reusable hashtag groups per platform, track trending tags, and block shadowbanned hashtags.", accent: "oklch(0.68 0.22 145)" },
 ];
 
 const PLANS = [
