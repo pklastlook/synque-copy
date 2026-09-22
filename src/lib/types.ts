@@ -16,7 +16,8 @@ export type ViewId =
   | "reports"
   | "linkbio"
   | "mail"
-  | "admin";
+  | "admin"
+  | "owner";
 
 export interface PlatformAccount {
   id: string;

@@ -65,6 +65,7 @@ import { PlatformBadge } from "@/components/glass/platform-badge";
 import { PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
+import { useAuth } from "@/lib/auth-store";
 import { useApi } from "@/lib/hooks";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -296,18 +297,42 @@ export function SettingsView() {
 
 // ===== 1. Profile =====
 function ProfileSection() {
-  const [name, setName] = React.useState("Maya Reyes");
-  const [email, setEmail] = React.useState("maya@prism.co");
-  const [title, setTitle] = React.useState("Head of Social");
+  const { user } = useAuth();
+  const { reload } = useApi<ApiUser[]>("/api/users");
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [title, setTitle] = React.useState("");
   const [department, setDepartment] = React.useState<Department>("Leadership");
-  const [bio, setBio] = React.useState(
-    "Building SocialFlow — the all-in-one workspace for modern social teams. Previously led social at two venture-backed startups."
-  );
+  const [bio, setBio] = React.useState("");
   const [timezone, setTimezone] = React.useState("America/Los_Angeles");
   const [language, setLanguage] = React.useState("en-US");
+  const [saving, setSaving] = React.useState(false);
 
-  const save = () => {
-    toast.success("Profile saved", { description: "Your changes have been synced." });
+  // Load real user data
+  React.useEffect(() => {
+    if (!user) return;
+    setName(user.name);
+    setEmail(user.email);
+    setTitle(user.title ?? "");
+    setDepartment((user.title as Department) ?? "General");
+  }, [user]);
+
+  const save = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: user.id, name, email, title, department }),
+      });
+      toast.success("Profile saved", { description: "Your changes have been synced." });
+      reload();
+    } catch {
+      toast.error("Failed to save profile");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -318,9 +343,10 @@ function ProfileSection() {
         action={
           <button
             onClick={save}
-            className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+            disabled={saving}
+            className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60"
           >
-            <Save className="h-3.5 w-3.5" /> Save changes
+            <Save className="h-3.5 w-3.5" /> {saving ? "Saving…" : "Save changes"}
           </button>
         }
       />
@@ -738,8 +764,11 @@ function TeamRolesSection() {
   const { data, loading } = useApi<ApiUser[]>("/api/users");
   const [members, setMembers] = React.useState<TeamMember[]>([]);
   const [inviteOpen, setInviteOpen] = React.useState(false);
+  const [inviteName, setInviteName] = React.useState("");
   const [inviteEmail, setInviteEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<Role>("member");
+  const [invitePassword, setInvitePassword] = React.useState("");
+  const [inviteLoading, setInviteLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
   // Load real users from database
@@ -806,15 +835,45 @@ function TeamRolesSection() {
     }
   };
 
-  const invite = () => {
-    if (!inviteEmail.includes("@")) {
-      toast.error("Enter a valid email");
+  const invite = async () => {
+    if (!inviteName.trim() || !inviteEmail.includes("@")) {
+      toast.error("Enter a valid name and email");
       return;
     }
-    toast.success("Invitation sent", { description: `${inviteEmail} → ${ROLE_LABEL[inviteRole]}` });
-    setInviteEmail("");
-    setInviteRole("member");
-    setInviteOpen(false);
+    if (invitePassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setInviteLoading(true);
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: inviteName.trim(), email: inviteEmail.trim(), password: invitePassword }),
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        // Set the new user's role via PATCH
+        if (inviteRole !== "member") {
+          await fetch("/api/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: data.user.id, role: inviteRole, title: inviteRole === "admin" ? "Administrator" : "Team Member" }),
+          }).catch(() => {});
+        }
+        toast.success("User created", { description: `${inviteName} → ${ROLE_LABEL[inviteRole]}` });
+        setInviteName(""); setInviteEmail(""); setInviteRole("member"); setInvitePassword("");
+        setInviteOpen(false);
+        // Reload members
+        window.location.reload();
+      } else {
+        toast.error(data.error || "Failed to create user");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setInviteLoading(false);
+    }
   };
 
   if (loading) return <TeamSkeleton />;
@@ -997,12 +1056,27 @@ function TeamRolesSection() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            <Field label="Full name">
+              <Input
+                placeholder="John Smith"
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+              />
+            </Field>
             <Field label="Email">
               <Input
                 type="email"
-                placeholder="teammate@prism.co"
+                placeholder="teammate@socialflow.app"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </Field>
+            <Field label="Password">
+              <Input
+                type="password"
+                placeholder="Min 6 characters"
+                value={invitePassword}
+                onChange={(e) => setInvitePassword(e.target.value)}
               />
             </Field>
             <Field label="Role">
@@ -1020,9 +1094,10 @@ function TeamRolesSection() {
             <Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button>
             <button
               onClick={invite}
-              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+              disabled={inviteLoading}
+              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
             >
-              <UserPlus className="h-4 w-4" /> Send invite
+              <UserPlus className="h-4 w-4" /> {inviteLoading ? "Creating…" : "Create user"}
             </button>
           </DialogFooter>
         </DialogContent>

@@ -73,7 +73,12 @@ export const ModelName = {
   LinkInBio: 'LinkInBio',
   MailServer: 'MailServer',
   Mailbox: 'Mailbox',
-  MailMessage: 'MailMessage'
+  MailMessage: 'MailMessage',
+  Customer: 'Customer',
+  SerialKey: 'SerialKey',
+  Invoice: 'Invoice',
+  Quotation: 'Quotation',
+  BankAccount: 'BankAccount'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -486,6 +491,93 @@ export const MailMessageScalarFieldEnum = {
 } as const
 
 export type MailMessageScalarFieldEnum = (typeof MailMessageScalarFieldEnum)[keyof typeof MailMessageScalarFieldEnum]
+
+
+export const CustomerScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  email: 'email',
+  phone: 'phone',
+  company: 'company',
+  address: 'address',
+  city: 'city',
+  country: 'country',
+  status: 'status',
+  plan: 'plan',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CustomerScalarFieldEnum = (typeof CustomerScalarFieldEnum)[keyof typeof CustomerScalarFieldEnum]
+
+
+export const SerialKeyScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  customerId: 'customerId',
+  deviceName: 'deviceName',
+  deviceFingerprint: 'deviceFingerprint',
+  status: 'status',
+  activatedAt: 'activatedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type SerialKeyScalarFieldEnum = (typeof SerialKeyScalarFieldEnum)[keyof typeof SerialKeyScalarFieldEnum]
+
+
+export const InvoiceScalarFieldEnum = {
+  id: 'id',
+  number: 'number',
+  customerId: 'customerId',
+  status: 'status',
+  issueDate: 'issueDate',
+  dueDate: 'dueDate',
+  subtotal: 'subtotal',
+  taxRate: 'taxRate',
+  taxAmount: 'taxAmount',
+  total: 'total',
+  notes: 'notes',
+  items: 'items',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type InvoiceScalarFieldEnum = (typeof InvoiceScalarFieldEnum)[keyof typeof InvoiceScalarFieldEnum]
+
+
+export const QuotationScalarFieldEnum = {
+  id: 'id',
+  number: 'number',
+  customerId: 'customerId',
+  status: 'status',
+  issueDate: 'issueDate',
+  validUntil: 'validUntil',
+  subtotal: 'subtotal',
+  taxRate: 'taxRate',
+  taxAmount: 'taxAmount',
+  total: 'total',
+  notes: 'notes',
+  items: 'items',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type QuotationScalarFieldEnum = (typeof QuotationScalarFieldEnum)[keyof typeof QuotationScalarFieldEnum]
+
+
+export const BankAccountScalarFieldEnum = {
+  id: 'id',
+  accountName: 'accountName',
+  bankName: 'bankName',
+  accountNumber: 'accountNumber',
+  iban: 'iban',
+  swift: 'swift',
+  currency: 'currency',
+  isDefault: 'isDefault',
+  createdAt: 'createdAt'
+} as const
+
+export type BankAccountScalarFieldEnum = (typeof BankAccountScalarFieldEnum)[keyof typeof BankAccountScalarFieldEnum]
 
 
 export const SortOrder = {

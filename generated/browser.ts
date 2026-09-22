@@ -132,3 +132,28 @@ export type Mailbox = Prisma.MailboxModel
  * 
  */
 export type MailMessage = Prisma.MailMessageModel
+/**
+ * Model Customer
+ * 
+ */
+export type Customer = Prisma.CustomerModel
+/**
+ * Model SerialKey
+ * 
+ */
+export type SerialKey = Prisma.SerialKeyModel
+/**
+ * Model Invoice
+ * 
+ */
+export type Invoice = Prisma.InvoiceModel
+/**
+ * Model Quotation
+ * 
+ */
+export type Quotation = Prisma.QuotationModel
+/**
+ * Model BankAccount
+ * 
+ */
+export type BankAccount = Prisma.BankAccountModel

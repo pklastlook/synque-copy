@@ -42,6 +42,7 @@ import {
   Hash,
   Pause,
   Snowflake,
+  Trash2,
 } from "lucide-react";
 import { useApi, fmt } from "@/lib/hooks";
 import { GlassCard, KpiCard } from "@/components/glass/glass-card";
@@ -837,6 +838,21 @@ function AccountCard({ account }: { account: AccountData }) {
           )}
         >
           <ShieldAlert className="h-3.5 w-3.5" /> Health
+        </button>
+        <button
+          onClick={async () => {
+            if (!confirm(`Remove ${account.displayName}? This will delete all related data.`)) return;
+            try {
+              const res = await fetch(`/api/accounts/${account.id}`, { method: "DELETE" });
+              if (res.ok) { toast.success(`${account.displayName} removed`); window.location.reload(); }
+              else toast.error("Failed to remove account");
+            } catch { toast.error("Network error"); }
+          }}
+          className="grid h-9 w-9 place-items-center rounded-xl bg-rose-500/10 text-rose-500 transition hover:bg-rose-500/20"
+          aria-label="Remove account"
+          title="Remove account"
+        >
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
