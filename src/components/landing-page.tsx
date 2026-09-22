@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  Sparkles,
   ArrowRight,
   ShieldCheck,
   Zap,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth, type AuthRole } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
+import { Logo, LogoWordmark } from "@/components/glass/logo";
 
 type Mode = "landing" | "login";
 
@@ -45,18 +45,13 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
       {/* Nav */}
       <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-6xl items-center justify-between rounded-2xl px-5 py-3 sm:w-[calc(100%-3rem)]">
         <div className="flex items-center gap-2.5">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-[28%] bg-gradient-to-br from-[var(--primary)] via-[var(--gold)] to-[oklch(0.72_0.16_200)] shadow-lg">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
-          <div className="leading-tight">
-            <div className="text-base font-bold tracking-tight">Prism</div>
-            <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Social Workflow</div>
-          </div>
+          <Logo size={32} />
+          <LogoWordmark />
         </div>
         <div className="hidden items-center gap-6 md:flex">
           <a href="#features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</a>
           <a href="#workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</a>
-          <a href="#stats" className="text-sm text-muted-foreground transition hover:text-foreground">Why Prism</a>
+          <a href="#stats" className="text-sm text-muted-foreground transition hover:text-foreground">Why Syncwave</a>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onGetStarted} className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:block">
@@ -164,7 +159,7 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
           <div className="grid items-center gap-8 lg:grid-cols-2">
             <div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
-                <Zap className="h-3 w-3" /> The Prism flow
+                <Zap className="h-3 w-3" /> The Syncwave flow
               </div>
               <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
                 Write once. Publish <span className="gold-text">everywhere.</span>
@@ -227,7 +222,7 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
             Ready to <span className="gold-text">elevate</span> your social team?
           </h2>
           <p className="relative mx-auto mt-3 max-w-md text-muted-foreground">
-            Join the teams using Prism to publish smarter, protect their accounts, and beat the competition.
+            Join the teams using Syncwave to publish smarter, protect their accounts, and beat the competition.
           </p>
           <button onClick={onGetStarted} className="liquid-gold glow-ring relative mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto">
             Get started free <ArrowRight className="h-4 w-4" />
@@ -239,12 +234,10 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
       <footer className="border-t border-border/40 px-4 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--primary)] to-[var(--gold)]">
-              <Sparkles className="h-3 w-3 text-white" />
-            </div>
-            <span>Prism Social · Enterprise command center for social teams</span>
+            <Logo size={22} />
+            <span>Syncwave · Enterprise command center for social teams</span>
           </div>
-          <span>© 2026 Prism · Navy & Gold premium</span>
+          <span>© 2026 Syncwave · Liquid retina premium</span>
         </div>
       </footer>
     </div>
@@ -286,13 +279,8 @@ function LoginScreen({ onBack, onLogin }: { onBack: () => void; onLogin: (role: 
           <div className="glass-strong crystal-in relative hidden flex-col justify-between p-10 lg:flex">
             <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[var(--gold)]/15 blur-3xl" />
             <div className="relative flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-[28%] bg-gradient-to-br from-[var(--primary)] via-[var(--gold)] to-[oklch(0.72_0.16_200)] shadow-lg">
-                <Sparkles className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <div className="text-lg font-bold tracking-tight">Prism</div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Social Workflow</div>
-              </div>
+              <Logo size={38} />
+              <LogoWordmark size="text-lg" />
             </div>
 
             <div className="relative">
