@@ -11,18 +11,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Prism — Social Team Workflow",
+  title: "Syncwave — Social Team Workflow",
   description:
-    "Prism is a liquid-glass social media team work management platform. Publish to multiple accounts in one flow, generate per-account AI content, and track advanced analytics.",
+    "Syncwave is a liquid-retina social media team work management platform. Publish to multiple accounts in one flow, generate per-account AI content, and track advanced analytics.",
   keywords: [
     "social media management",
     "team workflow",
     "multi-account publishing",
     "AI content generation",
     "analytics",
-    "Prism",
+    "Syncwave",
   ],
-  authors: [{ name: "Prism" }],
+  authors: [{ name: "Syncwave" }],
 };
 
 export default function RootLayout({

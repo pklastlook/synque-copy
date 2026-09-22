@@ -121,45 +121,41 @@ export function DashboardView() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div className="crystal-in" style={{ animationDelay: "0.05s" }}>
         <KpiCard
           label="Total Followers"
           value={data.kpis.totalFollowers.display}
           delta={data.kpis.totalFollowers.delta}
           icon={<Users className="h-5 w-5" />}
-          accent="oklch(0.7 0.24 14)"
+          accent="oklch(0.64 0.19 255)"
           hint={`across ${data.kpis.accounts} accounts`}
+          delay={50}
         />
-        </div>
-        <div className="crystal-in" style={{ animationDelay: "0.12s" }}>
         <KpiCard
           label="Impressions"
           value={data.kpis.impressions.display}
           delta={data.kpis.impressions.delta}
           icon={<Eye className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
+          accent="oklch(0.78 0.16 200)"
           hint="last 30 days"
+          delay={120}
         />
-        </div>
-        <div className="crystal-in" style={{ animationDelay: "0.19s" }}>
         <KpiCard
           label="Engagement"
           value={data.kpis.engagement.display}
           delta={data.kpis.engagement.delta}
           icon={<Heart className="h-5 w-5" />}
-          accent="oklch(0.66 0.22 305)"
+          accent="oklch(0.7 0.18 230)"
           hint="likes + comments + shares"
+          delay={190}
         />
-        </div>
-        <div className="crystal-in" style={{ animationDelay: "0.26s" }}>
         <KpiCard
           label="Scheduled"
           value={data.kpis.scheduled}
           icon={<CalendarClock className="h-5 w-5" />}
-          accent="oklch(0.78 0.18 75)"
+          accent="oklch(0.74 0.16 280)"
           hint={`${data.kpis.published} published`}
+          delay={260}
         />
-        </div>
       </div>
 
       {/* Chart + platform donut */}

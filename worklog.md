@@ -646,3 +646,22 @@ Stage Summary:
 - Advanced settings: 11 comprehensive tabs including Team Roles & Permissions with live role/permission editing via API.
 - Users have rights (permissions array), designations (titles), departments, statuses.
 - 18 views render with 0 console errors. Lint: 0 errors, 0 warnings.
+
+---
+Task ID: syncwave-rebrand + sapphire-cyan + animated-cards
+Agent: Z.ai (orchestrator)
+Task: Logo → 3 color-changing dots in triangle; name → interactive/work-related; color scheme off gold → premium enterprise; animated cards; richer icons.
+
+Work Log:
+- New Logo component (src/components/glass/logo.tsx): SVG of 3 dots arranged in a triangle (apex top, base bottom-left/right). Each dot has a radial gradient (indigo/cyan/violet) and cycles hue via 3 staggered @keyframes (dotHue1/2/3 over 6s) + a subtle float (dotFloat1/2/3 over 3s). Optional rounded tile wrapper with sapphire→indigo→violet gradient + inner ring highlight. LogoWordmark renders "Sync" + animated gradient "wave".
+- Rebranded "Prism" → "Syncwave" everywhere: sidebar, landing nav, landing hero, login brand panel, footer, auth-store storage key (syncwave-auth), layout metadata title/description/keywords/authors. "Social Workflow" subtitle → "Social Command".
+- Color scheme rework: replaced gaudy gold (oklch 0.85 0.13 85 amber) with premium electric cyan (oklch 0.78 0.16 200 dark / 0.72 0.16 200 light). --gold now drives a cyan accent throughout. retaina-text + gold-text gradients reworked to sapphire→cyan→indigo. liquid-pill = sapphire gradient with cyan glow on hover. liquid-gold = electric cyan gradient. Chart palette = sapphire/cyan/indigo/teal/violet. Bulk-replaced all hardcoded oklch gold values.
+- Animated cards: enhanced KpiCard with (a) count-up animation (useCountUp hook, easeOutCubic, 1.1s) for numeric values, (b) premium gradient icon tile with glow blur behind icon + scale/rotate on hover, (c) crystal-in staggered entrance built-in via delay prop, (d) ambient gradient glow that scales on hover. Updated dashboard KPI section to pass delay + new sapphire/cyan accent colors (removed wrapper divs, KpiCard handles its own crystal-in).
+- Icons: KpiCard icons now sit in animated gradient tiles with glow (was flat solid squares).
+
+Stage Summary:
+- Logo = 3 color-changing dots in triangle (verified by VLM).
+- Name = "Syncwave" (interactive, work-related — evokes multi-platform sync/wave).
+- Color scheme = sapphire blue + electric cyan liquid retina (NO gold) — VLM 9/10 premium.
+- KPI cards now animated: count-up numbers, gradient icon tiles with glow + hover scale/rotate, staggered crystal-in entrance.
+- Sidebar still fixed. 18 views, 0 console errors. Lint: 0 errors, 0 warnings.
