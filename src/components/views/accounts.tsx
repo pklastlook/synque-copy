@@ -531,22 +531,6 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 />
               </div>
 
-              {/* Owner assignment */}
-              <div>
-                <Label className="text-xs font-medium">Assign to team member</Label>
-                <Select value={form.ownerId} onValueChange={(v) => setForm({ ...form, ownerId: v })}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="u-admin">Maya Reyes (Admin)</SelectItem>
-                    <SelectItem value="u-1">Daniel Cho</SelectItem>
-                    <SelectItem value="u-2">Priya Nair</SelectItem>
-                    <SelectItem value="u-3">Leo Marchetti</SelectItem>
-                    <SelectItem value="u-4">Sara Okafor</SelectItem>
-                    <SelectItem value="u-5">Tom Becker</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
               {/* Security note */}
               <div className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-[11px] text-muted-foreground">
                 <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
@@ -766,15 +750,6 @@ function AccountCard({ account }: { account: AccountData }) {
           </div>
           <div className="truncate text-xs text-muted-foreground">
             {account.handle}
-          </div>
-          {/* Owner — muted secondary */}
-          <div className="mt-1.5 flex items-center gap-1.5 opacity-60">
-            <NameAvatar
-              name={account.ownerName}
-              color={account.ownerColor}
-              className="h-4 w-4 text-[8px]"
-            />
-            <span className="text-[11px] text-muted-foreground">{account.ownerName}</span>
           </div>
         </div>
         {/* Health status badge */}
