@@ -935,3 +935,96 @@ Stage Summary:
 - Media Library: Expandable in sidebar with All Media/Images/Videos/Audio sub-items.
 - Campaigns: No budget field anywhere (interface, cards, creation dialog, KPIs).
 - All 13 APIs return 200. Lint: 0 errors, 0 warnings. Pushed to GitHub.
+
+---
+
+## Task ID: owner-panel — `owner-panel`
+
+**Agent**: owner-panel
+**Task**: Build the Owner Panel view component (`OwnerView`, `"use client"`) for SocialFlow. Single `/` route, client-side view switching — the component is already wired into `app-shell.tsx` (`view === "owner"`). API routes already exist for customers, serial-keys, invoices, quotations, bank-accounts.
+
+### File delivered
+`/home/z/my-project/src/components/views/owner.tsx` — named export `OwnerView` (~2 950 lines, single client component).
+
+### What was built
+
+**Shared infrastructure (top of file)**
+- Full TS interfaces (`Customer`, `SerialKey`, `LineItem`, `Invoice`, `Quotation`, `BankAccount`) matching the exact JSON shapes returned by each `/api/*` route.
+- Helpers: `money(n, currency)` (Intl.NumberFormat with fallback), `statusTone(status)` mapping active/activated/paid/accepted → emerald, trial/unused/sent/draft → amber, suspended/revoked/overdue/rejected → rose; `StatusPill` (dot + label), `planTone(plan)` (starter=neutral, growth=teal, enterprise=violet), `maskNumber(num)` for account/IBAN display, `api(method, url, body)` wrapper that throws on `!ok`.
+- Constants: `PLANS = ["starter","growth","enterprise"]`, `CURRENCIES = ["USD","EUR","GBP","AED","SAR","INR","PKR"]`.
+- `SegmentedTabs` — custom pill-style segmented control with active = `bg-primary text-primary-foreground`, scrollable on mobile (`overflow-x-auto scroll-liquid no-scrollbar`), proper `role="tab"` + `aria-selected`.
+- `Field` wrapper (label + hint + children) used throughout the dialogs.
+- `LineItemsEditor` — grid editor (description / qty / unit price / amount auto-calc / remove button), add-row button, live subtotal, `max-h-52 overflow-y-auto scroll-liquid`.
+- `InvoicePrintLayout` — letter-size (max-w-[8.5in]) print document used by both invoices & quotations: header (SocialFlow brand + INVOICE/QUOTATION + number + issue/due date + status), Bill To block (name + company + email + phone + address), Payment details block (default bank: bankName / accountName / accountNumber / IBAN / SWIFT / currency pill), items `<table>` (description, qty, unit price, amount), totals (Subtotal / Tax (rate%) / Total), optional notes block, terms + thank-you footer.
+
+**Tab 1: Customers (`CustomersTab`)**
+- KPI strip (4 × `KpiCard`): total / active / trial / suspended.
+- Customer grid (`sm:grid-cols-2 xl:grid-cols-3`) of cards: `NameAvatar` + name + `StatusPill` + dropdown (Edit / Mark active / Mark trial / Suspend / Delete); 2-cell mini-grid (Company, Plan badge with plan-tone color); 3-cell footer (serial-key icon if assigned, invoices count, quotations count).
+- Add/Edit `Dialog` (max-w-lg) with 2-column form: name, email, phone, company, address, city, country, plan `Select` (`PLANS`).
+- POST `/api/customers` (create) or PATCH `/api/customers/[id]` (edit) → `reload()` + `toast.success`. DELETE `/api/customers/[id]` with confirm.
+
+**Tab 2: Serial Keys (`SerialKeysTab`)**
+- KPI strip (4 × `KpiCard`): total / activated / unused / revoked.
+- "Generate key" `liquid-pill glow-ring` button → POST `/api/serial-keys` (no body needed) → `reload()` + `toast.success("New serial key generated")`.
+- List (`max-h-[560px] overflow-y-auto scroll-liquid`): each row shows key in `<code className="font-mono">`, copy button (`navigator.clipboard.writeText`), `StatusPill`, customer name (or "Unassigned"), device name (with `Building2` icon), activated date. Dropdown actions: Assign to customer / Revoke / Delete. PATCH `/api/serial-keys/[id]` with `{status: "revoked"}` or `{customerId}`. DELETE with confirm.
+- Assign dialog: pick from the live `customers` list passed in from parent.
+
+**Tab 3: Invoices (`InvoicesTab`)**
+- KPI strip (5 × `KpiCard`): total / paid / pending / overdue / revenue (sum of paid totals).
+- "New invoice" button → `Dialog` (max-w-2xl) with: customer `Select`, due-date `<input type="date">`, full `LineItemsEditor`, tax-rate input, live totals panel (Subtotal / Tax (rate%) / Total), notes `Textarea`.
+- POST `/api/invoices` with `{customerId, items, taxRate, dueDate, notes, subtotal, taxAmount, total}` → `reload()` + toast.
+- List: invoice number (mono) + `StatusPill` + customer + issued date + due date + total + item count + dropdown: Export PDF / Mark sent / Mark paid / Mark overdue / Delete. PATCH `/api/invoices/[id]` with `{status}`. DELETE with confirm.
+- **Export PDF**: `setPrintDoc(inv)` triggers a `useEffect` that calls `window.print()` after 80ms (so the layout is committed to DOM). The `InvoicePrintLayout` renders as a `position: fixed inset-0 z-[9999] bg-white` overlay on screen, with `@media print` rules that hide `body *` and only show `.print-area`. `afterprint` event clears `printDoc`. Default bank account (or first if no default) is pulled from `/api/bank-accounts` and passed to the print layout.
+
+**Tab 4: Quotations (`QuotationsTab`)**
+- Same structure as Invoices with quotation-specific differences:
+  - KPI strip: total / sent / accepted / rejected / pipeline value (sum of accepted totals).
+  - "Valid until" date field instead of due date.
+  - Status flow: draft → sent → accepted/rejected (no overdue).
+  - POST `/api/quotations` with `{customerId, items, taxRate, validUntil, notes, ...}`.
+  - Reuses the same `InvoicePrintLayout` with `kind="quotation"` (renders "QUOTATION" header + "Valid until" label + 30-day-quotation terms text).
+
+**Tab 5: Bank Accounts (`BankAccountsTab`)**
+- KPI-less; directly a `GlassCard` grid (`sm:grid-cols-2 xl:grid-cols-3`) of bank cards with ambient primary blur, Landmark icon tile, bank name + Default badge (amber pill with star), account name, masked account number (`•••• •••• 1234`), masked IBAN, SWIFT, currency `Badge variant="outline"`. Dropdown: Edit / Set as default / Delete.
+- Add/Edit `Dialog` (max-w-lg): account name, bank name, account number, currency `Select`, IBAN, SWIFT/BIC, "Set as default" checkbox. POST `/api/bank-accounts` or PATCH `/api/bank-accounts/[id]` with `isDefault` toggle. DELETE with confirm.
+
+**Tab 6: Reports / Overview (`ReportsTab`)**
+- Pulls customers + serial-keys + invoices in parallel via 3 `useApi` calls.
+- KPI strip (4 × `KpiCard`): revenue (paid invoices) / pending (drafts+sent) / activation rate (%) / avg deal size (mean invoice total).
+- Customer growth `AreaChart` (last 14 days, cumulative customers + invoices, dual gradient fills, animated `animationBegin=200ms/450ms`).
+- Plan distribution `PieChart` (starter/growth/enterprise with distinct oklch colors) + customer-count center label + legend with counts.
+- Recent activity list (last 8 events merged from invoices, customers, and activated keys; sorted desc by timestamp; each row has icon-tinted tile + label + formatted date).
+- Revenue-by-plan `BarChart` with per-plan colored cells.
+
+**Main `OwnerView` shell**
+- Hero `GlassCard strong glass-sheen` with two ambient blur blobs (primary + violet), "Owner Panel" eyebrow with `Briefcase` icon, big title with `retaina-text` accent on "licensing", subtitle, and a hidden-on-mobile meta row (customers count + licensed count + today's date).
+- `SegmentedTabs` between hero and tab content (6 tabs: Customers / Serial Keys / Invoices / Quotations / Bank Accounts / Reports).
+- Each tab renders its own `GlassCard crystal-in` content panel.
+- Parent fetches `/api/customers` once and passes the list down to serial-keys (assign dialog), invoices, and quotations (customer selects) — avoids duplicate fetches.
+
+### Quality
+- TypeScript strict throughout, no `any`. Every API response shape is captured as an interface; statuses are typed unions (`"active" | "trial" | "suspended"`, `"unused" | "activated" | "revoked"`, `"draft" | "sent" | "paid" | "overdue"`, `"draft" | "sent" | "accepted" | "rejected"`).
+- `"use client"` directive at top of file.
+- All `<img>` usage is avoided entirely (no avatar/image rendering needed; `NameAvatar` handles initials internally with its own gradient system — no eslint-disable directive required).
+- Reuses the established design-system primitives only: `GlassCard`, `KpiCard`, `SectionTitle`, `NameAvatar`, `useApi`, `fmt`, `cn`, shadcn `Dialog`, `DropdownMenu`, `Select`, `Input`, `Label`, `Textarea`, `Button`, `Badge`.
+- Buttons match dashboard aesthetic: `liquid-pill glow-ring` for primary CTAs, `liquid-pill` for submit buttons inside dialogs.
+- Loading skeletons use `shimmer` class; tab content panels use `crystal-in` for staggered entrance.
+- All lists that can grow large use `max-h-[560px] overflow-y-auto scroll-liquid pr-1` for the project's custom scrollbar.
+- Mobile-first responsive: KPI grids go `grid-cols-2 lg:grid-cols-4 xl:grid-cols-5`, customer/bank cards `sm:grid-cols-2 xl:grid-cols-3`, charts `lg:grid-cols-3` (with `lg:col-span-2` on the wide one), segmented tabs scroll horizontally on narrow screens (icons-only labels under `sm`).
+- Color palette: rose `var(--primary)` for primary accents, teal `oklch(0.74 0.18 165)` for growth/active, amber `oklch(0.82 0.14 85)` for trial/unused/default-badge, violet `oklch(0.72 0.22 300)` for enterprise/secondary accent, coral `oklch(0.7 0.2 25)` for overdue/suspended. No blue/indigo.
+
+### Print PDF implementation details
+- `printDoc` state (`Invoice | Quotation | null`) in each tab.
+- On set, `useEffect` schedules `window.print()` after 80ms and registers an `afterprint` listener that clears `printDoc`.
+- A `<style>` block is rendered conditionally alongside the layout containing `@media print { body * { visibility: hidden !important; } .print-area, .print-area * { visibility: visible !important; } .print-area { position: absolute; left: 0; top: 0; width: 100%; background: white !important; } }` and `@media screen { .print-area { position: fixed; inset: 0; z-index: 9999; overflow: auto; background: white; } }` so the user sees the formatted invoice briefly before the print dialog opens.
+- The `InvoicePrintLayout` renders a `div.print-area` with `max-w-[8.5in]` (letter width), `p-10`, neutral-900 text on white, with the SocialFlow brand header, bill-to block, payment details block (default bank account), items `<table>`, totals block, notes, terms, and thank-you footer.
+
+### Verification
+- `bun run lint` → exit 0, no output (0 errors, 0 warnings).
+- `bunx tsc --noEmit -p .` → no errors in `src/components/views/owner.tsx` (other pre-existing errors in `approvals.tsx`, `campaigns.tsx`, `examples/`, `skills/` are outside this task's scope).
+- Dev server log shows clean 200 responses on `/` with no compile/runtime errors after the file was saved.
+
+### Notes for downstream agents
+- The `InvoicePrintLayout` is exported only as an internal function (no named export beyond `OwnerView`). If another view needs to print a pre-existing invoice/quotation, refactor it into a shared module under `@/components/print/`.
+- `ReportsTab` makes 3 parallel `useApi` calls — if you add a 4th KPI that depends on another endpoint, follow the same pattern (early-return skeleton while any of them is null).
+- The `customerList` is fetched once in `OwnerView` and threaded down to 3 child tabs to avoid redundant requests. If you add a new tab that also needs customers, accept it as a prop rather than re-fetching.

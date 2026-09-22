@@ -35,6 +35,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   linkbio: { title: "Link in Bio", subtitle: "Your shoppable link-in-bio page" },
   mail: { title: "Mail Server", subtitle: "Custom domain mailboxes for your team" },
   admin: { title: "Admin Panel", subtitle: "Complete team performance, workflow & oversight" },
+  owner: { title: "Owner Panel", subtitle: "Customers, invoices, quotations, serial keys & banking" },
 };
 
 export function AppHeader({ onMenu }: { onMenu: () => void }) {

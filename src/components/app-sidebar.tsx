@@ -25,6 +25,7 @@ import {
   Link2,
   Mail,
   ShieldCheck,
+  Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
@@ -51,6 +52,7 @@ const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; 
   { id: "accounts", label: "Accounts", icon: AtSign, group: "Workspace", accent: "oklch(0.68 0.2 145)" },
   { id: "team", label: "Team", icon: Users, group: "Workspace", accent: "oklch(0.62 0.22 300)" },
   { id: "mail", label: "Mail Server", icon: Mail, group: "Workspace", accent: "oklch(0.66 0.18 200)" },
+  { id: "owner", label: "Owner Panel", icon: Briefcase, group: "Workspace", accent: "oklch(0.72 0.18 75)" },
   // Note: "Media Library" is rendered as an expandable parent group below
   // (see <MediaGroup /> inside the Content group render) — it is no
   // longer a flat NAV entry so it can expand into its sub-sections.
