@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ArrowRight, Rocket, Globe, ShieldCheck, Zap, Users } from "lucide-react";
-import { LandingNav, LandingFooter, LandingBg } from "@/components/landing-shared";
+import { LandingNav, LandingFooter, LandingBg, TrialCTA } from "@/components/landing-shared";
 import { GlassCard } from "@/components/glass/glass-card";
 import Link from "next/link";
 
@@ -83,9 +83,9 @@ export default function AboutPage() {
         <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
           <h2 className="text-3xl font-bold tracking-tight">Join the <span className="gold-text">movement</span></h2>
           <p className="mt-3 text-muted-foreground">Start your 15-day trial and see why teams switch to SocialFlow.</p>
-          <Link href="/login" className="liquid-gold glow-ring mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto w-fit">
-            <Rocket className="h-4 w-4" /> Start your 15-day trial <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="mt-6 mx-auto w-fit">
+            <TrialCTA className="liquid-gold glow-ring" />
+          </div>
         </div>
       </section>
 

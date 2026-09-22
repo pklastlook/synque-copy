@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ArrowRight, Check, Rocket, CreditCard, Star } from "lucide-react";
-import { LandingNav, LandingFooter, LandingBg } from "@/components/landing-shared";
+import { LandingNav, LandingFooter, LandingBg, TrialCTA } from "@/components/landing-shared";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -65,9 +65,7 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/login" className={cn("mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition", p.featured ? "liquid-gold glow-ring" : "border border-border/50 bg-muted/40 hover:bg-muted")}>
-                Start 15-day trial <ArrowRight className="h-4 w-4" />
-              </Link>
+              <TrialCTA className={cn("mt-6 w-full justify-center rounded-xl py-2.5", p.featured ? "liquid-gold glow-ring" : "border border-border/50 bg-muted/40 hover:bg-muted")} label="Start 15-day trial" />
             </div>
           ))}
         </div>
@@ -95,9 +93,9 @@ export default function PricingPage() {
         <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
           <h2 className="text-3xl font-bold tracking-tight">Still have <span className="gold-text">questions?</span></h2>
           <p className="mt-3 text-muted-foreground">Start your trial and explore everything risk-free for 15 days.</p>
-          <Link href="/login" className="liquid-gold glow-ring mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto w-fit">
-            <Rocket className="h-4 w-4" /> Start your 15-day trial <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="mt-6 mx-auto w-fit">
+            <TrialCTA className="liquid-gold glow-ring" />
+          </div>
         </div>
       </section>
 

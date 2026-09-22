@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ArrowRight, Zap, Check, Wand2, Rocket } from "lucide-react";
-import { LandingNav, LandingFooter, LandingBg } from "@/components/landing-shared";
+import { LandingNav, LandingFooter, LandingBg, TrialCTA } from "@/components/landing-shared";
 import Link from "next/link";
 
 const STEPS = [
@@ -87,9 +87,9 @@ export default function WorkflowPage() {
       <section className="mx-auto max-w-4xl px-4 py-16 text-center">
         <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
           <h2 className="text-3xl font-bold tracking-tight">Experience the <span className="gold-text">flow</span> yourself</h2>
-          <Link href="/login" className="liquid-gold glow-ring mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto w-fit">
-            <Rocket className="h-4 w-4" /> Start your 15-day trial <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="mt-6 mx-auto w-fit">
+            <TrialCTA className="liquid-gold glow-ring" />
+          </div>
         </div>
       </section>
 
