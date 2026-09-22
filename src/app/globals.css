@@ -502,6 +502,34 @@
   animation: crystalSweep 1.1s ease;
 }
 
+/* Crystal card — premium animated surface with living edge glow */
+.crystal-card {
+  position: relative;
+  isolation: isolate;
+}
+.crystal-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--glass-highlight), transparent 40%, transparent 60%, var(--glass-highlight));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.crystal-card:hover::before {
+  opacity: 1;
+  animation: edgeShimmer 2s linear infinite;
+}
+@keyframes edgeShimmer {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(20deg); }
+}
+
 /* Number count-up reveal */
 @keyframes numPop {
   0% { opacity: 0; transform: translateY(8px) scale(0.9); }
