@@ -33,7 +33,7 @@ import {
   PhoneCall,
   Hash,
 } from "lucide-react";
-import { useAuth, type AuthRole } from "@/lib/auth-store";
+import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { LogoWordmark } from "@/components/glass/logo";
 import {
@@ -55,26 +55,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-type Mode = "landing" | "login" | "splash" | "trial";
+type Mode = "landing" | "login" | "trial";
 
 export function LandingPage() {
-  const { login } = useAuth();
   const [mode, setMode] = React.useState<Mode>("landing");
-  const [pendingRole, setPendingRole] = React.useState<AuthRole>("admin");
 
-  if (mode === "splash") {
-    return <SplashScreen onComplete={() => login(pendingRole)} />;
-  }
   if (mode === "login") {
-    return (
-      <LoginScreen
-        onBack={() => setMode("landing")}
-        onEnter={(role) => {
-          setPendingRole(role);
-          setMode("splash");
-        }}
-      />
-    );
+    return <LoginScreen onBack={() => setMode("landing")} />;
   }
   return (
     <>
@@ -82,7 +69,7 @@ export function LandingPage() {
       <TrialDialog
         open={mode === "trial"}
         onOpenChange={(b) => { if (!b) setMode("landing"); }}
-        onActivated={() => { setMode("splash"); setPendingRole("admin"); }}
+        onActivated={() => { /* auth store handles transition to app */ }}
       />
     </>
   );
@@ -492,36 +479,29 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
         </div>
       </section>
 
-      {/* ===== Story Act 7: Testimonials ===== */}
+      {/* ===== Story Act 7: Get started ===== */}
       <section id="testimonials" className="mx-auto max-w-6xl px-4 py-16">
-        <div className="mb-10 text-center">
-          <span className="crystal-in inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
-            <Star className="h-3 w-3" /> Loved by teams
-          </span>
-          <h2 className="crystal-in mt-4 text-3xl font-bold tracking-tight sm:text-4xl" style={{ animationDelay: "0.1s" }}>
-            Teams ship <span className="gold-text">3× faster</span> with SocialFlow
+        <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12 text-center">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Built for teams that <span className="gold-text">move fast</span>
           </h2>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {TESTIMONIALS.map((t, i) => (
-            <div key={t.name} className="crystal-in crystal-card glass lift-hover rounded-3xl p-6" style={{ animationDelay: `${0.08 * i + 0.1}s` }}>
-              <div className="flex gap-0.5">
-                {Array.from({ length: 5 }).map((_, s) => (
-                  <Star key={s} className="h-3.5 w-3.5 fill-[var(--gold)] text-[var(--gold)]" />
-                ))}
+          <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+            Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
+            Start your 15-day trial — full access, no card to explore.
+          </p>
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { v: "17", l: "Integrated modules" },
+              { v: "7+", l: "Social platforms" },
+              { v: "AI", l: "Per-account content" },
+              { v: "24/7", l: "Account protection" },
+            ].map((s, i) => (
+              <div key={s.l} className="crystal-in" style={{ animationDelay: `${0.1 * i + 0.1}s` }}>
+                <div className="num-display text-2xl font-bold text-[var(--gold)]">{s.v}</div>
+                <div className="label-caps mt-1 text-muted-foreground">{s.l}</div>
               </div>
-              <p className="mt-4 text-sm leading-relaxed text-foreground/80">&ldquo;{t.quote}&rdquo;</p>
-              <div className="mt-4 flex items-center gap-2.5">
-                <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-xs font-bold text-white">
-                  {t.name.split(" ").map((w) => w[0]).join("")}
-                </div>
-                <div>
-                  <div className="text-sm font-semibold">{t.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{t.role}</div>
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
@@ -643,9 +623,10 @@ function FooterCol({ title, links }: { title: string; links: string[] }) {
 
 /* ===================== Trial Activation Dialog ===================== */
 function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpenChange: (b: boolean) => void; onActivated: () => void }) {
+  const { signup } = useAuth();
   const [step, setStep] = React.useState<"details" | "payment" | "activating" | "done">("details");
   const [form, setForm] = React.useState({
-    name: "", email: "", company: "", teamSize: "5-10", phone: "",
+    name: "", email: "", company: "", teamSize: "5-10", phone: "", password: "",
     cardName: "", cardNumber: "", expiry: "", cvc: "",
   });
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -663,6 +644,8 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
     if (!form.email.trim()) e.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Invalid email";
     if (!form.company.trim()) e.company = "Company is required";
+    if (!form.password.trim()) e.password = "Password is required";
+    else if (form.password.length < 6) e.password = "Min 6 characters";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -683,9 +666,15 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
   const activate = async () => {
     if (!validatePayment()) return;
     setStep("activating");
-    await new Promise((r) => setTimeout(r, 2200));
-    setStep("done");
-    setTimeout(onActivated, 1400);
+    // Create the real user account via the signup API
+    const success = await signup(form.name.trim(), form.email.trim(), form.password);
+    if (success) {
+      setStep("done");
+      setTimeout(onActivated, 1400);
+    } else {
+      setStep("payment");
+      toast.error("Failed to create account. This email may already be registered.");
+    }
   };
 
   return (
@@ -730,6 +719,7 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
                 </div>
                 <Field icon={<PhoneCall className="h-3.5 w-3.5" />} label="Phone (optional)" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="+1 555 0100" />
               </div>
+              <Field icon={<Lock className="h-3.5 w-3.5" />} label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder="Min 6 characters" error={errors.password} />
               <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
                 <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
                 <span>Your card won&apos;t be charged today. You&apos;ll get a reminder 3 days before the trial ends. Cancel anytime.</span>
@@ -858,22 +848,28 @@ function Field({ icon, label, value, onChange, placeholder, error, type = "text"
 }
 
 /* ===================== Login (no role buttons) ===================== */
-function LoginScreen({ onBack, onEnter }: { onBack: () => void; onEnter: (role: AuthRole) => void }) {
+function LoginScreen({ onBack }: { onBack: () => void }) {
+  const { login } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPw, setShowPw] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      toast.error("Please enter your email and password");
+      setError("Please enter your email and password");
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      onEnter("admin");
-    }, 700);
+    setError("");
+    const success = await login(email.trim(), password);
+    if (!success) {
+      setError("Invalid email or password. If you're new, start a free trial.");
+      setLoading(false);
+    }
+    // If success, the auth store updates isAuthenticated and page.tsx switches to AppShell
   };
 
   return (
@@ -966,6 +962,12 @@ function LoginScreen({ onBack, onEnter }: { onBack: () => void; onEnter: (role: 
                 <button type="button" className="font-medium text-[var(--primary)] hover:underline">Forgot password?</button>
               </div>
 
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-500">
+                  <ShieldAlert className="h-3.5 w-3.5" /> {error}
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
@@ -1002,20 +1004,8 @@ const FEATURES = [
   { icon: Hash, title: "Hashtag Manager", desc: "Save reusable hashtag groups per platform, track trending tags, and block shadowbanned hashtags." },
 ];
 
-const TESTIMONIALS = [
-  { name: "Maya Reyes", role: "Head of Social, Lumen Labs", quote: "We cut our publishing time by 70%. One brief goes in, 5 platform-native posts come out. The AI is uncanny." },
-  { name: "Daniel Cho", role: "Content Lead, Northwind", quote: "No more suspended accounts. The health monitor flagged a risk before we even knew it existed. Lifesaver." },
-  { name: "Priya Nair", role: "Community Manager, Vista", quote: "Finally, one inbox for all 10 accounts. My team replies 3× faster and nothing falls through the cracks." },
-  { name: "Leo Marchetti", role: "Creator, solo", quote: "The composer wizard is genius. Accounts → content → media → preview → post. Done in 2 minutes." },
-  { name: "Sara Okafor", role: "Paid Social, Brightline", quote: "The analytics are real, not vanity. I finally know which platform actually drives conversions." },
-  { name: "Tom Becker", role: "Copywriter, Folk", quote: "As a writer I was skeptical of AI captions. SocialFlow's per-platform variants are genuinely distinct, not reformatted." },
-];
-
 const PLANS = [
   { name: "Starter", price: "$29", desc: "For solo creators & small teams getting started.", features: ["3 social accounts", "1 user", "AI composer (100/mo)", "Basic analytics", "Email support"], featured: false },
   { name: "Growth", price: "$89", desc: "For growing teams that publish daily.", features: ["15 social accounts", "5 users", "Unlimited AI composer", "Advanced analytics", "Account protection", "Approval workflows", "Priority support"], featured: true },
   { name: "Enterprise", price: "Custom", desc: "For large teams with custom needs.", features: ["Unlimited accounts", "Unlimited users", "Custom domain mail server", "SSO + SAML", "Dedicated success manager", "99.9% SLA"], featured: false },
 ];
-
-// keep AuthRole import used
-void (null as unknown as AuthRole);

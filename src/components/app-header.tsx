@@ -110,7 +110,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           <LogOut className="h-[18px] w-[18px]" />
         </button>
 
-        <NameAvatar name={user?.name ?? "Maya Reyes"} color="rose" className="h-9 w-9 shrink-0 text-xs" ring />
+        <NameAvatar name={user?.name ?? "User"} color="blue" className="h-9 w-9 shrink-0 text-xs" ring />
       </div>
     </header>
   );
