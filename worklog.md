@@ -780,3 +780,25 @@ Stage Summary:
 - Composer = 5-step wizard (Accounts→Content→Media→Preview→Post), enhanced + interactive.
 - Settings = expandable in main sidebar, in-page nav removed, full-width sections with breadcrumb.
 - 18 views, 0 console errors. Sidebar fixed. Lint: 0 errors, 0 warnings.
+
+---
+Task ID: pulsesync-rebrand + macOS27-tahoe + section-sidebar + crystal-solid
+Agent: Z.ai (orchestrator)
+Task: Remove logo (name-only), new name, Apple macOS 27 color scheme, crystal-solid theme, animated charts, section-tinted colored-icon sidebar.
+
+Work Log:
+- Logo removed: removed <Logo> mark from sidebar, landing nav, splash, footer, login brand panel. Now name-only everywhere.
+- New name: "PulseSync" (work-related — evokes activity pulse + multi-platform sync). Updated wordmark, landing hero, splash, footer, login, auth-store key (pulsesync-auth), layout metadata.
+- Apple macOS 27 "Tahoe" color scheme: vibrant mesh gradient background (periwinkle/violet/coral/blue radial gradients + animated blobs). Brand = Apple blue (oklch 0.55 0.2 255). Accent = vivid violet (oklch 0.62 0.22 300). Chart palette = vivid multi-color (blue/violet/green/coral/amber — Apple-style saturated). Replaced obsidian+emerald entirely.
+- Crystal-solid glass: raised glass opacity to 92-97% (was 72%) so cards are SOLID not muddy/translucent. Stronger 2-layer drop shadows (0 8px 24px + 0 24px 64px) for premium depth/light-refraction. Borders 75% white (light refraction). Made body background transparent so the vibrant mesh shows through.
+- Animated charts: dashboard Area charts have isAnimationActive + staggered animationBegin (200ms/450ms) + 1200ms duration. KpiCard has count-up animation (easeOutCubic) + crystal-in staggered entrance + gradient icon tiles with glow + hover scale/rotate.
+- Section-tinted sidebar with colored icons: each nav item has its own accent color (Admin=violet, Dashboard=blue, Composer=coral, Calendar=green, Inbox=sky, Approvals=amber, etc.). Icons render in full color (not gray/dimmed). Active item gets a tinted rail + glow in its accent color. Badges use the item's accent color. The active section's color shifts the sidebar accent.
+- VLM verified: landing 9/10, dashboard 9/10, light mode 9/10 ("vibrant mesh gradient visible, crystal-solid cards with depth, vividly multi-colored sidebar icons").
+
+Stage Summary:
+- Name = "PulseSync", name-only (no logo icon).
+- Color = Apple macOS 27 Tahoe (vibrant mesh bg + Apple blue/violet + vivid multi-color charts).
+- Glass = crystal-SOLID (high opacity, strong depth shadows).
+- Charts = animated (draw-on + count-up + staggered).
+- Sidebar = section-tinted, every icon its own vivid color, active rail glows in accent.
+- 18 views, 0 console errors. Sidebar fixed. Lint: 0 errors, 0 warnings.
