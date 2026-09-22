@@ -16,6 +16,12 @@ interface NavState {
   composerSeed: string | null;
   openComposer: (seed?: string) => void;
   clearComposerSeed: () => void;
+  /** active settings sub-section (driven from the main sidebar) */
+  settingsTab: string;
+  setSettingsTab: (tab: string) => void;
+  /** whether the Settings group is expanded in the sidebar */
+  settingsExpanded: boolean;
+  toggleSettings: () => void;
 }
 
 export const useNav = create<NavState>((set) => ({
@@ -28,4 +34,8 @@ export const useNav = create<NavState>((set) => ({
   composerSeed: null,
   openComposer: (seed) => set({ composerSeed: seed ?? null, view: "composer" }),
   clearComposerSeed: () => set({ composerSeed: null }),
+  settingsTab: "team-roles",
+  setSettingsTab: (tab) => set({ settingsTab: tab }),
+  settingsExpanded: false,
+  toggleSettings: () => set((s) => ({ settingsExpanded: !s.settingsExpanded })),
 }));

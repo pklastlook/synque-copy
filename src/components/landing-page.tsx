@@ -21,16 +21,103 @@ import { useAuth, type AuthRole } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { Logo, LogoWordmark } from "@/components/glass/logo";
 
-type Mode = "landing" | "login";
+type Mode = "landing" | "login" | "splash";
 
 export function LandingPage() {
   const { login } = useAuth();
   const [mode, setMode] = React.useState<Mode>("landing");
+  const [pendingRole, setPendingRole] = React.useState<AuthRole>("admin");
 
+  if (mode === "splash") {
+    return <SplashScreen onComplete={() => login(pendingRole)} />;
+  }
   if (mode === "login") {
-    return <LoginScreen onBack={() => setMode("landing")} onLogin={login} />;
+    return (
+      <LoginScreen
+        onBack={() => setMode("landing")}
+        onEnter={(role) => {
+          setPendingRole(role);
+          setMode("splash");
+        }}
+      />
+    );
   }
   return <Landing onGetStarted={() => setMode("login")} />;
+}
+
+/* ===================== Splash Screen ===================== */
+function SplashScreen({ onComplete }: { onComplete: () => void }) {
+  const [progress, setProgress] = React.useState(0);
+  const [done, setDone] = React.useState(false);
+
+  React.useEffect(() => {
+    let p = 0;
+    const iv = setInterval(() => {
+      p += Math.random() * 14 + 6;
+      if (p >= 100) {
+        p = 100;
+        clearInterval(iv);
+        setProgress(100);
+        setTimeout(() => setDone(true), 350);
+        setTimeout(onComplete, 1100);
+      } else {
+        setProgress(Math.floor(p));
+      }
+    }, 180);
+    return () => clearInterval(iv);
+  }, [onComplete]);
+
+  return (
+    <div className={cn("relative min-h-screen overflow-hidden transition-opacity duration-500", done && "opacity-0")}>
+      <div className="retaina-bg" aria-hidden>
+        <div className="blob-3" />
+      </div>
+      <div className="relative flex min-h-screen flex-col items-center justify-center px-6">
+        {/* Animated logo mark — large, breathing */}
+        <div className="crystal-in relative mb-8" style={{ animationDelay: "0.05s" }}>
+          <div className="absolute inset-0 -z-10 scale-150 rounded-full bg-[var(--primary)]/20 blur-3xl" />
+          <Logo size={88} />
+        </div>
+
+        {/* Wordmark */}
+        <div className="crystal-in text-center" style={{ animationDelay: "0.15s" }}>
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            Sync<span className="retaina-text">wave</span>
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">Social Command Center</p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="crystal-in mt-10 w-full max-w-xs" style={{ animationDelay: "0.3s" }}>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--gold)] transition-all duration-200 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {progress < 30 ? "Initializing workspace…" : progress < 60 ? "Loading modules…" : progress < 90 ? "Syncing accounts…" : "Almost there…"}
+            </span>
+            <span className="tabular-nums">{progress}%</span>
+          </div>
+        </div>
+
+        {/* Loading dots */}
+        <div className="crystal-in mt-8 flex items-center gap-1.5" style={{ animationDelay: "0.4s" }}>
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]"
+              style={{ animation: `dotPulse 1.2s ease-in-out ${i * 0.15}s infinite` }}
+            />
+          ))}
+        </div>
+      </div>
+      <style>{`@keyframes dotPulse { 0%,80%,100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1.2); } }`}</style>
+    </div>
+  );
 }
 
 /* ===================== Landing ===================== */
@@ -254,7 +341,7 @@ const FEATURES = [
 ];
 
 /* ===================== Login ===================== */
-function LoginScreen({ onBack, onLogin }: { onBack: () => void; onLogin: (role: AuthRole) => void }) {
+function LoginScreen({ onBack, onEnter }: { onBack: () => void; onEnter: (role: AuthRole) => void }) {
   const [email, setEmail] = React.useState("maya@prism.co");
   const [password, setPassword] = React.useState("prism2026");
   const [showPw, setShowPw] = React.useState(false);
@@ -263,8 +350,8 @@ function LoginScreen({ onBack, onLogin }: { onBack: () => void; onLogin: (role: 
   const submit = (role?: AuthRole) => {
     setLoading(true);
     setTimeout(() => {
-      onLogin(role ?? "admin");
-    }, 1100);
+      onEnter(role ?? "admin");
+    }, 700);
   };
 
   return (

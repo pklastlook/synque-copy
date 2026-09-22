@@ -665,3 +665,118 @@ Stage Summary:
 - Color scheme = sapphire blue + electric cyan liquid retina (NO gold) — VLM 9/10 premium.
 - KPI cards now animated: count-up numbers, gradient icon tiles with glow + hover scale/rotate, staggered crystal-in entrance.
 - Sidebar still fixed. 18 views, 0 console errors. Lint: 0 errors, 0 warnings.
+
+---
+
+## Task ID: `settings-sidebar` — `settings-sidebar-builder`
+
+**Task**: Make the main app sidebar's "Settings" item an expandable parent whose children are the settings sub-sections (Profile, Workspace, Appearance, Team Roles, Notifications, Security, Platforms, Integrations, Billing, Data & Privacy, Danger Zone). Move the Settings view's internal left-vertical nav out into the main sidebar; the active sub-section is now driven by the Zustand store, not local component state. Single `/` route, obsidian + emerald Crystal UI.
+
+### Files modified
+1. `/home/z/my-project/src/lib/store.ts` — added `settingsTab`, `setSettingsTab`, `settingsExpanded`, `toggleSettings` to `useNav`.
+2. `/home/z/my-project/src/components/views/settings.tsx` — exported `SETTINGS_TABS` + `SettingsTab` type, removed the in-page left nav, switched `SettingsView` to read the active tab from the store, full-width single-panel layout with a breadcrumb header.
+3. `/home/z/my-project/src/components/app-sidebar.tsx` — removed the flat "Settings" `NAV` entry, added a `<SettingsGroup />` expandable parent with animated chevron and sub-items.
+
+### Work log
+- **store.ts**: Added 4 fields. Defaults: `settingsTab: "team-roles"` (showcases the most distinctive panel — rich team grid + permissions matrix — on first visit), `settingsExpanded: false`. `toggleSettings` flips expanded state.
+- **settings.tsx**:
+  - Promoted the local `TABS` to exported `SETTINGS_TABS: SettingsTabDef[]`. `SettingsTab` and `SettingsTabDef` are also exported so the sidebar can type its click handlers.
+  - Updated icon mappings per the task spec: `Security → Shield`, `Platforms → AtSign`, `Integrations → Plug` (was `ShieldCheck`, `Plug`, `Zap`). `ShieldCheck`, `Plug`, `Zap` remain imported because they're used elsewhere in the file (2FA section, "Connect new" button, Zapier integration row).
+  - Added `SECTION_DESC: Record<SettingsTab, string>` so the breadcrumb header shows a contextual one-line description per section.
+  - Removed the `useState<SettingsTab>("team-roles")` local state. `SettingsView` now reads `useNav().settingsTab` and falls back to `"team-roles"` if unset.
+  - Removed the `<nav>` left rail with `TABS.map(...)` and the `lg:grid-cols-[230px_1fr]` two-column layout. The view is now a single full-width column.
+  - Replaced the old "Workspace configuration" header with a breadcrumb header: `Settings › {active label}` (with the section's icon). Title and description update per active sub-section.
+  - All 11 section components (`ProfileSection`, `WorkspaceSection`, `AppearanceSection`, `TeamRolesSection`, `NotificationsSection`, `SecuritySection`, `PlatformsSection`, `IntegrationsSection`, `BillingSection`, `DataSection`, `DangerSection`) are preserved unchanged — each still ships its own `GlassCard` with `crystal-in` entrance.
+- **app-sidebar.tsx**:
+  - Removed the `{ id: "settings", ... }` flat NAV entry.
+  - Added `ChevronDown` to lucide imports.
+  - Added `import { SETTINGS_TABS, type SettingsTab } from "@/components/views/settings"`.
+  - Destructured `settingsTab`, `settingsExpanded`, `toggleSettings`, `setSettingsTab` from `useNav()`.
+  - Rendered a new `<SettingsGroup />` component as the last child of the "Workspace" group's button list, so it sits exactly where the old flat Settings entry was.
+  - The user-card gear button at the bottom now also expands the settings tree on first click, so users who use that entry point aren't dropped into a collapsed tree.
+
+### `<SettingsGroup />` design
+- Parent row uses the same styling language as the other top-level nav buttons: `crystal-sweep`, emerald inset ring + `bg-primary/15 text-primary` when active, hover-lift otherwise. Left emerald rail appears when active.
+- Clicking the parent: `setView("settings")` + `toggle()` + `onNavigate?.()` (closes mobile sheet).
+- `ChevronDown` on the right rotates 180° when expanded (`transition-transform duration-300 ease-out`).
+- Sub-items container: `overflow-hidden` + `transition-[max-height,opacity] duration-300 ease-out`, animates `max-h-0 opacity-0` → `max-h-[640px] opacity-100`. Inner panel is a `crystal-in` glass-tinted box (`border-border/30 bg-muted/20`) so the children read as a nested group.
+- Each sub-item: indented (`pl-7`), `text-[13px]`, icon `h-3.5 w-3.5` + label. Click sets `view="settings"`, `settingsTab=t.id`, keeps the group expanded (so users can see the active sub-section highlighted).
+- Active sub-item highlights with the same emerald treatment (`bg-primary/15 text-primary shadow-[inset_0_0_0_1px_var(--ring)]`).
+- **Danger Zone** sub-item is visually distinct: rose tint when active (`bg-rose-500/15 text-rose-500`), muted rose when inactive (`text-rose-500/70 hover:bg-rose-500/10 hover:text-rose-500`). Preserves the "destructive" affordance the old in-page nav had.
+- Accessibility: `aria-expanded` + `aria-controls="settings-subnav"` on parent, `aria-current="page"` on active sub-item.
+
+### Stage summary
+- All 11 settings sub-sections are now reachable from the main sidebar.
+- The Settings view no longer ships its own left nav — it's a single full-width panel driven by `useNav().settingsTab`.
+- Mobile sheet uses the same `<AppSidebar />`, so the expandable Settings group works there too. `max-h-[640px]` is enough to show all 11 sub-items.
+- Lint: `bun run lint` → exit 0, **0 errors / 0 warnings**.
+- Dev server recompiles cleanly; `/api/users` (consumed by `TeamRolesSection`) returns 200.
+- No existing nav functionality broken — Overview / Content / Insights / Workspace groups all render identically; only the Settings entry was replaced with a parent + children.
+
+---
+
+## Task ID: composer-rebuild — `composer-rebuild`
+
+**Agent name**: composer-rebuild
+**Task**: Rebuild the Composer view as a clear, enhanced, interactive 5-step wizard (Select Accounts → Text Content → Graphics/Media → Preview → Post) with a sticky step indicator at top and sticky Back/Continue footer, matching the existing obsidian+emerald premium aesthetic of `dashboard.tsx`. No new API routes — reuse existing `/api/accounts`, `/api/ai/generate`, `/api/posts`.
+
+### Files delivered
+1. `/home/z/my-project/src/components/views/composer.tsx` — `ComposerView` ("use client")
+
+### What was built
+
+**Single-state wizard** — `ComposerState` holds `step`, `selectedAccountIds: string[]`, `caption`, `tone`, `mediaUrl`, `mediaType`, `altText`, `variants: Record<accountId, {content, hashtags}>`, `scheduledAt`, `scheduleEnabled`. A single `update(patch)` helper and dedicated handlers keep mutations clean. `composerSeed` from `useNav()` prefills the caption and jumps straight to step 2 (existing behavior preserved).
+
+**Sticky step indicator** (top, `glass-strong glass-sheen`, glow-pulse on active):
+- Desktop: full horizontal stepper with numbered circles (done = emerald check, active = filled emerald w/ glow-pulse, upcoming = muted), connecting lines, labels. Completed/current steps are clickable.
+- Mobile: collapses to "Step N of 5: <label>" with a 5-dot progress strip.
+
+**Step 1 — Select Accounts**: searchable grid (`PlatformBadge` + name + handle + followers) with crystal-in staggered entrance, multi-select with checkmark pills, "Select all" / "Clear", right-side sticky summary panel on desktop (combined reach + remove chips), inline count summary on mobile. Preselects 4 diverse accounts on first load (`ac-ig-1`, `ac-x-1`, `ac-li-1`, `ac-tt-1`) via init ref so manual clears aren't overridden.
+
+**Step 2 — Text Content**: large textarea with live char counter (turns rose past 500), 7 tone pills (Professional / Friendly / Energetic / Inspirational / Witty / Educational / Luxurious), `liquid-gold` "Generate AI variants" button calling `POST /api/ai/generate` (loading state + toast success / warning for fallback), live best-practices tip card. Variants are stored but not shown yet (they appear in Preview).
+
+**Step 3 — Graphics/Media Upload**: media-type toggle (Image / Video / Carousel), large dashed drop-zone that opens an Upload Dialog when clicked (preset library grid + image-URL input + "Use URL"), inline preset library grid for quick pick, alt-text input, crop-aspect picker. Selected media shown large with a hover "Replace media" overlay.
+
+**Step 4 — Preview**: per-account `Tabs` (one trigger per selected account, with AI badge when variant exists). Each tab = editor card (editable textarea + hashtag input + per-platform char-limit counter + per-account Regenerate button) + phone-style preview card (header w/ platform badge + verified tick, square media, action row, caption line-clamped, hashtag chips, platform label). "Regenerate all" header action. Falls back to base caption when no variants generated yet, with a contextual hint banner.
+
+**Step 5 — Post**: summary card (account count + combined reach + media type + tone + caption preview + media thumbnail), destination-account list with scroll, schedule toggle (Switch for "Publish now" vs "Schedule for later" + `datetime-local` picker when scheduled), pre-publish checklist (accounts / content / media / variants) with all-done banner (emerald when ready, amber when not).
+
+**Sticky footer**: `glass-strong` bar pinned to bottom of the scroll container. Steps 1–4 show `Back` (hidden on step 1) + `Continue` (liquid-pill, disabled if `canContinue` is false — accounts > 0 / caption non-empty / media picked). Step 5 morphs the primary button to "Publish now" or "Schedule post" (calls `POST /api/posts`, success toast + reset to default state).
+
+### Visual / UX details matching dashboard.tsx
+- `GlassCard strong glass-sheen crystal-in` with ambient emerald/teal/slate/green blur blobs (one accent color per step) and staggered `animationDelay`.
+- `SectionTitle` used consistently for headers; `liquid-pill` for primary CTA, `liquid-gold` for AI generation.
+- `scroll-liquid` custom scrollbar on all overflowing regions (account grid, summary list, tab list, destination list).
+- Mobile-first responsive (`grid-cols-2 lg:grid-cols-4` → stacked on mobile; summary panel hides on mobile; tab handles truncate; footer "Back" hides icon-only on mobile).
+- All `<img>` use the existing dashboard convention (no eslint-disable directives since `@next/next/no-img-element` is disabled in `eslint.config.mjs`).
+
+### API contract (unchanged, reused)
+- `GET /api/accounts` → `AccountData[]` (`id, platform, handle, displayName, followers, verified, ownerName, ownerColor`).
+- `POST /api/ai/generate` with `{ caption, tone, targets: [{accountId, platform, handle}], mediaHint }` → `{ variants: Record<accountId, {content, hashtags}> }` (or `{ fallback: { variants } }` on AI failure — both handled).
+- `POST /api/posts` with `{ title, caption, mediaUrl, tone, scheduledAt, accountIds, variants, authorId }` → `{ id, ok }`. Variants fallback to base caption when none generated.
+
+### Lint status
+`bun run lint` — clean (0 errors, 0 warnings) after removing 5 unused `eslint-disable-next-line @next/next/no-img-element` directives (rule is disabled in this codebase; dashboard.tsx follows the same convention of using raw `<img>` without the directive).
+
+### Stage summary
+Composer view rebuilt as a focused, premium 5-step wizard with sticky step indicator + sticky footer, single-state management, crystal-in staggered entrances, ambient color accents, per-platform editable AI variants, phone-style previews, schedule-or-publish flow, and pre-publish checklist. Reuses all existing API routes and design-system components (`GlassCard`, `PlatformBadge`, `VerifiedTick`, `useApi`, `fmt`, `cn`, `useNav`). Mobile responsive throughout. No regressions to other views.
+
+---
+Task ID: logo-redesign + obsidian-emerald + splash + composer-wizard + settings-expandable
+Agent: Z.ai (orchestrator)
+Task: Redesign logo, senior-UX color overhaul, splash on login, composer step hierarchy, expandable settings.
+
+Work Log:
+- Logo redesigned: replaced 3-dot triangle with interlocking dual-arc "sync wave" mark (SVG paths forming an abstract S/wave + center sync node). Animated with breathing motion (swBreatheA/B + swNodePulse keyframes). Premium, distinctive, scalable.
+- Senior-UX color overhaul: replaced sapphire+cyan with "Obsidian + Emerald" — neutral graphite base (oklch 0.15 dark, NOT blue-tinted), refined emerald accent (oklch 0.68 0.15 162 dark). Single refined accent (not gaudy). Updated all tokens: primary, gold→emerald, chart palette (emerald/teal/slate-blue/green/deep-teal), sidebar darker than content, retaina-text/gold-text gradients, liquid-pill/liquid-gold buttons, background blobs. Bulk-updated dashboard KPI + chart colors to emerald/teal.
+- Splash screen: added SplashScreen mode in LandingPage. Shows large animated logo + wordmark + animated progress bar (0→100% with phase messages: "Initializing workspace…" / "Loading modules…" / "Syncing accounts…" / "Almost there…") + pulsing dots. Login submit now triggers splash → app (passes selected role through). Fade-out transition.
+- Composer rebuilt (subagent): 5-step wizard — Select Accounts → Text Content → Graphics/Media → Preview → Post. Sticky step indicator (numbered circles, glow-pulse on current, clickable completed steps; collapses to "Step N of 5" on mobile). Step 1: searchable multi-select account grid + summary. Step 2: textarea + tone pills + AI generate. Step 3: media upload zone + preset grid + alt text. Step 4: per-account editable variants + phone-style previews. Step 5: summary + schedule + publish checklist. Sticky footer Back/Continue bar.
+- Settings expandable (subagent): removed in-page left vertical nav. "Settings" in main sidebar is now an expandable parent with 11 sub-items (Profile, Workspace, Appearance, Team Roles, Notifications, Security, Platforms, Integrations, Billing, Data & Privacy, Danger Zone). Chevron rotates on expand. Sub-items set view=settings + settingsTab. Settings view is full-width single panel driven by store.settingsTab, with a breadcrumb "Settings › {section}". Store gained settingsTab/setSettingsTab/settingsExpanded/toggleSettings.
+
+Stage Summary:
+- Logo = interlocking wave mark (animated breathing), not dots.
+- Color = Obsidian graphite + Emerald (senior-UX premium, not gold/cyan/blue). VLM 9/10.
+- Splash screen on login with progress bar + animated logo.
+- Composer = 5-step wizard (Accounts→Content→Media→Preview→Post), enhanced + interactive.
+- Settings = expandable in main sidebar, in-page nav removed, full-width sections with breadcrumb.
+- 18 views, 0 console errors. Sidebar fixed. Lint: 0 errors, 0 warnings.
