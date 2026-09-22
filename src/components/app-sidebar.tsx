@@ -25,10 +25,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
+import { useAuth } from "@/lib/auth-store";
 import type { ViewId } from "@/lib/types";
 import { SETTINGS_TABS, type SettingsTab } from "@/components/views/settings";
 import { NameAvatar } from "@/components/glass/name-avatar";
-import { Logo, LogoWordmark } from "@/components/glass/logo";
+import { LogoWordmark } from "@/components/glass/logo";
 
 const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; badge?: string; accent: string }[] = [
   { id: "admin", label: "Admin Panel", icon: ShieldCheck, group: "Overview", accent: "oklch(0.62 0.22 300)" },
@@ -64,6 +65,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     toggleSettings,
     setSettingsTab,
   } = useNav();
+  const { user } = useAuth();
   const groups = Array.from(new Set(NAV.map((n) => n.group)));
   const settingsActive = view === "settings";
 
@@ -155,17 +157,17 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* User card */}
       <div className="mt-1 flex items-center gap-2.5 rounded-2xl border border-border/30 bg-muted/30 p-2.5">
-        <NameAvatar name="Maya Reyes" color="rose" className="h-9 w-9 text-xs" ring />
+        <NameAvatar name={user?.name ?? "User"} color="blue" className="h-9 w-9 text-xs" ring />
         <div className="min-w-0 flex-1 leading-tight">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-[13px] font-semibold">Maya Reyes</span>
-            {adminMode && (
+            <span className="truncate text-[13px] font-semibold">{user?.name ?? "User"}</span>
+            {user?.role === "admin" && (
               <span className="rounded-md bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
                 Admin
               </span>
             )}
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">Head of Social</div>
+          <div className="truncate text-[11px] text-muted-foreground">{user?.title ?? "Team Member"}</div>
         </div>
         <button
           onClick={() => {

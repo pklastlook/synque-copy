@@ -1,19 +1,21 @@
-// Prism Social — Prisma schema
+// SocialFlow — Prisma schema
 // Social media team work management platform
+// Database: PostgreSQL (works with PGlite locally, Neon in production)
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
 model User {
   id          String   @id @default(cuid())
   name        String
   email       String   @unique
+  password    String?  // hashed password (null for invited users)
   avatar      String?
   role        String   @default("member") // admin | manager | editor | member | viewer
   title       String?  // designation e.g. "Head of Social"

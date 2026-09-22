@@ -840,3 +840,28 @@ Stage Summary:
 - Trial dialog: details + card payment + activation flow with validation.
 - Login: role buttons removed, clean email/password only.
 - 18 views, 0 console errors. Lint: 0 errors, 0 warnings.
+
+---
+Task ID: real-postgresql-migration
+Agent: Z.ai (orchestrator)
+Task: Audit whole system, remove all dummy/mocked/hardcoded data, migrate to real PostgreSQL.
+
+Work Log:
+- Database migration: SQLite → PostgreSQL. Installed PGlite (@electric-sql/pglite v0.5.8) — real PostgreSQL 18.3 running in WASM, no server installation needed. Upgraded Prisma v6 → v7 (prisma-client generator with driver adapters). Added prisma-pglite adapter. Created prisma.config.ts (Prisma v7 requirement). Removed `url` from datasource (Prisma v7 doesn't support it in schema). Database persists to .not-committed/pglite/ directory.
+- Neon compatibility: The schema uses `provider = "postgresql"` and the adapter pattern. To switch to Neon, the user just changes the adapter in db.ts from `createPgliteAdapter()` to a Neon adapter and sets the DATABASE_URL to their Neon connection string. The .env has instructions for this.
+- Seed script rewritten: Removed ALL dummy data (was 600+ lines seeding fake users, accounts, posts, campaigns, media, listening, approvals, hashtags, competitors, reports, link-bio, mail server, mailboxes, messages, tasks). Now creates ONLY one admin user (admin@socialflow.app / admin123) with a bcrypt-hashed password. All other data is created by users through the UI.
+- Real authentication: Replaced mock localStorage auth with real JWT-based auth. Created /api/auth/signup (creates user with bcrypt-hashed password, returns JWT), /api/auth/login (validates credentials against DB, returns JWT), /api/auth/me (verifies JWT, returns user). Auth store rewritten to use real API calls. Password field added to User model.
+- Removed mock data from views:
+  - Landing page: Removed fake testimonials (6 hardcoded quotes). Replaced with a stats section.
+  - Login screen: Removed the 4 role-login buttons (Admin/Manager/Editor/Member) and "or continue as" divider. Login now validates against the real database.
+  - Trial dialog: Now creates a real user via /api/auth/signup on activation. Added password field to the trial details step.
+  - App header: Uses real authenticated user name (was hardcoded "Maya Reyes").
+  - App sidebar: Uses real authenticated user name + role (was hardcoded "Maya Reyes" / "Head of Social").
+- Database state verified: 1 real user (Admin), 0 accounts, 0 posts, 0 campaigns — completely clean. All 13 API endpoints return 200. Dashboard shows real empty-state data (0 followers, 0 accounts, 0 posts).
+
+Stage Summary:
+- Database: Real PostgreSQL 18.3 via PGlite (no server needed). Neon-ready.
+- Auth: Real JWT auth with bcrypt password hashing. Signup creates real users. Login validates against DB.
+- Data: ZERO mock/dummy/seeded data. Only one bootstrap admin user. Everything else created through the UI.
+- All 18 views render, 0 console errors. Lint: 0 errors, 0 warnings. All 13 APIs return 200.
+- Admin login: admin@socialflow.app / admin123
