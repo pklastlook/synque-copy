@@ -16,7 +16,7 @@ export function GlassCard({
       className={cn(
         strong ? "glass-strong" : "glass",
         "rounded-3xl",
-        hover && "transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl",
+        hover && "lift-hover",
         className
       )}
       {...props}
@@ -43,14 +43,14 @@ export function KpiCard({
 }) {
   const up = (delta ?? 0) >= 0;
   return (
-    <GlassCard hover className="glass-sheen relative overflow-hidden p-5">
+    <GlassCard hover className="glass-sheen relative overflow-hidden p-6">
       <div
-        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-25 blur-2xl"
+        className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-[0.12] blur-2xl transition group-hover:opacity-20"
         style={{ background: accent ?? "var(--primary)" }}
       />
-      <div className="flex items-start justify-between">
+      <div className="relative flex items-start justify-between">
         <div
-          className="grid h-10 w-10 place-items-center rounded-2xl text-white shadow-md"
+          className="grid h-11 w-11 place-items-center rounded-2xl text-white shadow-lg"
           style={{ background: accent ?? "var(--primary)" }}
         >
           {icon}
@@ -58,7 +58,7 @@ export function KpiCard({
         {delta !== undefined && (
           <span
             className={cn(
-              "flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold",
+              "flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold tabular-nums",
               up ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"
             )}
           >
@@ -67,10 +67,10 @@ export function KpiCard({
           </span>
         )}
       </div>
-      <div className="mt-4">
-        <div className="text-[28px] font-bold leading-none tracking-tight">{value}</div>
-        <div className="mt-1 text-sm text-muted-foreground">{label}</div>
-        {hint && <div className="mt-0.5 text-[11px] text-muted-foreground/70">{hint}</div>}
+      <div className="relative mt-5">
+        <div className="num-display text-[32px] font-semibold leading-none tracking-tight">{value}</div>
+        <div className="label-caps mt-2 text-muted-foreground">{label}</div>
+        {hint && <div className="mt-0.5 text-[11px] text-muted-foreground/60">{hint}</div>}
       </div>
     </GlassCard>
   );

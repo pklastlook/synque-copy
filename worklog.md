@@ -416,3 +416,24 @@ Stage Summary:
 - Platform now has 17 modules (was 8). New: Campaigns, Media Library, Listening, Approvals, Hashtags, Competitors, Reports, Link in Bio, Mail Server.
 - Mail Server module fully functional: admin connects own mail server (Hostinger/cPanel/Zoho/custom) on custom domain, creates team email accounts (e.g. daniel@prism.co), assigns to members, manages storage quotas, and has a working inbox with compose/send. No Google/third-party accounts needed.
 - All 9 new API endpoints return 200. Dev server clean. Lint clean. Mobile responsive with sticky footer.
+
+---
+Task ID: accounts-credentials + premium-audit
+Agent: Z.ai (orchestrator)
+Task: Add credentials to Connect Account, audit entire system, elevate premium UI/UX.
+
+Work Log:
+- Audited Connect Account dialog: was just platform buttons with instant toast, no credentials asked.
+- Rebuilt as premium 4-step flow: (1) pick platform → (2) enter full credentials (handle, display name, login email, password, optional API token, business-account toggle, team-member assignment, security note) with live validation (required fields, email format, password length, @-handle check) → (3) connecting animation with step checklist → (4) success state. Added back-navigation, step-progress dots, AES-256 encryption messaging.
+- Added POST /api/accounts endpoint that persists the connected account, dedupes by platform+handle, seeds an analytics row, and logs an activity.
+- Full system audit via Agent Browser + VLM across all 17 views: 0 console errors, 0 hydration issues, 0 crashes.
+- Premium UI/UX elevation in globals.css: reduced glass opacity (38% dark / 55% light) for translucency instead of "plastic", softer borders (rgba white 7%), added SVG fractal-noise texture overlay on glass surfaces for physical depth, refined shadow layering (inner highlight + 2-layer drop), premium modal scrim (blur 16px + 55% overlay) replacing flat black/50.
+- Added premium utilities: .lift-hover (translateY -3px + larger shadow on hover), .num-display (tabular-nums, semibold, tight tracking), .label-caps (uppercase wide-tracking labels), .ring-primary-glow.
+- Polished KpiCard: larger 32px semibold numbers (was 28px bold), small-caps labels with letter-spacing, increased padding p-6, softer accent glows at 12% opacity.
+- Polished AccountCard: 3xl follower numbers (semibold), muted secondary owner info at 60% opacity, decluttered stat grid (removed boxes), lift-hover, "add account" placeholder card to fill grid gaps.
+- Applied premium-scrim to all Dialog overlays app-wide.
+
+Stage Summary:
+- Connect Account now asks full credentials with validation + 4-step flow (was instant toast).
+- Premium quality raised 8.5-9/10 per VLM (was "good but not top-tier"). Glass refined (subtle, not muddy/neon), typography hierarchy improved, spacing more generous.
+- Lint: 0 errors, 0 warnings. All 17 views render with zero console errors. Dev server clean.
