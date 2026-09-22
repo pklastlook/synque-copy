@@ -81,12 +81,19 @@ export function AppShell() {
 }
 
 function AppFooter() {
+  const [accountCount, setAccountCount] = React.useState(0);
+  React.useEffect(() => {
+    fetch("/api/accounts")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setAccountCount(d.length); })
+      .catch(() => {});
+  }, []);
   return (
     <footer className="px-4 pb-4 pt-2 sm:px-6 lg:px-8">
       <div className="glass-topbar mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 rounded-2xl px-4 py-2.5 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-          All systems operational · 10 accounts connected
+          All systems operational · {accountCount} {accountCount === 1 ? "account" : "accounts"} connected
         </div>
         <div className="hidden items-center gap-3 sm:flex">
           <span>SocialFlow · v1.0</span>
