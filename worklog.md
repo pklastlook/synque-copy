@@ -437,3 +437,26 @@ Stage Summary:
 - Connect Account now asks full credentials with validation + 4-step flow (was instant toast).
 - Premium quality raised 8.5-9/10 per VLM (was "good but not top-tier"). Glass refined (subtle, not muddy/neon), typography hierarchy improved, spacing more generous.
 - Lint: 0 errors, 0 warnings. All 17 views render with zero console errors. Dev server clean.
+
+---
+Task ID: enterprise-apple-redesign
+Agent: Z.ai (orchestrator)
+Task: Make sidebar fixed, topbar floating rounded, rich enterprise Apple colors, animated cards/charts, more premium crystal.
+
+Work Log:
+- Sidebar: changed from `sticky` to `position: fixed` so it never scrolls with page content. Added `.glass-sidebar` class with solid darker background (sidebar oklch 0.14 dark / 0.93 light) — distinctly darker than page (0.18 dark / 0.97 light) for premium depth. Added noise texture overlay.
+- Topbar: rebuilt as floating rounded pill — outer header has px/pt padding, inner div uses `.glass-topbar` with rounded-2xl, max-width 1340px, shadow-lg. No longer a full-width bar. Footer matched to same floating pill style.
+- Color scheme: reworked to enterprise Apple. Dark mode background deepened from grey 0.14 → graphite 0.18 with subtle blue-violet 265 hue; sidebar darker 0.14; glass opacity increased from 38%→72% (dark) / 55%→72% (light) so surfaces are SOLID crystal not washed/faded; borders softened to rgba white 7-11%; muted-foreground darkened from 0.7→0.68 for better contrast. Light mode made warmer (0.97 vs 0.99) to avoid whiteness.
+- Glass variables: --glass-bg-strong raised to 88% (was 65%) for solid crystal surfaces. Refined 2-layer shadow (inner highlight + soft drop).
+- Animations: added `crystal-in` staggered entrance (blur+rise+scale) with per-card animationDelay (0.05s→0.62s cascade); `crystal-sweep` hover shimmer on nav items + New Post button; `num-pop` count-up; `glow-pulse` for active states. Recharts Area charts given explicit isAnimationActive + animationBegin (200ms/450ms stagger) + animationDuration 1200ms for dramatic reveal.
+- Sidebar nav: active item now has inset ring glow + left bar with box-shadow glow; icons scale on hover; crystal-sweep on hover.
+- KpiCard: already had num-display + label-caps from prior pass; now wrapped in staggered crystal-in.
+- Dashboard: all 7 sections (hero, 4 KPIs, chart, donut, top posts, upcoming, activity) cascade in with staggered crystal-in.
+- App-shell: main content offset by `lg:ml-[272px]` so fixed sidebar doesn't overlap content.
+
+Stage Summary:
+- Sidebar FIXED (verified: stays visible on scroll), darker than page.
+- Topbar floating rounded pill (verified by VLM: "floating, rounded pill with clear margins").
+- Enterprise Apple color scheme: deep graphite, rich accents, solid crystal — no longer whity/faded.
+- Animated: staggered crystal entrance on all cards, chart area animations, crystal-sweep hover, glow pulse.
+- VLM premium rating: 9/10. All 17 views render with 0 console errors. Lint: 0 errors, 0 warnings.

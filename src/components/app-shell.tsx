@@ -32,10 +32,10 @@ export function AppShell() {
     <div className="relative flex min-h-screen flex-col">
       <RetinaBg />
       <div className="flex flex-1">
-        {/* Desktop sidebar */}
-        <div className="glass sticky top-0 hidden h-screen w-[264px] shrink-0 border-r border-border/40 lg:block">
+        {/* Desktop sidebar — FIXED, darker than page content */}
+        <aside className="glass-sidebar fixed top-0 left-0 z-40 hidden h-screen w-[272px] shrink-0 lg:block">
           <AppSidebar />
-        </div>
+        </aside>
 
         {/* Mobile sidebar (sheet) */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -47,10 +47,11 @@ export function AppShell() {
           </SheetContent>
         </Sheet>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        {/* Main content area — offset by sidebar width on desktop */}
+        <div className="flex min-w-0 flex-1 flex-col lg:ml-[272px]">
           <AppHeader onMenu={() => setMobileOpen(true)} />
           <main className="scroll-liquid flex-1 overflow-y-auto">
-            <div key={view} className="animate-rise mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+            <div key={view} className="animate-rise mx-auto w-full max-w-[1400px] px-4 pt-4 sm:px-6 lg:px-8">
               {view === "dashboard" && <DashboardView />}
               {view === "composer" && <ComposerView />}
               {view === "calendar" && <CalendarView />}
@@ -79,16 +80,16 @@ export function AppShell() {
 
 function AppFooter() {
   return (
-    <footer className="glass-strong mt-auto border-t border-border/40 px-4 py-3 sm:px-6">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col items-center justify-between gap-1 text-[11px] text-muted-foreground sm:flex-row">
+    <footer className="px-4 pb-4 pt-2 sm:px-6 lg:px-8">
+      <div className="glass-topbar mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 rounded-2xl px-4 py-2.5 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
           All systems operational · 10 accounts connected
         </div>
-        <div className="flex items-center gap-3">
+        <div className="hidden items-center gap-3 sm:flex">
           <span>Prism Social · v1.0</span>
-          <span className="hidden sm:inline">·</span>
-          <span className="hidden sm:inline">Liquid Glass UI</span>
+          <span>·</span>
+          <span>Crystal UI</span>
         </div>
       </div>
     </footer>

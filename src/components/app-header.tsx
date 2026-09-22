@@ -35,69 +35,71 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
   const t = TITLES[view] ?? { title: "Prism", subtitle: "" };
 
   return (
-    <header className="glass-strong sticky top-0 z-30 flex items-center gap-3 border-b border-border/40 px-4 py-3 sm:px-6">
-      <button
-        onClick={onMenu}
-        className="grid h-9 w-9 place-items-center rounded-xl bg-muted/50 text-foreground lg:hidden"
-        aria-label="Open menu"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">{t.title}</h1>
-        <p className="hidden truncate text-xs text-muted-foreground sm:block">{t.subtitle}</p>
-      </div>
-
-      {/* Search */}
-      <button className="hidden items-center gap-2 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/70 md:flex">
-        <Search className="h-4 w-4" />
-        <span>Search…</span>
-        <kbd className="ml-6 flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-          <Command className="h-3 w-3" />K
-        </kbd>
-      </button>
-
-      {/* Admin / Member scope toggle */}
-      <div className="hidden items-center rounded-xl bg-muted/50 p-0.5 sm:flex">
+    <header className="sticky top-0 z-30 px-3 pt-3 sm:px-5 lg:px-6">
+      <div className="glass-topbar mx-auto flex w-full max-w-[1340px] items-center gap-2.5 rounded-2xl px-3 py-2.5 shadow-lg sm:px-4">
         <button
-          onClick={() => setAdminMode(true)}
-          className={cn(
-            "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-            adminMode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-          )}
+          onClick={onMenu}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/60 text-foreground transition hover:bg-muted lg:hidden"
+          aria-label="Open menu"
         >
-          All team
+          <Menu className="h-5 w-5" />
         </button>
+
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg">{t.title}</h1>
+          <p className="hidden truncate text-[11px] text-muted-foreground lg:block">{t.subtitle}</p>
+        </div>
+
+        {/* Search */}
+        <button className="hidden items-center gap-2 rounded-xl border border-border/40 bg-muted/30 px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/60 xl:flex">
+          <Search className="h-4 w-4" />
+          <span>Search…</span>
+          <kbd className="ml-3 flex items-center gap-0.5 rounded bg-muted/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <Command className="h-3 w-3" />K
+          </kbd>
+        </button>
+
+        {/* Admin / Member scope toggle */}
+        <div className="hidden items-center rounded-xl bg-muted/40 p-0.5 sm:flex">
+          <button
+            onClick={() => setAdminMode(true)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+              adminMode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+            )}
+          >
+            All team
+          </button>
+          <button
+            onClick={() => setAdminMode(false)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+              !adminMode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+            )}
+          >
+            My work
+          </button>
+        </div>
+
+        <button className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-muted" aria-label="Notifications">
+          <Bell className="h-[18px] w-[18px]" />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
+        </button>
+
         <button
-          onClick={() => setAdminMode(false)}
-          className={cn(
-            "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-            !adminMode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-          )}
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-muted"
+          aria-label="Toggle theme"
         >
-          My work
+          {mounted && resolvedTheme === "dark" ? (
+            <Sun className="h-[18px] w-[18px]" />
+          ) : (
+            <Moon className="h-[18px] w-[18px]" />
+          )}
         </button>
+
+        <NameAvatar name="Maya Reyes" color="rose" className="h-9 w-9 shrink-0 text-xs" ring />
       </div>
-
-      <button className="relative grid h-9 w-9 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-muted" aria-label="Notifications">
-        <Bell className="h-[18px] w-[18px]" />
-        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
-      </button>
-
-      <button
-        onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-        className="grid h-9 w-9 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-muted"
-        aria-label="Toggle theme"
-      >
-        {mounted && resolvedTheme === "dark" ? (
-          <Sun className="h-[18px] w-[18px]" />
-        ) : (
-          <Moon className="h-[18px] w-[18px]" />
-        )}
-      </button>
-
-      <NameAvatar name="Maya Reyes" color="rose" className="h-9 w-9 text-xs" ring />
     </header>
   );
 }

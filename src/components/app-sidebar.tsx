@@ -52,16 +52,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const groups = Array.from(new Set(NAV.map((n) => n.group)));
 
   return (
-    <aside className="flex h-full w-full flex-col gap-1 p-3">
+    <div className="flex h-full w-full flex-col gap-2 p-3">
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-2 py-3">
-        <div className="relative flex h-9 w-9 items-center justify-center rounded-[28%] bg-gradient-to-br from-[oklch(0.7_0.24_14)] via-[oklch(0.66_0.22_305)] to-[oklch(0.74_0.18_165)] shadow-lg">
+      <div className="flex items-center gap-2.5 px-2 pb-1 pt-2">
+        <div className="relative flex h-9 w-9 items-center justify-center rounded-[28%] bg-gradient-to-br from-[oklch(0.72_0.22_14)] via-[oklch(0.66_0.22_305)] to-[oklch(0.74_0.18_165)] shadow-lg">
           <Sparkles className="h-4 w-4 text-white" />
-          <span className="absolute -inset-1 -z-10 rounded-[32%] bg-[oklch(0.7_0.24_14/0.4)] blur-md" />
+          <span className="absolute -inset-1 -z-10 rounded-[32%] bg-[oklch(0.72_0.22_14/0.35)] blur-md" />
         </div>
         <div className="leading-tight">
           <div className="text-[15px] font-semibold tracking-tight">Prism</div>
-          <div className="text-[11px] text-muted-foreground">Social Workflow</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Social Workflow</div>
         </div>
       </div>
 
@@ -71,7 +71,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           setView("composer");
           onNavigate?.();
         }}
-        className="liquid-pill glow-ring mb-1 flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold"
+        className="liquid-pill glow-ring crystal-sweep mb-1 flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold"
       >
         <PenSquare className="h-4 w-4" />
         New Post
@@ -81,7 +81,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="scroll-liquid mt-1 flex-1 space-y-3 overflow-y-auto pr-1">
         {groups.map((g) => (
           <div key={g}>
-            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
               {g}
             </div>
             <div className="space-y-0.5">
@@ -96,16 +96,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                       onNavigate?.();
                     }}
                     className={cn(
-                      "group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all",
+                      "group crystal-sweep relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
                       active
-                        ? "bg-primary/15 text-primary"
-                        : "text-foreground/70 hover:bg-muted/60 hover:text-foreground"
+                        ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_var(--ring)]"
+                        : "text-foreground/60 hover:bg-muted/50 hover:text-foreground"
                     )}
                   >
                     {active && (
-                      <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
+                      <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-[0_0_8px_var(--ring)]" />
                     )}
-                    <Icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")} />
+                    <Icon className={cn("h-[18px] w-[18px] shrink-0 transition-transform", active && "text-primary", !active && "group-hover:scale-110")} />
                     <span className="truncate">{n.label}</span>
                     {n.badge && (
                       <span
@@ -129,7 +129,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {/* User card */}
-      <div className="mt-2 flex items-center gap-2.5 rounded-2xl border border-border/40 bg-muted/40 p-2.5">
+      <div className="mt-1 flex items-center gap-2.5 rounded-2xl border border-border/30 bg-muted/30 p-2.5">
         <NameAvatar name="Maya Reyes" color="rose" className="h-9 w-9 text-xs" ring />
         <div className="min-w-0 flex-1 leading-tight">
           <div className="flex items-center gap-1.5">
@@ -153,8 +153,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Settings className="h-4 w-4" />
         </button>
       </div>
-      {/* keep references used */}
       <span className="hidden">{currentUserId}</span>
-    </aside>
+    </div>
   );
 }
