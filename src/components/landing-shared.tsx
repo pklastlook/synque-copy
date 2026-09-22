@@ -32,7 +32,7 @@ export function LandingNav() {
   return (
     <>
       <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-6xl items-center justify-between rounded-2xl px-5 py-3 sm:w-[calc(100%-3rem)]">
-        <Link href="/"><LogoWordmark size="text-base" /></Link>
+        <Link href="/"><LogoWordmark size="text-[17px]" logoSize={26} /></Link>
         <div className="hidden items-center gap-6 md:flex">
           <Link href="/features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</Link>
           <Link href="/workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</Link>
@@ -59,7 +59,7 @@ export function LandingFooter() {
     <footer className="border-t border-border/40 px-4 py-10">
       <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <span className="text-sm font-bold tracking-tight">Social<span className="retaina-text">Flow</span></span>
+          <LogoWordmark size="text-sm" logoSize={22} />
           <p className="mt-2 text-xs text-muted-foreground">Social, Simplified. The enterprise command center for modern social teams.</p>
           <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
             <ShieldCheck className="h-3.5 w-3.5 text-[var(--gold)]" /> Encrypted · 2FA · SOC2-ready

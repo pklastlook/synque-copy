@@ -555,23 +555,23 @@
 }
 .glow-pulse { animation: glowPulse 2.5s ease-in-out infinite; }
 
-/* ===== Logo — interlocking wave arcs (breathing motion) ===== */
-@keyframes swBreatheA {
-  0%, 100% { stroke-dashoffset: 0; opacity: 1; }
-  50% { stroke-dashoffset: -6; opacity: 0.85; }
+/* ===== Logo — SocialFlow flow wave (animated bars) ===== */
+@keyframes sfFlow1 {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  50% { transform: scaleX(0.85); opacity: 0.8; }
 }
-@keyframes swBreatheB {
-  0%, 100% { stroke-dashoffset: 0; opacity: 0.9; }
-  50% { stroke-dashoffset: 6; opacity: 1; }
+@keyframes sfFlow2 {
+  0%, 100% { transform: scaleX(0.92); opacity: 0.9; }
+  50% { transform: scaleX(1); opacity: 1; }
 }
-@keyframes swNodePulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.25); opacity: 0.7; }
+@keyframes sfFlow3 {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  50% { transform: scaleX(0.8); opacity: 0.85; }
 }
-.syncwave-mark .sw-arc { transform-box: fill-box; transform-origin: center; }
-.syncwave-mark .sw-arc-a { animation: swBreatheA 4s ease-in-out infinite; }
-.syncwave-mark .sw-arc-b { animation: swBreatheB 4s ease-in-out infinite 0.5s; }
-.syncwave-mark .sw-node { transform-box: fill-box; transform-origin: center; animation: swNodePulse 2.5s ease-in-out infinite; }
+.sf-logo .sf-bar { transform-origin: left center; transform-box: fill-box; }
+.sf-logo .sf-bar-1 { animation: sfFlow1 2.5s ease-in-out infinite; }
+.sf-logo .sf-bar-2 { animation: sfFlow2 2.5s ease-in-out infinite 0.3s; }
+.sf-logo .sf-bar-3 { animation: sfFlow3 2.5s ease-in-out infinite 0.6s; }
 
 /* Platform gradient utility classes */
 .pl-ig {
