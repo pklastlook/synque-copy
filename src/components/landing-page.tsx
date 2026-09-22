@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
-import { LogoWordmark } from "@/components/glass/logo";
+import { Logo, LogoWordmark } from "@/components/glass/logo";
 import {
   Dialog,
   DialogContent,
@@ -103,8 +103,10 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         <div className="blob-3" />
       </div>
       <div className="relative flex min-h-screen flex-col items-center justify-center px-6">
-        <div className="crystal-in relative mb-2 text-center" style={{ animationDelay: "0.05s" }}>
+        {/* Logo mark + SocialFlow text */}
+        <div className="crystal-in relative mb-4 flex flex-col items-center" style={{ animationDelay: "0.05s" }}>
           <div className="pointer-events-none absolute inset-0 -z-10 scale-150 rounded-full bg-[var(--primary)]/20 blur-3xl" />
+          <Logo size={72} withTile={false} className="mb-4" />
           <h1 className="text-6xl font-bold tracking-tight sm:text-7xl">
             Social<span className="retaina-text">Flow</span>
           </h1>
@@ -154,7 +156,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
 
       {/* Nav */}
       <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-6xl items-center justify-between rounded-2xl px-5 py-3 sm:w-[calc(100%-3rem)]">
-        <LogoWordmark size="text-base" />
+        <LogoWordmark size="text-[17px]" logoSize={26} />
         <div className="hidden items-center gap-6 md:flex">
           <a href="/features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</a>
           <a href="/workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</a>
@@ -584,7 +586,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       <footer className="border-t border-border/40 px-4 py-10">
         <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <span className="text-sm font-bold tracking-tight">Social<span className="retaina-text">Flow</span></span>
+            <LogoWordmark size="text-sm" logoSize={22} />
             <p className="mt-2 text-xs text-muted-foreground">Social, Simplified. The enterprise command center for modern social teams.</p>
             <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-[var(--gold)]" /> Encrypted · 2FA · SOC2-ready

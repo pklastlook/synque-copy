@@ -4,9 +4,10 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Syncwave logo mark — two interlocking arcs forming an abstract "S"/wave.
- * Premium, scalable, distinctive. The arcs carry a living gradient and a
- * subtle continuous motion (the wave breathes).
+ * SocialFlow logo — an interactive "flow wave" mark.
+ * Three layered wave bars that animate continuously, representing
+ * the flow of content across multiple platforms. Each bar has a
+ * different gradient and staggered animation phase.
  */
 export function Logo({
   size = 36,
@@ -19,51 +20,73 @@ export function Logo({
   className?: string;
   tileClassName?: string;
 }) {
+  const barW = size * 0.62;
+  const barH = size * 0.13;
+  const gap = size * 0.08;
+  const totalH = barH * 3 + gap * 2;
+
   const mark = (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 48 48"
-      className={cn("syncwave-mark", className)}
+      viewBox={`0 0 ${size} ${size}`}
+      className={cn("sf-logo", className)}
       fill="none"
       aria-hidden
     >
       <defs>
-        <linearGradient id="sw-grad-a" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="sf-bar-1" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="var(--primary)" />
-          <stop offset="100%" stopColor="var(--accent-strong, oklch(0.6 0.16 200))" />
+          <stop offset="100%" stopColor="var(--gold)" />
         </linearGradient>
-        <linearGradient id="sw-grad-b" x1="1" y1="1" x2="0" y2="0">
-          <stop offset="0%" stopColor="var(--accent-strong, oklch(0.6 0.16 200))" />
+        <linearGradient id="sf-bar-2" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--gold)" />
           <stop offset="100%" stopColor="var(--primary)" />
         </linearGradient>
-        <filter id="sw-glow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="1" result="b" />
+        <linearGradient id="sf-bar-3" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--primary)" />
+          <stop offset="50%" stopColor="var(--gold)" />
+          <stop offset="100%" stopColor="var(--primary)" />
+        </linearGradient>
+        <filter id="sf-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="0.8" result="b" />
           <feMerge>
             <feMergeNode in="b" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
       </defs>
-      <g filter="url(#sw-glow)">
-        {/* Upper arc — flows left-to-right, evokes the first wave */}
-        <path
-          className="sw-arc sw-arc-a"
-          d="M10 30 C 10 16, 24 10, 38 14"
-          stroke="url(#sw-grad-a)"
-          strokeWidth="5"
-          strokeLinecap="round"
+      <g filter="url(#sf-glow)" transform={`translate(${(size - barW) / 2}, ${(size - totalH) / 2})`}>
+        {/* Bar 1 — top wave, widest */}
+        <rect
+          className="sf-bar sf-bar-1"
+          x="0"
+          y="0"
+          width={barW}
+          height={barH}
+          rx={barH / 2}
+          fill="url(#sf-bar-1)"
         />
-        {/* Lower arc — flows right-to-left, completes the sync loop */}
-        <path
-          className="sw-arc sw-arc-b"
-          d="M38 18 C 38 32, 24 38, 10 34"
-          stroke="url(#sw-grad-b)"
-          strokeWidth="5"
-          strokeLinecap="round"
+        {/* Bar 2 — middle wave, medium */}
+        <rect
+          className="sf-bar sf-bar-2"
+          x={barW * 0.08}
+          y={barH + gap}
+          width={barW * 0.84}
+          height={barH}
+          rx={barH / 2}
+          fill="url(#sf-bar-2)"
         />
-        {/* Center node — the sync point */}
-        <circle className="sw-node" cx="24" cy="24" r="3" fill="var(--primary)" />
+        {/* Bar 3 — bottom wave, shortest, flows right */}
+        <rect
+          className="sf-bar sf-bar-3"
+          x={barW * 0.16}
+          y={(barH + gap) * 2}
+          width={barW * 0.68}
+          height={barH}
+          rx={barH / 2}
+          fill="url(#sf-bar-3)"
+        />
       </g>
     </svg>
   );
@@ -73,35 +96,41 @@ export function Logo({
   return (
     <div
       className={cn(
-        "relative grid place-items-center overflow-hidden rounded-2xl shadow-lg",
+        "relative grid place-items-center overflow-hidden rounded-xl shadow-md",
         tileClassName
       )}
-      style={{ width: size + 10, height: size + 10 }}
+      style={{ width: size + 8, height: size + 8 }}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)] via-[oklch(0.4_0.06_260)] to-[var(--primary)]" />
-      <span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/20" />
-      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/15 to-[var(--gold)]/15" />
+      <span className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-[var(--primary)]/20" />
       <div className="relative">{mark}</div>
     </div>
   );
 }
 
 /**
- * SocialFlow wordmark — name only (no logo mark). Work-related, interactive.
+ * SocialFlow wordmark — logo + name with enhanced typography.
  */
 export function LogoWordmark({
   className,
   size = "text-base",
+  showLogo = true,
+  logoSize = 28,
 }: {
   className?: string;
   size?: string;
+  showLogo?: boolean;
+  logoSize?: number;
 }) {
   return (
-    <div className={cn("leading-tight", className)}>
-      <div className={cn("font-bold tracking-tight", size)}>
-        Social<span className="retaina-text">Flow</span>
+    <div className={cn("flex items-center gap-2.5", className)}>
+      {showLogo && <Logo size={logoSize} />}
+      <div className="leading-tight">
+        <div className={cn("font-bold tracking-tight", size)}>
+          Social<span className="retaina-text">Flow</span>
+        </div>
+        <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Social, Simplified</div>
       </div>
-      <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Social, Simplified</div>
     </div>
   );
 }

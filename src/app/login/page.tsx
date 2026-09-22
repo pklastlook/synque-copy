@@ -41,7 +41,7 @@ export default function LoginPage() {
           <div className="glass-strong crystal-in relative hidden flex-col justify-between p-10 lg:flex">
             <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[var(--gold)]/15 blur-3xl" />
             <div className="relative">
-              <Link href="/"><LogoWordmark size="text-xl" /></Link>
+              <Link href="/"><LogoWordmark size="text-lg" logoSize={30} /></Link>
             </div>
             <div className="relative">
               <h2 className="text-3xl font-bold leading-tight tracking-tight">

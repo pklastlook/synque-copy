@@ -94,9 +94,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full w-full flex-col gap-2 p-3">
-      {/* Brand — name only, no logo mark */}
-      <div className="px-2 pb-1 pt-2">
-        <LogoWordmark size="text-[17px]" />
+      {/* Brand — logo + SocialFlow */}
+      <div className="px-1 pb-1 pt-2">
+        <LogoWordmark size="text-[18px]" logoSize={30} />
       </div>
 
       {/* New Post button */}
