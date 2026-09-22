@@ -111,8 +111,21 @@ export function LandingBg() {
   );
 }
 
-/** Trial dialog — creates real user on activation */
-function TrialDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (b: boolean) => void }) {
+/** Trial CTA button — opens the trial dialog with card payment */
+export function TrialCTA({ className, label = "Start your 15-day trial" }: { className?: string; label?: string }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className={cn("flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold", className)}>
+        <Rocket className="h-4 w-4" /> {label} <ArrowRight className="h-4 w-4" />
+      </button>
+      <TrialDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
+/** Trial dialog — creates real user on activation (with card payment) */
+export function TrialDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (b: boolean) => void }) {
   const { signup } = useAuth();
   const [step, setStep] = React.useState<"details" | "payment" | "activating" | "done">("details");
   const [form, setForm] = React.useState({

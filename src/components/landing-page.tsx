@@ -65,7 +65,7 @@ export function LandingPage() {
   }
   return (
     <>
-      <Landing onSignIn={() => setMode("trial")} onSignIn={() => setMode("login")} />
+      <Landing onTrial={() => setMode("trial")} onSignIn={() => setMode("login")} />
       <TrialDialog
         open={mode === "trial"}
         onOpenChange={(b) => { if (!b) setMode("landing"); }}
@@ -145,7 +145,7 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
 }
 
 /* ===================== Landing — Story Teller ===================== */
-function Landing({ onSignIn, onSignIn }: { onSignIn: () => void; onSignIn: () => void }) {
+function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
   return (
     <div className="relative min-h-screen overflow-x-hidden">
       <div className="retaina-bg" aria-hidden>
@@ -162,8 +162,11 @@ function Landing({ onSignIn, onSignIn }: { onSignIn: () => void; onSignIn: () =>
           <a href="/about" className="text-sm text-muted-foreground transition hover:text-foreground">About</a>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onSignIn} className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold">
-            Sign in <ArrowRight className="h-3.5 w-3.5" />
+          <button onClick={onSignIn} className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:block">
+            Sign in
+          </button>
+          <button onClick={onTrial} className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold">
+            Start 15-day trial <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </nav>
@@ -192,9 +195,9 @@ function Landing({ onSignIn, onSignIn }: { onSignIn: () => void; onSignIn: () =>
               so your dissemination team ships more, faster.
             </p>
             <div className="crystal-in mt-8 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "0.3s" }}>
-              <button onClick={onSignIn} className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold">
+              <button onClick={onTrial} className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold">
                 <Rocket className="h-4 w-4" />
-                Sign in
+                Start 15-day trial
               </button>
               <button onClick={onSignIn} className="flex items-center gap-2 rounded-2xl border border-border/50 bg-muted/30 px-6 py-3 text-sm font-semibold backdrop-blur transition hover:bg-muted/60">
                 Sign in
@@ -362,7 +365,7 @@ function Landing({ onSignIn, onSignIn }: { onSignIn: () => void; onSignIn: () =>
                   </div>
                 ))}
               </div>
-              <button onClick={onSignIn} className="liquid-gold glow-ring mt-8 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold">
+              <button onClick={onTrial} className="liquid-gold glow-ring mt-8 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold">
                 Try the composer <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -483,7 +486,7 @@ function Landing({ onSignIn, onSignIn }: { onSignIn: () => void; onSignIn: () =>
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
             Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
-            Sign in — full access, no card to explore.
+            Start your 15-day trial — full access, no card to explore.
           </p>
           <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
             {[
@@ -552,7 +555,7 @@ function Landing({ onSignIn, onSignIn }: { onSignIn: () => void; onSignIn: () =>
                   p.featured ? "liquid-gold glow-ring" : "border border-border/50 bg-muted/40 hover:bg-muted"
                 )}
               >
-                Sign in <ArrowRight className="h-4 w-4" />
+                Start 15-day trial <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           ))}
@@ -570,8 +573,8 @@ function Landing({ onSignIn, onSignIn }: { onSignIn: () => void; onSignIn: () =>
           <p className="relative mx-auto mt-3 max-w-md text-muted-foreground">
             Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
           </p>
-          <button onClick={onSignIn} className="liquid-gold glow-ring relative mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto">
-            <Rocket className="h-4 w-4" /> Sign in <ArrowRight className="h-4 w-4" />
+          <button onClick={onTrial} className="liquid-gold glow-ring relative mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto">
+            <Rocket className="h-4 w-4" /> Start your 15-day trial <ArrowRight className="h-4 w-4" />
           </button>
           <p className="relative mt-3 text-[11px] text-muted-foreground">No card to explore · Cancel anytime · Full access for 15 days</p>
         </div>
@@ -689,7 +692,7 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-lg">
-                <Rocket className="h-5 w-5 text-[var(--gold)]" /> Sign in
+                <Rocket className="h-5 w-5 text-[var(--gold)]" /> Start your 15-day trial
               </DialogTitle>
               <DialogDescription>
                 Full access to every module. No charge for 15 days. Tell us about your team.
