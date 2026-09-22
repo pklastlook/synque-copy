@@ -24,6 +24,7 @@ model User {
   posts     Post[]
   activities Activity[]
   assignedComments Comment[] @relation("CommentAssignee")
+  mailboxes Mailbox[] @relation("MailboxOwner")
 }
 
 model Account {
@@ -115,3 +116,206 @@ model Activity {
   meta        String?  // JSON string for extra context
   createdAt   DateTime @default(now())
 }
+
+// ===== Campaigns =====
+model Campaign {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  color       String    @default("#E1306C")
+  status      String    @default("active") // draft | active | paused | completed
+  objective   String?   // awareness | engagement | conversion | traffic
+  budget      Float?
+  startDate   DateTime?
+  endDate     DateTime?
+  ownerId     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ===== Media Library =====
+model MediaAsset {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // image | video | audio
+  url         String
+  thumbnail   String?
+  size        Int      @default(0) // bytes
+  width       Int?
+  height      Int?
+  tags        String?  // comma separated
+  folder      String   @default("root")
+  uploadedById String?
+  createdAt   DateTime @default(now())
+}
+
+// ===== Social Listening / Brand Monitoring =====
+model ListeningQuery {
+  id         String   @id @default(cuid())
+  name       String
+  keywords   String   // comma separated
+  type       String   @default("brand") // brand | competitor | keyword | hashtag
+  color      String   @default("#E1306C")
+  status     String   @default("active") // active | paused
+  createdAt  DateTime @default(now())
+
+  mentions   Mention[]
+}
+
+model Mention {
+  id         String   @id @default(cuid())
+  queryId    String
+  query      ListeningQuery @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  source     String   // instagram | x | facebook | web | reddit | news
+  author     String
+  authorAvatar String?
+  text       String
+  url        String?
+  sentiment  String   @default("neutral") // positive | neutral | negative
+  reach      Int      @default(0)
+  engagement Int      @default(0)
+  date       DateTime
+  createdAt  DateTime @default(now())
+}
+
+// ===== Approval Workflows =====
+model Approval {
+  id           String   @id @default(cuid())
+  postId       String?
+  title        String
+  authorId     String
+  approverId   String?
+  status       String   @default("pending") // pending | approved | rejected | changes_requested
+  comment      String?
+  priority     String   @default("normal") // low | normal | high | urgent
+  dueAt        DateTime?
+  createdAt    DateTime @default(now())
+  resolvedAt   DateTime?
+}
+
+// ===== Hashtag Manager =====
+model HashtagGroup {
+  id         String   @id @default(cuid())
+  name       String
+  tags       String   // comma separated, no #
+  platform   String   @default("all") // all | instagram | x | tiktok | linkedin
+  usageCount Int      @default(0)
+  avgReach   Int      @default(0)
+  color      String   @default("#E1306C")
+  createdAt  DateTime @default(now())
+}
+
+// ===== Competitor Tracking =====
+model Competitor {
+  id         String   @id @default(cuid())
+  name       String
+  handle      String
+  platform   String
+  avatar     String?
+  followers  Int      @default(0)
+  engagementRate Float @default(0)
+  growthRate Float    @default(0)
+  postingFreq Float   @default(0) // posts/week
+  status     String   @default("tracking") // tracking | paused
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  snapshots  CompetitorSnapshot[]
+}
+
+model CompetitorSnapshot {
+  id           String   @id @default(cuid())
+  competitorId String
+  competitor   Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  date         DateTime
+  followers    Int
+  engagement   Float
+  posts        Int
+}
+
+// ===== Custom Reports =====
+model Report {
+  id          String   @id @default(cuid())
+  name        String
+  type       String   @default("performance") // performance | audience | campaign | competitor | custom
+  description String?
+  config      String   // JSON: { metrics, dateRange, accounts, groupBy }
+  schedule    String?  // daily | weekly | monthly | null
+  createdBy   String?
+  lastGenerated DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ===== Link in Bio =====
+model LinkInBio {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  subtitle    String?
+  avatar      String?
+  theme       String   @default("rose") // rose | teal | amber | magenta | green | dark
+  links       String   // JSON array: [{ title, url, icon }]
+  visits      Int      @default(0)
+  clicks     Int      @default(0)
+  accountId   String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ===== Mail Server =====
+model MailServer {
+  id           String   @id @default(cuid())
+  name         String
+  provider     String   @default("custom") // custom | hostinger | cpanel | zoho | mailgun | other
+  domain       String
+  imapHost     String
+  imapPort     Int      @default(993)
+  imapSecure   Boolean  @default(true)
+  smtpHost     String
+  smtpPort     Int      @default(465)
+  smtpSecure   Boolean  @default(true)
+  username     String   // admin/ catch-all account
+  passwordEnc  String   // stored (mock-encrypted)
+  fromName     String
+  fromEmail    String
+  status       String   @default("pending") // pending | connected | error
+  lastCheck    DateTime?
+  createdAt    DateTime @default(now())
+
+  mailboxes    Mailbox[]
+}
+
+model Mailbox {
+  id           String   @id @default(cuid())
+  serverId     String
+  server       MailServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  email        String   @unique
+  displayName  String
+  passwordEnc  String   // stored (mock-encrypted)
+  quotaMb      Int      @default(2048)
+  usedMb       Float    @default(0)
+  ownerId      String?  // assigned team member
+  owner        User?    @relation("MailboxOwner", fields: [ownerId], references: [id])
+  status       String   @default("active") // active | suspended | creating
+  role         String   @default("member") // admin | member
+  createdAt    DateTime @default(now())
+
+  messages     MailMessage[]
+}
+
+model MailMessage {
+  id          String   @id @default(cuid())
+  mailboxId   String
+  mailbox     Mailbox  @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  fromAddr    String
+  toAddr      String
+  subject     String
+  body        String
+  direction   String   @default("in") // in | out
+  folder      String   @default("inbox") // inbox | sent | drafts | trash | starred
+  isRead      Boolean  @default(false)
+  isStarred   Boolean  @default(false)
+  date        DateTime
+  createdAt   DateTime @default(now())
+}
+

@@ -12,20 +12,38 @@ import {
   Settings,
   Sparkles,
   ChevronRight,
+  Megaphone,
+  Images,
+  Radio,
+  ClipboardCheck,
+  Hash,
+  Crosshair,
+  FileBarChart,
+  Link2,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
 import type { ViewId } from "@/lib/types";
 import { NameAvatar } from "@/components/glass/name-avatar";
 
-const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string }[] = [
+const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; badge?: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Overview" },
   { id: "composer", label: "Composer", icon: PenSquare, group: "Overview" },
   { id: "calendar", label: "Calendar", icon: CalendarDays, group: "Overview" },
-  { id: "inbox", label: "Inbox", icon: Inbox, group: "Overview" },
+  { id: "inbox", label: "Inbox", icon: Inbox, group: "Overview", badge: "3" },
+  { id: "approvals", label: "Approvals", icon: ClipboardCheck, group: "Overview", badge: "2" },
+  { id: "campaigns", label: "Campaigns", icon: Megaphone, group: "Content" },
+  { id: "media", label: "Media Library", icon: Images, group: "Content" },
+  { id: "hashtags", label: "Hashtags", icon: Hash, group: "Content" },
+  { id: "linkbio", label: "Link in Bio", icon: Link2, group: "Content" },
+  { id: "listening", label: "Listening", icon: Radio, group: "Insights" },
+  { id: "competitors", label: "Competitors", icon: Crosshair, group: "Insights" },
   { id: "analytics", label: "Analytics", icon: BarChart3, group: "Insights" },
+  { id: "reports", label: "Reports", icon: FileBarChart, group: "Insights" },
   { id: "accounts", label: "Accounts", icon: AtSign, group: "Workspace" },
   { id: "team", label: "Team", icon: Users, group: "Workspace" },
+  { id: "mail", label: "Mail Server", icon: Mail, group: "Workspace" },
   { id: "settings", label: "Settings", icon: Settings, group: "Workspace" },
 ];
 
@@ -89,12 +107,19 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                     )}
                     <Icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")} />
                     <span className="truncate">{n.label}</span>
-                    {n.id === "inbox" && (
-                      <span className="ml-auto rounded-full bg-primary/90 px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
-                        3
+                    {n.badge && (
+                      <span
+                        className={cn(
+                          "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-primary/90 text-primary-foreground"
+                        )}
+                      >
+                        {n.badge}
                       </span>
                     )}
-                    {active && <ChevronRight className="ml-auto h-3.5 w-3.5 text-primary/70" />}
+                    {active && !n.badge && <ChevronRight className="ml-auto h-3.5 w-3.5 text-primary/70" />}
                   </button>
                 );
               })}

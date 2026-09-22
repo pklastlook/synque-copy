@@ -98,6 +98,19 @@ async function main() {
   console.log("Seeding Prism Social...");
 
   // wipe
+  await db.mailMessage.deleteMany();
+  await db.mailbox.deleteMany();
+  await db.mailServer.deleteMany();
+  await db.linkInBio.deleteMany();
+  await db.report.deleteMany();
+  await db.competitorSnapshot.deleteMany();
+  await db.competitor.deleteMany();
+  await db.hashtagGroup.deleteMany();
+  await db.approval.deleteMany();
+  await db.mention.deleteMany();
+  await db.listeningQuery.deleteMany();
+  await db.mediaAsset.deleteMany();
+  await db.campaign.deleteMany();
   await db.activity.deleteMany();
   await db.analyticsDaily.deleteMany();
   await db.comment.deleteMany();
@@ -254,7 +267,266 @@ async function main() {
     });
   }
 
-  console.log("Seed complete.");
+  // ===== Campaigns =====
+  await db.campaign.createMany({
+    data: [
+      { name: "Spring Launch 2026", description: "Announce the new product line across all channels", color: "#E1306C", status: "active", objective: "awareness", budget: 25000, startDate: new Date(now - 12 * day), endDate: new Date(now + 18 * day), ownerId: "u-1" },
+      { name: "Creator Spotlight", description: "UGC series featuring community creators", color: "#9b51e0", status: "active", objective: "engagement", budget: 8000, startDate: new Date(now - 5 * day), ownerId: "u-2" },
+      { name: "Q2 Conversion Push", description: "Performance-driven promo campaign", color: "#2d9cdb", status: "active", objective: "conversion", budget: 15000, startDate: new Date(now - 2 * day), endDate: new Date(now + 30 * day), ownerId: "u-4" },
+      { name: "Brand Refresh", description: "Visual identity rollout", color: "#27ae60", status: "draft", objective: "awareness", budget: 40000, ownerId: "u-admin" },
+      { name: "Holiday Series", description: "Festive content calendar", color: "#f2994a", status: "paused", objective: "engagement", ownerId: "u-3" },
+      { name: "Community AMA", description: "Weekly live Q&A", color: "#eb5757", status: "completed", startDate: new Date(now - 40 * day), endDate: new Date(now - 10 * day), ownerId: "u-2" },
+    ],
+  });
+
+  // ===== Media Library =====
+  const MEDIA_ASSETS = [
+    { name: "Hero Banner — Spring", url: MEDIA[0], type: "image", tags: "hero, spring, banner", folder: "Campaigns" },
+    { name: "Product Shot — Rose", url: MEDIA[12], type: "image", tags: "product, studio", folder: "Products" },
+    { name: "Lifestyle Flatlay", url: MEDIA[1], type: "image", tags: "lifestyle, flatlay", folder: "Lifestyle" },
+    { name: "Food Bowl Top View", url: MEDIA[4], type: "image", tags: "food, top-view", folder: "Café" },
+    { name: "Mountain Aerial", url: MEDIA[8], type: "image", tags: "travel, aerial, nature", folder: "Travel" },
+    { name: "Tech Gadget Studio", url: MEDIA[13], type: "image", tags: "tech, product", folder: "Products" },
+    { name: "Fashion Street Style", url: MEDIA[16], type: "image", tags: "fashion, street", folder: "Fashion" },
+    { name: "Fitness Training", url: MEDIA[20], type: "image", tags: "fitness, workout", folder: "Fitness" },
+    { name: "Coffee & Notebook", url: MEDIA[2], type: "image", tags: "lifestyle, coffee", folder: "Lifestyle" },
+    { name: "Ocean Coast", url: MEDIA[9], type: "image", tags: "travel, ocean", folder: "Travel" },
+    { name: "Headphones Shot", url: MEDIA[14], type: "image", tags: "tech, product", folder: "Products" },
+    { name: "Editorial Look", url: MEDIA[17], type: "image", tags: "fashion, editorial", folder: "Fashion" },
+    { name: "Mobility Routine", url: MEDIA[21], type: "image", tags: "fitness, mobility", folder: "Fitness" },
+    { name: "Color Palette", url: MEDIA[3], type: "image", tags: "design, palette", folder: "Design" },
+    { name: "Smoothie Bowl", url: MEDIA[5], type: "image", tags: "food, healthy", folder: "Café" },
+    { name: "Sunset Mountains", url: MEDIA[10], type: "image", tags: "travel, sunset", folder: "Travel" },
+  ];
+  await db.mediaAsset.createMany({
+    data: MEDIA_ASSETS.map((m, i) => ({
+      name: m.name,
+      type: m.type,
+      url: m.url,
+      thumbnail: m.url,
+      size: 400000 + rand(i, 2000000),
+      width: 1200,
+      height: 800,
+      tags: m.tags,
+      folder: m.folder,
+      uploadedById: pick(TEAM, i).id,
+    })),
+  });
+
+  // ===== Social Listening =====
+  const QUERIES = [
+    { name: "Prism Brand", keywords: "prism social, prism studio, @prism", type: "brand", color: "#E1306C" },
+    { name: "Competitor: Later", keywords: "later social, later.com", type: "competitor", color: "#9b51e0" },
+    { name: "Competitor: Hootsuite", keywords: "hootsuite", type: "competitor", color: "#2d9cdb" },
+    { name: "#CreatorEconomy", keywords: "#creatoreconomy, creator economy", type: "hashtag", color: "#27ae60" },
+    { name: "Social Scheduling", keywords: "social media scheduling tool, content calendar", type: "keyword", color: "#f2994a" },
+  ];
+  for (const q of QUERIES) {
+    const created = await db.listeningQuery.create({ data: q });
+    const MENTIONS = [
+      "Just switched to @PrismSocial and the AI composer is unreal — saved me 2 hours today",
+      "Loving the new liquid glass UI on Prism, feels so polished 🔥",
+      "Prism Studio's latest drop is exactly what creators needed. Take my money.",
+      "Anyone tried the new multi-account publishing on Prism? Thoughts?",
+      "Not impressed with the analytics on Prism tbh, needs more depth",
+      "The competitor analysis feature on Prism is genuinely useful for benchmarking",
+      "Prism vs Hootsuite — honestly Prism wins on UX alone",
+      "Just saw a Prism ad and the design is *chef's kiss*",
+      "Why is everyone switching to Prism all of a sudden?",
+      "Prism's approval workflow finally fixed our team's chaos",
+    ];
+    const sources = ["instagram", "x", "facebook", "web", "reddit", "news"];
+    const sentiments = ["positive", "neutral", "negative"] as const;
+    for (let i = 0; i < 8; i++) {
+      await db.mention.create({
+        data: {
+          queryId: created.id,
+          source: pick(sources, i + q.name.length),
+          author: `@${["creator_jen", "marketer_tom", "designs_by_ana", "growthlead", "techreviewer", "socialsam", "lilycreates", "founderdesk"][i % 8]}`,
+          authorAvatar: null,
+          text: pick(MENTIONS, i + q.name.length),
+          url: `https://example.com/mention/${i}`,
+          sentiment: pick(sentiments, i + q.name.length),
+          reach: rand(i + q.name.length, 50000) + 500,
+          engagement: rand(i + q.name.length, 3000) + 20,
+          date: new Date(now - i * 3600 * 1000 * 5),
+        },
+      });
+    }
+  }
+
+  // ===== Approval Workflows =====
+  await db.approval.createMany({
+    data: [
+      { title: "Holiday Series — Post #4", authorId: "u-5", approverId: "u-admin", status: "pending", priority: "high", dueAt: new Date(now + day), comment: null },
+      { title: "Brand Refresh — Logo Reveal", authorId: "u-1", approverId: "u-admin", status: "pending", priority: "urgent", dueAt: new Date(now + 2 * day) },
+      { title: "Spring Launch — Carousel", authorId: "u-3", approverId: "u-admin", status: "pending", priority: "normal" },
+      { title: "Creator Spotlight — Interview", authorId: "u-2", approverId: "u-1", status: "approved", comment: "Looks great, ship it!", resolvedAt: new Date(now - 3600 * 1000 * 6) },
+      { title: "Q2 Promo — Discount Code", authorId: "u-4", approverId: "u-admin", status: "changes_requested", comment: "Please change the CTA to be clearer", resolvedAt: new Date(now - 3600 * 1000 * 12) },
+      { title: "Community AMA — Recap", authorId: "u-2", approverId: "u-admin", status: "rejected", comment: "Wrong tone for LinkedIn, redo", resolvedAt: new Date(now - 3600 * 1000 * 24) },
+    ],
+  });
+
+  // ===== Hashtag Groups =====
+  await db.hashtagGroup.createMany({
+    data: [
+      { name: "Instagram — Growth Set", tags: "creatoreconomy, contentcreator, socialmediatips, growoninstagram, instagrowth, contentstrategy, digitallmarketing", platform: "instagram", usageCount: 24, avgReach: 84000, color: "#E1306C" },
+      { name: "TikTok — Trending", tags: "fyp, foryou, viral, tiktoktrends, smallbusiness, createtok, contentcreator", platform: "tiktok", usageCount: 31, avgReach: 156000, color: "#2d9cdb" },
+      { name: "LinkedIn — Professional", tags: "b2bmarketing, marketingstrategy, brandgrowth, socialmediamarketing, thoughtleadership", platform: "linkedin", usageCount: 12, avgReach: 22000, color: "#9b51e0" },
+      { name: "X — Conversation", tags: "marketingtwitter, growth, buildinpublic, startup", platform: "x", usageCount: 18, avgReach: 41000, color: "#eb5757" },
+      { name: "Brand — Evergreen", tags: "prism, prismstudio, createtoday, designforward", platform: "all", usageCount: 45, avgReach: 98000, color: "#27ae60" },
+      { name: "Launch — Spring Drop", tags: "newdrop, springsale, limitededition, shopnow", platform: "instagram", usageCount: 8, avgReach: 67000, color: "#f2994a" },
+      { name: "Community — UGC", tags: "community, usergenerated, spotlight, featuredcreator", platform: "all", usageCount: 15, avgReach: 52000, color: "#2d9cdb" },
+    ],
+  });
+
+  // ===== Competitor Tracking =====
+  const COMPETITORS = [
+    { name: "Hootsuite", handle: "@hootsuite", platform: "instagram", followers: 1280000, engagementRate: 1.8, growthRate: 0.4, postingFreq: 7.2 },
+    { name: "Sprout Social", handle: "@sproutsocial", platform: "instagram", followers: 184000, engagementRate: 2.4, growthRate: 1.1, postingFreq: 5.5 },
+    { name: "Buffer", handle: "@buffer", platform: "instagram", followers: 312000, engagementRate: 3.1, growthRate: 0.8, postingFreq: 9.1 },
+    { name: "Later", handle: "@latermedia", platform: "instagram", followers: 96000, engagementRate: 2.0, growthRate: 0.6, postingFreq: 6.0 },
+    { name: "Sprinklr", handle: "@sprinklr", platform: "linkedin", followers: 210000, engagementRate: 1.2, growthRate: 0.5, postingFreq: 4.0 },
+    { name: "SocialPilot", handle: "@socialpilot", platform: "x", followers: 54000, engagementRate: 1.5, growthRate: 0.9, postingFreq: 8.3 },
+  ];
+  for (const c of COMPETITORS) {
+    const comp = await db.competitor.create({
+      data: {
+        ...c,
+        avatar: null,
+        status: "tracking",
+        notes: c.name === "Hootsuite" ? "Market leader, benchmark for feature parity" : c.name === "Sprout Social" ? "Strong in enterprise reporting" : "Watch for content strategy",
+      },
+    });
+    for (let d = 13; d >= 0; d--) {
+      await db.competitorSnapshot.create({
+        data: {
+          competitorId: comp.id,
+          date: new Date(now - d * day),
+          followers: c.followers + Math.round(c.followers * c.growthRate * 0.01 * (14 - d)),
+          engagement: c.engagementRate + rand(d, 10) / 10,
+          posts: Math.round(c.postingFreq * 2),
+        },
+      });
+    }
+  }
+
+  // ===== Custom Reports =====
+  await db.report.createMany({
+    data: [
+      { name: "Monthly Performance Summary", type: "performance", description: "All accounts, last 30 days", config: JSON.stringify({ metrics: ["impressions", "engagement", "reach"], dateRange: "30d", accounts: "all" }), schedule: "monthly", createdBy: "u-admin", lastGenerated: new Date(now - day * 3) },
+      { name: "Q2 Competitor Benchmark", type: "competitor", description: "Compare against top 6 competitors", config: JSON.stringify({ metrics: ["followers", "engagement"], dateRange: "90d" }), schedule: "weekly", createdBy: "u-1", lastGenerated: new Date(now - day * 2) },
+      { name: "Audience Growth — Instagram", type: "audience", description: "Follower growth on IG accounts", config: JSON.stringify({ metrics: ["followers", "reach"], accounts: "instagram" }), createdBy: "u-2" },
+      { name: "Spring Launch Campaign Report", type: "campaign", description: "Campaign-level performance", config: JSON.stringify({ campaignId: "1", metrics: ["engagement", "conversions"] }), createdBy: "u-1", lastGenerated: new Date(now - day) },
+      { name: "Team Productivity Weekly", type: "custom", description: "Posts published per team member", config: JSON.stringify({ metrics: ["posts", "engagement"], groupBy: "author" }), schedule: "weekly", createdBy: "u-admin" },
+    ],
+  });
+
+  // ===== Link in Bio =====
+  await db.linkInBio.create({
+    data: {
+      slug: "prism",
+      title: "Prism Studio",
+      subtitle: "Tools for creators who move fast",
+      avatar: MEDIA[0],
+      theme: "rose",
+      visits: 48230,
+      clicks: 12940,
+      accountId: "ac-ig-1",
+      active: true,
+      links: JSON.stringify([
+        { title: "Shop the new collection", url: "https://example.com/shop", icon: "shopping-bag" },
+        { title: "Read our blog", url: "https://example.com/blog", icon: "book-open" },
+        { title: "Watch on YouTube", url: "https://example.com/yt", icon: "play" },
+        { title: "Follow on TikTok", url: "https://example.com/tt", icon: "music" },
+        { title: "Join our newsletter", url: "https://example.com/news", icon: "mail" },
+        { title: "Contact us", url: "https://example.com/contact", icon: "message-circle" },
+      ]),
+    },
+  });
+
+  // ===== Mail Server =====
+  const server = await db.mailServer.create({
+    data: {
+      name: "Prism Primary Mail",
+      provider: "hostinger",
+      domain: "prism.co",
+      imapHost: "imap.hostinger.com",
+      imapPort: 993,
+      imapSecure: true,
+      smtpHost: "smtp.hostinger.com",
+      smtpPort: 465,
+      smtpSecure: true,
+      username: "admin@prism.co",
+      passwordEnc: "enc:mockpasswordhash",
+      fromName: "Prism Team",
+      fromEmail: "hello@prism.co",
+      status: "connected",
+      lastCheck: new Date(now - 3600 * 1000),
+    },
+  });
+
+  // Mailboxes for the team
+  const MAILBOXES = TEAM.map((m, i) => ({
+    serverId: server.id,
+    email: `${m.name.toLowerCase().split(" ")[0]}@prism.co`,
+    displayName: m.name,
+    passwordEnc: "enc:mockhash" + i,
+    quotaMb: 5120,
+    usedMb: Math.round((800 + rand(i, 3500)) * 10) / 10,
+    ownerId: m.id,
+    status: "active",
+    role: m.role,
+  }));
+  const createdBoxes = [];
+  for (const mb of MAILBOXES) {
+    createdBoxes.push(await db.mailbox.create({ data: mb }));
+  }
+
+  // Mail messages
+  const SUBJECTS = [
+    "Your weekly Prism performance digest",
+    "New comment on your latest post",
+    "Approval needed: Brand Refresh — Logo Reveal",
+    "Campaign 'Spring Launch 2026' milestone reached 🎉",
+    "Scheduled post published successfully",
+    "Welcome to Prism — your mailbox is ready",
+    "AI caption suggestions for your next post",
+    "Weekly team activity summary",
+    "Competitor alert: Hootsuite posted a new campaign",
+    "Your mailbox is 80% full — consider archiving",
+  ];
+  const BODIES = [
+    "Hi Maya,\n\nHere's your weekly performance digest. Total impressions: 2.4M (up 18%), engagement: 166K (up 12%). Top post: 'New Year Product Drop'.\n\nKeep up the great work,\nPrism",
+    "A new comment was posted on 'Behind the Studio'. Author: @creator_jen — 'This is exactly what I needed today, thank you!'\n\nReply from your Inbox to keep the conversation going.",
+    "Hi Maya,\n\nDaniel has requested approval for 'Brand Refresh — Logo Reveal' (urgent). Please review and approve before the scheduled publish time tomorrow at 9:00 AM.\n\nOpen Approvals →",
+    "Congratulations! Your campaign 'Spring Launch 2026' just crossed 100K total engagement across all platforms. The top performing variant was on TikTok with 42K likes.\n\nView campaign →",
+    "Your scheduled post 'Launch Teaser' was published successfully to 5 accounts (Instagram, X, LinkedIn, TikTok, Threads). Initial reach: 8.4K in the first hour.",
+    "Welcome to the Prism team!\n\nYour mailbox is now active. You can send and receive mail from this address. Configure your mail client with:\nIMAP: imap.hostinger.com:993 (SSL)\nSMTP: smtp.hostinger.com:465 (SSL)\n\n— Prism IT",
+    "We've prepared 4 AI caption suggestions tailored for your TikTok account based on your recent posting style. Want to use them in your next post?\n\nOpen Composer →",
+    "Team activity this week: 12 posts published, 5 scheduled, 28 comments replied, 4 new AI generations. Most active: Maya Reyes.\n\nView full report →",
+    "Competitor alert: Hootsuite just published a campaign about 'AI-powered social'. Engagement so far: 2.1K likes. You may want to respond with your own angle.\n\nView competitors →",
+    "Your mailbox is 80% full. Consider archiving old messages or increasing your quota. Current usage: 4.1 GB of 5 GB.",
+  ];
+  for (let i = 0; i < 14; i++) {
+    const box = pick(createdBoxes, i);
+    await db.mailMessage.create({
+      data: {
+        mailboxId: box.id,
+        fromAddr: i % 3 === 0 ? "notifications@prism.co" : i % 5 === 0 ? "noreply@hostinger.com" : "team@prism.co",
+        toAddr: box.email,
+        subject: pick(SUBJECTS, i),
+        body: pick(BODIES, i),
+        direction: i % 4 === 0 ? "out" : "in",
+        folder: i % 4 === 0 ? "sent" : i % 7 === 0 ? "starred" : "inbox",
+        isRead: rand(i, 3) === 0,
+        isStarred: i % 7 === 0,
+        date: new Date(now - i * 3600 * 1000 * 5),
+      },
+    });
+  }
+
+  console.log("Seed complete (with all new modules).");
 }
 
 main()
