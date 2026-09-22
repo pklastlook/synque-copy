@@ -91,18 +91,23 @@ export function KpiCard({
       />
       {/* shimmer sweep on hover */}
       <span className="crystal-sweep pointer-events-none absolute inset-0" />
-      {/* premium animated icon tile — uses the same accent color as sidebar */}
+      {/* Premium icon — glass tile with accent-colored icon (matches sidebar style) */}
       <div className="relative flex items-start justify-between">
         <div className="relative">
           <div
-            className="grid h-12 w-12 place-items-center rounded-2xl text-white shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3"
-            style={{ background: `linear-gradient(135deg, ${accent ?? "var(--primary)"}, oklch(0.45 0.16 258))` }}
+            className="grid h-11 w-11 place-items-center rounded-xl border backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3"
+            style={{
+              background: `${accent ?? "var(--primary)"}15`,
+              borderColor: `${accent ?? "var(--primary)"}30`,
+            }}
           >
             <span
-              className="pointer-events-none absolute inset-0 rounded-2xl opacity-60 blur-md animate-pulse"
+              className="pointer-events-none absolute inset-0 rounded-xl opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70"
               style={{ background: accent ?? "var(--primary)" }}
             />
-            <span className="relative transition-transform duration-300 group-hover:scale-110">{icon}</span>
+            <span className="relative transition-transform duration-300 group-hover:scale-110" style={{ color: accent ?? "var(--primary)" }}>
+              {icon}
+            </span>
           </div>
         </div>
         {delta !== undefined && (
