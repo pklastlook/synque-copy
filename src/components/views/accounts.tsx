@@ -573,7 +573,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
         {step === "connecting" && p && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="relative mb-6">
-              <div className="grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[oklch(0.66_0.22_305)] text-white shadow-xl">
+              <div className="grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[var(--gold)] text-white shadow-xl">
                 <PlatformBadge platform={platform!} size={44} />
               </div>
               <Loader2 className="absolute -bottom-1 -right-1 h-8 w-8 animate-spin text-primary" />

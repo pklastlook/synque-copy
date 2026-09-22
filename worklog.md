@@ -480,3 +480,169 @@ Stage Summary:
 - "Save from suspension" advisor gives actionable, account-specific guidance (high-priority actions tied to detected risk factors).
 - Protection settings let admins configure hard limits (posting cadence, DM/follow/comment caps, banned hashtags, pause-on-warning, cooldown, 2FA) that prevent the patterns platforms suspend for — persists via API.
 - All 17 views render with 0 console errors. Lint: 0 errors, 0 warnings.
+
+---
+
+## Task ID: admin-panel — `admin-panel-builder`
+
+**Task**: Build ONE React view component (`AdminPanelView`) for the Prism social-media management app — a comprehensive admin command-center view consuming the existing `GET /api/admin` route. Single `/` route, client-side view switching via Zustand, Apple macOS-27 "liquid glass" aesthetic with navy + gold premium accents.
+
+### File delivered
+- `/home/z/my-project/src/components/views/admin-panel.tsx` — named export `AdminPanelView` (`"use client"`)
+
+### Work log
+- Read `/home/z/my-project/worklog.md` to absorb the established design system (GlassCard / KpiCard / SectionTitle / NameAvatar / PlatformBadge primitives, `crystal-in` staggered entrance, `num-display` + `label-caps` premium typography, `liquid-pill` / `liquid-gold` / `glow-ring` buttons, `gold-text` / `retaina-text` gradient headings, `scroll-liquid` custom scrollbar, `shimmer` skeleton, premium-scrim dialog overlay).
+- Read `dashboard.tsx`, `team.tsx`, `approvals.tsx`, `accounts.tsx` to match the exact visual language (GlassCard strong + glass-sheen hero with ambient blur blobs; KpiCard grid with staggered `crystal-in`; `recharts` BarChart/AreaChart with `TOOLTIP_STYLE = { background: var(--popover), border: 1px solid var(--border), borderRadius: 12, fontSize: 12 }`; `NameAvatar` + `PlatformBadge` usage; `timeAgo` / `fmt` helpers).
+- Verified `/api/admin/route.ts` returns the exact `AdminData` shape specified (`overview`, `teamPerformance[]`, `tasks[]`, `taskStatus`, `accountHealth[]`, `departments[]`, `activities[]`) by reproducing the route's full processing logic in a standalone `tsx` script — all queries + transformations succeed end-to-end against the seeded SQLite DB (6 users, 10 accounts, 12 posts, 60 variants, 12 tasks, 6 approvals, 28 comments, 6 activities, 10 health rows, 4 departments).
+- Verified `app-shell.tsx` already imports `AdminPanelView` from `@/components/views/admin-panel` and renders it when `view === "admin"`.
+
+### What was built — 7 stacked sections with `space-y-6`
+
+**1. Hero header** (`AdminHero`)
+- `GlassCard strong glass-sheen relative overflow-hidden p-6` with two ambient blobs (`bg-primary/30` top-right + `bg-[var(--gold)]/25` bottom-left, both `blur-3xl`).
+- Eyebrow with `ShieldCheck` icon + "Workspace · Command center".
+- Title "Admin <span className='gold-text'>Command Center</span>" using the gold gradient text class.
+- Subtitle showing live workspace stats: members · accounts · followers (fmt) · engagement (fmt).
+- `liquid-gold glow-ring` "Export report" button → `toast.success` with description.
+
+**2. Overview KPI strip** (`OverviewKpiStrip`)
+- 8 `KpiCard`s in a `grid grid-cols-2 gap-4 lg:grid-cols-4` (2 rows of 4 on desktop, 2 cols on mobile).
+- Each wrapped in `<div className="crystal-in" style={{ animationDelay: ... }}>` with staggered delays (0.05s → 0.47s).
+- Cards: Total members (navy, hint activeUsers), Active now (green, hint "online today"), Total accounts (sky `oklch(0.72 0.16 200)`, hint connected), At-risk accounts (rose primary, hint healthy), Published posts (teal, hint total), Scheduled posts (amber, hint queued), Pending approvals (indigo `oklch(0.66 0.16 230)`, hint awaiting), Unread inbox (gold, hint open). Each uses `fmt()` for value display.
+
+**3. Team performance table** (`TeamPerformanceSection`) — the core feature
+- Premium sortable div-table inside `GlassCard p-0` (header strip + horizontally scrollable body).
+- 7 columns: Member (NameAvatar + name + status dot + role badge + title + department), Accounts, Posts, Tasks (done/total with gradient progress bar), Engagement (fmt), Followers (fmt), Profile action.
+- Header row uses `SortHeader` (button) with up/down arrow when active; sortable by engagement (default desc), posts, followers, accounts, tasks.
+- Each row is a clickable button that opens `MemberProfileDialog`; hover state = `bg-muted/40` + `shadow-[inset_2px_0_0_0_var(--primary)]` (left accent stripe).
+- Body is `max-h-[640px] overflow-y-auto scroll-liquid` for long lists.
+- Role badges: admin = gold (Crown icon), manager = navy primary (Shield), editor = teal (Pencil), member = muted (Users).
+- Status dots: active = emerald, invited = amber, suspended = rose.
+- `MemberProfileDialog` (`DialogContent sm:max-w-xl`) shows: avatar + name + role badge + status dot + email (mailto link), 4-stat grid (Posts/Accounts/Engagement/Followers with colored icon tiles), task-completion progress bar (navy→gold gradient), approvals + last-active card, permissions as pills (snake-case → space-separated), footer with "Message" + "Manage access" (`liquid-pill`) buttons (toast only).
+
+**4. Task board / workflow** (`TaskBoardSection`)
+- `GlassCard p-5` with SectionTitle + tasks count badge.
+- `recharts` `BarChart` (vertical, 140px height) at top showing `taskStatus` distribution across 5 statuses (todo/in_progress/review/done/blocked), each bar colored using the status color (`var(--muted-foreground)`, `oklch(0.72 0.16 200)`, `oklch(0.78 0.18 75)`, `oklch(0.76 0.18 145)`, `var(--primary)` respectively), with `TOOLTIP_STYLE`.
+- Kanban board: 5 horizontal-scrollable columns (`w-[260px] shrink-0`, `overflow-x-auto scroll-liquid`), each with status icon, count, % of board, and a `max-h-[360px] overflow-y-auto` task list.
+- Each `TaskCard`: priority color stripe on left, type icon tile (publish/design/review/research/campaign/outreach/schedule/approve/compose → lucide icon), truncated title, priority pill (urgent=rose primary, high=amber, normal=teal, low=muted), due date (red + AlertTriangle icon if overdue), assignee `NameAvatar` + name.
+- Tasks sorted within column by priority rank (urgent→low) then due date.
+
+**5. Account health overview** (`AccountHealthSection`)
+- `GlassCard p-5` with SectionTitle + healthy/at-risk legend.
+- Healthy-vs-at-risk ratio bar at top: emerald + rose split with % readout.
+- List (`max-h-[560px] overflow-y-auto scroll-liquid`) of `accountHealth` sorted by riskScore desc.
+- Each row: PlatformBadge (or 2-letter fallback if unknown platform), displayName + handle, followers, risk score mini-bar (color-coded by score: <30 green / <50 amber / <70 orange / ≥70 navy primary), risk badge (safe=emerald / moderate=amber / elevated=orange / high=rose / critical=rose-600, with ping dot for non-safe), status (capitalize), report count (rose Flag icon if > 0).
+- At-risk rows get `border-primary/30 shadow-[inset_2px_0_0_0_var(--primary)]` for visual emphasis.
+
+**6. Department breakdown** (`DepartmentSection`)
+- `GlassCard p-5` with SectionTitle + department count badge.
+- `recharts` horizontal `BarChart` (layout="vertical", YAxis=department name, XAxis=engagement) — bar height = `max(180, deptCount × 48)` px.
+- Each bar colored from a 7-color palette (navy, sky, teal, indigo, amber, gold, magenta).
+- Below: legend grid (`grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`) of department cards — color dot, name, "X members · Y engagement", and a mini relative-engagement bar.
+
+**7. Activity feed** (`ActivitySection`)
+- `GlassCard p-5` with SectionTitle + activity count badge.
+- Top 15 activities, each row: `NameAvatar` (h-8 w-8) + userName (bold) + description (muted, userName prefix stripped) + type label (`replace('_', ' ')`) + icon tile (mapped: post_published=Send, post_scheduled=CalendarClock, comment_replied=MessageCircle, account_connected=UserPlus, ai_generated=Wand2, team_joined=CheckCircle2, approval_requested/resolved=ShieldCheck/ClipboardList, task_*=ListChecks/ClipboardList, member_invited=UserPlus; fallback CheckCircle2) + timeAgo (hidden on mobile).
+- Hover state: `bg-muted/50`.
+
+### Quality
+- **TypeScript strict throughout, zero `any`**. Interfaces declared for `Overview`, `TeamMember`, `Task`, `TaskStatus`, `TaskPriority`, `AccountHealthRow`, `DepartmentRow`, `ActivityRow`, `AdminData`.
+- `"use client"` directive at top.
+- No `<img>` elements used (only `NameAvatar` which internally uses `<img>` with its own eslint-safe handling — no new directives needed since the project disables `no-img-element` project-wide per the worklog notes from Task 14).
+- Reused only existing design-system primitives: `GlassCard`, `KpiCard`, `SectionTitle`, `NameAvatar`, `PlatformBadge`, `useApi`, `fmt`, `timeAgo`, `cn`, shadcn `Dialog`/`Button`, `recharts`, `lucide-react`, `sonner`. No new global styles or routes added.
+- Mobile-first responsive: KPI grid 2→4 cols; table horizontally scrolls at `<820px`; kanban always 5 columns but horizontally scrolls on mobile; department legend 2→3→4 cols; activity timeAgo hidden on mobile.
+- Premium palette per spec: navy `var(--primary)`, gold `var(--gold)`, sky `oklch(0.72 0.16 200)`, indigo `oklch(0.66 0.16 230)`, teal `oklch(0.76 0.15 165)` for chart bars and accents. Headings use `gold-text` gradient.
+- All chart tooltips use the shared `TOOLTIP_STYLE` constant matching `dashboard.tsx` exactly.
+- Staggered `crystal-in` entrance on hero (none — hero is static), KPI strip (0.05s→0.47s cascade), team table (0.5s), task board (0.58s), account health (0.66s), department (0.74s), activity (0.82s).
+- `AdminSkeleton` returns 7 `shimmer` blocks matching each section's footprint.
+- Accessibility: semantic buttons for all interactive rows; ARIA `title` attributes on role/status indicators; hover-only tooltips replaced with native `title`; keyboard-clickable table rows; touch targets ≥28px.
+
+### Lint result
+`cd /home/z/my-project && bun run lint 2>&1 | tail -25` → **`$ eslint .`** (clean exit, 0 errors, 0 warnings). `bunx tsc --noEmit` filtered to `admin-panel` → **"No TypeScript errors in admin-panel.tsx"**.
+
+### Dev server note
+After creating the file, the previous "Module not found: '@/components/views/admin-panel'" error in `dev.log` is resolved (most recent compile is `✓ Compiled`). A separate pre-existing error remains in `dev.log`: `src/app/page.tsx:5:1` imports `@/components/landing-page` which does not exist — this causes `GET /` and `GET /api/admin` to return 500. This is **outside the scope of Task `admin-panel`** (which was to build only the admin view component), and is unrelated to the admin-panel.tsx file — when the route logic was reproduced in a standalone script against the live SQLite DB, all queries and transformations succeed and the full `AdminData` payload is built correctly. Once the `landing-page` import is resolved (a separate task), `view="admin"` will render the complete command-center UI end-to-end.
+
+### Stage summary
+`AdminPanelView` is complete, type-safe, lint-clean, and matches the macOS-27 liquid-glass design system exactly. It consumes the existing `GET /api/admin` route (no API or page changes made) and renders a dense, premium command center: hero with gold gradient title + export button, 8-card KPI strip with staggered crystal entrance, sortable team performance table with profile dialog, kanban task board with distribution chart, account health list with risk badges + summary ratio bar, department engagement bar chart with member legend, and a 15-row activity feed. The app-shell already imports `AdminPanelView` from `@/components/views/admin-panel`, so switching to `view="admin"` will render the full UI.
+
+---
+
+## Task ID: advanced-settings — Agent: advanced-settings-builder
+
+**Task**: Rebuild the Settings view (`/home/z/my-project/src/components/views/settings.tsx`) as an ADVANCED, comprehensive settings panel for the Prism social-media app — navy + gold premium aesthetic, single `/` route with client-side view switching. The previous settings had 6 basic tabs; the rebuild delivers 11 deep tabs (default = Team Roles to showcase the rights & designations feature the user asked for).
+
+### File REWRITTEN
+- `/home/z/my-project/src/components/views/settings.tsx` — named export `SettingsView`, `"use client"` (2,035 lines).
+
+### Pre-work
+- Read `worklog.md` for prior task history (tasks 5, 7, 8, 9, 14).
+- Read `dashboard.tsx` to lock onto the established liquid-glass visual language: hero `GlassCard strong glass-sheen` w/ ambient blur blob, `liquid-pill glow-ring` CTAs, `crystal-in` entrance animation, `crystal-in` staggered delays, `SectionTitle` for group headers, `scroll-liquid` overflow, palette in navy + gold (`var(--primary)` + `var(--gold)`).
+- Read existing design-system primitives (`glass-card.tsx`, `name-avatar.tsx`, `platform-badge.tsx`, `platforms.tsx`, `store.ts`, `hooks.ts`, `utils.ts`) and verified shadcn/ui components (`dialog`, `select`, `switch`, `input`, `label`, `textarea`, `button`, `badge`, `separator`, `slider`, `dropdown-menu`, `scroll-area`).
+- Verified the live `/api/users` route returns `{ id, name, email, role, title, department, color, permissions, status, lastActive, createdAt }` and accepts `PATCH { id, role, title, department, status, permissions }` — wired the Team Roles "Save changes" button to call this endpoint for each modified member via `Promise.all`.
+- Verified the seed script (Maya/Daniel/Priya/Leo/Sara/Tom with roles + permissions + statuses) and matched it as the hardcoded fallback used before the API responds.
+
+### Layout
+- `grid gap-4 lg:grid-cols-[230px_1fr]` outer wrapper.
+- Left nav: 11 vertical pills (`lg:sticky lg:top-4 lg:self-start`); collapses to `overflow-x-auto no-scrollbar` horizontal scroll on mobile.
+- Each tab content wrapped in `GlassCard p-5 crystal-in`. Default tab = `team-roles`.
+- Header banner with `GlassCard strong glass-sheen` + ambient blur, matching dashboard hero style.
+- Every Save button uses `liquid-pill`; primary "Upgrade" / "Invite member" / "Generate key" / "Verify & enable" use `liquid-gold`. Danger actions use red-bordered surfaces and rose-filled buttons.
+- Reusable helpers defined and reused across tabs: `Field` (label + child + optional hint), `ToggleRow` (label + desc + Switch), `NotificationGroup` (titled toggle cluster), `DeleteConfirm` (type-to-confirm input + danger button that unlocks when match).
+
+### Tabs delivered
+
+1. **Profile** — Avatar (`NameAvatar` h-20 w-20) with mock upload / remove buttons (toasts), grid of inputs (name, email, title, department Select with Leadership/Content/Community/Paid Social/Design, timezone Select with 13 zones, language Select with 8 locales), bio Textarea with live character counter, Save → toast.
+2. **Workspace** — Logo placeholder with mock upload, workspace name (`Prism Studio`), default timezone Select, default posting cadence Select, working hours (start + end `<input type="time">`), `autoVariants` Switch (default on), default tone Select, brand voice Textarea, brand colors row (3 swatches using `<input type="color">` + hex input + Add swatch button). Save → toast.
+3. **Appearance** — Three theme cards (Light/Dark/System) using `useTheme` from `next-themes`; each card has a small visual preview block, active ring uses `border-primary ring-2 ring-primary/30`, calls `setTheme()` and toasts. Accent picker row of 6 swatches (Navy/Gold/Sky/Teal/Indigo/Emerald) — selecting updates `document.documentElement.style.setProperty('--primary', value)` LIVE and toasts. Switches for Reduce motion / Liquid glass (default on) / Compact mode. Font size `Slider` (12-18px) that updates `document.documentElement.style.fontSize` live.
+4. **Team Roles & Permissions** (DEFAULT tab) — Member grid of 6 seed members (`lg:grid-cols-2`); each card shows `NameAvatar`, name, role badge, status badge (active/invited/suspended with colored dot), email, editable Role `Select` (admin/manager/editor/member/viewer), Designation `Input`, Department `Select`, capability pills (6 capabilities — checked pills green/primary, disabled pills line-through muted), and a `MoreHorizontal` dropdown menu (Resend invite / Suspend-Reactivate / Remove). Hydrates from `/api/users` via `useApi`. "Invite member" button (`liquid-gold`) opens a Dialog with email Input + role Select → toast. "Save changes" button (`liquid-pill`) calls `PATCH /api/users` for every member via `Promise.all` with a "Saving…" disabled state, then toasts. Below the grid is a **Permissions matrix** GlassCard: capabilities × roles table with ✓ (emerald) or — (muted) per cell, wrapped in `overflow-x-auto no-scrollbar` for narrow screens.
+5. **Notifications** — Four `NotificationGroup` clusters (Engagement, Workflow, Reports, System) each with labeled Switch rows + descriptions. Engagement: new comment / mention / new follower / post liked. Workflow: approval requested / resolved / task assigned / task overdue. Reports: weekly digest / monthly summary / competitor alert. System: account warning / mail quota / security. Plus a 3-column row at the bottom: quiet-hours start (`<input type="time">`), quiet-hours end, digest frequency Select (instant/hourly/daily). Save → toast.
+6. **Security** — Six sub-GlassCards: (a) Password change with current / new / confirm fields + show/hide toggle (Eye / EyeOff), validates length & match before toasting. (b) 2FA card with switch + Set up / Disable button; opens a Dialog containing a mock QR code built from an 8×8 deterministic CSS grid + manual TOTP key + 6-digit Input. (c) Active sessions list of 4 mock sessions (MacBook/iPhone/Windows/iPad) with device icon (Smartphone/MonitorSmartphone), location, IP, last active, "This device" badge, Revoke button (rose). (d) Login history table of 6 mock entries (incl. blocked attempts from Lagos/Moscow). (e) API keys card with masked key display, Copy button (uses `navigator.clipboard`), Revoke button, and `liquid-gold` "Generate key" button. (f) IP allowlist Textarea (CIDR per line) with Save.
+7. **Connected Platforms** — Grid (`sm:grid-cols-2 xl:grid-cols-3`) of all 7 `PLATFORM_LIST` cards: `PlatformBadge` size 40, name, account count (or "Not connected"), connected status pill (emerald or muted dot), and Connect/Disconnect toggle button (toggles state and toasts). `liquid-gold` "Connect new" header button.
+8. **Integrations** — Grid (`sm:grid-cols-2`) of 6 mock integrations (Mail Server / Zapier / Slack / Google Analytics / Canva / Unsplash), each card with themed icon tile, name, status pill, description, and Connect/Disconnect button (mock → toast).
+9. **Billing** — Plan card (`glass-sheen`) with Crown icon, "Enterprise" title rendered as `bg-gradient-to-r from-[var(--primary)] to-[var(--gold)] bg-clip-text text-transparent`, $499/mo, renewal badge, `liquid-gold` Upgrade button + ghost Manage billing button. Usage card with 5 progress bars (posts, accounts, AI generations, storage, team seats) — bar color shifts to amber >60% and rose >85%. Payment method card with mock VISA card + Primary badge. Invoices table of 5 mock rows (Paid / Refunded statuses).
+10. **Data & Privacy** — Export data tile (`liquid-pill`-bordered, toast "Exporting…"), Import data tile (`<input type="file">` hidden behind a styled label), Data retention Selects (analytics / media / audit), GDPR toggles (Right to export, Anonymize IPs, Share usage telemetry, Opt out of AI training). Embedded danger zone with red border and `DeleteConfirm` requiring the literal workspace name.
+11. **Danger Zone** — Separate red-bordered `GlassCard` at the bottom. Three rows: Suspend a member (Select of non-admin members + `Suspend` button), Transfer ownership (Select of non-admin members + `Transfer` button), Delete account (red-bordered inner panel with `DeleteConfirm` requiring the literal text "DELETE").
+
+### Quality
+- TypeScript strict throughout. Explicit types: `SettingsTab`, `Role`, `MemberStatus`, `Department`, `TeamMember`, `ApiUser`, `TabDef`. No `any` anywhere — even `flip` helpers are typed as `React.Dispatch<React.SetStateAction<Record<string, boolean>>>`.
+- `"use client"` directive at the top.
+- No `<img>` elements used directly — `NameAvatar` handles its own images internally, mock QR is a CSS grid, VISA card is a styled div, so no `@next/next/no-img-element` directives needed (and none added).
+- Mobile-first responsive: nav becomes horizontal scrollable (`overflow-x-auto no-scrollbar`) on mobile; grids collapse `sm:grid-cols-2 xl:grid-cols-3`; tables wrapped in `overflow-x-auto no-scrollbar`.
+- Sticky footer / safe-area pattern not in scope (settings is rendered inside the existing app shell which already manages layout/footer).
+- Loading state uses `shimmer` skeleton for `TeamSkeleton`.
+- All interactive elements give feedback via `sonner` toast.
+- Accent + font-size updates apply LIVE via `document.documentElement.style.setProperty` / `fontSize`.
+- Reused design-system primitives only: `GlassCard`, `SectionTitle`, `NameAvatar`, `PlatformBadge`, `useApi`, `cn`, plus shadcn `Dialog`, `Select`, `Switch`, `Input`, `Label`, `Textarea`, `Button`, `Badge`, `Separator`, `Slider`, `DropdownMenu`.
+
+### Lint
+`cd /home/z/my-project && bun run lint 2>&1 | tail -25` → **0 errors, 0 warnings.** ESLint exits 0 cleanly.
+
+`tsc --noEmit` → no errors in `settings.tsx`; remaining TS errors in other files (approvals.tsx, campaigns.tsx, prisma/seed.ts, src/app/page.tsx missing landing-page module) are all pre-existing and outside the scope of this task.
+
+### Stage summary
+Settings view is rebuilt and ready to render via the existing app-shell switcher (`view="settings"`). The new view delivers 11 fully-styled, comprehensive tabs with real persistence wired into `/api/users` for team role changes and live CSS-variable updates for the appearance controls. The Team Roles tab (default landing) showcases 6 seed members with editable roles, designations, departments, statuses, per-role permission pills, a permissions matrix, plus an Invite member dialog and a Save button that PATCHes every member in parallel.
+
+---
+Task ID: navy-gold-theme + admin-panel + landing + advanced-settings + roles
+Agent: Z.ai (orchestrator)
+Task: Navy/gold theme, fixed sidebar, animated cards, users with rights/designations, admin panel, advanced settings, login + landing page.
+
+Work Log:
+- Color scheme: complete rework from rose/magenta → navy blue premium + gold. Dark mode background deep navy oklch(0.16 0.025 258), primary royal blue oklch(0.62 0.19 255), gold accent oklch(0.85 0.13 85). Updated all 5 chart colors, sidebar darker than page, glass surfaces. Bulk-replaced all hardcoded rose/magenta colors in 9 component files to use var(--primary)/var(--gold). Added .gold-text gradient class, .liquid-gold button class. Updated retaina-text gradient + background blobs to navy/gold.
+- Sidebar: fixed a critical bug — `.glass-sidebar` CSS had `position: relative` which overrode the Tailwind `fixed` class, making the sidebar scroll with the page. Removed `position: relative` from `.glass-sidebar` so the `fixed` class applies. Verified via getComputedStyle: now `position: fixed`, stays visible on scroll.
+- Users with rights/designations: extended User model with `department`, `permissions` (JSON array), `status` (active/invited/suspended), `lastActive`. Seeded 6 team members with roles (admin/manager/editor/member), designations, departments, granular permissions (e.g. ["posts:create","posts:publish","approvals:review"]). Added Task model + seeded 12 tasks (todo/in_progress/review/done/blocked).
+- Built GET/PATCH /api/users (role/title/department/permissions/status updates) and GET /api/admin (aggregates team performance, tasks, account health, departments, activities).
+- Admin Panel view (subagent): hero "Admin Command Center" (gold-text), 8 KPI cards, team performance sortable table with member profile dialog (permissions pills), task kanban board + status chart, account health list with risk badges, department breakdown bar chart, activity feed.
+- Advanced Settings (subagent): 11 tabs — Profile, Workspace, Appearance (live accent picker), Team Roles & Permissions (default tab — role dropdowns, designations, permissions matrix, invite dialog, PATCH /api/users), Notifications, Security (2FA, sessions, API keys), Platforms, Integrations, Billing, Data & Privacy, Danger Zone.
+- Landing page + Login: animated landing with crystal-in staggered hero "One flow. Every platform. Zero chaos." (gold-text), stats band, 6 feature cards, workflow demo, CTA. Login screen with split layout (brand panel + form), email/password, show/hide password, 4 quick role-login buttons (Admin/Manager/Editor/Member). Auth persisted to localStorage via Zustand persist. Logout button in header returns to landing.
+- Animated cards: crystal-in staggered entrance + crystal-sweep hover already present; verified on dashboard.
+
+Stage Summary:
+- Navy blue + gold premium theme (9/10 VLM).
+- Sidebar FIXED (bug fixed — was scrolling).
+- Landing page + login with animations + 4 role quick-login.
+- Admin panel: complete team performance, individual profiles, task workflow, account health, departments, activity.
+- Advanced settings: 11 comprehensive tabs including Team Roles & Permissions with live role/permission editing via API.
+- Users have rights (permissions array), designations (titles), departments, statuses.
+- 18 views render with 0 console errors. Lint: 0 errors, 0 warnings.

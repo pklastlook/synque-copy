@@ -99,7 +99,7 @@ const STATUS_META: Record<
   approved: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
   rejected: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
   changes_requested:
-    "bg-[oklch(0.66_0.22_305)]/15 text-[oklch(0.5_0.2_305)]",
+    "bg-[var(--gold)]/15 text-[var(--gold)]",
 };
 
 const STACK_COLORS: Record<Status, string> = {
@@ -552,7 +552,7 @@ function PendingCard({
               <XCircle className="h-3.5 w-3.5 text-rose-500" />
             )}
             {action === "changes_requested" && (
-              <RefreshCw className="h-3.5 w-3.5 text-[oklch(0.66_0.22_305)]" />
+              <RefreshCw className="h-3.5 w-3.5 text-[var(--gold)]" />
             )}
             <span className="capitalize">
               {action === "changes_requested" ? "Request changes" : action}

@@ -400,7 +400,7 @@ function CampaignCard({
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-[oklch(0.66_0.22_305)] transition-all"
+                className="h-full rounded-full bg-gradient-to-r from-primary to-[var(--gold)] transition-all"
                 style={{ width: `${spentRatioPct}%` }}
               />
             </div>

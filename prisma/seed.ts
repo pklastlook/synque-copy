@@ -31,12 +31,12 @@ const MEDIA = [
 ];
 
 const TEAM = [
-  { id: "u-admin", name: "Maya Reyes", email: "maya@prism.co", role: "admin", title: "Head of Social", color: "rose" },
-  { id: "u-1", name: "Daniel Cho", email: "daniel@prism.co", role: "member", title: "Content Strategist", color: "amber" },
-  { id: "u-2", name: "Priya Nair", email: "priya@prism.co", role: "member", title: "Community Lead", color: "teal" },
-  { id: "u-3", name: "Leo Marchetti", email: "leo@prism.co", role: "member", title: "Video Producer", color: "magenta" },
-  { id: "u-4", name: "Sara Okafor", email: "sara@prism.co", role: "member", title: "Paid Social Manager", color: "green" },
-  { id: "u-5", name: "Tom Becker", email: "tom@prism.co", role: "member", title: "Copywriter", color: "rose" },
+  { id: "u-admin", name: "Maya Reyes", email: "maya@prism.co", role: "admin", title: "Head of Social", department: "Leadership", color: "rose", permissions: ["*"], status: "active" },
+  { id: "u-1", name: "Daniel Cho", email: "daniel@prism.co", role: "manager", title: "Content Strategist", department: "Content", color: "amber", permissions: ["posts:create","posts:publish","approvals:review","media:*","campaigns:*"], status: "active" },
+  { id: "u-2", name: "Priya Nair", email: "priya@prism.co", role: "manager", title: "Community Lead", department: "Community", color: "teal", permissions: ["inbox:*","comments:reply","listening:*","approvals:review"], status: "active" },
+  { id: "u-3", name: "Leo Marchetti", email: "leo@prism.co", role: "editor", title: "Video Producer", department: "Content", color: "magenta", permissions: ["posts:create","media:upload","media:*"], status: "active" },
+  { id: "u-4", name: "Sara Okafor", email: "sara@prism.co", role: "manager", title: "Paid Social Manager", department: "Paid Social", color: "green", permissions: ["posts:publish","analytics:*","reports:*","competitors:*"], status: "active" },
+  { id: "u-5", name: "Tom Becker", email: "tom@prism.co", role: "editor", title: "Copywriter", department: "Content", color: "blue", permissions: ["posts:create","media:read"], status: "invited" },
 ];
 
 const ACCOUNTS = [
@@ -96,8 +96,11 @@ function rand(seed: number, max: number) {
 
 async function main() {
   console.log("Seeding Prism Social...");
+  const now = Date.now();
+  const day = 86400000;
 
   // wipe
+  await db.task.deleteMany();
   await db.accountProtection.deleteMany();
   await db.accountHealth.deleteMany();
   await db.mailMessage.deleteMany();
@@ -130,7 +133,11 @@ async function main() {
         email: u.email,
         role: u.role,
         title: u.title,
+        department: u.department,
         color: u.color,
+        permissions: JSON.stringify(u.permissions),
+        status: u.status,
+        lastActive: u.status === "active" ? new Date(now - (TEAM.indexOf(u) + 1) * 3600 * 1000 * 4) : null,
         avatar: null,
       },
     });
@@ -153,8 +160,6 @@ async function main() {
   }
 
   // ===== Account Health (suspension risk + sentiment ratio) =====
-  const now = Date.now();
-  const day = 86400000;
   // Deterministic health profile per account, with a couple flagged as elevated risk.
   const HEALTH_PROFILES: Record<string, { pos: number; neu: number; neg: number; reports: number; trend: number; risk: number; level: string; status: string; reasons: string[] }> = {
     "ac-ig-1": { pos: 1820, neu: 410, neg: 78, reports: 3, trend: 0, risk: 12, level: "safe", status: "healthy", reasons: [] },
@@ -581,6 +586,25 @@ async function main() {
         date: new Date(now - i * 3600 * 1000 * 5),
       },
     });
+  }
+
+  // ===== Tasks (admin workflow) =====
+  const TASKS = [
+    { title: "Draft Q3 launch announcement", assigneeId: "u-5", creatorId: "u-admin", status: "in_progress", priority: "high", type: "content", dueAt: new Date(now + day * 2) },
+    { title: "Review TikTok video batch", assigneeId: "u-3", creatorId: "u-1", status: "review", priority: "normal", type: "content", dueAt: new Date(now + day) },
+    { title: "Reply to 50 inbox comments", assigneeId: "u-2", creatorId: "u-admin", status: "in_progress", priority: "urgent", type: "engagement", dueAt: new Date(now + 3600 * 1000 * 8) },
+    { title: "Generate weekly analytics report", assigneeId: "u-4", creatorId: "u-admin", status: "todo", priority: "normal", type: "analytics", dueAt: new Date(now + day * 3) },
+    { title: "Approve Spring Launch carousel", assigneeId: "u-admin", creatorId: "u-1", status: "review", priority: "high", type: "review", dueAt: new Date(now + 3600 * 1000 * 12) },
+    { title: "Research competitor hashtags", assigneeId: "u-2", creatorId: "u-1", status: "done", priority: "low", type: "analytics", completedAt: new Date(now - 3600 * 1000 * 10) },
+    { title: "Update media library tags", assigneeId: "u-3", creatorId: "u-1", status: "todo", priority: "low", type: "content", dueAt: new Date(now + day * 5) },
+    { title: "Monitor brand mentions (24h)", assigneeId: "u-2", creatorId: "u-admin", status: "done", priority: "normal", type: "engagement", completedAt: new Date(now - 3600 * 1000 * 6) },
+    { title: "Schedule Threads posts for Friday", assigneeId: "u-5", creatorId: "u-1", status: "blocked", priority: "normal", type: "content", dueAt: new Date(now + day * 4) },
+    { title: "Audit at-risk accounts", assigneeId: "u-4", creatorId: "u-admin", status: "in_progress", priority: "urgent", type: "analytics", dueAt: new Date(now + 3600 * 1000 * 24) },
+    { title: "Campaign brief: Summer collection", assigneeId: "u-1", creatorId: "u-admin", status: "review", priority: "high", type: "campaign", dueAt: new Date(now + day * 2) },
+    { title: "Set up LinkedIn posting cadence", assigneeId: "u-4", creatorId: "u-admin", status: "todo", priority: "normal", type: "content", dueAt: new Date(now + day * 7) },
+  ];
+  for (const t of TASKS) {
+    await db.task.create({ data: t });
   }
 
   console.log("Seed complete (with all new modules).");
