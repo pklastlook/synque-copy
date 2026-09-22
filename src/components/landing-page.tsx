@@ -77,11 +77,11 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         <div className="crystal-in relative mb-2 text-center" style={{ animationDelay: "0.05s" }}>
           <div className="pointer-events-none absolute inset-0 -z-10 scale-150 rounded-full bg-[var(--primary)]/20 blur-3xl" />
           <h1 className="text-6xl font-bold tracking-tight sm:text-7xl">
-            Pulse<span className="retaina-text">Sync</span>
+            Social<span className="retaina-text">Flow</span>
           </h1>
         </div>
         <div className="crystal-in text-center" style={{ animationDelay: "0.15s" }}>
-          <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Social Command Center</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Social, Simplified</p>
         </div>
 
         {/* Progress bar */}
@@ -132,7 +132,7 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
         <div className="hidden items-center gap-6 md:flex">
           <a href="#features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</a>
           <a href="#workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</a>
-          <a href="#stats" className="text-sm text-muted-foreground transition hover:text-foreground">Why PulseSync</a>
+          <a href="#stats" className="text-sm text-muted-foreground transition hover:text-foreground">Why SocialFlow</a>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onGetStarted} className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:block">
@@ -240,7 +240,7 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
           <div className="grid items-center gap-8 lg:grid-cols-2">
             <div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
-                <Zap className="h-3 w-3" /> The PulseSync flow
+                <Zap className="h-3 w-3" /> The SocialFlow flow
               </div>
               <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
                 Write once. Publish <span className="gold-text">everywhere.</span>
@@ -303,7 +303,7 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
             Ready to <span className="gold-text">elevate</span> your social team?
           </h2>
           <p className="relative mx-auto mt-3 max-w-md text-muted-foreground">
-            Join the teams using PulseSync to publish smarter, protect their accounts, and beat the competition.
+            Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
           </p>
           <button onClick={onGetStarted} className="liquid-gold glow-ring relative mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto">
             Get started free <ArrowRight className="h-4 w-4" />
@@ -315,10 +315,10 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
       <footer className="border-t border-border/40 px-4 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold tracking-tight">Pulse<span className="retaina-text">Sync</span></span>
+            <span className="text-sm font-bold tracking-tight">Social<span className="retaina-text">Flow</span></span>
             <span className="text-muted-foreground">· Enterprise command center for social teams</span>
           </div>
-          <span>© 2026 PulseSync · Liquid retina premium</span>
+          <span>© 2026 SocialFlow · Liquid retina premium</span>
         </div>
       </footer>
     </div>
@@ -394,7 +394,7 @@ function LoginScreen({ onBack, onEnter }: { onBack: () => void; onEnter: (role: 
               <ArrowRight className="h-3 w-3 rotate-180" /> Back to home
             </button>
 
-            <h1 className="text-2xl font-bold tracking-tight">Sign in to Prism</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Sign in to SocialFlow</h1>
             <p className="mt-1 text-sm text-muted-foreground">Enter your credentials to continue</p>
 
             <form
@@ -480,7 +480,7 @@ function LoginScreen({ onBack, onEnter }: { onBack: () => void; onEnter: (role: 
             </div>
 
             <p className="mt-6 text-center text-xs text-muted-foreground">
-              New to Prism?{" "}
+              New to SocialFlow?{" "}
               <button onClick={onBack} className="font-medium text-[var(--primary)] hover:underline">
                 Explore features
               </button>

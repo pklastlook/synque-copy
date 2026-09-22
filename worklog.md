@@ -802,3 +802,21 @@ Stage Summary:
 - Charts = animated (draw-on + count-up + staggered).
 - Sidebar = section-tinted, every icon its own vivid color, active rail glows in accent.
 - 18 views, 0 console errors. Sidebar fixed. Lint: 0 errors, 0 warnings.
+
+---
+Task ID: rename-socialflow
+Agent: Z.ai (orchestrator)
+Task: Rename PulseSync → SocialFlow, tagline "Social, Simplified".
+
+Work Log:
+- Wordmark: "PulseSync" → "SocialFlow" (Social + retaina-text "Flow"). Tagline "Social Command" → "Social, Simplified".
+- auth-store: storage key pulsesync-auth → socialflow-auth.
+- layout metadata: title "SocialFlow — Social, Simplified", description/keywords/authors updated.
+- landing page: splash wordmark, hero, nav ("Why SocialFlow"), workflow text, join copy, footer wordmark + copyright, login "Sign in to SocialFlow" + "New to SocialFlow".
+- Swept all view copy: app-header fallback title, app-shell footer ("SocialFlow · v1.0"), mail server name/from/team copy, listening placeholder, team invite copy, link-bio "made with SocialFlow", settings (appearance/platforms/integrations/API/Zapier/telemetry/device strings), accounts credentials note.
+- Kept legitimate demo account names (Prism Studio, Prism Café, Prism Fit) and the prism.co mail domain + @prism handles as those are seeded social-account identities, not the app name.
+
+Stage Summary:
+- App name = SocialFlow, tagline = "Social, Simplified", name-only (no logo icon).
+- VLM confirmed: "brand name is SocialFlow, tagline is SOCIAL. SIMPLIFIED, text-only without a logo icon."
+- Lint: 0 errors, 0 warnings.

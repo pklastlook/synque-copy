@@ -86,7 +86,9 @@ export function Logo({
   );
 }
 
-/** Wordmark — name only (no logo mark). Work-related, interactive. */
+/**
+ * SocialFlow wordmark — name only (no logo mark). Work-related, interactive.
+ */
 export function LogoWordmark({
   className,
   size = "text-base",
@@ -97,9 +99,9 @@ export function LogoWordmark({
   return (
     <div className={cn("leading-tight", className)}>
       <div className={cn("font-bold tracking-tight", size)}>
-        Pulse<span className="retaina-text">Sync</span>
+        Social<span className="retaina-text">Flow</span>
       </div>
-      <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Social Command</div>
+      <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Social, Simplified</div>
     </div>
   );
 }

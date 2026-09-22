@@ -11,18 +11,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PulseSync — Social Team Workflow",
+  title: "SocialFlow — Social, Simplified",
   description:
-    "PulseSync is a liquid-retina social media team work management platform. Publish to multiple accounts in one flow, generate per-account AI content, and track advanced analytics.",
+    "SocialFlow is a liquid-retina social media team work management platform. Publish to multiple accounts in one flow, generate per-account AI content, and track advanced analytics.",
   keywords: [
     "social media management",
     "team workflow",
     "multi-account publishing",
     "AI content generation",
     "analytics",
-    "PulseSync",
+    "SocialFlow",
   ],
-  authors: [{ name: "PulseSync" }],
+  authors: [{ name: "SocialFlow" }],
 };
 
 export default function RootLayout({

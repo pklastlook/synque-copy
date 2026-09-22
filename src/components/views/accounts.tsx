@@ -550,7 +550,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
               {/* Security note */}
               <div className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-[11px] text-muted-foreground">
                 <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                <span>Credentials are encrypted at rest (AES-256). Prism never shares or exposes your login. You can revoke access anytime from account settings.</span>
+                <span>Credentials are encrypted at rest (AES-256). SocialFlow never shares or exposes your login. You can revoke access anytime from account settings.</span>
               </div>
             </div>
 

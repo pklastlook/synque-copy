@@ -587,7 +587,7 @@ function ComposeDialog({ open, onOpenChange, mailboxId, onSent }: { open: boolea
 function AddServerDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (b: boolean) => void; onCreated: () => void }) {
   const [provider, setProvider] = React.useState("hostinger");
   const [form, setForm] = React.useState({
-    name: "Prism Primary Mail",
+    name: "SocialFlow Primary Mail",
     domain: "prism.co",
     imapHost: "imap.hostinger.com",
     imapPort: 993,
@@ -595,7 +595,7 @@ function AddServerDialog({ open, onOpenChange, onCreated }: { open: boolean; onO
     smtpPort: 465,
     username: "admin@prism.co",
     password: "",
-    fromName: "Prism Team",
+    fromName: "SocialFlow Team",
     fromEmail: "hello@prism.co",
   });
   const [creating, setCreating] = React.useState(false);
@@ -696,7 +696,7 @@ function AddServerDialog({ open, onOpenChange, onCreated }: { open: boolean; onO
 
           <div className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-[11px] text-muted-foreground">
             <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-            <span>Credentials are stored encrypted for this workspace. Prism uses this connection to provision and manage mailboxes on your domain.</span>
+            <span>Credentials are stored encrypted for this workspace. SocialFlow uses this connection to provision and manage mailboxes on your domain.</span>
           </div>
         </div>
 

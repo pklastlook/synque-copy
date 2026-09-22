@@ -627,7 +627,7 @@ function AddQueryDialog({ onCreated }: { onCreated: () => void }) {
               <Label htmlFor="lq-name">Query name</Label>
               <Input
                 id="lq-name"
-                placeholder="e.g. Prism Brand"
+                placeholder="e.g. SocialFlow Brand"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
