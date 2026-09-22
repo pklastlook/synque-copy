@@ -35,3 +35,19 @@ export async function PATCH(req: NextRequest) {
   await db.user.update({ where: { id }, data });
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(req: NextRequest) {
+  const body = await req.json();
+  const { id } = body;
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  // Prevent deleting the last admin
+  const adminCount = await db.user.count({ where: { role: "admin" } });
+  const target = await db.user.findUnique({ where: { id } });
+  if (target?.role === "admin" && adminCount <= 1) {
+    return NextResponse.json({ error: "Cannot remove the last admin" }, { status: 400 });
+  }
+
+  await db.user.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}

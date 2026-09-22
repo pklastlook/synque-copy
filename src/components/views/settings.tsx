@@ -736,32 +736,49 @@ interface ApiUser {
 
 function TeamRolesSection() {
   const { data, loading } = useApi<ApiUser[]>("/api/users");
-  const [members, setMembers] = React.useState<TeamMember[]>(SEED_TEAM);
+  const [members, setMembers] = React.useState<TeamMember[]>([]);
   const [inviteOpen, setInviteOpen] = React.useState(false);
   const [inviteEmail, setInviteEmail] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<Role>("member");
   const [saving, setSaving] = React.useState(false);
 
-  // Hydrate from API if available
+  // Load real users from database
   React.useEffect(() => {
     if (!data) return;
-    const next = SEED_TEAM.map((seed) => {
-      const remote = data.find((u) => u.id === seed.id);
-      if (!remote) return seed;
-      return {
-        ...seed,
-        role: remote.role,
-        title: remote.title ?? seed.title,
-        department: (remote.department as Department) ?? seed.department,
-        status: remote.status,
-        permissions: remote.permissions ?? seed.permissions,
-      };
-    });
+    const next: TeamMember[] = data.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      color: (u.color as TeamMember["color"]) ?? "blue",
+      role: u.role,
+      title: u.title ?? "",
+      department: (u.department as Department) ?? "General",
+      status: u.status,
+      permissions: u.permissions ?? [],
+    }));
     setMembers(next);
   }, [data]);
 
   const update = (id: string, patch: Partial<TeamMember>) =>
     setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+
+  const removeMember = async (id: string, name: string) => {
+    try {
+      const res = await fetch("/api/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        setMembers((prev) => prev.filter((m) => m.id !== id));
+        toast.success(`Removed ${name}`);
+      } else {
+        toast.error("Failed to remove member");
+      }
+    } catch {
+      toast.error("Network error");
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -867,7 +884,7 @@ function TeamRolesSection() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-rose-500 focus:text-rose-500"
-                        onClick={() => toast(`Removed ${m.name}`)}
+                        onClick={() => removeMember(m.id, m.name)}
                       >
                         <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove
                       </DropdownMenuItem>
