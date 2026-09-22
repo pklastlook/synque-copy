@@ -126,7 +126,7 @@ export function DashboardView() {
           value={data.kpis.totalFollowers.display}
           delta={data.kpis.totalFollowers.delta}
           icon={<Users className="h-5 w-5" />}
-          accent="oklch(0.68 0.15 162)"
+          accent="oklch(0.55 0.2 255)"
           hint={`across ${data.kpis.accounts} accounts`}
           delay={50}
         />
@@ -135,7 +135,7 @@ export function DashboardView() {
           value={data.kpis.impressions.display}
           delta={data.kpis.impressions.delta}
           icon={<Eye className="h-5 w-5" />}
-          accent="oklch(0.72 0.13 190)"
+          accent="oklch(0.62 0.22 300)"
           hint="last 30 days"
           delay={120}
         />
@@ -144,7 +144,7 @@ export function DashboardView() {
           value={data.kpis.engagement.display}
           delta={data.kpis.engagement.delta}
           icon={<Heart className="h-5 w-5" />}
-          accent="oklch(0.66 0.11 220)"
+          accent="oklch(0.7 0.2 25)"
           hint="likes + comments + shares"
           delay={190}
         />
@@ -152,7 +152,7 @@ export function DashboardView() {
           label="Scheduled"
           value={data.kpis.scheduled}
           icon={<CalendarClock className="h-5 w-5" />}
-          accent="oklch(0.74 0.12 145)"
+          accent="oklch(0.68 0.22 145)"
           hint={`${data.kpis.published} published`}
           delay={260}
         />
@@ -184,8 +184,8 @@ export function DashboardView() {
                     <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gEng" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="oklch(0.72 0.13 190)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="oklch(0.72 0.13 190)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="oklch(0.72 0.22 300)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="oklch(0.72 0.22 300)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -216,7 +216,7 @@ export function DashboardView() {
                   formatter={(v: number, n) => [fmt(v), n === "impressions" ? "Impressions" : "Engagement"]}
                 />
                 <Area type="monotone" dataKey="impressions" stroke="var(--primary)" strokeWidth={2.5} fill="url(#gImp)" isAnimationActive animationBegin={200} animationDuration={1200} />
-                <Area type="monotone" dataKey="engagement" stroke="oklch(0.72 0.13 190)" strokeWidth={2.5} fill="url(#gEng)" isAnimationActive animationBegin={450} animationDuration={1200} />
+                <Area type="monotone" dataKey="engagement" stroke="oklch(0.72 0.22 300)" strokeWidth={2.5} fill="url(#gEng)" isAnimationActive animationBegin={450} animationDuration={1200} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

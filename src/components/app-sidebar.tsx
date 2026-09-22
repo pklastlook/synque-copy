@@ -30,24 +30,24 @@ import { SETTINGS_TABS, type SettingsTab } from "@/components/views/settings";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { Logo, LogoWordmark } from "@/components/glass/logo";
 
-const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; badge?: string }[] = [
-  { id: "admin", label: "Admin Panel", icon: ShieldCheck, group: "Overview" },
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Overview" },
-  { id: "composer", label: "Composer", icon: PenSquare, group: "Overview" },
-  { id: "calendar", label: "Calendar", icon: CalendarDays, group: "Overview" },
-  { id: "inbox", label: "Inbox", icon: Inbox, group: "Overview", badge: "3" },
-  { id: "approvals", label: "Approvals", icon: ClipboardCheck, group: "Overview", badge: "2" },
-  { id: "campaigns", label: "Campaigns", icon: Megaphone, group: "Content" },
-  { id: "media", label: "Media Library", icon: Images, group: "Content" },
-  { id: "hashtags", label: "Hashtags", icon: Hash, group: "Content" },
-  { id: "linkbio", label: "Link in Bio", icon: Link2, group: "Content" },
-  { id: "listening", label: "Listening", icon: Radio, group: "Insights" },
-  { id: "competitors", label: "Competitors", icon: Crosshair, group: "Insights" },
-  { id: "analytics", label: "Analytics", icon: BarChart3, group: "Insights" },
-  { id: "reports", label: "Reports", icon: FileBarChart, group: "Insights" },
-  { id: "accounts", label: "Accounts", icon: AtSign, group: "Workspace" },
-  { id: "team", label: "Team", icon: Users, group: "Workspace" },
-  { id: "mail", label: "Mail Server", icon: Mail, group: "Workspace" },
+const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; badge?: string; accent: string }[] = [
+  { id: "admin", label: "Admin Panel", icon: ShieldCheck, group: "Overview", accent: "oklch(0.62 0.22 300)" },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Overview", accent: "oklch(0.55 0.2 255)" },
+  { id: "composer", label: "Composer", icon: PenSquare, group: "Overview", accent: "oklch(0.7 0.2 25)" },
+  { id: "calendar", label: "Calendar", icon: CalendarDays, group: "Overview", accent: "oklch(0.68 0.2 145)" },
+  { id: "inbox", label: "Inbox", icon: Inbox, group: "Overview", badge: "3", accent: "oklch(0.66 0.18 200)" },
+  { id: "approvals", label: "Approvals", icon: ClipboardCheck, group: "Overview", badge: "2", accent: "oklch(0.72 0.18 75)" },
+  { id: "campaigns", label: "Campaigns", icon: Megaphone, group: "Content", accent: "oklch(0.7 0.2 25)" },
+  { id: "media", label: "Media Library", icon: Images, group: "Content", accent: "oklch(0.62 0.22 300)" },
+  { id: "hashtags", label: "Hashtags", icon: Hash, group: "Content", accent: "oklch(0.66 0.18 200)" },
+  { id: "linkbio", label: "Link in Bio", icon: Link2, group: "Content", accent: "oklch(0.68 0.2 145)" },
+  { id: "listening", label: "Listening", icon: Radio, group: "Insights", accent: "oklch(0.7 0.2 25)" },
+  { id: "competitors", label: "Competitors", icon: Crosshair, group: "Insights", accent: "oklch(0.62 0.22 300)" },
+  { id: "analytics", label: "Analytics", icon: BarChart3, group: "Insights", accent: "oklch(0.55 0.2 255)" },
+  { id: "reports", label: "Reports", icon: FileBarChart, group: "Insights", accent: "oklch(0.72 0.18 75)" },
+  { id: "accounts", label: "Accounts", icon: AtSign, group: "Workspace", accent: "oklch(0.68 0.2 145)" },
+  { id: "team", label: "Team", icon: Users, group: "Workspace", accent: "oklch(0.62 0.22 300)" },
+  { id: "mail", label: "Mail Server", icon: Mail, group: "Workspace", accent: "oklch(0.66 0.18 200)" },
   // Note: "Settings" is rendered as an expandable parent group below
   // (see <SettingsGroup /> inside the Workspace group render) — it is no
   // longer a flat NAV entry so it can expand into its sub-sections.
@@ -69,10 +69,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full w-full flex-col gap-2 p-3">
-      {/* Brand */}
-      <div className="flex items-center gap-2.5 px-2 pb-1 pt-2">
-        <Logo size={30} />
-        <LogoWordmark />
+      {/* Brand — name only, no logo mark */}
+      <div className="px-2 pb-1 pt-2">
+        <LogoWordmark size="text-[17px]" />
       </div>
 
       {/* New Post button */}
@@ -108,28 +107,31 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                     className={cn(
                       "group crystal-sweep relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
                       active
-                        ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_var(--ring)]"
-                        : "text-foreground/60 hover:bg-muted/50 hover:text-foreground"
+                        ? "bg-primary/12 text-foreground shadow-[inset_0_0_0_1px_var(--ring)]"
+                        : "text-foreground/55 hover:bg-muted/50 hover:text-foreground"
                     )}
+                    style={active ? ({ ["--section-accent" as string]: n.accent } as React.CSSProperties) : undefined}
                   >
                     {active && (
-                      <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-[0_0_8px_var(--ring)]" />
+                      <span
+                        className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full shadow-[0_0_8px_var(--section-accent)]"
+                        style={{ background: n.accent }}
+                      />
                     )}
-                    <Icon className={cn("h-[18px] w-[18px] shrink-0 transition-transform", active && "text-primary", !active && "group-hover:scale-110")} />
+                    <Icon
+                      className={cn("h-[18px] w-[18px] shrink-0 transition-transform", !active && "group-hover:scale-110")}
+                      style={{ color: n.accent }}
+                    />
                     <span className="truncate">{n.label}</span>
                     {n.badge && (
                       <span
-                        className={cn(
-                          "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                          active
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-primary/90 text-primary-foreground"
-                        )}
+                        className="ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
+                        style={{ background: n.accent }}
                       >
                         {n.badge}
                       </span>
                     )}
-                    {active && !n.badge && <ChevronRight className="ml-auto h-3.5 w-3.5 text-primary/70" />}
+                    {active && !n.badge && <ChevronRight className="ml-auto h-3.5 w-3.5" style={{ color: n.accent }} />}
                   </button>
                 );
               })}

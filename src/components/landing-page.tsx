@@ -73,18 +73,15 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
         <div className="blob-3" />
       </div>
       <div className="relative flex min-h-screen flex-col items-center justify-center px-6">
-        {/* Animated logo mark — large, breathing */}
-        <div className="crystal-in relative mb-8" style={{ animationDelay: "0.05s" }}>
-          <div className="absolute inset-0 -z-10 scale-150 rounded-full bg-[var(--primary)]/20 blur-3xl" />
-          <Logo size={88} />
-        </div>
-
-        {/* Wordmark */}
-        <div className="crystal-in text-center" style={{ animationDelay: "0.15s" }}>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Sync<span className="retaina-text">wave</span>
+        {/* Wordmark — large, animated (no logo mark) */}
+        <div className="crystal-in relative mb-2 text-center" style={{ animationDelay: "0.05s" }}>
+          <div className="pointer-events-none absolute inset-0 -z-10 scale-150 rounded-full bg-[var(--primary)]/20 blur-3xl" />
+          <h1 className="text-6xl font-bold tracking-tight sm:text-7xl">
+            Pulse<span className="retaina-text">Sync</span>
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">Social Command Center</p>
+        </div>
+        <div className="crystal-in text-center" style={{ animationDelay: "0.15s" }}>
+          <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Social Command Center</p>
         </div>
 
         {/* Progress bar */}
@@ -131,14 +128,11 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
 
       {/* Nav */}
       <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-6xl items-center justify-between rounded-2xl px-5 py-3 sm:w-[calc(100%-3rem)]">
-        <div className="flex items-center gap-2.5">
-          <Logo size={32} />
-          <LogoWordmark />
-        </div>
+        <LogoWordmark size="text-base" />
         <div className="hidden items-center gap-6 md:flex">
           <a href="#features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</a>
           <a href="#workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</a>
-          <a href="#stats" className="text-sm text-muted-foreground transition hover:text-foreground">Why Syncwave</a>
+          <a href="#stats" className="text-sm text-muted-foreground transition hover:text-foreground">Why PulseSync</a>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onGetStarted} className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:block">
@@ -246,7 +240,7 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
           <div className="grid items-center gap-8 lg:grid-cols-2">
             <div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
-                <Zap className="h-3 w-3" /> The Syncwave flow
+                <Zap className="h-3 w-3" /> The PulseSync flow
               </div>
               <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
                 Write once. Publish <span className="gold-text">everywhere.</span>
@@ -309,7 +303,7 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
             Ready to <span className="gold-text">elevate</span> your social team?
           </h2>
           <p className="relative mx-auto mt-3 max-w-md text-muted-foreground">
-            Join the teams using Syncwave to publish smarter, protect their accounts, and beat the competition.
+            Join the teams using PulseSync to publish smarter, protect their accounts, and beat the competition.
           </p>
           <button onClick={onGetStarted} className="liquid-gold glow-ring relative mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto">
             Get started free <ArrowRight className="h-4 w-4" />
@@ -321,10 +315,10 @@ function Landing({ onGetStarted }: { onGetStarted: () => void }) {
       <footer className="border-t border-border/40 px-4 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
           <div className="flex items-center gap-2">
-            <Logo size={22} />
-            <span>Syncwave · Enterprise command center for social teams</span>
+            <span className="text-sm font-bold tracking-tight">Pulse<span className="retaina-text">Sync</span></span>
+            <span className="text-muted-foreground">· Enterprise command center for social teams</span>
           </div>
-          <span>© 2026 Syncwave · Liquid retina premium</span>
+          <span>© 2026 PulseSync · Liquid retina premium</span>
         </div>
       </footer>
     </div>
@@ -365,9 +359,8 @@ function LoginScreen({ onBack, onEnter }: { onBack: () => void; onEnter: (role: 
           {/* Left — brand panel */}
           <div className="glass-strong crystal-in relative hidden flex-col justify-between p-10 lg:flex">
             <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[var(--gold)]/15 blur-3xl" />
-            <div className="relative flex items-center gap-2.5">
-              <Logo size={38} />
-              <LogoWordmark size="text-lg" />
+            <div className="relative">
+              <LogoWordmark size="text-xl" />
             </div>
 
             <div className="relative">

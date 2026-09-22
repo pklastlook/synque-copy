@@ -11,18 +11,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Syncwave — Social Team Workflow",
+  title: "PulseSync — Social Team Workflow",
   description:
-    "Syncwave is a liquid-retina social media team work management platform. Publish to multiple accounts in one flow, generate per-account AI content, and track advanced analytics.",
+    "PulseSync is a liquid-retina social media team work management platform. Publish to multiple accounts in one flow, generate per-account AI content, and track advanced analytics.",
   keywords: [
     "social media management",
     "team workflow",
     "multi-account publishing",
     "AI content generation",
     "analytics",
-    "Syncwave",
+    "PulseSync",
   ],
-  authors: [{ name: "Syncwave" }],
+  authors: [{ name: "PulseSync" }],
 };
 
 export default function RootLayout({

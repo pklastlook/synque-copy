@@ -86,7 +86,7 @@ export function Logo({
   );
 }
 
-/** Wordmark — "Syncwave" with an animated gradient on "wave". */
+/** Wordmark — name only (no logo mark). Work-related, interactive. */
 export function LogoWordmark({
   className,
   size = "text-base",
@@ -97,7 +97,7 @@ export function LogoWordmark({
   return (
     <div className={cn("leading-tight", className)}>
       <div className={cn("font-bold tracking-tight", size)}>
-        Sync<span className="retaina-text">wave</span>
+        Pulse<span className="retaina-text">Sync</span>
       </div>
       <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Social Command</div>
     </div>
