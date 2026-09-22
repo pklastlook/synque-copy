@@ -98,6 +98,8 @@ async function main() {
   console.log("Seeding Prism Social...");
 
   // wipe
+  await db.accountProtection.deleteMany();
+  await db.accountHealth.deleteMany();
   await db.mailMessage.deleteMany();
   await db.mailbox.deleteMany();
   await db.mailServer.deleteMany();
@@ -150,9 +152,64 @@ async function main() {
     });
   }
 
-  // posts + variants
+  // ===== Account Health (suspension risk + sentiment ratio) =====
   const now = Date.now();
   const day = 86400000;
+  // Deterministic health profile per account, with a couple flagged as elevated risk.
+  const HEALTH_PROFILES: Record<string, { pos: number; neu: number; neg: number; reports: number; trend: number; risk: number; level: string; status: string; reasons: string[] }> = {
+    "ac-ig-1": { pos: 1820, neu: 410, neg: 78, reports: 3, trend: 0, risk: 12, level: "safe", status: "healthy", reasons: [] },
+    "ac-ig-2": { pos: 540, neu: 180, neg: 42, reports: 1, trend: 0, risk: 18, level: "safe", status: "healthy", reasons: [] },
+    "ac-fb-1": { pos: 980, neu: 320, neg: 65, reports: 2, trend: 0, risk: 15, level: "safe", status: "healthy", reasons: [] },
+    "ac-fb-2": { pos: 310, neu: 120, neg: 88, reports: 5, trend: +2, risk: 38, level: "moderate", status: "warning", reasons: ["rising_negative_ratio", "report_rate_increasing"] },
+    "ac-x-1": { pos: 1240, neu: 480, neg: 210, reports: 8, trend: +3, risk: 52, level: "elevated", status: "warning", reasons: ["high_negative_ratio", "report_rate_increasing", "aggressive_engagement_detected"] },
+    "ac-li-1": { pos: 1520, neu: 540, neg: 36, reports: 1, trend: 0, risk: 9, level: "safe", status: "healthy", reasons: [] },
+    "ac-tt-1": { pos: 2100, neu: 620, neg: 96, reports: 4, trend: -1, risk: 22, level: "safe", status: "healthy", reasons: [] },
+    "ac-yt-1": { pos: 1680, neu: 460, neg: 58, reports: 2, trend: 0, risk: 14, level: "safe", status: "healthy", reasons: [] },
+    "ac-th-1": { pos: 420, neu: 150, neg: 72, reports: 6, trend: +4, risk: 61, level: "high", status: "restricted", reasons: ["high_report_rate", "spam_flagged", "rapid_posting_detected"] },
+    "ac-ig-3": { pos: 620, neu: 210, neg: 44, reports: 1, trend: 0, risk: 16, level: "safe", status: "healthy", reasons: [] },
+  };
+  for (const a of ACCOUNTS) {
+    const h = HEALTH_PROFILES[a.id] ?? { pos: 100, neu: 50, neg: 10, reports: 0, trend: 0, risk: 10, level: "safe", status: "healthy", reasons: [] };
+    await db.accountHealth.create({
+      data: {
+        accountId: a.id,
+        positiveCount: h.pos,
+        neutralCount: h.neu,
+        negativeCount: h.neg,
+        reportCount: h.reports,
+        reportTrend: h.trend,
+        riskScore: h.risk,
+        riskLevel: h.level,
+        status: h.status,
+        riskReasons: JSON.stringify(h.reasons),
+        lastUpdated: new Date(now - 3600 * 1000),
+      },
+    });
+    // default protection settings for every account
+    await db.accountProtection.create({
+      data: {
+        accountId: a.id,
+        enabled: true,
+        dailyPostLimit: a.platform === "x" || a.platform === "threads" ? 8 : 4,
+        hourlyPostLimit: 2,
+        minMinutesBetweenPosts: a.platform === "tiktok" ? 45 : 30,
+        autoFlagSensitiveContent: true,
+        blockDuplicateContent: true,
+        blockBannedHashtags: true,
+        bannedHashtags: "follow4follow, like4like, fyp, viralbait, giveawayspam",
+        enforceWarmupProfile: true,
+        limitDMsPerHour: 20,
+        limitFollowsPerHour: 15,
+        limitCommentsPerHour: 30,
+        pausePostingOnWarning: true,
+        cooldownHoursOnFlag: 24,
+        requireTwoFactor: true,
+        lastAudit: new Date(now - 3600 * 1000 * 6),
+      },
+    });
+  }
+
+  // posts + variants
   for (let i = 0; i < POSTS.length; i++) {
     const p = POSTS[i];
     const createdAt = new Date(now - (POSTS.length - i) * day * 1.4);
