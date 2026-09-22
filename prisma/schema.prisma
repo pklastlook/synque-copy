@@ -1,0 +1,117 @@
+// Prism Social — Prisma schema
+// Social media team work management platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  avatar    String?
+  role      String   @default("member") // admin | member
+  title     String?
+  color     String?  // accent gradient seed
+  createdAt DateTime @default(now())
+
+  accounts  Account[]
+  posts     Post[]
+  activities Activity[]
+  assignedComments Comment[] @relation("CommentAssignee")
+}
+
+model Account {
+  id          String   @id @default(cuid())
+  platform    String   // instagram | facebook | x | linkedin | tiktok | youtube | threads
+  handle      String
+  displayName String
+  avatar      String?
+  followers   Int      @default(0)
+  verified    Boolean  @default(false)
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+
+  variants   PostVariant[]
+  analytics  AnalyticsDaily[]
+  comments   Comment[]
+}
+
+model Post {
+  id         String    @id @default(cuid())
+  title      String
+  caption    String    // shared base caption / brief
+  mediaUrl   String?
+  mediaType  String    @default("image") // image | video | carousel | none
+  tone       String    @default("professional")
+  status     String    @default("draft") // draft | scheduled | published | failed
+  scheduledAt DateTime?
+  authorId   String
+  author     User      @relation(fields: [authorId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  variants   PostVariant[]
+}
+
+model PostVariant {
+  id          String    @id @default(cuid())
+  postId      String
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     Account   @relation(fields: [accountId], references: [id])
+  content     String    // AI-generated platform-specific content
+  hashtags    String?   // comma separated
+  status      String    @default("draft") // draft | scheduled | published | failed
+  publishedAt DateTime?
+  likes       Int       @default(0)
+  comments    Int       @default(0)
+  shares      Int       @default(0)
+  reach       Int       @default(0)
+  impressions Int       @default(0)
+  saves       Int       @default(0)
+  createdAt   DateTime  @default(now())
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id])
+  author     String
+  authorAvatar String?
+  text       String
+  type       String   @default("comment") // comment | message | mention
+  sentiment  String   @default("neutral") // positive | neutral | negative
+  replied    Boolean  @default(false)
+  assigneeId String?
+  assignee   User?    @relation("CommentAssignee", fields: [assigneeId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+model AnalyticsDaily {
+  id         String   @id @default(cuid())
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id])
+  date       DateTime
+  followers  Int
+  impressions Int
+  reach      Int
+  engagement Float
+  posts      Int
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String   // post_published | post_scheduled | comment_replied | account_connected | ai_generated | team_joined
+  description String
+  meta        String?  // JSON string for extra context
+  createdAt   DateTime @default(now())
+}
