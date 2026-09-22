@@ -865,3 +865,55 @@ Stage Summary:
 - Data: ZERO mock/dummy/seeded data. Only one bootstrap admin user. Everything else created through the UI.
 - All 18 views render, 0 console errors. Lint: 0 errors, 0 warnings. All 13 APIs return 200.
 - Admin login: admin@socialflow.app / admin123
+
+---
+
+## Task ID: media-expandable — `media-expandable`
+
+**Task**: Convert the flat "Media Library" sidebar entry into an expandable parent with sub-items (All Media / Images / Videos / Audio), mirroring the existing `SettingsGroup` pattern. Drive the active media sub-tab from the global nav store so `MediaLibraryView` filters assets by type.
+
+### Files modified
+1. `/home/z/my-project/src/lib/store.ts` — added `mediaTab`/`setMediaTab`/`mediaExpanded`/`toggleMedia` to the `useNav` Zustand store (mirroring the settings shape). Default `mediaTab = "all"`, `mediaExpanded = false`.
+2. `/home/z/my-project/src/components/app-sidebar.tsx` — removed the flat `{ id: "media", ... }` NAV entry, added a new `MediaGroup` component (rendered at the end of the "Content" group), and pulled the new store fields into `AppSidebar`.
+3. `/home/z/my-project/src/components/views/media-library.tsx` — reads `useNav().mediaTab` instead of local state, filters `assets` by type (`"all"` → all, `"images"` → `type==="image"`, `"videos"` → `type==="video"`, `"audio"` → `type==="audio"`). KPIs + hero subtitle are also scoped to the active type, and a small chip in the hero shows the active filter when not "all".
+
+### What was built
+
+**Store** (`src/lib/store.ts`)
+- `mediaTab: string` (default `"all"`), `setMediaTab(tab)`.
+- `mediaExpanded: boolean` (default `false`), `toggleMedia()`.
+- Placed right after the existing `settingsTab` / `settingsExpanded` block to keep nav-state cohesive.
+
+**Sidebar** (`src/components/app-sidebar.tsx`)
+- New imports: `Image as ImageIcon`, `Video`, `Music` (alongside the existing `Images`).
+- `MEDIA_SUBITEMS` constant — typed `{ id: "all" | "images" | "videos" | "audio"; label; icon; accent }[]`, each with its own oklch accent (violet for All, emerald for Images, amber for Videos, teal-emerald for Audio) matching the existing obsidian + emerald/violet theme.
+- `MediaGroup` component — same shape as `SettingsGroup`:
+  - Parent button: `Images` icon + "Media Library" label + rotating `ChevronDown`. Sets `view="media"` and toggles `mediaExpanded` on click. When active, shows the violet accent bar on the left and a violet chevron (via `--section-accent` CSS var).
+  - Sub-items container: `max-h-[320px]` expand/`max-h-0` collapse transition (300ms ease-out, opacity synchronized), wrapped in the `crystal-in` glass panel used by `SettingsGroup`.
+  - Each sub-item: own accent color on its icon, sets `view="media"` + `mediaTab` + keeps the group expanded. Active sub-item gets the `bg-primary/12` + ring + accent-bar treatment.
+  - `aria-expanded` / `aria-controls="media-subnav"` / `aria-current` for accessibility.
+- `MediaGroup` is rendered at the end of the "Content" group (between `Link in Bio` and the "Insights" header), `SettingsGroup` continues to render at the end of "Workspace".
+- All existing nav entries, badges, active states, mobile sheet, and the bottom user card are untouched.
+
+**Media Library view** (`src/components/views/media-library.tsx`)
+- Pulled `mediaTab` from `useNav()` (removed the implicit local-only behavior; the local `folder` / `query` / `view` state are preserved).
+- New `typeFilter` map (`{ all: null, images: "image", videos: "video", audio: "audio" }`) converts the sidebar tab id to a `MediaAsset["type"]` filter.
+- `filtered` now also applies the type filter on top of the existing folder + query filters.
+- KPI strip and hero subtitle now reflect `scopedAssets` (filtered by type when a sub-tab is selected) so counts/size stay consistent with the visible grid.
+- A small `bg-primary/12` chip in the hero shows the active tab name when `mediaTab !== "all"`.
+
+### Quality
+- TypeScript strict, no `any` (the `["--section-accent" as string]` CSS-var escape hatch already exists in the file and is reused verbatim).
+- `"use client"` preserved on all three files.
+- No existing nav behavior changed — `view="media"` is still set, so the existing app-shell view switcher, mobile sheet, deep links, and `MediaLibraryView` mount all continue to work.
+- `bun run lint` — clean (no errors, no warnings).
+- Mobile responsive: the expandable sub-items render inside the same sidebar used by the mobile sheet, and the `max-h` transition + `crystal-in` panel match the `SettingsGroup` mobile behavior.
+
+### Verification
+- `bun run lint` → exit 0, no output.
+- Dev log shows clean compile (`✓ Compiled`), `GET /` and `GET /api/dashboard` returning 200, no React/Next errors.
+
+### Notes for downstream agents
+- `mediaTab` is intentionally typed as `string` (not a union) to mirror `settingsTab` and keep the store flexible.
+- The accent colors for sub-items are picked to be visually distinct from each other while staying inside the existing obsidian + emerald/violet palette (no blue/indigo).
+- If you add more sub-tabs later, append to `MEDIA_SUBITEMS` in `app-sidebar.tsx` and to `typeFilter` in `media-library.tsx`.

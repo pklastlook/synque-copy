@@ -1,17 +1,15 @@
 import { PrismaClient } from "../../generated/client";
-import { createPgliteAdapter } from "prisma-pglite";
+import { PrismaNeon } from "@prisma/adapter-neon";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-async function createPrismaClient() {
-  const adapter = await createPgliteAdapter();
+function createPrismaClient() {
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
   return new PrismaClient({ adapter });
 }
 
-// PGlite is async to initialize, so we use a top-level await pattern.
-// In production (Neon/Postgres), this would be synchronous.
-export const db = globalForPrisma.prisma ?? (await createPrismaClient());
+export const db = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;

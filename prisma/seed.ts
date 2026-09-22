@@ -1,20 +1,18 @@
 /**
  * SocialFlow — Database Bootstrap
  *
- * This script creates ONLY the initial admin user so the app is usable on first run.
- * All other data (accounts, posts, campaigns, etc.) is created by users through the UI.
- *
+ * Creates the initial admin user on first run.
  * Usage: bun run prisma/seed.ts
  */
 
 import { PrismaClient } from "../generated/client";
-import { createPgliteAdapter } from "prisma-pglite";
+import { PrismaNeon } from "@prisma/adapter-neon";
 import bcrypt from "bcryptjs";
 
 async function main() {
   console.log("Bootstrapping SocialFlow database...");
 
-  const adapter = await createPgliteAdapter();
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
   const db = new PrismaClient({ adapter });
 
   // Check if any admin user already exists

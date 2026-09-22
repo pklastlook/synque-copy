@@ -119,7 +119,7 @@ export function DashboardView() {
         </div>
       </GlassCard>
 
-      {/* KPIs */}
+      {/* KPIs — real data bars from database analytics */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
           label="Total Followers"
@@ -129,6 +129,7 @@ export function DashboardView() {
           accent="oklch(0.55 0.2 255)"
           hint={`across ${data.kpis.accounts} accounts`}
           delay={50}
+          series={data.series.map((s) => s.followers)}
         />
         <KpiCard
           label="Impressions"
@@ -136,8 +137,9 @@ export function DashboardView() {
           delta={data.kpis.impressions.delta}
           icon={<Eye className="h-5 w-5" />}
           accent="oklch(0.62 0.22 300)"
-          hint="last 30 days"
+          hint="last 14 days"
           delay={120}
+          series={data.series.map((s) => s.impressions)}
         />
         <KpiCard
           label="Engagement"
@@ -147,6 +149,7 @@ export function DashboardView() {
           accent="oklch(0.7 0.2 25)"
           hint="likes + comments + shares"
           delay={190}
+          series={data.series.map((s) => s.engagement)}
         />
         <KpiCard
           label="Scheduled"
@@ -155,6 +158,7 @@ export function DashboardView() {
           accent="oklch(0.68 0.22 145)"
           hint={`${data.kpis.published} published`}
           delay={260}
+          series={data.series.map((s) => s.reach)}
         />
       </div>
 

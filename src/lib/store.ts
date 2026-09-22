@@ -22,6 +22,12 @@ interface NavState {
   /** whether the Settings group is expanded in the sidebar */
   settingsExpanded: boolean;
   toggleSettings: () => void;
+  /** active media library sub-section (driven from the main sidebar) */
+  mediaTab: string;
+  setMediaTab: (tab: string) => void;
+  /** whether the Media Library group is expanded in the sidebar */
+  mediaExpanded: boolean;
+  toggleMedia: () => void;
 }
 
 export const useNav = create<NavState>((set) => ({
@@ -38,4 +44,8 @@ export const useNav = create<NavState>((set) => ({
   setSettingsTab: (tab) => set({ settingsTab: tab }),
   settingsExpanded: false,
   toggleSettings: () => set((s) => ({ settingsExpanded: !s.settingsExpanded })),
+  mediaTab: "all",
+  setMediaTab: (tab) => set({ mediaTab: tab }),
+  mediaExpanded: false,
+  toggleMedia: () => set((s) => ({ mediaExpanded: !s.mediaExpanded })),
 }));
