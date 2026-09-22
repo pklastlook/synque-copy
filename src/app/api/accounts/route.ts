@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const accounts = await db.account.findMany({
-    include: { owner: true },
+    include: { owner: true, health: true, protection: true },
     orderBy: { followers: "desc" },
   });
 
@@ -21,6 +21,12 @@ export async function GET() {
       const aVariants = variants.filter((v) => v.accountId === a.id);
       const engagement = aVariants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0);
       const impressions = aAnalytics.reduce((s, x) => s + x.impressions, 0);
+
+      const h = a.health;
+      const pos = h?.positiveCount ?? 0;
+      const neu = h?.neutralCount ?? 0;
+      const neg = h?.negativeCount ?? 0;
+      const totalComments = pos + neu + neg;
 
       return {
         id: a.id,
@@ -38,6 +44,44 @@ export async function GET() {
         followerGrowth,
         impressions,
         engagement,
+        health: h
+          ? {
+              positiveCount: pos,
+              neutralCount: neu,
+              negativeCount: neg,
+              totalComments,
+              positiveRatio: totalComments ? Math.round((pos / totalComments) * 100) : 0,
+              neutralRatio: totalComments ? Math.round((neu / totalComments) * 100) : 0,
+              negativeRatio: totalComments ? Math.round((neg / totalComments) * 100) : 0,
+              reportCount: h.reportCount,
+              reportTrend: h.reportTrend,
+              riskScore: h.riskScore,
+              riskLevel: h.riskLevel,
+              status: h.status,
+              riskReasons: h.riskReasons ? JSON.parse(h.riskReasons) : [],
+              lastUpdated: h.lastUpdated.toISOString(),
+            }
+          : null,
+        protection: a.protection
+          ? {
+              enabled: a.protection.enabled,
+              dailyPostLimit: a.protection.dailyPostLimit,
+              hourlyPostLimit: a.protection.hourlyPostLimit,
+              minMinutesBetweenPosts: a.protection.minMinutesBetweenPosts,
+              autoFlagSensitiveContent: a.protection.autoFlagSensitiveContent,
+              blockDuplicateContent: a.protection.blockDuplicateContent,
+              blockBannedHashtags: a.protection.blockBannedHashtags,
+              bannedHashtags: a.protection.bannedHashtags,
+              enforceWarmupProfile: a.protection.enforceWarmupProfile,
+              limitDMsPerHour: a.protection.limitDMsPerHour,
+              limitFollowsPerHour: a.protection.limitFollowsPerHour,
+              limitCommentsPerHour: a.protection.limitCommentsPerHour,
+              pausePostingOnWarning: a.protection.pausePostingOnWarning,
+              cooldownHoursOnFlag: a.protection.cooldownHoursOnFlag,
+              requireTwoFactor: a.protection.requireTwoFactor,
+              lastAudit: a.protection.lastAudit?.toISOString() ?? null,
+            }
+          : null,
       };
     })
   );
@@ -79,6 +123,8 @@ export async function POST(req: NextRequest) {
       followers: 0,
       verified: false,
       ownerId: ownerId || "u-admin",
+      health: { create: { riskScore: 5, riskLevel: "safe", status: "healthy", riskReasons: "[]" } },
+      protection: { create: { enabled: true } },
     },
   });
 

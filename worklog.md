@@ -460,3 +460,23 @@ Stage Summary:
 - Enterprise Apple color scheme: deep graphite, rich accents, solid crystal — no longer whity/faded.
 - Animated: staggered crystal entrance on all cards, chart area animations, crystal-sweep hover, glow pulse.
 - VLM premium rating: 9/10. All 17 views render with 0 console errors. Lint: 0 errors, 0 warnings.
+
+---
+Task ID: account-health + suspension-protection
+Agent: Z.ai (orchestrator)
+Task: Integrate account health (positive/negative/reports ratio bars), suspension advisor, and anti-suspension protection settings.
+
+Work Log:
+- Extended Prisma schema with AccountHealth (positive/neutral/negative comment counts, report count + trend, riskScore 0-100, riskLevel, status, riskReasons JSON) and AccountProtection (daily/hourly post limits, min minutes between posts, content-safety toggles, banned-hashtag list, DM/follow/comment limits, pause-on-warning, cooldown hours, 2FA requirement, warmup enforcement). Added relations to Account model.
+- Seeded per-account health profiles: most accounts safe, with ac-x-1 (X) flagged "elevated" risk 52, ac-th-1 (Threads) flagged "high" risk 61 restricted, ac-fb-2 "moderate" risk 38. Each has realistic positive/neutral/negative comment splits and report counts. Every account got default protection settings.
+- Extended GET /api/accounts to return health (with computed positiveRatio/neutralRatio/negativeRatio) + protection for each account. New account creation now also seeds default health + protection rows.
+- Built GET/PATCH /api/accounts/[id]/protection route for reading + updating protection settings (whitelisted fields, updates lastAudit). Verified persistence: PATCH dailyPostLimit 4→6, cooldown 24→48 confirmed.
+- UI on Account cards: added HealthBadge (color-coded: emerald Healthy / amber Moderate / orange Elevated / rose High / rose Critical, with animated ping pulse on non-safe), HealthRatioBar (stacked green/grey/red positive/neutral/negative + report count), and a "Health" footer button (amber when at-risk).
+- Built AccountHealthDialog (3 tabs): (1) Health overview — risk gauge (0-100 with color), sentiment stacked bar with counts, reports card with trend, status card, risk-factors list; (2) "Save from suspension" advisor — dynamically generates tips based on detected risk reasons (e.g. rapid_posting_detected → "slow down cadence") + always-on best practices (warmup, banned hashtags, 2FA, cooldowns), each with severity badges (Do now/Recommended/Best practice); (3) Protection settings — master toggle + posting-cadence limits, content-safety toggles, behavior guards, smart cooldown, all saved via PATCH API.
+- Fixed Prisma client regeneration issue (needed explicit `prisma generate` after schema relation changes).
+
+Stage Summary:
+- Account health now fully integrated: every account card shows a risk badge + comment-sentiment ratio bar + report count.
+- "Save from suspension" advisor gives actionable, account-specific guidance (high-priority actions tied to detected risk factors).
+- Protection settings let admins configure hard limits (posting cadence, DM/follow/comment caps, banned hashtags, pause-on-warning, cooldown, 2FA) that prevent the patterns platforms suspend for — persists via API.
+- All 17 views render with 0 console errors. Lint: 0 errors, 0 warnings.

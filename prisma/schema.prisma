@@ -42,6 +42,62 @@ model Account {
   variants   PostVariant[]
   analytics  AnalyticsDaily[]
   comments   Comment[]
+  health     AccountHealth?
+  protection AccountProtection?
+}
+
+// ===== Account Health (suspension risk + sentiment ratio) =====
+model AccountHealth {
+  id            String   @id @default(cuid())
+  accountId     String   @unique
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  // sentiment split of comments/mentions (last 30d)
+  positiveCount Int      @default(0)
+  neutralCount  Int      @default(0)
+  negativeCount Int      @default(0)
+  // reports / flags
+  reportCount   Int      @default(0)
+  reportTrend   Int      @default(0) // +/- change vs prev period
+  // risk
+  riskScore     Int      @default(0) // 0-100, higher = more at risk
+  riskLevel     String   @default("safe") // safe | moderate | elevated | high | critical
+  // status
+  status        String   @default("healthy") // healthy | warning | restricted | suspended
+  lastUpdated   DateTime @default(now())
+  // reasons array (JSON string) — why risk is elevated
+  riskReasons   String?  // JSON: ["spam_flagged","high_report_rate",...]
+  updatedAt     DateTime @updatedAt
+}
+
+// ===== Account Protection (anti-suspension settings) =====
+model AccountProtection {
+  id                       String  @id @default(cuid())
+  accountId                String  @unique
+  account                  Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  // posting cadence guards
+  dailyPostLimit           Int     @default(4)
+  hourlyPostLimit          Int     @default(2)
+  minMinutesBetweenPosts   Int     @default(30)
+  // content safety
+  autoFlagSensitiveContent Boolean @default(true)
+  blockDuplicateContent   Boolean @default(true)
+  blockBannedHashtags     Boolean @default(true)
+  bannedHashtags           String? // comma-separated custom banned list
+  // behavior guards
+  enforceWarmupProfile     Boolean @default(true)
+  limitDMsPerHour          Int     @default(20)
+  limitFollowsPerHour     Int     @default(15)
+  limitCommentsPerHour     Int     @default(30)
+  // automation pause
+  pausePostingOnWarning   Boolean @default(true)
+  cooldownHoursOnFlag     Int     @default(24)
+  // two-factor / verified
+  requireTwoFactor        Boolean @default(true)
+  // status
+  enabled                  Boolean @default(true)
+  lastAudit                DateTime?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 model Post {
