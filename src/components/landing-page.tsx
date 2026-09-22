@@ -156,11 +156,10 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-6xl items-center justify-between rounded-2xl px-5 py-3 sm:w-[calc(100%-3rem)]">
         <LogoWordmark size="text-base" />
         <div className="hidden items-center gap-6 md:flex">
-          <a href="#story" className="text-sm text-muted-foreground transition hover:text-foreground">The Story</a>
-          <a href="#features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</a>
-          <a href="#workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</a>
-          <a href="#testimonials" className="text-sm text-muted-foreground transition hover:text-foreground">Customers</a>
-          <a href="#pricing" className="text-sm text-muted-foreground transition hover:text-foreground">Pricing</a>
+          <a href="/features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</a>
+          <a href="/workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</a>
+          <a href="/pricing" className="text-sm text-muted-foreground transition hover:text-foreground">Pricing</a>
+          <a href="/about" className="text-sm text-muted-foreground transition hover:text-foreground">About</a>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onSignIn} className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:block">
