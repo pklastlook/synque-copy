@@ -33,6 +33,7 @@ import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
 import { PlatformBadge, VerifiedTick } from "@/components/glass/platform-badge";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
 import { useNav } from "@/lib/store";
+import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -127,7 +128,9 @@ const DEFAULT_STATE: ComposerState = {
 };
 
 export function ComposerView() {
-  const { composerSeed, clearComposerSeed, currentUserId } = useNav();
+  const { composerSeed, clearComposerSeed } = useNav();
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? "u-admin";
   const { data: accounts } = useApi<AccountData[]>("/api/accounts");
 
   const [state, setState] = React.useState<ComposerState>(DEFAULT_STATE);

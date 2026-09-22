@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useApi } from "@/lib/hooks";
 import { GlassCard, KpiCard } from "@/components/glass/glass-card";
 import { useNav } from "@/lib/store";
+import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -607,6 +608,7 @@ function UploadDialog({
   folders: string[];
   onUploaded: () => void;
 }) {
+  const { user } = useAuth();
   const [url, setUrl] = React.useState("");
   const [name, setName] = React.useState("");
   const [tags, setTags] = React.useState("");
@@ -640,7 +642,7 @@ function UploadDialog({
           type,
           tags: (override?.tags ?? tags) || null,
           folder,
-          uploadedById: "u-admin",
+          uploadedById: user?.id ?? "u-admin",
         }),
       });
       if (!res.ok) throw new Error("Upload failed");

@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { useApi } from "@/lib/hooks";
 import { GlassCard, KpiCard } from "@/components/glass/glass-card";
+import { useAuth } from "@/lib/auth-store";
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import {
@@ -396,6 +397,7 @@ function CreateCampaignDialog({
   onOpenChange: (v: boolean) => void;
   onCreated: () => void;
 }) {
+  const { user } = useAuth();
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [color, setColor] = React.useState(COLOR_SWATCHES[0]);
@@ -430,7 +432,7 @@ function CreateCampaignDialog({
           objective,
           startDate: startDate || null,
           endDate: endDate || null,
-          ownerId: "u-admin",
+          ownerId: user?.id ?? "u-admin",
         }),
       });
       if (!res.ok) throw new Error("Failed to create campaign");
