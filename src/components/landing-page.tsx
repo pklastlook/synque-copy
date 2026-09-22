@@ -549,7 +549,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
                 ))}
               </ul>
               <button
-                onClick={onSignIn}
+                onClick={onTrial}
                 className={cn(
                   "mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition",
                   p.featured ? "liquid-gold glow-ring" : "border border-border/50 bg-muted/40 hover:bg-muted"
