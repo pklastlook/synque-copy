@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Search, Bell, Moon, Sun, Menu, Command } from "lucide-react";
+import { Search, Bell, Moon, Sun, Menu, Command, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useNav } from "@/lib/store";
+import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { NameAvatar } from "@/components/glass/name-avatar";
 
@@ -25,11 +26,13 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   reports: { title: "Reports", subtitle: "Build, schedule and export custom reports" },
   linkbio: { title: "Link in Bio", subtitle: "Your shoppable link-in-bio page" },
   mail: { title: "Mail Server", subtitle: "Custom domain mailboxes for your team" },
+  admin: { title: "Admin Panel", subtitle: "Complete team performance, workflow & oversight" },
 };
 
 export function AppHeader({ onMenu }: { onMenu: () => void }) {
   const { view, adminMode, setAdminMode } = useNav();
   const { resolvedTheme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
   const t = TITLES[view] ?? { title: "Prism", subtitle: "" };
@@ -98,7 +101,16 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           )}
         </button>
 
-        <NameAvatar name="Maya Reyes" color="rose" className="h-9 w-9 shrink-0 text-xs" ring />
+        <button
+          onClick={logout}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-rose-500/15 hover:text-rose-500"
+          aria-label="Log out"
+          title="Log out"
+        >
+          <LogOut className="h-[18px] w-[18px]" />
+        </button>
+
+        <NameAvatar name={user?.name ?? "Maya Reyes"} color="rose" className="h-9 w-9 shrink-0 text-xs" ring />
       </div>
     </header>
   );

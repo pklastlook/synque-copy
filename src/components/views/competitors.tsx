@@ -669,7 +669,7 @@ function CompetitorCard({ competitor }: { competitor: Competitor }) {
         </div>
         <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-[oklch(0.66_0.22_305)]"
+            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-[var(--gold)]"
             style={{ width: `${benchmarkPct}%` }}
           />
           <div

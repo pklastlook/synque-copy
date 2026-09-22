@@ -4,12 +4,12 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const GRADIENTS: Record<string, string> = {
-  rose: "from-[oklch(0.7_0.24_14)] to-[oklch(0.66_0.22_350)]",
-  amber: "from-[oklch(0.78_0.18_75)] to-[oklch(0.7_0.19_45)]",
-  teal: "from-[oklch(0.74_0.18_165)] to-[oklch(0.7_0.16_195)]",
-  magenta: "from-[oklch(0.66_0.22_305)] to-[oklch(0.62_0.24_340)]",
-  green: "from-[oklch(0.76_0.18_145)] to-[oklch(0.72_0.2_160)]",
-  blue: "from-[oklch(0.7_0.18_250)] to-[oklch(0.66_0.2_280)]",
+  rose: "from-[var(--primary)] to-[var(--gold)]",
+  amber: "from-[oklch(0.82 0.14 85)] to-[oklch(0.7 0.16 55)]",
+  teal: "from-[oklch(0.72 0.16 200)] to-[oklch(0.7 0.15 165)]",
+  magenta: "from-[oklch(0.6 0.16 230)] to-[var(--gold)]",
+  green: "from-[oklch(0.76 0.18 145)] to-[oklch(0.72 0.15 165)]",
+  blue: "from-[var(--primary)] to-[oklch(0.5 0.16 230)]",
 };
 
 function hashColor(name: string) {

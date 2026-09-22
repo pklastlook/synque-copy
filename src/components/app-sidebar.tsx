@@ -21,6 +21,7 @@ import {
   FileBarChart,
   Link2,
   Mail,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
@@ -28,6 +29,7 @@ import type { ViewId } from "@/lib/types";
 import { NameAvatar } from "@/components/glass/name-avatar";
 
 const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; badge?: string }[] = [
+  { id: "admin", label: "Admin Panel", icon: ShieldCheck, group: "Overview" },
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Overview" },
   { id: "composer", label: "Composer", icon: PenSquare, group: "Overview" },
   { id: "calendar", label: "Calendar", icon: CalendarDays, group: "Overview" },
@@ -55,9 +57,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full w-full flex-col gap-2 p-3">
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-2 pb-1 pt-2">
-        <div className="relative flex h-9 w-9 items-center justify-center rounded-[28%] bg-gradient-to-br from-[oklch(0.72_0.22_14)] via-[oklch(0.66_0.22_305)] to-[oklch(0.74_0.18_165)] shadow-lg">
+        <div className="relative flex h-9 w-9 items-center justify-center rounded-[28%] bg-gradient-to-br from-[var(--primary)] via-[var(--gold)] to-[oklch(0.72_0.16_200)] shadow-lg">
           <Sparkles className="h-4 w-4 text-white" />
-          <span className="absolute -inset-1 -z-10 rounded-[32%] bg-[oklch(0.72_0.22_14/0.35)] blur-md" />
+          <span className="absolute -inset-1 -z-10 rounded-[32%] bg-[var(--primary)]/35 blur-md" />
         </div>
         <div className="leading-tight">
           <div className="text-[15px] font-semibold tracking-tight">Prism</div>

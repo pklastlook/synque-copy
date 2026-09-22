@@ -11,14 +11,18 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  avatar    String?
-  role      String   @default("member") // admin | member
-  title     String?
-  color     String?  // accent gradient seed
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  avatar      String?
+  role        String   @default("member") // admin | manager | editor | member | viewer
+  title       String?  // designation e.g. "Head of Social"
+  department  String?  // e.g. "Content", "Paid Social", "Community"
+  color       String?  // accent gradient seed
+  permissions String?  // JSON array of permission strings
+  status      String   @default("active") // active | suspended | invited
+  lastActive  DateTime?
+  createdAt   DateTime @default(now())
 
   accounts  Account[]
   posts     Post[]
@@ -247,6 +251,23 @@ model Approval {
   dueAt        DateTime?
   createdAt    DateTime @default(now())
   resolvedAt   DateTime?
+}
+
+// ===== Tasks (admin workflow) =====
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  assigneeId  String?
+  creatorId   String
+  status      String    @default("todo") // todo | in_progress | review | done | blocked
+  priority    String    @default("normal") // low | normal | high | urgent
+  type        String    @default("content") // content | review | engagement | analytics | campaign
+  relatedPostId String?
+  dueAt       DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
 }
 
 // ===== Hashtag Manager =====

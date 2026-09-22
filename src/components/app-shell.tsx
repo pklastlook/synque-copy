@@ -23,6 +23,7 @@ import { CompetitorsView } from "@/components/views/competitors";
 import { ReportsView } from "@/components/views/reports";
 import { LinkBioView } from "@/components/views/link-bio";
 import { MailView } from "@/components/views/mail";
+import { AdminPanelView } from "@/components/views/admin-panel";
 
 export function AppShell() {
   const { view } = useNav();
@@ -68,6 +69,7 @@ export function AppShell() {
               {view === "reports" && <ReportsView />}
               {view === "linkbio" && <LinkBioView />}
               {view === "mail" && <MailView />}
+              {view === "admin" && <AdminPanelView />}
               {view === "settings" && <SettingsView />}
             </div>
           </main>

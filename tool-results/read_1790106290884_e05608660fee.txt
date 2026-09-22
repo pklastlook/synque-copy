@@ -1,0 +1,776 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { useTheme } from "next-themes";
+     5→import {
+     6→  User,
+     7→  Building2,
+     8→  Palette,
+     9→  Bell,
+    10→  Plug,
+    11→  CreditCard,
+    12→  Check,
+    13→  Sun,
+    14→  Moon,
+    15→  Monitor,
+    16→  Crown,
+    17→  Zap,
+    18→  AtSign,
+    19→  FileText,
+    20→  Sparkles,
+    21→} from "lucide-react";
+    22→import { toast } from "sonner";
+    23→import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
+    24→import { NameAvatar } from "@/components/glass/name-avatar";
+    25→import { PlatformBadge } from "@/components/glass/platform-badge";
+    26→import { PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
+    27→import { cn } from "@/lib/utils";
+    28→import { Input } from "@/components/ui/input";
+    29→import { Label } from "@/components/ui/label";
+    30→import { Textarea } from "@/components/ui/textarea";
+    31→import { Switch } from "@/components/ui/switch";
+    32→import { Button } from "@/components/ui/button";
+    33→import {
+    34→  Select,
+    35→  SelectContent,
+    36→  SelectItem,
+    37→  SelectTrigger,
+    38→  SelectValue,
+    39→} from "@/components/ui/select";
+    40→
+    41→type SettingsTab =
+    42→  | "profile"
+    43→  | "workspace"
+    44→  | "appearance"
+    45→  | "notifications"
+    46→  | "platforms"
+    47→  | "billing";
+    48→
+    49→interface TabDef {
+    50→  id: SettingsTab;
+    51→  label: string;
+    52→  icon: React.ElementType;
+    53→}
+    54→
+    55→const TABS: TabDef[] = [
+    56→  { id: "profile", label: "Profile", icon: User },
+    57→  { id: "workspace", label: "Workspace", icon: Building2 },
+    58→  { id: "appearance", label: "Appearance", icon: Palette },
+    59→  { id: "notifications", label: "Notifications", icon: Bell },
+    60→  { id: "platforms", label: "Connected platforms", icon: Plug },
+    61→  { id: "billing", label: "Billing", icon: CreditCard },
+    62→];
+    63→
+    64→const ACCENT_SWATCHES: { id: string; name: string; color: string }[] = [
+    65→  { id: "rose", name: "Rose", color: "oklch(0.7 0.24 14)" },
+    66→  { id: "teal", name: "Teal", color: "oklch(0.74 0.18 165)" },
+    67→  { id: "amber", name: "Amber", color: "oklch(0.78 0.18 75)" },
+    68→  { id: "magenta", name: "Magenta", color: "oklch(0.66 0.22 305)" },
+    69→  { id: "green", name: "Green", color: "oklch(0.76 0.18 145)" },
+    70→];
+    71→
+    72→const THEME_OPTIONS: {
+    73→  value: "light" | "dark" | "system";
+    74→  label: string;
+    75→  icon: React.ElementType;
+    76→  desc: string;
+    77→}[] = [
+    78→  { value: "light", label: "Light", icon: Sun, desc: "Bright daylight surface" },
+    79→  { value: "dark", label: "Dark", icon: Moon, desc: "Low-light liquid glass" },
+    80→  { value: "system", label: "System", icon: Monitor, desc: "Match your Mac" },
+    81→];
+    82→
+    83→const NOTIF_ITEMS: { id: string; label: string; desc: string; on: boolean }[] = [
+    84→  {
+    85→    id: "comments",
+    86→    label: "New comment on your post",
+    87→    desc: "When someone comments on a post you authored.",
+    88→    on: true,
+    89→  },
+    90→  {
+    91→    id: "mentions",
+    92→    label: "Mentions",
+    93→    desc: "When your brand or accounts are mentioned.",
+    94→    on: true,
+    95→  },
+    96→  {
+    97→    id: "scheduled",
+    98→    label: "Scheduled post published",
+    99→    desc: "Confirmation when a scheduled post goes live.",
+   100→    on: true,
+   101→  },
+   102→  {
+   103→    id: "digest",
+   104→    label: "Weekly performance digest",
+   105→    desc: "A Monday-morning summary of last week's KPIs.",
+   106→    on: false,
+   107→  },
+   108→  {
+   109→    id: "team",
+   110→    label: "Team member activity",
+   111→    desc: "When teammates publish, schedule or connect accounts.",
+   112→    on: false,
+   113→  },
+   114→];
+   115→
+   116→const CONNECTED_PLATFORMS: Record<PlatformId, { connected: boolean; accounts: number }> = {
+   117→  instagram: { connected: true, accounts: 2 },
+   118→  facebook: { connected: true, accounts: 1 },
+   119→  x: { connected: true, accounts: 1 },
+   120→  linkedin: { connected: true, accounts: 1 },
+   121→  tiktok: { connected: false, accounts: 0 },
+   122→  youtube: { connected: false, accounts: 0 },
+   123→  threads: { connected: false, accounts: 0 },
+   124→};
+   125→
+   126→const TIMEZONES = [
+   127→  "America/Los_Angeles",
+   128→  "America/New_York",
+   129→  "Europe/London",
+   130→  "Europe/Paris",
+   131→  "Asia/Tokyo",
+   132→  "Asia/Singapore",
+   133→  "Australia/Sydney",
+   134→];
+   135→
+   136→const CADENCES = [
+   137→  "Daily — once a day",
+   138→  "3× per week",
+   139→  "Weekly",
+   140→  "Bi-weekly",
+   141→  "Custom schedule",
+   142→];
+   143→
+   144→export function SettingsView() {
+   145→  const [tab, setTab] = React.useState<SettingsTab>("appearance");
+   146→  const { theme, setTheme } = useTheme();
+   147→  const [accent, setAccent] = React.useState("rose");
+   148→  const [reduceMotion, setReduceMotion] = React.useState(false);
+   149→  const [liquidGlass, setLiquidGlass] = React.useState(true);
+   150→
+   151→  return (
+   152→    <div className="animate-rise space-y-5">
+   153→      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
+   154→        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />
+   155→        <div className="relative">
+   156→          <div className="flex items-center gap-2 text-xs font-medium text-primary">
+   157→            <Sparkles className="h-3.5 w-3.5" />
+   158→            Workspace preferences
+   159→          </div>
+   160→          <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+   161→            Settings
+   162→          </h2>
+   163→          <p className="mt-1 text-sm text-muted-foreground">
+   164→            Tune your Prism workspace — appearance, identity, notifications and
+   165→            billing.
+   166→          </p>
+   167→        </div>
+   168→      </GlassCard>
+   169→
+   170→      <GlassCard strong className="p-4 sm:p-5">
+   171→        <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
+   172→          {/* Vertical nav (desktop) / horizontal pills (mobile) */}
+   173→          <nav
+   174→            className="no-scrollbar flex gap-1 overflow-x-auto pb-1 lg:sticky lg:top-4 lg:flex-col lg:overflow-visible lg:pb-0"
+   175→            aria-label="Settings sections"
+   176→          >
+   177→            {TABS.map((t) => {
+   178→              const Icon = t.icon;
+   179→              const active = tab === t.id;
+   180→              return (
+   181→                <button
+   182→                  key={t.id}
+   183→                  onClick={() => setTab(t.id)}
+   184→                  className={cn(
+   185→                    "flex shrink-0 items-center gap-2 rounded-2xl px-3 py-2 text-sm font-medium transition-all",
+   186→                    active
+   187→                      ? "bg-primary/15 text-primary shadow-sm"
+   188→                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+   189→                  )}
+   190→                  aria-current={active ? "page" : undefined}
+   191→                >
+   192→                  <Icon className="h-4 w-4" />
+   193→                  {t.label}
+   194→                </button>
+   195→              );
+   196→            })}
+   197→          </nav>
+   198→
+   199→          {/* Content panel */}
+   200→          <div className="min-w-0">
+   201→            {tab === "appearance" && (
+   202→              <AppearanceTab
+   203→                theme={theme}
+   204→                setTheme={setTheme}
+   205→                accent={accent}
+   206→                setAccent={setAccent}
+   207→                reduceMotion={reduceMotion}
+   208→                setReduceMotion={setReduceMotion}
+   209→                liquidGlass={liquidGlass}
+   210→                setLiquidGlass={setLiquidGlass}
+   211→              />
+   212→            )}
+   213→            {tab === "profile" && <ProfileTab />}
+   214→            {tab === "workspace" && <WorkspaceTab />}
+   215→            {tab === "notifications" && <NotificationsTab />}
+   216→            {tab === "platforms" && <PlatformsTab />}
+   217→            {tab === "billing" && <BillingTab />}
+   218→          </div>
+   219→        </div>
+   220→      </GlassCard>
+   221→    </div>
+   222→  );
+   223→}
+   224→
+   225→/* -------------------- Appearance -------------------- */
+   226→
+   227→function AppearanceTab({
+   228→  theme,
+   229→  setTheme,
+   230→  accent,
+   231→  setAccent,
+   232→  reduceMotion,
+   233→  setReduceMotion,
+   234→  liquidGlass,
+   235→  setLiquidGlass,
+   236→}: {
+   237→  theme: string | undefined;
+   238→  setTheme: (t: "light" | "dark" | "system") => void;
+   239→  accent: string;
+   240→  setAccent: (a: string) => void;
+   241→  reduceMotion: boolean;
+   242→  setReduceMotion: (b: boolean) => void;
+   243→  liquidGlass: boolean;
+   244→  setLiquidGlass: (b: boolean) => void;
+   245→}) {
+   246→  return (
+   247→    <div className="space-y-5">
+   248→      <GlassCard className="p-5">
+   249→        <SectionTitle
+   250→          title="Theme"
+   251→          desc="Choose how Prism looks on this device."
+   252→        />
+   253→        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+   254→          {THEME_OPTIONS.map((opt) => {
+   255→            const Icon = opt.icon;
+   256→            const active = theme === opt.value;
+   257→            return (
+   258→              <button
+   259→                key={opt.value}
+   260→                onClick={() => setTheme(opt.value)}
+   261→                className={cn(
+   262→                  "group relative overflow-hidden rounded-2xl border p-4 text-left transition-all",
+   263→                  active
+   264→                    ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+   265→                    : "hover:border-primary/40 hover:bg-muted/40",
+   266→                )}
+   267→              >
+   268→                <ThemePreview value={opt.value} />
+   269→                <div className="mt-3 flex items-center gap-2">
+   270→                  <Icon className="h-4 w-4" />
+   271→                  <span className="text-sm font-semibold">{opt.label}</span>
+   272→                  {active && (
+   273→                    <Check className="ml-auto h-4 w-4 text-primary" />
+   274→                  )}
+   275→                </div>
+   276→                <p className="mt-0.5 text-[11px] text-muted-foreground">
+   277→                  {opt.desc}
+   278→                </p>
+   279→              </button>
+   280→            );
+   281→          })}
+   282→        </div>
+   283→      </GlassCard>
+   284→
+   285→      <GlassCard className="p-5">
+   286→        <SectionTitle
+   287→          title="Accent color"
+   288→          desc="The vibrant hue used across charts, buttons and highlights."
+   289→        />
+   290→        <div className="flex flex-wrap items-center gap-3">
+   291→          {ACCENT_SWATCHES.map((s) => {
+   292→            const active = accent === s.id;
+   293→            return (
+   294→              <button
+   295→                key={s.id}
+   296→                onClick={() => {
+   297→                  setAccent(s.id);
+   298→                  toast.info("Accent updated");
+   299→                }}
+   300→                className="group flex items-center gap-2 rounded-2xl border border-transparent p-1.5 transition-all hover:bg-muted/50"
+   301→                aria-label={s.name}
+   302→              >
+   303→                <span
+   304→                  className={cn(
+   305→                    "grid h-9 w-9 place-items-center rounded-full text-white shadow-md transition-transform group-hover:scale-110",
+   306→                    active && "ring-2 ring-foreground ring-offset-2 ring-offset-background",
+   307→                  )}
+   308→                  style={{ background: s.color }}
+   309→                >
+   310→                  {active && <Check className="h-4 w-4" />}
+   311→                </span>
+   312→                <span className="text-xs font-medium">{s.name}</span>
+   313→              </button>
+   314→            );
+   315→          })}
+   316→        </div>
+   317→      </GlassCard>
+   318→
+   319→      <GlassCard className="p-5">
+   320→        <SectionTitle
+   321→          title="Motion & surfaces"
+   322→          desc="Tune the visual feel of the workspace."
+   323→        />
+   324→        <div className="space-y-3">
+   325→          <SettingRow
+   326→            label="Liquid glass effects"
+   327→            desc="Translucent, layered surfaces with backdrop blur."
+   328→          >
+   329→            <Switch checked={liquidGlass} onCheckedChange={setLiquidGlass} />
+   330→          </SettingRow>
+   331→          <SettingRow
+   332→            label="Reduce motion"
+   333→            desc="Minimise animations and transitions."
+   334→          >
+   335→            <Switch checked={reduceMotion} onCheckedChange={setReduceMotion} />
+   336→          </SettingRow>
+   337→        </div>
+   338→      </GlassCard>
+   339→    </div>
+   340→  );
+   341→}
+   342→
+   343→function ThemePreview({
+   344→  value,
+   345→}: {
+   346→  value: "light" | "dark" | "system";
+   347→}) {
+   348→  if (value === "system") {
+   349→    return (
+   350→      <div className="grid h-20 grid-cols-2 overflow-hidden rounded-xl border">
+   351→        <div className="bg-gradient-to-br from-white to-neutral-200 p-2">
+   352→          <div className="h-1.5 w-8 rounded-full bg-neutral-400" />
+   353→          <div className="mt-1 h-1 w-10 rounded-full bg-neutral-300" />
+   354→          <div className="mt-2 h-3 w-3 rounded-full bg-rose-400" />
+   355→        </div>
+   356→        <div className="bg-gradient-to-br from-neutral-800 to-black p-2">
+   357→          <div className="h-1.5 w-8 rounded-full bg-neutral-500" />
+   358→          <div className="mt-1 h-1 w-10 rounded-full bg-neutral-600" />
+   359→          <div className="mt-2 h-3 w-3 rounded-full bg-rose-400" />
+   360→        </div>
+   361→      </div>
+   362→    );
+   363→  }
+   364→  const isDark = value === "dark";
+   365→  return (
+   366→    <div
+   367→      className={cn(
+   368→        "h-20 rounded-xl border p-2",
+   369→        isDark
+   370→          ? "bg-gradient-to-br from-neutral-800 to-black"
+   371→          : "bg-gradient-to-br from-white to-neutral-200",
+   372→      )}
+   373→    >
+   374→      <div
+   375→        className={cn(
+   376→          "h-1.5 w-8 rounded-full",
+   377→          isDark ? "bg-neutral-500" : "bg-neutral-400",
+   378→        )}
+   379→      />
+   380→      <div
+   381→        className={cn(
+   382→          "mt-1 h-1 w-10 rounded-full",
+   383→          isDark ? "bg-neutral-600" : "bg-neutral-300",
+   384→        )}
+   385→      />
+   386→      <div className="mt-2 h-3 w-3 rounded-full bg-[var(--gold)]" />
+   387→    </div>
+   388→  );
+   389→}
+   390→
+   391→/* -------------------- Profile -------------------- */
+   392→
+   393→function ProfileTab() {
+   394→  const [name, setName] = React.useState("Maya Reyes");
+   395→  const [email, setEmail] = React.useState("maya@prismstudio.com");
+   396→  const [title, setTitle] = React.useState("Head of Social");
+   397→  const [bio, setBio] = React.useState(
+   398→    "Building Prism — the calmest way to publish across every platform at once.",
+   399→  );
+   400→
+   401→  return (
+   402→    <GlassCard className="p-5">
+   403→      <SectionTitle
+   404→        title="Profile"
+   405→        desc="How you appear to teammates and collaborators."
+   406→      />
+   407→      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+   408→        <div className="flex flex-col items-center gap-2">
+   409→          <NameAvatar name={name} className="h-20 w-20 text-xl" ring />
+   410→          <button
+   411→            onClick={() => toast.info("Upload a new photo")}
+   412→            className="text-[11px] font-medium text-primary hover:underline"
+   413→          >
+   414→            Change photo
+   415→          </button>
+   416→        </div>
+   417→        <div className="grid flex-1 gap-3">
+   418→          <div className="grid gap-3 sm:grid-cols-2">
+   419→            <div className="space-y-1.5">
+   420→              <Label htmlFor="profile-name">Full name</Label>
+   421→              <Input
+   422→                id="profile-name"
+   423→                value={name}
+   424→                onChange={(e) => setName(e.target.value)}
+   425→              />
+   426→            </div>
+   427→            <div className="space-y-1.5">
+   428→              <Label htmlFor="profile-email">Email</Label>
+   429→              <Input
+   430→                id="profile-email"
+   431→                type="email"
+   432→                value={email}
+   433→                onChange={(e) => setEmail(e.target.value)}
+   434→              />
+   435→            </div>
+   436→          </div>
+   437→          <div className="space-y-1.5">
+   438→            <Label htmlFor="profile-title">Title</Label>
+   439→            <Input
+   440→              id="profile-title"
+   441→              value={title}
+   442→              onChange={(e) => setTitle(e.target.value)}
+   443→            />
+   444→          </div>
+   445→          <div className="space-y-1.5">
+   446→            <Label htmlFor="profile-bio">Bio</Label>
+   447→            <Textarea
+   448→              id="profile-bio"
+   449→              value={bio}
+   450→              onChange={(e) => setBio(e.target.value)}
+   451→            />
+   452→          </div>
+   453→          <div className="flex justify-end">
+   454→            <button
+   455→              onClick={() => toast.success("Profile saved")}
+   456→              className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+   457→            >
+   458→              <Check className="h-4 w-4" />
+   459→              Save changes
+   460→            </button>
+   461→          </div>
+   462→        </div>
+   463→      </div>
+   464→    </GlassCard>
+   465→  );
+   466→}
+   467→
+   468→/* -------------------- Workspace -------------------- */
+   469→
+   470→function WorkspaceTab() {
+   471→  const [name, setName] = React.useState("Prism Studio");
+   472→  const [tz, setTz] = React.useState("America/Los_Angeles");
+   473→  const [cadence, setCadence] = React.useState(CADENCES[1]);
+   474→  const [autoVariants, setAutoVariants] = React.useState(true);
+   475→
+   476→  return (
+   477→    <GlassCard className="p-5">
+   478→      <SectionTitle
+   479→        title="Workspace"
+   480→        desc="Defaults that apply across your Prism workspace."
+   481→      />
+   482→      <div className="grid gap-3">
+   483→        <div className="space-y-1.5">
+   484→          <Label htmlFor="ws-name">Workspace name</Label>
+   485→          <Input
+   486→            id="ws-name"
+   487→            value={name}
+   488→            onChange={(e) => setName(e.target.value)}
+   489→          />
+   490→        </div>
+   491→        <div className="grid gap-3 sm:grid-cols-2">
+   492→          <div className="space-y-1.5">
+   493→            <Label>Default timezone</Label>
+   494→            <Select value={tz} onValueChange={setTz}>
+   495→              <SelectTrigger className="w-full">
+   496→                <SelectValue />
+   497→              </SelectTrigger>
+   498→              <SelectContent>
+   499→                {TIMEZONES.map((t) => (
+   500→                  <SelectItem key={t} value={t}>
+   501→                    {t}
+   502→                  </SelectItem>
+   503→                ))}
+   504→              </SelectContent>
+   505→            </Select>
+   506→          </div>
+   507→          <div className="space-y-1.5">
+   508→            <Label>Default posting cadence</Label>
+   509→            <Select value={cadence} onValueChange={setCadence}>
+   510→              <SelectTrigger className="w-full">
+   511→                <SelectValue />
+   512→              </SelectTrigger>
+   513→              <SelectContent>
+   514→                {CADENCES.map((c) => (
+   515→                  <SelectItem key={c} value={c}>
+   516→                    {c}
+   517→                  </SelectItem>
+   518→                ))}
+   519→              </SelectContent>
+   520→            </Select>
+   521→          </div>
+   522→        </div>
+   523→        <SettingRow
+   524→          label="Auto-generate AI variants on compose"
+   525→          desc="Generate per-platform caption variants automatically when composing."
+   526→        >
+   527→          <Switch checked={autoVariants} onCheckedChange={setAutoVariants} />
+   528→        </SettingRow>
+   529→        <div className="flex justify-end">
+   530→          <button
+   531→            onClick={() => toast.success("Workspace saved")}
+   532→            className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+   533→          >
+   534→            <Check className="h-4 w-4" />
+   535→            Save changes
+   536→          </button>
+   537→        </div>
+   538→      </div>
+   539→    </GlassCard>
+   540→  );
+   541→}
+   542→
+   543→/* -------------------- Notifications -------------------- */
+   544→
+   545→function NotificationsTab() {
+   546→  const [state, setState] = React.useState<Record<string, boolean>>(
+   547→    Object.fromEntries(NOTIF_ITEMS.map((n) => [n.id, n.on])),
+   548→  );
+   549→
+   550→  return (
+   551→    <GlassCard className="p-5">
+   552→      <SectionTitle
+   553→        title="Notifications"
+   554→        desc="Choose what Prism pings you about."
+   555→      />
+   556→      <div className="space-y-2">
+   557→        {NOTIF_ITEMS.map((n) => (
+   558→          <SettingRow
+   559→            key={n.id}
+   560→            label={n.label}
+   561→            desc={n.desc}
+   562→            stackedOnMobile
+   563→          >
+   564→            <Switch
+   565→              checked={state[n.id]}
+   566→              onCheckedChange={(b) => {
+   567→                setState((s) => ({ ...s, [n.id]: b }));
+   568→                toast.success(
+   569→                  `${n.label} ${b ? "enabled" : "disabled"}`,
+   570→                );
+   571→              }}
+   572→            />
+   573→          </SettingRow>
+   574→        ))}
+   575→      </div>
+   576→    </GlassCard>
+   577→  );
+   578→}
+   579→
+   580→/* -------------------- Connected platforms -------------------- */
+   581→
+   582→function PlatformsTab() {
+   583→  const [state, setState] = React.useState(CONNECTED_PLATFORMS);
+   584→
+   585→  const toggle = (p: PlatformId) => {
+   586→    setState((s) => ({
+   587→      ...s,
+   588→      [p]: {
+   589→        connected: !s[p].connected,
+   590→        accounts: !s[p].connected ? 1 : 0,
+   591→      },
+   592→    }));
+   593→    const wasConnected = state[p].connected;
+   594→    toast.success(
+   595→      wasConnected ? `${p} disconnected` : `${p} connected`,
+   596→    );
+   597→  };
+   598→
+   599→  return (
+   600→    <GlassCard className="p-5">
+   601→      <SectionTitle
+   602→        title="Connected platforms"
+   603→        desc="Manage which social accounts Prism can publish to."
+   604→      />
+   605→      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+   606→        {PLATFORM_LIST.map((p) => {
+   607→          const info = state[p.id];
+   608→          return (
+   609→            <div
+   610→              key={p.id}
+   611→              className="flex items-center gap-3 rounded-2xl border bg-card/40 p-3 transition hover:bg-muted/40"
+   612→            >
+   613→              <PlatformBadge platform={p.id} size={40} />
+   614→              <div className="min-w-0 flex-1">
+   615→                <div className="truncate text-sm font-semibold">{p.name}</div>
+   616→                <div className="text-[11px] text-muted-foreground">
+   617→                  {info.connected
+   618→                    ? `${info.accounts} account${info.accounts === 1 ? "" : "s"}`
+   619→                    : "Not connected"}
+   620→                </div>
+   621→              </div>
+   622→              <Button
+   623→                size="sm"
+   624→                variant={info.connected ? "secondary" : "default"}
+   625→                className={cn(
+   626→                  "h-8 rounded-xl",
+   627→                  info.connected
+   628→                    ? "bg-muted text-foreground hover:bg-muted/80"
+   629→                    : "liquid-pill",
+   630→                )}
+   631→                onClick={() => toggle(p.id)}
+   632→              >
+   633→                {info.connected ? (
+   634→                  <>
+   635→                    <Check className="h-3.5 w-3.5" /> Connected
+   636→                  </>
+   637→                ) : (
+   638→                  "Connect"
+   639→                )}
+   640→              </Button>
+   641→            </div>
+   642→          );
+   643→        })}
+   644→      </div>
+   645→    </GlassCard>
+   646→  );
+   647→}
+   648→
+   649→/* -------------------- Billing -------------------- */
+   650→
+   651→function BillingTab() {
+   652→  const usage = [
+   653→    {
+   654→      id: "posts",
+   655→      label: "Posts this month",
+   656→      icon: FileText,
+   657→      used: 124,
+   658→      limit: 250,
+   659→      color: "var(--primary)",
+   660→    },
+   661→    {
+   662→      id: "accounts",
+   663→      label: "Connected accounts",
+   664→      icon: AtSign,
+   665→      used: 5,
+   666→      limit: 10,
+   667→      color: "oklch(0.74 0.18 165)",
+   668→    },
+   669→    {
+   670→      id: "ai",
+   671→      label: "AI generations",
+   672→      icon: Sparkles,
+   673→      used: 412,
+   674→      limit: 1000,
+   675→      color: "oklch(0.66 0.22 305)",
+   676→    },
+   677→  ];
+   678→
+   679→  return (
+   680→    <div className="space-y-4">
+   681→      {/* Plan card */}
+   682→      <GlassCard className="glass-sheen relative overflow-hidden p-5">
+   683→        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/30 blur-3xl" />
+   684→        <div className="relative flex flex-wrap items-center justify-between gap-4">
+   685→          <div className="flex items-center gap-3">
+   686→            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-white shadow-md">
+   687→              <Crown className="h-6 w-6" />
+   688→            </div>
+   689→            <div>
+   690→              <div className="flex items-center gap-2">
+   691→                <span className="text-lg font-bold tracking-tight">Pro</span>
+   692→                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+   693→                  Current plan
+   694→                </span>
+   695→              </div>
+   696→              <p className="text-xs text-muted-foreground">
+   697→                $49 / month · renews on the 1st
+   698→              </p>
+   699→            </div>
+   700→          </div>
+   701→          <button
+   702→            onClick={() => toast.info("Opening upgrade options")}
+   703→            className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+   704→          >
+   705→            <Zap className="h-4 w-4" />
+   706→            Upgrade
+   707→          </button>
+   708→        </div>
+   709→      </GlassCard>
+   710→
+   711→      {/* Usage bars */}
+   712→      <GlassCard className="p-5">
+   713→        <SectionTitle
+   714→          title="Usage this month"
+   715→          desc="Resets on the 1st of each month."
+   716→        />
+   717→        <div className="space-y-4">
+   718→          {usage.map((u) => {
+   719→            const Icon = u.icon;
+   720→            const pct = Math.min(100, Math.round((u.used / u.limit) * 100));
+   721→            return (
+   722→              <div key={u.id}>
+   723→                <div className="mb-1.5 flex items-center justify-between text-sm">
+   724→                  <span className="flex items-center gap-2 font-medium">
+   725→                    <Icon className="h-4 w-4 text-muted-foreground" />
+   726→                    {u.label}
+   727→                  </span>
+   728→                  <span className="text-xs text-muted-foreground">
+   729→                    <span className="font-semibold text-foreground">{u.used}</span>{" "}
+   730→                    / {u.limit}
+   731→                  </span>
+   732→                </div>
+   733→                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+   734→                  <div
+   735→                    className="h-full rounded-full transition-all"
+   736→                    style={{ width: `${pct}%`, background: u.color }}
+   737→                  />
+   738→                </div>
+   739→              </div>
+   740→            );
+   741→          })}
+   742→        </div>
+   743→      </GlassCard>
+   744→    </div>
+   745→  );
+   746→}
+   747→
+   748→/* -------------------- Shared helpers -------------------- */
+   749→
+   750→function SettingRow({
+   751→  label,
+   752→  desc,
+   753→  children,
+   754→  stackedOnMobile = false,
+   755→}: {
+   756→  label: string;
+   757→  desc: string;
+   758→  children: React.ReactNode;
+   759→  stackedOnMobile?: boolean;
+   760→}) {
+   761→  return (
+   762→    <div
+   763→      className={cn(
+   764→        "flex items-center justify-between gap-3 rounded-2xl border bg-card/40 p-3",
+   765→        stackedOnMobile && "flex-col items-start sm:flex-row sm:items-center",
+   766→      )}
+   767→    >
+   768→      <div className="min-w-0">
+   769→        <div className="text-sm font-medium">{label}</div>
+   770→        <div className="text-xs text-muted-foreground">{desc}</div>
+   771→      </div>
+   772→      <div className="shrink-0">{children}</div>
+   773→    </div>
+   774→  );
+   775→}
+   776→

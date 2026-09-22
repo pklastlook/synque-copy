@@ -161,7 +161,7 @@ export function MailView() {
     <div className="space-y-5">
       {/* Hero */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[oklch(0.7_0.24_14)]/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[var(--primary)]/30 blur-3xl" />
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-medium text-primary">
@@ -271,7 +271,7 @@ function ServerCard({
     <GlassCard strong className="overflow-hidden">
       {/* Server header */}
       <div className="flex flex-wrap items-center gap-3 border-b border-border/40 p-5">
-        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[oklch(0.7_0.24_14)] to-[oklch(0.66_0.22_305)] text-white shadow-lg">
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-white shadow-lg">
           <Server className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
@@ -327,7 +327,7 @@ function ServerCard({
           <span>{fmt(server.usedMb)} MB / {fmt(server.totalQuotaMb)} MB ({usedPct}%)</span>
         </div>
         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-gradient-to-r from-[oklch(0.7_0.24_14)] to-[oklch(0.66_0.22_305)]" style={{ width: `${Math.min(usedPct, 100)}%` }} />
+          <div className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--gold)]" style={{ width: `${Math.min(usedPct, 100)}%` }} />
         </div>
       </div>
 
