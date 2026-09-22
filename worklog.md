@@ -917,3 +917,21 @@ Stage Summary:
 - `mediaTab` is intentionally typed as `string` (not a union) to mirror `settingsTab` and keep the store flexible.
 - The accent colors for sub-items are picked to be visually distinct from each other while staying inside the existing obsidian + emerald/violet palette (no blue/indigo).
 - If you add more sub-tabs later, append to `MEDIA_SUBITEMS` in `app-sidebar.tsx` and to `typeFilter` in `media-library.tsx`.
+
+---
+Task ID: neon-migration + kpi-real-data + media-expandable + no-budget
+Agent: Z.ai (orchestrator)
+Task: Switch to Neon PostgreSQL, KPI cards show real data bars, Media Library expandable, remove budget from campaigns.
+
+Work Log:
+- Neon PostgreSQL migration: Installed @prisma/adapter-neon + @neondatabase/serverless. Updated db.ts to use PrismaNeon adapter with Neon connection string. Updated .env with Neon pooler URL (DATABASE_URL) and direct URL (DIRECT_URL). Updated prisma.config.ts with datasource URL for migrations. Pushed schema to Neon via `prisma db push --url`. Seeded admin user on Neon. Fixed system env var caching (old SQLite URL was overriding .env — resolved by exporting DATABASE_URL in the shell before starting dev server).
+- KPI cards real data: Replaced fake sparkPoints() hash-based sparkline with real series data from the database. KpiCard now accepts a `series` prop (array of numbers) and renders real animated bars. Dashboard passes actual analytics data: followers series, impressions series, engagement series, reach series. When all values are 0 (no data yet), shows "No data yet" instead of invisible bars. Icon tiles use the same vibrant accent colors as sidebar nav items (blue, violet, coral, green).
+- Media Library expandable: Added mediaTab/mediaExpanded/toggleMedia to useNav store. Created MediaGroup component (mirrors SettingsGroup pattern) with parent button + sub-items (All Media, Images, Videos, Audio). Each sub-item has its own accent color. media-library.tsx reads useNav().mediaTab and filters assets by type. Removed flat "media" NAV entry.
+- Removed budget from campaigns: Removed budget field from interface, KPI calculation, campaign cards (budget display + utilization bar), creation dialog (state, reset, POST body, form field, description text). Replaced "Total budget" KPI with "Paused campaigns" KPI. Removed unused fmtMoney() and spentRatio() functions.
+
+Stage Summary:
+- Database: Real Neon PostgreSQL (cloud). All data is real — no mock/dummy/hardcoded data anywhere.
+- KPI cards: Show real data bars from database analytics. Animated count-up + staggered bar rise + "No data yet" for empty state.
+- Media Library: Expandable in sidebar with All Media/Images/Videos/Audio sub-items.
+- Campaigns: No budget field anywhere (interface, cards, creation dialog, KPIs).
+- All 13 APIs return 200. Lint: 0 errors, 0 warnings. Pushed to GitHub.
