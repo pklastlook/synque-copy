@@ -820,3 +820,23 @@ Stage Summary:
 - App name = SocialFlow, tagline = "Social, Simplified", name-only (no logo icon).
 - VLM confirmed: "brand name is SocialFlow, tagline is SOCIAL. SIMPLIFIED, text-only without a logo icon."
 - Lint: 0 errors, 0 warnings.
+
+---
+Task ID: animated-cards + story-landing + trial-dialog + login-cleanup
+Agent: Z.ai (orchestrator)
+Task: Turn all cards animated, rebuild landing as story-teller, 15-day trial with details+card payment, remove live demo + role-login.
+
+Work Log:
+- Animated cards: enhanced GlassCard with .crystal-card class (living edge-glow border that shimmers on hover via ::before mask). Enhanced KpiCard with: (1) mini animated sparkline bar chart at bottom of each card (14 bars, staggered sparkRise animation), (2) pulsing icon glow (animate-pulse blur behind icon), (3) crystal-sweep shimmer on hover, (4) count-up number animation, (5) hover scale/rotate on icon + delta badge. VLM confirmed: "mini sparkline bar chart, pulsing icons, crystal depth + shimmer, clearly more premium than flat static — 8/10".
+- Landing page rebuilt as a complete story-teller with 9 acts: (1) Hero with problem + animated dashboard preview (mini KPI cards + animated bar chart), (2) The Pain — "Social media management is broken" (4 pain-point cards), (3) The Solution — 9 feature cards, (4) The Workflow — 5 numbered steps + AI composer preview, (5) Protection — account health bars + suspension-guard checklist, (6) Stats band (4 metrics), (7) Testimonials — 6 customer quotes with star ratings, (8) Pricing — 3 tiers (Starter/Growth/Enterprise) with "Most popular" highlight, (9) Final CTA. Rich footer with 4 columns (Product/Company/Resources/legal).
+- "Start free" → "Start 15-day trial" everywhere (nav, hero, workflow, pricing, final CTA). Removed "See live demo" button.
+- Trial activation dialog: 3-step flow with step indicator. Step 1 Details (name, work email, company, team-size select, phone, validation, security note "no charge for 15 days"). Step 2 Payment (name on card, card number with auto-formatting, expiry MM/YY, CVC, PCI/encryption note, "Activate trial" button). Step 3 Activating (spinner). Step 4 Done (success check → enters app via splash). Full validation on both steps.
+- Login screen cleanup: removed the 4 role-login buttons (Admin/Manager/Editor/Member) and the "or continue as" divider. Now just email + password + Sign in + "New to SocialFlow? Start a free trial". Cleared prefilled creds (empty fields now).
+
+Stage Summary:
+- All cards animated: sparklines, pulsing icons, crystal shimmer, count-up, hover lift.
+- Landing = 9-act story-teller (problem→solution→workflow→protection→stats→testimonials→pricing→CTA) with rich content per section. VLM 9/10.
+- "Start 15-day trial" replaces "Start free"; "See live demo" removed.
+- Trial dialog: details + card payment + activation flow with validation.
+- Login: role buttons removed, clean email/password only.
+- 18 views, 0 console errors. Lint: 0 errors, 0 warnings.
