@@ -128,10 +128,7 @@ export default function LoginPage() {
             </form>
 
             <p className="mt-6 text-center text-xs text-muted-foreground">
-              New to SocialFlow?{" "}
-              <Link href="/" className="font-medium text-[var(--primary)] hover:underline">
-                Start a free trial
-              </Link>
+              Don&apos;t have an account? Contact your workspace admin to get invited.
             </p>
           </div>
         </div>
