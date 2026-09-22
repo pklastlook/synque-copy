@@ -48,53 +48,54 @@
 :root {
   --radius: 0.875rem;
 
-  /* Premium sapphire + electric indigo — light */
-  --background: oklch(0.97 0.008 245);
-  --foreground: oklch(0.16 0.02 250);
+  /* Obsidian + Emerald — light (senior UX: warm-neutral, not blue-tinted) */
+  --background: oklch(0.975 0.004 150);
+  --foreground: oklch(0.18 0.012 160);
 
-  --card: oklch(0.99 0.006 245 / 82%);
-  --card-foreground: oklch(0.16 0.02 250);
+  --card: oklch(0.99 0.003 150 / 84%);
+  --card-foreground: oklch(0.18 0.012 160);
 
-  --popover: oklch(0.99 0.006 245 / 90%);
-  --popover-foreground: oklch(0.16 0.02 250);
+  --popover: oklch(0.99 0.003 150 / 92%);
+  --popover-foreground: oklch(0.18 0.012 160);
 
-  /* Brand — royal sapphire blue */
-  --primary: oklch(0.48 0.17 258);
+  /* Brand — deep emerald */
+  --primary: oklch(0.52 0.13 162);
   --primary-foreground: oklch(0.99 0 0);
 
-  /* Accent — electric cyan/indigo (premium, not gaudy gold) */
-  --gold: oklch(0.72 0.16 200);
-  --gold-foreground: oklch(0.12 0.03 220);
+  /* Accent — emerald (single refined accent, not gaudy) */
+  --gold: oklch(0.6 0.14 162);
+  --gold-foreground: oklch(0.12 0.02 160);
+  --accent-strong: oklch(0.5 0.14 162);
 
-  --secondary: oklch(0.93 0.012 245);
-  --secondary-foreground: oklch(0.24 0.03 258);
+  --secondary: oklch(0.94 0.006 150);
+  --secondary-foreground: oklch(0.24 0.012 160);
 
-  --muted: oklch(0.93 0.01 245);
-  --muted-foreground: oklch(0.45 0.02 258);
+  --muted: oklch(0.94 0.005 150);
+  --muted-foreground: oklch(0.45 0.012 160);
 
-  --accent: oklch(0.92 0.05 200);
-  --accent-foreground: oklch(0.28 0.08 210);
+  --accent: oklch(0.93 0.03 162);
+  --accent-foreground: oklch(0.3 0.08 162);
 
   --destructive: oklch(0.6 0.22 27);
-  --border: oklch(0.85 0.012 245 / 80%);
-  --input: oklch(0.88 0.012 245 / 88%);
-  --ring: oklch(0.48 0.17 258 / 55%);
+  --border: oklch(0.86 0.006 150 / 80%);
+  --input: oklch(0.88 0.006 150 / 88%);
+  --ring: oklch(0.52 0.13 162 / 55%);
 
-  /* Chart palette — sapphire/cyan/indigo liquid retina */
-  --chart-1: oklch(0.48 0.17 258);   /* sapphire */
-  --chart-2: oklch(0.72 0.16 200);   /* electric cyan */
-  --chart-3: oklch(0.66 0.18 230);   /* indigo */
-  --chart-4: oklch(0.76 0.15 165);   /* teal */
-  --chart-5: oklch(0.7 0.16 280);    /* violet */
+  /* Chart palette — emerald/teal/slate premium */
+  --chart-1: oklch(0.52 0.13 162);   /* emerald */
+  --chart-2: oklch(0.62 0.12 190);   /* teal */
+  --chart-3: oklch(0.58 0.1 220);    /* slate-blue */
+  --chart-4: oklch(0.68 0.11 145);   /* green */
+  --chart-5: oklch(0.5 0.12 175);    /* deep teal */
 
-  --sidebar: oklch(0.93 0.012 258 / 94%);
-  --sidebar-foreground: oklch(0.18 0.02 258);
-  --sidebar-primary: oklch(0.48 0.17 258);
+  --sidebar: oklch(0.93 0.006 150 / 94%);
+  --sidebar-foreground: oklch(0.18 0.012 160);
+  --sidebar-primary: oklch(0.52 0.13 162);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.88 0.02 258 / 90%);
-  --sidebar-accent-foreground: oklch(0.2 0.03 258);
-  --sidebar-border: oklch(0.8 0.014 258 / 60%);
-  --sidebar-ring: oklch(0.48 0.17 258 / 50%);
+  --sidebar-accent: oklch(0.88 0.01 150 / 90%);
+  --sidebar-accent-foreground: oklch(0.2 0.012 160);
+  --sidebar-border: oklch(0.8 0.008 150 / 60%);
+  --sidebar-ring: oklch(0.52 0.13 162 / 50%);
 
   /* Platform brand colors */
   --p-instagram: oklch(0.68 0.24 25);
@@ -107,53 +108,54 @@
 }
 
 .dark {
-  /* Premium sapphire dark — deep ocean blue, not grey */
-  --background: oklch(0.16 0.026 258);
-  --foreground: oklch(0.97 0.006 250);
+  /* Obsidian dark — neutral graphite, NOT blue-tinted (senior UX: true dark) */
+  --background: oklch(0.15 0.006 160);
+  --foreground: oklch(0.96 0.004 150);
 
-  --card: oklch(0.22 0.03 258 / 88%);
-  --card-foreground: oklch(0.97 0.006 250);
+  --card: oklch(0.21 0.008 160 / 88%);
+  --card-foreground: oklch(0.96 0.004 150);
 
-  --popover: oklch(0.24 0.032 258 / 94%);
-  --popover-foreground: oklch(0.97 0.006 250);
+  --popover: oklch(0.23 0.01 160 / 94%);
+  --popover-foreground: oklch(0.96 0.004 150);
 
-  /* Brand — bright sapphire, readable on deep navy */
-  --primary: oklch(0.64 0.19 255);
-  --primary-foreground: oklch(0.12 0.02 258);
+  /* Brand — bright emerald, readable on graphite */
+  --primary: oklch(0.68 0.15 162);
+  --primary-foreground: oklch(0.12 0.02 160);
 
-  /* Accent — electric cyan (premium liquid retina) */
-  --gold: oklch(0.78 0.16 200);
-  --gold-foreground: oklch(0.12 0.03 220);
+  /* Accent — emerald */
+  --gold: oklch(0.7 0.15 162);
+  --gold-foreground: oklch(0.12 0.02 160);
+  --accent-strong: oklch(0.62 0.15 162);
 
-  --secondary: oklch(0.27 0.026 258 / 85%);
-  --secondary-foreground: oklch(0.97 0.006 250);
+  --secondary: oklch(0.26 0.008 160 / 85%);
+  --secondary-foreground: oklch(0.96 0.004 150);
 
-  --muted: oklch(0.25 0.022 258 / 80%);
-  --muted-foreground: oklch(0.7 0.015 250);
+  --muted: oklch(0.24 0.007 160 / 80%);
+  --muted-foreground: oklch(0.68 0.01 150);
 
-  --accent: oklch(0.4 0.08 200 / 85%);
-  --accent-foreground: oklch(0.9 0.05 200);
+  --accent: oklch(0.3 0.06 162 / 85%);
+  --accent-foreground: oklch(0.9 0.06 162);
 
   --destructive: oklch(0.68 0.22 22);
   --border: oklch(1 0 0 / 9%);
   --input: oklch(1 0 0 / 13%);
-  --ring: oklch(0.64 0.19 255 / 55%);
+  --ring: oklch(0.68 0.15 162 / 50%);
 
-  --chart-1: oklch(0.64 0.19 255);   /* sapphire */
-  --chart-2: oklch(0.78 0.16 200);   /* electric cyan */
-  --chart-3: oklch(0.7 0.18 230);    /* indigo */
-  --chart-4: oklch(0.76 0.15 165);   /* teal */
-  --chart-5: oklch(0.74 0.16 280);   /* violet */
+  --chart-1: oklch(0.68 0.15 162);   /* emerald */
+  --chart-2: oklch(0.72 0.13 190);   /* teal */
+  --chart-3: oklch(0.66 0.11 220);   /* slate-blue */
+  --chart-4: oklch(0.74 0.12 145);   /* green */
+  --chart-5: oklch(0.64 0.13 175);   /* deep teal */
 
   /* Sidebar darker than page content for premium depth */
-  --sidebar: oklch(0.12 0.024 258 / 97%);
-  --sidebar-foreground: oklch(0.93 0.008 250);
-  --sidebar-primary: oklch(0.64 0.19 255);
-  --sidebar-primary-foreground: oklch(0.12 0.02 258);
-  --sidebar-accent: oklch(0.2 0.026 258 / 92%);
-  --sidebar-accent-foreground: oklch(0.95 0.006 250);
+  --sidebar: oklch(0.11 0.006 160 / 97%);
+  --sidebar-foreground: oklch(0.93 0.006 150);
+  --sidebar-primary: oklch(0.68 0.15 162);
+  --sidebar-primary-foreground: oklch(0.11 0.006 160);
+  --sidebar-accent: oklch(0.19 0.008 160 / 92%);
+  --sidebar-accent-foreground: oklch(0.95 0.006 150);
   --sidebar-border: oklch(1 0 0 / 7%);
-  --sidebar-ring: oklch(0.64 0.19 255 / 50%);
+  --sidebar-ring: oklch(0.68 0.15 162 / 50%);
 }
 
 @layer base {
@@ -314,12 +316,12 @@
 .retaina-bg::before {
   top: -12vw;
   left: -8vw;
-  background: radial-gradient(circle at center, oklch(0.55 0.18 258 / 0.5), transparent 70%);
+  background: radial-gradient(circle at center, oklch(0.55 0.12 162 / 0.5), transparent 70%);
 }
 .retaina-bg::after {
   bottom: -15vw;
   right: -10vw;
-  background: radial-gradient(circle at center, oklch(0.82 0.13 85 / 0.35), transparent 70%);
+  background: radial-gradient(circle at center, oklch(0.65 0.12 190 / 0.35), transparent 70%);
   animation-delay: -9s;
 }
 .dark .retaina-bg::before { opacity: 0.35; }
@@ -334,7 +336,7 @@
   border-radius: 50%;
   filter: blur(140px);
   opacity: 0.32;
-  background: radial-gradient(circle at center, oklch(0.7 0.15 200 / 0.4), transparent 70%);
+  background: radial-gradient(circle at center, oklch(0.6 0.12 175 / 0.4), transparent 70%);
   animation: floatBlob 22s ease-in-out infinite;
   animation-delay: -4s;
 }
@@ -348,7 +350,7 @@
 
 /* Retina gradient text */
 .retaina-text {
-  background: linear-gradient(135deg, oklch(0.64 0.19 255), oklch(0.78 0.16 200) 50%, oklch(0.7 0.18 230));
+  background: linear-gradient(135deg, oklch(0.68 0.15 162), oklch(0.72 0.13 190) 50%, oklch(0.6 0.12 175));
   background-size: 200% 200%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -356,9 +358,9 @@
   animation: gradientShift 8s ease infinite;
 }
 
-/* Cyan-accent gradient text (replaces gold-text) */
+/* Emerald gradient text */
 .gold-text {
-  background: linear-gradient(135deg, oklch(0.82 0.15 200), oklch(0.7 0.18 230) 60%, oklch(0.74 0.16 190));
+  background: linear-gradient(135deg, oklch(0.78 0.15 162), oklch(0.66 0.14 175) 60%, oklch(0.7 0.12 190));
   background-size: 200% 200%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -370,14 +372,14 @@
   50% { background-position: 100% 50%; }
 }
 
-/* Liquid pill button base — sapphire with cyan glow */
+/* Liquid pill button base — emerald with glow */
 .liquid-pill {
-  background: linear-gradient(135deg, var(--primary), oklch(0.42 0.16 258));
+  background: linear-gradient(135deg, var(--primary), oklch(0.42 0.12 162));
   color: var(--primary-foreground);
   border: 1px solid oklch(1 0 0 / 25%);
   box-shadow:
     0 1px 0 0 oklch(1 0 0 / 35%) inset,
-    0 6px 20px -6px oklch(0.35 0.16 258 / 55%);
+    0 6px 20px -6px oklch(0.35 0.12 162 / 55%);
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s ease;
 }
 .liquid-pill:hover {
@@ -385,19 +387,19 @@
   filter: brightness(1.1);
   box-shadow:
     0 1px 0 0 oklch(1 0 0 / 45%) inset,
-    0 10px 28px -6px oklch(0.4 0.16 258 / 65%),
+    0 10px 28px -6px oklch(0.4 0.12 162 / 65%),
     0 0 16px -2px var(--gold);
 }
 .liquid-pill:active { transform: translateY(0) scale(0.98); }
 
-/* Accent variant button — electric cyan */
+/* Accent variant button — emerald */
 .liquid-gold {
-  background: linear-gradient(135deg, var(--gold), oklch(0.6 0.17 215));
+  background: linear-gradient(135deg, var(--gold), oklch(0.5 0.13 175));
   color: var(--gold-foreground);
   border: 1px solid oklch(1 0 0 / 35%);
   box-shadow:
     0 1px 0 0 oklch(1 0 0 / 50%) inset,
-    0 6px 20px -6px oklch(0.6 0.16 200 / 55%);
+    0 6px 20px -6px oklch(0.5 0.13 162 / 55%);
   transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s ease;
 }
 .liquid-gold:hover {
@@ -405,7 +407,7 @@
   filter: brightness(1.1);
   box-shadow:
     0 1px 0 0 oklch(1 0 0 / 60%) inset,
-    0 10px 28px -6px oklch(0.6 0.16 200 / 70%);
+    0 10px 28px -6px oklch(0.5 0.13 162 / 70%);
 }
 .liquid-gold:active { transform: translateY(0) scale(0.98); }
 
@@ -516,30 +518,23 @@
 }
 .glow-pulse { animation: glowPulse 2.5s ease-in-out infinite; }
 
-/* ===== Logo — 3 color-changing dots in triangle ===== */
-@keyframes dotHue1 {
-  0%, 100% { filter: hue-rotate(0deg) brightness(1); }
-  33% { filter: hue-rotate(80deg) brightness(1.15); }
-  66% { filter: hue-rotate(200deg) brightness(0.95); }
+/* ===== Logo — interlocking wave arcs (breathing motion) ===== */
+@keyframes swBreatheA {
+  0%, 100% { stroke-dashoffset: 0; opacity: 1; }
+  50% { stroke-dashoffset: -6; opacity: 0.85; }
 }
-@keyframes dotHue2 {
-  0%, 100% { filter: hue-rotate(120deg) brightness(1.05); }
-  33% { filter: hue-rotate(240deg) brightness(0.95); }
-  66% { filter: hue-rotate(0deg) brightness(1.2); }
+@keyframes swBreatheB {
+  0%, 100% { stroke-dashoffset: 0; opacity: 0.9; }
+  50% { stroke-dashoffset: 6; opacity: 1; }
 }
-@keyframes dotHue3 {
-  0%, 100% { filter: hue-rotate(240deg) brightness(1.1); }
-  33% { filter: hue-rotate(0deg) brightness(1.2); }
-  66% { filter: hue-rotate(120deg) brightness(1); }
+@keyframes swNodePulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.7; }
 }
-@keyframes dotFloat1 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
-@keyframes dotFloat2 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(1.5px); } }
-@keyframes dotFloat3 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(1px); } }
-
-.logo-triangle .logo-dot { transform-box: fill-box; transform-origin: center; }
-.logo-triangle .logo-dot-1 { animation: dotHue1 6s ease-in-out infinite, dotFloat1 3s ease-in-out infinite; }
-.logo-triangle .logo-dot-2 { animation: dotHue2 6s ease-in-out infinite, dotFloat2 3s ease-in-out infinite 0.4s; }
-.logo-triangle .logo-dot-3 { animation: dotHue3 6s ease-in-out infinite, dotFloat3 3s ease-in-out infinite 0.8s; }
+.syncwave-mark .sw-arc { transform-box: fill-box; transform-origin: center; }
+.syncwave-mark .sw-arc-a { animation: swBreatheA 4s ease-in-out infinite; }
+.syncwave-mark .sw-arc-b { animation: swBreatheB 4s ease-in-out infinite 0.5s; }
+.syncwave-mark .sw-node { transform-box: fill-box; transform-origin: center; animation: swNodePulse 2.5s ease-in-out infinite; }
 
 /* Platform gradient utility classes */
 .pl-ig {

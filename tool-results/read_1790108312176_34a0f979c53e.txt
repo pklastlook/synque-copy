@@ -1,0 +1,2002 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { useTheme } from "next-themes";
+     5→import { toast } from "sonner";
+     6→import {
+     7→  // Tabs
+     8→  User,
+     9→  Building2,
+    10→  Palette,
+    11→  Bell,
+    12→  ShieldCheck,
+    13→  Plug,
+    14→  Zap,
+    15→  CreditCard,
+    16→  Database,
+    17→  AlertTriangle,
+    18→  Users,
+    19→  // Profile / Workspace
+    20→  Camera,
+    21→  // Appearance
+    22→  Sun,
+    23→  Moon,
+    24→  Monitor,
+    25→  Check,
+    26→  Sparkles,
+    27→  // Team
+    28→  UserPlus,
+    29→  Crown,
+    30→  // Security
+    31→  KeyRound,
+    32→  Smartphone,
+    33→  MonitorSmartphone,
+    34→  LogOut,
+    35→  Copy,
+    36→  QrCode,
+    37→  // Integrations
+    38→  BarChart3,
+    39→  Image as ImageIcon,
+    40→  MessageSquare,
+    41→  Mail,
+    42→  // Data
+    43→  Download,
+    44→  Upload,
+    45→  Trash2,
+    46→  FileWarning,
+    47→  // Danger
+    48→  UserX,
+    49→  ArrowLeftRight,
+    50→  Ban,
+    51→  // Generic
+    52→  Save,
+    53→  Eye,
+    54→  EyeOff,
+    55→  MoreHorizontal,
+    56→  Send,
+    57→  ShieldAlert,
+    58→} from "lucide-react";
+    59→import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
+    60→import { NameAvatar } from "@/components/glass/name-avatar";
+    61→import { PlatformBadge } from "@/components/glass/platform-badge";
+    62→import { PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
+    63→import { cn } from "@/lib/utils";
+    64→import { useApi } from "@/lib/hooks";
+    65→import { Input } from "@/components/ui/input";
+    66→import { Label } from "@/components/ui/label";
+    67→import { Textarea } from "@/components/ui/textarea";
+    68→import { Switch } from "@/components/ui/switch";
+    69→import { Button } from "@/components/ui/button";
+    70→import { Badge } from "@/components/ui/badge";
+    71→import { Separator } from "@/components/ui/separator";
+    72→import { Slider } from "@/components/ui/slider";
+    73→import {
+    74→  Dialog,
+    75→  DialogContent,
+    76→  DialogDescription,
+    77→  DialogFooter,
+    78→  DialogHeader,
+    79→  DialogTitle,
+    80→} from "@/components/ui/dialog";
+    81→import {
+    82→  Select,
+    83→  SelectContent,
+    84→  SelectItem,
+    85→  SelectTrigger,
+    86→  SelectValue,
+    87→} from "@/components/ui/select";
+    88→import {
+    89→  DropdownMenu,
+    90→  DropdownMenuContent,
+    91→  DropdownMenuItem,
+    92→  DropdownMenuSeparator,
+    93→  DropdownMenuTrigger,
+    94→} from "@/components/ui/dropdown-menu";
+    95→
+    96→type SettingsTab =
+    97→  | "profile"
+    98→  | "workspace"
+    99→  | "appearance"
+   100→  | "team-roles"
+   101→  | "notifications"
+   102→  | "security"
+   103→  | "platforms"
+   104→  | "integrations"
+   105→  | "billing"
+   106→  | "data"
+   107→  | "danger";
+   108→
+   109→interface TabDef {
+   110→  id: SettingsTab;
+   111→  label: string;
+   112→  icon: React.ElementType;
+   113→}
+   114→
+   115→const TABS: TabDef[] = [
+   116→  { id: "profile", label: "Profile", icon: User },
+   117→  { id: "workspace", label: "Workspace", icon: Building2 },
+   118→  { id: "appearance", label: "Appearance", icon: Palette },
+   119→  { id: "team-roles", label: "Team Roles", icon: Users },
+   120→  { id: "notifications", label: "Notifications", icon: Bell },
+   121→  { id: "security", label: "Security", icon: ShieldCheck },
+   122→  { id: "platforms", label: "Platforms", icon: Plug },
+   123→  { id: "integrations", label: "Integrations", icon: Zap },
+   124→  { id: "billing", label: "Billing", icon: CreditCard },
+   125→  { id: "data", label: "Data & Privacy", icon: Database },
+   126→  { id: "danger", label: "Danger Zone", icon: AlertTriangle },
+   127→];
+   128→
+   129→// ===== Shared types & lookups =====
+   130→type Role = "admin" | "manager" | "editor" | "member" | "viewer";
+   131→type MemberStatus = "active" | "invited" | "suspended";
+   132→type Department = "Leadership" | "Content" | "Community" | "Paid Social" | "Design";
+   133→
+   134→interface TeamMember {
+   135→  id: string;
+   136→  name: string;
+   137→  email: string;
+   138→  color: string | null;
+   139→  role: Role;
+   140→  title: string;
+   141→  department: Department;
+   142→  status: MemberStatus;
+   143→  permissions: string[];
+   144→}
+   145→
+   146→const SEED_TEAM: TeamMember[] = [
+   147→  { id: "u-admin", name: "Maya Reyes", email: "maya@prism.co", color: "rose", role: "admin", title: "Head of Social", department: "Leadership", status: "active", permissions: ["*"] },
+   148→  { id: "u-1", name: "Daniel Cho", email: "daniel@prism.co", color: "amber", role: "manager", title: "Content Strategist", department: "Content", status: "active", permissions: ["posts:create", "posts:publish", "approvals:review", "media:*", "campaigns:*"] },
+   149→  { id: "u-2", name: "Priya Nair", email: "priya@prism.co", color: "teal", role: "manager", title: "Community Lead", department: "Community", status: "active", permissions: ["inbox:*", "comments:reply", "listening:*", "approvals:review"] },
+   150→  { id: "u-3", name: "Leo Marchetti", email: "leo@prism.co", color: "magenta", role: "editor", title: "Video Producer", department: "Content", status: "active", permissions: ["posts:create", "media:upload", "media:*"] },
+   151→  { id: "u-4", name: "Sara Okafor", email: "sara@prism.co", color: "green", role: "manager", title: "Paid Social Manager", department: "Paid Social", status: "active", permissions: ["posts:publish", "analytics:*", "reports:*", "competitors:*"] },
+   152→  { id: "u-5", name: "Tom Becker", email: "tom@prism.co", color: "blue", role: "editor", title: "Copywriter", department: "Content", status: "invited", permissions: ["posts:create", "media:read"] },
+   153→];
+   154→
+   155→const CAPABILITIES = [
+   156→  "Posts/Create",
+   157→  "Posts/Publish",
+   158→  "Approvals/Review",
+   159→  "Analytics/View",
+   160→  "Team/Manage",
+   161→  "Accounts/Connect",
+   162→] as const;
+   163→
+   164→const PERMISSION_MATRIX: Record<Role, Record<string, boolean>> = {
+   165→  admin: { "Posts/Create": true, "Posts/Publish": true, "Approvals/Review": true, "Analytics/View": true, "Team/Manage": true, "Accounts/Connect": true },
+   166→  manager: { "Posts/Create": true, "Posts/Publish": true, "Approvals/Review": true, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": true },
+   167→  editor: { "Posts/Create": true, "Posts/Publish": false, "Approvals/Review": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
+   168→  member: { "Posts/Create": true, "Posts/Publish": false, "Approvals/Review": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
+   169→  viewer: { "Posts/Create": false, "Posts/Publish": false, "Approvals/Review": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
+   170→};
+   171→
+   172→const ROLE_LABEL: Record<Role, string> = {
+   173→  admin: "Admin",
+   174→  manager: "Manager",
+   175→  editor: "Editor",
+   176→  member: "Member",
+   177→  viewer: "Viewer",
+   178→};
+   179→
+   180→const ROLE_BADGE_CLASS: Record<Role, string> = {
+   181→  admin: "bg-primary/15 text-primary",
+   182→  manager: "bg-[oklch(0.82_0.14_85)]/20 text-[oklch(0.6_0.14_85)]",
+   183→  editor: "bg-[oklch(0.74_0.18_165)]/20 text-[oklch(0.55_0.18_165)]",
+   184→  member: "bg-muted text-muted-foreground",
+   185→  viewer: "bg-muted text-muted-foreground",
+   186→};
+   187→
+   188→const STATUS_BADGE: Record<MemberStatus, { label: string; class: string; dot: string }> = {
+   189→  active: { label: "Active", class: "bg-emerald-500/15 text-emerald-500", dot: "bg-emerald-500" },
+   190→  invited: { label: "Invited", class: "bg-amber-500/15 text-amber-500", dot: "bg-amber-500" },
+   191→  suspended: { label: "Suspended", class: "bg-rose-500/15 text-rose-500", dot: "bg-rose-500" },
+   192→};
+   193→
+   194→const DEPARTMENTS: Department[] = ["Leadership", "Content", "Community", "Paid Social", "Design"];
+   195→
+   196→const TIMEZONES = [
+   197→  "America/Los_Angeles", "America/New_York", "America/Chicago", "America/Denver",
+   198→  "Europe/London", "Europe/Paris", "Europe/Berlin",
+   199→  "Asia/Tokyo", "Asia/Singapore", "Asia/Kolkata", "Asia/Dubai",
+   200→  "Australia/Sydney", "Pacific/Auckland",
+   201→];
+   202→
+   203→const LANGUAGES = [
+   204→  { code: "en-US", label: "English (US)" },
+   205→  { code: "en-GB", label: "English (UK)" },
+   206→  { code: "es-ES", label: "Spanish (Spain)" },
+   207→  { code: "fr-FR", label: "French" },
+   208→  { code: "de-DE", label: "German" },
+   209→  { code: "pt-BR", label: "Portuguese (Brazil)" },
+   210→  { code: "ja-JP", label: "Japanese" },
+   211→  { code: "zh-CN", label: "Chinese (Simplified)" },
+   212→];
+   213→
+   214→const ACCENTS: { name: string; value: string }[] = [
+   215→  { name: "Navy", value: "oklch(0.48 0.17 258)" },
+   216→  { name: "Gold", value: "oklch(0.82 0.14 85)" },
+   217→  { name: "Sky", value: "oklch(0.72 0.16 200)" },
+   218→  { name: "Teal", value: "oklch(0.7 0.15 165)" },
+   219→  { name: "Indigo", value: "oklch(0.6 0.16 230)" },
+   220→  { name: "Emerald", value: "oklch(0.76 0.18 145)" },
+   221→];
+   222→
+   223→const DEFAULT_ACCENT = ACCENTS[0].value;
+   224→
+   225→// ===== Main component =====
+   226→export function SettingsView() {
+   227→  const [tab, setTab] = React.useState<SettingsTab>("team-roles");
+   228→
+   229→  return (
+   230→    <div className="animate-rise space-y-4">
+   231→      {/* Header */}
+   232→      <GlassCard strong className="glass-sheen relative overflow-hidden p-5">
+   233→        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/25 blur-3xl" />
+   234→        <div className="relative flex flex-wrap items-center justify-between gap-3">
+   235→          <div>
+   236→            <div className="flex items-center gap-2 text-xs font-medium text-primary">
+   237→              <Sparkles className="h-3.5 w-3.5" />
+   238→              Workspace configuration
+   239→            </div>
+   240→            <h2 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">Settings</h2>
+   241→            <p className="mt-0.5 text-sm text-muted-foreground">
+   242→              Manage your profile, team, security, billing, and integrations.
+   243→            </p>
+   244→          </div>
+   245→        </div>
+   246→      </GlassCard>
+   247→
+   248→      {/* Layout: sticky left nav + content panel */}
+   249→      <div className="grid gap-4 lg:grid-cols-[230px_1fr]">
+   250→        {/* Left nav */}
+   251→        <nav className="lg:sticky lg:top-4 lg:self-start">
+   252→          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:flex-col lg:gap-1 lg:overflow-visible lg:pb-0">
+   253→            {TABS.map((t) => {
+   254→              const Icon = t.icon;
+   255→              const active = tab === t.id;
+   256→              return (
+   257→                <button
+   258→                  key={t.id}
+   259→                  onClick={() => setTab(t.id)}
+   260→                  className={cn(
+   261→                    "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition whitespace-nowrap",
+   262→                    active
+   263→                      ? "bg-primary/15 text-primary shadow-sm"
+   264→                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+   265→                  )}
+   266→                >
+   267→                  <Icon className="h-4 w-4 shrink-0" />
+   268→                  <span className="truncate">{t.label}</span>
+   269→                </button>
+   270→              );
+   271→            })}
+   272→          </div>
+   273→        </nav>
+   274→
+   275→        {/* Right content */}
+   276→        <div className="min-w-0 space-y-4">
+   277→          {tab === "profile" && <ProfileSection />}
+   278→          {tab === "workspace" && <WorkspaceSection />}
+   279→          {tab === "appearance" && <AppearanceSection />}
+   280→          {tab === "team-roles" && <TeamRolesSection />}
+   281→          {tab === "notifications" && <NotificationsSection />}
+   282→          {tab === "security" && <SecuritySection />}
+   283→          {tab === "platforms" && <PlatformsSection />}
+   284→          {tab === "integrations" && <IntegrationsSection />}
+   285→          {tab === "billing" && <BillingSection />}
+   286→          {tab === "data" && <DataSection />}
+   287→          {tab === "danger" && <DangerSection />}
+   288→        </div>
+   289→      </div>
+   290→    </div>
+   291→  );
+   292→}
+   293→
+   294→// ===== 1. Profile =====
+   295→function ProfileSection() {
+   296→  const [name, setName] = React.useState("Maya Reyes");
+   297→  const [email, setEmail] = React.useState("maya@prism.co");
+   298→  const [title, setTitle] = React.useState("Head of Social");
+   299→  const [department, setDepartment] = React.useState<Department>("Leadership");
+   300→  const [bio, setBio] = React.useState(
+   301→    "Building Prism — the all-in-one workspace for modern social teams. Previously led social at two venture-backed startups."
+   302→  );
+   303→  const [timezone, setTimezone] = React.useState("America/Los_Angeles");
+   304→  const [language, setLanguage] = React.useState("en-US");
+   305→
+   306→  const save = () => {
+   307→    toast.success("Profile saved", { description: "Your changes have been synced." });
+   308→  };
+   309→
+   310→  return (
+   311→    <GlassCard className="crystal-in p-5">
+   312→      <SectionTitle
+   313→        title="Profile"
+   314→        desc="Your personal information visible to your team."
+   315→        action={
+   316→          <button
+   317→            onClick={save}
+   318→            className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+   319→          >
+   320→            <Save className="h-3.5 w-3.5" /> Save changes
+   321→          </button>
+   322→        }
+   323→      />
+   324→
+   325→      {/* Avatar */}
+   326→      <div className="mb-5 flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
+   327→        <NameAvatar name={name} color="rose" className="h-20 w-20 text-lg" />
+   328→        <div className="flex flex-col gap-2">
+   329→          <div className="text-sm font-semibold">{name}</div>
+   330→          <div className="text-xs text-muted-foreground">PNG / JPG up to 4MB · square recommended</div>
+   331→          <div className="flex gap-2">
+   332→            <button
+   333→              onClick={() => toast.success("Avatar upload — choose a file", { description: "Mock picker — backend hooked to /api/media." })}
+   334→              className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
+   335→            >
+   336→              <Camera className="h-3.5 w-3.5" /> Change
+   337→            </button>
+   338→            <button
+   339→              onClick={() => toast("Remove current avatar?")}
+   340→              className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
+   341→            >
+   342→              Remove
+   343→            </button>
+   344→          </div>
+   345→        </div>
+   346→      </div>
+   347→
+   348→      {/* Fields */}
+   349→      <div className="grid gap-4 sm:grid-cols-2">
+   350→        <Field label="Full name">
+   351→          <Input value={name} onChange={(e) => setName(e.target.value)} />
+   352→        </Field>
+   353→        <Field label="Email">
+   354→          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+   355→        </Field>
+   356→        <Field label="Title / Designation">
+   357→          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+   358→        </Field>
+   359→        <Field label="Department">
+   360→          <Select value={department} onValueChange={(v) => setDepartment(v as Department)}>
+   361→            <SelectTrigger className="w-full">
+   362→              <SelectValue />
+   363→            </SelectTrigger>
+   364→            <SelectContent>
+   365→              {DEPARTMENTS.map((d) => (
+   366→                <SelectItem key={d} value={d}>
+   367→                  {d}
+   368→                </SelectItem>
+   369→              ))}
+   370→            </SelectContent>
+   371→          </Select>
+   372→        </Field>
+   373→        <Field label="Timezone" hint="Used for scheduling & digests">
+   374→          <Select value={timezone} onValueChange={setTimezone}>
+   375→            <SelectTrigger className="w-full">
+   376→              <SelectValue />
+   377→            </SelectTrigger>
+   378→            <SelectContent className="max-h-72">
+   379→              {TIMEZONES.map((t) => (
+   380→                <SelectItem key={t} value={t}>
+   381→                  {t.replace(/_/g, " ")}
+   382→                </SelectItem>
+   383→              ))}
+   384→            </SelectContent>
+   385→          </Select>
+   386→        </Field>
+   387→        <Field label="Language">
+   388→          <Select value={language} onValueChange={setLanguage}>
+   389→            <SelectTrigger className="w-full">
+   390→              <SelectValue />
+   391→            </SelectTrigger>
+   392→            <SelectContent>
+   393→              {LANGUAGES.map((l) => (
+   394→                <SelectItem key={l.code} value={l.code}>
+   395→                  {l.label}
+   396→                </SelectItem>
+   397→              ))}
+   398→            </SelectContent>
+   399→          </Select>
+   400→        </Field>
+   401→      </div>
+   402→
+   403→      <Field label="Bio" className="mt-4">
+   404→        <Textarea
+   405→          value={bio}
+   406→          onChange={(e) => setBio(e.target.value)}
+   407→          rows={4}
+   408→          maxLength={280}
+   409→          className="resize-none"
+   410→        />
+   411→        <div className="mt-1 text-right text-[11px] text-muted-foreground">{bio.length} / 280</div>
+   412→      </Field>
+   413→    </GlassCard>
+   414→  );
+   415→}
+   416→
+   417→// ===== 2. Workspace =====
+   418→function WorkspaceSection() {
+   419→  const [name, setName] = React.useState("Prism Studio");
+   420→  const [tz, setTz] = React.useState("America/Los_Angeles");
+   421→  const [cadence, setCadence] = React.useState("3/day");
+   422→  const [start, setStart] = React.useState("09:00");
+   423→  const [end, setEnd] = React.useState("18:00");
+   424→  const [autoVariants, setAutoVariants] = React.useState(true);
+   425→  const [tone, setTone] = React.useState("Confident");
+   426→  const [brandVoice, setBrandVoice] = React.useState(
+   427→    "Confident, warm, and a little playful. We lead with curiosity, never arrogance. Speak to creators like a trusted peer."
+   428→  );
+   429→  const [colors, setColors] = React.useState<string[]>(["#1B2A57", "#D4A24E", "#5BC0BE"]);
+   430→
+   431→  const updateColor = (i: number, v: string) =>
+   432→    setColors((prev) => prev.map((c, idx) => (idx === i ? v : c)));
+   433→
+   434→  const save = () => toast.success("Workspace saved", { description: "Defaults updated for all team members." });
+   435→
+   436→  return (
+   437→    <GlassCard className="crystal-in p-5">
+   438→      <SectionTitle
+   439→        title="Workspace"
+   440→        desc="Defaults applied across compose, schedule, and AI generation."
+   441→        action={
+   442→          <button onClick={save} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold">
+   443→            <Save className="h-3.5 w-3.5" /> Save changes
+   444→          </button>
+   445→        }
+   446→      />
+   447→
+   448→      {/* Identity */}
+   449→      <div className="mb-4 flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
+   450→        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-xl font-bold text-white shadow-lg">
+   451→          P
+   452→        </div>
+   453→        <div>
+   454→          <div className="text-sm font-semibold">{name}</div>
+   455→          <div className="text-xs text-muted-foreground">SVG / PNG · square recommended</div>
+   456→          <button
+   457→            onClick={() => toast.success("Logo picker — mock")}
+   458→            className="mt-2 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
+   459→          >
+   460→            Upload logo
+   461→          </button>
+   462→        </div>
+   463→      </div>
+   464→
+   465→      <div className="grid gap-4 sm:grid-cols-2">
+   466→        <Field label="Workspace name">
+   467→          <Input value={name} onChange={(e) => setName(e.target.value)} />
+   468→        </Field>
+   469→        <Field label="Default timezone">
+   470→          <Select value={tz} onValueChange={setTz}>
+   471→            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+   472→            <SelectContent className="max-h-72">
+   473→              {TIMEZONES.map((t) => (
+   474→                <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
+   475→              ))}
+   476→            </SelectContent>
+   477→          </Select>
+   478→        </Field>
+   479→        <Field label="Default posting cadence">
+   480→          <Select value={cadence} onValueChange={setCadence}>
+   481→            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+   482→            <SelectContent>
+   483→              <SelectItem value="1/day">1 post / day</SelectItem>
+   484→              <SelectItem value="3/day">3 posts / day</SelectItem>
+   485→              <SelectItem value="1/week">1 post / week</SelectItem>
+   486→              <SelectItem value="custom">Custom</SelectItem>
+   487→            </SelectContent>
+   488→          </Select>
+   489→        </Field>
+   490→        <Field label="Default tone">
+   491→          <Select value={tone} onValueChange={setTone}>
+   492→            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+   493→            <SelectContent>
+   494→              {["Confident", "Warm", "Playful", "Authoritative", "Minimal", "Bold"].map((t) => (
+   495→                <SelectItem key={t} value={t}>{t}</SelectItem>
+   496→              ))}
+   497→            </SelectContent>
+   498→          </Select>
+   499→        </Field>
+   500→        <Field label="Working hours — start">
+   501→          <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+   502→        </Field>
+   503→        <Field label="Working hours — end">
+   504→          <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+   505→        </Field>
+   506→      </div>
+   507→
+   508→      <ToggleRow
+   509→        className="mt-4"
+   510→        label="Auto-generate AI variants on compose"
+   511→        desc="Each connected account gets a tailored caption suggestion automatically."
+   512→        checked={autoVariants}
+   513→        onChange={(v) => {
+   514→          setAutoVariants(v);
+   515→          toast.success(`AI auto-variants ${v ? "enabled" : "disabled"}`);
+   516→        }}
+   517→      />
+   518→
+   519→      <Field label="Brand voice" className="mt-4">
+   520→        <Textarea
+   521→          value={brandVoice}
+   522→          onChange={(e) => setBrandVoice(e.target.value)}
+   523→          rows={3}
+   524→          className="resize-none"
+   525→        />
+   526→      </Field>
+   527→
+   528→      <Field label="Brand colors" className="mt-4">
+   529→        <div className="flex flex-wrap items-center gap-3">
+   530→          {colors.map((c, i) => (
+   531→            <div key={i} className="flex items-center gap-2 rounded-xl border border-border bg-background px-2 py-1.5">
+   532→              <label className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-md ring-1 ring-border" style={{ background: c }}>
+   533→                <input
+   534→                  type="color"
+   535→                  value={c}
+   536→                  onChange={(e) => updateColor(i, e.target.value)}
+   537→                  className="absolute inset-0 cursor-pointer opacity-0"
+   538→                />
+   539→              </label>
+   540→              <Input
+   541→                value={c}
+   542→                onChange={(e) => updateColor(i, e.target.value)}
+   543→                className="h-7 w-24 font-mono text-xs"
+   544→              />
+   545→            </div>
+   546→          ))}
+   547→          <button
+   548→            onClick={() => setColors((prev) => [...prev, "#FFFFFF"])}
+   549→            className="rounded-xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition hover:bg-muted/40"
+   550→          >
+   551→            + Add
+   552→          </button>
+   553→        </div>
+   554→      </Field>
+   555→    </GlassCard>
+   556→  );
+   557→}
+   558→
+   559→// ===== 3. Appearance =====
+   560→function AppearanceSection() {
+   561→  const { theme, setTheme } = useTheme();
+   562→  const [accent, setAccent] = React.useState(DEFAULT_ACCENT);
+   563→  const [reduceMotion, setReduceMotion] = React.useState(false);
+   564→  const [glassEffects, setGlassEffects] = React.useState(true);
+   565→  const [compact, setCompact] = React.useState(false);
+   566→  const [fontSize, setFontSize] = React.useState(14);
+   567→
+   568→  const themeOptions = [
+   569→    { id: "light" as const, label: "Light", icon: Sun },
+   570→    { id: "dark" as const, label: "Dark", icon: Moon },
+   571→    { id: "system" as const, label: "System", icon: Monitor },
+   572→  ];
+   573→
+   574→  const applyAccent = (value: string, name: string) => {
+   575→    setAccent(value);
+   576→    if (typeof document !== "undefined") {
+   577→      document.documentElement.style.setProperty("--primary", value);
+   578→    }
+   579→    toast.success(`Accent set to ${name}`);
+   580→  };
+   581→
+   582→  return (
+   583→    <GlassCard className="crystal-in p-5">
+   584→      <SectionTitle title="Appearance" desc="Personalize how Prism looks on this device." />
+   585→
+   586→      {/* Theme cards */}
+   587→      <div className="grid grid-cols-3 gap-3">
+   588→        {themeOptions.map((opt) => {
+   589→          const Icon = opt.icon;
+   590→          const active = theme === opt.id;
+   591→          const previewBg =
+   592→            opt.id === "light"
+   593→              ? "bg-[oklch(0.97_0.008_250)]"
+   594→              : opt.id === "dark"
+   595→                ? "bg-[oklch(0.16_0.025_258)]"
+   596→                : "bg-gradient-to-br from-[oklch(0.97_0.008_250)] to-[oklch(0.16_0.025_258)]";
+   597→          return (
+   598→            <button
+   599→              key={opt.id}
+   600→              onClick={() => {
+   601→                setTheme(opt.id);
+   602→                toast.success(`Theme: ${opt.label}`);
+   603→              }}
+   604→              className={cn(
+   605→                "rounded-2xl border-2 p-3 text-left transition",
+   606→                active ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/40"
+   607→              )}
+   608→            >
+   609→              <div className={cn("mb-2 flex h-16 items-end gap-1 overflow-hidden rounded-xl p-2", previewBg)}>
+   610→                <div className={cn("h-full w-1/3 rounded-md", opt.id === "dark" ? "bg-white/15" : "bg-primary/80")} />
+   611→                <div className="flex-1 space-y-1">
+   612→                  <div className={cn("h-2 w-full rounded", opt.id === "dark" ? "bg-white/20" : "bg-primary/30")} />
+   613→                  <div className={cn("h-2 w-2/3 rounded", opt.id === "dark" ? "bg-white/10" : "bg-primary/20")} />
+   614→                </div>
+   615→              </div>
+   616→              <div className="flex items-center justify-between">
+   617→                <span className="text-sm font-medium">{opt.label}</span>
+   618→                {active && <Check className="h-4 w-4 text-primary" />}
+   619→              </div>
+   620→              <Icon className="mt-1 h-3.5 w-3.5 text-muted-foreground" />
+   621→            </button>
+   622→          );
+   623→        })}
+   624→      </div>
+   625→
+   626→      <Separator className="my-5" />
+   627→
+   628→      {/* Accent picker */}
+   629→      <div>
+   630→        <div className="text-sm font-medium">Accent color</div>
+   631→        <div className="text-xs text-muted-foreground">Updates the primary brand color across the app.</div>
+   632→        <div className="mt-3 flex flex-wrap gap-3">
+   633→          {ACCENTS.map((a) => {
+   634→            const active = accent === a.value;
+   635→            return (
+   636→              <button
+   637→                key={a.name}
+   638→                onClick={() => applyAccent(a.value, a.name)}
+   639→                className={cn(
+   640→                  "group relative flex items-center gap-2 rounded-xl border px-3 py-2 transition",
+   641→                  active ? "border-primary ring-2 ring-primary/30" : "border-border hover:bg-muted/40"
+   642→                )}
+   643→                title={a.name}
+   644→              >
+   645→                <span className="h-6 w-6 rounded-full ring-1 ring-border" style={{ background: a.value }} />
+   646→                <span className="text-xs font-medium">{a.name}</span>
+   647→                {active && <Check className="h-3.5 w-3.5 text-primary" />}
+   648→              </button>
+   649→            );
+   650→          })}
+   651→        </div>
+   652→      </div>
+   653→
+   654→      <Separator className="my-5" />
+   655→
+   656→      {/* Toggles */}
+   657→      <div className="space-y-1">
+   658→        <ToggleRow
+   659→          label="Reduce motion"
+   660→          desc="Disable entrance animations and crystal shimmer."
+   661→          checked={reduceMotion}
+   662→          onChange={(v) => {
+   663→            setReduceMotion(v);
+   664→            toast.success(`Reduce motion ${v ? "on" : "off"}`);
+   665→          }}
+   666→        />
+   667→        <ToggleRow
+   668→          label="Liquid glass effects"
+   669→          desc="Translucent layers, blur, and sheen across the app."
+   670→          checked={glassEffects}
+   671→          onChange={(v) => {
+   672→            setGlassEffects(v);
+   673→            toast.success(`Glass effects ${v ? "on" : "off"}`);
+   674→          }}
+   675→        />
+   676→        <ToggleRow
+   677→          label="Compact mode"
+   678→          desc="Tighten spacing to see more content per screen."
+   679→          checked={compact}
+   680→          onChange={(v) => {
+   681→            setCompact(v);
+   682→            toast.success(`Compact mode ${v ? "on" : "off"}`);
+   683→          }}
+   684→        />
+   685→      </div>
+   686→
+   687→      <Separator className="my-5" />
+   688→
+   689→      {/* Font size */}
+   690→      <div>
+   691→        <div className="flex items-center justify-between">
+   692→          <div>
+   693→            <div className="text-sm font-medium">Font size</div>
+   694→            <div className="text-xs text-muted-foreground">Default base font size for the interface.</div>
+   695→          </div>
+   696→          <span className="num-display text-lg font-semibold tabular-nums">{fontSize}px</span>
+   697→        </div>
+   698→        <div className="mt-3 px-1">
+   699→          <Slider
+   700→            value={[fontSize]}
+   701→            min={12}
+   702→            max={18}
+   703→            step={1}
+   704→            onValueChange={(v) => {
+   705→              setFontSize(v[0]);
+   706→              if (typeof document !== "undefined") {
+   707→                document.documentElement.style.fontSize = `${v[0]}px`;
+   708→              }
+   709→            }}
+   710→          />
+   711→        </div>
+   712→        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+   713→          <span>A</span><span>Default</span><span>A</span>
+   714→        </div>
+   715→      </div>
+   716→    </GlassCard>
+   717→  );
+   718→}
+   719→
+   720→// ===== 4. Team Roles & Permissions =====
+   721→interface ApiUser {
+   722→  id: string;
+   723→  name: string;
+   724→  email: string;
+   725→  role: Role;
+   726→  title: string | null;
+   727→  department: string | null;
+   728→  color: string | null;
+   729→  permissions: string[];
+   730→  status: MemberStatus;
+   731→  lastActive: string | null;
+   732→}
+   733→
+   734→function TeamRolesSection() {
+   735→  const { data, loading } = useApi<ApiUser[]>("/api/users");
+   736→  const [members, setMembers] = React.useState<TeamMember[]>(SEED_TEAM);
+   737→  const [inviteOpen, setInviteOpen] = React.useState(false);
+   738→  const [inviteEmail, setInviteEmail] = React.useState("");
+   739→  const [inviteRole, setInviteRole] = React.useState<Role>("member");
+   740→  const [saving, setSaving] = React.useState(false);
+   741→
+   742→  // Hydrate from API if available
+   743→  React.useEffect(() => {
+   744→    if (!data) return;
+   745→    const next = SEED_TEAM.map((seed) => {
+   746→      const remote = data.find((u) => u.id === seed.id);
+   747→      if (!remote) return seed;
+   748→      return {
+   749→        ...seed,
+   750→        role: remote.role,
+   751→        title: remote.title ?? seed.title,
+   752→        department: (remote.department as Department) ?? seed.department,
+   753→        status: remote.status,
+   754→        permissions: remote.permissions ?? seed.permissions,
+   755→      };
+   756→    });
+   757→    setMembers(next);
+   758→  }, [data]);
+   759→
+   760→  const update = (id: string, patch: Partial<TeamMember>) =>
+   761→    setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+   762→
+   763→  const save = async () => {
+   764→    setSaving(true);
+   765→    try {
+   766→      await Promise.all(
+   767→        members.map((m) =>
+   768→          fetch("/api/users", {
+   769→            method: "PATCH",
+   770→            headers: { "Content-Type": "application/json" },
+   771→            body: JSON.stringify({
+   772→              id: m.id,
+   773→              role: m.role,
+   774→              title: m.title,
+   775→              department: m.department,
+   776→              status: m.status,
+   777→            }),
+   778→          })
+   779→        )
+   780→      );
+   781→      toast.success("Team saved", { description: `${members.length} members updated.` });
+   782→    } catch {
+   783→      toast.error("Failed to save team changes");
+   784→    } finally {
+   785→      setSaving(false);
+   786→    }
+   787→  };
+   788→
+   789→  const invite = () => {
+   790→    if (!inviteEmail.includes("@")) {
+   791→      toast.error("Enter a valid email");
+   792→      return;
+   793→    }
+   794→    toast.success("Invitation sent", { description: `${inviteEmail} → ${ROLE_LABEL[inviteRole]}` });
+   795→    setInviteEmail("");
+   796→    setInviteRole("member");
+   797→    setInviteOpen(false);
+   798→  };
+   799→
+   800→  if (loading) return <TeamSkeleton />;
+   801→
+   802→  return (
+   803→    <div className="space-y-4">
+   804→      <GlassCard className="crystal-in p-5">
+   805→        <SectionTitle
+   806→          title="Team Roles & Permissions"
+   807→          desc="Manage who can access what. Changes are staged locally — save to sync."
+   808→          action={
+   809→            <div className="flex gap-2">
+   810→              <button
+   811→                onClick={() => setInviteOpen(true)}
+   812→                className="liquid-gold flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+   813→              >
+   814→                <UserPlus className="h-3.5 w-3.5" /> Invite member
+   815→              </button>
+   816→              <button
+   817→                onClick={save}
+   818→                disabled={saving}
+   819→                className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60"
+   820→              >
+   821→                <Save className="h-3.5 w-3.5" /> {saving ? "Saving…" : "Save changes"}
+   822→              </button>
+   823→            </div>
+   824→          }
+   825→        />
+   826→
+   827→        {/* Member grid */}
+   828→        <div className="grid gap-3 lg:grid-cols-2">
+   829→          {members.map((m) => {
+   830→            const status = STATUS_BADGE[m.status];
+   831→            return (
+   832→              <div
+   833→                key={m.id}
+   834→                className="rounded-2xl border border-border/60 bg-muted/20 p-4 transition hover:bg-muted/40"
+   835→              >
+   836→                <div className="flex items-start gap-3">
+   837→                  <NameAvatar name={m.name} color={m.color} className="h-11 w-11 text-xs" />
+   838→                  <div className="min-w-0 flex-1">
+   839→                    <div className="flex flex-wrap items-center gap-2">
+   840→                      <span className="truncate text-sm font-semibold">{m.name}</span>
+   841→                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", ROLE_BADGE_CLASS[m.role])}>
+   842→                        {ROLE_LABEL[m.role]}
+   843→                      </span>
+   844→                      <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium", status.class)}>
+   845→                        <span className={cn("h-1.5 w-1.5 rounded-full", status.dot)} />
+   846→                        {status.label}
+   847→                      </span>
+   848→                    </div>
+   849→                    <div className="mt-0.5 truncate text-xs text-muted-foreground">{m.email}</div>
+   850→                  </div>
+   851→                  <DropdownMenu>
+   852→                    <DropdownMenuTrigger asChild>
+   853→                      <button className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">
+   854→                        <MoreHorizontal className="h-4 w-4" />
+   855→                      </button>
+   856→                    </DropdownMenuTrigger>
+   857→                    <DropdownMenuContent align="end" className="w-40">
+   858→                      <DropdownMenuItem onClick={() => toast(`Resend invite to ${m.email}`)}>
+   859→                        <Send className="mr-2 h-3.5 w-3.5" /> Resend invite
+   860→                      </DropdownMenuItem>
+   861→                      <DropdownMenuItem onClick={() => update(m.id, { status: m.status === "suspended" ? "active" : "suspended" })}>
+   862→                        <Ban className="mr-2 h-3.5 w-3.5" /> {m.status === "suspended" ? "Reactivate" : "Suspend"}
+   863→                      </DropdownMenuItem>
+   864→                      <DropdownMenuSeparator />
+   865→                      <DropdownMenuItem
+   866→                        className="text-rose-500 focus:text-rose-500"
+   867→                        onClick={() => toast(`Removed ${m.name}`)}
+   868→                      >
+   869→                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove
+   870→                      </DropdownMenuItem>
+   871→                    </DropdownMenuContent>
+   872→                  </DropdownMenu>
+   873→                </div>
+   874→
+   875→                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+   876→                  <Field label="Role" compact>
+   877→                    <Select value={m.role} onValueChange={(v) => update(m.id, { role: v as Role })}>
+   878→                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+   879→                      <SelectContent>
+   880→                        {Object.entries(ROLE_LABEL).map(([k, v]) => (
+   881→                          <SelectItem key={k} value={k}>{v}</SelectItem>
+   882→                        ))}
+   883→                      </SelectContent>
+   884→                    </Select>
+   885→                  </Field>
+   886→                  <Field label="Designation" compact>
+   887→                    <Input
+   888→                      value={m.title}
+   889→                      onChange={(e) => update(m.id, { title: e.target.value })}
+   890→                      className="h-8 text-xs"
+   891→                    />
+   892→                  </Field>
+   893→                  <Field label="Department" compact>
+   894→                    <Select value={m.department} onValueChange={(v) => update(m.id, { department: v as Department })}>
+   895→                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+   896→                      <SelectContent>
+   897→                        {DEPARTMENTS.map((d) => (
+   898→                          <SelectItem key={d} value={d}>{d}</SelectItem>
+   899→                        ))}
+   900→                      </SelectContent>
+   901→                    </Select>
+   902→                  </Field>
+   903→                </div>
+   904→
+   905→                <div className="mt-3 flex flex-wrap gap-1.5">
+   906→                  {CAPABILITIES.map((cap) => {
+   907→                    const allowed = PERMISSION_MATRIX[m.role][cap];
+   908→                    return (
+   909→                      <span
+   910→                        key={cap}
+   911→                        className={cn(
+   912→                          "rounded-full px-2 py-0.5 text-[10px] font-medium",
+   913→                          allowed
+   914→                            ? "bg-primary/10 text-primary"
+   915→                            : "bg-muted/60 text-muted-foreground/60 line-through"
+   916→                        )}
+   917→                      >
+   918→                        {cap}
+   919→                      </span>
+   920→                    );
+   921→                  })}
+   922→                </div>
+   923→              </div>
+   924→            );
+   925→          })}
+   926→        </div>
+   927→      </GlassCard>
+   928→
+   929→      {/* Permissions matrix */}
+   930→      <GlassCard className="crystal-in p-5">
+   931→        <SectionTitle
+   932→          title="Permissions matrix"
+   933→          desc="What each role can do across the platform."
+   934→        />
+   935→        <div className="overflow-x-auto no-scrollbar">
+   936→          <table className="w-full min-w-[560px] border-collapse text-sm">
+   937→            <thead>
+   938→              <tr className="text-left">
+   939→                <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Capability</th>
+   940→                {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
+   941→                  <th key={r} className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">
+   942→                    {ROLE_LABEL[r]}
+   943→                  </th>
+   944→                ))}
+   945→              </tr>
+   946→            </thead>
+   947→            <tbody>
+   948→              {CAPABILITIES.map((cap, i) => (
+   949→                <tr key={cap} className={cn(i % 2 === 0 ? "bg-muted/20" : "")}>
+   950→                  <td className="rounded-l-lg px-3 py-2.5 text-xs font-medium">{cap}</td>
+   951→                  {(Object.keys(ROLE_LABEL) as Role[]).map((r) => {
+   952→                    const allowed = PERMISSION_MATRIX[r][cap];
+   953→                    return (
+   954→                      <td key={r} className="rounded-r-lg px-3 py-2.5 text-center">
+   955→                        {allowed ? (
+   956→                          <Check className="mx-auto h-4 w-4 text-emerald-500" />
+   957→                        ) : (
+   958→                          <span className="text-muted-foreground/40">—</span>
+   959→                        )}
+   960→                      </td>
+   961→                    );
+   962→                  })}
+   963→                </tr>
+   964→              ))}
+   965→            </tbody>
+   966→          </table>
+   967→        </div>
+   968→      </GlassCard>
+   969→
+   970→      {/* Invite dialog */}
+   971→      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+   972→        <DialogContent className="sm:max-w-md">
+   973→          <DialogHeader>
+   974→            <DialogTitle>Invite a team member</DialogTitle>
+   975→            <DialogDescription>
+   976→              They'll receive an email invitation to join your workspace.
+   977→            </DialogDescription>
+   978→          </DialogHeader>
+   979→          <div className="space-y-3 py-2">
+   980→            <Field label="Email">
+   981→              <Input
+   982→                type="email"
+   983→                placeholder="teammate@prism.co"
+   984→                value={inviteEmail}
+   985→                onChange={(e) => setInviteEmail(e.target.value)}
+   986→              />
+   987→            </Field>
+   988→            <Field label="Role">
+   989→              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as Role)}>
+   990→                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+   991→                <SelectContent>
+   992→                  {Object.entries(ROLE_LABEL).map(([k, v]) => (
+   993→                    <SelectItem key={k} value={k}>{v}</SelectItem>
+   994→                  ))}
+   995→                </SelectContent>
+   996→              </Select>
+   997→            </Field>
+   998→          </div>
+   999→          <DialogFooter>
+  1000→            <Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button>
+  1001→            <button
+  1002→              onClick={invite}
+  1003→              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+  1004→            >
+  1005→              <UserPlus className="h-4 w-4" /> Send invite
+  1006→            </button>
+  1007→          </DialogFooter>
+  1008→        </DialogContent>
+  1009→      </Dialog>
+  1010→    </div>
+  1011→  );
+  1012→}
+  1013→
+  1014→// ===== 5. Notifications =====
+  1015→function NotificationsSection() {
+  1016→  const [engagement, setEngagement] = React.useState<Record<string, boolean>>({
+  1017→    newComment: true,
+  1018→    mention: true,
+  1019→    newFollower: true,
+  1020→    postLiked: false,
+  1021→  });
+  1022→  const [workflow, setWorkflow] = React.useState<Record<string, boolean>>({
+  1023→    approvalRequested: true,
+  1024→    approvalResolved: true,
+  1025→    taskAssigned: true,
+  1026→    taskOverdue: true,
+  1027→  });
+  1028→  const [reports, setReports] = React.useState<Record<string, boolean>>({
+  1029→    weeklyDigest: true,
+  1030→    monthlySummary: false,
+  1031→    competitorAlert: true,
+  1032→  });
+  1033→  const [system, setSystem] = React.useState<Record<string, boolean>>({
+  1034→    accountWarning: true,
+  1035→    mailQuota: true,
+  1036→    security: true,
+  1037→  });
+  1038→  const [quietStart, setQuietStart] = React.useState("22:00");
+  1039→  const [quietEnd, setQuietEnd] = React.useState("07:00");
+  1040→  const [digest, setDigest] = React.useState("instant");
+  1041→
+  1042→  const flip = (
+  1043→    setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
+  1044→    key: string
+  1045→  ) => (v: boolean) => {
+  1046→    setter((prev) => ({ ...prev, [key]: v }));
+  1047→    toast.success("Notifications updated");
+  1048→  };
+  1049→
+  1050→  const save = () => toast.success("Notification preferences saved");
+  1051→
+  1052→  return (
+  1053→    <GlassCard className="crystal-in p-5">
+  1054→      <SectionTitle
+  1055→        title="Notifications"
+  1056→        desc="Choose what reaches your inbox and how often."
+  1057→        action={
+  1058→          <button onClick={save} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold">
+  1059→            <Save className="h-3.5 w-3.5" /> Save preferences
+  1060→          </button>
+  1061→        }
+  1062→      />
+  1063→
+  1064→      <div className="grid gap-5 lg:grid-cols-2">
+  1065→        <NotificationGroup title="Engagement" desc="Audience interactions">
+  1066→          <ToggleRow label="New comment" desc="Someone comments on your post." checked={engagement.newComment} onChange={flip(setEngagement, "newComment")} />
+  1067→          <ToggleRow label="Mentions" desc="You're tagged in a comment or post." checked={engagement.mention} onChange={flip(setEngagement, "mention")} />
+  1068→          <ToggleRow label="New follower" desc="Your account gains a follower." checked={engagement.newFollower} onChange={flip(setEngagement, "newFollower")} />
+  1069→          <ToggleRow label="Post liked" desc="High-velocity likes spike on a post." checked={engagement.postLiked} onChange={flip(setEngagement, "postLiked")} />
+  1070→        </NotificationGroup>
+  1071→
+  1072→        <NotificationGroup title="Workflow" desc="Approval and task events">
+  1073→          <ToggleRow label="Approval requested" desc="A teammate requests your review." checked={workflow.approvalRequested} onChange={flip(setWorkflow, "approvalRequested")} />
+  1074→          <ToggleRow label="Approval resolved" desc="A pending approval is actioned." checked={workflow.approvalResolved} onChange={flip(setWorkflow, "approvalResolved")} />
+  1075→          <ToggleRow label="Task assigned" desc="You're assigned a new task." checked={workflow.taskAssigned} onChange={flip(setWorkflow, "taskAssigned")} />
+  1076→          <ToggleRow label="Task overdue" desc="A task passes its due date." checked={workflow.taskOverdue} onChange={flip(setWorkflow, "taskOverdue")} />
+  1077→        </NotificationGroup>
+  1078→
+  1079→        <NotificationGroup title="Reports" desc="Periodic summaries and alerts">
+  1080→          <ToggleRow label="Weekly digest" desc="Every Monday at 9am local time." checked={reports.weeklyDigest} onChange={flip(setReports, "weeklyDigest")} />
+  1081→          <ToggleRow label="Monthly summary" desc="First of the month recap." checked={reports.monthlySummary} onChange={flip(setReports, "monthlySummary")} />
+  1082→          <ToggleRow label="Competitor alert" desc="A tracked competitor posts something notable." checked={reports.competitorAlert} onChange={flip(setReports, "competitorAlert")} />
+  1083→        </NotificationGroup>
+  1084→
+  1085→        <NotificationGroup title="System" desc="Account and platform health">
+  1086→          <ToggleRow label="Account warning" desc="A connected account has token issues." checked={system.accountWarning} onChange={flip(setSystem, "accountWarning")} />
+  1087→          <ToggleRow label="Mail quota" desc="Approaching monthly send limit." checked={system.mailQuota} onChange={flip(setSystem, "mailQuota")} />
+  1088→          <ToggleRow label="Security" desc="New device sign-in or password change." checked={system.security} onChange={flip(setSystem, "security")} />
+  1089→        </NotificationGroup>
+  1090→      </div>
+  1091→
+  1092→      <Separator className="my-5" />
+  1093→
+  1094→      {/* Quiet hours + digest */}
+  1095→      <div className="grid gap-4 sm:grid-cols-3">
+  1096→        <Field label="Quiet hours — start">
+  1097→          <Input type="time" value={quietStart} onChange={(e) => setQuietStart(e.target.value)} />
+  1098→        </Field>
+  1099→        <Field label="Quiet hours — end">
+  1100→          <Input type="time" value={quietEnd} onChange={(e) => setQuietEnd(e.target.value)} />
+  1101→        </Field>
+  1102→        <Field label="Digest frequency">
+  1103→          <Select value={digest} onValueChange={setDigest}>
+  1104→            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+  1105→            <SelectContent>
+  1106→              <SelectItem value="instant">Instant</SelectItem>
+  1107→              <SelectItem value="hourly">Hourly</SelectItem>
+  1108→              <SelectItem value="daily">Daily</SelectItem>
+  1109→            </SelectContent>
+  1110→          </Select>
+  1111→        </Field>
+  1112→      </div>
+  1113→    </GlassCard>
+  1114→  );
+  1115→}
+  1116→
+  1117→// ===== 6. Security =====
+  1118→function SecuritySection() {
+  1119→  const [current, setCurrent] = React.useState("");
+  1120→  const [next, setNext] = React.useState("");
+  1121→  const [confirm, setConfirm] = React.useState("");
+  1122→  const [showPwd, setShowPwd] = React.useState(false);
+  1123→  const [twoFA, setTwoFA] = React.useState(false);
+  1124→  const [setup2FA, setSetup2FA] = React.useState(false);
+  1125→  const [copiedKey, setCopiedKey] = React.useState(false);
+  1126→  const [ipAllow, setIpAllow] = React.useState("192.168.1.0/24\n10.0.0.0/8");
+  1127→
+  1128→  const apiKey = "prism_live_sk_9f3b2a8e4c1d7e6f5a3b2c1d9e8f7a6b";
+  1129→
+  1130→  const changePwd = () => {
+  1131→    if (!current || !next) return toast.error("Fill in current and new password");
+  1132→    if (next !== confirm) return toast.error("Passwords do not match");
+  1133→    if (next.length < 8) return toast.error("Password must be at least 8 characters");
+  1134→    toast.success("Password updated");
+  1135→    setCurrent(""); setNext(""); setConfirm("");
+  1136→  };
+  1137→
+  1138→  const sessions = [
+  1139→    { id: "s1", device: "MacBook Pro · Chrome 122", location: "San Francisco, US", ip: "73.158.42.10", last: "Active now", current: true },
+  1140→    { id: "s2", device: "iPhone 15 Pro · Prism iOS", location: "San Francisco, US", ip: "73.158.42.11", last: "2h ago", current: false },
+  1141→    { id: "s3", device: "Windows · Edge 122", location: "London, UK", ip: "82.6.124.18", last: "1d ago", current: false },
+  1142→    { id: "s4", device: "iPad Air · Safari", location: "New York, US", ip: "108.29.84.221", last: "3d ago", current: false },
+  1143→  ];
+  1144→
+  1145→  const history = [
+  1146→    { id: "h1", device: "MacBook Pro · Chrome", location: "San Francisco, US", time: "Today, 9:42am", status: "Success" },
+  1147→    { id: "h2", device: "iPhone 15 · Prism iOS", location: "San Francisco, US", time: "Today, 7:18am", status: "Success" },
+  1148→    { id: "h3", device: "Unknown · Chrome", location: "Lagos, NG", time: "Yesterday, 11:05pm", status: "Blocked" },
+  1149→    { id: "h4", device: "MacBook Pro · Safari", location: "San Francisco, US", time: "Mar 14, 8:02am", status: "Success" },
+  1150→    { id: "h5", device: "Pixel 8 · Chrome", location: "San Francisco, US", time: "Mar 13, 6:51pm", status: "Success" },
+  1151→    { id: "h6", device: "Unknown · Firefox", location: "Moscow, RU", time: "Mar 12, 3:14am", status: "Blocked" },
+  1152→  ];
+  1153→
+  1154→  return (
+  1155→    <div className="space-y-4">
+  1156→      {/* Password */}
+  1157→      <GlassCard className="crystal-in p-5">
+  1158→        <SectionTitle title="Password" desc="Update your password regularly to keep your account secure." />
+  1159→        <div className="grid gap-3 sm:max-w-md">
+  1160→          <Field label="Current password">
+  1161→            <div className="relative">
+  1162→              <Input
+  1163→                type={showPwd ? "text" : "password"}
+  1164→                value={current}
+  1165→                onChange={(e) => setCurrent(e.target.value)}
+  1166→                placeholder="••••••••"
+  1167→              />
+  1168→              <button
+  1169→                type="button"
+  1170→                onClick={() => setShowPwd((v) => !v)}
+  1171→                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+  1172→              >
+  1173→                {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+  1174→              </button>
+  1175→            </div>
+  1176→          </Field>
+  1177→          <Field label="New password">
+  1178→            <Input type={showPwd ? "text" : "password"} value={next} onChange={(e) => setNext(e.target.value)} />
+  1179→          </Field>
+  1180→          <Field label="Confirm new password">
+  1181→            <Input type={showPwd ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+  1182→          </Field>
+  1183→          <button
+  1184→            onClick={changePwd}
+  1185→            className="liquid-pill mt-1 flex items-center gap-1.5 self-start rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+  1186→          >
+  1187→            <KeyRound className="h-3.5 w-3.5" /> Update password
+  1188→          </button>
+  1189→        </div>
+  1190→      </GlassCard>
+  1191→
+  1192→      {/* 2FA */}
+  1193→      <GlassCard className="crystal-in p-5">
+  1194→        <SectionTitle title="Two-factor authentication" desc="Add an extra layer of security to your account." />
+  1195→        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted/30 p-4">
+  1196→          <div className="flex items-center gap-3">
+  1197→            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+  1198→              <ShieldCheck className="h-5 w-5" />
+  1199→            </div>
+  1200→            <div>
+  1201→              <div className="text-sm font-medium">{twoFA ? "Authenticator app enabled" : "Two-factor authentication"}</div>
+  1202→              <div className="text-xs text-muted-foreground">
+  1203→                {twoFA ? "Your account is protected with TOTP." : "Protect your account with an authenticator app."}
+  1204→              </div>
+  1205→            </div>
+  1206→          </div>
+  1207→          <div className="flex items-center gap-3">
+  1208→            <button
+  1209→              onClick={() => {
+  1210→                if (!twoFA) setSetup2FA(true);
+  1211→                else toast.success("2FA disabled");
+  1212→                setTwoFA(!twoFA);
+  1213→              }}
+  1214→              className={cn(
+  1215→                "rounded-xl px-3.5 py-1.5 text-xs font-semibold",
+  1216→                twoFA ? "border border-border bg-background text-foreground" : "liquid-gold"
+  1217→              )}
+  1218→            >
+  1219→              {twoFA ? "Disable" : "Set up"}
+  1220→            </button>
+  1221→            <Switch checked={twoFA} onCheckedChange={(v) => { setTwoFA(v); if (v) setSetup2FA(true); }} />
+  1222→          </div>
+  1223→        </div>
+  1224→      </GlassCard>
+  1225→
+  1226→      {/* Active sessions */}
+  1227→      <GlassCard className="crystal-in p-5">
+  1228→        <SectionTitle title="Active sessions" desc="Devices currently signed in to your account." />
+  1229→        <div className="space-y-2">
+  1230→          {sessions.map((s) => (
+  1231→            <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-muted/20 p-3">
+  1232→              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+  1233→                {s.device.includes("iPhone") || s.device.includes("iPad") || s.device.includes("Pixel") ? (
+  1234→                  <Smartphone className="h-4 w-4" />
+  1235→                ) : (
+  1236→                  <MonitorSmartphone className="h-4 w-4" />
+  1237→                )}
+  1238→              </div>
+  1239→              <div className="min-w-0 flex-1">
+  1240→                <div className="flex flex-wrap items-center gap-2">
+  1241→                  <span className="truncate text-sm font-medium">{s.device}</span>
+  1242→                  {s.current && <Badge className="bg-emerald-500/15 text-emerald-500">This device</Badge>}
+  1243→                </div>
+  1244→                <div className="truncate text-xs text-muted-foreground">
+  1245→                  {s.location} · {s.ip} · {s.last}
+  1246→                </div>
+  1247→              </div>
+  1248→              {!s.current && (
+  1249→                <button
+  1250→                  onClick={() => toast.success(`Session revoked (${s.device})`)}
+  1251→                  className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
+  1252→                >
+  1253→                  <LogOut className="h-3 w-3" /> Revoke
+  1254→                </button>
+  1255→              )}
+  1256→            </div>
+  1257→          ))}
+  1258→        </div>
+  1259→      </GlassCard>
+  1260→
+  1261→      {/* Login history */}
+  1262→      <GlassCard className="crystal-in p-5">
+  1263→        <SectionTitle title="Login history" desc="Recent sign-in attempts on your account." />
+  1264→        <div className="overflow-x-auto no-scrollbar">
+  1265→          <table className="w-full min-w-[480px] text-sm">
+  1266→            <thead>
+  1267→              <tr className="text-left text-xs text-muted-foreground">
+  1268→                <th className="px-2 py-2 font-medium">Device</th>
+  1269→                <th className="px-2 py-2 font-medium">Location</th>
+  1270→                <th className="px-2 py-2 font-medium">Time</th>
+  1271→                <th className="px-2 py-2 text-right font-medium">Status</th>
+  1272→              </tr>
+  1273→            </thead>
+  1274→            <tbody>
+  1275→              {history.map((h) => (
+  1276→                <tr key={h.id} className="border-t border-border/50">
+  1277→                  <td className="px-2 py-2.5 text-xs">{h.device}</td>
+  1278→                  <td className="px-2 py-2.5 text-xs text-muted-foreground">{h.location}</td>
+  1279→                  <td className="px-2 py-2.5 text-xs text-muted-foreground">{h.time}</td>
+  1280→                  <td className="px-2 py-2.5 text-right">
+  1281→                    <span className={cn(
+  1282→                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+  1283→                      h.status === "Success" ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"
+  1284→                    )}>
+  1285→                      {h.status}
+  1286→                    </span>
+  1287→                  </td>
+  1288→                </tr>
+  1289→              ))}
+  1290→            </tbody>
+  1291→          </table>
+  1292→        </div>
+  1293→      </GlassCard>
+  1294→
+  1295→      {/* API keys */}
+  1296→      <GlassCard className="crystal-in p-5">
+  1297→        <SectionTitle
+  1298→          title="API keys"
+  1299→          desc="Use these to authenticate with the Prism API."
+  1300→          action={
+  1301→            <button
+  1302→              onClick={() => toast.success("API key generated", { description: "Copy it now — you won't see it again." })}
+  1303→              className="liquid-gold flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+  1304→            >
+  1305→              <KeyRound className="h-3.5 w-3.5" /> Generate key
+  1306→            </button>
+  1307→          }
+  1308→        />
+  1309→        <div className="rounded-2xl bg-muted/30 p-4">
+  1310→          <div className="flex flex-wrap items-center gap-3">
+  1311→            <div className="min-w-0 flex-1 font-mono text-xs">
+  1312→              {apiKey.slice(0, 14)}{"•".repeat(18)}{apiKey.slice(-4)}
+  1313→            </div>
+  1314→            <div className="flex gap-2">
+  1315→              <button
+  1316→                onClick={() => {
+  1317→                  navigator.clipboard?.writeText(apiKey).catch(() => {});
+  1318→                  setCopiedKey(true);
+  1319→                  toast.success("API key copied");
+  1320→                  setTimeout(() => setCopiedKey(false), 1500);
+  1321→                }}
+  1322→                className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium transition hover:bg-muted/60"
+  1323→              >
+  1324→                {copiedKey ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />} Copy
+  1325→              </button>
+  1326→              <button
+  1327→                onClick={() => toast.success("API key revoked")}
+  1328→                className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
+  1329→              >
+  1330→                <Trash2 className="h-3 w-3" /> Revoke
+  1331→              </button>
+  1332→            </div>
+  1333→          </div>
+  1334→          <div className="mt-2 text-[11px] text-muted-foreground">
+  1335→            Created Mar 12, 2025 · Last used 2h ago
+  1336→          </div>
+  1337→        </div>
+  1338→      </GlassCard>
+  1339→
+  1340→      {/* IP allowlist */}
+  1341→      <GlassCard className="crystal-in p-5">
+  1342→        <SectionTitle
+  1343→          title="IP allowlist"
+  1344→          desc="Restrict API access to known IP ranges. One per line."
+  1345→          action={
+  1346→            <button
+  1347→              onClick={() => toast.success("IP allowlist saved")}
+  1348→              className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+  1349→            >
+  1350→              <Save className="h-3.5 w-3.5" /> Save
+  1351→            </button>
+  1352→          }
+  1353→        />
+  1354→        <Textarea
+  1355→          value={ipAllow}
+  1356→          onChange={(e) => setIpAllow(e.target.value)}
+  1357→          rows={4}
+  1358→          className="resize-none font-mono text-xs"
+  1359→          placeholder="0.0.0.0/0"
+  1360→        />
+  1361→      </GlassCard>
+  1362→
+  1363→      {/* 2FA setup dialog */}
+  1364→      <Dialog open={setup2FA} onOpenChange={setSetup2FA}>
+  1365→        <DialogContent className="sm:max-w-md">
+  1366→          <DialogHeader>
+  1367→            <DialogTitle>Set up two-factor authentication</DialogTitle>
+  1368→            <DialogDescription>
+  1369→              Scan this QR code with your authenticator app, then enter the 6-digit code.
+  1370→            </DialogDescription>
+  1371→          </DialogHeader>
+  1372→          <div className="flex flex-col items-center gap-4 py-2">
+  1373→            {/* Mock QR code */}
+  1374→            <div className="grid h-44 w-44 place-items-center rounded-2xl border border-border bg-background p-3">
+  1375→              <div className="grid h-full w-full grid-cols-8 grid-rows-8 gap-px">
+  1376→                {Array.from({ length: 64 }).map((_, i) => {
+  1377→                  // deterministic pattern
+  1378→                  const on = (i * 37 + (i % 5) * 11) % 3 === 0;
+  1379→                  const corner = (i < 3 || i % 8 < 3 || i % 8 > 4 || i > 40) && (i < 24 || i > 39);
+  1380→                  return (
+  1381→                    <div
+  1382→                      key={i}
+  1383→                      className={cn("rounded-[1px]", on || corner ? "bg-foreground" : "bg-transparent")}
+  1384→                    />
+  1385→                  );
+  1386→                })}
+  1387→              </div>
+  1388→            </div>
+  1389→            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+  1390→              <QrCode className="h-3.5 w-3.5" />
+  1391→              Or enter manually: <span className="font-mono">JBSWY3DPEHPK3PXP</span>
+  1392→            </div>
+  1393→            <Input placeholder="Enter 6-digit code" maxLength={6} className="text-center font-mono tracking-[0.4em]" />
+  1394→          </div>
+  1395→          <DialogFooter>
+  1396→            <Button variant="ghost" onClick={() => setSetup2FA(false)}>Cancel</Button>
+  1397→            <button
+  1398→              onClick={() => { toast.success("2FA enabled"); setSetup2FA(false); }}
+  1399→              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+  1400→            >
+  1401→              <ShieldCheck className="h-4 w-4" /> Verify & enable
+  1402→            </button>
+  1403→          </DialogFooter>
+  1404→        </DialogContent>
+  1405→      </Dialog>
+  1406→    </div>
+  1407→  );
+  1408→}
+  1409→
+  1410→// ===== 7. Connected Platforms =====
+  1411→function PlatformsSection() {
+  1412→  // Deterministic connection state per platform
+  1413→  const initial = React.useMemo(() => {
+  1414→    const connected: Record<PlatformId, { connected: boolean; accounts: number }> = {
+  1415→      instagram: { connected: true, accounts: 3 },
+  1416→      facebook: { connected: true, accounts: 2 },
+  1417→      x: { connected: true, accounts: 1 },
+  1418→      linkedin: { connected: true, accounts: 1 },
+  1419→      tiktok: { connected: true, accounts: 1 },
+  1420→      youtube: { connected: true, accounts: 1 },
+  1421→      threads: { connected: false, accounts: 0 },
+  1422→    };
+  1423→    return connected;
+  1424→  }, []);
+  1425→  const [state, setState] = React.useState(initial);
+  1426→
+  1427→  return (
+  1428→    <GlassCard className="crystal-in p-5">
+  1429→      <SectionTitle
+  1430→        title="Connected platforms"
+  1431→        desc="Manage which social accounts are connected to Prism."
+  1432→        action={
+  1433→          <button
+  1434→            onClick={() => toast("Choose a platform below to connect")}
+  1435→            className="liquid-gold flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+  1436→          >
+  1437→            <Plug className="h-3.5 w-3.5" /> Connect new
+  1438→          </button>
+  1439→        }
+  1440→      />
+  1441→      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+  1442→        {PLATFORM_LIST.map((p) => {
+  1443→          const s = state[p.id];
+  1444→          return (
+  1445→            <div
+  1446→              key={p.id}
+  1447→              className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 transition hover:bg-muted/40"
+  1448→            >
+  1449→              <div className="flex items-center gap-3">
+  1450→                <PlatformBadge platform={p.id} size={40} />
+  1451→                <div className="min-w-0 flex-1">
+  1452→                  <div className="truncate text-sm font-semibold">{p.name}</div>
+  1453→                  <div className="text-xs text-muted-foreground">
+  1454→                    {s.connected ? `${s.accounts} account${s.accounts === 1 ? "" : "s"}` : "Not connected"}
+  1455→                  </div>
+  1456→                </div>
+  1457→                <span
+  1458→                  className={cn(
+  1459→                    "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+  1460→                    s.connected ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground"
+  1461→                  )}
+  1462→                >
+  1463→                  <span className={cn("h-1.5 w-1.5 rounded-full", s.connected ? "bg-emerald-500" : "bg-muted-foreground/50")} />
+  1464→                  {s.connected ? "Connected" : "Off"}
+  1465→                </span>
+  1466→              </div>
+  1467→              <button
+  1468→                onClick={() => {
+  1469→                  setState((prev) => ({ ...prev, [p.id]: { connected: !prev[p.id].connected, accounts: !prev[p.id].connected ? 1 : 0 } }));
+  1470→                  toast.success(`${p.name} ${s.connected ? "disconnected" : "connected"}`);
+  1471→                }}
+  1472→                className={cn(
+  1473→                  "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
+  1474→                  s.connected
+  1475→                    ? "border border-border bg-background text-foreground hover:bg-muted/60"
+  1476→                    : "liquid-pill"
+  1477→                )}
+  1478→              >
+  1479→                {s.connected ? "Disconnect" : "Connect"}
+  1480→              </button>
+  1481→            </div>
+  1482→          );
+  1483→        })}
+  1484→      </div>
+  1485→    </GlassCard>
+  1486→  );
+  1487→}
+  1488→
+  1489→// ===== 8. Integrations =====
+  1490→function IntegrationsSection() {
+  1491→  const integrations = [
+  1492→    { id: "mail", name: "Mail Server", desc: "Send digests & alerts from your own SMTP.", icon: Mail, status: "Connected" },
+  1493→    { id: "zapier", name: "Zapier", desc: "Trigger Prism actions from 6,000+ apps.", icon: Zap, status: "Connected" },
+  1494→    { id: "slack", name: "Slack", desc: "Pipe approvals and alerts into your channels.", icon: MessageSquare, status: "Disconnected" },
+  1495→    { id: "ga", name: "Google Analytics", desc: "Pull GA4 traffic data into analytics reports.", icon: BarChart3, status: "Connected" },
+  1496→    { id: "canva", name: "Canva", desc: "Import Canva designs straight into your media library.", icon: ImageIcon, status: "Disconnected" },
+  1497→    { id: "unsplash", name: "Unsplash", desc: "Free stock photography for your next post.", icon: ImageIcon, status: "Connected" },
+  1498→  ] as const;
+  1499→
+  1500→  const [state, setState] = React.useState<Record<string, boolean>>(() =>
+  1501→    Object.fromEntries(integrations.map((i) => [i.id, i.status === "Connected"]))
+  1502→  );
+  1503→
+  1504→  return (
+  1505→    <GlassCard className="crystal-in p-5">
+  1506→      <SectionTitle title="Integrations" desc="Connect Prism with the tools your team already uses." />
+  1507→      <div className="grid gap-3 sm:grid-cols-2">
+  1508→        {integrations.map((it) => {
+  1509→          const Icon = it.icon;
+  1510→          const on = state[it.id];
+  1511→          return (
+  1512→            <div key={it.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 transition hover:bg-muted/40">
+  1513→              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+  1514→                <Icon className="h-5 w-5" />
+  1515→              </div>
+  1516→              <div className="min-w-0 flex-1">
+  1517→                <div className="flex items-center gap-2">
+  1518→                  <span className="truncate text-sm font-semibold">{it.name}</span>
+  1519→                  <span
+  1520→                    className={cn(
+  1521→                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+  1522→                      on ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground"
+  1523→                    )}
+  1524→                  >
+  1525→                    {on ? "Connected" : "Off"}
+  1526→                  </span>
+  1527→                </div>
+  1528→                <div className="text-xs text-muted-foreground">{it.desc}</div>
+  1529→              </div>
+  1530→              <button
+  1531→                onClick={() => {
+  1532→                  setState((prev) => ({ ...prev, [it.id]: !prev[it.id] }));
+  1533→                  toast.success(`${it.name} ${on ? "disconnected" : "connected"}`);
+  1534→                }}
+  1535→                className={cn(
+  1536→                  "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+  1537→                  on ? "border border-border bg-background text-foreground hover:bg-muted/60" : "liquid-gold"
+  1538→                )}
+  1539→              >
+  1540→                {on ? "Disconnect" : "Connect"}
+  1541→              </button>
+  1542→            </div>
+  1543→          );
+  1544→        })}
+  1545→      </div>
+  1546→    </GlassCard>
+  1547→  );
+  1548→}
+  1549→
+  1550→// ===== 9. Billing =====
+  1551→function BillingSection() {
+  1552→  const usage = [
+  1553→    { label: "Posts this month", used: 184, limit: 500, unit: "" },
+  1554→    { label: "Connected accounts", used: 10, limit: 25, unit: "" },
+  1555→    { label: "AI generations", used: 412, limit: 2000, unit: "" },
+  1556→    { label: "Media storage", used: 6.4, limit: 50, unit: "GB" },
+  1557→    { label: "Team seats", used: 6, limit: 15, unit: "" },
+  1558→  ];
+  1559→
+  1560→  const invoices = [
+  1561→    { id: "INV-2025-006", date: "Mar 1, 2025", amount: "$249.00", status: "Paid" },
+  1562→    { id: "INV-2025-005", date: "Feb 1, 2025", amount: "$249.00", status: "Paid" },
+  1563→    { id: "INV-2025-004", date: "Jan 1, 2025", amount: "$199.00", status: "Paid" },
+  1564→    { id: "INV-2024-012", date: "Dec 1, 2024", amount: "$199.00", status: "Paid" },
+  1565→    { id: "INV-2024-011", date: "Nov 1, 2024", amount: "$149.00", status: "Refunded" },
+  1566→  ];
+  1567→
+  1568→  return (
+  1569→    <div className="space-y-4">
+  1570→      {/* Plan card */}
+  1571→      <GlassCard className="crystal-in glass-sheen relative overflow-hidden p-5">
+  1572→        <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[var(--gold)]/30 blur-3xl" />
+  1573→        <div className="relative flex flex-wrap items-start justify-between gap-4">
+  1574→          <div>
+  1575→            <div className="flex items-center gap-2 text-xs font-medium text-primary">
+  1576→              <Crown className="h-3.5 w-3.5 text-[var(--gold)]" />
+  1577→              Current plan
+  1578→            </div>
+  1579→            <h3 className="mt-1 bg-gradient-to-r from-[var(--primary)] to-[var(--gold)] bg-clip-text text-2xl font-bold tracking-tight text-transparent">
+  1580→              Enterprise
+  1581→            </h3>
+  1582→            <p className="mt-1 text-sm text-muted-foreground">
+  1583→              Unlimited workspaces · 24/7 priority support · Dedicated CSM
+  1584→            </p>
+  1585→            <div className="mt-3 flex items-baseline gap-1">
+  1586→              <span className="text-2xl font-bold">$499</span>
+  1587→              <span className="text-sm text-muted-foreground">/mo</span>
+  1588→              <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-500">
+  1589→                Renews Apr 1
+  1590→              </span>
+  1591→            </div>
+  1592→          </div>
+  1593→          <div className="flex flex-col gap-2">
+  1594→            <button
+  1595→              onClick={() => toast.success("Upgrade flow — Stripe Checkout mock")}
+  1596→              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+  1597→            >
+  1598→              <Crown className="h-4 w-4" /> Upgrade plan
+  1599→            </button>
+  1600→            <button
+  1601→              onClick={() => toast.success("Stripe customer portal — mock")}
+  1602→              className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted/60"
+  1603→            >
+  1604→              Manage billing
+  1605→            </button>
+  1606→          </div>
+  1607→        </div>
+  1608→      </GlassCard>
+  1609→
+  1610→      {/* Usage */}
+  1611→      <GlassCard className="crystal-in p-5">
+  1612→        <SectionTitle title="Usage this cycle" desc="Resets Apr 1, 2025" />
+  1613→        <div className="grid gap-4 sm:grid-cols-2">
+  1614→          {usage.map((u) => {
+  1615→            const pct = Math.min(100, Math.round((u.used / u.limit) * 100));
+  1616→            const tone = pct > 85 ? "bg-rose-500" : pct > 60 ? "bg-amber-500" : "bg-primary";
+  1617→            return (
+  1618→              <div key={u.label} className="rounded-2xl bg-muted/20 p-4">
+  1619→                <div className="flex items-center justify-between">
+  1620→                  <span className="text-xs font-medium text-muted-foreground">{u.label}</span>
+  1621→                  <span className="text-xs font-semibold tabular-nums">
+  1622→                    {u.used}{u.unit} <span className="text-muted-foreground">/ {u.limit}{u.unit}</span>
+  1623→                  </span>
+  1624→                </div>
+  1625→                <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+  1626→                  <div className={cn("h-full rounded-full transition-all", tone)} style={{ width: `${pct}%` }} />
+  1627→                </div>
+  1628→                <div className="mt-1 text-right text-[10px] text-muted-foreground">{pct}% used</div>
+  1629→              </div>
+  1630→            );
+  1631→          })}
+  1632→        </div>
+  1633→      </GlassCard>
+  1634→
+  1635→      {/* Payment method */}
+  1636→      <GlassCard className="crystal-in p-5">
+  1637→        <SectionTitle
+  1638→          title="Payment method"
+  1639→          desc="Card used for subscription renewals."
+  1640→          action={
+  1641→            <button
+  1642→              onClick={() => toast.success("Update card — Stripe Elements mock")}
+  1643→              className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
+  1644→            >
+  1645→              Update
+  1646→            </button>
+  1647→          }
+  1648→        />
+  1649→        <div className="flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
+  1650→          <div className="grid h-10 w-14 place-items-center rounded-lg bg-gradient-to-br from-[oklch(0.4_0.16_258)] to-[oklch(0.2_0.03_258)] text-[10px] font-bold text-white">
+  1651→            VISA
+  1652→          </div>
+  1653→          <div className="flex-1">
+  1654→            <div className="text-sm font-medium">Visa ending in 4242</div>
+  1655→            <div className="text-xs text-muted-foreground">Expires 08 / 2027</div>
+  1656→          </div>
+  1657→          <Badge className="bg-primary/15 text-primary">Primary</Badge>
+  1658→        </div>
+  1659→      </GlassCard>
+  1660→
+  1661→      {/* Invoices */}
+  1662→      <GlassCard className="crystal-in p-5">
+  1663→        <SectionTitle title="Invoices" desc="Download past invoices and receipts." />
+  1664→        <div className="overflow-x-auto no-scrollbar">
+  1665→          <table className="w-full min-w-[480px] text-sm">
+  1666→            <thead>
+  1667→              <tr className="text-left text-xs text-muted-foreground">
+  1668→                <th className="px-2 py-2 font-medium">Invoice</th>
+  1669→                <th className="px-2 py-2 font-medium">Date</th>
+  1670→                <th className="px-2 py-2 font-medium">Amount</th>
+  1671→                <th className="px-2 py-2 text-right font-medium">Status</th>
+  1672→              </tr>
+  1673→            </thead>
+  1674→            <tbody>
+  1675→              {invoices.map((inv) => (
+  1676→                <tr key={inv.id} className="border-t border-border/50">
+  1677→                  <td className="px-2 py-2.5 text-xs font-medium">{inv.id}</td>
+  1678→                  <td className="px-2 py-2.5 text-xs text-muted-foreground">{inv.date}</td>
+  1679→                  <td className="px-2 py-2.5 text-xs">{inv.amount}</td>
+  1680→                  <td className="px-2 py-2.5 text-right">
+  1681→                    <span className={cn(
+  1682→                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+  1683→                      inv.status === "Paid" ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"
+  1684→                    )}>
+  1685→                      {inv.status}
+  1686→                    </span>
+  1687→                  </td>
+  1688→                </tr>
+  1689→              ))}
+  1690→            </tbody>
+  1691→          </table>
+  1692→        </div>
+  1693→      </GlassCard>
+  1694→    </div>
+  1695→  );
+  1696→}
+  1697→
+  1698→// ===== 10. Data & Privacy =====
+  1699→function DataSection() {
+  1700→  const [retention, setRetention] = React.useState({
+  1701→    analytics: "2-years",
+  1702→    media: "forever",
+  1703→    audit: "1-year",
+  1704→  });
+  1705→  const [toggles, setToggles] = React.useState<Record<string, boolean>>({
+  1706→    gdprExport: true,
+  1707→    anonymizeIp: true,
+  1708→    shareUsage: false,
+  1709→    optOutAI: false,
+  1710→  });
+  1711→
+  1712→  const flip = (k: string) => (v: boolean) => {
+  1713→    setToggles((prev) => ({ ...prev, [k]: v }));
+  1714→    toast.success("Privacy setting updated");
+  1715→  };
+  1716→
+  1717→  return (
+  1718→    <GlassCard className="crystal-in p-5">
+  1719→      <SectionTitle title="Data & Privacy" desc="Control how your data is stored, shared, and exported." />
+  1720→
+  1721→      {/* Export / Import */}
+  1722→      <div className="grid gap-3 sm:grid-cols-2">
+  1723→        <button
+  1724→          onClick={() => toast.success("Exporting data…", { description: "We'll email you when the ZIP is ready." })}
+  1725→          className="flex items-center gap-3 rounded-2xl border border-border bg-background p-4 text-left transition hover:bg-muted/40"
+  1726→        >
+  1727→          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+  1728→            <Download className="h-5 w-5" />
+  1729→          </div>
+  1730→          <div>
+  1731→            <div className="text-sm font-semibold">Export data</div>
+  1732→            <div className="text-xs text-muted-foreground">Posts, analytics, team, and inbox (JSON + CSV).</div>
+  1733→          </div>
+  1734→        </button>
+  1735→        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-border bg-background p-4 text-left transition hover:bg-muted/40">
+  1736→          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+  1737→            <Upload className="h-5 w-5" />
+  1738→          </div>
+  1739→          <div>
+  1740→            <div className="text-sm font-semibold">Import data</div>
+  1741→            <div className="text-xs text-muted-foreground">Migrate from Buffer, Hootsuite, or CSV.</div>
+  1742→          </div>
+  1743→          <input
+  1744→            type="file"
+  1745→            className="hidden"
+  1746→            onChange={() => toast.success("File received — parsing…")}
+  1747→          />
+  1748→        </label>
+  1749→      </div>
+  1750→
+  1751→      <Separator className="my-5" />
+  1752→
+  1753→      {/* Retention */}
+  1754→      <div>
+  1755→        <div className="text-sm font-medium">Data retention</div>
+  1756→        <div className="text-xs text-muted-foreground">How long we keep different categories of data.</div>
+  1757→        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+  1758→          <Field label="Analytics">
+  1759→            <Select value={retention.analytics} onValueChange={(v) => setRetention((p) => ({ ...p, analytics: v }))}>
+  1760→              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+  1761→              <SelectContent>
+  1762→                <SelectItem value="30-days">30 days</SelectItem>
+  1763→                <SelectItem value="1-year">1 year</SelectItem>
+  1764→                <SelectItem value="2-years">2 years</SelectItem>
+  1765→              </SelectContent>
+  1766→            </Select>
+  1767→          </Field>
+  1768→          <Field label="Media assets">
+  1769→            <Select value={retention.media} onValueChange={(v) => setRetention((p) => ({ ...p, media: v }))}>
+  1770→              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+  1771→              <SelectContent>
+  1772→                <SelectItem value="30-days">30 days</SelectItem>
+  1773→                <SelectItem value="1-year">1 year</SelectItem>
+  1774→                <SelectItem value="forever">Forever</SelectItem>
+  1775→              </SelectContent>
+  1776→            </Select>
+  1777→          </Field>
+  1778→          <Field label="Audit logs">
+  1779→            <Select value={retention.audit} onValueChange={(v) => setRetention((p) => ({ ...p, audit: v }))}>
+  1780→              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+  1781→              <SelectContent>
+  1782→                <SelectItem value="30-days">30 days</SelectItem>
+  1783→                <SelectItem value="1-year">1 year</SelectItem>
+  1784→                <SelectItem value="2-years">2 years</SelectItem>
+  1785→              </SelectContent>
+  1786→            </Select>
+  1787→          </Field>
+  1788→        </div>
+  1789→      </div>
+  1790→
+  1791→      <Separator className="my-5" />
+  1792→
+  1793→      {/* GDPR toggles */}
+  1794→      <div className="space-y-1">
+  1795→        <ToggleRow label="Right to export (GDPR)" desc="Allow any team member to request a data export." checked={toggles.gdprExport} onChange={flip("gdprExport")} />
+  1796→        <ToggleRow label="Anonymize IP addresses" desc="Strip the last octet from stored IP addresses." checked={toggles.anonymizeIp} onChange={flip("anonymizeIp")} />
+  1797→        <ToggleRow label="Share usage analytics" desc="Help us improve Prism by sending anonymous telemetry." checked={toggles.shareUsage} onChange={flip("shareUsage")} />
+  1798→        <ToggleRow label="Opt out of AI training" desc="Prevent your content from being used to improve AI models." checked={toggles.optOutAI} onChange={flip("optOutAI")} />
+  1799→      </div>
+  1800→
+  1801→      {/* Danger: delete workspace */}
+  1802→      <div className="mt-5 rounded-2xl border-2 border-rose-500/40 bg-rose-500/5 p-4">
+  1803→        <div className="flex items-center gap-2">
+  1804→          <FileWarning className="h-4 w-4 text-rose-500" />
+  1805→          <span className="text-sm font-semibold text-rose-500">Delete workspace</span>
+  1806→        </div>
+  1807→        <p className="mt-1 text-xs text-muted-foreground">
+  1808→          Permanently delete this workspace, all posts, analytics, and team members. This cannot be undone.
+  1809→        </p>
+  1810→        <DeleteConfirm
+  1811→          label="Type the workspace name 'Prism Studio' to confirm"
+  1812→          placeholder="Prism Studio"
+  1813→          confirmText="Prism Studio"
+  1814→          buttonLabel="Delete workspace"
+  1815→          onConfirm={() => toast.success("Workspace deletion scheduled (mock)")}
+  1816→        />
+  1817→      </div>
+  1818→    </GlassCard>
+  1819→  );
+  1820→}
+  1821→
+  1822→// ===== 11. Danger Zone =====
+  1823→function DangerSection() {
+  1824→  const [suspendId, setSuspendId] = React.useState("u-3");
+  1825→  const [transferTo, setTransferTo] = React.useState("u-1");
+  1826→
+  1827→  return (
+  1828→    <GlassCard className="crystal-in border-2 border-rose-500/40 p-5">
+  1829→      <SectionTitle
+  1830→        title="Danger Zone"
+  1831→        desc="Irreversible and destructive actions. Proceed with caution."
+  1832→      />
+  1833→
+  1834→      <div className="space-y-3">
+  1835→        {/* Suspend a member */}
+  1836→        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-background p-4">
+  1837→          <div className="grid h-10 w-10 place-items-center rounded-xl bg-rose-500/10 text-rose-500">
+  1838→            <UserX className="h-5 w-5" />
+  1839→          </div>
+  1840→          <div className="min-w-0 flex-1">
+  1841→            <div className="text-sm font-semibold">Suspend a member</div>
+  1842→            <div className="text-xs text-muted-foreground">Temporarily revoke access. They keep their content history.</div>
+  1843→          </div>
+  1844→          <Select value={suspendId} onValueChange={setSuspendId}>
+  1845→            <SelectTrigger className="h-9 w-44 text-xs"><SelectValue /></SelectTrigger>
+  1846→            <SelectContent>
+  1847→              {SEED_TEAM.filter((m) => m.role !== "admin").map((m) => (
+  1848→                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+  1849→              ))}
+  1850→            </SelectContent>
+  1851→          </Select>
+  1852→          <button
+  1853→            onClick={() => toast.success(`Suspended ${SEED_TEAM.find((m) => m.id === suspendId)?.name}`)}
+  1854→            className="flex items-center gap-1.5 rounded-xl border border-rose-500/40 px-3.5 py-1.5 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10"
+  1855→          >
+  1856→            <Ban className="h-3.5 w-3.5" /> Suspend
+  1857→          </button>
+  1858→        </div>
+  1859→
+  1860→        {/* Transfer ownership */}
+  1861→        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-background p-4">
+  1862→          <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/10 text-amber-500">
+  1863→            <ArrowLeftRight className="h-5 w-5" />
+  1864→          </div>
+  1865→          <div className="min-w-0 flex-1">
+  1866→            <div className="text-sm font-semibold">Transfer ownership</div>
+  1867→            <div className="text-xs text-muted-foreground">Hand over workspace admin rights to another member.</div>
+  1868→          </div>
+  1869→          <Select value={transferTo} onValueChange={setTransferTo}>
+  1870→            <SelectTrigger className="h-9 w-44 text-xs"><SelectValue /></SelectTrigger>
+  1871→            <SelectContent>
+  1872→              {SEED_TEAM.filter((m) => m.id !== "u-admin").map((m) => (
+  1873→                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+  1874→              ))}
+  1875→            </SelectContent>
+  1876→          </Select>
+  1877→          <button
+  1878→            onClick={() => toast.success(`Ownership transfer initiated to ${SEED_TEAM.find((m) => m.id === transferTo)?.name}`)}
+  1879→            className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 px-3.5 py-1.5 text-xs font-semibold text-amber-500 transition hover:bg-amber-500/10"
+  1880→          >
+  1881→            <ArrowLeftRight className="h-3.5 w-3.5" /> Transfer
+  1882→          </button>
+  1883→        </div>
+  1884→
+  1885→        {/* Delete account */}
+  1886→        <div className="rounded-2xl border-2 border-rose-500/50 bg-rose-500/5 p-4">
+  1887→          <div className="flex items-center gap-2">
+  1888→            <ShieldAlert className="h-4 w-4 text-rose-500" />
+  1889→            <span className="text-sm font-semibold text-rose-500">Delete account</span>
+  1890→          </div>
+  1891→          <p className="mt-1 text-xs text-muted-foreground">
+  1892→            Permanently delete your user account, all personal data, and revoke your sessions. This cannot be undone.
+  1893→          </p>
+  1894→          <DeleteConfirm
+  1895→            label='Type "DELETE" to confirm'
+  1896→            placeholder="DELETE"
+  1897→            confirmText="DELETE"
+  1898→            buttonLabel="Delete my account"
+  1899→            onConfirm={() => toast.success("Account deletion scheduled (mock)")}
+  1900→          />
+  1901→        </div>
+  1902→      </div>
+  1903→    </GlassCard>
+  1904→  );
+  1905→}
+  1906→
+  1907→// ===== Reusable pieces =====
+  1908→function Field({
+  1909→  label,
+  1910→  hint,
+  1911→  children,
+  1912→  className,
+  1913→  compact,
+  1914→}: {
+  1915→  label: string;
+  1916→  hint?: string;
+  1917→  children: React.ReactNode;
+  1918→  className?: string;
+  1919→  compact?: boolean;
+  1920→}) {
+  1921→  return (
+  1922→    <div className={className}>
+  1923→      <Label className={cn("text-xs font-medium", compact ? "mb-1" : "mb-1.5")}>{label}</Label>
+  1924→      {children}
+  1925→      {hint && <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p>}
+  1926→    </div>
+  1927→  );
+  1928→}
+  1929→
+  1930→function ToggleRow({
+  1931→  label,
+  1932→  desc,
+  1933→  checked,
+  1934→  onChange,
+  1935→  className,
+  1936→}: {
+  1937→  label: string;
+  1938→  desc?: string;
+  1939→  checked: boolean;
+  1940→  onChange: (v: boolean) => void;
+  1941→  className?: string;
+  1942→}) {
+  1943→  return (
+  1944→    <div className={cn("flex items-center justify-between gap-3 rounded-xl px-2 py-2 transition hover:bg-muted/30", className)}>
+  1945→      <div className="min-w-0">
+  1946→        <div className="text-sm font-medium">{label}</div>
+  1947→        {desc && <div className="text-xs text-muted-foreground">{desc}</div>}
+  1948→      </div>
+  1949→      <Switch checked={checked} onCheckedChange={onChange} />
+  1950→    </div>
+  1951→  );
+  1952→}
+  1953→
+  1954→function NotificationGroup({
+  1955→  title,
+  1956→  desc,
+  1957→  children,
+  1958→}: {
+  1959→  title: string;
+  1960→  desc: string;
+  1961→  children: React.ReactNode;
+  1962→}) {
+  1963→  return (
+  1964→    <div>
+  1965→      <div className="mb-1">
+  1966→        <div className="text-sm font-semibold">{title}</div>
+  1967→        <div className="text-xs text-muted-foreground">{desc}</div>
+  1968→      </div>
+  1969→      <div className="space-y-0.5">{children}</div>
+  1970→    </div>
+  1971→  );
+  1972→}
+  1973→
+  1974→function DeleteConfirm({
+  1975→  label,
+  1976→  placeholder,
+  1977→  confirmText,
+  1978→  buttonLabel,
+  1979→  onConfirm,
+  1980→}: {
+  1981→  label: string;
+  1982→  placeholder: string;
+  1983→  confirmText: string;
+  1984→  buttonLabel: string;
+  1985→  onConfirm: () => void;
+  1986→}) {
+  1987→  const [value, setValue] = React.useState("");
+  1988→  const matches = value.trim() === confirmText;
+  1989→  return (
+  1990→    <div className="mt-3">
+  1991→      <Label className="mb-1.5 text-xs font-medium">{label}</Label>
+  1992→      <div className="flex flex-wrap gap-2">
+  1993→        <Input
+  1994→          value={value}
+  1995→          onChange={(e) => setValue(e.target.value)}
+  1996→          placeholder={placeholder}
+  1997→          className="max-w-xs font-mono text-sm"
+  1998→        />
+  1999→        <button
+  2000→          onClick={() => {
+
+[showing lines 1-2000 of 2036; use offset=2001 with limit to continue reading]

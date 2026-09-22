@@ -4,11 +4,13 @@ import * as React from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import {
-  // Tabs
+  // Tabs (shared with app-sidebar via SETTINGS_TABS export)
   User,
   Building2,
   Palette,
   Bell,
+  Shield,
+  AtSign,
   ShieldCheck,
   Plug,
   Zap,
@@ -16,6 +18,8 @@ import {
   Database,
   AlertTriangle,
   Users,
+  Settings,
+  ChevronRight,
   // Profile / Workspace
   Camera,
   // Appearance
@@ -23,7 +27,6 @@ import {
   Moon,
   Monitor,
   Check,
-  Sparkles,
   // Team
   UserPlus,
   Crown,
@@ -61,6 +64,7 @@ import { NameAvatar } from "@/components/glass/name-avatar";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
+import { useNav } from "@/lib/store";
 import { useApi } from "@/lib/hooks";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,7 +97,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type SettingsTab =
+export type SettingsTab =
   | "profile"
   | "workspace"
   | "appearance"
@@ -106,25 +110,44 @@ type SettingsTab =
   | "data"
   | "danger";
 
-interface TabDef {
+export interface SettingsTabDef {
   id: SettingsTab;
   label: string;
   icon: React.ElementType;
 }
 
-const TABS: TabDef[] = [
+/**
+ * Settings sub-sections. Shared between the main app sidebar (so the
+ * Settings group expands to show these as children) and the SettingsView
+ * (which renders the matching section based on `useNav().settingsTab`).
+ */
+export const SETTINGS_TABS: SettingsTabDef[] = [
   { id: "profile", label: "Profile", icon: User },
   { id: "workspace", label: "Workspace", icon: Building2 },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "team-roles", label: "Team Roles", icon: Users },
   { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "security", label: "Security", icon: ShieldCheck },
-  { id: "platforms", label: "Platforms", icon: Plug },
-  { id: "integrations", label: "Integrations", icon: Zap },
+  { id: "security", label: "Security", icon: Shield },
+  { id: "platforms", label: "Platforms", icon: AtSign },
+  { id: "integrations", label: "Integrations", icon: Plug },
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "data", label: "Data & Privacy", icon: Database },
   { id: "danger", label: "Danger Zone", icon: AlertTriangle },
 ];
+
+const SECTION_DESC: Record<SettingsTab, string> = {
+  profile: "Your personal information visible to your team.",
+  workspace: "Defaults applied across compose, schedule, and AI generation.",
+  appearance: "Personalize how Prism looks on this device.",
+  "team-roles": "Manage who can access what. Changes are staged locally — save to sync.",
+  notifications: "Choose what reaches your inbox and how often.",
+  security: "Password, 2FA, sessions, API keys, and IP allowlist.",
+  platforms: "Manage which social accounts are connected to Prism.",
+  integrations: "Connect Prism with the tools your team already uses.",
+  billing: "Plan, usage, payment method, and invoices.",
+  data: "Control how your data is stored, shared, and exported.",
+  danger: "Irreversible and destructive actions. Proceed with caution.",
+};
 
 // ===== Shared types & lookups =====
 type Role = "admin" | "manager" | "editor" | "member" | "viewer";
@@ -224,68 +247,48 @@ const DEFAULT_ACCENT = ACCENTS[0].value;
 
 // ===== Main component =====
 export function SettingsView() {
-  const [tab, setTab] = React.useState<SettingsTab>("team-roles");
+  const { settingsTab } = useNav();
+  const tab: SettingsTab = (settingsTab as SettingsTab) || "team-roles";
+  const activeDef = SETTINGS_TABS.find((t) => t.id === tab) ?? SETTINGS_TABS[0];
+  const ActiveIcon = activeDef.icon;
 
   return (
     <div className="animate-rise space-y-4">
-      {/* Header */}
+      {/* Breadcrumb header — section is driven by the main sidebar */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-5">
         <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/25 blur-3xl" />
         <div className="relative flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-              Workspace configuration
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Settings className="h-3.5 w-3.5" />
+              <span>Settings</span>
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+              <span className="flex items-center gap-1.5 font-semibold text-primary">
+                <ActiveIcon className="h-3.5 w-3.5" />
+                {activeDef.label}
+              </span>
             </div>
-            <h2 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">Settings</h2>
+            <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">{activeDef.label}</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Manage your profile, team, security, billing, and integrations.
+              {SECTION_DESC[tab] ?? "Manage your workspace."}
             </p>
           </div>
         </div>
       </GlassCard>
 
-      {/* Layout: sticky left nav + content panel */}
-      <div className="grid gap-4 lg:grid-cols-[230px_1fr]">
-        {/* Left nav */}
-        <nav className="lg:sticky lg:top-4 lg:self-start">
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:flex-col lg:gap-1 lg:overflow-visible lg:pb-0">
-            {TABS.map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition whitespace-nowrap",
-                    active
-                      ? "bg-primary/15 text-primary shadow-sm"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-
-        {/* Right content */}
-        <div className="min-w-0 space-y-4">
-          {tab === "profile" && <ProfileSection />}
-          {tab === "workspace" && <WorkspaceSection />}
-          {tab === "appearance" && <AppearanceSection />}
-          {tab === "team-roles" && <TeamRolesSection />}
-          {tab === "notifications" && <NotificationsSection />}
-          {tab === "security" && <SecuritySection />}
-          {tab === "platforms" && <PlatformsSection />}
-          {tab === "integrations" && <IntegrationsSection />}
-          {tab === "billing" && <BillingSection />}
-          {tab === "data" && <DataSection />}
-          {tab === "danger" && <DangerSection />}
-        </div>
+      {/* Full-width content panel — active tab driven by useNav().settingsTab */}
+      <div className="min-w-0 space-y-4">
+        {tab === "profile" && <ProfileSection />}
+        {tab === "workspace" && <WorkspaceSection />}
+        {tab === "appearance" && <AppearanceSection />}
+        {tab === "team-roles" && <TeamRolesSection />}
+        {tab === "notifications" && <NotificationsSection />}
+        {tab === "security" && <SecuritySection />}
+        {tab === "platforms" && <PlatformsSection />}
+        {tab === "integrations" && <IntegrationsSection />}
+        {tab === "billing" && <BillingSection />}
+        {tab === "data" && <DataSection />}
+        {tab === "danger" && <DangerSection />}
       </div>
     </div>
   );
