@@ -121,6 +121,7 @@ export function DashboardView() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="crystal-in" style={{ animationDelay: "0.05s" }}>
         <KpiCard
           label="Total Followers"
           value={data.kpis.totalFollowers.display}
@@ -129,6 +130,8 @@ export function DashboardView() {
           accent="oklch(0.7 0.24 14)"
           hint={`across ${data.kpis.accounts} accounts`}
         />
+        </div>
+        <div className="crystal-in" style={{ animationDelay: "0.12s" }}>
         <KpiCard
           label="Impressions"
           value={data.kpis.impressions.display}
@@ -137,6 +140,8 @@ export function DashboardView() {
           accent="oklch(0.74 0.18 165)"
           hint="last 30 days"
         />
+        </div>
+        <div className="crystal-in" style={{ animationDelay: "0.19s" }}>
         <KpiCard
           label="Engagement"
           value={data.kpis.engagement.display}
@@ -145,6 +150,8 @@ export function DashboardView() {
           accent="oklch(0.66 0.22 305)"
           hint="likes + comments + shares"
         />
+        </div>
+        <div className="crystal-in" style={{ animationDelay: "0.26s" }}>
         <KpiCard
           label="Scheduled"
           value={data.kpis.scheduled}
@@ -152,11 +159,12 @@ export function DashboardView() {
           accent="oklch(0.78 0.18 75)"
           hint={`${data.kpis.published} published`}
         />
+        </div>
       </div>
 
       {/* Chart + platform donut */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <GlassCard className="p-5 lg:col-span-2">
+        <GlassCard className="crystal-in p-5 lg:col-span-2" style={{ animationDelay: "0.3s" }}>
           <SectionTitle
             title="Performance trend"
             desc="Impressions & engagement across all accounts"
@@ -211,14 +219,14 @@ export function DashboardView() {
                   labelFormatter={(d) => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                   formatter={(v: number, n) => [fmt(v), n === "impressions" ? "Impressions" : "Engagement"]}
                 />
-                <Area type="monotone" dataKey="impressions" stroke="var(--primary)" strokeWidth={2.5} fill="url(#gImp)" />
-                <Area type="monotone" dataKey="engagement" stroke="oklch(0.74 0.18 165)" strokeWidth={2.5} fill="url(#gEng)" />
+                <Area type="monotone" dataKey="impressions" stroke="var(--primary)" strokeWidth={2.5} fill="url(#gImp)" isAnimationActive animationBegin={200} animationDuration={1200} />
+                <Area type="monotone" dataKey="engagement" stroke="oklch(0.74 0.18 165)" strokeWidth={2.5} fill="url(#gEng)" isAnimationActive animationBegin={450} animationDuration={1200} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </GlassCard>
 
-        <GlassCard className="p-5">
+        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.38s" }}>
           <SectionTitle title="Followers" desc="By platform" />
           <div className="relative mx-auto h-[180px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -253,7 +261,7 @@ export function DashboardView() {
 
       {/* Top posts + upcoming */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <GlassCard className="p-5 lg:col-span-2">
+        <GlassCard className="crystal-in p-5 lg:col-span-2" style={{ animationDelay: "0.46s" }}>
           <SectionTitle title="Top performing posts" desc="By total engagement across platforms" action={
             <button onClick={() => setView("analytics")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
               View all <ArrowUpRight className="h-3 w-3" />
@@ -292,7 +300,7 @@ export function DashboardView() {
           </div>
         </GlassCard>
 
-        <GlassCard className="p-5">
+        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.54s" }}>
           <SectionTitle title="Upcoming" desc="Scheduled posts" action={
             <button onClick={() => setView("calendar")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
               Calendar <ArrowUpRight className="h-3 w-3" />
@@ -329,7 +337,7 @@ export function DashboardView() {
       </div>
 
       {/* Activity feed */}
-      <GlassCard className="p-5">
+      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.62s" }}>
         <SectionTitle title="Team activity" desc="Recent actions across your workspace" />
         <div className="space-y-1">
           {data.activities.map((a) => {
