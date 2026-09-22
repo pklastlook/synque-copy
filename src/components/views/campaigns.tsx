@@ -10,11 +10,11 @@ import {
   Copy,
   Archive,
   ArrowRight,
-  DollarSign,
   CheckCircle2,
   FileEdit,
   Target,
   CalendarRange,
+  Pause,
   Sparkles,
   Eye,
   Heart,
@@ -57,7 +57,6 @@ interface Campaign {
   color: string;
   status: "draft" | "active" | "paused" | "completed";
   objective: string | null;
-  budget: number | null;
   startDate: string | null;
   endDate: string | null;
   ownerId: string;
@@ -114,19 +113,6 @@ const OBJECTIVES: { value: string; label: string; icon: React.ElementType }[] = 
   { value: "traffic", label: "Traffic", icon: ArrowRight },
 ];
 
-/** deterministic 0.4–0.7 spent ratio from campaign id */
-function spentRatio(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
-  return 0.4 + (Math.abs(h) % 31) / 100; // 0.40 – 0.70
-}
-
-function fmtMoney(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(n >= 100_000 ? 0 : 1)}K`;
-  return `$${Math.round(n)}`;
-}
-
 function fmtRange(start: string | null, end: string | null) {
   const s = start && isValid(parseISO(start)) ? parseISO(start) : null;
   const e = end && isValid(parseISO(end)) ? parseISO(end) : null;
@@ -150,7 +136,7 @@ export function CampaignsView() {
     active: data.filter((c) => c.status === "active").length,
     completed: data.filter((c) => c.status === "completed").length,
     draft: data.filter((c) => c.status === "draft").length,
-    budget: data.reduce((s, c) => s + (c.budget ?? 0), 0),
+    paused: data.filter((c) => c.status === "paused").length,
   };
 
   const filterPills: { value: StatusFilter; label: string; count: number }[] = [
@@ -207,11 +193,11 @@ export function CampaignsView() {
           hint="running now"
         />
         <KpiCard
-          label="Total budget"
-          value={fmtMoney(kpis.budget)}
-          icon={<DollarSign className="h-5 w-5" />}
-          accent="var(--primary)"
-          hint="across all campaigns"
+          label="Paused"
+          value={kpis.paused}
+          icon={<Pause className="h-5 w-5" />}
+          accent="oklch(0.72 0.18 75)"
+          hint="on hold"
         />
         <KpiCard
           label="Completed"
@@ -298,7 +284,6 @@ function CampaignCard({
   onViewPosts: () => void;
 }) {
   const status = STATUS_META[campaign.status];
-  const spentRatioPct = Math.round(spentRatio(campaign.id) * 100);
   const range = fmtRange(campaign.startDate, campaign.endDate);
   const objective = campaign.objective
     ? OBJECTIVES.find((o) => o.value === campaign.objective)
@@ -367,18 +352,12 @@ function CampaignCard({
           <p className="mt-1 text-xs italic text-muted-foreground/60">No description</p>
         )}
 
-        {/* Objective + budget row */}
+        {/* Objective row */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {objective && (
             <span className="inline-flex items-center gap-1 rounded-lg bg-muted/60 px-2 py-1 text-[11px] font-medium text-foreground/80">
               <objective.icon className="h-3 w-3" />
               {objective.label}
-            </span>
-          )}
-          {campaign.budget != null && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-              <DollarSign className="h-3 w-3" />
-              {fmtMoney(campaign.budget)}
             </span>
           )}
         </div>
@@ -391,21 +370,6 @@ function CampaignCard({
           </div>
         )}
 
-        {/* Budget utilization */}
-        {campaign.budget != null && campaign.budget > 0 && (
-          <div className="mt-3">
-            <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Budget used</span>
-              <span className="font-medium text-foreground">{spentRatioPct}%</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-[var(--gold)] transition-all"
-                style={{ width: `${spentRatioPct}%` }}
-              />
-            </div>
-          </div>
-        )}
 
         {/* Footer */}
         <div className="mt-4 flex items-center gap-2 border-t border-border/60 pt-3">
@@ -436,7 +400,6 @@ function CreateCampaignDialog({
   const [description, setDescription] = React.useState("");
   const [color, setColor] = React.useState(COLOR_SWATCHES[0]);
   const [objective, setObjective] = React.useState<string>("awareness");
-  const [budget, setBudget] = React.useState<string>("");
   const [startDate, setStartDate] = React.useState<string>("");
   const [endDate, setEndDate] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState(false);
@@ -446,7 +409,6 @@ function CreateCampaignDialog({
     setDescription("");
     setColor(COLOR_SWATCHES[0]);
     setObjective("awareness");
-    setBudget("");
     setStartDate("");
     setEndDate("");
   };
@@ -466,7 +428,6 @@ function CreateCampaignDialog({
           description: description.trim() || null,
           color,
           objective,
-          budget: budget ? Number(budget) : null,
           startDate: startDate || null,
           endDate: endDate || null,
           ownerId: "u-admin",
@@ -496,7 +457,7 @@ function CreateCampaignDialog({
             New campaign
           </DialogTitle>
           <DialogDescription>
-            Define the goals, budget and timeline for your next campaign.
+            Define the goals and timeline for your next campaign.
           </DialogDescription>
         </DialogHeader>
 
@@ -545,37 +506,24 @@ function CreateCampaignDialog({
             </div>
           </div>
 
-          {/* Objective + budget */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Objective</Label>
-              <Select value={objective} onValueChange={setObjective}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {OBJECTIVES.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      <span className="flex items-center gap-2">
-                        <o.icon className="h-3.5 w-3.5" />
-                        {o.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cmp-budget">Budget (USD)</Label>
-              <Input
-                id="cmp-budget"
-                type="number"
-                min={0}
-                placeholder="5000"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-              />
-            </div>
+          {/* Objective */}
+          <div className="space-y-2">
+            <Label>Objective</Label>
+            <Select value={objective} onValueChange={setObjective}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OBJECTIVES.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    <span className="flex items-center gap-2">
+                      <o.icon className="h-3.5 w-3.5" />
+                      {o.label}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Dates */}

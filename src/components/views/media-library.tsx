@@ -149,7 +149,7 @@ function parseTags(tags: string | null): string[] {
 
 export function MediaLibraryView() {
   const { data, loading, reload } = useApi<MediaResponse>("/api/media");
-  const { openComposer } = useNav();
+  const { openComposer, mediaTab } = useNav();
   const [folder, setFolder] = React.useState<string>("all");
   const [query, setQuery] = React.useState("");
   const [view, setView] = React.useState<"grid" | "list">("grid");
@@ -160,6 +160,16 @@ export function MediaLibraryView() {
 
   const assets = data.assets;
   const folders = data.folders;
+
+  // Type filter driven by the sidebar's Media Library expandable group:
+  // "all" | "images" | "videos" | "audio".
+  const typeFilter: Record<string, MediaAsset["type"] | null> = {
+    all: null,
+    images: "image",
+    videos: "video",
+    audio: "audio",
+  };
+  const activeType = typeFilter[mediaTab] ?? null;
 
   // Folder list: All + root + each folder from API
   const folderList: { name: string; count: number; size: number }[] = [
@@ -176,8 +186,9 @@ export function MediaLibraryView() {
     ...folders.filter((f) => f.name !== "root"),
   ];
 
-  // Filter assets by folder + query
+  // Filter assets by type + folder + query
   const filtered = assets.filter((a) => {
+    if (activeType !== null && a.type !== activeType) return false;
     const folderMatch = folder === "all" ? true : a.folder === folder;
     if (!folderMatch) return false;
     if (!query.trim()) return true;
@@ -189,10 +200,12 @@ export function MediaLibraryView() {
     );
   });
 
-  // KPIs
-  const totalSize = assets.reduce((s, a) => s + a.size, 0);
-  const imageCount = assets.filter((a) => a.type === "image").length;
-  const uniqueFolders = new Set(assets.map((a) => a.folder)).size;
+  // KPIs — scope counts to the active type filter so the strip reflects
+  // what the user is currently viewing in the sidebar.
+  const scopedAssets = activeType === null ? assets : assets.filter((a) => a.type === activeType);
+  const totalSize = scopedAssets.reduce((s, a) => s + a.size, 0);
+  const imageCount = scopedAssets.filter((a) => a.type === "image").length;
+  const uniqueFolders = new Set(scopedAssets.map((a) => a.folder)).size;
 
   return (
     <div className="animate-rise space-y-5">
@@ -211,12 +224,17 @@ export function MediaLibraryView() {
             <div className="flex items-center gap-2 text-xs font-medium text-primary">
               <Sparkles className="h-3.5 w-3.5" />
               Media library
+              {mediaTab !== "all" && (
+                <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  {mediaTab}
+                </span>
+              )}
             </div>
             <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
               Your creative assets, organized
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{assets.length}</span> assets ·{" "}
+              <span className="font-semibold text-foreground">{scopedAssets.length}</span> assets ·{" "}
               <span className="font-semibold text-foreground">{fmtBytesBig(totalSize)}</span> used ·{" "}
               <span className="font-semibold text-foreground">{uniqueFolders}</span> folders
             </p>
@@ -235,10 +253,10 @@ export function MediaLibraryView() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
           label="Total assets"
-          value={assets.length}
+          value={scopedAssets.length}
           icon={<ImageIcon className="h-5 w-5" />}
           accent="var(--primary)"
-          hint="all media files"
+          hint={mediaTab === "all" ? "all media files" : `${mediaTab} only`}
         />
         <KpiCard
           label="Total size"

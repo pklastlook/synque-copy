@@ -1,0 +1,959 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import * as React from "react";
+     4→     4→import { format, parseISO, isValid } from "date-fns";
+     5→     5→import {
+     6→     6→  Image as ImageIcon,
+     7→     7→  Film,
+     8→     8→  Music,
+     9→     9→  Search,
+    10→    10→  Upload,
+    11→    11→  Plus,
+    12→    12→  Folder as FolderIcon,
+    13→    13→  FolderPlus,
+    14→    14→  LayoutGrid,
+    15→    15→  List as ListIcon,
+    16→    16→  Copy,
+    17→    17→  Trash2,
+    18→    18→  Wand2,
+    19→    19→  Sparkles,
+    20→    20→  HardDrive,
+    21→    21→  Hash,
+    22→    22→  Calendar,
+    23→    23→  FolderOpen,
+    24→    24→} from "lucide-react";
+    25→    25→import { toast } from "sonner";
+    26→    26→import { useApi } from "@/lib/hooks";
+    27→    27→import { GlassCard, KpiCard } from "@/components/glass/glass-card";
+    28→    28→import { useNav } from "@/lib/store";
+    29→    29→import { cn } from "@/lib/utils";
+    30→    30→import {
+    31→    31→  Dialog,
+    32→    32→  DialogContent,
+    33→    33→  DialogDescription,
+    34→    34→  DialogFooter,
+    35→    35→  DialogHeader,
+    36→    36→  DialogTitle,
+    37→    37→} from "@/components/ui/dialog";
+    38→    38→import {
+    39→    39→  Select,
+    40→    40→  SelectContent,
+    41→    41→  SelectItem,
+    42→    42→  SelectTrigger,
+    43→    43→  SelectValue,
+    44→    44→} from "@/components/ui/select";
+    45→    45→import { Input } from "@/components/ui/input";
+    46→    46→import { Label } from "@/components/ui/label";
+    47→    47→import { Button } from "@/components/ui/button";
+    48→    48→
+    49→    49→interface MediaAsset {
+    50→    50→  id: string;
+    51→    51→  name: string;
+    52→    52→  type: "image" | "video" | "audio";
+    53→    53→  url: string;
+    54→    54→  thumbnail: string | null;
+    55→    55→  size: number;
+    56→    56→  width: number | null;
+    57→    57→  height: number | null;
+    58→    58→  tags: string | null;
+    59→    59→  folder: string;
+    60→    60→  uploadedById: string | null;
+    61→    61→  createdAt: string;
+    62→    62→}
+    63→    63→
+    64→    64→interface MediaFolder {
+    65→    65→  name: string;
+    66→    66→  count: number;
+    67→    67→  size: number;
+    68→    68→}
+    69→    69→
+    70→    70→interface MediaResponse {
+    71→    71→  assets: MediaAsset[];
+    72→    72→  folders: MediaFolder[];
+    73→    73→}
+    74→    74→
+    75→    75→/** Preset library images for "Add from library" quick-pick. */
+    76→    76→const PRESET_LIBRARY: { url: string; name: string; tags: string }[] = [
+    77→    77→  {
+    78→    78→    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/90d070238cd1.jpg",
+    79→    79→    name: "Brand sunset",
+    80→    80→    tags: "brand, sunset, product",
+    81→    81→  },
+    82→    82→  {
+    83→    83→    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/3c1a14f7bc03.jpg",
+    84→    84→    name: "Lifestyle shot",
+    85→    85→    tags: "lifestyle, people",
+    86→    86→  },
+    87→    87→  {
+    88→    88→    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/499f6186a75b.jpg",
+    89→    89→    name: "Flat lay",
+    90→    90→    tags: "flat-lay, product",
+    91→    91→  },
+    92→    92→  {
+    93→    93→    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/72adecde4e2f.jpg",
+    94→    94→    name: "Team moment",
+    95→    95→    tags: "team, behind-the-scenes",
+    96→    96→  },
+    97→    97→  {
+    98→    98→    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/26cfb8da4289.jpg",
+    99→    99→    name: "Texture background",
+   100→   100→    tags: "background, texture",
+   101→   101→  },
+   102→   102→  {
+   103→   103→    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/0d38ffbc8924.jpg",
+   104→   104→    name: "City scene",
+   105→   105→    tags: "city, urban",
+   106→   106→  },
+   107→   107→];
+   108→   108→
+   109→   109→function fmtSize(bytes: number) {
+   110→   110→  if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(2)} GB`;
+   111→   111→  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
+   112→   112→  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+   113→   113→  return `${bytes} B`;
+   114→   114→}
+   115→   115→
+   116→   116→function fmtBytesBig(bytes: number) {
+   117→   117→  if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(2)} GB`;
+   118→   118→  return `${(bytes / 1_048_576).toFixed(1)} MB`;
+   119→   119→}
+   120→   120→
+   121→   121→const TYPE_META: Record<
+   122→   122→  MediaAsset["type"],
+   123→   123→  { icon: React.ElementType; color: string; bg: string }
+   124→   124→> = {
+   125→   125→  image: {
+   126→   126→    icon: ImageIcon,
+   127→   127→    color: "text-[oklch(0.55_0.18_145)]",
+   128→   128→    bg: "bg-[oklch(0.76_0.18_145)]/20",
+   129→   129→  },
+   130→   130→  video: {
+   131→   131→    icon: Film,
+   132→   132→    color: "text-[oklch(0.55_0.16_75)]",
+   133→   133→    bg: "bg-[oklch(0.78_0.18_75)]/20",
+   134→   134→  },
+   135→   135→  audio: {
+   136→   136→    icon: Music,
+   137→   137→    color: "text-[oklch(0.55_0.18_165)]",
+   138→   138→    bg: "bg-[oklch(0.74_0.18_165)]/20",
+   139→   139→  },
+   140→   140→};
+   141→   141→
+   142→   142→function parseTags(tags: string | null): string[] {
+   143→   143→  if (!tags) return [];
+   144→   144→  return tags
+   145→   145→    .split(",")
+   146→   146→    .map((t) => t.trim())
+   147→   147→    .filter(Boolean);
+   148→   148→}
+   149→   149→
+   150→   150→export function MediaLibraryView() {
+   151→   151→  const { data, loading, reload } = useApi<MediaResponse>("/api/media");
+   152→   152→  const { openComposer } = useNav();
+   153→   153→  const [folder, setFolder] = React.useState<string>("all");
+   154→   154→  const [query, setQuery] = React.useState("");
+   155→   155→  const [view, setView] = React.useState<"grid" | "list">("grid");
+   156→   156→  const [uploadOpen, setUploadOpen] = React.useState(false);
+   157→   157→  const [selected, setSelected] = React.useState<MediaAsset | null>(null);
+   158→   158→
+   159→   159→  if (loading || !data) return <MediaSkeleton />;
+   160→   160→
+   161→   161→  const assets = data.assets;
+   162→   162→  const folders = data.folders;
+   163→   163→
+   164→   164→  // Folder list: All + root + each folder from API
+   165→   165→  const folderList: { name: string; count: number; size: number }[] = [
+   166→   166→    {
+   167→   167→      name: "all",
+   168→   168→      count: assets.length,
+   169→   169→      size: assets.reduce((s, a) => s + a.size, 0),
+   170→   170→    },
+   171→   171→    {
+   172→   172→      name: "root",
+   173→   173→      count: assets.filter((a) => a.folder === "root").length,
+   174→   174→      size: assets.filter((a) => a.folder === "root").reduce((s, a) => s + a.size, 0),
+   175→   175→    },
+   176→   176→    ...folders.filter((f) => f.name !== "root"),
+   177→   177→  ];
+   178→   178→
+   179→   179→  // Filter assets by folder + query
+   180→   180→  const filtered = assets.filter((a) => {
+   181→   181→    const folderMatch = folder === "all" ? true : a.folder === folder;
+   182→   182→    if (!folderMatch) return false;
+   183→   183→    if (!query.trim()) return true;
+   184→   184→    const q = query.toLowerCase();
+   185→   185→    const tags = parseTags(a.tags);
+   186→   186→    return (
+   187→   187→      a.name.toLowerCase().includes(q) ||
+   188→   188→      tags.some((t) => t.toLowerCase().includes(q))
+   189→   189→    );
+   190→   190→  });
+   191→   191→
+   192→   192→  // KPIs
+   193→   193→  const totalSize = assets.reduce((s, a) => s + a.size, 0);
+   194→   194→  const imageCount = assets.filter((a) => a.type === "image").length;
+   195→   195→  const uniqueFolders = new Set(assets.map((a) => a.folder)).size;
+   196→   196→
+   197→   197→  return (
+   198→   198→    <div className="animate-rise space-y-5">
+   199→   199→      {/* Hero */}
+   200→   200→      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
+   201→   201→        <div
+   202→   202→          className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full opacity-40 blur-3xl"
+   203→   203→          style={{ background: "oklch(0.74 0.18 165)" }}
+   204→   204→        />
+   205→   205→        <div
+   206→   206→          className="pointer-events-none absolute -bottom-12 left-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
+   207→   207→          style={{ background: "var(--primary)" }}
+   208→   208→        />
+   209→   209→        <div className="relative flex flex-wrap items-center justify-between gap-4">
+   210→   210→          <div>
+   211→   211→            <div className="flex items-center gap-2 text-xs font-medium text-primary">
+   212→   212→              <Sparkles className="h-3.5 w-3.5" />
+   213→   213→              Media library
+   214→   214→            </div>
+   215→   215→            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+   216→   216→              Your creative assets, organized
+   217→   217→            </h2>
+   218→   218→            <p className="mt-1 text-sm text-muted-foreground">
+   219→   219→              <span className="font-semibold text-foreground">{assets.length}</span> assets ·{" "}
+   220→   220→              <span className="font-semibold text-foreground">{fmtBytesBig(totalSize)}</span> used ·{" "}
+   221→   221→              <span className="font-semibold text-foreground">{uniqueFolders}</span> folders
+   222→   222→            </p>
+   223→   223→          </div>
+   224→   224→          <button
+   225→   225→            onClick={() => setUploadOpen(true)}
+   226→   226→            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+   227→   227→          >
+   228→   228→            <Upload className="h-4 w-4" />
+   229→   229→            Upload
+   230→   230→          </button>
+   231→   231→        </div>
+   232→   232→      </GlassCard>
+   233→   233→
+   234→   234→      {/* KPI strip */}
+   235→   235→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   236→   236→        <KpiCard
+   237→   237→          label="Total assets"
+   238→   238→          value={assets.length}
+   239→   239→          icon={<ImageIcon className="h-5 w-5" />}
+   240→   240→          accent="var(--primary)"
+   241→   241→          hint="all media files"
+   242→   242→        />
+   243→   243→        <KpiCard
+   244→   244→          label="Total size"
+   245→   245→          value={fmtBytesBig(totalSize)}
+   246→   246→          icon={<HardDrive className="h-5 w-5" />}
+   247→   247→          accent="oklch(0.74 0.18 165)"
+   248→   248→          hint="storage used"
+   249→   249→        />
+   250→   250→        <KpiCard
+   251→   251→          label="Folders"
+   252→   252→          value={uniqueFolders}
+   253→   253→          icon={<FolderIcon className="h-5 w-5" />}
+   254→   254→          accent="oklch(0.66 0.22 305)"
+   255→   255→          hint="organized collections"
+   256→   256→        />
+   257→   257→        <KpiCard
+   258→   258→          label="Images"
+   259→   259→          value={imageCount}
+   260→   260→          icon={<Hash className="h-5 w-5" />}
+   261→   261→          accent="oklch(0.78 0.18 75)"
+   262→   262→          hint="image assets"
+   263→   263→        />
+   264→   264→      </div>
+   265→   265→
+   266→   266→      <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+   267→   267→        {/* Sidebar (folders) — hidden on mobile, becomes horizontal pills */}
+   268→   268→        <div className="lg:block">
+   269→   269→          <GlassCard className="p-4">
+   270→   270→            <div className="mb-3 hidden items-center justify-between lg:flex">
+   271→   271→              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+   272→   272→                Folders
+   273→   273→              </span>
+   274→   274→              <button
+   275→   275→                onClick={() => toast.info("New folder coming soon")}
+   276→   276→                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+   277→   277→                aria-label="New folder"
+   278→   278→              >
+   279→   279→                <FolderPlus className="h-3.5 w-3.5" />
+   280→   280→              </button>
+   281→   281→            </div>
+   282→   282→            {/* Mobile: horizontal scroll */}
+   283→   283→            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+   284→   284→              {folderList.map((f) => {
+   285→   285→                const isActive = folder === f.name;
+   286→   286→                const label = f.name === "all" ? "All assets" : f.name === "root" ? "Root" : f.name;
+   287→   287→                return (
+   288→   288→                  <button
+   289→   289→                    key={f.name}
+   290→   290→                    onClick={() => setFolder(f.name)}
+   291→   291→                    className={cn(
+   292→   292→                      "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium transition lg:shrink-0",
+   293→   293→                      isActive
+   294→   294→                        ? "border-primary/40 bg-primary text-primary-foreground shadow-sm"
+   295→   295→                        : "border-border/60 bg-background/60 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+   296→   296→                    )}
+   297→   297→                  >
+   298→   298→                    {f.name === "all" ? (
+   299→   299→                      <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
+   300→   300→                    ) : (
+   301→   301→                      <FolderIcon className="h-3.5 w-3.5 shrink-0" />
+   302→   302→                    )}
+   303→   303→                    <span className="whitespace-nowrap">{label}</span>
+   304→   304→                    <span
+   305→   305→                      className={cn(
+   306→   306→                        "ml-auto rounded-full px-1.5 py-0.5 text-[10px]",
+   307→   307→                        isActive
+   308→   308→                          ? "bg-primary-foreground/20 text-primary-foreground"
+   309→   309→                          : "bg-muted-foreground/15 text-muted-foreground"
+   310→   310→                      )}
+   311→   311→                    >
+   312→   312→                      {f.count}
+   313→   313→                    </span>
+   314→   314→                  </button>
+   315→   315→                );
+   316→   316→              })}
+   317→   317→              <button
+   318→   318→                onClick={() => toast.info("New folder coming soon")}
+   319→   319→                className="flex shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted/40 hover:text-foreground lg:hidden"
+   320→   320→              >
+   321→   321→                <FolderPlus className="h-3.5 w-3.5" /> New
+   322→   322→              </button>
+   323→   323→            </div>
+   324→   324→          </GlassCard>
+   325→   325→        </div>
+   326→   326→
+   327→   327→        {/* Main area */}
+   328→   328→        <div className="min-w-0 space-y-4">
+   329→   329→          {/* Toolbar */}
+   330→   330→          <GlassCard className="flex flex-wrap items-center gap-3 p-3">
+   331→   331→            <div className="relative min-w-0 flex-1">
+   332→   332→              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+   333→   333→              <Input
+   334→   334→                placeholder="Search by name or tag…"
+   335→   335→                value={query}
+   336→   336→                onChange={(e) => setQuery(e.target.value)}
+   337→   337→                className="pl-9"
+   338→   338→              />
+   339→   339→            </div>
+   340→   340→            <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
+   341→   341→              <button
+   342→   342→                onClick={() => setView("grid")}
+   343→   343→                className={cn(
+   344→   344→                  "grid h-7 w-7 place-items-center rounded-lg transition",
+   345→   345→                  view === "grid"
+   346→   346→                    ? "bg-background text-foreground shadow-sm"
+   347→   347→                    : "text-muted-foreground hover:text-foreground"
+   348→   348→                )}
+   349→   349→                aria-label="Grid view"
+   350→   350→              >
+   351→   351→                <LayoutGrid className="h-4 w-4" />
+   352→   352→              </button>
+   353→   353→              <button
+   354→   354→                onClick={() => setView("list")}
+   355→   355→                className={cn(
+   356→   356→                  "grid h-7 w-7 place-items-center rounded-lg transition",
+   357→   357→                  view === "list"
+   358→   358→                    ? "bg-background text-foreground shadow-sm"
+   359→   359→                    : "text-muted-foreground hover:text-foreground"
+   360→   360→                )}
+   361→   361→                aria-label="List view"
+   362→   362→              >
+   363→   363→                <ListIcon className="h-4 w-4" />
+   364→   364→              </button>
+   365→   365→            </div>
+   366→   366→          </GlassCard>
+   367→   367→
+   368→   368→          {/* Grid or list */}
+   369→   369→          {filtered.length === 0 ? (
+   370→   370→            <GlassCard className="p-10 text-center">
+   371→   371→              <FolderOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+   372→   372→              <p className="text-sm font-medium">No assets match this filter</p>
+   373→   373→              <p className="mt-1 text-xs text-muted-foreground">
+   374→   374→                Try a different folder or search query.
+   375→   375→              </p>
+   376→   376→            </GlassCard>
+   377→   377→          ) : view === "grid" ? (
+   378→   378→            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+   379→   379→              {filtered.map((a) => (
+   380→   380→                <MediaGridCard
+   381→   381→                  key={a.id}
+   382→   382→                  asset={a}
+   383→   383→                  onSelect={() => setSelected(a)}
+   384→   384→                  onUse={() => openComposer()}
+   385→   385→                />
+   386→   386→              ))}
+   387→   387→            </div>
+   388→   388→          ) : (
+   389→   389→            <GlassCard className="overflow-hidden p-0">
+   390→   390→              <div className="max-h-[70vh] overflow-y-auto scroll-liquid">
+   391→   391→                <table className="w-full text-sm">
+   392→   392→                  <thead className="sticky top-0 z-10 bg-background/80 backdrop-blur">
+   393→   393→                    <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+   394→   394→                      <th className="px-4 py-2 font-semibold">Asset</th>
+   395→   395→                      <th className="hidden px-4 py-2 font-semibold sm:table-cell">Folder</th>
+   396→   396→                      <th className="px-4 py-2 font-semibold">Size</th>
+   397→   397→                      <th className="hidden px-4 py-2 font-semibold md:table-cell">Date</th>
+   398→   398→                      <th className="px-4 py-2"></th>
+   399→   399→                    </tr>
+   400→   400→                  </thead>
+   401→   401→                  <tbody>
+   402→   402→                    {filtered.map((a) => (
+   403→   403→                      <tr
+   404→   404→                        key={a.id}
+   405→   405→                        className="cursor-pointer border-t border-border/40 transition hover:bg-muted/40"
+   406→   406→                        onClick={() => setSelected(a)}
+   407→   407→                      >
+   408→   408→                        <td className="px-4 py-2">
+   409→   409→                          <div className="flex items-center gap-2">
+   410→   410→                            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-muted">
+   411→   411→                              {a.type === "image" && a.thumbnail ? (
+   412→   412→                                <img
+   413→   413→                                  src={a.thumbnail}
+   414→   414→                                  alt={a.name}
+   415→   415→                                  className="h-full w-full object-cover"
+   416→   416→                                />
+   417→   417→                              ) : (
+   418→   418→                                <div className={cn("grid h-full w-full place-items-center", TYPE_META[a.type].bg)}>
+   419→   419→                                  <TypeIcon type={a.type} className={cn("h-4 w-4", TYPE_META[a.type].color)} />
+   420→   420→                                </div>
+   421→   421→                              )}
+   422→   422→                            </div>
+   423→   423→                            <div className="min-w-0">
+   424→   424→                              <div className="truncate text-xs font-medium">{a.name}</div>
+   425→   425→                              <div className="text-[10px] text-muted-foreground">{a.type}</div>
+   426→   426→                            </div>
+   427→   427→                          </div>
+   428→   428→                        </td>
+   429→   429→                        <td className="hidden px-4 py-2 text-xs text-muted-foreground sm:table-cell">
+   430→   430→                          {a.folder}
+   431→   431→                        </td>
+   432→   432→                        <td className="px-4 py-2 text-xs tabular-nums text-muted-foreground">
+   433→   433→                          {fmtSize(a.size)}
+   434→   434→                        </td>
+   435→   435→                        <td className="hidden px-4 py-2 text-xs text-muted-foreground md:table-cell">
+   436→   436→                          {isValid(parseISO(a.createdAt))
+   437→   437→                            ? format(parseISO(a.createdAt), "MMM d, yyyy")
+   438→   438→                            : "—"}
+   439→   439→                        </td>
+   440→   440→                        <td className="px-4 py-2 text-right">
+   441→   441→                          <button
+   442→   442→                            onClick={(e) => {
+   443→   443→                              e.stopPropagation();
+   444→   444→                              openComposer();
+   445→   445→                            }}
+   446→   446→                            className="rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground"
+   447→   447→                          >
+   448→   448→                            Use
+   449→   449→                          </button>
+   450→   450→                        </td>
+   451→   451→                      </tr>
+   452→   452→                    ))}
+   453→   453→                  </tbody>
+   454→   454→                </table>
+   455→   455→              </div>
+   456→   456→            </GlassCard>
+   457→   457→          )}
+   458→   458→        </div>
+   459→   459→      </div>
+   460→   460→
+   461→   461→      <UploadDialog
+   462→   462→        open={uploadOpen}
+   463→   463→        onOpenChange={setUploadOpen}
+   464→   464→        folders={folders.map((f) => f.name)}
+   465→   465→        onUploaded={() => {
+   466→   466→          reload();
+   467→   467→          setUploadOpen(false);
+   468→   468→        }}
+   469→   469→      />
+   470→   470→
+   471→   471→      <AssetDetailDialog
+   472→   472→        asset={selected}
+   473→   473→        onClose={() => setSelected(null)}
+   474→   474→        onUse={() => {
+   475→   475→          openComposer();
+   476→   476→          setSelected(null);
+   477→   477→        }}
+   478→   478→        onDelete={(a) => {
+   479→   479→          toast.error(`"${a.name}" deleted (mock)`);
+   480→   480→          setSelected(null);
+   481→   481→        }}
+   482→   482→      />
+   483→   483→    </div>
+   484→   484→  );
+   485→   485→}
+   486→   486→
+   487→   487→function TypeIcon({
+   488→   488→  type,
+   489→   489→  className,
+   490→   490→}: {
+   491→   491→  type: MediaAsset["type"];
+   492→   492→  className?: string;
+   493→   493→}) {
+   494→   494→  const Icon = TYPE_META[type].icon;
+   495→   495→  return <Icon className={className} />;
+   496→   496→}
+   497→   497→
+   498→   498→function MediaGridCard({
+   499→   499→  asset,
+   500→   500→  onSelect,
+   501→   501→  onUse,
+   502→   502→}: {
+   503→   503→  asset: MediaAsset;
+   504→   504→  onSelect: () => void;
+   505→   505→  onUse: () => void;
+   506→   506→}) {
+   507→   507→  const tags = parseTags(asset.tags);
+   508→   508→  const typeMeta = TYPE_META[asset.type];
+   509→   509→
+   510→   510→  return (
+   511→   511→    <div className="group flex flex-col">
+   512→   512→      <button
+   513→   513→        onClick={onSelect}
+   514→   514→        className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/40 bg-muted shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+   515→   515→      >
+   516→   516→        {asset.type === "image" && asset.thumbnail ? (
+   517→   517→          <img
+   518→   518→            src={asset.thumbnail}
+   519→   519→            alt={asset.name}
+   520→   520→            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+   521→   521→          />
+   522→   522→        ) : (
+   523→   523→          <div className={cn("grid h-full w-full place-items-center", typeMeta.bg)}>
+   524→   524→            <TypeIcon type={asset.type} className={cn("h-10 w-10", typeMeta.color)} />
+   525→   525→          </div>
+   526→   526→        )}
+   527→   527→
+   528→   528→        {/* Type icon top-left */}
+   529→   529→        <span
+   530→   530→          className={cn(
+   531→   531→            "absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-lg backdrop-blur",
+   532→   532→            typeMeta.bg,
+   533→   533→            typeMeta.color
+   534→   534→          )}
+   535→   535→        >
+   536→   536→          <TypeIcon type={asset.type} className="h-3.5 w-3.5" />
+   537→   537→        </span>
+   538→   538→
+   539→   539→        {/* Size badge top-right */}
+   540→   540→        <span className="absolute right-2 top-2 rounded-lg bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
+   541→   541→          {fmtSize(asset.size)}
+   542→   542→        </span>
+   543→   543→
+   544→   544→        {/* Hover overlay with name + Use */}
+   545→   545→        <div className="pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/30 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
+   546→   546→          <div className="pointer-events-none text-[11px] font-semibold text-white drop-shadow line-clamp-1">
+   547→   547→            {asset.name}
+   548→   548→          </div>
+   549→   549→          <div
+   550→   550→            className="pointer-events-auto mt-1 inline-flex w-fit items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-[10px] font-semibold text-foreground"
+   551→   551→            onClick={(e) => {
+   552→   552→              e.stopPropagation();
+   553→   553→              onUse();
+   554→   554→            }}
+   555→   555→          >
+   556→   556→            <Wand2 className="h-3 w-3" /> Use
+   557→   557→          </div>
+   558→   558→        </div>
+   559→   559→      </button>
+   560→   560→
+   561→   561→      {/* Below: name + tags */}
+   562→   562→      <div className="mt-1.5 px-0.5">
+   563→   563→        <div className="truncate text-xs font-medium leading-tight">{asset.name}</div>
+   564→   564→        {tags.length > 0 && (
+   565→   565→          <div className="mt-1 flex flex-wrap gap-1">
+   566→   566→            {tags.slice(0, 3).map((t) => (
+   567→   567→              <span
+   568→   568→                key={t}
+   569→   569→                className="rounded-md bg-muted/70 px-1.5 py-0.5 text-[9px] text-muted-foreground"
+   570→   570→              >
+   571→   571→                #{t}
+   572→   572→              </span>
+   573→   573→            ))}
+   574→   574→          </div>
+   575→   575→        )}
+   576→   576→      </div>
+   577→   577→    </div>
+   578→   578→  );
+   579→   579→}
+   580→   580→
+   581→   581→function UploadDialog({
+   582→   582→  open,
+   583→   583→  onOpenChange,
+   584→   584→  folders,
+   585→   585→  onUploaded,
+   586→   586→}: {
+   587→   587→  open: boolean;
+   588→   588→  onOpenChange: (v: boolean) => void;
+   589→   589→  folders: string[];
+   590→   590→  onUploaded: () => void;
+   591→   591→}) {
+   592→   592→  const [url, setUrl] = React.useState("");
+   593→   593→  const [name, setName] = React.useState("");
+   594→   594→  const [tags, setTags] = React.useState("");
+   595→   595→  const [folder, setFolder] = React.useState<string>("root");
+   596→   596→  const [type, setType] = React.useState<"image" | "video" | "audio">("image");
+   597→   597→  const [submitting, setSubmitting] = React.useState(false);
+   598→   598→
+   599→   599→  const reset = () => {
+   600→   600→    setUrl("");
+   601→   601→    setName("");
+   602→   602→    setTags("");
+   603→   603→    setFolder("root");
+   604→   604→    setType("image");
+   605→   605→  };
+   606→   606→
+   607→   607→  const handleSubmit = async (override?: Partial<typeof PRESET_LIBRARY[number]> & { url?: string; name?: string }) => {
+   608→   608→    const finalUrl = override?.url ?? url;
+   609→   609→    const finalName = override?.name ?? name;
+   610→   610→    if (!finalUrl || !finalName) {
+   611→   611→      toast.error("URL and name are required");
+   612→   612→      return;
+   613→   613→    }
+   614→   614→    setSubmitting(true);
+   615→   615→    try {
+   616→   616→      const res = await fetch("/api/media", {
+   617→   617→        method: "POST",
+   618→   618→        headers: { "Content-Type": "application/json" },
+   619→   619→        body: JSON.stringify({
+   620→   620→          name: finalName,
+   621→   621→          url: finalUrl,
+   622→   622→          type,
+   623→   623→          tags: (override?.tags ?? tags) || null,
+   624→   624→          folder,
+   625→   625→          uploadedById: "u-admin",
+   626→   626→        }),
+   627→   627→      });
+   628→   628→      if (!res.ok) throw new Error("Upload failed");
+   629→   629→      toast.success(`"${finalName}" added`);
+   630→   630→      reset();
+   631→   631→      onUploaded();
+   632→   632→    } catch {
+   633→   633→      toast.error("Could not upload asset");
+   634→   634→    } finally {
+   635→   635→      setSubmitting(false);
+   636→   636→    }
+   637→   637→  };
+   638→   638→
+   639→   639→  return (
+   640→   640→    <Dialog open={open} onOpenChange={onOpenChange}>
+   641→   641→      <DialogContent className="sm:max-w-lg rounded-3xl">
+   642→   642→        <DialogHeader>
+   643→   643→          <DialogTitle className="flex items-center gap-2">
+   644→   644→            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
+   645→   645→              <Upload className="h-4 w-4" />
+   646→   646→            </span>
+   647→   647→            Add media
+   648→   648→          </DialogTitle>
+   649→   649→          <DialogDescription>
+   650→   650→            Paste a URL or pick from the preset library below.
+   651→   651→          </DialogDescription>
+   652→   652→        </DialogHeader>
+   653→   653→
+   654→   654→        <div className="space-y-4">
+   655→   655→          <div className="space-y-2">
+   656→   656→            <Label htmlFor="m-url">Asset URL</Label>
+   657→   657→            <Input
+   658→   658→              id="m-url"
+   659→   659→              placeholder="https://example.com/image.jpg"
+   660→   660→              value={url}
+   661→   661→              onChange={(e) => setUrl(e.target.value)}
+   662→   662→            />
+   663→   663→          </div>
+   664→   664→          <div className="grid grid-cols-2 gap-3">
+   665→   665→            <div className="space-y-2">
+   666→   666→              <Label htmlFor="m-name">Name</Label>
+   667→   667→              <Input
+   668→   668→                id="m-name"
+   669→   669→                placeholder="Photo name"
+   670→   670→                value={name}
+   671→   671→                onChange={(e) => setName(e.target.value)}
+   672→   672→              />
+   673→   673→            </div>
+   674→   674→            <div className="space-y-2">
+   675→   675→              <Label htmlFor="m-tags">Tags</Label>
+   676→   676→              <Input
+   677→   677→                id="m-tags"
+   678→   678→                placeholder="brand, product"
+   679→   679→                value={tags}
+   680→   680→                onChange={(e) => setTags(e.target.value)}
+   681→   681→              />
+   682→   682→            </div>
+   683→   683→          </div>
+   684→   684→          <div className="grid grid-cols-2 gap-3">
+   685→   685→            <div className="space-y-2">
+   686→   686→              <Label>Type</Label>
+   687→   687→              <Select
+   688→   688→                value={type}
+   689→   689→                onValueChange={(v) => setType(v as "image" | "video" | "audio")}
+   690→   690→              >
+   691→   691→                <SelectTrigger className="w-full">
+   692→   692→                  <SelectValue />
+   693→   693→                </SelectTrigger>
+   694→   694→                <SelectContent>
+   695→   695→                  <SelectItem value="image">Image</SelectItem>
+   696→   696→                  <SelectItem value="video">Video</SelectItem>
+   697→   697→                  <SelectItem value="audio">Audio</SelectItem>
+   698→   698→                </SelectContent>
+   699→   699→              </Select>
+   700→   700→            </div>
+   701→   701→            <div className="space-y-2">
+   702→   702→              <Label>Folder</Label>
+   703→   703→              <Select value={folder} onValueChange={setFolder}>
+   704→   704→                <SelectTrigger className="w-full">
+   705→   705→                  <SelectValue />
+   706→   706→                </SelectTrigger>
+   707→   707→                <SelectContent>
+   708→   708→                  <SelectItem value="root">root</SelectItem>
+   709→   709→                  {folders
+   710→   710→                    .filter((f) => f !== "root")
+   711→   711→                    .map((f) => (
+   712→   712→                      <SelectItem key={f} value={f}>
+   713→   713→                        {f}
+   714→   714→                      </SelectItem>
+   715→   715→                    ))}
+   716→   716→                </SelectContent>
+   717→   717→              </Select>
+   718→   718→            </div>
+   719→   719→          </div>
+   720→   720→
+   721→   721→          {/* Preset library */}
+   722→   722→          <div className="space-y-2">
+   723→   723→            <Label>Or pick from library</Label>
+   724→   724→            <div className="grid grid-cols-3 gap-2">
+   725→   725→              {PRESET_LIBRARY.map((p) => (
+   726→   726→                <button
+   727→   727→                  key={p.url}
+   728→   728→                  type="button"
+   729→   729→                  onClick={() => handleSubmit(p)}
+   730→   730→                  disabled={submitting}
+   731→   731→                  className="group relative aspect-square overflow-hidden rounded-xl border border-border/40 transition hover:-translate-y-0.5 hover:border-primary/40"
+   732→   732→                  title={p.name}
+   733→   733→                >
+   734→   734→                  <img
+   735→   735→                    src={p.url}
+   736→   736→                    alt={p.name}
+   737→   737→                    className="h-full w-full object-cover transition group-hover:scale-105"
+   738→   738→                  />
+   739→   739→                  <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/30" />
+   740→   740→                  <span className="absolute bottom-1 left-1 right-1 truncate rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-medium opacity-0 transition group-hover:opacity-100">
+   741→   741→                    {p.name}
+   742→   742→                  </span>
+   743→   743→                </button>
+   744→   744→              ))}
+   745→   745→            </div>
+   746→   746→          </div>
+   747→   747→        </div>
+   748→   748→
+   749→   749→        <DialogFooter>
+   750→   750→          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
+   751→   751→            Cancel
+   752→   752→          </Button>
+   753→   753→          <button
+   754→   754→            onClick={() => handleSubmit()}
+   755→   755→            disabled={submitting}
+   756→   756→            className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+   757→   757→          >
+   758→   758→            <Plus className="h-4 w-4" />
+   759→   759→            {submitting ? "Adding…" : "Add asset"}
+   760→   760→          </button>
+   761→   761→        </DialogFooter>
+   762→   762→      </DialogContent>
+   763→   763→    </Dialog>
+   764→   764→  );
+   765→   765→}
+   766→   766→
+   767→   767→function AssetDetailDialog({
+   768→   768→  asset,
+   769→   769→  onClose,
+   770→   770→  onUse,
+   771→   771→  onDelete,
+   772→   772→}: {
+   773→   773→  asset: MediaAsset | null;
+   774→   774→  onClose: () => void;
+   775→   775→  onUse: () => void;
+   776→   776→  onDelete: (a: MediaAsset) => void;
+   777→   777→}) {
+   778→   778→  const tags = asset ? parseTags(asset.tags) : [];
+   779→   779→  const typeMeta = asset ? TYPE_META[asset.type] : TYPE_META.image;
+   780→   780→
+   781→   781→  return (
+   782→   782→    <Dialog open={!!asset} onOpenChange={(v) => !v && onClose()}>
+   783→   783→      <DialogContent className="sm:max-w-2xl rounded-3xl" showCloseButton>
+   784→   784→        <DialogHeader>
+   785→   785→          <DialogTitle className="flex items-center gap-2 pr-8">
+   786→   786→            <span
+   787→   787→              className={cn(
+   788→   788→                "grid h-7 w-7 place-items-center rounded-lg",
+   789→   789→                typeMeta.bg,
+   790→   790→                typeMeta.color
+   791→   791→              )}
+   792→   792→            >
+   793→   793→              <TypeIcon type={asset?.type ?? "image"} className="h-4 w-4" />
+   794→   794→            </span>
+   795→   795→            <span className="truncate">{asset?.name ?? "Asset"}</span>
+   796→   796→          </DialogTitle>
+   797→   797→          <DialogDescription className="sr-only">Asset preview and details</DialogDescription>
+   798→   798→        </DialogHeader>
+   799→   799→
+   800→   800→        {asset && (
+   801→   801→          <div className="space-y-4">
+   802→   802→            {/* Large preview */}
+   803→   803→            <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-muted">
+   804→   804→              {asset.type === "image" && asset.thumbnail ? (
+   805→   805→                <img
+   806→   806→                  src={asset.thumbnail}
+   807→   807→                  alt={asset.name}
+   808→   808→                  className="h-full w-full object-cover"
+   809→   809→                />
+   810→   810→              ) : (
+   811→   811→                <div className={cn("grid h-full w-full place-items-center", typeMeta.bg)}>
+   812→   812→                  <TypeIcon type={asset.type} className={cn("h-16 w-16", typeMeta.color)} />
+   813→   813→                </div>
+   814→   814→              )}
+   815→   815→              <span className="absolute left-3 top-3 rounded-lg bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase text-white backdrop-blur">
+   816→   816→                {asset.type}
+   817→   817→              </span>
+   818→   818→            </div>
+   819→   819→
+   820→   820→            {/* Metadata grid */}
+   821→   821→            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+   822→   822→              <MetaItem
+   823→   823→                icon={<HardDrive className="h-3.5 w-3.5" />}
+   824→   824→                label="Size"
+   825→   825→                value={fmtSize(asset.size)}
+   826→   826→              />
+   827→   827→              <MetaItem
+   828→   828→                icon={<ImageIcon className="h-3.5 w-3.5" />}
+   829→   829→                label="Dimensions"
+   830→   830→                value={
+   831→   831→                  asset.width && asset.height
+   832→   832→                    ? `${asset.width}×${asset.height}`
+   833→   833→                    : "—"
+   834→   834→                }
+   835→   835→              />
+   836→   836→              <MetaItem
+   837→   837→                icon={<FolderIcon className="h-3.5 w-3.5" />}
+   838→   838→                label="Folder"
+   839→   839→                value={asset.folder}
+   840→   840→              />
+   841→   841→              <MetaItem
+   842→   842→                icon={<Calendar className="h-3.5 w-3.5" />}
+   843→   843→                label="Uploaded"
+   844→   844→                value={
+   845→   845→                  isValid(parseISO(asset.createdAt))
+   846→   846→                    ? format(parseISO(asset.createdAt), "MMM d, yyyy")
+   847→   847→                    : "—"
+   848→   848→                }
+   849→   849→              />
+   850→   850→            </div>
+   851→   851→
+   852→   852→            {/* Tags */}
+   853→   853→            {tags.length > 0 && (
+   854→   854→              <div className="flex flex-wrap items-center gap-1.5">
+   855→   855→                <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+   856→   856→                {tags.map((t) => (
+   857→   857→                  <span
+   858→   858→                    key={t}
+   859→   859→                    className="rounded-md bg-muted/70 px-2 py-0.5 text-[11px] text-muted-foreground"
+   860→   860→                  >
+   861→   861→                    {t}
+   862→   862→                  </span>
+   863→   863→                ))}
+   864→   864→              </div>
+   865→   865→            )}
+   866→   866→
+   867→   867→            {/* URL row */}
+   868→   868→            <div className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2">
+   869→   869→              <span className="text-[11px] font-medium text-muted-foreground">URL</span>
+   870→   870→              <code className="min-w-0 flex-1 truncate text-[11px] text-foreground/80">
+   871→   871→                {asset.url}
+   872→   872→              </code>
+   873→   873→            </div>
+   874→   874→
+   875→   875→            {/* Actions */}
+   876→   876→            <div className="flex flex-wrap items-center gap-2">
+   877→   877→              <button
+   878→   878→                onClick={onUse}
+   879→   879→                className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+   880→   880→              >
+   881→   881→                <Wand2 className="h-4 w-4" /> Use in composer
+   882→   882→              </button>
+   883→   883→              <Button
+   884→   884→                variant="outline"
+   885→   885→                size="sm"
+   886→   886→                className="rounded-xl"
+   887→   887→                onClick={() => {
+   888→   888→                  if (typeof navigator !== "undefined" && navigator.clipboard) {
+   889→   889→                    navigator.clipboard.writeText(asset.url).then(
+   890→   890→                      () => toast.success("URL copied to clipboard"),
+   891→   891→                      () => toast.error("Could not copy URL")
+   892→   892→                    );
+   893→   893→                  } else {
+   894→   894→                    toast.info("Copy not supported in this browser");
+   895→   895→                  }
+   896→   896→                }}
+   897→   897→              >
+   898→   898→                <Copy className="h-4 w-4" /> Copy URL
+   899→   899→              </Button>
+   900→   900→              <Button
+   901→   901→                variant="ghost"
+   902→   902→                size="sm"
+   903→   903→                className="ml-auto rounded-xl text-rose-500 hover:bg-rose-500/10 hover:text-rose-500"
+   904→   904→                onClick={() => onDelete(asset)}
+   905→   905→              >
+   906→   906→                <Trash2 className="h-4 w-4" /> Delete
+   907→   907→              </Button>
+   908→   908→            </div>
+   909→   909→          </div>
+   910→   910→        )}
+   911→   911→      </DialogContent>
+   912→   912→    </Dialog>
+   913→   913→  );
+   914→   914→}
+   915→   915→
+   916→   916→function MetaItem({
+   917→   917→  icon,
+   918→   918→  label,
+   919→   919→  value,
+   920→   920→}: {
+   921→   921→  icon: React.ReactNode;
+   922→   922→  label: string;
+   923→   923→  value: string;
+   924→   924→}) {
+   925→   925→  return (
+   926→   926→    <div className="rounded-xl bg-muted/40 p-2.5">
+   927→   927→      <div className="flex items-center gap-1.5 text-muted-foreground">
+   928→   928→        {icon}
+   929→   929→        <span className="text-[10px] uppercase tracking-wide">{label}</span>
+   930→   930→      </div>
+   931→   931→      <div className="mt-0.5 truncate text-sm font-semibold">{value}</div>
+   932→   932→    </div>
+   933→   933→  );
+   934→   934→}
+   935→   935→
+   936→   936→function MediaSkeleton() {
+   937→   937→  return (
+   938→   938→    <div className="space-y-5">
+   939→   939→      <div className="shimmer h-28 rounded-3xl" />
+   940→   940→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   941→   941→        {Array.from({ length: 4 }).map((_, i) => (
+   942→   942→          <div key={i} className="shimmer h-32 rounded-3xl" />
+   943→   943→        ))}
+   944→   944→      </div>
+   945→   945→      <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+   946→   946→        <div className="shimmer h-64 rounded-3xl" />
+   947→   947→        <div className="space-y-3">
+   948→   948→          <div className="shimmer h-14 rounded-3xl" />
+   949→   949→          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+   950→   950→            {Array.from({ length: 10 }).map((_, i) => (
+   951→   951→              <div key={i} className="shimmer aspect-square rounded-2xl" />
+   952→   952→            ))}
+   953→   953→          </div>
+   954→   954→        </div>
+   955→   955→      </div>
+   956→   956→    </div>
+   957→   957→  );
+   958→   958→}
+   959→   959→
