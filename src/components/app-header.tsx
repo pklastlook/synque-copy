@@ -35,7 +35,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
   const { user, logout } = useAuth();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
-  const t = TITLES[view] ?? { title: "Prism", subtitle: "" };
+  const t = TITLES[view] ?? { title: "SocialFlow", subtitle: "" };
 
   return (
     <header className="sticky top-0 z-30 px-3 pt-3 sm:px-5 lg:px-6">

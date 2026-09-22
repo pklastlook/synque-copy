@@ -138,12 +138,12 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
 const SECTION_DESC: Record<SettingsTab, string> = {
   profile: "Your personal information visible to your team.",
   workspace: "Defaults applied across compose, schedule, and AI generation.",
-  appearance: "Personalize how Prism looks on this device.",
+  appearance: "Personalize how SocialFlow looks on this device.",
   "team-roles": "Manage who can access what. Changes are staged locally — save to sync.",
   notifications: "Choose what reaches your inbox and how often.",
   security: "Password, 2FA, sessions, API keys, and IP allowlist.",
-  platforms: "Manage which social accounts are connected to Prism.",
-  integrations: "Connect Prism with the tools your team already uses.",
+  platforms: "Manage which social accounts are connected to SocialFlow.",
+  integrations: "Connect SocialFlow with the tools your team already uses.",
   billing: "Plan, usage, payment method, and invoices.",
   data: "Control how your data is stored, shared, and exported.",
   danger: "Irreversible and destructive actions. Proceed with caution.",
@@ -301,7 +301,7 @@ function ProfileSection() {
   const [title, setTitle] = React.useState("Head of Social");
   const [department, setDepartment] = React.useState<Department>("Leadership");
   const [bio, setBio] = React.useState(
-    "Building Prism — the all-in-one workspace for modern social teams. Previously led social at two venture-backed startups."
+    "Building SocialFlow — the all-in-one workspace for modern social teams. Previously led social at two venture-backed startups."
   );
   const [timezone, setTimezone] = React.useState("America/Los_Angeles");
   const [language, setLanguage] = React.useState("en-US");
@@ -584,7 +584,7 @@ function AppearanceSection() {
 
   return (
     <GlassCard className="crystal-in p-5">
-      <SectionTitle title="Appearance" desc="Personalize how Prism looks on this device." />
+      <SectionTitle title="Appearance" desc="Personalize how SocialFlow looks on this device." />
 
       {/* Theme cards */}
       <div className="grid grid-cols-3 gap-3">
@@ -1140,14 +1140,14 @@ function SecuritySection() {
 
   const sessions = [
     { id: "s1", device: "MacBook Pro · Chrome 122", location: "San Francisco, US", ip: "73.158.42.10", last: "Active now", current: true },
-    { id: "s2", device: "iPhone 15 Pro · Prism iOS", location: "San Francisco, US", ip: "73.158.42.11", last: "2h ago", current: false },
+    { id: "s2", device: "iPhone 15 Pro · SocialFlow iOS", location: "San Francisco, US", ip: "73.158.42.11", last: "2h ago", current: false },
     { id: "s3", device: "Windows · Edge 122", location: "London, UK", ip: "82.6.124.18", last: "1d ago", current: false },
     { id: "s4", device: "iPad Air · Safari", location: "New York, US", ip: "108.29.84.221", last: "3d ago", current: false },
   ];
 
   const history = [
     { id: "h1", device: "MacBook Pro · Chrome", location: "San Francisco, US", time: "Today, 9:42am", status: "Success" },
-    { id: "h2", device: "iPhone 15 · Prism iOS", location: "San Francisco, US", time: "Today, 7:18am", status: "Success" },
+    { id: "h2", device: "iPhone 15 · SocialFlow iOS", location: "San Francisco, US", time: "Today, 7:18am", status: "Success" },
     { id: "h3", device: "Unknown · Chrome", location: "Lagos, NG", time: "Yesterday, 11:05pm", status: "Blocked" },
     { id: "h4", device: "MacBook Pro · Safari", location: "San Francisco, US", time: "Mar 14, 8:02am", status: "Success" },
     { id: "h5", device: "Pixel 8 · Chrome", location: "San Francisco, US", time: "Mar 13, 6:51pm", status: "Success" },
@@ -1299,7 +1299,7 @@ function SecuritySection() {
       <GlassCard className="crystal-in p-5">
         <SectionTitle
           title="API keys"
-          desc="Use these to authenticate with the Prism API."
+          desc="Use these to authenticate with the SocialFlow API."
           action={
             <button
               onClick={() => toast.success("API key generated", { description: "Copy it now — you won't see it again." })}
@@ -1431,7 +1431,7 @@ function PlatformsSection() {
     <GlassCard className="crystal-in p-5">
       <SectionTitle
         title="Connected platforms"
-        desc="Manage which social accounts are connected to Prism."
+        desc="Manage which social accounts are connected to SocialFlow."
         action={
           <button
             onClick={() => toast("Choose a platform below to connect")}
@@ -1493,7 +1493,7 @@ function PlatformsSection() {
 function IntegrationsSection() {
   const integrations = [
     { id: "mail", name: "Mail Server", desc: "Send digests & alerts from your own SMTP.", icon: Mail, status: "Connected" },
-    { id: "zapier", name: "Zapier", desc: "Trigger Prism actions from 6,000+ apps.", icon: Zap, status: "Connected" },
+    { id: "zapier", name: "Zapier", desc: "Trigger SocialFlow actions from 6,000+ apps.", icon: Zap, status: "Connected" },
     { id: "slack", name: "Slack", desc: "Pipe approvals and alerts into your channels.", icon: MessageSquare, status: "Disconnected" },
     { id: "ga", name: "Google Analytics", desc: "Pull GA4 traffic data into analytics reports.", icon: BarChart3, status: "Connected" },
     { id: "canva", name: "Canva", desc: "Import Canva designs straight into your media library.", icon: ImageIcon, status: "Disconnected" },
@@ -1506,7 +1506,7 @@ function IntegrationsSection() {
 
   return (
     <GlassCard className="crystal-in p-5">
-      <SectionTitle title="Integrations" desc="Connect Prism with the tools your team already uses." />
+      <SectionTitle title="Integrations" desc="Connect SocialFlow with the tools your team already uses." />
       <div className="grid gap-3 sm:grid-cols-2">
         {integrations.map((it) => {
           const Icon = it.icon;
@@ -1797,7 +1797,7 @@ function DataSection() {
       <div className="space-y-1">
         <ToggleRow label="Right to export (GDPR)" desc="Allow any team member to request a data export." checked={toggles.gdprExport} onChange={flip("gdprExport")} />
         <ToggleRow label="Anonymize IP addresses" desc="Strip the last octet from stored IP addresses." checked={toggles.anonymizeIp} onChange={flip("anonymizeIp")} />
-        <ToggleRow label="Share usage analytics" desc="Help us improve Prism by sending anonymous telemetry." checked={toggles.shareUsage} onChange={flip("shareUsage")} />
+        <ToggleRow label="Share usage analytics" desc="Help us improve SocialFlow by sending anonymous telemetry." checked={toggles.shareUsage} onChange={flip("shareUsage")} />
         <ToggleRow label="Opt out of AI training" desc="Prevent your content from being used to improve AI models." checked={toggles.optOutAI} onChange={flip("optOutAI")} />
       </div>
 

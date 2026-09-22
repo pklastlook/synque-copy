@@ -34,6 +34,6 @@ export const useAuth = create<AuthState>()(
       login: (role) => set({ isAuthenticated: true, user: PROFILES[role] }),
       logout: () => set({ isAuthenticated: false, user: null }),
     }),
-    { name: "pulsesync-auth" }
+    { name: "socialflow-auth" }
   )
 );

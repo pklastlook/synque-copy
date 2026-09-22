@@ -152,7 +152,7 @@ export function TeamView() {
           <DialogHeader>
             <DialogTitle>Invite a teammate</DialogTitle>
             <DialogDescription>
-              They will get an email invitation to join your Prism workspace.
+              They will get an email invitation to join your SocialFlow workspace.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

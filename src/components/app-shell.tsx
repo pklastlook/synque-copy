@@ -89,7 +89,7 @@ function AppFooter() {
           All systems operational · 10 accounts connected
         </div>
         <div className="hidden items-center gap-3 sm:flex">
-          <span>Prism Social · v1.0</span>
+          <span>SocialFlow · v1.0</span>
           <span>·</span>
           <span>Crystal UI</span>
         </div>
