@@ -52,6 +52,7 @@ import {
 } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PLATFORMS, PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
+import { useAuth } from "@/lib/auth-store";
 import { useNav } from "@/lib/store";
 import {
   Dialog,
@@ -295,6 +296,7 @@ interface ConnectAccountDialogProps {
 }
 
 function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccountDialogProps) {
+  const { user } = useAuth();
   const [step, setStep] = React.useState<Step>("platform");
   const [platform, setPlatform] = React.useState<PlatformId | null>(null);
   const [form, setForm] = React.useState({
@@ -304,7 +306,6 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
     password: "",
     apiToken: "",
     businessAccount: true,
-    ownerId: "u-admin",
   });
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
@@ -321,7 +322,6 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
           password: "",
           apiToken: "",
           businessAccount: true,
-          ownerId: "u-admin",
         });
         setErrors({});
       }, 300);
@@ -369,7 +369,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
           displayName: form.displayName,
           loginEmail: form.loginEmail,
           businessAccount: form.businessAccount,
-          ownerId: form.ownerId,
+          ownerId: user?.id ?? "u-admin",
         }),
       });
       if (res.ok) {
