@@ -14,6 +14,15 @@ import { InboxView } from "@/components/views/inbox";
 import { AccountsView } from "@/components/views/accounts";
 import { TeamView } from "@/components/views/team";
 import { SettingsView } from "@/components/views/settings";
+import { CampaignsView } from "@/components/views/campaigns";
+import { MediaLibraryView } from "@/components/views/media-library";
+import { ListeningView } from "@/components/views/listening";
+import { ApprovalsView } from "@/components/views/approvals";
+import { HashtagsView } from "@/components/views/hashtags";
+import { CompetitorsView } from "@/components/views/competitors";
+import { ReportsView } from "@/components/views/reports";
+import { LinkBioView } from "@/components/views/link-bio";
+import { MailView } from "@/components/views/mail";
 
 export function AppShell() {
   const { view } = useNav();
@@ -49,6 +58,15 @@ export function AppShell() {
               {view === "inbox" && <InboxView />}
               {view === "accounts" && <AccountsView />}
               {view === "team" && <TeamView />}
+              {view === "campaigns" && <CampaignsView />}
+              {view === "media" && <MediaLibraryView />}
+              {view === "listening" && <ListeningView />}
+              {view === "approvals" && <ApprovalsView />}
+              {view === "hashtags" && <HashtagsView />}
+              {view === "competitors" && <CompetitorsView />}
+              {view === "reports" && <ReportsView />}
+              {view === "linkbio" && <LinkBioView />}
+              {view === "mail" && <MailView />}
               {view === "settings" && <SettingsView />}
             </div>
           </main>

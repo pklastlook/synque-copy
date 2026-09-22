@@ -6,7 +6,16 @@ export type ViewId =
   | "inbox"
   | "accounts"
   | "team"
-  | "settings";
+  | "settings"
+  | "campaigns"
+  | "media"
+  | "listening"
+  | "approvals"
+  | "hashtags"
+  | "competitors"
+  | "reports"
+  | "linkbio"
+  | "mail";
 
 export interface PlatformAccount {
   id: string;

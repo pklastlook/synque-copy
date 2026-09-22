@@ -16,6 +16,15 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   accounts: { title: "Accounts", subtitle: "Manage connected social profiles" },
   team: { title: "Team", subtitle: "Your dissemination team and workload" },
   settings: { title: "Settings", subtitle: "Workspace preferences" },
+  campaigns: { title: "Campaigns", subtitle: "Group and measure multi-post campaigns" },
+  media: { title: "Media Library", subtitle: "Your shared creative asset vault" },
+  listening: { title: "Listening", subtitle: "Brand mentions, keywords & sentiment across the web" },
+  approvals: { title: "Approvals", subtitle: "Review content before it goes live" },
+  hashtags: { title: "Hashtag Manager", subtitle: "Save, group and research high-performing tags" },
+  competitors: { title: "Competitors", subtitle: "Benchmark against rival accounts" },
+  reports: { title: "Reports", subtitle: "Build, schedule and export custom reports" },
+  linkbio: { title: "Link in Bio", subtitle: "Your shoppable link-in-bio page" },
+  mail: { title: "Mail Server", subtitle: "Custom domain mailboxes for your team" },
 };
 
 export function AppHeader({ onMenu }: { onMenu: () => void }) {
