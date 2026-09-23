@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       mediaUrl: mediaUrl ?? null,
       mediaType: "image",
       tone: tone ?? "professional",
-      status: scheduledAt ? "scheduled" : "draft",
+      status: scheduledAt ? "scheduled" : "published",
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       authorId,
       variants: {
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
           accountId: aid,
           content: variants[aid]?.content ?? caption,
           hashtags: variants[aid]?.hashtags ?? null,
-          status: scheduledAt ? "scheduled" : "draft",
+          status: scheduledAt ? "scheduled" : "published",
           publishedAt: scheduledAt ? null : new Date(),
         })),
       },
