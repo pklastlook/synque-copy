@@ -144,6 +144,7 @@ export function ComposerView() {
   const [search, setSearch] = React.useState("");
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const [urlInput, setUrlInput] = React.useState("");
+  const [cropAspect, setCropAspect] = React.useState("1:1");
 
   const initRef = React.useRef(false);
 
@@ -474,6 +475,9 @@ export function ComposerView() {
             onUrlInput={setUrlInput}
             onUrlSubmit={submitUrl}
             mediaAssets={mediaAssets}
+            user={user}
+            cropAspect={cropAspect}
+            onCropAspect={setCropAspect}
           />
         )}
         {state.step === 4 && (
@@ -976,6 +980,9 @@ function Step3({
   onUrlInput,
   onUrlSubmit,
   mediaAssets,
+  user,
+  cropAspect,
+  onCropAspect,
 }: {
   mediaUrl: string;
   mediaType: MediaType;
@@ -989,6 +996,9 @@ function Step3({
   onUrlInput: (v: string) => void;
   onUrlSubmit: () => void;
   mediaAssets: MediaAssetLite[];
+  user?: { id: string } | null;
+  cropAspect: string;
+  onCropAspect: (v: string) => void;
 }) {
   return (
     <GlassCard
@@ -1032,11 +1042,13 @@ function Step3({
       >
         {mediaUrl ? (
           <>
-            <img
-              src={mediaUrl}
-              alt={altText || "Selected media"}
-              className="max-h-[340px] w-full rounded-xl object-contain"
-            />
+            <div className="flex items-center justify-center" style={{ aspectRatio: cropAspect.replace(":", "/") }}>
+              <img
+                src={mediaUrl}
+                alt={altText || "Selected media"}
+                className="max-h-[340px] w-full rounded-xl object-cover"
+              />
+            </div>
             <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 via-transparent to-transparent p-3 opacity-0 transition group-hover:opacity-100">
               <span className="flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg backdrop-blur">
                 <RefreshCw className="h-3 w-3" /> Replace media
@@ -1108,7 +1120,13 @@ function Step3({
             {["1:1", "4:5", "16:9", "9:16"].map((c) => (
               <button
                 key={c}
-                className="rounded-lg border border-border/50 bg-muted/30 px-2.5 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                onClick={() => onCropAspect(c)}
+                className={cn(
+                  "rounded-lg border px-2.5 py-2 text-xs font-medium transition",
+                  cropAspect === c
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
               >
                 {c}
               </button>
@@ -1129,6 +1147,7 @@ function Step3({
         onUrlSubmit={onUrlSubmit}
         current={mediaUrl}
         mediaAssets={mediaAssets}
+        userId={user?.id}
       />
     </GlassCard>
   );
@@ -1143,6 +1162,7 @@ function UploadDialog({
   onUrlSubmit,
   current,
   mediaAssets,
+  userId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -1152,7 +1172,43 @@ function UploadDialog({
   onUrlSubmit: () => void;
   current: string;
   mediaAssets: MediaAssetLite[];
+  userId?: string;
 }) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = React.useState(false);
+  const [dragOver, setDragOver] = React.useState(false);
+
+  const handleFile = async (file: File) => {
+    if (!userId) {
+      toast.error("Sign in to upload files");
+      return;
+    }
+    if (file.size > 1.5 * 1024 * 1024) {
+      toast.error("File too large (max 1.5MB). Use a URL for larger files.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("uploadedById", userId);
+      fd.append("folder", "root");
+      const res = await fetch("/api/media/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (res.ok && json.url) {
+        toast.success(`"${file.name}" uploaded`);
+        onPick(json.url);
+        onOpenChange(false);
+      } else {
+        toast.error(json.error ?? "Upload failed");
+      }
+    } catch {
+      toast.error("Network error during upload");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-strong max-w-2xl">
@@ -1160,6 +1216,57 @@ function UploadDialog({
           <DialogTitle>Choose media</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {/* === Direct file upload (drag-and-drop) === */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const f = e.dataTransfer.files[0];
+              if (f) handleFile(f);
+            }}
+            onClick={() => !uploading && fileInputRef.current?.click()}
+            className={cn(
+              "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-6 text-center transition",
+              dragOver ? "border-primary bg-primary/10" : "border-border hover:border-primary/40 hover:bg-muted/40",
+              uploading && "pointer-events-none opacity-60"
+            )}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*,audio/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+                e.target.value = "";
+              }}
+            />
+            {uploading ? (
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            ) : (
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                <Upload className="h-5 w-5" />
+              </div>
+            )}
+            <div className="text-sm font-medium">
+              {uploading ? "Uploading…" : "Drop a file or click to upload"}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              PNG, JPG, MP4 · max 1.5MB
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <div className="h-px flex-1 bg-border/40" />
+            or paste URL
+            <div className="h-px flex-1 bg-border/40" />
+          </div>
+
+          {/* URL input */}
           <div>
             <Label className="mb-2 text-xs text-muted-foreground">Image URL</Label>
             <div className="flex gap-2">
@@ -1177,35 +1284,38 @@ function UploadDialog({
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <div className="h-px flex-1 bg-border/40" />
-            or pick from library
-            <div className="h-px flex-1 bg-border/40" />
-          </div>
-          {mediaAssets.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
-              Your media library is empty. Paste a URL above.
-            </div>
-          ) : (
-            <div className="grid grid-cols-4 gap-2">
-              {mediaAssets.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => onPick(m.url)}
-                  className={cn(
-                    "relative aspect-square overflow-hidden rounded-xl ring-2 transition",
-                    current === m.url ? "ring-primary" : "ring-transparent hover:ring-border"
-                  )}
-                >
-                  <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
-                  {current === m.url && (
-                    <span className="absolute inset-0 grid place-items-center bg-primary/30">
-                      <Check className="h-4 w-4 text-white drop-shadow" />
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+
+          {/* Media library grid */}
+          {mediaAssets.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <div className="h-px flex-1 bg-border/40" />
+                or pick from library
+                <div className="h-px flex-1 bg-border/40" />
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {mediaAssets.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      onPick(m.url);
+                      onOpenChange(false);
+                    }}
+                    className={cn(
+                      "relative aspect-square overflow-hidden rounded-xl ring-2 transition",
+                      current === m.url ? "ring-primary" : "ring-transparent hover:ring-border"
+                    )}
+                  >
+                    <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
+                    {current === m.url && (
+                      <span className="absolute inset-0 grid place-items-center bg-primary/30">
+                        <Check className="h-4 w-4 text-white drop-shadow" />
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
         <div className="mt-2 flex justify-end">
