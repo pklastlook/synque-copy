@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * POST /api/media/upload — multipart/form-data file upload.
- * Saves the file to public/uploads/ and creates a MediaAsset record.
  *
- * Form fields:
- *   - file: the uploaded File (image/video/audio)
- *   - name: display name
- *   - tags: optional comma-separated tags
- *   - folder: optional folder (default "root")
- *   - uploadedById: required user id
+ * On Vercel, the filesystem is read-only (can't write to public/uploads).
+ * So we convert the file to a base64 data URL and store that in the DB.
+ * This works everywhere — localhost and Vercel — without external storage.
+ *
+ * For large files (>1MB), we recommend using a URL paste instead.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -33,6 +29,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "uploadedById required" }, { status: 400 });
     }
 
+    // Limit file size (1MB for base64 data URL approach)
+    const maxSize = 1.5 * 1024 * 1024; // 1.5MB
+    if (file.size > maxSize) {
+      return NextResponse.json({
+        error: "File too large (max 1.5MB for direct upload). For larger files, paste a URL instead.",
+      }, { status: 400 });
+    }
+
     // Determine media type from mime
     const mime = file.type.toLowerCase();
     let type: "image" | "video" | "audio";
@@ -43,24 +47,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unsupported file type. Use image, video, or audio." }, { status: 400 });
     }
 
-    // Ensure the upload directory exists
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    // Generate a unique filename
-    const ext = path.extname(file.name) || `.${mime.split("/")[1]}`;
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const filename = `${Date.now()}-${safeName}`;
-    const filepath = path.join(uploadDir, filename);
-
-    // Write the file to disk
+    // Convert file to base64 data URL (works on Vercel's read-only filesystem)
     const bytes = await file.arrayBuffer();
-    await writeFile(filepath, Buffer.from(bytes));
-
-    // The public URL path
-    const url = `/uploads/${filename}`;
+    const buffer = Buffer.from(bytes);
+    const base64 = buffer.toString("base64");
+    const dataUrl = `data:${mime};base64,${base64}`;
 
     // Create the MediaAsset record
     const displayName = name.trim() || file.name.replace(/\.[^/.]+$/, "");
@@ -68,8 +59,8 @@ export async function POST(req: NextRequest) {
       data: {
         name: displayName,
         type,
-        url,
-        thumbnail: url,
+        url: dataUrl,
+        thumbnail: dataUrl,
         size: file.size,
         tags: tags ?? null,
         folder,
@@ -77,7 +68,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ id: asset.id, url, ok: true });
+    return NextResponse.json({
+      id: asset.id,
+      url: dataUrl,
+      ok: true,
+      copyUrl: dataUrl.slice(0, 80) + "...", // Short preview for copy
+      message: "Upload successful! URL copied to clipboard.",
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Upload failed";
     console.error("[/api/media/upload]", message);

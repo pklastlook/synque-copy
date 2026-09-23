@@ -14,6 +14,8 @@ import {
   LayoutGrid,
   List as ListIcon,
   Copy,
+  CheckCircle2,
+  Check,
   Trash2,
   Wand2,
   Sparkles,
@@ -1045,17 +1047,20 @@ function FileUploadZone({
   const [dragOver, setDragOver] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const [progress, setProgress] = React.useState<string>("");
+  const [uploadedUrl, setUploadedUrl] = React.useState<string>("");
+  const [copied, setCopied] = React.useState(false);
 
   const handleFile = async (file: File) => {
     if (!userId) {
       toast.error("Sign in to upload files");
       return;
     }
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error("File too large (max 50MB)");
+    if (file.size > 1.5 * 1024 * 1024) {
+      toast.error("File too large (max 1.5MB for direct upload). For larger files, paste a URL below.");
       return;
     }
     setUploading(true);
+    setUploadedUrl("");
     setProgress(`Uploading ${file.name}…`);
     try {
       const fd = new FormData();
@@ -1065,9 +1070,18 @@ function FileUploadZone({
       const res = await fetch("/api/media/upload", { method: "POST", body: fd });
       const json = await res.json();
       if (res.ok && json.url) {
-        toast.success(`"${file.name}" uploaded`);
+        toast.success(`"${file.name}" uploaded successfully`);
+        setUploadedUrl(json.url);
         onUploaded(file, json.url);
         onDone();
+        // Auto-copy URL to clipboard
+        try {
+          await navigator.clipboard.writeText(json.url);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 3000);
+        } catch {
+          // Clipboard may not be available
+        }
       } else {
         toast.error(json.error ?? "Upload failed");
       }
@@ -1079,53 +1093,95 @@ function FileUploadZone({
     }
   };
 
+  const copyUrl = async () => {
+    if (!uploadedUrl) return;
+    try {
+      await navigator.clipboard.writeText(uploadedUrl);
+      toast.success("URL copied to clipboard");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy URL");
+    }
+  };
+
   return (
-    <div
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragOver(false);
-        const f = e.dataTransfer.files[0];
-        if (f) handleFile(f);
-      }}
-      onClick={() => !uploading && !submitting && inputRef.current?.click()}
-      className={cn(
-        "relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-8 text-center transition",
-        dragOver
-          ? "border-primary bg-primary/10"
-          : "border-border hover:border-primary/40 hover:bg-muted/40",
-        (uploading || submitting) && "pointer-events-none opacity-60"
-      )}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*,video/*,audio/*"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
+    <div className="space-y-3">
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer.files[0];
           if (f) handleFile(f);
-          e.target.value = "";
         }}
-      />
-      {uploading ? (
-        <>
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="text-[13px] font-medium text-muted-foreground">{progress}</span>
-        </>
-      ) : (
-        <>
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
-            <Upload className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold">Drop a file or click to browse</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">
-              PNG, JPG, MP4, MP3 · up to 50MB
+        onClick={() => !uploading && !submitting && inputRef.current?.click()}
+        className={cn(
+          "relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-8 text-center transition",
+          dragOver
+            ? "border-primary bg-primary/10"
+            : "border-border hover:border-primary/40 hover:bg-muted/40",
+          (uploading || submitting) && "pointer-events-none opacity-60"
+        )}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,video/*,audio/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFile(f);
+            e.target.value = "";
+          }}
+        />
+        {uploading ? (
+          <>
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="text-[13px] font-medium text-muted-foreground">{progress}</span>
+          </>
+        ) : (
+          <>
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Upload className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold">Drop a file or click to browse</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                PNG, JPG, MP4, MP3 · max 1.5MB · URL auto-copied after upload
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Upload success — show preview + copy URL */}
+      {uploadedUrl && !uploading && (
+        <div className="crystal-in flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">Upload successful!</div>
+            <div className="truncate text-[11px] text-muted-foreground">
+              {uploadedUrl.startsWith("data:") ? "Image data URL (copied to clipboard)" : uploadedUrl}
             </div>
           </div>
-        </>
+          <button
+            onClick={copyUrl}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition",
+              copied
+                ? "bg-emerald-500 text-white"
+                : "bg-primary/10 text-primary hover:bg-primary/20"
+            )}
+          >
+            {copied ? (
+              <><Check className="h-3 w-3" /> Copied!</>
+            ) : (
+              <><Copy className="h-3 w-3" /> Copy URL</>
+            )}
+          </button>
+        </div>
       )}
     </div>
   );
