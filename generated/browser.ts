@@ -157,3 +157,18 @@ export type Quotation = Prisma.QuotationModel
  * 
  */
 export type BankAccount = Prisma.BankAccountModel
+/**
+ * Model ApiKey
+ * 
+ */
+export type ApiKey = Prisma.ApiKeyModel
+/**
+ * Model Device
+ * 
+ */
+export type Device = Prisma.DeviceModel
+/**
+ * Model Subscription
+ * 
+ */
+export type Subscription = Prisma.SubscriptionModel

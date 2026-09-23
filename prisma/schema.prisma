@@ -414,8 +414,9 @@ model Customer {
   updatedAt   DateTime @updatedAt
 
   serialKey   SerialKey?
-  invoices    Invoice[]
-  quotations  Quotation[]
+  invoices      Invoice[]
+  quotations    Quotation[]
+  subscriptions Subscription[]
 }
 
 model SerialKey {
@@ -429,6 +430,7 @@ model SerialKey {
   createdAt   DateTime  @default(now())
 
   customer    Customer? @relation(fields: [customerId], references: [id])
+  device      Device?
 }
 
 model Invoice {
@@ -476,6 +478,47 @@ model BankAccount {
   swift       String?
   currency    String   @default("USD")
   isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+// ===== API Keys =====
+model ApiKey {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   @unique
+  permissions String   @default("[]") // JSON array
+  status      String   @default("active") // active | revoked
+  lastUsed    DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ===== Device Management =====
+model Device {
+  id          String   @id @default(cuid())
+  serialKeyId String?  @unique
+  deviceName  String
+  fingerprint String?  @unique
+  ipAddress   String?
+  location    String?
+  status      String   @default("active") // active | blocked | revoked
+  lastSeen    DateTime?
+  createdAt   DateTime @default(now())
+
+  serialKey   SerialKey? @relation(fields: [serialKeyId], references: [id])
+}
+
+// ===== Subscription =====
+model Subscription {
+  id          String   @id @default(cuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  plan        String   @default("growth") // starter | growth | enterprise
+  status      String   @default("trial") // trial | active | cancelled | expired
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  trialEnds   DateTime?
+  amount      Float    @default(0)
+  currency    String   @default("USD")
   createdAt   DateTime @default(now())
 }
 

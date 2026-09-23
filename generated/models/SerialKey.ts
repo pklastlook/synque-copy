@@ -207,6 +207,7 @@ export type SerialKeyWhereInput = {
   activatedAt?: Prisma.DateTimeNullableFilter<"SerialKey"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"SerialKey"> | Date | string
   customer?: Prisma.XOR<Prisma.CustomerNullableScalarRelationFilter, Prisma.CustomerWhereInput> | null
+  device?: Prisma.XOR<Prisma.DeviceNullableScalarRelationFilter, Prisma.DeviceWhereInput> | null
 }
 
 export type SerialKeyOrderByWithRelationInput = {
@@ -219,6 +220,7 @@ export type SerialKeyOrderByWithRelationInput = {
   activatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   customer?: Prisma.CustomerOrderByWithRelationInput
+  device?: Prisma.DeviceOrderByWithRelationInput
 }
 
 export type SerialKeyWhereUniqueInput = Prisma.AtLeast<{
@@ -234,6 +236,7 @@ export type SerialKeyWhereUniqueInput = Prisma.AtLeast<{
   activatedAt?: Prisma.DateTimeNullableFilter<"SerialKey"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"SerialKey"> | Date | string
   customer?: Prisma.XOR<Prisma.CustomerNullableScalarRelationFilter, Prisma.CustomerWhereInput> | null
+  device?: Prisma.XOR<Prisma.DeviceNullableScalarRelationFilter, Prisma.DeviceWhereInput> | null
 }, "id" | "key" | "customerId">
 
 export type SerialKeyOrderByWithAggregationInput = {
@@ -273,6 +276,7 @@ export type SerialKeyCreateInput = {
   activatedAt?: Date | string | null
   createdAt?: Date | string
   customer?: Prisma.CustomerCreateNestedOneWithoutSerialKeyInput
+  device?: Prisma.DeviceCreateNestedOneWithoutSerialKeyInput
 }
 
 export type SerialKeyUncheckedCreateInput = {
@@ -284,6 +288,7 @@ export type SerialKeyUncheckedCreateInput = {
   status?: string
   activatedAt?: Date | string | null
   createdAt?: Date | string
+  device?: Prisma.DeviceUncheckedCreateNestedOneWithoutSerialKeyInput
 }
 
 export type SerialKeyUpdateInput = {
@@ -295,6 +300,7 @@ export type SerialKeyUpdateInput = {
   activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   customer?: Prisma.CustomerUpdateOneWithoutSerialKeyNestedInput
+  device?: Prisma.DeviceUpdateOneWithoutSerialKeyNestedInput
 }
 
 export type SerialKeyUncheckedUpdateInput = {
@@ -306,6 +312,7 @@ export type SerialKeyUncheckedUpdateInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  device?: Prisma.DeviceUncheckedUpdateOneWithoutSerialKeyNestedInput
 }
 
 export type SerialKeyCreateManyInput = {
@@ -410,6 +417,22 @@ export type SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.SerialKeyUpdateToOneWithWhereWithoutCustomerInput, Prisma.SerialKeyUpdateWithoutCustomerInput>, Prisma.SerialKeyUncheckedUpdateWithoutCustomerInput>
 }
 
+export type SerialKeyCreateNestedOneWithoutDeviceInput = {
+  create?: Prisma.XOR<Prisma.SerialKeyCreateWithoutDeviceInput, Prisma.SerialKeyUncheckedCreateWithoutDeviceInput>
+  connectOrCreate?: Prisma.SerialKeyCreateOrConnectWithoutDeviceInput
+  connect?: Prisma.SerialKeyWhereUniqueInput
+}
+
+export type SerialKeyUpdateOneWithoutDeviceNestedInput = {
+  create?: Prisma.XOR<Prisma.SerialKeyCreateWithoutDeviceInput, Prisma.SerialKeyUncheckedCreateWithoutDeviceInput>
+  connectOrCreate?: Prisma.SerialKeyCreateOrConnectWithoutDeviceInput
+  upsert?: Prisma.SerialKeyUpsertWithoutDeviceInput
+  disconnect?: Prisma.SerialKeyWhereInput | boolean
+  delete?: Prisma.SerialKeyWhereInput | boolean
+  connect?: Prisma.SerialKeyWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SerialKeyUpdateToOneWithWhereWithoutDeviceInput, Prisma.SerialKeyUpdateWithoutDeviceInput>, Prisma.SerialKeyUncheckedUpdateWithoutDeviceInput>
+}
+
 export type SerialKeyCreateWithoutCustomerInput = {
   id?: string
   key: string
@@ -418,6 +441,7 @@ export type SerialKeyCreateWithoutCustomerInput = {
   status?: string
   activatedAt?: Date | string | null
   createdAt?: Date | string
+  device?: Prisma.DeviceCreateNestedOneWithoutSerialKeyInput
 }
 
 export type SerialKeyUncheckedCreateWithoutCustomerInput = {
@@ -428,6 +452,7 @@ export type SerialKeyUncheckedCreateWithoutCustomerInput = {
   status?: string
   activatedAt?: Date | string | null
   createdAt?: Date | string
+  device?: Prisma.DeviceUncheckedCreateNestedOneWithoutSerialKeyInput
 }
 
 export type SerialKeyCreateOrConnectWithoutCustomerInput = {
@@ -454,11 +479,73 @@ export type SerialKeyUpdateWithoutCustomerInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  device?: Prisma.DeviceUpdateOneWithoutSerialKeyNestedInput
 }
 
 export type SerialKeyUncheckedUpdateWithoutCustomerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   key?: Prisma.StringFieldUpdateOperationsInput | string
+  deviceName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deviceFingerprint?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  device?: Prisma.DeviceUncheckedUpdateOneWithoutSerialKeyNestedInput
+}
+
+export type SerialKeyCreateWithoutDeviceInput = {
+  id?: string
+  key: string
+  deviceName?: string | null
+  deviceFingerprint?: string | null
+  status?: string
+  activatedAt?: Date | string | null
+  createdAt?: Date | string
+  customer?: Prisma.CustomerCreateNestedOneWithoutSerialKeyInput
+}
+
+export type SerialKeyUncheckedCreateWithoutDeviceInput = {
+  id?: string
+  key: string
+  customerId?: string | null
+  deviceName?: string | null
+  deviceFingerprint?: string | null
+  status?: string
+  activatedAt?: Date | string | null
+  createdAt?: Date | string
+}
+
+export type SerialKeyCreateOrConnectWithoutDeviceInput = {
+  where: Prisma.SerialKeyWhereUniqueInput
+  create: Prisma.XOR<Prisma.SerialKeyCreateWithoutDeviceInput, Prisma.SerialKeyUncheckedCreateWithoutDeviceInput>
+}
+
+export type SerialKeyUpsertWithoutDeviceInput = {
+  update: Prisma.XOR<Prisma.SerialKeyUpdateWithoutDeviceInput, Prisma.SerialKeyUncheckedUpdateWithoutDeviceInput>
+  create: Prisma.XOR<Prisma.SerialKeyCreateWithoutDeviceInput, Prisma.SerialKeyUncheckedCreateWithoutDeviceInput>
+  where?: Prisma.SerialKeyWhereInput
+}
+
+export type SerialKeyUpdateToOneWithWhereWithoutDeviceInput = {
+  where?: Prisma.SerialKeyWhereInput
+  data: Prisma.XOR<Prisma.SerialKeyUpdateWithoutDeviceInput, Prisma.SerialKeyUncheckedUpdateWithoutDeviceInput>
+}
+
+export type SerialKeyUpdateWithoutDeviceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  key?: Prisma.StringFieldUpdateOperationsInput | string
+  deviceName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deviceFingerprint?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customer?: Prisma.CustomerUpdateOneWithoutSerialKeyNestedInput
+}
+
+export type SerialKeyUncheckedUpdateWithoutDeviceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  key?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   deviceName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   deviceFingerprint?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
@@ -478,6 +565,7 @@ export type SerialKeySelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   activatedAt?: boolean
   createdAt?: boolean
   customer?: boolean | Prisma.SerialKey$customerArgs<ExtArgs>
+  device?: boolean | Prisma.SerialKey$deviceArgs<ExtArgs>
 }, ExtArgs["result"]["serialKey"]>
 
 export type SerialKeySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -518,6 +606,7 @@ export type SerialKeySelectScalar = {
 export type SerialKeyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "key" | "customerId" | "deviceName" | "deviceFingerprint" | "status" | "activatedAt" | "createdAt", ExtArgs["result"]["serialKey"]>
 export type SerialKeyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   customer?: boolean | Prisma.SerialKey$customerArgs<ExtArgs>
+  device?: boolean | Prisma.SerialKey$deviceArgs<ExtArgs>
 }
 export type SerialKeyIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   customer?: boolean | Prisma.SerialKey$customerArgs<ExtArgs>
@@ -530,6 +619,7 @@ export type $SerialKeyPayload<ExtArgs extends runtime.Types.Extensions.InternalA
   name: "SerialKey"
   objects: {
     customer: Prisma.$CustomerPayload<ExtArgs> | null
+    device: Prisma.$DevicePayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -935,6 +1025,7 @@ readonly fields: SerialKeyFieldRefs;
 export interface Prisma__SerialKeyClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   customer<T extends Prisma.SerialKey$customerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SerialKey$customerArgs<ExtArgs>>): Prisma.Prisma__CustomerClient<runtime.Types.Result.GetResult<Prisma.$CustomerPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  device<T extends Prisma.SerialKey$deviceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.SerialKey$deviceArgs<ExtArgs>>): Prisma.Prisma__DeviceClient<runtime.Types.Result.GetResult<Prisma.$DevicePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1389,6 +1480,25 @@ export type SerialKey$customerArgs<ExtArgs extends runtime.Types.Extensions.Inte
    */
   include?: Prisma.CustomerInclude<ExtArgs> | null
   where?: Prisma.CustomerWhereInput
+}
+
+/**
+ * SerialKey.device
+ */
+export type SerialKey$deviceArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Device
+   */
+  select?: Prisma.DeviceSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Device
+   */
+  omit?: Prisma.DeviceOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.DeviceInclude<ExtArgs> | null
+  where?: Prisma.DeviceWhereInput
 }
 
 /**

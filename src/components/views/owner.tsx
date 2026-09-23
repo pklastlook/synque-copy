@@ -46,6 +46,15 @@ import {
   CalendarDays,
   Briefcase,
   UserPlus,
+  Smartphone,
+  CreditCard,
+  Lock,
+  Loader2,
+  Globe,
+  Wifi,
+  Server,
+  DollarSign,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
@@ -2880,15 +2889,341 @@ function ReportsTab() {
 }
 
 // ============================================================================
-// Main OwnerView
+// Devices Tab
 // ============================================================================
+interface DeviceData {
+  id: string; deviceName: string; fingerprint: string | null; ipAddress: string | null;
+  location: string | null; status: string; lastSeen: string | null; createdAt: string;
+  serialKey: { key: string; status: string } | null; customerName: string | null;
+}
+
+function DevicesTab() {
+  const { data, loading, reload } = useApi<DeviceData[]>("/api/devices");
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [form, setForm] = React.useState({ deviceName: "", serialKeyId: "", ipAddress: "", location: "" });
+
+  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  const devices = data ?? [];
+
+  const add = async () => {
+    if (!form.deviceName.trim()) return toast.error("Device name required");
+    await api("/api/devices", "POST", form);
+    toast.success("Device registered");
+    setForm({ deviceName: "", serialKeyId: "", ipAddress: "", location: "" });
+    setAddOpen(false); reload();
+  };
+
+  const block = async (id: string, name: string) => {
+    await api(`/api/devices/${id}`, "PATCH", { status: "blocked" });
+    toast.success(`${name} blocked`); reload();
+  };
+  const unblock = async (id: string, name: string) => {
+    await api(`/api/devices/${id}`, "PATCH", { status: "active" });
+    toast.success(`${name} unblocked`); reload();
+  };
+  const remove = async (id: string, name: string) => {
+    if (!confirm(`Remove ${name}?`)) return;
+    await api(`/api/devices/${id}`, "DELETE");
+    toast.success(`${name} removed`); reload();
+  };
+
+  const statusStyle: Record<string, string> = {
+    active: "bg-emerald-500/15 text-emerald-500",
+    blocked: "bg-rose-500/15 text-rose-500",
+    revoked: "bg-muted text-muted-foreground",
+  };
+
+  return (
+    <GlassCard className="crystal-in p-5">
+      <SectionTitle title="Device Management" desc="Registered devices and their activation status"
+        action={<button onClick={() => setAddOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> Register device</button>} />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {devices.map((d) => (
+          <div key={d.id} className="crystal-in glass rounded-2xl p-4 lift-hover">
+            <div className="flex items-start justify-between">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Smartphone className="h-5 w-5" /></div>
+              <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[d.status] ?? statusStyle.active)}>{d.status}</span>
+            </div>
+            <div className="mt-3 truncate text-sm font-semibold">{d.deviceName}</div>
+            <div className="mt-1 space-y-1 text-[11px] text-muted-foreground">
+              {d.ipAddress && <div className="flex items-center gap-1"><Globe className="h-3 w-3" /> {d.ipAddress}</div>}
+              {d.location && <div className="flex items-center gap-1"><Wifi className="h-3 w-3" /> {d.location}</div>}
+              {d.serialKey && <div className="flex items-center gap-1"><KeyRound className="h-3 w-3" /> <code className="text-[10px]">{d.serialKey.key}</code></div>}
+              {d.customerName && <div className="flex items-center gap-1"><Users className="h-3 w-3" /> {d.customerName}</div>}
+              {d.lastSeen && <div className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(d.lastSeen).toLocaleDateString()}</div>}
+            </div>
+            <div className="mt-3 flex gap-2">
+              {d.status === "active" ? (
+                <button onClick={() => block(d.id, d.deviceName)} className="flex-1 rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/20">Block</button>
+              ) : (
+                <button onClick={() => unblock(d.id, d.deviceName)} className="flex-1 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-500 hover:bg-emerald-500/20">Unblock</button>
+              )}
+              <button onClick={() => remove(d.id, d.deviceName)} className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+          </div>
+        ))}
+        {devices.length === 0 && <div className="col-span-full py-8 text-center text-sm text-muted-foreground">No devices registered yet.</div>}
+      </div>
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="glass-strong max-w-md">
+          <DialogHeader><DialogTitle>Register Device</DialogTitle><DialogDescription>Add a device to track.</DialogDescription></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Device name</Label><Input value={form.deviceName} onChange={(e) => setForm({ ...form, deviceName: e.target.value })} placeholder="MacBook Pro" className="mt-1.5" /></div>
+            <div><Label className="text-xs">IP address (optional)</Label><Input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} placeholder="192.168.1.1" className="mt-1.5" /></div>
+            <div><Label className="text-xs">Location (optional)</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="New York, US" className="mt-1.5" /></div>
+          </div>
+          <DialogFooter><Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button><button onClick={add} className="liquid-pill rounded-xl px-4 py-2 text-sm font-semibold">Register</button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </GlassCard>
+  );
+}
+
+// ============================================================================
+// Subscriptions Tab
+// ============================================================================
+interface SubscriptionData {
+  id: string; customerId: string; customerName: string; plan: string; status: string;
+  amount: number; currency: string; startDate: string; endDate: string | null; trialEnds: string | null;
+}
+
+function SubscriptionsTab({ customers }: { customers: Customer[] }) {
+  const { data, loading, reload } = useApi<SubscriptionData[]>("/api/subscriptions");
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [form, setForm] = React.useState({ customerId: "", plan: "growth", amount: 89 });
+
+  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  const subs = data ?? [];
+
+  const add = async () => {
+    if (!form.customerId) return toast.error("Select a customer");
+    await api("/api/subscriptions", "POST", form);
+    toast.success("Subscription created"); setAddOpen(false); reload();
+  };
+
+  const cancel = async (id: string) => {
+    if (!confirm("Cancel this subscription?")) return;
+    await api(`/api/subscriptions/${id}`, "PATCH", { status: "cancelled" });
+    toast.success("Subscription cancelled"); reload();
+  };
+
+  const statusStyle: Record<string, string> = {
+    trial: "bg-amber-500/15 text-amber-500", active: "bg-emerald-500/15 text-emerald-500",
+    cancelled: "bg-rose-500/15 text-rose-500", expired: "bg-muted text-muted-foreground",
+  };
+
+  return (
+    <GlassCard className="crystal-in p-5">
+      <SectionTitle title="Subscriptions" desc="Manage customer subscriptions and trials"
+        action={<button onClick={() => setAddOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> New subscription</button>} />
+      {subs.length === 0 ? (
+        <div className="py-8 text-center text-sm text-muted-foreground">No subscriptions yet.</div>
+      ) : (
+        <div className="scroll-liquid max-h-[560px] space-y-2 overflow-y-auto">
+          {subs.map((s) => (
+            <div key={s.id} className="crystal-in flex items-center gap-3 rounded-2xl border border-border/40 bg-muted/20 p-4">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><CreditCard className="h-5 w-5" /></div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold">{s.customerName}</span>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[s.status])}>{s.status}</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground">{s.plan} · ${s.amount}/{s.currency} · Started {new Date(s.startDate).toLocaleDateString()}</div>
+                {s.trialEnds && s.status === "trial" && (
+                  <div className="text-[11px] text-amber-500">Trial ends: {new Date(s.trialEnds).toLocaleDateString()}</div>
+                )}
+              </div>
+              {s.status !== "cancelled" && <button onClick={() => cancel(s.id)} className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/20">Cancel</button>}
+            </div>
+          ))}
+        </div>
+      )}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="glass-strong max-w-md">
+          <DialogHeader><DialogTitle>New Subscription</DialogTitle><DialogDescription>Create a subscription for a customer.</DialogDescription></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Customer</Label><Select value={form.customerId} onValueChange={(v) => setForm({ ...form, customerId: v })}><SelectTrigger className="mt-1.5"><SelectValue placeholder="Select customer" /></SelectTrigger><SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Plan</Label><Select value={form.plan} onValueChange={(v) => setForm({ ...form, plan: v, amount: v === "starter" ? 29 : v === "enterprise" ? 0 : 89 })}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="starter">Starter ($29/mo)</SelectItem><SelectItem value="growth">Growth ($89/mo)</SelectItem><SelectItem value="enterprise">Enterprise (Custom)</SelectItem></SelectContent></Select></div>
+          </div>
+          <DialogFooter><Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button><button onClick={add} className="liquid-pill rounded-xl px-4 py-2 text-sm font-semibold">Create</button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </GlassCard>
+  );
+}
+
+// ============================================================================
+// API Keys Tab
+// ============================================================================
+interface ApiKeyData {
+  id: string; name: string; key: string; permissions: string[]; status: string;
+  lastUsed: string | null; createdAt: string;
+}
+
+function ApiKeysTab() {
+  const { data, loading, reload } = useApi<ApiKeyData[]>("/api/api-keys");
+  const [genOpen, setGenOpen] = React.useState(false);
+  const [name, setName] = React.useState("");
+  const [newKey, setNewKey] = React.useState<string | null>(null);
+  const [generating, setGenerating] = React.useState(false);
+
+  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  const keys = data ?? [];
+
+  const generate = async () => {
+    if (!name.trim()) return toast.error("Enter a name");
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/api-keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), permissions: ["*"] }) });
+      const data = await res.json();
+      if (data.key) { setNewKey(data.key); setName(""); reload(); }
+      else toast.error("Failed to generate key");
+    } catch { toast.error("Network error"); }
+    finally { setGenerating(false); }
+  };
+
+  const revoke = async (id: string) => {
+    if (!confirm("Revoke this API key? This cannot be undone.")) return;
+    await api(`/api/api-keys/${id}`, "PATCH", { status: "revoked" });
+    toast.success("API key revoked"); reload();
+  };
+
+  const del = async (id: string) => {
+    if (!confirm("Delete this API key?")) return;
+    await api(`/api/api-keys/${id}`, "DELETE");
+    toast.success("API key deleted"); reload();
+  };
+
+  return (
+    <GlassCard className="crystal-in p-5">
+      <SectionTitle title="API Keys" desc="Generate and manage API keys for integrations"
+        action={<button onClick={() => setGenOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> Generate key</button>} />
+      {keys.length === 0 ? (
+        <div className="py-8 text-center text-sm text-muted-foreground">No API keys generated yet.</div>
+      ) : (
+        <div className="space-y-2">
+          {keys.map((k) => (
+            <div key={k.id} className="crystal-in flex items-center gap-3 rounded-2xl border border-border/40 bg-muted/20 p-4">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Lock className="h-5 w-5" /></div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold">{k.name}</span>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", k.status === "active" ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500")}>{k.status}</span>
+                </div>
+                <code className="text-[11px] text-muted-foreground">{k.key.slice(0, 8)}...{k.key.slice(-4)}</code>
+                {k.lastUsed && <div className="text-[10px] text-muted-foreground">Last used: {new Date(k.lastUsed).toLocaleString()}</div>}
+              </div>
+              <button onClick={() => { navigator.clipboard.writeText(k.key); toast.success("Key copied"); }} className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"><Copy className="h-3.5 w-3.5" /></button>
+              {k.status === "active" && <button onClick={() => revoke(k.id)} className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-500 hover:bg-amber-500/20">Revoke</button>}
+              <button onClick={() => del(k.id)} className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs text-rose-500 hover:bg-rose-500/20"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      <Dialog open={genOpen} onOpenChange={(v) => { setGenOpen(v); if (!v) setNewKey(null); }}>
+        <DialogContent className="glass-strong max-w-md">
+          {newKey ? (
+            <>
+              <DialogHeader><DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-emerald-500" /> Key generated!</DialogTitle><DialogDescription>Copy this key now — it won&apos;t be shown in full again.</DialogDescription></DialogHeader>
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-4">
+                <code className="break-all text-xs font-mono">{newKey}</code>
+              </div>
+              <DialogFooter><button onClick={() => { navigator.clipboard.writeText(newKey); toast.success("Copied!"); }} className="liquid-pill rounded-xl px-4 py-2 text-sm font-semibold">Copy key</button></DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader><DialogTitle>Generate API Key</DialogTitle><DialogDescription>Create a new API key for external integrations.</DialogDescription></DialogHeader>
+              <div><Label className="text-xs">Key name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Production API" className="mt-1.5" /></div>
+              <DialogFooter><Button variant="ghost" onClick={() => setGenOpen(false)}>Cancel</Button><button onClick={generate} disabled={generating} className="liquid-pill flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">{generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Generate</button></DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </GlassCard>
+  );
+}
+
+// ============================================================================
+// Finance Tab
+// ============================================================================
+interface FinanceOverview {
+  customers: number; invoices: number; paidInvoices: number; quotations: number;
+  serialKeys: number; activatedKeys: number; devices: number; apiKeys: number;
+  subscriptions: number; activeSubs: number; trialSubs: number; bankAccounts: number;
+  users: number; accounts: number; posts: number;
+  totalRevenue: number; pendingRevenue: number; overdueRevenue: number; monthlyRevenue: number;
+  planDistribution: { name: string; count: number }[];
+}
+
+function FinanceTab() {
+  const { data, loading } = useApi<FinanceOverview>("/api/finance/overview");
+  if (loading || !data) return <div className="shimmer h-64 rounded-3xl" />;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiCard label="Total Revenue" value={fmt(data.totalRevenue)} icon={<DollarSign className="h-5 w-5" />} accent="oklch(0.68 0.22 145)" delay={50} />
+        <KpiCard label="Monthly Recurring" value={fmt(data.monthlyRevenue)} icon={<TrendingUp className="h-5 w-5" />} accent="oklch(0.55 0.2 255)" delay={120} />
+        <KpiCard label="Pending" value={fmt(data.pendingRevenue)} icon={<Clock className="h-5 w-5" />} accent="oklch(0.72 0.18 75)" delay={190} />
+        <KpiCard label="Overdue" value={fmt(data.overdueRevenue)} icon={<AlertTriangle className="h-5 w-5" />} accent="oklch(0.7 0.2 25)" delay={260} />
+      </div>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiCard label="Customers" value={data.customers} icon={<Users className="h-5 w-5" />} accent="oklch(0.62 0.22 300)" delay={50} />
+        <KpiCard label="Active Subs" value={data.activeSubs} icon={<CreditCard className="h-5 w-5" />} accent="oklch(0.68 0.22 145)" delay={120} />
+        <KpiCard label="Trial Subs" value={data.trialSubs} icon={<Clock className="h-5 w-5" />} accent="oklch(0.72 0.18 75)" delay={190} />
+        <KpiCard label="Devices" value={data.devices} icon={<Smartphone className="h-5 w-5" />} accent="oklch(0.66 0.18 200)" delay={260} />
+      </div>
+
+      <GlassCard className="crystal-in p-5">
+        <SectionTitle title="Plan Distribution" desc="Active subscriptions by plan" />
+        {data.planDistribution.length > 0 ? (
+          <div className="h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.planDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
+                <Bar dataKey="count" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : <div className="py-8 text-center text-sm text-muted-foreground">No subscriptions yet.</div>}
+      </GlassCard>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <GlassCard className="crystal-in p-5">
+          <SectionTitle title="Invoice Summary" />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Total Invoices</span><span className="num-display font-bold">{data.invoices}</span></div>
+            <div className="flex items-center justify-between rounded-xl bg-emerald-500/5 p-3"><span className="text-sm text-emerald-500">Paid</span><span className="num-display font-bold text-emerald-500">{data.paidInvoices}</span></div>
+            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Quotations</span><span className="num-display font-bold">{data.quotations}</span></div>
+          </div>
+        </GlassCard>
+        <GlassCard className="crystal-in p-5">
+          <SectionTitle title="System Summary" />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Users</span><span className="num-display font-bold">{data.users}</span></div>
+            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Social Accounts</span><span className="num-display font-bold">{data.accounts}</span></div>
+            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Posts</span><span className="num-display font-bold">{data.posts}</span></div>
+            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">API Keys</span><span className="num-display font-bold">{data.apiKeys}</span></div>
+          </div>
+        </GlassCard>
+      </div>
+    </div>
+  );
+}
 
 const TABS: TabDef[] = [
   { id: "customers", label: "Customers", icon: Users },
   { id: "keys", label: "Serial Keys", icon: KeyRound },
+  { id: "devices", label: "Devices", icon: Smartphone },
+  { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
   { id: "invoices", label: "Invoices", icon: FileText },
   { id: "quotations", label: "Quotations", icon: FileSignature },
+  { id: "apikeys", label: "API Keys", icon: Lock },
   { id: "bank", label: "Bank Accounts", icon: Landmark },
+  { id: "finance", label: "Finance", icon: DollarSign },
   { id: "reports", label: "Reports", icon: BarChart3 },
 ];
 
@@ -2937,9 +3272,13 @@ export function OwnerView() {
 
       {tab === "customers" && <CustomersTab />}
       {tab === "keys" && <SerialKeysTab customers={customerList} />}
+      {tab === "devices" && <DevicesTab />}
+      {tab === "subscriptions" && <SubscriptionsTab customers={customerList} />}
       {tab === "invoices" && <InvoicesTab customers={customerList} />}
       {tab === "quotations" && <QuotationsTab customers={customerList} />}
+      {tab === "apikeys" && <ApiKeysTab />}
       {tab === "bank" && <BankAccountsTab />}
+      {tab === "finance" && <FinanceTab />}
       {tab === "reports" && <ReportsTab />}
     </div>
   );
