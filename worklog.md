@@ -1905,3 +1905,52 @@ Stage Summary:
 - Dashboard now has 15+ sections total: Hero, KPI grid, AI Insights, Quick Actions, Weekly Goals, Smart Notifications, Pages Ranking, Performance Trend (metric switcher), Audience Breakdown, Week Calendar, Content Pipeline, Comment Inbox, Top Performing Posts, Top Contributors, Recent Posts, Upcoming, Team Activity.
 - Premium polish: animated hero, glassmorphism cards, staggered animations, hover-reveal actions, semantic color system, SVG goal rings, ambient glows, custom scrollbars.
 - Pushed to https://github.com/pklastlook/SocialFlow.git (commit 7420fdb).
+
+---
+Task ID: whatsapp-integration
+Agent: main (code assistant)
+Task: Integrate WhatsApp into sidebar so team members can copy-paste content from groups & chats to publish on social media.
+
+Work Log:
+- Added WhatsAppMessage model to Prisma schema:
+  • id, source (group|chat|broadcast|channel), senderName, senderPhone, groupName
+  • content, mediaUrl, mediaType
+  • status (new|used|archived), postId (links to published post)
+  • savedById (relation to User via "WhatsAppSavedBy")
+  • createdAt, updatedAt
+- Pushed schema to Neon DB (db push --accept-data-loss) + regenerated Prisma client.
+- Added "whatsapp" to ViewId union type in src/lib/types.ts.
+- Added WhatsApp nav item to sidebar (Overview group) with MessageCircle icon + green accent (oklch(0.78 0.18 145)).
+- Added WhatsAppView import + render branch to app-shell.tsx.
+- Added "whatsapp" entry to VIEW_TITLES in app-header.tsx ("WhatsApp Inbox" / "Paste content from groups & chats to publish").
+- Created /api/whatsapp route (GET + POST):
+  • GET: returns all messages with optional ?status filter, includes savedBy relation.
+  • POST: creates a new pasted message (source, senderName, senderPhone?, groupName?, content, mediaUrl?, mediaType?, savedById?).
+- Created /api/whatsapp/[id] route (PATCH + DELETE):
+  • PATCH: updates status (new→used|archived) or links postId.
+  • DELETE: removes a message.
+- Built WhatsAppView component (src/components/views/whatsapp.tsx, 450 lines):
+  • KPI strip: 4 cards (Total Messages, New, Used, Archived) with count-up animation.
+  • Paste form (toggleable): source-type selector (group/chat/broadcast/channel with icons), sender name input, group name input, content textarea with "Paste from clipboard" button (uses navigator.clipboard.readText()), optional media URL, character count + tweet-count hint, save button.
+  • Messages list: each card shows source badge, sender name, status badge (New=emerald, Used=blue, Archived=muted), group name, time-ago, saved-by name, expandable content (click to expand/collapse), media preview if URL provided.
+  • Actions per message: "Send to Composer" (primary — calls openComposer(content) + PATCHes status to "used"), Copy (clipboard), Archive, Delete.
+  • Search input (filters by content/sender/group name).
+  • Status filter pills (All/New/Used/Archived) with counts.
+  • Custom scrollbar, staggered animations, glass cards, empty states.
+- Seeded 2 test messages via API:
+  • Sarah Khan (group: Marketing Team): "Hey team! We just hit 10K followers on Instagram! 🎉..."
+  • Mike Chen (chat): "Just saw our competitor launched a new product..."
+
+Verification:
+- bunx tsc --noEmit → 0 errors in src/ (after Prisma client regeneration).
+- bun run lint → exit 0, 0 warnings.
+- API verified via curl:
+  • GET /api/whatsapp (empty) → 0 messages
+  • POST /api/whatsapp → created 2 messages
+  • GET /api/whatsapp → 2 messages returned with correct data
+- Committed (dc12436) and pushed to GitHub (main → main).
+
+Stage Summary:
+- Files: prisma/schema.prisma (+WhatsAppMessage model + User relation), src/lib/types.ts (+whatsapp ViewId), src/components/app-sidebar.tsx (+WhatsApp nav item), src/components/app-shell.tsx (+import + render branch), src/components/app-header.tsx (+VIEW_TITLES entry), src/app/api/whatsapp/route.ts (GET+POST), src/app/api/whatsapp/[id]/route.ts (PATCH+DELETE), src/components/views/whatsapp.tsx (450-line view), generated/ (Prisma client regenerated).
+- The WhatsApp Inbox is now in the sidebar under "Overview" — team members can paste content from WhatsApp groups/chats, then click "Send to Composer" to generate AI variants and publish on social media.
+- Pushed to https://github.com/pklastlook/SocialFlow.git (commit dc12436).
