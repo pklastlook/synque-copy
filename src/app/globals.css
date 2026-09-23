@@ -46,80 +46,81 @@
 }
 
 /* ============================================================================
-   SocialFlow Color System
-   Combines the best of macOS Sonoma (14) · Sequoia (15) · Tahoe (26)
+   SocialFlow — macOS Sonoma Design System
 
-   Sonoma  → vibrant solid system colors, deep accents
-   Sequoia → window tinting, richer materials, refined dark mode
-   Tahoe   → "Liquid Glass" — crystal-clear high-opacity glass with real depth
-
-   Design rules:
-   • Base background is SOLID (not a faded mesh) — glass sits on a solid color
-   • All accent colors use Apple's actual system color values at full chroma
-   • Glass surfaces are 97-99% opacity (essentially solid) with crisp edges
-   • Shadows are layered + defined (not muddy blobs)
-   • 1px top-edge highlight = the "crystal" signature
+   Sonoma principles applied:
+   1. Vibrant materials — translucent sidebar & toolbars, solid content
+   2. Content-first — remove "box-itis", let data breathe
+   3. Typographic confidence — Large Titles, Semibold metrics, caption labels
+   4. Semantic color — color used for meaning (green=growth, red=alert),
+      not decoration. Data cards are neutral; only accents are colored.
+   5. Native controls — borderedProminent buttons, segmented controls,
+      proper pickers
+   6. Refined sidebar — translucency, soft selection, toolbar actions
+   7. SF Symbol consistency — uniform stroke weight, optical alignment
    ============================================================================ */
 
 :root {
-  --radius: 0.875rem;
+  --radius: 0.75rem;
 
-  /* Solid background — a clean, near-white with the faintest cool tint
-     (Sonoma wallpaper clarity, not a faded mesh). */
-  --background: oklch(0.985 0.003 264);
-  --foreground: oklch(0.18 0.012 264);
+  /* Sonoma window background — clean, near-white, neutral.
+     Not a wallpaper mesh — a solid canvas that lets materials shine. */
+  --background: oklch(0.98 0.002 250);
+  --foreground: oklch(0.16 0.008 250);
 
-  /* Crystal-solid cards — 98% opacity white = premium solid glass.
-     Tahoe glass is CRYSTAL clear, not muddy translucent. */
-  --card: oklch(1 0 0 / 98%);
-  --card-foreground: oklch(0.18 0.012 264);
+  /* Content cards — Sonoma .regularMaterial: solid white with the faintest
+     warmth, NOT a heavy glass. Borders are subtle, shadows are soft. */
+  --card: oklch(1 0 0 / 100%);
+  --card-foreground: oklch(0.16 0.008 250);
 
-  --popover: oklch(1 0 0 / 99%);
-  --popover-foreground: oklch(0.18 0.012 264);
+  /* Popovers — Sonoma .thickMaterial: solid, slightly elevated */
+  --popover: oklch(1 0 0 / 100%);
+  --popover-foreground: oklch(0.16 0.008 250);
 
-  /* Brand — Apple system blue (#007AFF) — solid, retina-ready */
+  /* Brand — Apple system blue (#007AFF) */
   --primary: oklch(0.588 0.167 254);
   --primary-foreground: oklch(0.99 0 0);
 
-  /* Accent — Apple system purple (#AF52DE) — solid, vivid */
-  --gold: oklch(0.636 0.197 307);
+  /* Accent — Apple system indigo (#5856D6), Sonoma's signature secondary */
+  --gold: oklch(0.588 0.209 277);
   --gold-foreground: oklch(0.99 0 0);
-  --accent-strong: oklch(0.58 0.21 307);
+  --accent-strong: oklch(0.54 0.21 277);
 
-  /* Sonoma-style solid neutrals — full chroma, not washed out */
-  --secondary: oklch(0.952 0.004 264);
-  --secondary-foreground: oklch(0.22 0.01 264);
+  /* Neutrals — Sonoma uses warm greys, not cold blue-greys */
+  --secondary: oklch(0.945 0.003 250);
+  --secondary-foreground: oklch(0.22 0.008 250);
 
-  --muted: oklch(0.952 0.004 264);
-  --muted-foreground: oklch(0.48 0.012 264);
+  --muted: oklch(0.945 0.003 250);
+  --muted-foreground: oklch(0.50 0.008 250);
 
-  --accent: oklch(0.94 0.015 307);
-  --accent-foreground: oklch(0.36 0.15 307);
+  --accent: oklch(0.94 0.008 258);
+  --accent-foreground: oklch(0.36 0.13 258);
 
-  /* Apple system red (#FF3B30) — solid */
+  /* Semantic — Apple system red */
   --destructive: oklch(0.626 0.225 27);
-  --border: oklch(0.88 0.004 264);
-  --input: oklch(0.92 0.003 264);
-  --ring: oklch(0.588 0.167 254);
+  --border: oklch(0.90 0.003 250);
+  --input: oklch(0.93 0.002 250);
+  --ring: oklch(0.588 0.167 254 / 40%);
 
-  /* Chart palette — Apple system colors at full saturation (retina-ready) */
-  --chart-1: oklch(0.588 0.167 254);  /* Apple blue    #007AFF */
-  --chart-2: oklch(0.636 0.197 307);  /* Apple purple  #AF52DE */
-  --chart-3: oklch(0.723 0.178 142);  /* Apple green   #34C759 */
-  --chart-4: oklch(0.635 0.217 17);   /* Apple pink    #FF2D55 */
-  --chart-5: oklch(0.737 0.165 55);   /* Apple orange  #FF9500 */
+  /* Chart palette — Apple system colors (semantic, retina-ready) */
+  --chart-1: oklch(0.588 0.167 254);  /* blue    */
+  --chart-2: oklch(0.588 0.209 277);  /* indigo  */
+  --chart-3: oklch(0.723 0.178 142);  /* green   */
+  --chart-4: oklch(0.635 0.217 17);   /* pink    */
+  --chart-5: oklch(0.737 0.165 55);   /* orange  */
 
-  /* Sidebar — solid (Sequoia tinted material, not translucent mud) */
-  --sidebar: oklch(0.972 0.003 264);
-  --sidebar-foreground: oklch(0.18 0.012 264);
+  /* Sidebar — Sonoma .sidebar material: translucent, vibrancy-enabled.
+     Slightly cooler than content to create depth separation. */
+  --sidebar: oklch(0.965 0.003 250 / 85%);
+  --sidebar-foreground: oklch(0.16 0.008 250);
   --sidebar-primary: oklch(0.588 0.167 254);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.93 0.008 264);
-  --sidebar-accent-foreground: oklch(0.22 0.01 264);
-  --sidebar-border: oklch(0.88 0.004 264);
-  --sidebar-ring: oklch(0.588 0.167 254);
+  --sidebar-accent: oklch(0.93 0.005 250 / 70%);
+  --sidebar-accent-foreground: oklch(0.22 0.008 250);
+  --sidebar-border: oklch(0.88 0.003 250 / 60%);
+  --sidebar-ring: oklch(0.588 0.167 254 / 40%);
 
-  /* Platform brand colors — solid Apple-spectrum values */
+  /* Platform brand colors — solid */
   --p-instagram: oklch(0.635 0.217 17);
   --p-facebook: oklch(0.588 0.167 254);
   --p-x: oklch(0.18 0 0);
@@ -130,56 +131,54 @@
 }
 
 .dark {
-  /* Tahoe dark — deep, rich, SOLID (not a washed-out mesh) */
-  --background: oklch(0.16 0.012 264);
-  --foreground: oklch(0.97 0.003 264);
+  /* Sonoma dark — deep neutral charcoal, NOT blue-black.
+     Matches macOS dark mode: warm dark grey, not cold. */
+  --background: oklch(0.17 0.004 250);
+  --foreground: oklch(0.96 0.003 250);
 
-  /* Crystal-solid cards — 96% opacity = solid glass with the faintest depth */
-  --card: oklch(0.225 0.014 264 / 96%);
-  --card-foreground: oklch(0.97 0.003 264);
+  /* Cards — solid elevated surface (Sonoma dark .regularMaterial) */
+  --card: oklch(0.225 0.005 250 / 92%);
+  --card-foreground: oklch(0.96 0.003 250);
 
-  --popover: oklch(0.25 0.016 264 / 98%);
-  --popover-foreground: oklch(0.97 0.003 264);
+  --popover: oklch(0.26 0.006 250 / 96%);
+  --popover-foreground: oklch(0.96 0.003 250);
 
-  /* Brand — bright Apple blue on dark */
   --primary: oklch(0.69 0.165 254);
-  --primary-foreground: oklch(0.14 0.02 264);
+  --primary-foreground: oklch(0.14 0.02 250);
 
-  /* Accent — vivid Apple purple */
-  --gold: oklch(0.7 0.197 307);
-  --gold-foreground: oklch(0.14 0.02 264);
-  --accent-strong: oklch(0.66 0.21 307);
+  --gold: oklch(0.72 0.209 277);
+  --gold-foreground: oklch(0.14 0.02 250);
+  --accent-strong: oklch(0.66 0.21 277);
 
-  --secondary: oklch(0.27 0.014 264);
-  --secondary-foreground: oklch(0.97 0.003 264);
+  --secondary: oklch(0.28 0.005 250);
+  --secondary-foreground: oklch(0.96 0.003 250);
 
-  --muted: oklch(0.27 0.012 264);
-  --muted-foreground: oklch(0.7 0.01 264);
+  --muted: oklch(0.28 0.005 250);
+  --muted-foreground: oklch(0.68 0.008 250);
 
-  --accent: oklch(0.32 0.06 307);
-  --accent-foreground: oklch(0.92 0.05 307);
+  --accent: oklch(0.32 0.05 277);
+  --accent-foreground: oklch(0.90 0.04 277);
 
   --destructive: oklch(0.696 0.195 22);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.69 0.165 254);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.69 0.165 254 / 40%);
 
-  /* Chart palette — vivid Apple system colors that glow on dark */
-  --chart-1: oklch(0.69 0.165 254);   /* Apple blue    */
-  --chart-2: oklch(0.7 0.197 307);    /* Apple purple  */
-  --chart-3: oklch(0.76 0.178 142);   /* Apple green   */
-  --chart-4: oklch(0.69 0.217 17);    /* Apple pink    */
-  --chart-5: oklch(0.78 0.165 55);    /* Apple orange  */
+  --chart-1: oklch(0.69 0.165 254);
+  --chart-2: oklch(0.72 0.209 277);
+  --chart-3: oklch(0.76 0.178 142);
+  --chart-4: oklch(0.69 0.217 17);
+  --chart-5: oklch(0.78 0.165 55);
 
-  /* Sidebar — solid, slightly darker than page for Tahoe depth */
-  --sidebar: oklch(0.135 0.012 264);
-  --sidebar-foreground: oklch(0.95 0.004 264);
+  /* Sidebar — Sonoma dark: translucent, slightly darker than content */
+  --sidebar: oklch(0.15 0.004 250 / 85%);
+  --sidebar-foreground: oklch(0.94 0.003 250);
   --sidebar-primary: oklch(0.69 0.165 254);
-  --sidebar-primary-foreground: oklch(0.14 0.02 264);
-  --sidebar-accent: oklch(0.22 0.014 264);
-  --sidebar-accent-foreground: oklch(0.95 0.004 264);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.69 0.165 254);
+  --sidebar-primary-foreground: oklch(0.14 0.02 250);
+  --sidebar-accent: oklch(0.22 0.005 250 / 70%);
+  --sidebar-accent-foreground: oklch(0.94 0.003 250);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.69 0.165 254 / 40%);
 }
 
 @layer base {
@@ -195,140 +194,108 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    /* Sonoma typography — tighter tracking on display, relaxed on body */
     font-feature-settings: "ss01", "cv01", "cv11";
+    letter-spacing: -0.011em;
+  }
+  /* Large title style — Sonoma page headers */
+  h1, h2 {
+    letter-spacing: -0.022em;
   }
 }
 
 /* ============================================================================
-   Crystal Glass surfaces
-   macOS Tahoe "Liquid Glass" — SOLID, crisp, with real depth
+   Sonoma Material System
 
-   • 97-99% opacity (essentially solid — glass you can read through clearly)
-   • Crisp 1px top-edge highlight = the crystal signature
-   • Layered soft shadows for real depth
-   • NO heavy noise texture (that caused the "splashed/muddy" look)
-   • Subtle backdrop blur only on overlay elements (dialogs, popovers)
+   Sonoma uses real NSVisualEffectView materials, not CSS "glass".
+   We emulate them:
+   • .glass       = .regularMaterial  (solid card, soft shadow, subtle border)
+   • .glass-strong = .thickMaterial   (elevated — popovers, dialogs)
+   • .glass-sidebar = .sidebar         (translucent + vibrancy + blur)
+   • .glass-topbar  = .windowBackground (translucent toolbar)
+
+   Key Sonoma rules:
+   • Cards are SOLID white/dark — NOT translucent. Content must be readable.
+   • Only the sidebar & toolbar have translucency (vibrancy).
+   • Shadows are SOFT and subtle, never heavy. Depth from elevation, not blur.
+   • Borders are 1px and barely visible — separation by spacing, not lines.
+   • NO noise textures, NO heavy gradients on data cards.
    ============================================================================ */
 
 :root {
-  /* Crystal glass — solid, premium, retina-ready */
-  --glass-bg: oklch(1 0 0 / 97%);
-  --glass-border: oklch(0.88 0.004 264 / 80%);
+  /* .regularMaterial — solid card surface */
+  --glass-bg: oklch(1 0 0 / 100%);
+  --glass-border: oklch(0.90 0.003 250 / 80%);
   --glass-highlight: oklch(1 0 0 / 100%);
-  --glass-shadow: oklch(0.3 0.02 264 / 14%);
-  --glass-shadow-soft: oklch(0.2 0.02 264 / 10%);
-  --glass-bg-strong: oklch(1 0 0 / 99%);
-
-  /* Crystal accent glow — subtle, controlled */
+  --glass-shadow: oklch(0.25 0.01 250 / 10%);
+  --glass-shadow-soft: oklch(0.20 0.01 250 / 6%);
+  /* .thickMaterial — elevated (dialogs, popovers) */
+  --glass-bg-strong: oklch(1 0 0 / 100%);
+  /* Subtle accent tint for focus/hover states */
   --crystal-glow: oklch(0.588 0.167 254 / 6%);
 }
 .dark {
-  --glass-bg: oklch(0.225 0.014 264 / 97%);
+  --glass-bg: oklch(0.225 0.005 250 / 100%);
   --glass-border: oklch(1 0 0 / 10%);
-  --glass-highlight: oklch(1 0 0 / 8%);
-  --glass-shadow: oklch(0 0 0 / 50%);
-  --glass-shadow-soft: oklch(0 0 0 / 35%);
-  --glass-bg-strong: oklch(0.25 0.016 264 / 99%);
-
-  --crystal-glow: oklch(0.69 0.165 254 / 10%);
+  --glass-highlight: oklch(1 0 0 / 6%);
+  --glass-shadow: oklch(0 0 0 / 40%);
+  --glass-shadow-soft: oklch(0 0 0 / 25%);
+  --glass-bg-strong: oklch(0.26 0.006 250 / 100%);
+  --crystal-glow: oklch(0.69 0.165 254 / 8%);
 }
 
-/* Glass — the standard crystal surface (cards, panels) */
+/* Glass — the standard Sonoma card surface (.regularMaterial) */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
   border: 1px solid var(--glass-border);
+  /* Sonoma shadow: single soft layer, never heavy */
   box-shadow:
-    0 1px 0 0 var(--glass-highlight) inset,
-    0 1px 3px 0 var(--glass-shadow-soft),
-    0 8px 24px -8px var(--glass-shadow-soft);
+    0 1px 2px 0 var(--glass-shadow-soft),
+    0 4px 12px -4px var(--glass-shadow-soft);
   position: relative;
 }
-/* Subtle crystal sheen — a single soft top highlight, NOT noise */
-.glass::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    var(--glass-highlight) 0%,
-    transparent 30%
-  );
-  opacity: 0.6;
-}
+/* No ::after pseudo — Sonoma cards are clean, no top highlight gradient */
 
-/* Glass strong — for dialogs, modals, popovers (more opaque) */
+/* Glass strong — for dialogs, modals, popovers (.thickMaterial) */
 .glass-strong {
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(32px) saturate(160%);
-  -webkit-backdrop-filter: blur(32px) saturate(160%);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
   border: 1px solid var(--glass-border);
   box-shadow:
-    0 1px 0 0 var(--glass-highlight) inset,
-    0 4px 12px -2px var(--glass-shadow-soft),
-    0 16px 48px -8px var(--glass-shadow),
-    0 32px 80px -16px var(--glass-shadow);
+    0 8px 32px -8px var(--glass-shadow),
+    0 24px 64px -16px var(--glass-shadow);
   position: relative;
 }
-.glass-strong::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    var(--glass-highlight) 0%,
-    transparent 25%
-  );
-  opacity: 0.5;
-}
 
-/* Premium modal scrim — solid dark, not muddy */
+/* Premium modal scrim — Sonoma-style dimming */
 .premium-scrim {
-  background: oklch(0.1 0.01 264 / 60%);
-  backdrop-filter: blur(8px) saturate(100%);
-  -webkit-backdrop-filter: blur(8px) saturate(100%);
+  background: oklch(0.1 0.01 250 / 45%);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
-/* Sidebar — solid Sequoia-tinted material (crisp, not muddy) */
+/* Sidebar — Sonoma .sidebar material: TRANSLUCENT with vibrancy.
+   This is the ONE place translucency lives — it shows the background
+   through a frosted layer, creating the signature macOS depth. */
 .glass-sidebar {
   background: var(--sidebar);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-right: 1px solid var(--sidebar-border);
-  box-shadow: inset -1px 0 0 0 var(--sidebar-border);
 }
 
-/* Floating topbar — solid crystal */
+/* Floating topbar — Sonoma toolbar (.windowBackground) */
 .glass-topbar {
-  background: var(--glass-bg-strong);
+  background: var(--glass-bg);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid var(--glass-border);
-  box-shadow:
-    0 1px 0 0 var(--glass-highlight) inset,
-    0 2px 8px -2px var(--glass-shadow-soft);
+  border-bottom: 1px solid var(--glass-border);
 }
 
-/* Liquid sheen — subtle moving highlight (kept minimal) */
+/* Liquid sheen — removed in Sonoma (cards are clean, no moving highlights) */
 .glass-sheen {
   position: relative;
-  overflow: hidden;
-}
-.glass-sheen::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    transparent 0%,
-    var(--glass-highlight) 45%,
-    transparent 55%
-  );
-  opacity: 0.3;
-  pointer-events: none;
 }
 
 /* ============================================================================
@@ -396,56 +363,47 @@
 }
 
 /* ============================================================================
-   Liquid pill buttons — SOLID Apple-blue with crisp edges
+   Sonoma Buttons — .borderedProminent style
+   Solid color (no gradient), subtle inner highlight, soft shadow.
+   This is how native macOS buttons look — confident, not flashy.
    ============================================================================ */
 .liquid-pill {
-  background: linear-gradient(135deg,
-    oklch(0.588 0.167 254),
-    oklch(0.52 0.18 260)
-  );
+  background: var(--primary);
   color: var(--primary-foreground);
-  border: 1px solid oklch(0.45 0.12 254);
+  border: none;
+  /* Sonoma .borderedProminent: subtle top highlight + soft drop shadow */
   box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 30%) inset,
-    0 1px 2px 0 oklch(0.3 0.1 254 / 40%),
-    0 4px 12px -4px oklch(0.3 0.12 254 / 50%);
-  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.2s ease, filter 0.2s ease;
+    0 1px 0 0 oklch(1 0 0 / 25%) inset,
+    0 1px 2px 0 oklch(0 0 0 / 15%),
+    0 2px 8px -2px oklch(0.588 0.167 254 / 35%);
+  transition: filter 0.15s ease, transform 0.1s ease;
 }
 .liquid-pill:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
-  box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 40%) inset,
-    0 2px 4px 0 oklch(0.3 0.1 254 / 50%),
-    0 8px 20px -4px oklch(0.3 0.12 254 / 60%);
+  filter: brightness(1.05);
 }
-.liquid-pill:active { transform: translateY(0) scale(0.98); }
+.liquid-pill:active {
+  filter: brightness(0.95);
+  transform: scale(0.98);
+}
 
-/* Accent variant — solid Apple purple */
+/* Accent variant — Apple indigo */
 .liquid-gold {
-  background: linear-gradient(135deg,
-    oklch(0.636 0.197 307),
-    oklch(0.56 0.2 312)
-  );
+  background: var(--gold);
   color: var(--gold-foreground);
-  border: 1px solid oklch(0.5 0.15 307);
+  border: none;
   box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 35%) inset,
-    0 1px 2px 0 oklch(0.3 0.1 307 / 40%),
-    0 4px 12px -4px oklch(0.3 0.12 307 / 50%);
-  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.2s ease, filter 0.2s ease;
+    0 1px 0 0 oklch(1 0 0 / 25%) inset,
+    0 1px 2px 0 oklch(0 0 0 / 15%),
+    0 2px 8px -2px oklch(0.588 0.209 277 / 35%);
+  transition: filter 0.15s ease, transform 0.1s ease;
 }
 .liquid-gold:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
-  box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 45%) inset,
-    0 2px 4px 0 oklch(0.3 0.1 307 / 50%),
-    0 8px 20px -4px oklch(0.3 0.12 307 / 60%);
+  filter: brightness(1.05);
 }
-.liquid-gold:active { transform: translateY(0) scale(0.98); }
+.liquid-gold:active {
+  filter: brightness(0.95);
+  transform: scale(0.98);
+}
 
 /* Premium hover lift — for cards */
 .lift-hover {

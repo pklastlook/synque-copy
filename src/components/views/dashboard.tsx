@@ -95,26 +95,25 @@ export function DashboardView() {
 
   return (
     <div className="space-y-5">
-      {/* Hero greeting */}
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-6 sm:p-7">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
+      {/* Hero greeting — Sonoma Large Title style */}
+      <GlassCard strong className="relative overflow-hidden p-6 sm:p-7">
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
               {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
             </div>
-            <h2 className="mt-2 text-[28px] font-bold leading-tight tracking-tight sm:text-[34px]">
+            <h2 className="mt-2 text-[28px] font-bold leading-tight tracking-tight sm:text-[32px]">
               Good day, <span className="retaina-text">{firstName}</span>
             </h2>
             <p className="mt-1.5 text-[13px] text-muted-foreground">
-              You have <span className="font-bold text-foreground">{data.kpis.scheduled}</span> posts scheduled and{" "}
-              <span className="font-bold text-foreground">{data.kpis.pendingInbox}</span> conversations waiting.
+              You have <span className="font-semibold text-foreground">{data.kpis.scheduled}</span> posts scheduled and{" "}
+              <span className="font-semibold text-foreground">{data.kpis.pendingInbox}</span> conversations waiting.
             </p>
           </div>
           <button
             onClick={() => setView("composer")}
-            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold"
+            className="liquid-pill flex items-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-semibold"
           >
             <Wand2 className="h-4 w-4" />
             Compose with AI
