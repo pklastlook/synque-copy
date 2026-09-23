@@ -17,6 +17,7 @@ import { useApi, timeAgo } from "@/lib/hooks";
 import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
 import { PlatformBadge, PlatformPill } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { HelpText } from "@/components/glass/help-text";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Comment } from "@/lib/types";
@@ -124,6 +125,7 @@ export function InboxView() {
 
   return (
     <div className="space-y-4">
+      <HelpText module="inbox"><strong className="text-foreground">Inbox</strong> collects comments, messages, and mentions from every connected account. Click a conversation to reply.</HelpText>
       {/* Top filter bar */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-4 sm:p-5">
         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />

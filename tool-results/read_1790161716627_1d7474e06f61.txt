@@ -1,0 +1,1545 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Area,
+     6→  AreaChart,
+     7→  ResponsiveContainer,
+     8→} from "recharts";
+     9→import {
+    10→  Users,
+    11→  Eye,
+    12→  TrendingUp,
+    13→  Heart,
+    14→  Plus,
+    15→  ArrowRight,
+    16→  Settings2,
+    17→  ShieldCheck,
+    18→  Sparkles,
+    19→  Loader2,
+    20→  Check,
+    21→  ArrowLeft,
+    22→  Lock,
+    23→  ChevronRight,
+    24→  Shield,
+    25→  Zap,
+    26→  AtSign,
+    27→  Building2,
+    28→  Activity,
+    29→  AlertTriangle,
+    30→  ShieldAlert,
+    31→  ThumbsUp,
+    32→  ThumbsDown,
+    33→  Minus,
+    34→  Flag,
+    35→  Gauge,
+    36→  Clock,
+    37→  MessageSquare,
+    38→  UserPlus,
+    39→  Repeat,
+    40→  Hash,
+    41→  Pause,
+    42→  Snowflake,
+    43→  Trash2,
+    44→  Image as ImageIcon,
+    45→  BarChart3,
+    46→} from "lucide-react";
+    47→import { useApi, fmt } from "@/lib/hooks";
+    48→import { GlassCard, KpiCard } from "@/components/glass/glass-card";
+    49→import {
+    50→  PlatformBadge,
+    51→  PlatformPill,
+    52→  VerifiedTick,
+    53→} from "@/components/glass/platform-badge";
+    54→import { NameAvatar } from "@/components/glass/name-avatar";
+    55→import { PLATFORMS, PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
+    56→import { useAuth } from "@/lib/auth-store";
+    57→import { useNav } from "@/lib/store";
+    58→import {
+    59→  Dialog,
+    60→  DialogContent,
+    61→  DialogDescription,
+    62→  DialogFooter,
+    63→  DialogHeader,
+    64→  DialogTitle,
+    65→} from "@/components/ui/dialog";
+    66→import { Input } from "@/components/ui/input";
+    67→import { Label } from "@/components/ui/label";
+    68→import { Switch } from "@/components/ui/switch";
+    69→import {
+    70→  Select,
+    71→  SelectContent,
+    72→  SelectItem,
+    73→  SelectTrigger,
+    74→  SelectValue,
+    75→} from "@/components/ui/select";
+    76→import { cn } from "@/lib/utils";
+    77→import { toast } from "sonner";
+    78→
+    79→interface HealthData {
+    80→  positiveCount: number;
+    81→  neutralCount: number;
+    82→  negativeCount: number;
+    83→  totalComments: number;
+    84→  positiveRatio: number;
+    85→  neutralRatio: number;
+    86→  negativeRatio: number;
+    87→  reportCount: number;
+    88→  reportTrend: number;
+    89→  riskScore: number;
+    90→  riskLevel: "safe" | "moderate" | "elevated" | "high" | "critical";
+    91→  status: "healthy" | "warning" | "restricted" | "suspended";
+    92→  riskReasons: string[];
+    93→  lastUpdated: string;
+    94→}
+    95→
+    96→interface ProtectionData {
+    97→  enabled: boolean;
+    98→  dailyPostLimit: number;
+    99→  hourlyPostLimit: number;
+   100→  minMinutesBetweenPosts: number;
+   101→  autoFlagSensitiveContent: boolean;
+   102→  blockDuplicateContent: boolean;
+   103→  blockBannedHashtags: boolean;
+   104→  bannedHashtags: string | null;
+   105→  enforceWarmupProfile: boolean;
+   106→  limitDMsPerHour: number;
+   107→  limitFollowsPerHour: number;
+   108→  limitCommentsPerHour: number;
+   109→  pausePostingOnWarning: boolean;
+   110→  cooldownHoursOnFlag: number;
+   111→  requireTwoFactor: boolean;
+   112→  lastAudit: string | null;
+   113→}
+   114→
+   115→interface AccountData {
+   116→  id: string;
+   117→  platform: PlatformId;
+   118→  handle: string;
+   119→  displayName: string;
+   120→  followers: number;
+   121→  verified: boolean;
+   122→  ownerName: string;
+   123→  ownerColor: string | null;
+   124→  postsCount: number;
+   125→  followerGrowth: number;
+   126→  impressions: number;
+   127→  engagement: number;
+   128→  health: HealthData | null;
+   129→  protection: ProtectionData | null;
+   130→}
+   131→
+   132→/** Build a tiny sparkline dataset deterministically from the account id. */
+   133→function buildSpark(id: string, growth: number) {
+   134→  let h = 0;
+   135→  for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
+   136→  const points = 12;
+   137→  const base = 50 + (Math.abs(h) % 30);
+   138→  const arr: { i: number; v: number }[] = [];
+   139→  for (let i = 0; i < points; i++) {
+   140→    const wave = Math.sin((i + h) * 0.7) * 12 + Math.cos((i + h) * 0.4) * 6;
+   141→    const trend = (i / points) * (growth > 0 ? 30 : -10);
+   142→    arr.push({ i, v: Math.max(2, base + wave + trend) });
+   143→  }
+   144→  return arr;
+   145→}
+   146→
+   147→export function AccountsView() {
+   148→  const { data, loading, reload } = useApi<AccountData[]>("/api/accounts");
+   149→  const [filter, setFilter] = React.useState<"all" | PlatformId>("all");
+   150→  const [connectOpen, setConnectOpen] = React.useState(false);
+   151→
+   152→  if (loading || !data) return <AccountsSkeleton />;
+   153→
+   154→  const sorted = [...data].sort((a, b) => b.followers - a.followers);
+   155→
+   156→  const totalAccounts = sorted.length;
+   157→  const totalFollowers = sorted.reduce((s, a) => s + a.followers, 0);
+   158→  const totalImpressions = sorted.reduce((s, a) => s + a.impressions, 0);
+   159→  const avgGrowth =
+   160→    totalAccounts > 0
+   161→      ? Math.round(sorted.reduce((s, a) => s + a.followerGrowth, 0) / totalAccounts)
+   162→      : 0;
+   163→
+   164→  const presentPlatforms = Array.from(
+   165→    new Set(sorted.map((a) => a.platform))
+   166→  ) as PlatformId[];
+   167→
+   168→  const filtered = filter === "all" ? sorted : sorted.filter((a) => a.platform === filter);
+   169→
+   170→  return (
+   171→    <div className="space-y-6">
+   172→      {/* Header */}
+   173→      <GlassCard
+   174→        strong
+   175→        className="glass-sheen animate-rise relative overflow-hidden p-6"
+   176→      >
+   177→        <div className="pointer-events-none absolute -right-12 -top-12 h-52 w-52 rounded-full bg-primary/20 blur-3xl" />
+   178→        <div className="relative flex flex-wrap items-center justify-between gap-4">
+   179→          <div className="flex items-center gap-4">
+   180→            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
+   181→              <Users className="h-5 w-5" />
+   182→            </div>
+   183→            <div>
+   184→              <div className="flex items-center gap-2 text-[11px] font-medium text-primary">
+   185→                <Sparkles className="h-3 w-3" />
+   186→                <span>Accounts</span>
+   187→              </div>
+   188→              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+   189→                Connected social profiles
+   190→              </h2>
+   191→              <p className="mt-0.5 text-sm text-muted-foreground">
+   192→                {totalAccounts} accounts · {presentPlatforms.length} platforms
+   193→              </p>
+   194→            </div>
+   195→          </div>
+   196→          <button
+   197→            onClick={() => setConnectOpen(true)}
+   198→            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+   199→          >
+   200→            <Plus className="h-4 w-4" />
+   201→            Connect account
+   202→          </button>
+   203→        </div>
+   204→      </GlassCard>
+   205→
+   206→      {/* KPIs */}
+   207→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 animate-rise">
+   208→        <KpiCard
+   209→          label="Total accounts"
+   210→          value={totalAccounts}
+   211→          icon={<Users className="h-5 w-5" />}
+   212→          accent="oklch(0.7 0.24 14)"
+   213→          hint={`${presentPlatforms.length} platforms`}
+   214→        />
+   215→        <KpiCard
+   216→          label="Total followers"
+   217→          value={fmt(totalFollowers)}
+   218→          icon={<TrendingUp className="h-5 w-5" />}
+   219→          accent="oklch(0.74 0.18 165)"
+   220→          hint="all accounts combined"
+   221→        />
+   222→        <KpiCard
+   223→          label="Impressions"
+   224→          value={fmt(totalImpressions)}
+   225→          icon={<Eye className="h-5 w-5" />}
+   226→          accent="oklch(0.66 0.22 305)"
+   227→          hint="all time"
+   228→        />
+   229→        <KpiCard
+   230→          label="Avg. growth"
+   231→          value={fmt(avgGrowth)}
+   232→          icon={<Heart className="h-5 w-5" />}
+   233→          accent="oklch(0.78 0.18 75)"
+   234→          hint="followers per account"
+   235→        />
+   236→      </div>
+   237→
+   238→      {/* Filter pills */}
+   239→      <div className="flex flex-wrap items-center gap-2 animate-rise">
+   240→        <FilterPill
+   241→          active={filter === "all"}
+   242→          onClick={() => setFilter("all")}
+   243→          label="All"
+   244→          count={sorted.length}
+   245→        />
+   246→        {presentPlatforms.map((p) => (
+   247→          <FilterPill
+   248→            key={p}
+   249→            active={filter === p}
+   250→            onClick={() => setFilter(p)}
+   251→            label={PLATFORMS[p].name}
+   252→            count={sorted.filter((a) => a.platform === p).length}
+   253→            platform={p}
+   254→          />
+   255→        ))}
+   256→      </div>
+   257→
+   258→      {/* Account grid */}
+   259→      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 animate-rise">
+   260→        {filtered.map((a) => (
+   261→          <AccountCard key={a.id} account={a} />
+   262→        ))}
+   263→        {/* Add-account placeholder to fill grid gaps */}
+   264→        <button
+   265→          onClick={() => setConnectOpen(true)}
+   266→          className="lift-hover group flex min-h-[260px] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border/50 bg-muted/20 p-6 text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+   267→        >
+   268→          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted/50 transition group-hover:bg-primary/10">
+   269→            <Plus className="h-6 w-6" />
+   270→          </div>
+   271→          <div className="text-sm font-semibold">Connect another account</div>
+   272→          <div className="text-xs text-muted-foreground">Add a new social profile</div>
+   273→        </button>
+   274→      </div>
+   275→
+   276→      {/* Connect dialog — premium multi-step credentials flow */}
+   277→      <ConnectAccountDialog
+   278→        open={connectOpen}
+   279→        onOpenChange={setConnectOpen}
+   280→        onConnected={() => {
+   281→          setConnectOpen(false);
+   282→          reload();
+   283→        }}
+   284→      />
+   285→    </div>
+   286→  );
+   287→}
+   288→
+   289→/* ===================== Connect Account Dialog (multi-step) ===================== */
+   290→
+   291→type Step = "platform" | "consent" | "handle" | "connecting" | "success";
+   292→
+   293→/** OAuth-style permission scopes shown on the consent step. */
+   294→const PERMISSION_SCOPES: { icon: React.ElementType; label: string; desc: string }[] = [
+   295→  { icon: Eye, label: "Read profile", desc: "Handle, name, avatar & follower count" },
+   296→  { icon: ImageIcon, label: "Publish posts", desc: "Schedule & publish on your behalf" },
+   297→  { icon: BarChart3, label: "Read insights", desc: "Reach, impressions & engagement metrics" },
+   298→];
+   299→
+   300→interface ConnectAccountDialogProps {
+   301→  open: boolean;
+   302→  onOpenChange: (b: boolean) => void;
+   303→  onConnected: () => void;
+   304→}
+   305→
+   306→function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccountDialogProps) {
+   307→  const { user } = useAuth();
+   308→  const [step, setStep] = React.useState<Step>("platform");
+   309→  const [platform, setPlatform] = React.useState<PlatformId | null>(null);
+   310→  // Real handle data entered by the user — persisted to the database.
+   311→  const [handle, setHandle] = React.useState("");
+   312→  const [displayName, setDisplayName] = React.useState("");
+   313→  const [followers, setFollowers] = React.useState("");
+   314→  const [posts, setPosts] = React.useState("");
+   315→  const [impressions, setImpressions] = React.useState("");
+   316→  const [engagement, setEngagement] = React.useState("");
+   317→  const [verified, setVerified] = React.useState(false);
+   318→  const [isBusiness, setIsBusiness] = React.useState(true);
+   319→
+   320→  // Reset when closed
+   321→  React.useEffect(() => {
+   322→    if (!open) {
+   323→      const t = setTimeout(() => {
+   324→        setStep("platform");
+   325→        setPlatform(null);
+   326→        setHandle("");
+   327→        setDisplayName("");
+   328→        setFollowers("");
+   329→        setPosts("");
+   330→        setImpressions("");
+   331→        setEngagement("");
+   332→        setVerified(false);
+   333→        setIsBusiness(true);
+   334→      }, 300);
+   335→      return () => clearTimeout(t);
+   336→    }
+   337→  }, [open]);
+   338→
+   339→  const p = platform ? PLATFORMS[platform] : null;
+   340→
+   341→  /** Pick a platform → show the OAuth consent screen. */
+   342→  const pickPlatform = (id: PlatformId) => {
+   343→    setPlatform(id);
+   344→    setStep("consent");
+   345→  };
+   346→
+   347→  /** After the user "authorizes" (OAuth grant), ask for their real handle. */
+   348→  const authorize = () => {
+   349→    setStep("handle");
+   350→  };
+   351→
+   352→  /** Connect → POST the real handle to the API. */
+   353→  const connect = async () => {
+   354→    if (!platform) return;
+   355→    if (!handle.trim()) {
+   356→      toast.error("Enter your handle");
+   357→      return;
+   358→    }
+   359→    if (!user?.id) {
+   360→      toast.error("Sign in to connect an account");
+   361→      return;
+   362→    }
+   363→    setStep("connecting");
+   364→    try {
+   365→      const cleanHandle = handle.trim().startsWith("@") ? handle.trim() : "@" + handle.trim();
+   366→      const num = (s: string) => { const n = parseInt(s.replace(/[^0-9]/g, ""), 10); return isNaN(n) ? 0 : n; };
+   367→      const res = await fetch("/api/accounts", {
+   368→        method: "POST",
+   369→        headers: { "Content-Type": "application/json" },
+   370→        body: JSON.stringify({
+   371→          platform,
+   372→          handle: cleanHandle,
+   373→          displayName: displayName.trim() || cleanHandle,
+   374→          loginEmail: null,
+   375→          businessAccount: isBusiness,
+   376→          ownerId: user.id,
+   377→          followers: num(followers),
+   378→          postsCount: num(posts),
+   379→          impressions: num(impressions),
+   380→          engagement: num(engagement),
+   381→          reach: num(impressions),
+   382→          verified,
+   383→        }),
+   384→      });
+   385→      if (res.ok) {
+   386→        setStep("success");
+   387→        setTimeout(() => onConnected(), 1500);
+   388→      } else {
+   389→        const j = await res.json().catch(() => ({}));
+   390→        toast.error(j.error ?? "Failed to connect account");
+   391→        setStep("handle");
+   392→      }
+   393→    } catch {
+   394→      toast.error("Network error");
+   395→      setStep("handle");
+   396→    }
+   397→  };
+   398→
+   399→  /** Step labels for the indicator. */
+   400→  const stepLabels = ["Choose", "Authorize", "Done"];
+   401→  const currentStepIndex = step === "platform" ? 0 : step === "consent" || step === "handle" || step === "connecting" ? 1 : 2;
+   402→
+   403→  const cleanHandle = handle.trim().startsWith("@") ? handle.trim() : handle.trim() ? "@" + handle.trim() : "";
+   404→
+   405→  return (
+   406→    <Dialog open={open} onOpenChange={onOpenChange}>
+   407→      <DialogContent className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-[520px]">
+   408→        {/* Step indicator — labeled dots with connector lines */}
+   409→        <div className="flex items-center gap-2 pb-3">
+   410→          {[0, 1, 2].map((i) => (
+   411→            <React.Fragment key={i}>
+   412→              <div className="flex flex-col items-center gap-1">
+   413→                <div
+   414→                  className={cn(
+   415→                    "grid h-7 w-7 place-items-center rounded-full text-[11px] font-bold transition-all duration-300",
+   416→                    i < currentStepIndex
+   417→                      ? "bg-primary text-primary-foreground"
+   418→                      : i === currentStepIndex
+   419→                        ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+   420→                        : "bg-muted text-muted-foreground"
+   421→                  )}
+   422→                >
+   423→                  {i < currentStepIndex ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
+   424→                </div>
+   425→                <span
+   426→                  className={cn(
+   427→                    "text-[9px] font-semibold uppercase tracking-wide transition",
+   428→                    i === currentStepIndex ? "text-primary" : "text-muted-foreground"
+   429→                  )}
+   430→                >
+   431→                  {stepLabels[i]}
+   432→                </span>
+   433→              </div>
+   434→              {i < 2 && (
+   435→                <div className={cn("h-px flex-1 transition-all duration-300", i < currentStepIndex ? "bg-primary" : "bg-border")} />
+   436→              )}
+   437→            </React.Fragment>
+   438→          ))}
+   439→        </div>
+   440→
+   441→        {/* ================================================================
+   442→            STEP 1 — platform picker
+   443→            ================================================================ */}
+   444→        {step === "platform" && (
+   445→          <>
+   446→            <DialogHeader>
+   447→              <DialogTitle className="flex items-center gap-2 text-lg">
+   448→                <Plus className="h-5 w-5 text-primary" />
+   449→                Connect a new account
+   450→              </DialogTitle>
+   451→              <DialogDescription className="text-[13px]">
+   452→                Choose a platform to connect via secure OAuth authorization.
+   453→              </DialogDescription>
+   454→            </DialogHeader>
+   455→
+   456→            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+   457→              {PLATFORM_LIST.map((plat) => (
+   458→                <button
+   459→                  key={plat.id}
+   460→                  onClick={() => pickPlatform(plat.id)}
+   461→                  className="lift-hover group flex flex-col items-center gap-2.5 rounded-2xl border border-border/50 bg-card p-4 transition hover:border-primary/50 hover:bg-primary/5"
+   462→                >
+   463→                  <div className="transition-transform duration-200 group-hover:scale-110">
+   464→                    <PlatformBadge platform={plat.id} size={42} />
+   465→                  </div>
+   466→                  <span className="text-sm font-semibold">{plat.name}</span>
+   467→                </button>
+   468→              ))}
+   469→            </div>
+   470→
+   471→            <div className="flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/5 p-3 text-[11px] text-muted-foreground">
+   472→              <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+   473→              <span>
+   474→                <strong className="font-semibold text-foreground">Official OAuth.</strong>{" "}
+   475→                We never see or store your password. You authorize access on
+   476→                {` `}{PLATFORM_LIST[0].name}'s own consent screen, and you can revoke it anytime.
+   477→              </span>
+   478→            </div>
+   479→          </>
+   480→        )}
+   481→
+   482→        {/* ================================================================
+   483→            STEP 2a — OAuth consent screen (what SocialFlow will access)
+   484→            ================================================================ */}
+   485→        {step === "consent" && p && (
+   486→          <>
+   487→            <DialogHeader>
+   488→              <DialogTitle className="flex items-center gap-2.5 text-lg">
+   489→                <button
+   490→                  onClick={() => { setStep("platform"); setPlatform(null); }}
+   491→                  className="grid h-7 w-7 place-items-center rounded-lg bg-muted/60 transition hover:bg-muted"
+   492→                  aria-label="Back to platform picker"
+   493→                >
+   494→                  <ArrowLeft className="h-4 w-4" />
+   495→                </button>
+   496→                Authorize {p.name}
+   497→              </DialogTitle>
+   498→              <DialogDescription className="text-[13px]">
+   499→                SocialFlow needs permission to manage your {p.name} account.
+   500→              </DialogDescription>
+   501→            </DialogHeader>
+   502→
+   503→            {/* OAuth consent card — like the real platform consent screens */}
+   504→            <div className="crystal-in rounded-2xl border border-border bg-card p-5">
+   505→              <div className="flex items-center justify-center gap-3">
+   506→                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+   507→                  <Sparkles className="h-6 w-6" />
+   508→                </div>
+   509→                <div className="flex items-center gap-1 text-muted-foreground">
+   510→                  <span className="text-lg">→</span>
+   511→                </div>
+   512→                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-border bg-muted">
+   513→                  <PlatformBadge platform={platform!} size={32} />
+   514→                </div>
+   515→              </div>
+   516→              <p className="mt-4 text-center text-[13px] text-muted-foreground">
+   517→                <strong className="font-semibold text-foreground">SocialFlow</strong> wants to access your{" "}
+   518→                <strong className="font-semibold text-foreground">{p.name}</strong> account
+   519→              </p>
+   520→
+   521→              {/* Permission scopes */}
+   522→              <div className="mt-5 space-y-2.5">
+   523→                {PERMISSION_SCOPES.map((scope) => {
+   524→                  const Icon = scope.icon;
+   525→                  return (
+   526→                    <div key={scope.label} className="flex items-start gap-3 rounded-xl bg-muted/40 p-2.5">
+   527→                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+   528→                        <Icon className="h-4 w-4" />
+   529→                      </div>
+   530→                      <div className="flex-1">
+   531→                        <div className="text-[13px] font-semibold">{scope.label}</div>
+   532→                        <div className="text-[11px] text-muted-foreground">{scope.desc}</div>
+   533→                      </div>
+   534→                      <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-500" strokeWidth={3} />
+   535→                    </div>
+   536→                  );
+   537→                })}
+   538→              </div>
+   539→            </div>
+   540→
+   541→            <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] text-muted-foreground">
+   542→              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+   543→              <span>
+   544→                You&apos;ll be redirected to {p.name} to approve this request.
+   545→                SocialFlow never sees your password — only an access token you can revoke.
+   546→              </span>
+   547→            </div>
+   548→
+   549→            <DialogFooter className="gap-2 sm:gap-2">
+   550→              <button
+   551→                onClick={() => { setStep("platform"); setPlatform(null); }}
+   552→                className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-muted"
+   553→              >
+   554→                Cancel
+   555→              </button>
+   556→              <button
+   557→                onClick={authorize}
+   558→                className="liquid-pill glow-ring flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold sm:flex-none"
+   559→              >
+   560→                <ShieldCheck className="h-4 w-4" />
+   561→                Authorize with {p.name}
+   562→              </button>
+   563→            </DialogFooter>
+   564→          </>
+   565→        )}
+   566→
+   567→        {/* ================================================================
+   568→            STEP 2b — Enter your handle (after OAuth authorization)
+   569→            In production this would come from the OAuth provider's response.
+   570→            Here the user enters their real handle, which is persisted to the DB.
+   571→            ================================================================ */}
+   572→        {step === "handle" && p && (
+   573→          <>
+   574→            <DialogHeader>
+   575→              <DialogTitle className="flex items-center gap-2.5 text-lg">
+   576→                <button
+   577→                  onClick={() => setStep("consent")}
+   578→                  className="grid h-7 w-7 place-items-center rounded-lg bg-muted/60 transition hover:bg-muted"
+   579→                  aria-label="Back"
+   580→                >
+   581→                  <ArrowLeft className="h-4 w-4" />
+   582→                </button>
+   583→                Your {p.name} account
+   584→              </DialogTitle>
+   585→              <DialogDescription className="text-[13px]">
+   586→                Authorization granted. Enter your {p.name} handle to finish connecting.
+   587→              </DialogDescription>
+   588→            </DialogHeader>
+   589→
+   590→            {/* Authorization granted banner */}
+   591→            <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px]">
+   592→              <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
+   593→              <span className="text-muted-foreground">
+   594→                <strong className="font-semibold text-emerald-600 dark:text-emerald-400">Authorized.</strong>{" "}
+   595→                {p.name} granted read, publish & insights access.
+   596→              </span>
+   597→            </div>
+   598→
+   599→            {/* Handle input form — real data persisted to DB */}
+   600→            <div className="space-y-4">
+   601→              <div>
+   602→                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+   603→                  <AtSign className="h-3.5 w-3.5 text-muted-foreground" />
+   604→                  {p.name} handle
+   605→                </label>
+   606→                <div className="flex items-center overflow-hidden rounded-xl border border-border bg-card focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20">
+   607→                  <input
+   608→                    value={handle}
+   609→                    onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9@._-]/g, ""))}
+   610→                    placeholder="@yourbrand"
+   611→                    autoFocus
+   612→                    className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none"
+   613→                  />
+   614→                  {cleanHandle && (
+   615→                    <span className="px-3 text-[11px] font-medium text-muted-foreground">{cleanHandle}</span>
+   616→                  )}
+   617→                </div>
+   618→                <p className="mt-1 text-[11px] text-muted-foreground">
+   619→                  The {`@`}username exactly as it appears on {p.name}.
+   620→                </p>
+   621→              </div>
+   622→
+   623→              <div>
+   624→                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+   625→                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+   626→                  Display name
+   627→                </label>
+   628→                <input
+   629→                  value={displayName}
+   630→                  onChange={(e) => setDisplayName(e.target.value)}
+   631→                  placeholder="Your Brand"
+   632→                  className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+   633→                />
+   634→              </div>
+   635→
+   636→              {/* Followers + verified — real data from the profile */}
+   637→              <div className="grid grid-cols-2 gap-3">
+   638→                <div>
+   639→                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+   640→                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+   641→                    Followers
+   642→                  </label>
+   643→                  <input
+   644→                    value={followers}
+   645→                    onChange={(e) => setFollowers(e.target.value.replace(/[^0-9]/g, ""))}
+   646→                    placeholder="7499"
+   647→                    inputMode="numeric"
+   648→                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm tabular-nums outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+   649→                  />
+   650→                </div>
+   651→                <div>
+   652→                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+   653→                    <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+   654→                    Verified
+   655→                  </label>
+   656→                  <button
+   657→                    type="button"
+   658→                    onClick={() => setVerified(!verified)}
+   659→                    className={cn(
+   660→                      "flex h-[42px] w-full items-center justify-between rounded-xl border px-3 transition",
+   661→                      verified ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/40"
+   662→                    )}
+   663→                  >
+   664→                    <span className="text-[13px] font-medium">{verified ? "Yes" : "No"}</span>
+   665→                    <Switch checked={verified} onCheckedChange={setVerified} />
+   666→                  </button>
+   667→                </div>
+   668→              </div>
+   669→
+   670→              {/* Posts + Impressions + Engagement — real profile metrics */}
+   671→              <div className="grid grid-cols-3 gap-3">
+   672→                <div>
+   673→                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+   674→                    <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+   675→                    Posts
+   676→                  </label>
+   677→                  <input
+   678→                    value={posts}
+   679→                    onChange={(e) => setPosts(e.target.value.replace(/[^0-9]/g, ""))}
+   680→                    placeholder="132"
+   681→                    inputMode="numeric"
+   682→                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm tabular-nums outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+   683→                  />
+   684→                </div>
+   685→                <div>
+   686→                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+   687→                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+   688→                    Impressions
+   689→                  </label>
+   690→                  <input
+   691→                    value={impressions}
+   692→                    onChange={(e) => setImpressions(e.target.value.replace(/[^0-9]/g, ""))}
+   693→                    placeholder="45000"
+   694→                    inputMode="numeric"
+   695→                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm tabular-nums outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+   696→                  />
+   697→                </div>
+   698→                <div>
+   699→                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+   700→                    <Heart className="h-3.5 w-3.5 text-muted-foreground" />
+   701→                    Engagement
+   702→                  </label>
+   703→                  <input
+   704→                    value={engagement}
+   705→                    onChange={(e) => setEngagement(e.target.value.replace(/[^0-9]/g, ""))}
+   706→                    placeholder="3200"
+   707→                    inputMode="numeric"
+   708→                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm tabular-nums outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+   709→                  />
+   710→                </div>
+   711→              </div>
+   712→
+   713→              {/* Business account toggle */}
+   714→              <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
+   715→                <div className="flex items-start gap-2.5">
+   716→                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+   717→                    <Building2 className="h-4 w-4" />
+   718→                  </div>
+   719→                  <div>
+   720→                    <div className="text-[13px] font-semibold">Business / Creator account</div>
+   721→                    <div className="text-[11px] text-muted-foreground">Enables insights, ads & scheduling</div>
+   722→                  </div>
+   723→                </div>
+   724→                <Switch checked={isBusiness} onCheckedChange={setIsBusiness} />
+   725→              </div>
+   726→            </div>
+   727→
+   728→            <DialogFooter className="gap-2 sm:gap-2">
+   729→              <button
+   730→                onClick={() => setStep("consent")}
+   731→                className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-muted"
+   732→              >
+   733→                Back
+   734→              </button>
+   735→              <button
+   736→                onClick={connect}
+   737→                disabled={!handle.trim()}
+   738→                className="liquid-pill glow-ring flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
+   739→              >
+   740→                <ShieldCheck className="h-4 w-4" />
+   741→                Connect {cleanHandle || p.name}
+   742→              </button>
+   743→            </DialogFooter>
+   744→          </>
+   745→        )}
+   746→
+   747→        {/* ================================================================
+   748→            STEP 3 — connecting
+   749→            ================================================================ */}
+   750→        {step === "connecting" && p && (
+   751→          <div className="flex flex-col items-center justify-center py-14 text-center">
+   752→            <div className="relative mb-6">
+   753→              <div className="grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[var(--gold)] text-white shadow-xl">
+   754→                <PlatformBadge platform={platform!} size={44} />
+   755→              </div>
+   756→              <Loader2 className="absolute -bottom-1 -right-1 h-8 w-8 animate-spin rounded-full bg-background p-0.5 text-primary" />
+   757→            </div>
+   758→            <h3 className="text-lg font-bold">Connecting {cleanHandle}…</h3>
+   759→            <p className="mt-1.5 text-[13px] text-muted-foreground">
+   760→              Fetching profile & syncing analytics
+   761→            </p>
+   762→            <div className="mt-6 w-full max-w-xs space-y-2.5 text-left">
+   763→              <ConnectingStep label="Authorization granted" done />
+   764→              <ConnectingStep label="Fetching profile info" />
+   765→              <ConnectingStep label="Syncing analytics" pending />
+   766→            </div>
+   767→          </div>
+   768→        )}
+   769→
+   770→        {/* ================================================================
+   771→            STEP 4 — success
+   772→            ================================================================ */}
+   773→        {step === "success" && p && (
+   774→          <div className="flex flex-col items-center justify-center py-14 text-center">
+   775→            <div className="relative mb-5">
+   776→              <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
+   777→                <Check className="h-10 w-10" strokeWidth={3} />
+   778→              </div>
+   779→              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/10" />
+   780→            </div>
+   781→            <h3 className="text-xl font-bold">Connected!</h3>
+   782→            <p className="mt-1.5 text-[13px] text-muted-foreground">
+   783→              <span className="font-semibold text-foreground">{cleanHandle}</span> on {p.name} is now live in your workspace.
+   784→            </p>
+   785→            <div className="mt-5 flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+   786→              <ShieldCheck className="h-3.5 w-3.5" />
+   787→              OAuth access granted · {isBusiness ? "Business account" : "Personal account"}
+   788→            </div>
+   789→          </div>
+   790→        )}
+   791→      </DialogContent>
+   792→    </Dialog>
+   793→  );
+   794→}
+   795→
+   796→function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
+   797→  return (
+   798→    <div
+   799→      className={cn(
+   800→        "grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold transition",
+   801→        done
+   802→          ? "bg-primary text-primary-foreground"
+   803→          : active
+   804→          ? "bg-primary/15 text-primary ring-2 ring-primary/30"
+   805→          : "bg-muted text-muted-foreground"
+   806→      )}
+   807→    >
+   808→      {done ? <Check className="h-3.5 w-3.5" /> : label}
+   809→    </div>
+   810→  );
+   811→}
+   812→
+   813→function ConnectingStep({ label, done, pending }: { label: string; done?: boolean; pending?: boolean }) {
+   814→  return (
+   815→    <div className="flex items-center gap-2 text-xs">
+   816→      {done ? (
+   817→        <Check className="h-3.5 w-3.5 text-emerald-500" />
+   818→      ) : pending ? (
+   819→        <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/30" />
+   820→      ) : (
+   821→        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+   822→      )}
+   823→      <span className={cn(done ? "text-foreground" : pending ? "text-muted-foreground/60" : "text-foreground")}>
+   824→        {label}
+   825→      </span>
+   826→    </div>
+   827→  );
+   828→}
+   829→
+   830→/* ===================== Filter pill ===================== */
+   831→function FilterPill({
+   832→  active,
+   833→  onClick,
+   834→  label,
+   835→  count,
+   836→  platform,
+   837→}: {
+   838→  active: boolean;
+   839→  onClick: () => void;
+   840→  label: string;
+   841→  count: number;
+   842→  platform?: PlatformId;
+   843→}) {
+   844→  return (
+   845→    <button
+   846→      onClick={onClick}
+   847→      className={cn(
+   848→        "flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-xs font-semibold transition",
+   849→        active
+   850→          ? "border-primary/40 bg-primary text-primary-foreground shadow-sm"
+   851→          : "border-border/40 bg-background/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+   852→      )}
+   853→    >
+   854→      {platform && <PlatformBadge platform={platform} size={18} />}
+   855→      <span>{label}</span>
+   856→      <span
+   857→        className={cn(
+   858→          "rounded-full px-1.5 py-0.5 text-[10px]",
+   859→          active
+   860→            ? "bg-primary-foreground/20 text-primary-foreground"
+   861→            : "bg-muted-foreground/15 text-muted-foreground"
+   862→        )}
+   863→      >
+   864→        {count}
+   865→      </span>
+   866→    </button>
+   867→  );
+   868→}
+   869→
+   870→/* ===================== Account card ===================== */
+   871→function AccountCard({ account }: { account: AccountData }) {
+   872→  const { setView } = useNav();
+   873→  const [healthOpen, setHealthOpen] = React.useState(false);
+   874→  const spark = React.useMemo(
+   875→    () => buildSpark(account.id, account.followerGrowth),
+   876→    [account.id, account.followerGrowth]
+   877→  );
+   878→  const growthUp = account.followerGrowth >= 0;
+   879→  const platform = PLATFORMS[account.platform];
+   880→  const health = account.health;
+   881→
+   882→  return (
+   883→    <GlassCard
+   884→      hover
+   885→      className="glass-sheen lift-hover group relative flex flex-col overflow-hidden p-6"
+   886→    >
+   887→      <div
+   888→        className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full opacity-[0.12] blur-2xl transition group-hover:opacity-25"
+   889→        style={{ background: platform.color }}
+   890→      />
+   891→      {/* Top: platform + name */}
+   892→      <div className="relative flex items-start gap-3">
+   893→        <div className="relative">
+   894→          <PlatformBadge platform={account.platform} size={48} />
+   895→        </div>
+   896→        <div className="min-w-0 flex-1">
+   897→          <div className="flex items-center gap-1.5">
+   898→            <h3 className="truncate text-lg font-bold leading-tight">
+   899→              {account.displayName}
+   900→            </h3>
+   901→            {account.verified && (
+   902→              <VerifiedTick className="h-4 w-4 shrink-0 text-primary" />
+   903→            )}
+   904→          </div>
+   905→          <div className="truncate text-xs text-muted-foreground">
+   906→            {account.handle}
+   907→          </div>
+   908→        </div>
+   909→        {/* Health status badge */}
+   910→        {health && <HealthBadge health={health} onClick={() => setHealthOpen(true)} />}
+   911→      </div>
+   912→
+   913→      {/* Big follower stat + sparkline */}
+   914→      <div className="relative mt-5 flex items-end justify-between gap-3">
+   915→        <div>
+   916→          <div className="num-display text-3xl font-semibold leading-none tracking-tight">
+   917→            {fmt(account.followers)}
+   918→          </div>
+   919→          <div className="label-caps mt-1.5 text-muted-foreground">Followers</div>
+   920→        </div>
+   921→        <div className="h-12 w-28">
+   922→          <ResponsiveContainer width="100%" height="100%">
+   923→            <AreaChart data={spark} margin={{ left: 0, right: 0, top: 2, bottom: 0 }}>
+   924→              <defs>
+   925→                <linearGradient id={`spark-${account.id}`} x1="0" y1="0" x2="0" y2="1">
+   926→                  <stop
+   927→                    offset="0%"
+   928→                    stopColor={growthUp ? "oklch(0.76 0.18 145)" : "oklch(0.62 0.24 27)"}
+   929→                    stopOpacity={0.5}
+   930→                  />
+   931→                  <stop
+   932→                    offset="100%"
+   933→                    stopColor={growthUp ? "oklch(0.76 0.18 145)" : "oklch(0.62 0.24 27)"}
+   934→                    stopOpacity={0}
+   935→                  />
+   936→                </linearGradient>
+   937→              </defs>
+   938→              <Area
+   939→                type="monotone"
+   940→                dataKey="v"
+   941→                stroke={growthUp ? "oklch(0.76 0.18 145)" : "oklch(0.62 0.24 27)"}
+   942→                strokeWidth={2}
+   943→                fill={`url(#spark-${account.id})`}
+   944→                isAnimationActive={false}
+   945→              />
+   946→            </AreaChart>
+   947→          </ResponsiveContainer>
+   948→        </div>
+   949→      </div>
+   950→
+   951→      {/* Growth delta */}
+   952→      <div className="relative mt-2 flex items-center gap-1.5 text-[11px]">
+   953→        <span
+   954→          className={cn(
+   955→            "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold tabular-nums",
+   956→            growthUp
+   957→              ? "bg-emerald-500/15 text-emerald-500"
+   958→              : "bg-rose-500/15 text-rose-500"
+   959→          )}
+   960→        >
+   961→          {growthUp ? "↑" : "↓"} {fmt(Math.abs(account.followerGrowth))}
+   962→        </span>
+   963→        <span className="text-muted-foreground">growth</span>
+   964→      </div>
+   965→
+   966→      {/* Health ratio bar — positive / neutral / negative + reports */}
+   967→      {health && <HealthRatioBar health={health} onClick={() => setHealthOpen(true)} />}
+   968→
+   969→      {/* Stat grid — decluttered, no boxes */}
+   970→      <div className="relative mt-5 grid grid-cols-3 gap-3 border-t border-border/40 pt-4">
+   971→        <Stat label="Posts" value={fmt(account.postsCount)} />
+   972→        <Stat label="Impressions" value={fmt(account.impressions)} />
+   973→        <Stat label="Engagement" value={fmt(account.engagement)} />
+   974→      </div>
+   975→
+   976→      {/* Footer actions */}
+   977→      <div className="relative mt-4 flex items-center gap-2">
+   978→        <button
+   979→          onClick={() => setView("analytics")}
+   980→          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground"
+   981→        >
+   982→          View analytics <ArrowRight className="h-3.5 w-3.5" />
+   983→        </button>
+   984→        <button
+   985→          onClick={() => setHealthOpen(true)}
+   986→          className={cn(
+   987→            "flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition",
+   988→            health && health.riskLevel !== "safe"
+   989→              ? "bg-amber-500/15 text-amber-500 hover:bg-amber-500/25"
+   990→              : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+   991→          )}
+   992→        >
+   993→          <ShieldAlert className="h-3.5 w-3.5" /> Health
+   994→        </button>
+   995→        <button
+   996→          onClick={async () => {
+   997→            if (!confirm(`Remove ${account.displayName}? This will delete all related data.`)) return;
+   998→            try {
+   999→              const res = await fetch(`/api/accounts/${account.id}`, { method: "DELETE" });
+  1000→              if (res.ok) { toast.success(`${account.displayName} removed`); window.location.reload(); }
+  1001→              else toast.error("Failed to remove account");
+  1002→            } catch { toast.error("Network error"); }
+  1003→          }}
+  1004→          className="grid h-9 w-9 place-items-center rounded-xl bg-rose-500/10 text-rose-500 transition hover:bg-rose-500/20"
+  1005→          aria-label="Remove account"
+  1006→          title="Remove account"
+  1007→        >
+  1008→          <Trash2 className="h-4 w-4" />
+  1009→        </button>
+  1010→      </div>
+  1011→
+  1012→      {/* Account Health dialog */}
+  1013→      <AccountHealthDialog
+  1014→        account={account}
+  1015→        open={healthOpen}
+  1016→        onOpenChange={setHealthOpen}
+  1017→      />
+  1018→    </GlassCard>
+  1019→  );
+  1020→}
+  1021→
+  1022→function Stat({ label, value }: { label: string; value: string }) {
+  1023→  return (
+  1024→    <div className="text-center">
+  1025→      <div className="num-display text-base font-semibold tabular-nums">{value}</div>
+  1026→      <div className="label-caps mt-0.5 text-muted-foreground">{label}</div>
+  1027→    </div>
+  1028→  );
+  1029→}
+  1030→
+  1031→/* ===================== Health badge (card corner) ===================== */
+  1032→const RISK_STYLE: Record<string, { color: string; bg: string; label: string }> = {
+  1033→  safe: { color: "text-emerald-500", bg: "bg-emerald-500/15", label: "Healthy" },
+  1034→  moderate: { color: "text-amber-500", bg: "bg-amber-500/15", label: "Moderate" },
+  1035→  elevated: { color: "text-orange-500", bg: "bg-orange-500/15", label: "Elevated" },
+  1036→  high: { color: "text-rose-500", bg: "bg-rose-500/15", label: "High risk" },
+  1037→  critical: { color: "text-rose-600", bg: "bg-rose-600/20", label: "Critical" },
+  1038→};
+  1039→
+  1040→function HealthBadge({ health, onClick }: { health: HealthData; onClick: () => void }) {
+  1041→  const s = RISK_STYLE[health.riskLevel] ?? RISK_STYLE.safe;
+  1042→  return (
+  1043→    <button
+  1044→      onClick={onClick}
+  1045→      className={cn(
+  1046→        "flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold transition hover:scale-105",
+  1047→        s.bg, s.color
+  1048→      )}
+  1049→      title={`Account health: ${s.label} (risk ${health.riskScore}/100)`}
+  1050→    >
+  1051→      <span className="relative flex h-1.5 w-1.5">
+  1052→        {health.riskLevel !== "safe" && (
+  1053→          <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", s.bg)} />
+  1054→        )}
+  1055→        <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", s.color.replace("text-", "bg-"))} />
+  1056→      </span>
+  1057→      {s.label}
+  1058→    </button>
+  1059→  );
+  1060→}
+  1061→
+  1062→/* ===================== Health ratio bar (on card) ===================== */
+  1063→function HealthRatioBar({ health, onClick }: { health: HealthData; onClick: () => void }) {
+  1064→  const pos = health.positiveRatio;
+  1065→  const neu = health.neutralRatio;
+  1066→  const neg = health.negativeRatio;
+  1067→  return (
+  1068→    <button
+  1069→      onClick={onClick}
+  1070→      className="lift-hover relative mt-4 w-full rounded-xl border border-border/30 bg-muted/20 p-3 text-left transition hover:border-border/60"
+  1071→    >
+  1072→      <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+  1073→        <span className="flex items-center gap-1"><Activity className="h-3 w-3" /> Comment health</span>
+  1074→        <span className="flex items-center gap-2">
+  1075→          <span className="flex items-center gap-1 text-emerald-500"><Flag className="h-2.5 w-2.5" />{health.reportCount} reports</span>
+  1076→        </span>
+  1077→      </div>
+  1078→      {/* Stacked ratio bar */}
+  1079→      <div className="mt-2 flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+  1080→        <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pos}%` }} title={`Positive ${pos}%`} />
+  1081→        <div className="h-full bg-muted-foreground/40 transition-all" style={{ width: `${neu}%` }} title={`Neutral ${neu}%`} />
+  1082→        <div className="h-full bg-rose-500 transition-all" style={{ width: `${neg}%` }} title={`Negative ${neg}%`} />
+  1083→      </div>
+  1084→      <div className="mt-1.5 flex items-center justify-between text-[10px] tabular-nums">
+  1085→        <span className="flex items-center gap-1 text-emerald-500"><ThumbsUp className="h-2.5 w-2.5" />{pos}%</span>
+  1086→        <span className="flex items-center gap-1 text-muted-foreground"><Minus className="h-2.5 w-2.5" />{neu}%</span>
+  1087→        <span className="flex items-center gap-1 text-rose-500"><ThumbsDown className="h-2.5 w-2.5" />{neg}%</span>
+  1088→      </div>
+  1089→    </button>
+  1090→  );
+  1091→}
+  1092→
+  1093→/* ===================== Account Health Dialog (detail + advisor + protection) ===================== */
+  1094→const RISK_REASON_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
+  1095→  spam_flagged: { label: "Content flagged as spam", icon: Flag },
+  1096→  high_report_rate: { label: "High user-report rate", icon: AlertTriangle },
+  1097→  report_rate_increasing: { label: "Report rate increasing", icon: TrendingUp },
+  1098→  rising_negative_ratio: { label: "Rising negative sentiment", icon: ThumbsDown },
+  1099→  high_negative_ratio: { label: "High negative comment ratio", icon: ThumbsDown },
+  1100→  aggressive_engagement_detected: { label: "Aggressive engagement detected", icon: Zap },
+  1101→  rapid_posting_detected: { label: "Posting too rapidly", icon: Clock },
+  1102→  duplicate_content_detected: { label: "Duplicate content detected", icon: Repeat },
+  1103→};
+  1104→
+  1105→function AccountHealthDialog({
+  1106→  account,
+  1107→  open,
+  1108→  onOpenChange,
+  1109→}: {
+  1110→  account: AccountData;
+  1111→  open: boolean;
+  1112→  onOpenChange: (b: boolean) => void;
+  1113→}) {
+  1114→  const health = account.health;
+  1115→  const protection = account.protection;
+  1116→  const platform = PLATFORMS[account.platform];
+  1117→  const [tab, setTab] = React.useState<"health" | "advisor" | "protection">("health");
+  1118→
+  1119→  if (!health) return null;
+  1120→  const s = RISK_STYLE[health.riskLevel] ?? RISK_STYLE.safe;
+  1121→  const riskColor =
+  1122→    health.riskLevel === "safe" ? "oklch(0.76 0.18 145)" :
+  1123→    health.riskLevel === "moderate" ? "oklch(0.78 0.18 75)" :
+  1124→    health.riskLevel === "elevated" ? "oklch(0.7 0.19 50)" :
+  1125→    "oklch(0.62 0.24 27)";
+  1126→
+  1127→  return (
+  1128→    <Dialog open={open} onOpenChange={onOpenChange}>
+  1129→      <DialogContent className="glass-strong max-h-[92vh] max-w-2xl overflow-y-auto">
+  1130→        {/* Header */}
+  1131→        <DialogHeader>
+  1132→          <DialogTitle className="flex items-center gap-2.5">
+  1133→            <PlatformBadge platform={account.platform} size={32} />
+  1134→            <span>{account.displayName}</span>
+  1135→            <span className="text-xs font-normal text-muted-foreground">{account.handle}</span>
+  1136→          </DialogTitle>
+  1137→          <DialogDescription>
+  1138→            Account health, suspension risk, and protection settings for {platform.name}.
+  1139→          </DialogDescription>
+  1140→        </DialogHeader>
+  1141→
+  1142→        {/* Tabs */}
+  1143→        <div className="flex items-center gap-1 rounded-xl bg-muted/40 p-0.5">
+  1144→          {[
+  1145→            { id: "health" as const, label: "Health", icon: Activity },
+  1146→            { id: "advisor" as const, label: "Save from suspension", icon: ShieldAlert },
+  1147→            { id: "protection" as const, label: "Protection", icon: Shield },
+  1148→          ].map((t) => {
+  1149→            const Icon = t.icon;
+  1150→            return (
+  1151→              <button
+  1152→                key={t.id}
+  1153→                onClick={() => setTab(t.id)}
+  1154→                className={cn(
+  1155→                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+  1156→                  tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+  1157→                )}
+  1158→              >
+  1159→                <Icon className="h-3.5 w-3.5" /> {t.label}
+  1160→              </button>
+  1161→            );
+  1162→          })}
+  1163→        </div>
+  1164→
+  1165→        {/* TAB: Health overview */}
+  1166→        {tab === "health" && (
+  1167→          <div className="space-y-4">
+  1168→            {/* Risk gauge */}
+  1169→            <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1170→              <div className="flex items-center justify-between">
+  1171→                <div>
+  1172→                  <div className="label-caps text-muted-foreground">Suspension risk</div>
+  1173→                  <div className="mt-1 flex items-baseline gap-2">
+  1174→                    <span className="num-display text-4xl font-bold" style={{ color: riskColor }}>{health.riskScore}</span>
+  1175→                    <span className="text-sm text-muted-foreground">/ 100</span>
+  1176→                  </div>
+  1177→                </div>
+  1178→                <span className={cn("flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold", s.bg, s.color)}>
+  1179→                  {s.label}
+  1180→                </span>
+  1181→              </div>
+  1182→              <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
+  1183→                <div
+  1184→                  className="h-full rounded-full transition-all duration-700"
+  1185→                  style={{ width: `${health.riskScore}%`, background: riskColor }}
+  1186→                />
+  1187→              </div>
+  1188→              <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+  1189→                <span>Safe</span><span>Moderate</span><span>Elevated</span><span>High</span><span>Critical</span>
+  1190→              </div>
+  1191→            </div>
+  1192→
+  1193→            {/* Sentiment ratio — big bars */}
+  1194→            <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1195→              <div className="mb-3 flex items-center justify-between">
+  1196→                <div className="label-caps text-muted-foreground">Comment sentiment (30d)</div>
+  1197→                <span className="text-xs text-muted-foreground">{fmt(health.totalComments)} comments</span>
+  1198→              </div>
+  1199→              {/* Stacked bar */}
+  1200→              <div className="flex h-4 w-full overflow-hidden rounded-full bg-muted">
+  1201→                <div className="flex items-center justify-center bg-emerald-500 text-[9px] font-bold text-white transition-all" style={{ width: `${health.positiveRatio}%` }}>
+  1202→                  {health.positiveRatio > 8 ? `${health.positiveRatio}%` : ""}
+  1203→                </div>
+  1204→                <div className="flex items-center justify-center bg-muted-foreground/40 text-[9px] font-bold text-white transition-all" style={{ width: `${health.neutralRatio}%` }}>
+  1205→                  {health.neutralRatio > 8 ? `${health.neutralRatio}%` : ""}
+  1206→                </div>
+  1207→                <div className="flex items-center justify-center bg-rose-500 text-[9px] font-bold text-white transition-all" style={{ width: `${health.negativeRatio}%` }}>
+  1208→                  {health.negativeRatio > 8 ? `${health.negativeRatio}%` : ""}
+  1209→                </div>
+  1210→              </div>
+  1211→              {/* Legend + counts */}
+  1212→              <div className="mt-3 grid grid-cols-3 gap-2">
+  1213→                <SentimentStat icon={ThumbsUp} color="emerald" label="Positive" count={health.positiveCount} ratio={health.positiveRatio} />
+  1214→                <SentimentStat icon={Minus} color="muted" label="Neutral" count={health.neutralCount} ratio={health.neutralRatio} />
+  1215→                <SentimentStat icon={ThumbsDown} color="rose" label="Negative" count={health.negativeCount} ratio={health.negativeRatio} />
+  1216→              </div>
+  1217→            </div>
+  1218→
+  1219→            {/* Reports */}
+  1220→            <div className="grid grid-cols-2 gap-3">
+  1221→              <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1222→                <div className="flex items-center gap-1.5 text-amber-500">
+  1223→                  <Flag className="h-4 w-4" />
+  1224→                  <span className="label-caps text-muted-foreground">User reports</span>
+  1225→                </div>
+  1226→                <div className="num-display mt-2 text-3xl font-bold">{health.reportCount}</div>
+  1227→                <div className={cn("mt-1 flex items-center gap-1 text-[11px]", health.reportTrend > 0 ? "text-rose-500" : health.reportTrend < 0 ? "text-emerald-500" : "text-muted-foreground")}>
+  1228→                  {health.reportTrend > 0 ? "↑" : health.reportTrend < 0 ? "↓" : "—"} {Math.abs(health.reportTrend)} vs last period
+  1229→                </div>
+  1230→              </div>
+  1231→              <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1232→                <div className="flex items-center gap-1.5 text-muted-foreground">
+  1233→                  <Gauge className="h-4 w-4" />
+  1234→                  <span className="label-caps">Account status</span>
+  1235→                </div>
+  1236→                <div className={cn("mt-2 text-lg font-bold capitalize", s.color)}>{health.status}</div>
+  1237→                <div className="mt-1 text-[11px] text-muted-foreground">
+  1238→                  {protection?.enabled ? "Protection active" : "Protection off"}
+  1239→                </div>
+  1240→              </div>
+  1241→            </div>
+  1242→
+  1243→            {/* Risk reasons */}
+  1244→            {health.riskReasons.length > 0 && (
+  1245→              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+  1246→                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-500">
+  1247→                  <AlertTriangle className="h-4 w-4" /> Risk factors detected
+  1248→                </div>
+  1249→                <div className="mt-2 space-y-1.5">
+  1250→                  {health.riskReasons.map((r) => {
+  1251→                    const info = RISK_REASON_LABELS[r];
+  1252→                    const Icon = info?.icon ?? AlertTriangle;
+  1253→                    return (
+  1254→                      <div key={r} className="flex items-center gap-2 text-xs text-foreground/80">
+  1255→                        <Icon className="h-3.5 w-3.5 text-amber-500" />
+  1256→                        {info?.label ?? r}
+  1257→                      </div>
+  1258→                    );
+  1259→                  })}
+  1260→                </div>
+  1261→              </div>
+  1262→            )}
+  1263→          </div>
+  1264→        )}
+  1265→
+  1266→        {/* TAB: Save from suspension advisor */}
+  1267→        {tab === "advisor" && (
+  1268→          <SuspensionAdvisor account={account} onGoProtection={() => setTab("protection")} />
+  1269→        )}
+  1270→
+  1271→        {/* TAB: Protection settings */}
+  1272→        {tab === "protection" && protection && (
+  1273→          <ProtectionPanel accountId={account.id} initial={protection} />
+  1274→        )}
+  1275→      </DialogContent>
+  1276→    </Dialog>
+  1277→  );
+  1278→}
+  1279→
+  1280→function SentimentStat({ icon: Icon, color, label, count, ratio }: { icon: React.ElementType; color: string; label: string; count: number; ratio: number }) {
+  1281→  const colorClass =
+  1282→    color === "emerald" ? "text-emerald-500 bg-emerald-500/10" :
+  1283→    color === "rose" ? "text-rose-500 bg-rose-500/10" :
+  1284→    "text-muted-foreground bg-muted/40";
+  1285→  return (
+  1286→    <div className="rounded-xl bg-background/40 p-2 text-center">
+  1287→      <div className={cn("mx-auto grid h-7 w-7 place-items-center rounded-lg", colorClass)}>
+  1288→        <Icon className="h-3.5 w-3.5" />
+  1289→      </div>
+  1290→      <div className="num-display mt-1.5 text-sm font-bold tabular-nums">{ratio}%</div>
+  1291→      <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div>
+  1292→      <div className="text-[10px] text-muted-foreground">{fmt(count)}</div>
+  1293→    </div>
+  1294→  );
+  1295→}
+  1296→
+  1297→/* ===================== Suspension Advisor ===================== */
+  1298→function SuspensionAdvisor({ account, onGoProtection }: { account: AccountData; onGoProtection: () => void }) {
+  1299→  const health = account.health!;
+  1300→  const tips: { title: string; desc: string; icon: React.ElementType; severity: "high" | "med" | "low" }[] = [];
+  1301→
+  1302→  // Dynamic tips based on risk reasons + always-on best practices
+  1303→  if (health.riskReasons.includes("rapid_posting_detected")) {
+  1304→    tips.push({ title: "Slow down your posting cadence", desc: "Posting too frequently triggers spam detection. Increase the gap between posts to at least 30-45 minutes.", icon: Clock, severity: "high" });
+  1305→  }
+  1306→  if (health.riskReasons.includes("high_report_rate") || health.riskReasons.includes("report_rate_increasing")) {
+  1307→    tips.push({ title: "Audit recent content for policy violations", desc: "A spike in user reports usually means a specific post crossed a line. Review and remove any borderline content immediately.", icon: Flag, severity: "high" });
+  1308→  }
+  1309→  if (health.riskReasons.includes("aggressive_engagement_detected")) {
+  1310→    tips.push({ title: "Stop mass follow/unfollow & DM blasts", desc: "Rapid follows, unfollows, or bulk DMs are the #1 cause of suspensions. Cap manual actions and never automate them.", icon: UserPlus, severity: "high" });
+  1311→  }
+  1312→  if (health.riskReasons.includes("duplicate_content_detected") || health.negativeRatio > 15) {
+  1313→    tips.push({ title: "Vary your content — avoid duplicates", desc: "Reposting identical captions or media is flagged as low-quality spam. Use the AI composer to generate distinct variants per account.", icon: Repeat, severity: "med" });
+  1314→  }
+  1315→  // Always-relevant best practices
+  1316→  tips.push({ title: "Warm up new or reactivated accounts", desc: "For the first 7-14 days, post 1× per day, engage organically, and avoid links. Ramp up gradually to full cadence.", icon: Activity, severity: "med" });
+  1317→  tips.push({ title: "Avoid banned/shadowbanned hashtags", desc: "Hashtags like #fyp, #like4like, #follow4follow are silently suppressed. Use the banned-hashtag blocker in Protection settings.", icon: Hash, severity: "med" });
+  1318→  tips.push({ title: "Enable two-factor authentication", desc: "Compromised accounts are frequently suspended. 2FA + a strong unique password prevents takeovers.", icon: Lock, severity: "low" });
+  1319→  tips.push({ title: "Respect platform cooldowns", desc: "After any warning or restriction, pause all posting for 24-48h. Continuing to post through a warning usually escalates to suspension.", icon: Pause, severity: "low" });
+  1320→
+  1321→  const sevStyle = {
+  1322→    high: { bg: "bg-rose-500/10 border-rose-500/30", color: "text-rose-500" },
+  1323→    med: { bg: "bg-amber-500/10 border-amber-500/30", color: "text-amber-500" },
+  1324→    low: { bg: "bg-muted/40 border-border/40", color: "text-muted-foreground" },
+  1325→  };
+  1326→
+  1327→  return (
+  1328→    <div className="space-y-3">
+  1329→      <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1330→        <div className="flex items-center gap-2">
+  1331→          <ShieldAlert className="h-5 w-5 text-primary" />
+  1332→          <div>
+  1333→            <div className="text-sm font-semibold">How to save this account from suspension</div>
+  1334→            <div className="text-[11px] text-muted-foreground">
+  1335→              {health.riskLevel === "safe"
+  1336→                ? "This account is healthy. Follow the best-practice tips below to keep it safe."
+  1337→                : `${tips.filter(t => t.severity === "high").length} high-priority action(s) recommended for this account.`}
+  1338→            </div>
+  1339→          </div>
+  1340→        </div>
+  1341→      </div>
+  1342→
+  1343→      {tips.map((tip, i) => {
+  1344→        const st = sevStyle[tip.severity];
+  1345→        const Icon = tip.icon;
+  1346→        return (
+  1347→          <div key={i} className={cn("rounded-2xl border p-4", st.bg)}>
+  1348→            <div className="flex items-start gap-3">
+  1349→              <div className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-background/60", st.color)}>
+  1350→                <Icon className="h-4 w-4" />
+  1351→              </div>
+  1352→              <div className="min-w-0 flex-1">
+  1353→                <div className="flex items-center gap-2">
+  1354→                  <span className="text-sm font-semibold">{tip.title}</span>
+  1355→                  <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase", st.color, "bg-background/60")}>
+  1356→                    {tip.severity === "high" ? "Do now" : tip.severity === "med" ? "Recommended" : "Best practice"}
+  1357→                  </span>
+  1358→                </div>
+  1359→                <p className="mt-1 text-xs leading-relaxed text-foreground/70">{tip.desc}</p>
+  1360→              </div>
+  1361→            </div>
+  1362→          </div>
+  1363→        );
+  1364→      })}
+  1365→
+  1366→      <button
+  1367→        onClick={onGoProtection}
+  1368→        className="liquid-pill glow-ring flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold"
+  1369→      >
+  1370→        <Shield className="h-4 w-4" /> Configure automatic protection
+  1371→      </button>
+  1372→    </div>
+  1373→  );
+  1374→}
+  1375→
+  1376→/* ===================== Protection settings panel ===================== */
+  1377→function ProtectionPanel({ accountId, initial }: { accountId: string; initial: ProtectionData }) {
+  1378→  const [p, setP] = React.useState<ProtectionData>(initial);
+  1379→  const [saving, setSaving] = React.useState(false);
+  1380→
+  1381→  const update = (patch: Partial<ProtectionData>) => setP((prev) => ({ ...prev, ...patch }));
+  1382→
+  1383→  const save = async () => {
+  1384→    setSaving(true);
+  1385→    try {
+  1386→      const res = await fetch(`/api/accounts/${accountId}/protection`, {
+  1387→        method: "PATCH",
+  1388→        headers: { "Content-Type": "application/json" },
+  1389→        body: JSON.stringify(p),
+  1390→      });
+  1391→      if (res.ok) toast.success("Protection settings saved");
+  1392→      else toast.error("Failed to save");
+  1393→    } catch {
+  1394→      toast.error("Network error");
+  1395→    } finally {
+  1396→      setSaving(false);
+  1397→    }
+  1398→  };
+  1399→
+  1400→  return (
+  1401→    <div className="space-y-4">
+  1402→      {/* Master toggle */}
+  1403→      <div className="flex items-center justify-between rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1404→        <div className="flex items-start gap-2.5">
+  1405→          <div className={cn("grid h-9 w-9 place-items-center rounded-xl", p.enabled ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground")}>
+  1406→            <Shield className="h-4 w-4" />
+  1407→          </div>
+  1408→          <div>
+  1409→            <div className="text-sm font-semibold">Account protection enabled</div>
+  1410→            <div className="text-[11px] text-muted-foreground">Guards below only apply when enabled</div>
+  1411→          </div>
+  1412→        </div>
+  1413→        <Switch checked={p.enabled} onCheckedChange={(v) => update({ enabled: v })} />
+  1414→      </div>
+  1415→
+  1416→      {/* Posting cadence */}
+  1417→      <ProtectionSection icon={Clock} title="Posting cadence guards" desc="Prevents the rapid-posting pattern that triggers suspensions">
+  1418→        <NumberSetting label="Daily post limit" value={p.dailyPostLimit} onChange={(v) => update({ dailyPostLimit: v })} suffix="posts/day" />
+  1419→        <NumberSetting label="Hourly post limit" value={p.hourlyPostLimit} onChange={(v) => update({ hourlyPostLimit: v })} suffix="posts/hour" />
+  1420→        <NumberSetting label="Min. gap between posts" value={p.minMinutesBetweenPosts} onChange={(v) => update({ minMinutesBetweenPosts: v })} suffix="minutes" />
+  1421→      </ProtectionSection>
+  1422→
+  1423→      {/* Content safety */}
+  1424→      <ProtectionSection icon={ShieldCheck} title="Content safety" desc="Blocks the content patterns platforms auto-flag">
+  1425→        <ToggleSetting icon={AlertTriangle} label="Auto-flag sensitive content" desc="Review before publishing" checked={p.autoFlagSensitiveContent} onChange={(v) => update({ autoFlagSensitiveContent: v })} />
+  1426→        <ToggleSetting icon={Repeat} label="Block duplicate content" desc="Reject identical captions/media" checked={p.blockDuplicateContent} onChange={(v) => update({ blockDuplicateContent: v })} />
+  1427→        <ToggleSetting icon={Hash} label="Block banned hashtags" desc="Suppress shadowbanned tags" checked={p.blockBannedHashtags} onChange={(v) => update({ blockBannedHashtags: v })} />
+  1428→        {p.blockBannedHashtags && (
+  1429→          <div className="col-span-2">
+  1430→            <Label className="text-xs">Banned hashtag list (comma-separated)</Label>
+  1431→            <textarea
+  1432→              value={p.bannedHashtags ?? ""}
+  1433→              onChange={(e) => update({ bannedHashtags: e.target.value })}
+  1434→              placeholder="follow4follow, like4like, fyp"
+  1435→              className="mt-1.5 min-h-[60px] w-full resize-y rounded-xl border border-border/40 bg-muted/30 p-2.5 text-xs outline-none focus:border-primary/50"
+  1436→            />
+  1437→          </div>
+  1438→        )}
+  1439→      </ProtectionSection>
+  1440→
+  1441→      {/* Behavior guards */}
+  1442→      <ProtectionSection icon={UserPlus} title="Behavior guards" desc="Caps the manual actions that get accounts suspended">
+  1443→        <NumberSetting label="DM limit" value={p.limitDMsPerHour} onChange={(v) => update({ limitDMsPerHour: v })} suffix="/hour" />
+  1444→        <NumberSetting label="Follow limit" value={p.limitFollowsPerHour} onChange={(v) => update({ limitFollowsPerHour: v })} suffix="/hour" />
+  1445→        <NumberSetting label="Comment limit" value={p.limitCommentsPerHour} onChange={(v) => update({ limitCommentsPerHour: v })} suffix="/hour" />
+  1446→      </ProtectionSection>
+  1447→
+  1448→      {/* Automation pause */}
+  1449→      <ProtectionSection icon={Snowflake} title="Smart cooldown" desc="Automatically pauses posting when risk rises">
+  1450→        <ToggleSetting icon={Pause} label="Pause posting on warning" desc="Halt all posts when account is flagged" checked={p.pausePostingOnWarning} onChange={(v) => update({ pausePostingOnWarning: v })} />
+  1451→        <NumberSetting label="Cooldown after a flag" value={p.cooldownHoursOnFlag} onChange={(v) => update({ cooldownHoursOnFlag: v })} suffix="hours" />
+  1452→        <ToggleSetting icon={Lock} label="Require two-factor auth" desc="Block posts if 2FA is off" checked={p.requireTwoFactor} onChange={(v) => update({ requireTwoFactor: v })} />
+  1453→      </ProtectionSection>
+  1454→
+  1455→      {p.enforceWarmupProfile && (
+  1456→        <div className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-[11px] text-muted-foreground">
+  1457→          <Activity className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+  1458→          <span>Warm-up profile is enforced — new and reactivated accounts ramp up posting gradually over 7-14 days.</span>
+  1459→        </div>
+  1460→      )}
+  1461→
+  1462→      <button
+  1463→        onClick={save}
+  1464→        disabled={saving}
+  1465→        className="liquid-pill glow-ring flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-50"
+  1466→      >
+  1467→        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+  1468→        Save protection settings
+  1469→      </button>
+  1470→    </div>
+  1471→  );
+  1472→}
+  1473→
+  1474→function ProtectionSection({ icon: Icon, title, desc, children }: { icon: React.ElementType; title: string; desc: string; children: React.ReactNode }) {
+  1475→  return (
+  1476→    <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1477→      <div className="flex items-center gap-2">
+  1478→        <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
+  1479→          <Icon className="h-3.5 w-3.5" />
+  1480→        </div>
+  1481→        <div>
+  1482→          <div className="text-sm font-semibold">{title}</div>
+  1483→          <div className="text-[11px] text-muted-foreground">{desc}</div>
+  1484→        </div>
+  1485→      </div>
+  1486→      <div className="mt-3 grid grid-cols-2 gap-3">{children}</div>
+  1487→    </div>
+  1488→  );
+  1489→}
+  1490→
+  1491→function NumberSetting({ label, value, onChange, suffix }: { label: string; value: number; onChange: (v: number) => void; suffix: string }) {
+  1492→  return (
+  1493→    <div>
+  1494→      <Label className="text-xs">{label}</Label>
+  1495→      <div className="mt-1.5 flex items-center gap-2">
+  1496→        <Input
+  1497→          type="number"
+  1498→          value={value}
+  1499→          onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+  1500→          className="w-20"
+  1501→        />
+  1502→        <span className="text-[11px] text-muted-foreground">{suffix}</span>
+  1503→      </div>
+  1504→    </div>
+  1505→  );
+  1506→}
+  1507→
+  1508→function ToggleSetting({ icon: Icon, label, desc, checked, onChange }: { icon: React.ElementType; label: string; desc: string; checked: boolean; onChange: (v: boolean) => void }) {
+  1509→  return (
+  1510→    <div className="flex items-start justify-between gap-2 rounded-xl bg-background/40 p-2.5">
+  1511→      <div className="flex items-start gap-2">
+  1512→        <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+  1513→        <div>
+  1514→          <div className="text-xs font-medium">{label}</div>
+  1515→          <div className="text-[10px] text-muted-foreground">{desc}</div>
+  1516→        </div>
+  1517→      </div>
+  1518→      <Switch checked={checked} onCheckedChange={onChange} />
+  1519→    </div>
+  1520→  );
+  1521→}
+  1522→
+  1523→function AccountsSkeleton() {
+  1524→  return (
+  1525→    <div className="space-y-6">
+  1526→      <div className="shimmer h-32 rounded-3xl" />
+  1527→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+  1528→        {Array.from({ length: 4 }).map((_, i) => (
+  1529→          <div key={i} className="shimmer h-32 rounded-3xl" />
+  1530→        ))}
+  1531→      </div>
+  1532→      <div className="flex flex-wrap gap-2">
+  1533→        {Array.from({ length: 5 }).map((_, i) => (
+  1534→          <div key={i} className="shimmer h-9 w-24 rounded-2xl" />
+  1535→        ))}
+  1536→      </div>
+  1537→      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+  1538→        {Array.from({ length: 6 }).map((_, i) => (
+  1539→          <div key={i} className="shimmer h-80 rounded-3xl" />
+  1540→        ))}
+  1541→      </div>
+  1542→    </div>
+  1543→  );
+  1544→}
+  1545→

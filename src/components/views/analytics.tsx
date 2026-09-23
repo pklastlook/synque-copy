@@ -25,12 +25,16 @@ import {
   BarChart3,
   Sparkles,
   ImageIcon,
+  Loader2,
+  Wand2,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { HelpText } from "@/components/glass/help-text";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -167,6 +171,13 @@ export function AnalyticsView() {
 
   return (
     <div className="space-y-5">
+      {/* Help text for new users */}
+      <HelpText module="analytics">
+        <strong className="text-foreground">Analytics</strong> shows your performance across all connected accounts.
+        Use the filters to change the date range or focus on a specific account. Click{" "}
+        <strong className="text-foreground">Generate AI Insights</strong> below for data-driven recommendations.
+      </HelpText>
+
       {/* Controls */}
       <GlassCard strong className="glass-sheen animate-rise relative overflow-hidden p-5">
         <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-primary/25 blur-3xl" />
@@ -550,7 +561,88 @@ export function AnalyticsView() {
           </div>
         )}
       </GlassCard>
+
+      {/* AI Insights — advanced data-driven recommendations */}
+      <AIInsightsCard days={days} accountId={accountId} />
     </div>
+  );
+}
+
+/** AI Insights card — generates data-driven recommendations from real analytics. */
+function AIInsightsCard({ days, accountId }: { days: number; accountId: string }) {
+  const [insights, setInsights] = React.useState<string>("");
+  const [loading, setLoading] = React.useState(false);
+  const [generated, setGenerated] = React.useState(false);
+
+  const generate = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/analytics/insights?days=${days}&accountId=${accountId}`);
+      const json = await res.json();
+      if (json.insights) {
+        setInsights(json.insights);
+        setGenerated(true);
+      } else {
+        toast.error(json.error ?? "Failed to generate insights");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <GlassCard className="crystal-in relative overflow-hidden p-5 animate-rise">
+      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.588_0.209_277)]/15 blur-3xl" />
+      <SectionTitle
+        title="AI Insights"
+        desc="Data-driven recommendations from your real performance"
+        action={
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="liquid-gold flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+            {loading ? "Analyzing…" : generated ? "Regenerate" : "Generate AI Insights"}
+          </button>
+        }
+      />
+
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="mt-3 text-sm text-muted-foreground">
+            Analyzing your performance data…
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground/60">
+            This takes a few seconds — we're processing your real metrics.
+          </p>
+        </div>
+      )}
+
+      {!loading && insights && (
+        <div className="crystal-in rounded-2xl border border-border bg-muted/30 p-4">
+          <div className="prose prose-sm max-w-none whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90 dark:prose-invert">
+            {insights}
+          </div>
+        </div>
+      )}
+
+      {!loading && !insights && (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <Sparkles className="h-7 w-7" />
+          </div>
+          <p className="mt-3 text-sm font-semibold">Generate AI-powered insights</p>
+          <p className="mt-1 max-w-sm text-[12px] text-muted-foreground">
+            Click the button above to analyze your real performance data and get
+            personalized recommendations for growth, posting strategy, and content optimization.
+          </p>
+        </div>
+      )}
+    </GlassCard>
   );
 }
 

@@ -1,0 +1,854 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Bar,
+     6→  BarChart,
+     7→  Cell,
+     8→  ResponsiveContainer,
+     9→  Tooltip,
+    10→  XAxis,
+    11→  YAxis,
+    12→} from "recharts";
+    13→import {
+    14→  Hash,
+    15→  Plus,
+    16→  Copy,
+    17→  Wand2,
+    18→  Sparkles,
+    19→  Tags,
+    20→  TrendingUp,
+    21→  Eye,
+    22→  Layers,
+    23→  Flame,
+    24→  MoreVertical,
+    25→  Pencil,
+    26→  Trash2,
+    27→  CheckCircle2,
+    28→} from "lucide-react";
+    29→import { toast } from "sonner";
+    30→import { useApi, fmt } from "@/lib/hooks";
+    31→import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+    32→import { PlatformBadge } from "@/components/glass/platform-badge";
+    33→import { useNav } from "@/lib/store";
+    34→import { cn } from "@/lib/utils";
+    35→import {
+    36→  Dialog,
+    37→  DialogContent,
+    38→  DialogDescription,
+    39→  DialogFooter,
+    40→  DialogHeader,
+    41→  DialogTitle,
+    42→} from "@/components/ui/dialog";
+    43→import {
+    44→  DropdownMenu,
+    45→  DropdownMenuContent,
+    46→  DropdownMenuItem,
+    47→  DropdownMenuSeparator,
+    48→  DropdownMenuTrigger,
+    49→} from "@/components/ui/dropdown-menu";
+    50→import {
+    51→  Select,
+    52→  SelectContent,
+    53→  SelectItem,
+    54→  SelectTrigger,
+    55→  SelectValue,
+    56→} from "@/components/ui/select";
+    57→import { Input } from "@/components/ui/input";
+    58→import { Label } from "@/components/ui/label";
+    59→import { Button } from "@/components/ui/button";
+    60→import { Textarea } from "@/components/ui/textarea";
+    61→import type { PlatformId } from "@/lib/platforms";
+    62→
+    63→// ===== API types =====
+    64→type HashtagPlatform = "all" | "instagram" | "x" | "tiktok" | "linkedin";
+    65→
+    66→interface HashtagGroup {
+    67→  id: string;
+    68→  name: string;
+    69→  tags: string;
+    70→  platform: HashtagPlatform;
+    71→  usageCount: number;
+    72→  avgReach: number;
+    73→  color: string;
+    74→  tagCount: number;
+    75→  createdAt: string;
+    76→}
+    77→
+    78→interface HashtagData {
+    79→  groups: HashtagGroup[];
+    80→  totalUses: number;
+    81→  totalReach: number;
+    82→}
+    83→
+    84→const PLATFORM_OPTIONS: { value: HashtagPlatform; label: string }[] = [
+    85→  { value: "all", label: "All platforms" },
+    86→  { value: "instagram", label: "Instagram" },
+    87→  { value: "x", label: "X" },
+    88→  { value: "tiktok", label: "TikTok" },
+    89→  { value: "linkedin", label: "LinkedIn" },
+    90→];
+    91→
+    92→const SWATCHES = [
+    93→  "#E1306C",
+    94→  "#9b51e0",
+    95→  "#2d9cdb",
+    96→  "#27ae60",
+    97→  "#f2994a",
+    98→  "#eb5757",
+    99→  "#0EA5E9",
+   100→  "#F43F5E",
+   101→];
+   102→
+   103→const PILL_PALETTE = [
+   104→  "oklch(0.7 0.24 14)",
+   105→  "oklch(0.74 0.18 165)",
+   106→  "oklch(0.66 0.22 305)",
+   107→  "oklch(0.78 0.18 75)",
+   108→  "oklch(0.76 0.18 145)",
+   109→];
+   110→
+   111→/** Deterministic color from a string for trending tag pills. */
+   112→function colorFor(tag: string) {
+   113→  let h = 0;
+   114→  for (let i = 0; i < tag.length; i++) h = tag.charCodeAt(i) + ((h << 5) - h);
+   115→  return PILL_PALETTE[Math.abs(h) % PILL_PALETTE.length];
+   116→}
+   117→
+   118→/** Split tags string on commas or newlines, trim, strip leading '#', drop empties. */
+   119→function parseTags(raw: string): string[] {
+   120→  return raw
+   121→    .split(/[,\n]/)
+   122→    .map((s) => s.trim().replace(/^#/, ""))
+   123→    .filter(Boolean);
+   124→}
+   125→
+   126→function PlatformCell({ platform }: { platform: HashtagPlatform }) {
+   127→  if (platform === "all") {
+   128→    return (
+   129→      <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+   130→        <Layers className="h-3 w-3" /> All platforms
+   131→      </span>
+   132→    );
+   133→  }
+   134→  return (
+   135→    <span className="inline-flex items-center gap-1.5">
+   136→      <PlatformBadge platform={platform as PlatformId} size={20} />
+   137→      <span className="text-[11px] font-medium">
+   138→        {PLATFORM_OPTIONS.find((p) => p.value === platform)?.label ?? platform}
+   139→      </span>
+   140→    </span>
+   141→  );
+   142→}
+   143→
+   144→export function HashtagsView() {
+   145→  const { data, loading, reload } = useApi<HashtagData>("/api/hashtags");
+   146→  const { openComposer } = useNav();
+   147→  const [editing, setEditing] = React.useState<HashtagGroup | null>(null);
+   148→
+   149→  const handleDelete = React.useCallback(
+   150→    async (g: HashtagGroup) => {
+   151→      try {
+   152→        const res = await fetch(`/api/hashtags/${g.id}`, { method: "DELETE" });
+   153→        if (!res.ok) throw new Error("Failed to delete");
+   154→        toast.success(`"${g.name}" deleted`);
+   155→        reload();
+   156→      } catch (e) {
+   157→        toast.error(e instanceof Error ? e.message : "Could not delete group");
+   158→      }
+   159→    },
+   160→    [reload],
+   161→  );
+   162→
+   163→  if (loading || !data) return <HashtagsSkeleton />;
+   164→
+   165→  // KPIs
+   166→  const totalGroups = data.groups.length;
+   167→  const totalTags = data.groups.reduce((s, g) => s + g.tagCount, 0);
+   168→  const totalUses = data.totalUses;
+   169→  const totalReach = data.totalReach;
+   170→
+   171→  // Trending tag frequency (across all groups, weighted by usageCount)
+   172→  const tagFreq: Record<string, number> = {};
+   173→  for (const g of data.groups) {
+   174→    for (const t of parseTags(g.tags)) {
+   175→      tagFreq[t] = (tagFreq[t] ?? 0) + 1;
+   176→    }
+   177→  }
+   178→  const trending = Object.entries(tagFreq)
+   179→    .map(([tag, count]) => ({ tag, count }))
+   180→    .sort((a, b) => b.count - a.count)
+   181→    .slice(0, 12);
+   182→  const maxFreq = Math.max(1, ...trending.map((t) => t.count));
+   183→
+   184→  // Bar chart data
+   185→  const maxUsage = Math.max(1, ...data.groups.map((g) => g.usageCount));
+   186→
+   187→  return (
+   188→    <div className="space-y-5">
+   189→      {/* Hero */}
+   190→      <GlassCard strong className="glass-sheen animate-rise relative overflow-hidden p-5">
+   191→        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/25 blur-3xl" />
+   192→        <div className="relative flex flex-wrap items-center justify-between gap-4">
+   193→          <div className="flex items-center gap-3">
+   194→            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-md">
+   195→              <Hash className="h-5 w-5" />
+   196→            </div>
+   197→            <div>
+   198→              <div className="flex items-center gap-2 text-[11px] font-medium text-primary">
+   199→                <Sparkles className="h-3 w-3" />
+   200→                <span>Hashtag manager</span>
+   201→              </div>
+   202→              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+   203→                Curated hashtag groups
+   204→              </h2>
+   205→              <p className="mt-0.5 text-sm text-muted-foreground">
+   206→                {totalGroups} groups · {totalTags} tags · {fmt(totalReach)} total reach
+   207→              </p>
+   208→            </div>
+   209→          </div>
+   210→          <CreateGroupDialog onCreated={() => reload()} />
+   211→        </div>
+   212→      </GlassCard>
+   213→
+   214→      {/* KPIs */}
+   215→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 animate-rise">
+   216→        <KpiCard
+   217→          label="Total groups"
+   218→          value={totalGroups}
+   219→          icon={<Tags className="h-5 w-5" />}
+   220→          accent="oklch(0.7 0.24 14)"
+   221→          hint="curated tag sets"
+   222→        />
+   223→        <KpiCard
+   224→          label="Total tags"
+   225→          value={totalTags}
+   226→          icon={<Hash className="h-5 w-5" />}
+   227→          accent="oklch(0.74 0.18 165)"
+   228→          hint="across all groups"
+   229→        />
+   230→        <KpiCard
+   231→          label="Total uses"
+   232→          value={fmt(totalUses)}
+   233→          icon={<TrendingUp className="h-5 w-5" />}
+   234→          accent="oklch(0.66 0.22 305)"
+   235→          hint="times posted"
+   236→        />
+   237→        <KpiCard
+   238→          label="Total reach"
+   239→          value={fmt(totalReach)}
+   240→          icon={<Eye className="h-5 w-5" />}
+   241→          accent="oklch(0.78 0.18 75)"
+   242→          hint="sum of avg reach"
+   243→        />
+   244→      </div>
+   245→
+   246→      {/* Trending tags panel */}
+   247→      <GlassCard className="animate-rise p-5">
+   248→        <SectionTitle
+   249→          title="Trending tags"
+   250→          desc="Top 12 by frequency across all groups"
+   251→          action={
+   252→            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+   253→              <Flame className="h-3 w-3 text-primary" /> click to copy
+   254→            </span>
+   255→          }
+   256→        />
+   257→        <div className="flex flex-wrap items-center gap-2">
+   258→          {trending.length === 0 && (
+   259→            <div className="py-6 text-sm text-muted-foreground">
+   260→              No tags yet — create a group to get started.
+   261→            </div>
+   262→          )}
+   263→          {trending.map((t) => {
+   264→            const size = 12 + Math.round((t.count / maxFreq) * 10); // 12–22px
+   265→            const color = colorFor(t.tag);
+   266→            return (
+   267→              <button
+   268→                key={t.tag}
+   269→                onClick={() => {
+   270→                  navigator.clipboard?.writeText(`#${t.tag}`).catch(() => {});
+   271→                  toast.success(`Copied #${t.tag}`, {
+   272→                    description: `Used ${t.count}× across groups`,
+   273→                  });
+   274→                }}
+   275→                className="rounded-full px-3 py-1 font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
+   276→                style={{
+   277→                  background: color,
+   278→                  fontSize: size,
+   279→                }}
+   280→                title={`#${t.tag} · ${t.count} uses`}
+   281→              >
+   282→                #{t.tag}
+   283→              </button>
+   284→            );
+   285→          })}
+   286→        </div>
+   287→      </GlassCard>
+   288→
+   289→      {/* Groups grid + bar chart */}
+   290→      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+   291→        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 animate-rise">
+   292→          {data.groups.map((g) => (
+   293→            <GroupCard
+   294→              key={g.id}
+   295→              group={g}
+   296→              maxUsage={maxUsage}
+   297→              onUseInComposer={() => {
+   298→                const tags = parseTags(g.tags).map((t) => `#${t}`).join(" ");
+   299→                openComposer(tags);
+   300→              }}
+   301→              onEdit={() => setEditing(g)}
+   302→              onDelete={() => handleDelete(g)}
+   303→            />
+   304→          ))}
+   305→          {data.groups.length === 0 && (
+   306→            <GlassCard className="col-span-full p-10 text-center text-sm text-muted-foreground">
+   307→              No hashtag groups yet. Create your first group to start curating tags.
+   308→            </GlassCard>
+   309→          )}
+   310→        </div>
+   311→
+   312→        {/* Bar chart: avg reach by group */}
+   313→        <GlassCard className="animate-rise p-5">
+   314→          <SectionTitle
+   315→            title="Avg reach"
+   316→            desc="By hashtag group"
+   317→          />
+   318→          <div
+   319→            className="w-full"
+   320→            style={{ height: Math.max(220, data.groups.length * 44 + 40) }}
+   321→          >
+   322→            <ResponsiveContainer width="100%" height="100%">
+   323→              <BarChart
+   324→                data={data.groups.map((g) => ({
+   325→                  name: g.name.length > 18 ? g.name.slice(0, 18) + "…" : g.name,
+   326→                  reach: g.avgReach,
+   327→                  color: g.color,
+   328→                }))}
+   329→                layout="vertical"
+   330→                margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
+   331→              >
+   332→                <XAxis type="number" hide />
+   333→                <YAxis
+   334→                  type="category"
+   335→                  dataKey="name"
+   336→                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+   337→                  axisLine={false}
+   338→                  tickLine={false}
+   339→                  width={110}
+   340→                />
+   341→                <Tooltip
+   342→                  contentStyle={{
+   343→                    background: "var(--popover)",
+   344→                    border: "1px solid var(--border)",
+   345→                    borderRadius: 12,
+   346→                    fontSize: 12,
+   347→                  }}
+   348→                  formatter={(v: number) => [fmt(v), "Avg reach"]}
+   349→                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+   350→                />
+   351→                <Bar dataKey="reach" radius={[6, 6, 6, 6]} barSize={18}>
+   352→                  {data.groups.map((g, i) => (
+   353→                    <Cell key={i} fill={g.color} />
+   354→                  ))}
+   355→                </Bar>
+   356→              </BarChart>
+   357→            </ResponsiveContainer>
+   358→          </div>
+   359→        </GlassCard>
+   360→      </div>
+   361→
+   362→      <EditGroupDialog
+   363→        group={editing}
+   364→        onOpenChange={(open) => {
+   365→          if (!open) setEditing(null);
+   366→        }}
+   367→        onSaved={() => {
+   368→          setEditing(null);
+   369→          reload();
+   370→        }}
+   371→      />
+   372→    </div>
+   373→  );
+   374→}
+   375→
+   376→function GroupCard({
+   377→  group,
+   378→  maxUsage,
+   379→  onUseInComposer,
+   380→  onEdit,
+   381→  onDelete,
+   382→}: {
+   383→  group: HashtagGroup;
+   384→  maxUsage: number;
+   385→  onUseInComposer: () => void;
+   386→  onEdit: () => void;
+   387→  onDelete: () => void;
+   388→}) {
+   389→  const tags = parseTags(group.tags);
+   390→  const usagePct = Math.round((group.usageCount / maxUsage) * 100);
+   391→
+   392→  function copyTag(tag: string) {
+   393→    navigator.clipboard?.writeText(`#${tag}`).catch(() => {});
+   394→    toast.success(`Copied #${tag}`);
+   395→  }
+   396→
+   397→  function copyAll() {
+   398→    const text = tags.map((t) => `#${t}`).join(" ");
+   399→    navigator.clipboard?.writeText(text).catch(() => {});
+   400→    toast.success(`Copied ${tags.length} hashtags`, {
+   401→      description: "Ready to paste into your post",
+   402→    });
+   403→  }
+   404→
+   405→  return (
+   406→    <GlassCard hover className="glass-sheen group relative flex flex-col overflow-hidden p-5">
+   407→      {/* Top accent */}
+   408→      <div
+   409→        className="absolute inset-x-0 top-0 h-1.5"
+   410→        style={{ background: group.color }}
+   411→      />
+   412→      <div
+   413→        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-20 blur-2xl transition group-hover:opacity-40"
+   414→        style={{ background: group.color }}
+   415→      />
+   416→
+   417→      {/* Header */}
+   418→      <div className="relative mt-1 flex items-start justify-between gap-2">
+   419→        <div className="min-w-0">
+   420→          <h3 className="truncate text-base font-bold leading-tight">{group.name}</h3>
+   421→          <div className="mt-1">
+   422→            <PlatformCell platform={group.platform} />
+   423→          </div>
+   424→        </div>
+   425→        <div className="flex shrink-0 items-center gap-1">
+   426→          <DropdownMenu>
+   427→            <DropdownMenuTrigger asChild>
+   428→              <button
+   429→                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+   430→                aria-label={`Actions for ${group.name}`}
+   431→              >
+   432→                <MoreVertical className="h-4 w-4" />
+   433→              </button>
+   434→            </DropdownMenuTrigger>
+   435→            <DropdownMenuContent align="end" className="w-40 rounded-xl">
+   436→              <DropdownMenuItem onClick={onEdit}>
+   437→                <Pencil className="mr-2 h-4 w-4" /> Edit
+   438→              </DropdownMenuItem>
+   439→              <DropdownMenuSeparator />
+   440→              <DropdownMenuItem
+   441→                className="text-rose-500 focus:text-rose-500"
+   442→                onClick={onDelete}
+   443→              >
+   444→                <Trash2 className="mr-2 h-4 w-4" /> Delete
+   445→              </DropdownMenuItem>
+   446→            </DropdownMenuContent>
+   447→          </DropdownMenu>
+   448→          <span
+   449→            className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl text-white shadow-sm"
+   450→            style={{ background: group.color }}
+   451→          >
+   452→            <Hash className="h-4 w-4" />
+   453→          </span>
+   454→        </div>
+   455→      </div>
+   456→
+   457→      {/* Tag pills */}
+   458→      <div className="relative mt-3 flex flex-wrap gap-1.5">
+   459→        {tags.slice(0, 8).map((t) => (
+   460→          <button
+   461→            key={t}
+   462→            onClick={() => copyTag(t)}
+   463→            className="rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-foreground/80 transition hover:bg-primary/15 hover:text-primary"
+   464→            title={`Copy #${t}`}
+   465→          >
+   466→            #{t}
+   467→          </button>
+   468→        ))}
+   469→        {tags.length > 8 && (
+   470→          <span className="rounded-full bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+   471→            +{tags.length - 8} more
+   472→          </span>
+   473→        )}
+   474→      </div>
+   475→
+   476→      {/* Stats */}
+   477→      <div className="relative mt-4 grid grid-cols-2 gap-3">
+   478→        <div className="rounded-xl bg-muted/40 p-2.5">
+   479→          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Uses</div>
+   480→          <div className="text-lg font-bold">{group.usageCount}</div>
+   481→        </div>
+   482→        <div className="rounded-xl bg-muted/40 p-2.5">
+   483→          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Avg reach</div>
+   484→          <div className="text-lg font-bold">{fmt(group.avgReach)}</div>
+   485→        </div>
+   486→      </div>
+   487→
+   488→      {/* Usage bar */}
+   489→      <div className="relative mt-3">
+   490→        <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+   491→          <span>Usage</span>
+   492→          <span>{usagePct}% of max</span>
+   493→        </div>
+   494→        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+   495→          <div
+   496→            className="h-full rounded-full transition-all"
+   497→            style={{ width: `${usagePct}%`, background: group.color }}
+   498→          />
+   499→        </div>
+   500→      </div>
+   501→
+   502→      {/* Footer */}
+   503→      <div className="relative mt-4 flex items-center gap-2 border-t border-border/40 pt-3">
+   504→        <Button
+   505→          size="sm"
+   506→          variant="ghost"
+   507→          className="h-8 flex-1 gap-1.5 text-xs"
+   508→          onClick={copyAll}
+   509→        >
+   510→          <Copy className="h-3.5 w-3.5" />
+   511→          Copy all
+   512→        </Button>
+   513→        <Button
+   514→          size="sm"
+   515→          variant="ghost"
+   516→          className="h-8 flex-1 gap-1.5 text-xs"
+   517→          onClick={onUseInComposer}
+   518→        >
+   519→          <Wand2 className="h-3.5 w-3.5 text-primary" />
+   520→          Use in composer
+   521→        </Button>
+   522→      </div>
+   523→    </GlassCard>
+   524→  );
+   525→}
+   526→
+   527→function CreateGroupDialog({ onCreated }: { onCreated: () => void }) {
+   528→  const [open, setOpen] = React.useState(false);
+   529→  const [name, setName] = React.useState("");
+   530→  const [tags, setTags] = React.useState("");
+   531→  const [platform, setPlatform] = React.useState<HashtagPlatform>("all");
+   532→  const [color, setColor] = React.useState(SWATCHES[0]);
+   533→  const [saving, setSaving] = React.useState(false);
+   534→
+   535→  function reset() {
+   536→    setName("");
+   537→    setTags("");
+   538→    setPlatform("all");
+   539→    setColor(SWATCHES[0]);
+   540→  }
+   541→
+   542→  async function handleSubmit() {
+   543→    if (!name.trim() || !tags.trim()) {
+   544→      toast.error("Name and tags are required");
+   545→      return;
+   546→    }
+   547→    setSaving(true);
+   548→    try {
+   549→      const res = await fetch("/api/hashtags", {
+   550→        method: "POST",
+   551→        headers: { "Content-Type": "application/json" },
+   552→        body: JSON.stringify({
+   553→          name: name.trim(),
+   554→          tags: tags.trim(),
+   555→          platform,
+   556→          color,
+   557→        }),
+   558→      });
+   559→      const json = await res.json();
+   560→      if (json.ok) {
+   561→        toast.success("Hashtag group created", { description: name.trim() });
+   562→        setOpen(false);
+   563→        reset();
+   564→        onCreated();
+   565→      } else {
+   566→        toast.error(json.error ?? "Failed to create group");
+   567→      }
+   568→    } catch {
+   569→      toast.error("Network error");
+   570→    } finally {
+   571→      setSaving(false);
+   572→    }
+   573→  }
+   574→
+   575→  const previewCount = parseTags(tags).length;
+   576→
+   577→  return (
+   578→    <>
+   579→      <button
+   580→        onClick={() => setOpen(true)}
+   581→        className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold"
+   582→      >
+   583→        <Plus className="h-4 w-4" />
+   584→        Create group
+   585→      </button>
+   586→      <Dialog
+   587→        open={open}
+   588→        onOpenChange={(o) => {
+   589→          setOpen(o);
+   590→          if (!o) reset();
+   591→        }}
+   592→      >
+   593→        <DialogContent className="rounded-3xl sm:max-w-md">
+   594→          <DialogHeader>
+   595→            <DialogTitle className="flex items-center gap-2">
+   596→              <Hash className="h-5 w-5 text-primary" />
+   597→              New hashtag group
+   598→            </DialogTitle>
+   599→            <DialogDescription>
+   600→              Curate a reusable set of hashtags you can drop into any post.
+   601→            </DialogDescription>
+   602→          </DialogHeader>
+   603→          <div className="space-y-4 py-2">
+   604→            <div className="space-y-2">
+   605→              <Label htmlFor="hg-name">Group name</Label>
+   606→              <Input
+   607→                id="hg-name"
+   608→                placeholder="e.g. Instagram — Growth Set"
+   609→                value={name}
+   610→                onChange={(e) => setName(e.target.value)}
+   611→              />
+   612→            </div>
+   613→            <div className="space-y-2">
+   614→              <Label htmlFor="hg-tags">
+   615→                Tags{" "}
+   616→                <span className="text-[11px] font-normal text-muted-foreground">
+   617→                  ({previewCount} parsed)
+   618→                </span>
+   619→              </Label>
+   620→              <Textarea
+   621→                id="hg-tags"
+   622→                placeholder={"creatoreconomy, contentcreator\nsocialmediatips, growoninstagram"}
+   623→                value={tags}
+   624→                onChange={(e) => setTags(e.target.value)}
+   625→                rows={4}
+   626→              />
+   627→              <p className="text-[11px] text-muted-foreground">
+   628→                Comma or newline separated. The <code>#</code> prefix is added automatically.
+   629→              </p>
+   630→            </div>
+   631→            <div className="space-y-2">
+   632→              <Label>Platform</Label>
+   633→              <Select
+   634→                value={platform}
+   635→                onValueChange={(v) => setPlatform(v as HashtagPlatform)}
+   636→              >
+   637→                <SelectTrigger className="w-full">
+   638→                  <SelectValue />
+   639→                </SelectTrigger>
+   640→                <SelectContent>
+   641→                  {PLATFORM_OPTIONS.map((p) => (
+   642→                    <SelectItem key={p.value} value={p.value}>
+   643→                      {p.label}
+   644→                    </SelectItem>
+   645→                  ))}
+   646→                </SelectContent>
+   647→              </Select>
+   648→            </div>
+   649→            <div className="space-y-2">
+   650→              <Label>Color</Label>
+   651→              <div className="flex flex-wrap gap-2">
+   652→                {SWATCHES.map((sw) => (
+   653→                  <button
+   654→                    key={sw}
+   655→                    type="button"
+   656→                    onClick={() => setColor(sw)}
+   657→                    className={cn(
+   658→                      "h-8 w-8 rounded-full transition",
+   659→                      color === sw
+   660→                        ? "ring-2 ring-offset-2 ring-offset-background"
+   661→                        : "opacity-80 hover:opacity-100",
+   662→                    )}
+   663→                    style={{ background: sw, boxShadow: color === sw ? `0 0 0 2px ${sw}` : undefined }}
+   664→                    aria-label={`Color ${sw}`}
+   665→                  />
+   666→                ))}
+   667→              </div>
+   668→            </div>
+   669→          </div>
+   670→          <DialogFooter>
+   671→            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+   672→              Cancel
+   673→            </Button>
+   674→            <Button onClick={handleSubmit} disabled={saving} className="gap-1.5">
+   675→              {saving ? "Creating…" : "Create group"}
+   676→              {!saving && <Plus className="h-3.5 w-3.5" />}
+   677→            </Button>
+   678→          </DialogFooter>
+   679→        </DialogContent>
+   680→      </Dialog>
+   681→    </>
+   682→  );
+   683→}
+   684→
+   685→function EditGroupDialog({
+   686→  group,
+   687→  onOpenChange,
+   688→  onSaved,
+   689→}: {
+   690→  group: HashtagGroup | null;
+   691→  onOpenChange: (open: boolean) => void;
+   692→  onSaved: () => void;
+   693→}) {
+   694→  const open = group !== null;
+   695→  const [name, setName] = React.useState("");
+   696→  const [tags, setTags] = React.useState("");
+   697→  const [platform, setPlatform] = React.useState<HashtagPlatform>("all");
+   698→  const [color, setColor] = React.useState(SWATCHES[0]);
+   699→  const [saving, setSaving] = React.useState(false);
+   700→
+   701→  React.useEffect(() => {
+   702→    if (!group) return;
+   703→    setName(group.name);
+   704→    setTags(group.tags);
+   705→    setPlatform((group.platform as HashtagPlatform) ?? "all");
+   706→    setColor(group.color || SWATCHES[0]);
+   707→  }, [group]);
+   708→
+   709→  async function handleSubmit() {
+   710→    if (!group) return;
+   711→    if (!name.trim() || !tags.trim()) {
+   712→      toast.error("Name and tags are required");
+   713→      return;
+   714→    }
+   715→    setSaving(true);
+   716→    try {
+   717→      const res = await fetch(`/api/hashtags/${group.id}`, {
+   718→        method: "PATCH",
+   719→        headers: { "Content-Type": "application/json" },
+   720→        body: JSON.stringify({
+   721→          name: name.trim(),
+   722→          tags: tags.trim(),
+   723→          platform,
+   724→          color,
+   725→        }),
+   726→      });
+   727→      const json = await res.json();
+   728→      if (!res.ok || !json.ok) {
+   729→        throw new Error(json.error ?? "Failed to update group");
+   730→      }
+   731→      toast.success("Hashtag group updated", { description: name.trim() });
+   732→      onSaved();
+   733→    } catch (e) {
+   734→      toast.error(e instanceof Error ? e.message : "Network error");
+   735→    } finally {
+   736→      setSaving(false);
+   737→    }
+   738→  }
+   739→
+   740→  const previewCount = parseTags(tags).length;
+   741→
+   742→  return (
+   743→    <Dialog open={open} onOpenChange={onOpenChange}>
+   744→      <DialogContent className="rounded-3xl sm:max-w-md">
+   745→        <DialogHeader>
+   746→          <DialogTitle className="flex items-center gap-2">
+   747→            <Pencil className="h-5 w-5 text-primary" />
+   748→            Edit hashtag group
+   749→          </DialogTitle>
+   750→          <DialogDescription>
+   751→            Update the name, tags, platform, or color of this group.
+   752→          </DialogDescription>
+   753→        </DialogHeader>
+   754→        <div className="space-y-4 py-2">
+   755→          <div className="space-y-2">
+   756→            <Label htmlFor="edt-hg-name">Group name</Label>
+   757→            <Input
+   758→              id="edt-hg-name"
+   759→              value={name}
+   760→              onChange={(e) => setName(e.target.value)}
+   761→            />
+   762→          </div>
+   763→          <div className="space-y-2">
+   764→            <Label htmlFor="edt-hg-tags">
+   765→              Tags{" "}
+   766→              <span className="text-[11px] font-normal text-muted-foreground">
+   767→                ({previewCount} parsed)
+   768→              </span>
+   769→            </Label>
+   770→            <Textarea
+   771→              id="edt-hg-tags"
+   772→              value={tags}
+   773→              onChange={(e) => setTags(e.target.value)}
+   774→              rows={4}
+   775→            />
+   776→            <p className="text-[11px] text-muted-foreground">
+   777→              Comma or newline separated. The <code>#</code> prefix is added automatically.
+   778→            </p>
+   779→          </div>
+   780→          <div className="space-y-2">
+   781→            <Label>Platform</Label>
+   782→            <Select
+   783→              value={platform}
+   784→              onValueChange={(v) => setPlatform(v as HashtagPlatform)}
+   785→            >
+   786→              <SelectTrigger className="w-full">
+   787→                <SelectValue />
+   788→              </SelectTrigger>
+   789→              <SelectContent>
+   790→                {PLATFORM_OPTIONS.map((p) => (
+   791→                  <SelectItem key={p.value} value={p.value}>
+   792→                    {p.label}
+   793→                  </SelectItem>
+   794→                ))}
+   795→              </SelectContent>
+   796→            </Select>
+   797→          </div>
+   798→          <div className="space-y-2">
+   799→            <Label>Color</Label>
+   800→            <div className="flex flex-wrap gap-2">
+   801→              {SWATCHES.map((sw) => (
+   802→                <button
+   803→                  key={sw}
+   804→                  type="button"
+   805→                  onClick={() => setColor(sw)}
+   806→                  className={cn(
+   807→                    "h-8 w-8 rounded-full transition",
+   808→                    color === sw
+   809→                      ? "ring-2 ring-offset-2 ring-offset-background"
+   810→                      : "opacity-80 hover:opacity-100",
+   811→                  )}
+   812→                  style={{ background: sw, boxShadow: color === sw ? `0 0 0 2px ${sw}` : undefined }}
+   813→                  aria-label={`Color ${sw}`}
+   814→                />
+   815→              ))}
+   816→            </div>
+   817→          </div>
+   818→        </div>
+   819→        <DialogFooter>
+   820→          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+   821→            Cancel
+   822→          </Button>
+   823→          <Button onClick={handleSubmit} disabled={saving} className="gap-1.5">
+   824→            {saving ? "Saving…" : "Save changes"}
+   825→            {!saving && <CheckCircle2 className="h-3.5 w-3.5" />}
+   826→          </Button>
+   827→        </DialogFooter>
+   828→      </DialogContent>
+   829→    </Dialog>
+   830→  );
+   831→}
+   832→
+   833→function HashtagsSkeleton() {
+   834→  return (
+   835→    <div className="space-y-5">
+   836→      <div className="shimmer h-28 rounded-3xl" />
+   837→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   838→        {Array.from({ length: 4 }).map((_, i) => (
+   839→          <div key={i} className="shimmer h-32 rounded-3xl" />
+   840→        ))}
+   841→      </div>
+   842→      <div className="shimmer h-32 rounded-3xl" />
+   843→      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+   844→        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+   845→          {Array.from({ length: 6 }).map((_, i) => (
+   846→            <div key={i} className="shimmer h-80 rounded-3xl" />
+   847→          ))}
+   848→        </div>
+   849→        <div className="shimmer h-80 rounded-3xl" />
+   850→      </div>
+   851→    </div>
+   852→  );
+   853→}
+   854→

@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { useApi } from "@/lib/hooks";
 import { GlassCard, KpiCard } from "@/components/glass/glass-card";
+import { HelpText } from "@/components/glass/help-text";
 import { useAuth } from "@/lib/auth-store";
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -192,6 +193,7 @@ export function CampaignsView() {
 
   return (
     <div className="animate-rise space-y-5">
+      <HelpText module="campaigns"><strong className="text-foreground">Campaigns</strong> groups related posts to measure their combined impact. Create a campaign to track multi-post initiatives.</HelpText>
       {/* Hero */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
         <div

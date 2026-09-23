@@ -30,6 +30,7 @@ import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { PlatformBadge, VerifiedTick } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { HelpText } from "@/components/glass/help-text";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
@@ -95,6 +96,7 @@ export function DashboardView() {
 
   return (
     <div className="space-y-5">
+      <HelpText module="dashboard">Your <strong className="text-foreground">Dashboard</strong> gives a real-time overview of all connected accounts. Click <strong className="text-foreground">Compose with AI</strong> to create your first post.</HelpText>
       {/* Hero greeting — Sonoma Large Title style */}
       <GlassCard strong className="relative overflow-hidden p-6 sm:p-7">
         <div className="relative flex flex-wrap items-center justify-between gap-4">

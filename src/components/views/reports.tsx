@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { HelpText } from "@/components/glass/help-text";
 import { useAuth } from "@/lib/auth-store";
 import {
   Dialog,
@@ -340,6 +341,7 @@ export function ReportsView() {
 
   return (
     <div className="space-y-5">
+      <HelpText module="reports"><strong className="text-foreground">Reports</strong> lets you build custom performance summaries. Create a report to schedule recurring exports.</HelpText>
       {/* Hero */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
         <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />

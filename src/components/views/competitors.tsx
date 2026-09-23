@@ -34,6 +34,7 @@ import {
   PlatformBadge,
   PlatformPill,
 } from "@/components/glass/platform-badge";
+import { HelpText } from "@/components/glass/help-text";
 import {
   PLATFORMS,
   PLATFORM_LIST,
@@ -177,6 +178,7 @@ export function CompetitorsView() {
 
   return (
     <div className="animate-rise space-y-5">
+      <HelpText module="competitors"><strong className="text-foreground">Competitors</strong> benchmarks your performance against rival accounts. Add a competitor to compare growth and engagement.</HelpText>
       {/* Hero */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
         <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />

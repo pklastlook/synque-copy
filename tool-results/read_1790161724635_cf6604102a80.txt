@@ -1,0 +1,756 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Plus,
+     6→  Trash2,
+     7→  Save,
+     8→  ExternalLink,
+     9→  Eye,
+    10→  MousePointerClick,
+    11→  Link as LinkIcon,
+    12→  Globe,
+    13→  Smartphone,
+    14→  Sparkles,
+    15→  GripVertical,
+    16→  ShoppingBag,
+    17→  BookOpen,
+    18→  Play,
+    19→  Music,
+    20→  Mail,
+    21→  MessageCircle,
+    22→  Instagram,
+    23→  Youtube,
+    24→  CheckCircle2,
+    25→} from "lucide-react";
+    26→import { toast } from "sonner";
+    27→import { useApi, fmt } from "@/lib/hooks";
+    28→import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+    29→import { Switch } from "@/components/ui/switch";
+    30→import { Input } from "@/components/ui/input";
+    31→import { Label } from "@/components/ui/label";
+    32→import {
+    33→  Select,
+    34→  SelectContent,
+    35→  SelectItem,
+    36→  SelectTrigger,
+    37→  SelectValue,
+    38→} from "@/components/ui/select";
+    39→import { cn } from "@/lib/utils";
+    40→
+    41→interface LinkItem {
+    42→  title: string;
+    43→  url: string;
+    44→  icon: string;
+    45→}
+    46→
+    47→interface LinkBioPage {
+    48→  id: string;
+    49→  slug: string;
+    50→  title: string;
+    51→  subtitle: string | null;
+    52→  avatar: string | null;
+    53→  theme: string;
+    54→  visits: number;
+    55→  clicks: number;
+    56→  accountId: string | null;
+    57→  active: boolean;
+    58→  links: LinkItem[];
+    59→  createdAt: string;
+    60→}
+    61→
+    62→type ThemeKey = "rose" | "teal" | "amber" | "magenta" | "green" | "dark";
+    63→
+    64→const THEMES: Record<ThemeKey, { color: string; gradient: string; label: string }> = {
+    65→  rose: {
+    66→    color: "oklch(0.7 0.24 14)",
+    67→    gradient: "linear-gradient(160deg, oklch(0.72 0.24 14) 0%, oklch(0.66 0.22 305) 100%)",
+    68→    label: "Rose",
+    69→  },
+    70→  teal: {
+    71→    color: "oklch(0.74 0.18 165)",
+    72→    gradient: "linear-gradient(160deg, oklch(0.74 0.18 165) 0%, oklch(0.6 0.14 200) 100%)",
+    73→    label: "Teal",
+    74→  },
+    75→  amber: {
+    76→    color: "oklch(0.78 0.18 75)",
+    77→    gradient: "linear-gradient(160deg, oklch(0.8 0.18 75) 0%, oklch(0.7 0.2 25) 100%)",
+    78→    label: "Amber",
+    79→  },
+    80→  magenta: {
+    81→    color: "oklch(0.66 0.22 305)",
+    82→    gradient: "linear-gradient(160deg, oklch(0.66 0.22 305) 0%, oklch(0.55 0.24 350) 100%)",
+    83→    label: "Magenta",
+    84→  },
+    85→  green: {
+    86→    color: "oklch(0.76 0.18 145)",
+    87→    gradient: "linear-gradient(160deg, oklch(0.76 0.18 145) 0%, oklch(0.6 0.16 165) 100%)",
+    88→    label: "Green",
+    89→  },
+    90→  dark: {
+    91→    color: "oklch(0.18 0.02 250)",
+    92→    gradient: "linear-gradient(160deg, oklch(0.16 0.02 260) 0%, oklch(0.08 0 0) 100%)",
+    93→    label: "Midnight",
+    94→  },
+    95→};
+    96→
+    97→const ICON_SET: { name: string; component: React.ElementType }[] = [
+    98→  { name: "shopping-bag", component: ShoppingBag },
+    99→  { name: "book-open", component: BookOpen },
+   100→  { name: "play", component: Play },
+   101→  { name: "music", component: Music },
+   102→  { name: "mail", component: Mail },
+   103→  { name: "message-circle", component: MessageCircle },
+   104→  { name: "link", component: LinkIcon },
+   105→  { name: "globe", component: Globe },
+   106→  { name: "instagram", component: Instagram },
+   107→  { name: "youtube", component: Youtube },
+   108→];
+   109→
+   110→function iconComponent(name: string): React.ElementType {
+   111→  return ICON_SET.find((i) => i.name === name)?.component ?? LinkIcon;
+   112→}
+   113→
+   114→export function LinkBioView() {
+   115→  const { data, loading, reload } = useApi<LinkBioPage[]>("/api/linkbio");
+   116→
+   117→  const pages = data ?? [];
+   118→  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+   119→
+   120→  // Local edit buffer for the selected page — initialized from server data.
+   121→  const [draft, setDraft] = React.useState<LinkBioPage | null>(null);
+   122→  const [saving, setSaving] = React.useState(false);
+   123→
+   124→  // Initialise selection + draft whenever data arrives / changes.
+   125→  React.useEffect(() => {
+   126→    if (pages.length === 0) {
+   127→      if (draft) setDraft(null);
+   128→      return;
+   129→    }
+   130→    if (!selectedId || !pages.some((p) => p.id === selectedId)) {
+   131→      setSelectedId(pages[0].id);
+   132→    }
+   133→  }, [pages, selectedId, draft]);
+   134→
+   135→  React.useEffect(() => {
+   136→    if (!selectedId || !data) return;
+   137→    const serverPage = data.find((p) => p.id === selectedId);
+   138→    if (!serverPage) return;
+   139→    // Only reset draft when switching to a different page (not on every reload).
+   140→    setDraft((prev) => {
+   141→      if (prev && prev.id === selectedId) {
+   142→        // Merge server values that aren't user-editable: visits/clicks/active/slug.
+   143→        return {
+   144→          ...serverPage,
+   145→          title: prev.title,
+   146→          subtitle: prev.subtitle,
+   147→          avatar: prev.avatar,
+   148→          theme: prev.theme,
+   149→          links: prev.links,
+   150→        };
+   151→      }
+   152→      return serverPage;
+   153→    });
+   154→  }, [selectedId, data]);
+   155→
+   156→  if (loading || !data) return <LinkBioSkeleton />;
+   157→
+   158→  const totalVisits = pages.reduce((s, p) => s + p.visits, 0);
+   159→  const totalClicks = pages.reduce((s, p) => s + p.clicks, 0);
+   160→  const avgCtr = totalVisits > 0 ? (totalClicks / totalVisits) * 100 : 0;
+   161→
+   162→  const toggleActive = async (page: LinkBioPage, next: boolean) => {
+   163→    setDraft((prev) => (prev && prev.id === page.id ? { ...prev, active: next } : prev));
+   164→    try {
+   165→      await fetch("/api/linkbio", {
+   166→        method: "PATCH",
+   167→        headers: { "Content-Type": "application/json" },
+   168→        body: JSON.stringify({ id: page.id, active: next }),
+   169→      });
+   170→      toast.success(next ? "Page published" : "Page paused");
+   171→      reload();
+   172→    } catch {
+   173→      toast.error("Could not update page");
+   174→    }
+   175→  };
+   176→
+   177→  const changeTheme = async (themeKey: ThemeKey) => {
+   178→    if (!draft) return;
+   179→    setDraft({ ...draft, theme: themeKey });
+   180→    try {
+   181→      await fetch("/api/linkbio", {
+   182→        method: "PATCH",
+   183→        headers: { "Content-Type": "application/json" },
+   184→        body: JSON.stringify({ id: draft.id, theme: themeKey }),
+   185→      });
+   186→      toast.success(`Theme: ${THEMES[themeKey].label}`);
+   187→      reload();
+   188→    } catch {
+   189→      toast.error("Could not change theme");
+   190→    }
+   191→  };
+   192→
+   193→  const createNewPage = async () => {
+   194→    setSaving(true);
+   195→    try {
+   196→      const res = await fetch("/api/linkbio", {
+   197→        method: "POST",
+   198→        headers: { "Content-Type": "application/json" },
+   199→        body: JSON.stringify({ title: "Untitled page" }),
+   200→      });
+   201→      if (!res.ok) throw new Error("Failed");
+   202→      const j = await res.json();
+   203→      toast.success("New page created", { description: `prism.co/${j.slug}` });
+   204→      setSelectedId(j.id);
+   205→      reload();
+   206→    } catch {
+   207→      toast.error("Could not create page");
+   208→    } finally {
+   209→      setSaving(false);
+   210→    }
+   211→  };
+   212→  const savePage = async () => {
+   213→    if (!draft) return;
+   214→    setSaving(true);
+   215→    try {
+   216→      const res = await fetch("/api/linkbio", {
+   217→        method: "PATCH",
+   218→        headers: { "Content-Type": "application/json" },
+   219→        body: JSON.stringify({
+   220→          id: draft.id,
+   221→          title: draft.title,
+   222→          subtitle: draft.subtitle,
+   223→          theme: draft.theme,
+   224→          links: draft.links,
+   225→        }),
+   226→      });
+   227→      if (!res.ok) throw new Error("Failed");
+   228→      toast.success("Changes saved");
+   229→      reload();
+   230→    } catch {
+   231→      toast.error("Could not save changes");
+   232→    } finally {
+   233→      setSaving(false);
+   234→    }
+   235→  };
+   236→
+   237→  const deletePage = async (page: LinkBioPage) => {
+   238→    if (!confirm(`Delete "${page.title}"? This cannot be undone.`)) return;
+   239→    setSaving(true);
+   240→    try {
+   241→      const res = await fetch(`/api/linkbio/${page.id}`, { method: "DELETE" });
+   242→      if (!res.ok) throw new Error("Failed");
+   243→      toast.success("Page deleted");
+   244→      setSelectedId(null);
+   245→      setDraft(null);
+   246→      reload();
+   247→    } catch {
+   248→      toast.error("Could not delete page");
+   249→    } finally {
+   250→      setSaving(false);
+   251→    }
+   252→  };
+   253→
+   254→  const updateDraft = (patch: Partial<LinkBioPage>) => {
+   255→    setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+   256→  };
+   257→
+   258→  const updateLink = (idx: number, patch: Partial<LinkItem>) => {
+   259→    if (!draft) return;
+   260→    setDraft({
+   261→      ...draft,
+   262→      links: draft.links.map((l, i) => (i === idx ? { ...l, ...patch } : l)),
+   263→    });
+   264→  };
+   265→
+   266→  const removeLink = (idx: number) => {
+   267→    if (!draft) return;
+   268→    setDraft({ ...draft, links: draft.links.filter((_, i) => i !== idx) });
+   269→  };
+   270→
+   271→  const addLink = () => {
+   272→    if (!draft) return;
+   273→    setDraft({
+   274→      ...draft,
+   275→      links: [...draft.links, { title: "New link", url: "https://", icon: "link" }],
+   276→    });
+   277→  };
+   278→
+   279→  return (
+   280→    <div className="space-y-5">
+   281→      {/* Hero */}
+   282→      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
+   283→        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />
+   284→        <div className="relative flex flex-wrap items-center justify-between gap-4">
+   285→          <div>
+   286→            <div className="flex items-center gap-2 text-xs font-medium text-primary">
+   287→              <LinkIcon className="h-3.5 w-3.5" />
+   288→              Link-in-bio · Build &amp; preview
+   289→            </div>
+   290→            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+   291→              Your <span className="retaina-text">link-in-bio</span> pages
+   292→            </h2>
+   293→            <p className="mt-1 text-sm text-muted-foreground">
+   294→              <span className="font-semibold text-foreground">{pages.length}</span> live pages ·{" "}
+   295→              <span className="font-semibold text-foreground">{fmt(totalVisits)}</span> visits ·{" "}
+   296→              <span className="font-semibold text-foreground">{avgCtr.toFixed(1)}%</span> avg CTR.
+   297→            </p>
+   298→          </div>
+   299→          <button
+   300→            onClick={createNewPage}
+   301→            disabled={saving}
+   302→            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
+   303→          >
+   304→            <Plus className="h-4 w-4" />
+   305→            {saving ? "Creating…" : "New page"}
+   306→          </button>
+   307→        </div>
+   308→      </GlassCard>
+   309→
+   310→      {/* KPI strip */}
+   311→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   312→        <KpiCard
+   313→          label="Pages"
+   314→          value={pages.length}
+   315→          icon={<Smartphone className="h-5 w-5" />}
+   316→          accent="var(--primary)"
+   317→          hint={`${pages.filter((p) => p.active).length} active`}
+   318→        />
+   319→        <KpiCard
+   320→          label="Total visits"
+   321→          value={fmt(totalVisits)}
+   322→          icon={<Eye className="h-5 w-5" />}
+   323→          accent="oklch(0.74 0.18 165)"
+   324→          hint="all-time"
+   325→        />
+   326→        <KpiCard
+   327→          label="Total clicks"
+   328→          value={fmt(totalClicks)}
+   329→          icon={<MousePointerClick className="h-5 w-5" />}
+   330→          accent="oklch(0.66 0.22 305)"
+   331→          hint="on link buttons"
+   332→        />
+   333→        <KpiCard
+   334→          label="Avg CTR"
+   335→          value={`${avgCtr.toFixed(1)}%`}
+   336→          icon={<ExternalLink className="h-5 w-5" />}
+   337→          accent="oklch(0.78 0.18 75)"
+   338→          hint="clicks / visits"
+   339→        />
+   340→      </div>
+   341→
+   342→      {/* Pages list */}
+   343→      <GlassCard className="p-5">
+   344→        <SectionTitle
+   345→          title="Your pages"
+   346→          desc="Pick a page to edit. Toggle live status with the switch."
+   347→          action={<Sparkles className="h-4 w-4 text-primary" />}
+   348→        />
+   349→        <div className="grid gap-3 sm:grid-cols-2">
+   350→          {pages.map((p) => {
+   351→            const isActive = selectedId === p.id;
+   352→            const theme = (THEMES[p.theme as ThemeKey] ?? THEMES.rose);
+   353→            const ctr = p.visits > 0 ? (p.clicks / p.visits) * 100 : 0;
+   354→            return (
+   355→              <div
+   356→                key={p.id}
+   357→                role="button"
+   358→                tabIndex={0}
+   359→                onClick={() => setSelectedId(p.id)}
+   360→                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedId(p.id); } }}
+   361→                className={cn(
+   362→                  "group glass-sheen relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-2xl border bg-background/40 p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg",
+   363→                  isActive ? "border-primary ring-2 ring-primary" : "border-border/40",
+   364→                )}
+   365→              >
+   366→                <div
+   367→                  className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-25 blur-2xl"
+   368→                  style={{ background: theme.color }}
+   369→                />
+   370→                <div className="relative flex items-start justify-between gap-3">
+   371→                  <div className="flex items-center gap-3">
+   372→                    <div
+   373→                      className="grid h-10 w-10 place-items-center rounded-2xl text-white shadow-md"
+   374→                      style={{ background: theme.gradient }}
+   375→                    >
+   376→                      <LinkIcon className="h-5 w-5" />
+   377→                    </div>
+   378→                    <div className="min-w-0">
+   379→                      <div className="truncate text-sm font-semibold">{p.title}</div>
+   380→                      <div className="truncate text-[11px] text-muted-foreground">
+   381→                        prism.co/{p.slug}
+   382→                      </div>
+   383→                    </div>
+   384→                  </div>
+   385→                  <div onClick={(e) => e.stopPropagation()}>
+   386→                    <Switch
+   387→                      checked={p.active}
+   388→                      onCheckedChange={(v) => toggleActive(p, v)}
+   389→                    />
+   390→                  </div>
+   391→                </div>
+   392→                <div className="relative grid grid-cols-3 gap-2 text-center">
+   393→                  <div className="rounded-lg bg-muted/40 px-2 py-1.5">
+   394→                    <div className="text-sm font-bold tabular-nums">{fmt(p.visits)}</div>
+   395→                    <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Visits</div>
+   396→                  </div>
+   397→                  <div className="rounded-lg bg-muted/40 px-2 py-1.5">
+   398→                    <div className="text-sm font-bold tabular-nums">{fmt(p.clicks)}</div>
+   399→                    <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Clicks</div>
+   400→                  </div>
+   401→                  <div className="rounded-lg bg-muted/40 px-2 py-1.5">
+   402→                    <div className="text-sm font-bold tabular-nums">{ctr.toFixed(1)}%</div>
+   403→                    <div className="text-[9px] uppercase tracking-wide text-muted-foreground">CTR</div>
+   404→                  </div>
+   405→                </div>
+   406→              </div>
+   407→            );
+   408→          })}
+   409→          {pages.length === 0 && (
+   410→            <div className="col-span-full rounded-2xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+   411→              No link-in-bio pages yet.
+   412→            </div>
+   413→          )}
+   414→        </div>
+   415→      </GlassCard>
+   416→
+   417→      {/* Editor + phone preview */}
+   418→      {draft && (
+   419→        <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+   420→          {/* Editor */}
+   421→          <GlassCard className="p-5">
+   422→            <SectionTitle
+   423→              title="Editor"
+   424→              desc={`Editing prism.co/${draft.slug}`}
+   425→              action={
+   426→                <button
+   427→                  onClick={savePage}
+   428→                  disabled={saving}
+   429→                  className="liquid-pill flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+   430→                >
+   431→                  <Save className="h-3.5 w-3.5" />
+   432→                  {saving ? "Saving…" : "Save changes"}
+   433→                </button>
+   434→              }
+   435→            />
+   436→
+   437→            <div className="space-y-4">
+   438→              {/* Title + subtitle */}
+   439→              <div className="grid gap-3 sm:grid-cols-2">
+   440→                <div className="space-y-2">
+   441→                  <Label htmlFor="lb-title">Title</Label>
+   442→                  <Input
+   443→                    id="lb-title"
+   444→                    value={draft.title}
+   445→                    onChange={(e) => updateDraft({ title: e.target.value })}
+   446→                    placeholder="Your page title"
+   447→                  />
+   448→                </div>
+   449→                <div className="space-y-2">
+   450→                  <Label htmlFor="lb-subtitle">Subtitle</Label>
+   451→                  <Input
+   452→                    id="lb-subtitle"
+   453→                    value={draft.subtitle ?? ""}
+   454→                    onChange={(e) => updateDraft({ subtitle: e.target.value || null })}
+   455→                    placeholder="A short tagline"
+   456→                  />
+   457→                </div>
+   458→              </div>
+   459→
+   460→              {/* Avatar URL */}
+   461→              <div className="space-y-2">
+   462→                <Label htmlFor="lb-avatar">Avatar URL</Label>
+   463→                <div className="flex items-center gap-3">
+   464→                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
+   465→                    {draft.avatar ? (
+   466→                       
+   467→                      <img
+   468→                        src={draft.avatar}
+   469→                        alt="Avatar"
+   470→                        className="h-full w-full object-cover"
+   471→                      />
+   472→                    ) : (
+   473→                      <div className="grid h-full w-full place-items-center text-[10px] font-medium text-muted-foreground">
+   474→                        {draft.title.charAt(0).toUpperCase()}
+   475→                      </div>
+   476→                    )}
+   477→                  </div>
+   478→                  <Input
+   479→                    id="lb-avatar"
+   480→                    value={draft.avatar ?? ""}
+   481→                    onChange={(e) => updateDraft({ avatar: e.target.value || null })}
+   482→                    placeholder="https://example.com/avatar.png"
+   483→                  />
+   484→                </div>
+   485→              </div>
+   486→
+   487→              {/* Theme picker */}
+   488→              <div className="space-y-2">
+   489→                <Label>Theme</Label>
+   490→                <div className="flex flex-wrap gap-2">
+   491→                  {(Object.keys(THEMES) as ThemeKey[]).map((t) => {
+   492→                    const isActive = (draft.theme ?? "rose") === t;
+   493→                    return (
+   494→                      <button
+   495→                        key={t}
+   496→                        onClick={() => changeTheme(t)}
+   497→                        aria-label={`Theme ${THEMES[t].label}`}
+   498→                        className={cn(
+   499→                          "relative h-9 w-9 rounded-full shadow-md transition-all",
+   500→                          isActive
+   501→                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+   502→                            : "ring-1 ring-border/60 hover:scale-105",
+   503→                        )}
+   504→                        style={{ background: THEMES[t].gradient }}
+   505→                      >
+   506→                        {isActive && (
+   507→                          <CheckCircle2 className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />
+   508→                        )}
+   509→                      </button>
+   510→                    );
+   511→                  })}
+   512→                </div>
+   513→              </div>
+   514→
+   515→              {/* Links manager */}
+   516→              <div className="space-y-2">
+   517→                <div className="flex items-center justify-between">
+   518→                  <Label>Links ({draft.links.length})</Label>
+   519→                  <button
+   520→                    onClick={addLink}
+   521→                    className="flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
+   522→                  >
+   523→                    <Plus className="h-3 w-3" /> Add link
+   524→                  </button>
+   525→                </div>
+   526→                <div className="space-y-2">
+   527→                  {draft.links.map((link, idx) => {
+   528→                    const Icon = iconComponent(link.icon);
+   529→                    return (
+   530→                      <div
+   531→                        key={idx}
+   532→                        className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/40 bg-background/40 p-2 sm:flex-nowrap"
+   533→                      >
+   534→                        <GripVertical className="hidden h-4 w-4 shrink-0 text-muted-foreground/60 sm:block" />
+   535→                        <Select
+   536→                          value={link.icon}
+   537→                          onValueChange={(v) => updateLink(idx, { icon: v })}
+   538→                        >
+   539→                          <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-xl">
+   540→                            <span className="flex items-center gap-2">
+   541→                              <Icon className="h-3.5 w-3.5" />
+   542→                              <SelectValue />
+   543→                            </span>
+   544→                          </SelectTrigger>
+   545→                          <SelectContent>
+   546→                            {ICON_SET.map((opt) => {
+   547→                              const OptIcon = opt.component;
+   548→                              return (
+   549→                                <SelectItem key={opt.name} value={opt.name}>
+   550→                                  <span className="flex items-center gap-2">
+   551→                                    <OptIcon className="h-3.5 w-3.5" />
+   552→                                    {opt.name}
+   553→                                  </span>
+   554→                                </SelectItem>
+   555→                              );
+   556→                            })}
+   557→                          </SelectContent>
+   558→                        </Select>
+   559→                        <Input
+   560→                          value={link.title}
+   561→                          onChange={(e) => updateLink(idx, { title: e.target.value })}
+   562→                          placeholder="Button label"
+   563→                          className="h-9 min-w-[120px] flex-1 rounded-xl"
+   564→                        />
+   565→                        <Input
+   566→                          value={link.url}
+   567→                          onChange={(e) => updateLink(idx, { url: e.target.value })}
+   568→                          placeholder="https://"
+   569→                          className="h-9 min-w-[140px] flex-1 rounded-xl"
+   570→                        />
+   571→                        <button
+   572→                          onClick={() => removeLink(idx)}
+   573→                          aria-label="Remove link"
+   574→                          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-rose-500/10 text-rose-500 transition hover:bg-rose-500/20"
+   575→                        >
+   576→                          <Trash2 className="h-3.5 w-3.5" />
+   577→                        </button>
+   578→                      </div>
+   579→                    );
+   580→                  })}
+   581→                  {draft.links.length === 0 && (
+   582→                    <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-xs text-muted-foreground">
+   583→                      No links yet. Add one to make your page live.
+   584→                    </div>
+   585→                  )}
+   586→                </div>
+   587→              </div>
+   588→
+   589→              {/* Danger zone: delete this page */}
+   590→              <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-3">
+   591→                <div className="flex items-start gap-2">
+   592→                  <Trash2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" />
+   593→                  <div>
+   594→                    <div className="text-xs font-semibold text-rose-500">Delete page</div>
+   595→                    <div className="text-[10px] text-muted-foreground">
+   596→                      Permanently remove this link-in-bio page and all its analytics.
+   597→                    </div>
+   598→                  </div>
+   599→                </div>
+   600→                <button
+   601→                  onClick={() => deletePage(draft)}
+   602→                  disabled={saving}
+   603→                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-rose-500/15 px-3 py-1.5 text-[11px] font-semibold text-rose-500 transition hover:bg-rose-500/25 disabled:opacity-50"
+   604→                >
+   605→                  <Trash2 className="h-3 w-3" /> Delete page
+   606→                </button>
+   607→              </div>
+   608→            </div>
+   609→          </GlassCard>
+   610→
+   611→          {/* Phone preview */}
+   612→          <PhonePreview page={draft} />
+   613→        </div>
+   614→      )}
+   615→    </div>
+   616→  );
+   617→}
+   618→
+   619→function PhonePreview({ page }: { page: LinkBioPage }) {
+   620→  const theme = THEMES[(page.theme as ThemeKey) ?? "rose"] ?? THEMES.rose;
+   621→  const isDark = page.theme === "dark";
+   622→  const ctr = page.visits > 0 ? (page.clicks / page.visits) * 100 : 0;
+   623→
+   624→  return (
+   625→    <div className="flex flex-col items-center gap-3">
+   626→      <SectionTitle title="Live preview" desc="iPhone 15 Pro" />
+   627→      <div className="relative h-[620px] w-[300px] shrink-0 rounded-[2.8rem] border-[10px] border-neutral-900 bg-neutral-900 shadow-2xl">
+   628→        {/* Notch */}
+   629→        <div className="pointer-events-none absolute left-1/2 top-2 z-30 h-6 w-28 -translate-x-1/2 rounded-full bg-neutral-900" />
+   630→        {/* Screen */}
+   631→        <div
+   632→          className="relative h-full w-full overflow-y-auto overflow-x-hidden rounded-[2.1rem] scroll-liquid"
+   633→          style={{ background: theme.gradient }}
+   634→        >
+   635→          {/* URL bar */}
+   636→          <div className="sticky top-0 z-20 flex items-center justify-between gap-2 bg-black/20 px-3 py-2 backdrop-blur-md">
+   637→            <div className="flex min-w-0 items-center gap-1 rounded-full bg-white/25 px-2.5 py-1 text-[10px] font-medium text-white">
+   638→              <Globe className="h-2.5 w-2.5 shrink-0" />
+   639→              <span className="truncate">prism.co/{page.slug}</span>
+   640→            </div>
+   641→            <div className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-1 text-[9px] font-semibold text-white">
+   642→              <Eye className="h-2.5 w-2.5" />
+   643→              {fmt(page.visits)}
+   644→            </div>
+   645→          </div>
+   646→
+   647→          {/* Profile */}
+   648→          <div className="flex flex-col items-center px-5 pb-6 pt-8 text-center">
+   649→            <div className="relative h-20 w-20 overflow-hidden rounded-full border-[3px] border-white/40 shadow-xl">
+   650→              {page.avatar ? (
+   651→                 
+   652→                <img
+   653→                  src={page.avatar}
+   654→                  alt={page.title}
+   655→                  className="h-full w-full object-cover"
+   656→                />
+   657→              ) : (
+   658→                <div className="grid h-full w-full place-items-center bg-white/20 text-2xl font-bold text-white">
+   659→                  {page.title.charAt(0).toUpperCase()}
+   660→                </div>
+   661→              )}
+   662→            </div>
+   663→            <h1
+   664→              className={cn(
+   665→                "mt-3 text-lg font-bold leading-tight",
+   666→                isDark ? "text-white" : "text-white",
+   667→              )}
+   668→              style={{
+   669→                background: "linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.78) 100%)",
+   670→                WebkitBackgroundClip: "text",
+   671→                backgroundClip: "text",
+   672→                color: "transparent",
+   673→              }}
+   674→            >
+   675→              {page.title || "Untitled page"}
+   676→            </h1>
+   677→            {page.subtitle && (
+   678→              <p
+   679→                className={cn(
+   680→                  "mt-1 max-w-[220px] text-[11px] leading-snug",
+   681→                  isDark ? "text-white/70" : "text-white/85",
+   682→                )}
+   683→              >
+   684→                {page.subtitle}
+   685→              </p>
+   686→            )}
+   687→          </div>
+   688→
+   689→          {/* Links */}
+   690→          <div className="space-y-2 px-4 pb-8">
+   691→            {page.links.map((link, idx) => {
+   692→              const Icon = iconComponent(link.icon);
+   693→              return (
+   694→                <a
+   695→                  key={idx}
+   696→                  href={link.url}
+   697→                  onClick={(e) => e.preventDefault()}
+   698→                  className="group flex items-center gap-2.5 rounded-2xl bg-white/90 px-3.5 py-2.5 text-neutral-900 shadow-md backdrop-blur-sm transition-all hover:bg-white hover:shadow-lg active:scale-[0.98]"
+   699→                >
+   700→                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white" style={{ background: theme.color }}>
+   701→                    <Icon className="h-3.5 w-3.5" />
+   702→                  </span>
+   703→                  <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">
+   704→                    {link.title || "Untitled"}
+   705→                  </span>
+   706→                  <ExternalLink className="h-3 w-3 shrink-0 text-neutral-400 transition group-hover:text-neutral-700" />
+   707→                </a>
+   708→              );
+   709→            })}
+   710→            {page.links.length === 0 && (
+   711→              <div className="rounded-2xl border border-dashed border-white/30 bg-white/5 px-4 py-6 text-center text-[11px] text-white/70">
+   712→                Add links to see them here.
+   713→              </div>
+   714→            )}
+   715→          </div>
+   716→
+   717→          {/* Footer brand */}
+   718→          <div className="px-4 pb-5 text-center">
+   719→            <div className="inline-flex items-center gap-1 text-[9px] font-medium text-white/60">
+   720→              made with <Sparkles className="h-2.5 w-2.5" /> SocialFlow
+   721→            </div>
+   722→          </div>
+   723→        </div>
+   724→
+   725→        {/* Visit / click overlay */}
+   726→        <div className="pointer-events-none absolute bottom-3 right-3 z-20 rounded-xl bg-black/60 px-2.5 py-1.5 text-right backdrop-blur-md">
+   727→          <div className="text-[9px] font-medium uppercase tracking-wide text-white/60">CTR</div>
+   728→          <div className="text-xs font-bold text-white">{ctr.toFixed(1)}%</div>
+   729→        </div>
+   730→      </div>
+   731→
+   732→      <p className="text-center text-[11px] text-muted-foreground">
+   733→        {fmt(page.clicks)} clicks · {fmt(page.visits)} visits
+   734→      </p>
+   735→    </div>
+   736→  );
+   737→}
+   738→
+   739→function LinkBioSkeleton() {
+   740→  return (
+   741→    <div className="space-y-5">
+   742→      <div className="shimmer h-28 rounded-3xl" />
+   743→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   744→        {Array.from({ length: 4 }).map((_, i) => (
+   745→          <div key={i} className="shimmer h-32 rounded-3xl" />
+   746→        ))}
+   747→      </div>
+   748→      <div className="shimmer h-32 rounded-3xl" />
+   749→      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+   750→        <div className="shimmer h-[460px] rounded-3xl" />
+   751→        <div className="shimmer h-[460px] rounded-3xl" />
+   752→      </div>
+   753→    </div>
+   754→  );
+   755→}
+   756→

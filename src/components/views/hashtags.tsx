@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
+import { HelpText } from "@/components/glass/help-text";
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import {
@@ -186,6 +187,7 @@ export function HashtagsView() {
 
   return (
     <div className="space-y-5">
+      <HelpText module="hashtags"><strong className="text-foreground">Hashtag Manager</strong> saves reusable hashtag groups. Add tags once, then insert them into any post.</HelpText>
       {/* Hero */}
       <GlassCard strong className="glass-sheen animate-rise relative overflow-hidden p-5">
         <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/25 blur-3xl" />

@@ -28,6 +28,7 @@ import { useApi } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { HelpText } from "@/components/glass/help-text";
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { Post } from "@/lib/types";
@@ -131,6 +132,7 @@ export function CalendarView() {
 
   return (
     <div className="space-y-4">
+      <HelpText module="calendar"><strong className="text-foreground">Calendar</strong> shows your scheduled and published posts. Click any day to see what's planned.</HelpText>
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <KpiCard
