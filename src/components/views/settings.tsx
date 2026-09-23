@@ -442,23 +442,86 @@ function ProfileSection() {
 }
 
 // ===== 2. Workspace =====
+interface WorkspaceData {
+  id: string;
+  name: string;
+  timezone: string;
+  cadence: string;
+  startTime: string;
+  endTime: string;
+  autoVariants: boolean;
+  tone: string;
+  brandVoice: string;
+  colors: string[];
+  ownerId: string;
+}
 function WorkspaceSection() {
-  const [name, setName] = React.useState("Prism Studio");
+  const { user } = useAuth();
+  const { data: ws, reload } = useApi<WorkspaceData>(user?.id ? `/api/workspace?ownerId=${user.id}` : null);
+
+  const [name, setName] = React.useState("My Workspace");
   const [tz, setTz] = React.useState("America/Los_Angeles");
   const [cadence, setCadence] = React.useState("3/day");
   const [start, setStart] = React.useState("09:00");
   const [end, setEnd] = React.useState("18:00");
   const [autoVariants, setAutoVariants] = React.useState(true);
   const [tone, setTone] = React.useState("Confident");
-  const [brandVoice, setBrandVoice] = React.useState(
-    "Confident, warm, and a little playful. We lead with curiosity, never arrogance. Speak to creators like a trusted peer."
-  );
+  const [brandVoice, setBrandVoice] = React.useState("");
   const [colors, setColors] = React.useState<string[]>(["#1B2A57", "#D4A24E", "#5BC0BE"]);
+  const [saving, setSaving] = React.useState(false);
+
+  // Load real workspace data from the database
+  React.useEffect(() => {
+    if (!ws) return;
+    setName(ws.name);
+    setTz(ws.timezone);
+    setCadence(ws.cadence);
+    setStart(ws.startTime);
+    setEnd(ws.endTime);
+    setAutoVariants(ws.autoVariants);
+    setTone(ws.tone);
+    setBrandVoice(ws.brandVoice ?? "");
+    if (ws.colors && Array.isArray(ws.colors) && ws.colors.length > 0) setColors(ws.colors);
+  }, [ws]);
 
   const updateColor = (i: number, v: string) =>
     setColors((prev) => prev.map((c, idx) => (idx === i ? v : c)));
 
-  const save = () => toast.success("Workspace saved", { description: "Defaults updated for all team members." });
+  const save = async () => {
+    if (!user?.id) {
+      toast.error("Sign in to save workspace settings");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/workspace", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerId: user.id,
+          name,
+          timezone: tz,
+          cadence,
+          startTime: start,
+          endTime: end,
+          autoVariants,
+          tone,
+          brandVoice,
+          colors,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Workspace saved", { description: "Defaults updated for all team members." });
+        reload();
+      } else {
+        toast.error("Failed to save workspace");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <GlassCard className="crystal-in p-5">
@@ -466,8 +529,8 @@ function WorkspaceSection() {
         title="Workspace"
         desc="Defaults applied across compose, schedule, and AI generation."
         action={
-          <button onClick={save} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold">
-            <Save className="h-3.5 w-3.5" /> Save changes
+          <button onClick={save} disabled={saving} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold disabled:opacity-50">
+            <Save className="h-3.5 w-3.5" /> {saving ? "Saving…" : "Save changes"}
           </button>
         }
       />

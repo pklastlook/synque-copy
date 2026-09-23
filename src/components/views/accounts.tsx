@@ -310,6 +310,8 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
   // Real handle data entered by the user — persisted to the database.
   const [handle, setHandle] = React.useState("");
   const [displayName, setDisplayName] = React.useState("");
+  const [followers, setFollowers] = React.useState("");
+  const [verified, setVerified] = React.useState(false);
   const [isBusiness, setIsBusiness] = React.useState(true);
 
   // Reset when closed
@@ -320,6 +322,8 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
         setPlatform(null);
         setHandle("");
         setDisplayName("");
+        setFollowers("");
+        setVerified(false);
         setIsBusiness(true);
       }, 300);
       return () => clearTimeout(t);
@@ -353,6 +357,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
     setStep("connecting");
     try {
       const cleanHandle = handle.trim().startsWith("@") ? handle.trim() : "@" + handle.trim();
+      const parsedFollowers = parseInt(followers.replace(/[^0-9]/g, ""), 10);
       const res = await fetch("/api/accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -363,6 +368,8 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
           loginEmail: null,
           businessAccount: isBusiness,
           ownerId: user.id,
+          followers: isNaN(parsedFollowers) ? 0 : parsedFollowers,
+          verified,
         }),
       });
       if (res.ok) {
@@ -614,6 +621,40 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                   placeholder="Your Brand"
                   className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                 />
+              </div>
+
+              {/* Follower count + verified — real data the user reads from their profile */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                    Followers
+                  </label>
+                  <input
+                    value={followers}
+                    onChange={(e) => setFollowers(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="7499"
+                    inputMode="numeric"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm tabular-nums outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                    Verified
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setVerified(!verified)}
+                    className={cn(
+                      "flex h-[42px] w-full items-center justify-between rounded-xl border px-3 transition",
+                      verified ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/40"
+                    )}
+                  >
+                    <span className="text-[13px] font-medium">{verified ? "Yes" : "No"}</span>
+                    <Switch checked={verified} onCheckedChange={setVerified} />
+                  </button>
+                </div>
               </div>
 
               {/* Business account toggle */}

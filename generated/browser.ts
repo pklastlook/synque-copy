@@ -172,3 +172,8 @@ export type Device = Prisma.DeviceModel
  * 
  */
 export type Subscription = Prisma.SubscriptionModel
+/**
+ * Model Workspace
+ * 
+ */
+export type Workspace = Prisma.WorkspaceModel

@@ -251,6 +251,7 @@ export type UserWhereInput = {
   activities?: Prisma.ActivityListRelationFilter
   assignedComments?: Prisma.CommentListRelationFilter
   mailboxes?: Prisma.MailboxListRelationFilter
+  workspace?: Prisma.XOR<Prisma.WorkspaceNullableScalarRelationFilter, Prisma.WorkspaceWhereInput> | null
 }
 
 export type UserOrderByWithRelationInput = {
@@ -272,6 +273,7 @@ export type UserOrderByWithRelationInput = {
   activities?: Prisma.ActivityOrderByRelationAggregateInput
   assignedComments?: Prisma.CommentOrderByRelationAggregateInput
   mailboxes?: Prisma.MailboxOrderByRelationAggregateInput
+  workspace?: Prisma.WorkspaceOrderByWithRelationInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -296,6 +298,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   activities?: Prisma.ActivityListRelationFilter
   assignedComments?: Prisma.CommentListRelationFilter
   mailboxes?: Prisma.MailboxListRelationFilter
+  workspace?: Prisma.XOR<Prisma.WorkspaceNullableScalarRelationFilter, Prisma.WorkspaceWhereInput> | null
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -355,6 +358,7 @@ export type UserCreateInput = {
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -376,6 +380,7 @@ export type UserUncheckedCreateInput = {
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
 }
 
 export type UserUpdateInput = {
@@ -397,6 +402,7 @@ export type UserUpdateInput = {
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -418,6 +424,7 @@ export type UserUncheckedUpdateInput = {
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -616,6 +623,20 @@ export type UserUpdateOneWithoutMailboxesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutMailboxesInput, Prisma.UserUpdateWithoutMailboxesInput>, Prisma.UserUncheckedUpdateWithoutMailboxesInput>
 }
 
+export type UserCreateNestedOneWithoutWorkspaceInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWorkspaceInput, Prisma.UserUncheckedCreateWithoutWorkspaceInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWorkspaceInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutWorkspaceNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWorkspaceInput, Prisma.UserUncheckedCreateWithoutWorkspaceInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWorkspaceInput
+  upsert?: Prisma.UserUpsertWithoutWorkspaceInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutWorkspaceInput, Prisma.UserUpdateWithoutWorkspaceInput>, Prisma.UserUncheckedUpdateWithoutWorkspaceInput>
+}
+
 export type UserCreateWithoutAccountsInput = {
   id?: string
   name: string
@@ -634,6 +655,7 @@ export type UserCreateWithoutAccountsInput = {
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
 }
 
 export type UserUncheckedCreateWithoutAccountsInput = {
@@ -654,6 +676,7 @@ export type UserUncheckedCreateWithoutAccountsInput = {
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
 }
 
 export type UserCreateOrConnectWithoutAccountsInput = {
@@ -690,6 +713,7 @@ export type UserUpdateWithoutAccountsInput = {
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAccountsInput = {
@@ -710,6 +734,7 @@ export type UserUncheckedUpdateWithoutAccountsInput = {
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserCreateWithoutPostsInput = {
@@ -730,6 +755,7 @@ export type UserCreateWithoutPostsInput = {
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
 }
 
 export type UserUncheckedCreateWithoutPostsInput = {
@@ -750,6 +776,7 @@ export type UserUncheckedCreateWithoutPostsInput = {
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
 }
 
 export type UserCreateOrConnectWithoutPostsInput = {
@@ -786,6 +813,7 @@ export type UserUpdateWithoutPostsInput = {
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPostsInput = {
@@ -806,6 +834,7 @@ export type UserUncheckedUpdateWithoutPostsInput = {
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserCreateWithoutAssignedCommentsInput = {
@@ -826,6 +855,7 @@ export type UserCreateWithoutAssignedCommentsInput = {
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
 }
 
 export type UserUncheckedCreateWithoutAssignedCommentsInput = {
@@ -846,6 +876,7 @@ export type UserUncheckedCreateWithoutAssignedCommentsInput = {
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
 }
 
 export type UserCreateOrConnectWithoutAssignedCommentsInput = {
@@ -882,6 +913,7 @@ export type UserUpdateWithoutAssignedCommentsInput = {
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssignedCommentsInput = {
@@ -902,6 +934,7 @@ export type UserUncheckedUpdateWithoutAssignedCommentsInput = {
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserCreateWithoutActivitiesInput = {
@@ -922,6 +955,7 @@ export type UserCreateWithoutActivitiesInput = {
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
 }
 
 export type UserUncheckedCreateWithoutActivitiesInput = {
@@ -942,6 +976,7 @@ export type UserUncheckedCreateWithoutActivitiesInput = {
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
 }
 
 export type UserCreateOrConnectWithoutActivitiesInput = {
@@ -978,6 +1013,7 @@ export type UserUpdateWithoutActivitiesInput = {
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserUncheckedUpdateWithoutActivitiesInput = {
@@ -998,6 +1034,7 @@ export type UserUncheckedUpdateWithoutActivitiesInput = {
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserCreateWithoutMailboxesInput = {
@@ -1018,6 +1055,7 @@ export type UserCreateWithoutMailboxesInput = {
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
+  workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
 }
 
 export type UserUncheckedCreateWithoutMailboxesInput = {
@@ -1038,6 +1076,7 @@ export type UserUncheckedCreateWithoutMailboxesInput = {
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
+  workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
 }
 
 export type UserCreateOrConnectWithoutMailboxesInput = {
@@ -1074,6 +1113,7 @@ export type UserUpdateWithoutMailboxesInput = {
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
+  workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMailboxesInput = {
@@ -1094,6 +1134,107 @@ export type UserUncheckedUpdateWithoutMailboxesInput = {
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
+  workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
+}
+
+export type UserCreateWithoutWorkspaceInput = {
+  id?: string
+  name: string
+  email: string
+  password?: string | null
+  avatar?: string | null
+  role?: string
+  title?: string | null
+  department?: string | null
+  color?: string | null
+  permissions?: string | null
+  status?: string
+  lastActive?: Date | string | null
+  createdAt?: Date | string
+  accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
+  posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
+  activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
+  assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
+  mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
+}
+
+export type UserUncheckedCreateWithoutWorkspaceInput = {
+  id?: string
+  name: string
+  email: string
+  password?: string | null
+  avatar?: string | null
+  role?: string
+  title?: string | null
+  department?: string | null
+  color?: string | null
+  permissions?: string | null
+  status?: string
+  lastActive?: Date | string | null
+  createdAt?: Date | string
+  accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
+  posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
+  activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
+  assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
+  mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
+}
+
+export type UserCreateOrConnectWithoutWorkspaceInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutWorkspaceInput, Prisma.UserUncheckedCreateWithoutWorkspaceInput>
+}
+
+export type UserUpsertWithoutWorkspaceInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutWorkspaceInput, Prisma.UserUncheckedUpdateWithoutWorkspaceInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutWorkspaceInput, Prisma.UserUncheckedCreateWithoutWorkspaceInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutWorkspaceInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutWorkspaceInput, Prisma.UserUncheckedUpdateWithoutWorkspaceInput>
+}
+
+export type UserUpdateWithoutWorkspaceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  department?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  permissions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  lastActive?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
+  posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
+  activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
+  assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
+  mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
+}
+
+export type UserUncheckedUpdateWithoutWorkspaceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  department?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  permissions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  lastActive?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
+  posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
+  activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
+  assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
+  mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
 }
 
 
@@ -1182,6 +1323,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   activities?: boolean | Prisma.User$activitiesArgs<ExtArgs>
   assignedComments?: boolean | Prisma.User$assignedCommentsArgs<ExtArgs>
   mailboxes?: boolean | Prisma.User$mailboxesArgs<ExtArgs>
+  workspace?: boolean | Prisma.User$workspaceArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1240,6 +1382,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   activities?: boolean | Prisma.User$activitiesArgs<ExtArgs>
   assignedComments?: boolean | Prisma.User$assignedCommentsArgs<ExtArgs>
   mailboxes?: boolean | Prisma.User$mailboxesArgs<ExtArgs>
+  workspace?: boolean | Prisma.User$workspaceArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1253,6 +1396,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     activities: Prisma.$ActivityPayload<ExtArgs>[]
     assignedComments: Prisma.$CommentPayload<ExtArgs>[]
     mailboxes: Prisma.$MailboxPayload<ExtArgs>[]
+    workspace: Prisma.$WorkspacePayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1667,6 +1811,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   activities<T extends Prisma.User$activitiesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$activitiesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ActivityPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assignedComments<T extends Prisma.User$assignedCommentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assignedCommentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   mailboxes<T extends Prisma.User$mailboxesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$mailboxesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MailboxPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  workspace<T extends Prisma.User$workspaceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$workspaceArgs<ExtArgs>>): Prisma.Prisma__WorkspaceClient<runtime.Types.Result.GetResult<Prisma.$WorkspacePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2219,6 +2364,25 @@ export type User$mailboxesArgs<ExtArgs extends runtime.Types.Extensions.Internal
   take?: number
   skip?: number
   distinct?: Prisma.MailboxScalarFieldEnum | Prisma.MailboxScalarFieldEnum[]
+}
+
+/**
+ * User.workspace
+ */
+export type User$workspaceArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Workspace
+   */
+  select?: Prisma.WorkspaceSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Workspace
+   */
+  omit?: Prisma.WorkspaceOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WorkspaceInclude<ExtArgs> | null
+  where?: Prisma.WorkspaceWhereInput
 }
 
 /**
