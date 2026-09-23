@@ -2042,3 +2042,344 @@ Stage Summary:
 - Files: prisma/schema.prisma (+WhatsAppConnection model, +isLive field), generated/ (regenerated), mini-services/whatsapp-service/ (new: index.ts, index.js, package.json with baileys + qrcode + pino deps), src/app/api/whatsapp/connection/route.ts (GET+POST), src/app/api/whatsapp/webhook/route.ts (POST), src/components/views/whatsapp.tsx (added ConnectionBanner + QRCodeDisplay + live polling + LIVE badge).
 - Real WhatsApp connection via QR scan — works exactly like WhatsApp Web.
 - Pushed to https://github.com/pklastlook/SocialFlow.git (commit a1351cc).
+
+---
+Task ID: audit-views
+Agent: general-purpose sub-agent (audit)
+Task: Audit ALL files in `/home/z/my-project/src/components/views/` for hardcoded/mock data, fake API calls, toast-only buttons, "u-admin"/hardcoded IDs, Math.random/sin/cos mock chart data, hardcoded follower counts/engagement numbers, and bugs (wrong field names, type mismatches, missing null checks). DO NOT FIX — only report.
+
+Work Log:
+- Inventoried 21 view files (~24,511 LOC total). Files range from 399 lines (inbox) to 3,654 lines (owner).
+- Performed pattern-based scans across all views: `mock|dummy|fake|placeholder|TODO|FIXME`, `Math.random/sin/cos`, `u-admin|user_1|usr_`, `toast.`, `fetch(`, `useApi(`, `setTimeout/setInterval`, `^const [A-Z_]+`.
+- Read each view file end-to-end where suspicious patterns hit, focusing on: (a) buttons that toast without a fetch, (b) client-side state treated as persisted data, (c) procedural chart data, (d) hardcoded stat arrays.
+
+### Audit Report — `src/components/views/`
+
+Findings grouped by severity. No fixes applied — this is a read-only audit.
+
+=====================================================================
+CRITICAL — Data loss, fake persistence, or actively misleading UI
+=====================================================================
+
+**1. inbox.tsx — User-typed reply is silently dropped (BUG)**
+- File: `/home/z/my-project/src/components/views/inbox.tsx`
+- Lines: 103-122 (`sendReply`)
+- Type: bug (data loss)
+- Description: The reply composer accepts user input via `replyText`, but `sendReply` only PATCHes `{ id, replied: true }` to `/api/inbox`. The actual reply text is NEVER sent to the backend — the textarea is just cleared locally. Users believe they "sent a reply" but the platform only flips a status flag. The `to`/`subject`/`body` shape used by `/api/mail/messages` would also be wrong here (this is the social inbox, not mail).
+- Suggested fix: Extend the PATCH body to include `reply: replyText.trim()` (or POST to a new `/api/inbox/[id]/reply` route that pushes the reply to the actual platform via the platform API). Persist the reply on the Comment record and surface it in the conversation history.
+
+**2. accounts.tsx — Fake sparkline generated with Math.sin/Math.cos (MOCK CHART DATA)**
+- File: `/home/z/my-project/src/components/views/accounts.tsx`
+- Lines: 133-146 (`buildSpark`) → used at 928-997 (AccountCard sparkline AreaChart)
+- Type: mock-chart-data
+- Description: The follower sparkline on every account card is **procedurally synthesized** from a hash of the account ID + `Math.sin((i + h) * 0.7) * 12 + Math.cos((i + h) * 0.4) * 6`, not pulled from `/api/accounts` history. Two users with the same account ID see identical "trends" that have nothing to do with real follower history. This is exactly the pattern the audit brief flags.
+- Suggested fix: Add a `sparkline: number[]` field to `AccountData` (already present on the dashboard's `pagesRanking` type — see `dashboard.tsx:57`) and have `/api/accounts` return the last ~12 daily follower snapshots. Drop `buildSpark`.
+
+**3. settings.tsx — "Connected platforms" section is hardcoded mock state**
+- File: `/home/z/my-project/src/components/views/settings.tsx`
+- Lines: 1755-1767 (`initial` state) + 1810-1823 (toggle handler)
+- Type: hardcoded / no-op-button
+- Description: The "Connected platforms" card lists every social platform with **hardcoded** `connected: true` and `accounts: 3/2/1/1/1/1` regardless of what's actually in the DB. The Connect/Disconnect button (1812) only flips local `setState` — no `/api/accounts` or `/api/platform-credentials` call. The toast `"{name} disconnected"` is a lie: nothing is persisted.
+- Suggested fix: Replace with `useApi("/api/accounts")` and derive real per-platform connection state + count (the data already exists). For disconnect, call `DELETE /api/accounts/[id]` (already implemented in `accounts.tsx:1053`).
+
+**4. settings.tsx — "Integrations" section is fully hardcoded mock**
+- File: `/home/z/my-project/src/components/views/settings.tsx`
+- Lines: 1833-1891 (`IntegrationsSection`)
+- Type: hardcoded / no-op-button
+- Description: The integrations array (1834-1841) hardcodes `status: "Connected"/"Disconnected"` for Mail/Zapier/Slack/GA/Canva/Unsplash — these are not real integrations and have no DB rows anywhere. The toggle button (1873-1884) only updates local state and toasts success. There is no `/api/integrations` route.
+- Suggested fix: Either remove this card until real integrations exist, or back it with a `WorkspaceIntegration` Prisma model + `/api/integrations` GET/PUT route. At minimum, replace the success toast with `toast.info("Coming soon")` so users aren't misled.
+
+**5. settings.tsx — Billing section is fake (hardcoded plan, price, card)**
+- File: `/home/z/my-project/src/components/views/settings.tsx`
+- Lines: 1909-2010 (BillingSection)
+- Type: hardcoded
+- Description:
+  - Line 1931: plan name hardcoded as "Enterprise" — should come from a subscription record.
+  - Line 1937-1940: price hardcoded `$499 /mo`, "Renews Apr 1" (fake date).
+  - Line 1946, 1952, 1993: "Upgrade plan"/"Manage billing"/"Update" all `toast.info("Stripe not connected…")` — placeholders, no real call.
+  - Lines 2001-2009: hardcoded "VISA · Visa ending in 4242 · Expires 08/2027" — `4242` is Stripe's well-known test card, clearly fake.
+  - Lines 1911-1917: `usage` array is honestly-zero defaults (comment acknowledges this). OK as interim but should be replaced with real counters (`/api/usage`).
+- Suggested fix: Wire to a `/api/subscription` route that reads from the Owner Panel's subscription table (already exists per `owner.tsx:3123`). For now, hide the card/payment rows entirely if no subscription exists rather than showing fake Visa 4242.
+
+**6. settings.tsx — 2FA setup dialog is fake (mock QR + hardcoded secret + no enable call)**
+- File: `/home/z/my-project/src/components/views/settings.tsx`
+- Lines: 1649-1690
+- Type: mock / no-op-button
+- Description:
+  - Line 1658: comment literally says `{/* Mock QR code */}` and the QR is a deterministic fake pattern (1660-1672).
+  - Line 1676: hardcoded secret `JBSWY3DPEHPK3PXP` — this is the public Google Authenticator test secret, shown for every user.
+  - Line 1683: "Verify & enable" button → `toast.success("2FA enabled")` — no `/api/auth/2fa/enable` call, no TOTP verification, no secret generated per-user.
+- Suggested fix: Generate a per-user TOTP secret server-side (`otplib`), return QR URL from `/api/auth/2fa/setup`, verify the 6-digit code via `/api/auth/2fa/verify`, persist `user.twoFactorEnabled = true`. Until then, hide the entire 2FA section.
+
+**7. settings.tsx — IP allowlist "Save" button is a no-op**
+- File: `/home/z/my-project/src/components/views/settings.tsx`
+- Lines: 1631-1646
+- Type: no-op-button / hardcoded
+- Description: The "Save" button toasts `toast.success("IP allowlist saved")` but does not call any API. `ipAllow` (line 1293) is initialized to a fake default `"192.168.1.0/24\n10.0.0.0/8"`. Nothing is persisted. Nothing is enforced on the API side either (no middleware check).
+- Suggested fix: Persist via `PATCH /api/workspace { ipAllowlist }` and enforce in middleware (or remove the card).
+
+=====================================================================
+WARNING — Toast-only action buttons that mislead users
+=====================================================================
+
+**8. admin-panel.tsx — "Export report" hero button is a no-op**
+- File: `/home/z/my-project/src/components/views/admin-panel.tsx`
+- Lines: 367-377
+- Type: no-op-button
+- Description: The hero "Export report" button shows `toast.success("Report exported", { description: "Workspace snapshot downloaded as PDF." })` — no fetch, no PDF generation, nothing is downloaded. The toast actively lies ("downloaded as PDF").
+- Suggested fix: Implement a real export (e.g., call `/api/admin/export` which streams a PDF or CSV), or change the toast to `toast.info("Export coming soon")` and remove the false "downloaded" description.
+
+**9. admin-panel.tsx — "Message" and "Manage access" buttons in member detail dialog are no-ops**
+- File: `/home/z/my-project/src/components/views/admin-panel.tsx`
+- Lines: 924 (Message) and 928-936 (Manage access)
+- Type: no-op-button
+- Description: In the team member detail `DialogFooter`, "Message" toasts `Emailing ${member.name}` and "Manage access" toasts `Permissions synced for ${member.name}`. Neither calls `/api/users/[id]` to update role/permissions or send a message. The toast text implies an action that didn't happen.
+- Suggested fix: Wire "Manage access" to a real role/permissions PATCH (e.g., `PATCH /api/users/[id] { role, permissions }`) and "Message" to either a mail-compose dialog or remove it.
+
+**10. team.tsx — ALL member dropdown actions are toast-only no-ops**
+- File: `/home/z/my-project/src/components/views/team.tsx`
+- Lines: 110-119 (invite), 376-403 (member dropdown), 446-453 (View profile)
+- Type: no-op-button
+- Description:
+  - Line 115: `onInvite` → `toast.success("Invitation sent")` — no POST `/api/team/invite` or `/api/auth/signup`. Email is silently dropped.
+  - Line 378: "Make member" → only toast. No `PATCH /api/users/[id] { role: "member" }`.
+  - Line 384: "Make admin" → only toast. No role PATCH.
+  - Line 390: "View activity" → `toast.info("Opening …")` — no navigation, no dialog opens.
+  - Line 398: "Remove" → `toast.error("${name} removed from workspace")` — no `DELETE /api/users/[id]`. The member is NOT removed; reload shows them again.
+  - Line 450: "View profile" → `toast.info("Opening …")` — no navigation.
+- Suggested fix: All five actions need real API calls. Role-change + remove already have patterns in `owner.tsx` (`PATCH /api/users/[id]`, `DELETE /api/users/[id]`). Invite should POST `/api/auth/signup` (pattern exists in `settings.tsx:915`). "View activity/profile" should navigate via `useNav().setView(...)`.
+
+**11. listening.tsx — "Reply" and "View" mention buttons are no-ops**
+- File: `/home/z/my-project/src/components/views/listening.tsx`
+- Lines: 527-534 (Reply) and 535-548 (View)
+- Type: no-op-button
+- Description:
+  - Reply button → `toast.info("Reply drafted", { description: mention.author })` — no draft is created, no composer opens, no API call. Should at minimum call `useNav().openComposer(prefilledText)` like whatsapp.tsx does.
+  - View button → `toast.success("Opening mention", { description: mention.url })` — but the URL is **not actually opened**. Should call `window.open(mention.url, "_blank", "noopener,noreferrer")` (the same pattern is correctly implemented in `competitors.tsx:451`).
+- Suggested fix: Reply → `openComposer(\`@${mention.author} thanks for the mention! …\`)`. View → `window.open(mention.url, "_blank", "noopener,noreferrer")`.
+
+**12. reports.tsx — "PDF export" button is a "coming soon" no-op**
+- File: `/home/z/my-project/src/components/views/reports.tsx`
+- Line: 650-655
+- Type: no-op-button
+- Description: Download icon button on each report card toasts `toast.info("PDF export coming soon")`. Acceptable as a placeholder but should be tracked.
+- Suggested fix: Implement `/api/reports/[id]/pdf` (server-side render via Puppeteer or pdfkit) or hide the button entirely until ready.
+
+**13. media-library.tsx — "New folder" buttons are "coming soon" no-ops**
+- File: `/home/z/my-project/src/components/views/media-library.tsx`
+- Lines: 303-309 and 346-351
+- Type: no-op-button
+- Description: Both "New folder" buttons toast `toast.info("New folder coming soon")`. Folders are currently a UI-only filter concept (the `folderList` is derived from existing asset tags), so the button is dead.
+- Suggested fix: Either implement a `Folder` model + `/api/media/folders` route, or remove the buttons.
+
+**14. settings.tsx — Avatar "Remove" and "Resend invite" are no-ops**
+- File: `/home/z/my-project/src/components/views/settings.tsx`
+- Lines: 371 (Remove avatar), 1003 (Resend invite)
+- Type: no-op-button
+- Description: "Remove current avatar?" toast (line 371) does nothing — no `PATCH /api/users { avatar: null }`. "Resend invite to ${m.email}" (line 1003) does nothing — no POST to a resend route.
+- Suggested fix: Wire to real PATCH/POST endpoints, or remove the menu items.
+
+**15. whatsapp.tsx — `handleSendToComposer` toasts before fetch resolves**
+- File: `/home/z/my-project/src/components/views/whatsapp.tsx`
+- Lines: 203-215
+- Type: bug (UX)
+- Description: `handleSendToComposer` fires `toast.success("Sent to Composer", …)` immediately, then kicks off `fetch(…PATCH…).then(reload)` without awaiting or error-handling. If the PATCH fails (network/500), the user has already been told success.
+- Suggested fix: `await` the fetch, check `res.ok`, then toast success/error (same pattern used elsewhere in the same file, e.g. `handleArchive`).
+
+=====================================================================
+MINOR — Cosmetic / decoupling / dead code
+=====================================================================
+
+**16. inbox.tsx — `SUGGESTED_REPLIES` is a hardcoded 2-item array**
+- File: `/home/z/my-project/src/components/views/inbox.tsx`
+- Lines: 41-44
+- Type: hardcoded (minor)
+- Description: Two canned reply strings shown as "Suggested replies" for every conversation regardless of context. Not strictly a bug, but low value.
+- Suggested fix: Generate per-message suggestions via `/api/ai/generate` (the route already exists for composer captions) or at minimum per-platform templates.
+
+**17. owner.tsx — `setTimeout(window.print, 80)` for invoice print**
+- File: `/home/z/my-project/src/components/views/owner.tsx`
+- Lines: 1516-1527
+- Type: minor (race risk)
+- Description: 80ms `setTimeout` before `window.print()` to allow the print-only container to mount. Works but fragile — if React is slow on a low-end device, the print dialog opens before render. Not a bug per se, just a smell.
+- Suggested fix: Use a layout effect / `requestAnimationFrame` after `setPrintDoc`, or render the print container always (CSS-hidden via `media=print`) so there's no race.
+
+**18. accounts.tsx — Connect dialog setTimeout races**
+- File: `/home/z/my-project/src/components/views/accounts.tsx`
+- Lines: 376 (`setTimeout(() => window.location.href = redirectUrl, 100)`) and 421 (`setTimeout(() => onConnected(), 1500)`)
+- Type: minor (UX)
+- Description: 1500ms artificial delay before `onConnected()` runs, with no spinner state shown to the user during the wait. The OAuth `redirectUrl` 100ms delay is fine; the 1500ms "success → reload" feels arbitrary.
+- Suggested fix: Show a "Connecting…" spinner during the 1500ms wait, or shorten/remove the delay.
+
+**19. analytics.tsx / reports.tsx — `interval={Math.max(0, Math.floor(series.length / 6))}`**
+- File: `/home/z/my-project/src/components/views/analytics.tsx:308,373` and `/home/z/my-project/src/components/views/reports.tsx:807`
+- Type: NOT an issue (false positive from the Math.* scan)
+- Description: These are legitimate Recharts X-axis tick-interval calculators, not mock data. Listed for completeness so future audits don't re-flag them.
+
+**20. dashboard.tsx — `Math.PI * r` for GoalRing circumference**
+- File: `/home/z/my-project/src/components/views/dashboard.tsx:1122`
+- Type: NOT an issue (false positive)
+- Description: Legit SVG circle-math for the progress ring. Not mock data.
+
+**21. platform-settings/platform-api-section.tsx — TikTok icon is Youtube**
+- File: `/home/z/my-project/src/components/views/platform-settings/platform-api-section.tsx`
+- Line: 105
+- Type: dead-code / TODO
+- Description: `icon: Youtube, // placeholder — will use TikTok icon when available`. TikTok uses the YouTube icon as a stand-in.
+- Suggested fix: Either install `lucide-react`'s TikTok icon (it exists as of late 2024) or accept the placeholder. Purely cosmetic.
+
+=====================================================================
+POSITIVE — Views that are clean (no issues found)
+=====================================================================
+
+- `dashboard.tsx` (1228 LOC) — pulls everything from `/api/dashboard`; navigation-only buttons use `useNav().setView`; no toasts-as-API.
+- `analytics.tsx` (732 LOC) — real `/api/analytics` + `/api/analytics/insights`; AI insights button uses real fetch.
+- `team-performance.tsx` (861 LOC) — pulls from `/api/team-performance`; no fake stats.
+- `whatsapp.tsx` (907 LOC) — every action has a real fetch (connection, archive, delete, send-to-composer); QR polling is real. (One UX bug flagged above #15.)
+- `competitors.tsx` (1101 LOC) — CRUD via `/api/competitors`; profile-URL opens with `window.open` correctly.
+- `hashtags.tsx` (855 LOC) — real `/api/hashtags` CRUD; copy-to-clipboard uses `navigator.clipboard`.
+- `mail.tsx` (853 LOC) — real `/api/mail`, `/api/mail/test`, `/api/mail/messages`, `/api/mail/mailboxes`; `PROVIDERS` is a static reference table (legit metadata, not mock data).
+- `calendar.tsx` (431 LOC) — pulls from `/api/posts`; opens composer via nav store.
+- `link-bio.tsx` (757 LOC) — real `/api/linkbio` GET/PATCH/DELETE; toggle/theme/save all hit API.
+- `campaigns.tsx` (862 LOC) — real `/api/campaigns` CRUD; static OBJECTIVES/COLOR_SWATCHES are UI options.
+- `media-library.tsx` (1077 LOC) — real `/api/media` + `/api/media/upload`; PRESET_LIBRARY is a static stock-photo URL list (legit, but should be labeled).
+- `owner.tsx` (3654 LOC) — every CRUD action (customers, invoices, quotations, bank accounts, devices, subscriptions, api-keys, users) hits a real `/api/*` route via the `api()` helper; toast messages all follow real fetches.
+- `platform-settings/platform-api-section.tsx` (415 LOC) — real `/api/platform-credentials` PUT/DELETE/sync; only the TikTok icon is a placeholder.
+
+Stage Summary:
+- Audited all 21 files in `src/components/views/` (~24.5K LOC).
+- Found **15 real issues** (7 critical, 8 warning, plus 6 minor/false-positive notes).
+- Two genuinely serious bugs: (1) `inbox.tsx` `sendReply` silently drops the user's reply text, (2) `accounts.tsx` `buildSpark` generates fake follower sparklines with `Math.sin`/`Math.cos`.
+- Three whole sections in `settings.tsx` are essentially mock UI with no backend: Connected Platforms, Integrations, Billing/2FA. These should be either wired to real APIs or removed before launch.
+- `team.tsx` has the highest density of toast-only no-op buttons (invite, role-change, remove, view-activity, view-profile — 5 of 5 dropdown items don't call the API).
+- NO instances of `u-admin` or hardcoded user IDs were found anywhere in the views.
+- NO `Math.random`-based fake chart data was found (the only stochastic generator is `buildSpark` in accounts.tsx, which is deterministic-but-fake).
+- Did not modify any source files (read-only audit).
+
+---
+Task ID: audit-api
+Agent: api-auditor (general-purpose)
+Task: Audit ALL files in `/home/z/my-project/src/app/api/` for hardcoded data, mock/dummy data, bugs, hardcoded API responses, and unused imports / dead code. Read-only audit — no fixes applied.
+
+Work Log:
+- Enumerated all 71 `route.ts` files under `src/app/api/**` (across 38 feature directories).
+- Read every file. Ran targeted grep for: `mock|dummy|fake|hardcoded|TODO|FIXME`, `u-admin|user-1|user-2|admin-1|test-user|demo-user`, `Math.random|Math.sin|Math.cos|Date.now()`, `setTimeout|setInterval`, `simulat|stub|pretend|in-memory|staticData|fakeData`, `encoder|encrypt|cipher|crypto\.`, `prisma\.|findMany|create\(|update\(|delete\(`.
+- Cross-checked Prisma schema for field types (esp. `LinkInBio.links String`, `MailServer.passwordEnc String // stored (mock-encrypted)`, `Mailbox.passwordEnc String // stored (mock-encrypted)`).
+- Ran `bunx tsc --noEmit` — 0 errors in `src/app/api/**` (all errors are in `examples/`, `mini-services/`, `skills/`, `prisma.config.ts`).
+
+Findings (grouped by severity):
+
+CRITICAL — Security / data integrity
+1. **`auth/login/route.ts`, `auth/signup/route.ts`, `auth/me/route.ts` (lines 6, 6, 5)** — Hardcoded JWT secret fallback: `process.env.JWT_SECRET || "socialflow-secret-key-change-in-production"`. If the env var is missing, anyone can forge JWTs and authenticate as any user. **Fix**: Fail fast at boot (`throw new Error("JWT_SECRET required")`) or use `crypto.randomBytes` generated on startup (with the caveat that tokens don't survive restart).
+2. **`mail/route.ts` (line 90) + `mail/mailboxes/route.ts` (line 35)** — Passwords "encrypted" with `Buffer.from(password).toString("base64")`. Schema comment literally says `// stored (mock-encrypted)`. Base64 is encoding, not encryption — any DB read leaks plaintext passwords. **Fix**: Use `crypto.createCipheriv('aes-256-gcm', ...)` with a key derived from `process.env.MAIL_ENCRYPTION_KEY`, store iv+tag alongside the ciphertext.
+3. **`oauth/connect/[platform]/route.ts` (lines 108, 119)** — PKCE `code_verifier` generated with `Math.random().toString(36)…` 4 times concatenated. PKCE is a security mechanism that REQUIRES cryptographic randomness; `Math.random()` is predictable, defeating PKCE entirely. Twitter branch also sets `code_challenge_method: "plain"` (line 110), further weakening the protection. **Fix**: Use `crypto.randomBytes(32).toString('base64url')` for the verifier and `crypto.createHash('sha256').update(verifier).digest('base64url')` for the S256 challenge.
+4. **`oauth/callback/[platform]/route.ts` (line 235)** — `code_verifier: state.cv ?? "challenge"`. When `state.cv` is missing (e.g. for non-Twitter flows that mistakenly hit this branch), it sends the literal string `"challenge"` as the PKCE verifier, which will always fail token exchange. Silent breakage. **Fix**: If `state.cv` is missing for a PKCE platform, redirect with an error.
+5. **`api-keys/route.ts` (line 8)** — API keys generated with `Math.random()` (40-char `sf_…` keys). API keys are bearer tokens used for authentication. **Fix**: `crypto.randomBytes(32).toString('base64url')`.
+6. **`mail/route.ts` (lines 97–107)** — Server `status` is set to `"connected"` via `setTimeout(..., 1500)` without ever actually testing IMAP/SMTP connectivity. The code comment literally says `// Simulate a connection test (mock): mark connected after short delay`. **Fix**: Open a real IMAP/SMTP connection (`imapflow` or `nodemailer`) and update status based on the actual result.
+7. **`mail/mailboxes/route.ts` (lines 43–50)** — Mailbox `status` flipped to `"active"` via `setTimeout(..., 1200)` without provisioning anything on the mail server. Comment: `// Simulate provisioning, then mark active`. **Fix**: Actually create the mailbox on the IMAP server (or via the mail-server admin API) before marking active.
+8. **`mail/messages/route.ts` (lines 64–83)** — When a user sends an outbound email, a `setTimeout(..., 4000)` injects a fake `"Re: …"` reply from `"Demo Responder"` into the inbox with body `"Thanks for your message! This is an automated demo reply confirming your email was received."`. Mock data being written to the production DB. **Fix**: Remove the setTimeout entirely — real replies will arrive via IMAP polling/webhook when the user actually replies.
+
+WARNING — Bugs (wrong behavior, bad data)
+
+9. **`mail/route.ts` (line 47)** — Mailbox list always returns `unread: 0`. Field is hardcoded; never queries `MailMessage` for unread count. **Fix**: `db.mailMessage.count({ where: { mailboxId: m.id, isRead: false } })`.
+10. **`inbox/route.ts` (line 34)** — `PATCH` destructures `{ id, replied, assigneeName }` from body but **never uses `assigneeName`** (and never writes it). The complementary route `inbox/[id]/route.ts` PATCH uses `assigneeId` (correct field). So the bulk PATCH endpoint silently accepts and discards `assigneeName`. **Fix**: Either remove `assigneeName` from the destructuring or rename to `assigneeId` and persist it.
+11. **`team/[id]/route.ts` (lines 70–71)** — Reassigning authored posts: `data: { authorId: newOwnerId ?? id }`. When `newOwnerId` is undefined (user has authored posts but owns no accounts), this sets the authorId to the SAME user being deleted (no-op), then `db.user.delete()` fails on the FK constraint — but the `.catch(() => {})` swallows the error, so the API returns 200 but the user is still in the DB. **Fix**: Validate `newOwnerId` is provided whenever the user has authored posts; return 409 otherwise (matching the existing accounts-reassignment path).
+12. **`linkbio/[id]/route.ts` (line 11)** — `links` is in the allow-list, but if the body contains an array (e.g. `[{title,url,icon}]`) it's assigned directly to `data.links` without `JSON.stringify`. The Prisma schema declares `links String // JSON array`. Compare to `linkbio/route.ts` PATCH (line 29) which correctly does `data.links = JSON.stringify(links)`. **Fix**: Mirror the stringification in the `[id]` route.
+13. **`publish/[platform]/route.ts` (line 184)** — Instagram media container is created with `image_url: account.avatar ?? "https://via.placeholder.com/1080"`. Publishes the account's *avatar* (a profile picture) as the post image — not the actual media attached to the post. The fallback `via.placeholder.com` is a hardcoded mock image. **Fix**: Accept `mediaUrl` in the request body (already exists on `Post.mediaUrl` upstream) and use that; reject if missing instead of placeholder.
+14. **`publish/[platform]/route.ts` (lines 364–402, TikTok)** — Uses `account.avatar` as the `video_url` for TikTok's `PULL_FROM_URL` upload. TikTok requires a video; the avatar is almost always a small profile image. Misuse of the avatar field as content. **Fix**: Require `mediaUrl` (video) from the request body; reject if missing.
+15. **`publish/[platform]/route.ts` (lines 426–438, YouTube)** — Counts the post as published (`postsCount: { increment: 1 }`) and creates a `post_published` activity even though nothing was actually published — the code explicitly says "YouTube requires video upload — open YouTube Studio to post." Inflates metrics with non-events. **Fix**: Don't increment `postsCount` or log `post_published` when nothing was actually posted; log a `post_saved` activity instead.
+16. **`oauth/callback/[platform]/route.ts` (lines 358–359, LinkedIn)** — Creates LinkedIn account with `followers: 0, postsCount: 0` hardcoded. The LinkedIn `/v2/me` endpoint doesn't return follower counts, but the route doesn't attempt `/v2/networkSizes` (which does). **Fix**: Call `https://api.linkedin.com/v2/networkSizes?scope=SELF` after the profile fetch to get real follower count.
+17. **`users/route.ts` (line 31)** — `PATCH` accepts `role` without validating it's in the allow-list. Compare to `team/[id]/route.ts` (lines 6, 15) which validates against `["admin","manager","editor","member","viewer"]`. **Fix**: Mirror the validation.
+18. **`users/route.ts` (line 39) vs `auth/signup/route.ts` (line 16)** — Password validation inconsistency: signup requires `>= 6` chars, user-update requires `>= 8`. **Fix**: Pick one (recommend 8) and centralize in a `lib/password-policy.ts`.
+19. **`invoices/route.ts` (lines 30–31) + `quotations/route.ts` (lines 30–31)** — Invoice/quotation numbers generated as `INV-${count + 1}` / `QUO-${count + 1}` from `db.invoice.count()`. Race condition: two concurrent POSTs read the same count and produce duplicate numbers. **Fix**: Use a DB sequence, a separate `counter` table with `SELECT FOR UPDATE`, or a `number @unique` constraint + retry on `P2002`.
+20. **`platform-credentials/route.ts` (line 80)** — `DELETE` calls `db.platformCredential.deleteMany(...).catch(() => null)`. If the delete fails (e.g. row not found, FK violation), the API still returns `{ ok: true }`. **Fix**: Distinguish "deleted N rows" from "deleted 0 rows" and return 404 when N === 0.
+21. **`api-keys/route.ts` (GET, line 14)** — GET returns the full plaintext API key (`key: k.key`) for every key in the database. If the GET endpoint ever gets exposed (e.g. via an XSS or session hijack), all API keys leak. **Fix**: Mask like `clientId` is masked (`k.key.slice(0,6) + "••••" + k.key.slice(-4)`).
+22. **`team-performance/route.ts` (line 178)** — `.filter((m) => m.metrics.commentsReceived >= 0)` — `commentsReceived` is always `>= 0`, so the filter is a no-op. Probably intended `> 0` to exclude members with zero comments. **Fix**: Use `> 0`.
+23. **`admin/route.ts` (line 82)** — `const tp = teamPerformance.find((t) => t.id === u.id)!;` — non-null assertion inside the department-aggregation loop. Will throw if `users` and `teamPerformance` ever get out of sync (they're both derived from `users`, so currently safe, but the `!` masks the assumption). **Fix**: Use `??` and skip the user if not found.
+24. **`media/upload/route.ts` (line 75)** — `copyUrl: dataUrl.slice(0, 80) + "..."` returns a truncated data URL as the "copy URL". A truncated data URL is useless when pasted. **Fix**: Return the full `dataUrl` as `copyUrl` (the full URL is already returned as `url` — the copyUrl field is redundant; either remove it or set it equal to `url`).
+25. **`whatsapp/connection/route.ts` (line 6)** — `WHATSAPP_SERVICE_URL = "http://localhost:3002"` hardcoded. Works locally but breaks in production where the WhatsApp service runs on a different host. **Fix**: `process.env.WHATSAPP_SERVICE_URL ?? "http://localhost:3002"`.
+26. **`subscriptions/route.ts` (line 21)** — `amount: amount ?? 89` is unconditional on `plan`. If `plan: "pro"` is passed without `amount`, the subscription is created with the "growth" price ($89). **Fix**: Make the default amount conditional on the plan, or require `amount` explicitly.
+27. **`oauth/callback/[platform]/route.ts` (lines 311–316, Twitter)** — When `meJson.data` is missing (profile fetch failed), the code logs two `console.log` lines but doesn't create the Account record. The user is left with a stored access token but no Account, so the Twitter account never appears in the UI. **Fix**: Create the account with a placeholder handle (e.g. `@unknown`) or return an error redirect.
+28. **`accounts/route.ts` (lines 95–119, POST)** — Misleading comment: `/** Connect a new account with credentials (credentials are NOT stored in plain text). */` — but the body destructures `loginEmail, businessAccount` and **never stores them**. The comment implies credentials are encrypted; in fact they're discarded. **Fix**: Either implement credential storage (encrypted) or remove the misleading comment and the unused destructured fields.
+29. **`oauth/callback/[platform]/route.ts` (line 381)** — TikTok token exchange calls the deprecated `open-api.tiktok.com/oauth/access_token/` endpoint. TikTok has migrated to `open.tiktokapis.com/v2/oauth/token/`. The old endpoint may still work but is slated for removal. **Fix**: Migrate to v2 endpoint.
+
+MINOR — Dead code / style
+
+30. **`ai/generate/route.ts` (line 192)** — `void p;` — the variable `p = PLATFORMS[t.platform]` is computed but never read; `void p;` is a workaround to suppress the unused-variable lint. The whole `const p = …` line plus `void p;` is dead code. **Fix**: Remove both lines.
+31. **`api/route.ts` (line 4)** — Root API returns `{ message: "Hello, world!" }`. Static, but acceptable as a health-check endpoint. Leaving as-is.
+32. **`dashboard/route.ts` (lines 368–371)** — Hardcoded goal targets (`weeklyPostTarget = 5`, etc.). Reasonable as defaults; should eventually come from workspace settings. Low priority.
+33. **`analytics/route.ts` (line 8)** — `parseInt(searchParams.get("days") ?? "30", 10)` — no validation of `days` range; negative or huge values produce weird date ranges. **Fix**: `Math.max(1, Math.min(days, 365))`.
+34. **`oauth/connect/[platform]/route.ts` (lines 114, 133–134)** — Excessive `console.log` of full OAuth URLs and code_verifier lengths. Should be DEBUG-level logging in production. **Fix**: Gate behind `process.env.NODE_ENV === "development"`.
+
+POSITIVE — Files that are clean
+- `dashboard/route.ts` (524 LOC) — comprehensive real DB-backed aggregation, no mocks. Try/catch around the whole handler. Good error reporting.
+- `team-performance/route.ts` (293 LOC) — pure DB aggregation across 8 tables; no mocks. (One no-op filter flagged as #22.)
+- `analytics/route.ts` + `analytics/insights/route.ts` — real DB queries; the AI-insights fallback when ZAI fails is a sensible static template (not "mock data", just a degraded fallback).
+- `auth/login`, `auth/signup`, `auth/me` — real bcrypt + JWT; only the JWT_SECRET fallback is a problem.
+- `whatsapp/*` (4 files) — real DB writes; live baileys integration via the mini-service.
+- `oauth/callback/[platform]/route.ts` — does real token exchange + profile fetch for 6 platforms (Twitter, Facebook, Instagram, LinkedIn, TikTok, YouTube) and creates Account records with real follower counts. Issues are localized (see warnings 4, 16, 27, 29).
+- `platform-credentials/[platform]/sync/route.ts` — real API calls to Twitter/Instagram/LinkedIn/Facebook Graph APIs to sync real profile data.
+- `finance/overview/route.ts`, `admin/route.ts`, `inbox/[id]/route.ts`, `tasks/[id]/route.ts`, `posts/[id]/route.ts`, `accounts/[id]/route.ts`, `accounts/[id]/protection/route.ts` — clean real DB code.
+- All 14 simple CRUD `[id]/route.ts` files (serial-keys, devices, customers, invoices, quotations, campaigns, subscriptions, reports, bank-accounts, hashtags, competitors, linkbio, media, mail) — straightforward DB CRUD, no mock data, no bugs.
+- All 14 simple CRUD `route.ts` files (same set) — same.
+
+Stage Summary:
+- Audited all 71 `route.ts` files in `src/app/api/**` (~7.5K LOC total).
+- Found **34 issues**: 8 critical, 21 warnings, 5 minor.
+- Most severe: hardcoded JWT secret fallback, base64-"encrypted" mail passwords, `Math.random()` for PKCE verifiers and API keys, setTimeout-based mock mail connection/provisioning, and a `setTimeout` that writes a fake "Demo Responder" reply into the production DB.
+- Most common bug class: silent error swallowing via `.catch(() => {})` returning 200 OK even when the DB write failed.
+- Most common mock class: the entire `mail/*` subsystem is simulated (connection test, provisioning, replies) — production users will see "connected" mailboxes that can't actually receive mail, and fake replies to their outbound emails.
+- Did not modify any source files (read-only audit).
+
+---
+Task ID: audit-shell
+Agent: general-purpose (shell/sidebar/header/lib auditor)
+Task: Audit sidebar, app-shell, app-header, landing-page, and all `src/lib/*` files for hardcoded/mock data + bugs (read-only; no fixes applied).
+
+Work Log:
+- Read prior worklog entries (tasks 7–19) to understand the current shape of the codebase (Prism/SocialFlow single-route app, Zustand nav store, JWT auth, Prisma+Neon, 20 view IDs in `lib/types.ts`).
+- Audited all 11 in-scope files line-by-line:
+  • `/src/components/app-sidebar.tsx` (598 lines)
+  • `/src/components/app-shell.tsx` (110 lines)
+  • `/src/components/app-header.tsx` (189 lines)
+  • `/src/components/landing-page.tsx` (1020 lines)
+  • `/src/lib/store.ts`, `/src/lib/auth-store.ts`, `/src/lib/types.ts`, `/src/lib/hooks.ts`, `/src/lib/db.ts`, `/src/lib/utils.ts`, `/src/lib/platforms.tsx`
+- Cross-referenced findings against `/src/app/api/auth/{login,signup,me}/route.ts`, `/prisma/schema.prisma`, `/src/app/api/dashboard/route.ts`, `/src/app/api/accounts/route.ts` to confirm the severity of each issue.
+- Verified by grep that `u-admin` does not appear anywhere in `src/` (the team.tsx `currentUserId === "u-admin"` issue flagged in older worklog entries has already been replaced with `user?.id`).
+- Ran `bunx eslint` on all 11 in-scope files → 0 errors, 0 warnings (lint does not flag unused `Mail` import because the Next ESLint config doesn't enforce strict `no-unused-vars`).
+
+Stage Summary:
+- **3 CRITICAL issues found**:
+  1. `src/lib/db.ts:15-22` — Hardcoded Neon Postgres connection string with embedded username + password committed to source (`postgresql://neondb_owner:REDACTED_DB_PASSWORD@...neon.tech/neondb`). Used as fallback when `DATABASE_URL` env var is absent. Anyone with read access to the repo has full DB write access.
+  2. `src/components/app-sidebar.tsx:103` — `const isOwner = user?.email === "it.ashraf@outlook.com";` gates the entire Owner Panel (Customers, Client Users, Subscriptions, Invoices, Quotations, Serial Keys, Devices, API Keys, Bank Accounts, Finance, Reports) behind a single hardcoded personal email match. No `isOwner` field exists on the Prisma `User` model — only `role` (admin|manager|editor|member|viewer).
+  3. `src/app/api/auth/{login,signup,me}/route.ts` (out of scope but consumed by `src/lib/auth-store.ts`) — `JWT_SECRET = process.env.JWT_SECRET || "socialflow-secret-key-change-in-production";` falls back to a public constant. If env var is missing, JWTs are signed with a known secret → anyone can forge auth tokens.
+
+- **8 WARNINGS (likely bugs / UX issues)**:
+  4. `src/components/app-header.tsx:184-189` — Hardcoded `NOTIFICATIONS` mock array ("@user1", "@yourbrand" demo content + "3 new" badge). Dropdown has no API.
+  5. `src/lib/store.ts:36` — `adminMode: true` default means every non-admin user lands in "All team" scope and can toggle it; header doesn't gate visibility by role.
+  6. `src/lib/auth-store.ts:89-105,109-113` — `fetchUser` is defined but NEVER called anywhere in the app. Persisted `isAuthenticated: true` from localStorage is trusted; expired JWTs (after 7d) leave the UI showing the shell while every API call 401s.
+  7. `src/components/app-header.tsx:19-39` — `TITLES` map missing entry for `team-performance` ViewId (sidebar NAV has it at line 53, but header falls back to generic "SocialFlow" title when user navigates to Performance).
+  8. `src/components/app-shell.tsx:87-94` — `AppFooter` fetches `/api/accounts` without `Authorization: Bearer <token>` header. Works today only because accounts route doesn't enforce auth.
+  9. `src/lib/store.ts:45` — `settingsTab: "team-roles"` default. Worklog (Task 9) states "Appearance (default)" — mismatch. New members land on Team Roles tab (admin-only section) on first sign-in.
+  10. `src/lib/auth-store.ts:85-87` — `logout` clears client state but does NOT invalidate the JWT server-side. Stolen tokens remain valid for 7 days.
+  11. `src/components/landing-page.tsx:422-435, 224-237` — Hardcoded demo data inside the marketing Landing page (@prism.studio, @prismhq, 1.6M followers etc.). Acceptable for marketing copy, but should be marked as illustrative so future devs don't mistake it for production data.
+
+- **9 MINOR / DEAD CODE issues**:
+  12. `src/lib/types.ts:23-45, 94-110` — `PlatformAccount`, `TeamMember`, `Activity`, `AnalyticsPoint` interfaces are exported but never imported anywhere in `src/`. Every view that needs these defines its own local interface. `Activity` is also missing the `userColor` and `userAvatar` fields the dashboard API actually returns → stale.
+  13. `src/components/landing-page.tsx:79-147` — `SplashScreen` function defined but never rendered (dead code).
+  14. `src/components/landing-page.tsx:13` — `Mail` bare import is unused; only the `Mail as MailIcon` alias (line 16) is used.
+  15. `src/components/landing-page.tsx:23,30` — `Heart` and `Star` lucide imports unused.
+  16. `src/components/landing-page.tsx:607` — `© 2026 SocialFlow` hardcoded year; should be `new Date().getFullYear()`.
+  17. `src/components/app-shell.tsx:103` — `SocialFlow · v1.0` hardcoded version string in footer; should come from package.json.
+  18. `src/components/app-sidebar.tsx:523-535` — `OWNER_SUBITEMS` contains `id: "reports"` which collides with the top-level NAV `reports` entry (line 60). Selecting "Reports" inside the Owner Panel sets `view="owner"` + `ownerTab="reports"`, but the standalone "Reports" item sets `view="reports"` — different routes, same label = confusing.
+  19. `src/lib/db.ts:142-148` — Module-load warm-up `db.user.count()` fires on every dev-server reload; comment says "~5 min idle" (Neon free-tier specific, not true for paid tiers).
+  20. `src/components/landing-page.tsx:765` — `placeholder="4242 4242 4242 4242"` uses the well-known Stripe test card number as a placeholder (acceptable for trial signup, but worth flagging for prod).
+
+- **Confirmed CLEAN** (no issues):
+  - `src/lib/utils.ts` (only `cn` helper — fine).
+  - `src/lib/hooks.ts` (`useApi`, `fmt`, `timeAgo` — fine).
+  - `src/lib/platforms.tsx` (PLATFORMS map + PlatformGlyph component — all referenced, no hardcoded URLs).
+  - `src/lib/store.ts` NAV routing — every `view` value in the ViewId union is rendered in app-shell.tsx; no orphaned views.
+  - `src/components/app-sidebar.tsx` NAV array itself — properly typed against ViewId, no orphan ids.
+
+- No source files were modified (read-only audit per instructions).

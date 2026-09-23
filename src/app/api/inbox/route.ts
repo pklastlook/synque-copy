@@ -31,9 +31,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { id, replied, assigneeName } = await req.json();
+  const { id, replied, replyText, assigneeId } = await req.json();
+  const data: Record<string, unknown> = {};
   if (replied !== undefined) {
-    await db.comment.update({ where: { id }, data: { replied } });
+    data.replied = replied;
+    if (replied) data.repliedAt = new Date();
   }
+  if (replyText !== undefined) data.replyText = replyText || null;
+  if (assigneeId !== undefined) data.assigneeId = assigneeId || null;
+  await db.comment.update({ where: { id }, data });
   return NextResponse.json({ ok: true });
 }

@@ -3206,7 +3206,9 @@ export const CommentScalarFieldEnum = {
   type: 'type',
   sentiment: 'sentiment',
   replied: 'replied',
+  replyText: 'replyText',
   assigneeId: 'assigneeId',
+  repliedAt: 'repliedAt',
   createdAt: 'createdAt'
 } as const
 

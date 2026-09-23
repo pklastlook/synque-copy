@@ -49,6 +49,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
+  // Get the post (for mediaUrl) — the caller passes accountId + content,
+  // but we also need the post's media for Instagram/TikTok publishing.
+  // We look up the latest post variant for this account.
+  const latestVariant = await db.postVariant.findFirst({
+    where: { accountId },
+    orderBy: { createdAt: "desc" },
+    include: { post: true },
+  });
+  const post = latestVariant?.post;
+
   // === TWITTER posting ===
   if (platform === "twitter") {
     if (content.length > 280) {
@@ -173,6 +183,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
       }, { status: 400 });
     }
 
+    // Instagram requires a media URL — use the post's mediaUrl, not the account avatar.
+    const mediaUrlToPublish = post?.mediaUrl;
+    if (!mediaUrlToPublish) {
+      return NextResponse.json({
+        error: "Instagram posts require an image. Attach media in the Composer before publishing.",
+        manualUrl: "https://www.instagram.com/",
+      }, { status: 400 });
+    }
+
     try {
       // Step 1: Create media container
       const mediaRes = await fetch(
@@ -181,7 +200,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            image_url: account.avatar ?? "https://via.placeholder.com/1080",
+            image_url: mediaUrlToPublish,
             caption: content,
             access_token: cred.accessToken,
           }),
@@ -424,18 +443,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
       const channelJson = await channelRes.json();
 
       if (channelJson.items?.[0]) {
-        // YouTube doesn't have a simple "post text" API — it requires video upload
-        // We'll save the post and direct the user to YouTube Studio
-        await db.account.update({ where: { id: accountId }, data: { postsCount: { increment: 1 } } });
-        await db.activity.create({
-          data: { userId, type: "post_published", description: `saved a YouTube post: "${content.slice(0, 50)}…"` },
-        }).catch(() => null);
-
+        // YouTube doesn't have a simple "post text" API — it requires video upload.
+        // We do NOT increment postsCount or log a post_published activity here
+        // because nothing was actually published. Just direct the user to
+        // YouTube Studio to upload a video manually.
         return NextResponse.json({
-          ok: true,
-          message: "Post saved. YouTube requires video upload — open YouTube Studio to post.",
+          error: "YouTube requires a video upload — text posts aren't supported via the API. Open YouTube Studio to upload.",
           manualUrl: "https://studio.youtube.com/",
-        });
+          savedContent: content,
+        }, { status: 200 });
       }
 
       return NextResponse.json({

@@ -94,17 +94,37 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Simulate a connection test (mock): mark connected after short delay
-  setTimeout(async () => {
-    try {
-      await db.mailServer.update({
-        where: { id: server.id },
-        data: { status: "connected", lastCheck: new Date() },
-      });
-    } catch {
-      /* ignore */
-    }
-  }, 1500);
+  // Real IMAP connection test — try to connect to the mail server and list
+  // the INBOX. If it succeeds, mark as "connected"; if not, mark "error".
+  try {
+    const { ImapFlow } = await import("imapflow");
+    const client = new ImapFlow({
+      host: imapHost,
+      port: imapPort ?? 993,
+      secure: imapSecure ?? true,
+      auth: { user: username, pass: password },
+      logger: false,
+    });
+    await client.connect();
+    const lock = await client.getMailboxLock("INBOX");
+    lock.release();
+    await client.logout();
+    await db.mailServer.update({
+      where: { id: server.id },
+      data: { status: "connected", lastCheck: new Date() },
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Connection failed";
+    await db.mailServer.update({
+      where: { id: server.id },
+      data: { status: "error", lastCheck: new Date() },
+    });
+    return NextResponse.json({
+      id: server.id,
+      ok: false,
+      error: `Mail server saved, but connection test failed: ${message}`,
+    }, { status: 201 });
+  }
 
   return NextResponse.json({ id: server.id, ok: true });
 }

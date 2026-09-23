@@ -128,21 +128,25 @@ interface AccountData {
   engagement: number;
   health: HealthData | null;
   protection: ProtectionData | null;
+  analytics?: { date: string; followers: number }[];
 }
 
-/** Build a tiny sparkline dataset deterministically from the account id. */
-function buildSpark(id: string, growth: number) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
+/** Build a sparkline from real analytics data (followers per day).
+ *  Falls back to a flat line at the current follower count when no analytics
+ *  exist yet — never generates fake wave data.
+ */
+function buildSpark(followers: number, analytics?: { date: string; followers: number }[]) {
   const points = 12;
-  const base = 50 + (Math.abs(h) % 30);
-  const arr: { i: number; v: number }[] = [];
-  for (let i = 0; i < points; i++) {
-    const wave = Math.sin((i + h) * 0.7) * 12 + Math.cos((i + h) * 0.4) * 6;
-    const trend = (i / points) * (growth > 0 ? 30 : -10);
-    arr.push({ i, v: Math.max(2, base + wave + trend) });
+  if (!analytics || analytics.length === 0) {
+    return Array.from({ length: points }, (_, i) => ({ i, v: Math.max(2, followers) }));
   }
-  return arr;
+  // Use last `points` data points, or pad if fewer
+  const recent = analytics.slice(-points);
+  const padded = [
+    ...Array.from({ length: Math.max(0, points - recent.length) }, () => recent[0] ?? { followers }),
+    ...recent,
+  ];
+  return padded.map((p, i) => ({ i, v: Math.max(2, p.followers ?? followers) }));
 }
 
 export function AccountsView() {
@@ -926,8 +930,8 @@ function AccountCard({ account }: { account: AccountData }) {
   const { setView } = useNav();
   const [healthOpen, setHealthOpen] = React.useState(false);
   const spark = React.useMemo(
-    () => buildSpark(account.id, account.followerGrowth),
-    [account.id, account.followerGrowth]
+    () => buildSpark(account.followers, account.analytics),
+    [account.followers, account.analytics]
   );
   const growthUp = account.followerGrowth >= 0;
   const platform = PLATFORMS[account.platform];

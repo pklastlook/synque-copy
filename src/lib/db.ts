@@ -12,13 +12,16 @@ const { Pool } = pg;
 // real Postgres URL from the env, but fall back to the known-good Neon
 // direct (non-pooled) endpoint so the app always talks to the real DB.
 // ---------------------------------------------------------------------------
-const NEON_DIRECT_URL =
-  "postgresql://neondb_owner:REDACTED_DB_PASSWORD@ep-spring-darkness-auk3ozf9.c-10.us-east-1.aws.neon.tech/neondb";
-
 function resolveDatabaseUrl(): string {
   const env = process.env.DATABASE_URL;
   if (env && env.startsWith("postgresql://")) return env;
-  return NEON_DIRECT_URL;
+  // In production / properly-configured envs, DATABASE_URL must be set.
+  // Throwing here is intentional — silently falling back to a hardcoded
+  // URL would leak credentials + mask deployment misconfigurations.
+  throw new Error(
+    "DATABASE_URL environment variable is not set. " +
+      "Set it in .env (local dev) or your hosting platform's env vars (production)."
+  );
 }
 
 // ---------------------------------------------------------------------------

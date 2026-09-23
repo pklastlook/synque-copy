@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { RetinaBg } from "@/components/glass/retina-bg";
 import { useNav } from "@/lib/store";
+import { useAuth } from "@/lib/auth-store";
 import { DashboardView } from "@/components/views/dashboard";
 import { ComposerView } from "@/components/views/composer";
 import { CalendarView } from "@/components/views/calendar";
@@ -30,6 +31,16 @@ import { TeamPerformanceView } from "@/components/views/team-performance";
 export function AppShell() {
   const { view } = useNav();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const { isAuthenticated, fetchUser } = useAuth();
+
+  // On mount: if we have a token in localStorage, validate it by fetching
+  // the current user. If the token is expired/invalid, fetchUser will clear
+  // the session so the landing/login page shows instead of a broken shell.
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      fetchUser();
+    }
+  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col">

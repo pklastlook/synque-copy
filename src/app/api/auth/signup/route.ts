@@ -3,7 +3,11 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "socialflow-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET environment variable is required in production.");
+}
+const SECRET = JWT_SECRET || "dev-only-ephemeral-secret-do-not-use-in-prod";
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,7 +53,7 @@ export async function POST(req: NextRequest) {
     // Generate JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
+      SECRET,
       { expiresIn: "7d" }
     );
 

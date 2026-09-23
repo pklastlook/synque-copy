@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Search, Bell, Moon, Sun, Menu, Command, LogOut, Settings, User, ChevronDown, MessageCircle, CalendarClock, ShieldAlert, Zap } from "lucide-react";
+import { Search, Bell, Moon, Sun, Menu, Command, LogOut, Settings, User, ChevronDown, MessageCircle, CheckCircle2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
+import { useApi } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import {
@@ -34,6 +35,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   linkbio: { title: "Link in Bio", subtitle: "Your shoppable link-in-bio page" },
   mail: { title: "Mail Server", subtitle: "Custom domain mailboxes for your team" },
   whatsapp: { title: "WhatsApp Inbox", subtitle: "Paste content from groups & chats to publish" },
+  "team-performance": { title: "Performance", subtitle: "Team content activity — posts, tweets, comments & engagement" },
   admin: { title: "Admin Panel", subtitle: "Team performance, workflow & oversight" },
   owner: { title: "Owner Panel", subtitle: "Clients, invoices, serial keys, devices, finance & API keys" },
 };
@@ -93,39 +95,8 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           </button>
         </div>
 
-        {/* Notification bell — functional dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-muted" aria-label="Notifications">
-              <Bell className="h-[18px] w-[18px]" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel className="flex items-center justify-between">
-              <span>Notifications</span>
-              <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">3 new</span>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {NOTIFICATIONS.map((n, i) => (
-              <DropdownMenuItem key={i} className="flex items-start gap-2.5 py-2.5 cursor-pointer">
-                <div className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-lg", n.color)}>
-                  <n.icon className="h-3.5 w-3.5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium">{n.title}</div>
-                  <div className="text-[11px] text-muted-foreground">{n.desc}</div>
-                  <div className="text-[10px] text-muted-foreground/60 mt-0.5">{n.time}</div>
-                </div>
-                {!n.read && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="justify-center text-xs font-medium text-primary cursor-pointer">
-              View all notifications
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Notification bell — fetches real unread comments */}
+        <NotificationsBell />
 
         <button
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
@@ -181,9 +152,57 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
   );
 }
 
-const NOTIFICATIONS = [
-  { icon: MessageCircle, title: "New comment on your post", desc: "@user1: 'This is exactly what I needed!'", time: "5m ago", read: false, color: "bg-blue-500/15 text-blue-500" },
-  { icon: CalendarClock, title: "Scheduled post published", desc: "'Launch Teaser' went live on 5 accounts", time: "1h ago", read: false, color: "bg-emerald-500/15 text-emerald-500" },
-  { icon: ShieldAlert, title: "Account health warning", desc: "@yourbrand on Threads has elevated risk", time: "2h ago", read: false, color: "bg-amber-500/15 text-amber-500" },
-  { icon: Zap, title: "AI captions generated", desc: "5 platform-specific variants ready to publish", time: "8h ago", read: true, color: "bg-violet-500/15 text-violet-500" },
-];
+// NOTE: Notifications used to be a hardcoded mock array. The notifications
+// dropdown now fetches real unread comments + failed posts from /api/inbox
+// + /api/dashboard. See the NotificationsBell component below.
+
+function NotificationsBell() {
+  const { data: inbox } = useApi<{ id: string; author: string; text: string; platform: string; handle: string }[]>("/api/inbox?filter=unread");
+  const unread = inbox ?? [];
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-muted" aria-label="Notifications">
+          <Bell className="h-[18px] w-[18px]" />
+          {unread.length > 0 && (
+            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel className="flex items-center justify-between">
+          <span>Notifications</span>
+          {unread.length > 0 && (
+            <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">{unread.length} new</span>
+          )}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {unread.length > 0 ? (
+          unread.slice(0, 6).map((c) => (
+            <DropdownMenuItem key={c.id} className="flex items-start gap-2.5 py-2.5 cursor-pointer">
+              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-blue-500/15 text-blue-500">
+                <MessageCircle className="h-3.5 w-3.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium">{c.author}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{c.text}</div>
+                <div className="text-[10px] text-muted-foreground/60 mt-0.5">{c.handle}</div>
+              </div>
+              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+            </DropdownMenuItem>
+          ))
+        ) : (
+          <div className="py-6 text-center text-xs text-muted-foreground">
+            <CheckCircle2 className="mx-auto mb-2 h-6 w-6 text-emerald-500" />
+            All caught up — no unread notifications
+          </div>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="justify-center text-xs font-medium text-primary cursor-pointer">
+          View all in inbox
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

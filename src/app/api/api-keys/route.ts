@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { randomBytes } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 
 function genApiKey() {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  return "sf_" + Array.from({ length: 40 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  // Use cryptographic randomness instead of Math.random() for security-sensitive tokens.
+  return "sf_" + randomBytes(20).toString("hex");
 }
 
 export async function GET() {
   const keys = await db.apiKey.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json(keys.map((k) => ({
-    id: k.id, name: k.name, key: k.key, permissions: JSON.parse(k.permissions),
+    id: k.id, name: k.name,
+    // Mask the key in GET responses — only show prefix + last 4 chars.
+    key: k.key.length > 12 ? k.key.slice(0, 8) + "…" + k.key.slice(-4) : k.key,
+    permissions: JSON.parse(k.permissions),
     status: k.status, lastUsed: k.lastUsed?.toISOString() ?? null, createdAt: k.createdAt.toISOString(),
   })));
 }
