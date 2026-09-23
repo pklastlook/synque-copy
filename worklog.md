@@ -1416,3 +1416,31 @@ Verification (Agent Browser):
 Stage Summary:
 - Account connection is now OAuth-style: pick platform → system detects signed-in sessions → user picks one → grant permission → done. No manual credential entry.
 - 1 file changed, 206 insertions, 205 deletions. Pushed to GitHub.
+
+---
+Task ID: theme-redesign
+Agent: main (code assistant)
+Task: Fix faded/splashed colors — make solid retina-ready crystal look combining Apple macOS Sonoma (14) + Sequoia (15) + Tahoe (26).
+
+Work Log:
+- Identified root causes of the "splashed and faded" look:
+  1. retaina-bg had 4 overlapping radial-gradient blobs (0.4-0.55 opacity) → washed-out mud
+  2. Base background used 0.02 chroma → no color, just grey
+  3. Glass surfaces used SVG noise texture (mix-blend-mode: overlay, opacity 0.5) → visual noise = "splashed"
+  4. Glass was 92% opacity → faded mesh bled through
+  5. Giant blurred blobs (55vw, blur 120px) animated → distracting mud
+- Rewrote globals.css (315 insertions, 269 deletions) with a combined macOS Sonoma+Sequoia+Tahoe color system:
+  • Background: SOLID base color (oklch 0.985 light / 0.16 dark) + ONE subtle accent glow (max 900px, blur 80px, opacity 0.25). Clean, not muddy.
+  • Colors: Apple's actual system color values at full chroma — Blue #007AFF (oklch 0.588 0.167 254), Purple #AF52DE, Pink #FF2D55, Green #34C759, Orange #FF9500, Red #FF3B30. Retina-ready, solid, vivid.
+  • Glass: 97-99% opacity (essentially solid). Crisp 1px top-edge highlight (linear-gradient 180deg, highlight → transparent 30%). Removed the noise texture overlay entirely.
+  • Shadows: layered + defined (inset highlight + 1px soft + 8px soft + deep). Real depth, not mud.
+  • Sidebar: solid Sequoia-tinted material (crisp border, no blur).
+  • Buttons: solid Apple-blue/purple gradients with defined 1px borders + crisp shadows. Removed the glow-blob hover.
+  • Charts: full-saturation Apple system colors that glow on dark.
+  • Text gradients: static (removed the 8s gradientShift animation that was distracting).
+  • Retina-bg component: removed the .blob-3 div (no longer needed).
+- VLM-verified across 6 screenshots (light dashboard, dark dashboard, landing, accounts, analytics, composer): "solid and crisp colors, crystal-clear glassmorphism, premium Apple macOS aesthetic, comparable to macOS Tahoe".
+
+Stage Summary:
+- 2 files changed: src/app/globals.css (full rewrite), src/components/glass/retina-bg.tsx (removed blob-3 div).
+- Pushed to GitHub (bd65788). Lint: 0 errors. TypeScript: 0 errors in src/.
