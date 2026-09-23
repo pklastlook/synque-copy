@@ -96,25 +96,25 @@ export function DashboardView() {
   return (
     <div className="space-y-5">
       {/* Hero greeting */}
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />
+      <GlassCard strong className="glass-sheen relative overflow-hidden p-6 sm:p-7">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-primary">
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-primary">
               <Sparkles className="h-3.5 w-3.5" />
               {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
             </div>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h2 className="mt-2 text-[28px] font-bold leading-tight tracking-tight sm:text-[34px]">
               Good day, <span className="retaina-text">{firstName}</span>
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              You have <span className="font-semibold text-foreground">{data.kpis.scheduled}</span> posts scheduled and{" "}
-              <span className="font-semibold text-foreground">{data.kpis.pendingInbox}</span> conversations waiting.
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
+              You have <span className="font-bold text-foreground">{data.kpis.scheduled}</span> posts scheduled and{" "}
+              <span className="font-bold text-foreground">{data.kpis.pendingInbox}</span> conversations waiting.
             </p>
           </div>
           <button
             onClick={() => setView("composer")}
-            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold"
           >
             <Wand2 className="h-4 w-4" />
             Compose with AI
@@ -195,7 +195,7 @@ export function DashboardView() {
                     <stop offset="100%" stopColor="oklch(0.72 0.22 300)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.4} />
                 <XAxis
                   dataKey="date"
                   tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
@@ -231,34 +231,54 @@ export function DashboardView() {
 
         <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.38s" }}>
           <SectionTitle title="Followers" desc="By platform" />
-          <div className="relative mx-auto h-[180px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={platformData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={80} paddingAngle={3} stroke="none">
-                  {platformData.map((p) => (
-                    <Cell key={p.platform} fill={p.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }}
-                  formatter={(v: number, n) => [fmt(v), n]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-bold">{fmt(totalFollowers)}</span>
-              <span className="text-[10px] text-muted-foreground">total reach</span>
-            </div>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-1.5">
-            {platformData.map((p) => (
-              <div key={p.platform} className="flex items-center gap-1.5 text-[11px]">
-                <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
-                <span className="truncate text-muted-foreground">{p.name}</span>
-                <span className="ml-auto font-medium">{fmt(p.value)}</span>
+          {platformData.length > 0 ? (
+            <>
+              <div className="relative mx-auto h-[180px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={platformData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={80} paddingAngle={3} stroke="none">
+                      {platformData.map((p) => (
+                        <Cell key={p.platform} fill={p.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }}
+                      formatter={(v: number, n) => [fmt(v), n]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="num-display text-2xl font-bold">{fmt(totalFollowers)}</span>
+                  <span className="text-[10px] text-muted-foreground">total reach</span>
+                </div>
               </div>
-            ))}
-          </div>
+              <div className="mt-3 grid grid-cols-2 gap-1.5">
+                {platformData.map((p) => (
+                  <div key={p.platform} className="flex items-center gap-1.5 text-[11px]">
+                    <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+                    <span className="truncate text-muted-foreground">{p.name}</span>
+                    <span className="ml-auto font-medium">{fmt(p.value)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">No accounts connected</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Connect a social account to see follower breakdown</p>
+              </div>
+              <button
+                onClick={() => setView("accounts")}
+                className="rounded-lg bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
+              >
+                Connect account
+              </button>
+            </div>
+          )}
         </GlassCard>
       </div>
 
@@ -271,7 +291,8 @@ export function DashboardView() {
             </button>
           }/>
           <div className="space-y-2">
-            {data.topPosts.map((p, i) => (
+            {data.topPosts.length > 0 ? (
+              data.topPosts.map((p, i) => (
               <div key={p.id} className="group flex items-center gap-3 rounded-2xl p-2 transition hover:bg-muted/50">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
                   {p.mediaUrl ? (
@@ -290,16 +311,27 @@ export function DashboardView() {
                 </div>
                 <div className="flex gap-3 text-right">
                   <div>
-                    <div className="text-sm font-semibold">{fmt(p.engagement)}</div>
+                    <div className="text-sm font-bold">{fmt(p.engagement)}</div>
                     <div className="text-[10px] text-muted-foreground">engagement</div>
                   </div>
                   <div className="hidden sm:block">
-                    <div className="text-sm font-semibold">{fmt(p.reach)}</div>
+                    <div className="text-sm font-bold">{fmt(p.reach)}</div>
                     <div className="text-[10px] text-muted-foreground">reach</div>
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-muted text-muted-foreground">
+                  <Heart className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">No published posts yet</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">Publish your first post to see performance</p>
+                </div>
+              </div>
+            )}
           </div>
         </GlassCard>
 
@@ -333,7 +365,21 @@ export function DashboardView() {
               </div>
             ))}
             {data.upcoming.length === 0 && (
-              <div className="py-8 text-center text-sm text-muted-foreground">No scheduled posts</div>
+              <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+                  <CalendarClock className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">No scheduled posts</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">Draft and schedule your first post</p>
+                </div>
+                <button
+                  onClick={() => setView("composer")}
+                  className="rounded-lg bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
+                >
+                  Open composer
+                </button>
+              </div>
             )}
           </div>
         </GlassCard>
@@ -343,7 +389,8 @@ export function DashboardView() {
       <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.62s" }}>
         <SectionTitle title="Team activity" desc="Recent actions across your workspace" />
         <div className="space-y-1">
-          {data.activities.map((a) => {
+          {data.activities.length > 0 ? (
+            data.activities.map((a) => {
             const Icon = ACTIVITY_ICON[a.type] ?? CheckCircle2;
             return (
               <div key={a.id} className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-muted/50">
@@ -362,7 +409,18 @@ export function DashboardView() {
                 </span>
               </div>
             );
-          })}
+            })
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-muted text-muted-foreground">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">No recent activity</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Actions across your workspace will appear here</p>
+              </div>
+            </div>
+          )}
         </div>
       </GlassCard>
     </div>

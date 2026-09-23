@@ -141,8 +141,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         )}
         {groups.map((g) => (
-          <div key={g}>
-            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          <div key={g} className="space-y-1">
+            <div className="px-3 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/50">
               {g}
             </div>
             <div className="space-y-0.5">
@@ -157,33 +157,41 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                       onNavigate?.();
                     }}
                     className={cn(
-                      "group crystal-sweep relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
+                      "group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium transition-all duration-200",
                       active
-                        ? "bg-primary/12 text-foreground shadow-[inset_0_0_0_1px_var(--ring)]"
-                        : "text-foreground/55 hover:bg-muted/50 hover:text-foreground"
+                        ? "font-semibold text-foreground"
+                        : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                     )}
                     style={active ? ({ ["--section-accent" as string]: n.accent } as React.CSSProperties) : undefined}
                   >
+                    {/* Active: subtle accent tint background */}
                     {active && (
                       <span
-                        className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full shadow-[0_0_8px_var(--section-accent)]"
-                        style={{ background: n.accent }}
+                        className="absolute inset-0 rounded-xl"
+                        style={{ background: `${n.accent}14` }}
+                      />
+                    )}
+                    {/* Active: left accent bar (Apple-style selection indicator) */}
+                    {active && (
+                      <span
+                        className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full"
+                        style={{ background: n.accent, boxShadow: `0 0 10px ${n.accent}80` }}
                       />
                     )}
                     <Icon
-                      className={cn("h-[18px] w-[18px] shrink-0 transition-transform", !active && "group-hover:scale-110")}
-                      style={{ color: n.accent }}
+                      className={cn("relative h-[17px] w-[17px] shrink-0 transition-transform", active ? "scale-105" : "group-hover:scale-110")}
+                      style={{ color: active ? n.accent : undefined }}
                     />
-                    <span className="truncate">{n.label}</span>
+                    <span className="relative truncate">{n.label}</span>
                     {n.badge && (
                       <span
-                        className="ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
+                        className="relative ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
                         style={{ background: n.accent }}
                       >
                         {n.badge}
                       </span>
                     )}
-                    {active && !n.badge && <ChevronRight className="ml-auto h-3.5 w-3.5" style={{ color: n.accent }} />}
+                    {active && !n.badge && <ChevronRight className="relative ml-auto h-3.5 w-3.5" style={{ color: n.accent }} />}
                   </button>
                 );
               })}
