@@ -72,6 +72,7 @@ export const ModelName = {
   Report: 'Report',
   LinkInBio: 'LinkInBio',
   WhatsAppMessage: 'WhatsAppMessage',
+  WhatsAppConnection: 'WhatsAppConnection',
   MailServer: 'MailServer',
   Mailbox: 'Mailbox',
   MailMessage: 'MailMessage',
@@ -454,11 +455,26 @@ export const WhatsAppMessageScalarFieldEnum = {
   status: 'status',
   postId: 'postId',
   savedById: 'savedById',
+  isLive: 'isLive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type WhatsAppMessageScalarFieldEnum = (typeof WhatsAppMessageScalarFieldEnum)[keyof typeof WhatsAppMessageScalarFieldEnum]
+
+
+export const WhatsAppConnectionScalarFieldEnum = {
+  id: 'id',
+  ownerId: 'ownerId',
+  phone: 'phone',
+  status: 'status',
+  lastConnectedAt: 'lastConnectedAt',
+  lastDisconnectedAt: 'lastDisconnectedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppConnectionScalarFieldEnum = (typeof WhatsAppConnectionScalarFieldEnum)[keyof typeof WhatsAppConnectionScalarFieldEnum]
 
 
 export const MailServerScalarFieldEnum = {

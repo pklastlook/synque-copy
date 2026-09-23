@@ -123,6 +123,11 @@ export type LinkInBio = Prisma.LinkInBioModel
  */
 export type WhatsAppMessage = Prisma.WhatsAppMessageModel
 /**
+ * Model WhatsAppConnection
+ * 
+ */
+export type WhatsAppConnection = Prisma.WhatsAppConnectionModel
+/**
  * Model MailServer
  * 
  */

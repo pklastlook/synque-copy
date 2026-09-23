@@ -361,6 +361,22 @@ model WhatsAppMessage {
   // Who saved/pasted it:
   savedById   String?
   savedBy     User?    @relation("WhatsAppSavedBy", fields: [savedById], references: [id])
+  // Auto-received from a live WhatsApp connection (vs. manually pasted)?
+  isLive      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ===== WhatsApp Connection (per-workspace QR-scan session) =====
+model WhatsAppConnection {
+  id          String   @id @default(cuid())
+  // Single row per workspace (keyed by a fixed ownerId)
+  ownerId     String   @unique
+  phone       String?  // E.164 of the connected WhatsApp number
+  status      String   @default("disconnected") // disconnected | connecting | connected
+  // We don't store the QR code itself (it rotates) — the mini-service holds it in memory
+  lastConnectedAt DateTime?
+  lastDisconnectedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
