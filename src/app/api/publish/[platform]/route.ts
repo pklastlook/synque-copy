@@ -55,80 +55,77 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
       return NextResponse.json({ error: "Tweet exceeds 280 character limit" }, { status: 400 });
     }
 
-    let twitterClient: TwitterApi;
-
     try {
-      // Try OAuth 2.0 access token first (from OAuth login flow)
-      if (cred.accessToken && cred.accessSecret && cred.apiKey && cred.apiSecret) {
-        // OAuth 1.0a — full read+write access
-        twitterClient = new TwitterApi({
-          appKey: cred.apiKey,
-          appSecret: cred.apiSecret,
-          accessToken: cred.accessToken,
-          accessSecret: cred.accessSecret,
-        });
-      } else if (cred.accessToken) {
-        // OAuth 2.0 user context (needs tweet.write scope)
-        twitterClient = new TwitterApi(cred.accessToken);
-      } else {
+      // Use the OAuth 2.0 user access token (from the OAuth login flow)
+      // to post a tweet directly via the Twitter API v2
+      if (!cred.accessToken) {
         return NextResponse.json({
-          error: "You need to connect your X/Twitter account first. Go to Accounts → Connect account → click X → login with Twitter. This grants posting permission.",
+          error: "No access token. Connect your X account via OAuth login first: Accounts → Connect account → click X → Login with X.",
         }, { status: 400 });
       }
 
-      // POST THE REAL TWEET
-      const tweet = await twitterClient.v2.tweet(content);
-
-      // Update the account's post count
-      await db.account.update({
-        where: { id: accountId },
-        data: { postsCount: { increment: 1 } },
-      });
-
-      // Log the activity
-      await db.activity.create({
-        data: {
-          userId,
-          type: "post_published",
-          description: `published a tweet: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
+      // POST tweet directly via fetch (not the SDK — the SDK may use app-level auth)
+      const tweetRes = await fetch("https://api.twitter.com/2/tweets", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${cred.accessToken}`,
+          "Content-Type": "application/json",
         },
-      }).catch(() => null);
-
-      return NextResponse.json({
-        ok: true,
-        tweetId: tweet.data.id,
-        url: `https://x.com/i/status/${tweet.data.id}`,
-        message: "Tweet published successfully!",
+        body: JSON.stringify({ text: content }),
       });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Twitter posting error";
-      console.error("[publish/twitter]", message);
 
-      // 402 = Payment Required (Free tier doesn't allow posting)
-      if (message.includes("402") || message.includes("Payment Required")) {
+      const tweetJson = await tweetRes.json();
+
+      if (tweetRes.ok && tweetJson.data?.id) {
+        // Update the account's post count
+        await db.account.update({
+          where: { id: accountId },
+          data: { postsCount: { increment: 1 } },
+        });
+
+        // Log the activity
+        await db.activity.create({
+          data: {
+            userId,
+            type: "post_published",
+            description: `published a tweet: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
+          },
+        }).catch(() => null);
+
         return NextResponse.json({
-          error: "Your Twitter Developer App is on the Free tier which doesn't allow posting. Go to developer.twitter.com → your app → upgrade to Basic tier ($100/month) to enable tweet posting. Alternatively, connect your X account via OAuth login (Accounts → Connect → X) which uses your user token instead.",
-        }, { status: 402 });
+          ok: true,
+          tweetId: tweetJson.data.id,
+          url: `https://x.com/i/status/${tweetJson.data.id}`,
+          message: "Tweet published successfully!",
+        });
       }
-      // 401 = Unauthorized
-      if (message.includes("401") || message.includes("Unauthorized")) {
+
+      // Error handling
+      const errMsg = tweetJson.detail || tweetJson.title || tweetJson.error?.message || `HTTP ${tweetRes.status}`;
+      console.error("[publish/twitter]", tweetRes.status, JSON.stringify(tweetJson));
+
+      if (tweetRes.status === 401) {
         return NextResponse.json({
-          error: "Authentication failed. Connect your X account via OAuth login first: go to Accounts → Connect account → click X → login with Twitter. This grants posting permission.",
+          error: "Access token expired or invalid. Reconnect your X account: Accounts → Connect account → X → Login with X.",
         }, { status: 401 });
       }
-      // 403 = Forbidden
-      if (message.includes("403") || message.includes("Forbidden")) {
+      if (tweetRes.status === 403) {
         return NextResponse.json({
-          error: "Permission denied. Your Twitter app needs 'Read and Write' permissions. Go to developer.twitter.com → your app → App permissions → change to 'Read and Write'.",
+          error: "Posting not allowed. Make sure your Twitter app has 'Read and Write' permissions in the Developer Portal.",
         }, { status: 403 });
       }
-      // 429 = Rate limited
-      if (message.includes("429") || message.includes("Too Many Requests")) {
+      if (tweetRes.status === 429) {
         return NextResponse.json({
-          error: "Rate limit exceeded. Twitter limits API calls per 15-minute window. Please wait and try again.",
+          error: "Rate limit exceeded. Wait 15 minutes and try again.",
         }, { status: 429 });
       }
 
+      return NextResponse.json({
+        error: `Failed to post tweet: ${errMsg}`,
+      }, { status: tweetRes.status || 500 });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Twitter posting error";
+      console.error("[publish/twitter]", message);
       return NextResponse.json({
         error: `Failed to post tweet: ${message}`,
       }, { status: 500 });
