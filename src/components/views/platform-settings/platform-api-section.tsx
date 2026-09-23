@@ -52,13 +52,17 @@ const PLATFORM_CONFIG: Record<string, {
     name: "Twitter / X",
     color: "oklch(0.2 0 0)",
     fields: [
-      { key: "clientId", label: "OAuth 2.0 Client ID", placeholder: "Your Twitter App Client ID", required: true },
-      { key: "clientSecret", label: "OAuth 2.0 Client Secret", placeholder: "Your Twitter App Client Secret", required: true, type: "password" },
-      { key: "apiKey", label: "Consumer Key (API Key)", placeholder: "Optional — for OAuth 1.0a fallback" },
-      { key: "apiSecret", label: "Consumer Secret (API Secret)", placeholder: "Optional — for OAuth 1.0a fallback", type: "password" },
+      // OAuth 2.0 (for login redirect — one-click connect)
+      { key: "clientId", label: "OAuth 2.0 Client ID", placeholder: "From Twitter Developer Portal → OAuth 2.0 Client ID", required: true },
+      { key: "clientSecret", label: "OAuth 2.0 Client Secret", placeholder: "From Twitter Developer Portal → OAuth 2.0 Client Secret", required: true, type: "password" },
+      // OAuth 1.0a (for posting — required on Free tier)
+      { key: "apiKey", label: "Consumer Key (API Key)", placeholder: "From Twitter Developer Portal → Consumer Keys → API Key", required: true },
+      { key: "apiSecret", label: "Consumer Secret (API Secret)", placeholder: "From Twitter Developer Portal → Consumer Keys → API Secret", required: true, type: "password" },
+      { key: "accessToken", label: "Access Token (OAuth 1.0a)", placeholder: "From Twitter Developer Portal → Authentication Tokens → Access Token", required: true },
+      { key: "accessSecret", label: "Access Token Secret (OAuth 1.0a)", placeholder: "From Twitter Developer Portal → Authentication Tokens → Access Token Secret", required: true, type: "password" },
     ],
     docsUrl: "https://developer.twitter.com/en/portal/dashboard",
-    helpText: "Go to developer.twitter.com → create an app → set permissions to 'Read and Write' → under 'User authentication settings' set up OAuth 2.0 → copy the Client ID and Client Secret. Set the Callback URI to your app URL + /api/oauth/callback/twitter.",
+    helpText: "Go to developer.twitter.com → your app → Keys and tokens tab. Copy ALL 6 values: OAuth 2.0 Client ID + Secret (for login), Consumer Key + Secret (API keys), and Access Token + Secret (OAuth 1.0a — needed for posting on Free tier). Set app permissions to 'Read and Write'.",
   },
   instagram: {
     icon: Instagram,
