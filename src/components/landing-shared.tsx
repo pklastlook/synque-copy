@@ -204,22 +204,76 @@ export function TrialDialog({ open, onOpenChange }: { open: boolean; onOpenChang
     setStep("processing");
     // Simulate payment processing
     await new Promise((r) => setTimeout(r, 2000));
-    // Create the user account
-    const success = await signup(form.name.trim(), form.email.trim(), form.password);
-    if (success) {
-      setStep("done");
-      setTimeout(() => { onOpenChange(false); window.location.href = "/"; }, 2500);
-    } else {
+
+    try {
+      // 1. Create customer in Owner Panel
+      const custRes = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          phone: form.phone || null,
+          company: form.company.trim(),
+          plan: "growth",
+        }),
+      });
+      const custData = await custRes.json().catch(() => ({}));
+
+      // 2. Create subscription record (15-day trial)
+      if (custData.id) {
+        await fetch("/api/subscriptions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerId: custData.id,
+            plan: "growth",
+            amount: 89,
+            trialEnds: new Date(Date.now() + 15 * 86400000).toISOString(),
+          }),
+        }).catch(() => {});
+      }
+
+      // 3. Create user account (login credentials)
+      const success = await signup(form.name.trim(), form.email.trim(), form.password);
+      if (success) {
+        // 4. Set user role + department to match customer
+        const meRes = await fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${useAuth.getState().token}` },
+        });
+        const meData = await meRes.json().catch(() => ({}));
+        if (meData.user?.id) {
+          await fetch("/api/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: meData.user.id,
+              role: "admin",
+              title: "Administrator",
+              department: form.company.trim(),
+            }),
+          }).catch(() => {});
+        }
+
+        setStep("done");
+        setTimeout(() => { onOpenChange(false); window.location.href = "/"; }, 2500);
+      } else {
+        setStep("payment");
+        toast.error("Failed to create account. This email may already be registered.");
+      }
+    } catch {
       setStep("payment");
-      toast.error("Failed to create account. This email may already be registered.");
+      toast.error("Something went wrong. Please try again.");
     }
   };
 
   const processingSteps = [
     { label: "Validating card details", done: true, icon: CreditCard },
     { label: "Authorizing payment", done: true, icon: Shield },
+    { label: "Creating customer record", done: true, icon: Users },
+    { label: "Setting up subscription", done: true, icon: CreditCard },
     { label: "Creating your workspace", done: false, icon: Loader2 },
-    { label: "Provisioning modules", done: false, icon: Loader2 },
+    { label: "Provisioning admin access", done: false, icon: Loader2 },
   ];
 
   return (
