@@ -106,6 +106,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
       }
 
       // Fallback: OAuth 2.0 user token (direct fetch)
+      // The accessToken stored from the OAuth callback is a user context token
       if (cred.accessToken) {
         const tweetRes = await fetch("https://api.twitter.com/2/tweets", {
           method: "POST",
@@ -117,6 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
         });
 
         const tweetJson = await tweetRes.json();
+        console.log("[publish/twitter] OAuth 2.0 response:", tweetRes.status, JSON.stringify(tweetJson).slice(0, 300));
 
         if (tweetRes.ok && tweetJson.data?.id) {
           await db.account.update({
@@ -140,17 +142,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           });
         }
 
+        // Error handling for OAuth 2.0
         const errMsg = tweetJson.detail || tweetJson.title || tweetJson.error?.message || `HTTP ${tweetRes.status}`;
         console.error("[publish/twitter] OAuth 2.0 failed:", tweetRes.status, JSON.stringify(tweetJson));
 
-        if (tweetRes.status === 402) {
-          return NextResponse.json({
-            error: "Twitter Free tier doesn't allow posting via OAuth 2.0. Add OAuth 1.0a Access Token + Secret in Settings → Platform API Keys → Twitter (under 'Access Token' fields).",
-          }, { status: 402 });
-        }
-
         return NextResponse.json({
           error: `Failed to post tweet: ${errMsg}`,
+          savedContent: content,
+          manualUrl: "https://x.com/compose/post",
         }, { status: tweetRes.status || 500 });
       }
 
