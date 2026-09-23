@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import ZAI from "z-ai-web-dev-sdk";
+import { createZaiClient } from "@/lib/zai";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +84,7 @@ Be specific and data-driven. If data is sparse, note that and suggest what to tr
 
     let insights = "";
     try {
-      const zai = await ZAI.create();
+      const zai = await createZaiClient();
       const completion = await zai.chat.completions.create({
         messages: [
           { role: "assistant", content: system },

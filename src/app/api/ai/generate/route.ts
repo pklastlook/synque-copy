@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
 import { db } from "@/lib/db";
+import { createZaiClient } from "@/lib/zai";
 import { PLATFORMS } from "@/lib/platforms";
 
 export const dynamic = "force-dynamic";
@@ -62,9 +62,9 @@ Respond with ONLY a JSON object (no markdown fences, no prose) of this exact sha
 }
 The "index" MUST match the destination number above, in order. Include exactly one entry per destination. Make each variant genuinely distinct in wording, not just reformatted.`;
 
-  let zai: Awaited<ReturnType<typeof ZAI.create>>;
+  let zai: Awaited<ReturnType<typeof createZaiClient>>;
   try {
-    zai = await ZAI.create();
+    zai = await createZaiClient();
   } catch {
     return NextResponse.json(
       { error: "AI service unavailable", fallback: fallback(caption, targets) },
