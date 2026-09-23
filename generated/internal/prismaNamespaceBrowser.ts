@@ -71,6 +71,7 @@ export const ModelName = {
   CompetitorSnapshot: 'CompetitorSnapshot',
   Report: 'Report',
   LinkInBio: 'LinkInBio',
+  WhatsAppMessage: 'WhatsAppMessage',
   MailServer: 'MailServer',
   Mailbox: 'Mailbox',
   MailMessage: 'MailMessage',
@@ -439,6 +440,25 @@ export const LinkInBioScalarFieldEnum = {
 } as const
 
 export type LinkInBioScalarFieldEnum = (typeof LinkInBioScalarFieldEnum)[keyof typeof LinkInBioScalarFieldEnum]
+
+
+export const WhatsAppMessageScalarFieldEnum = {
+  id: 'id',
+  source: 'source',
+  senderName: 'senderName',
+  senderPhone: 'senderPhone',
+  groupName: 'groupName',
+  content: 'content',
+  mediaUrl: 'mediaUrl',
+  mediaType: 'mediaType',
+  status: 'status',
+  postId: 'postId',
+  savedById: 'savedById',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppMessageScalarFieldEnum = (typeof WhatsAppMessageScalarFieldEnum)[keyof typeof WhatsAppMessageScalarFieldEnum]
 
 
 export const MailServerScalarFieldEnum = {

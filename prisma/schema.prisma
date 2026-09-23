@@ -33,6 +33,7 @@ model User {
   mailboxes Mailbox[] @relation("MailboxOwner")
   workspace Workspace?
   platformCredentials PlatformCredential[]
+  savedWhatsAppMsgs   WhatsAppMessage[] @relation("WhatsAppSavedBy")
 }
 
 model Account {
@@ -342,6 +343,26 @@ model LinkInBio {
   accountId   String?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
+}
+
+// ===== WhatsApp Inbox (pasted from groups/chats) =====
+model WhatsAppMessage {
+  id          String   @id @default(cuid())
+  source      String   @default("group") // group | chat | broadcast | channel
+  senderName  String
+  senderPhone String?  // E.164 format if available
+  groupName   String?  // name of the group/chat it was pasted from
+  content     String   // the pasted message text
+  mediaUrl    String?  // attached image/video URL (if pasted)
+  mediaType   String?  // image | video | audio | document
+  status      String   @default("new") // new | used | archived
+  // After the message is sent to the Composer + published, link it to the post:
+  postId      String?
+  // Who saved/pasted it:
+  savedById   String?
+  savedBy     User?    @relation("WhatsAppSavedBy", fields: [savedById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // ===== Mail Server =====

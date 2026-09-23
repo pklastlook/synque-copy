@@ -253,6 +253,7 @@ export type UserWhereInput = {
   mailboxes?: Prisma.MailboxListRelationFilter
   workspace?: Prisma.XOR<Prisma.WorkspaceNullableScalarRelationFilter, Prisma.WorkspaceWhereInput> | null
   platformCredentials?: Prisma.PlatformCredentialListRelationFilter
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -276,6 +277,7 @@ export type UserOrderByWithRelationInput = {
   mailboxes?: Prisma.MailboxOrderByRelationAggregateInput
   workspace?: Prisma.WorkspaceOrderByWithRelationInput
   platformCredentials?: Prisma.PlatformCredentialOrderByRelationAggregateInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -302,6 +304,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   mailboxes?: Prisma.MailboxListRelationFilter
   workspace?: Prisma.XOR<Prisma.WorkspaceNullableScalarRelationFilter, Prisma.WorkspaceWhereInput> | null
   platformCredentials?: Prisma.PlatformCredentialListRelationFilter
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -363,6 +366,7 @@ export type UserCreateInput = {
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -386,6 +390,7 @@ export type UserUncheckedCreateInput = {
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
 }
 
 export type UserUpdateInput = {
@@ -409,6 +414,7 @@ export type UserUpdateInput = {
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -432,6 +438,7 @@ export type UserUncheckedUpdateInput = {
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -614,6 +621,22 @@ export type UserUpdateOneRequiredWithoutActivitiesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutActivitiesInput, Prisma.UserUpdateWithoutActivitiesInput>, Prisma.UserUncheckedUpdateWithoutActivitiesInput>
 }
 
+export type UserCreateNestedOneWithoutSavedWhatsAppMsgsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutSavedWhatsAppMsgsInput, Prisma.UserUncheckedCreateWithoutSavedWhatsAppMsgsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutSavedWhatsAppMsgsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneWithoutSavedWhatsAppMsgsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutSavedWhatsAppMsgsInput, Prisma.UserUncheckedCreateWithoutSavedWhatsAppMsgsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutSavedWhatsAppMsgsInput
+  upsert?: Prisma.UserUpsertWithoutSavedWhatsAppMsgsInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutSavedWhatsAppMsgsInput, Prisma.UserUpdateWithoutSavedWhatsAppMsgsInput>, Prisma.UserUncheckedUpdateWithoutSavedWhatsAppMsgsInput>
+}
+
 export type UserCreateNestedOneWithoutMailboxesInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutMailboxesInput, Prisma.UserUncheckedCreateWithoutMailboxesInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutMailboxesInput
@@ -678,6 +701,7 @@ export type UserCreateWithoutAccountsInput = {
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
 }
 
 export type UserUncheckedCreateWithoutAccountsInput = {
@@ -700,6 +724,7 @@ export type UserUncheckedCreateWithoutAccountsInput = {
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
 }
 
 export type UserCreateOrConnectWithoutAccountsInput = {
@@ -738,6 +763,7 @@ export type UserUpdateWithoutAccountsInput = {
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAccountsInput = {
@@ -760,6 +786,7 @@ export type UserUncheckedUpdateWithoutAccountsInput = {
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserCreateWithoutPostsInput = {
@@ -782,6 +809,7 @@ export type UserCreateWithoutPostsInput = {
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
 }
 
 export type UserUncheckedCreateWithoutPostsInput = {
@@ -804,6 +832,7 @@ export type UserUncheckedCreateWithoutPostsInput = {
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
 }
 
 export type UserCreateOrConnectWithoutPostsInput = {
@@ -842,6 +871,7 @@ export type UserUpdateWithoutPostsInput = {
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPostsInput = {
@@ -864,6 +894,7 @@ export type UserUncheckedUpdateWithoutPostsInput = {
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserCreateWithoutAssignedCommentsInput = {
@@ -886,6 +917,7 @@ export type UserCreateWithoutAssignedCommentsInput = {
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
 }
 
 export type UserUncheckedCreateWithoutAssignedCommentsInput = {
@@ -908,6 +940,7 @@ export type UserUncheckedCreateWithoutAssignedCommentsInput = {
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
 }
 
 export type UserCreateOrConnectWithoutAssignedCommentsInput = {
@@ -946,6 +979,7 @@ export type UserUpdateWithoutAssignedCommentsInput = {
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssignedCommentsInput = {
@@ -968,6 +1002,7 @@ export type UserUncheckedUpdateWithoutAssignedCommentsInput = {
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserCreateWithoutActivitiesInput = {
@@ -990,6 +1025,7 @@ export type UserCreateWithoutActivitiesInput = {
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
 }
 
 export type UserUncheckedCreateWithoutActivitiesInput = {
@@ -1012,6 +1048,7 @@ export type UserUncheckedCreateWithoutActivitiesInput = {
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
 }
 
 export type UserCreateOrConnectWithoutActivitiesInput = {
@@ -1050,6 +1087,7 @@ export type UserUpdateWithoutActivitiesInput = {
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutActivitiesInput = {
@@ -1068,6 +1106,115 @@ export type UserUncheckedUpdateWithoutActivitiesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
+  assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
+  mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
+  platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
+}
+
+export type UserCreateWithoutSavedWhatsAppMsgsInput = {
+  id?: string
+  name: string
+  email: string
+  password?: string | null
+  avatar?: string | null
+  role?: string
+  title?: string | null
+  department?: string | null
+  color?: string | null
+  permissions?: string | null
+  status?: string
+  lastActive?: Date | string | null
+  createdAt?: Date | string
+  accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
+  posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
+  activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
+  assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
+  mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
+  platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutSavedWhatsAppMsgsInput = {
+  id?: string
+  name: string
+  email: string
+  password?: string | null
+  avatar?: string | null
+  role?: string
+  title?: string | null
+  department?: string | null
+  color?: string | null
+  permissions?: string | null
+  status?: string
+  lastActive?: Date | string | null
+  createdAt?: Date | string
+  accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
+  posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
+  activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
+  assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
+  mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
+  platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutSavedWhatsAppMsgsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutSavedWhatsAppMsgsInput, Prisma.UserUncheckedCreateWithoutSavedWhatsAppMsgsInput>
+}
+
+export type UserUpsertWithoutSavedWhatsAppMsgsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutSavedWhatsAppMsgsInput, Prisma.UserUncheckedUpdateWithoutSavedWhatsAppMsgsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutSavedWhatsAppMsgsInput, Prisma.UserUncheckedCreateWithoutSavedWhatsAppMsgsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutSavedWhatsAppMsgsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutSavedWhatsAppMsgsInput, Prisma.UserUncheckedUpdateWithoutSavedWhatsAppMsgsInput>
+}
+
+export type UserUpdateWithoutSavedWhatsAppMsgsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  department?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  permissions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  lastActive?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
+  posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
+  activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
+  assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
+  mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
+  platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutSavedWhatsAppMsgsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  department?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  permissions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  lastActive?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
+  posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
+  activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
@@ -1094,6 +1241,7 @@ export type UserCreateWithoutMailboxesInput = {
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
   workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
 }
 
 export type UserUncheckedCreateWithoutMailboxesInput = {
@@ -1116,6 +1264,7 @@ export type UserUncheckedCreateWithoutMailboxesInput = {
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
   workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
 }
 
 export type UserCreateOrConnectWithoutMailboxesInput = {
@@ -1154,6 +1303,7 @@ export type UserUpdateWithoutMailboxesInput = {
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
   workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMailboxesInput = {
@@ -1176,6 +1326,7 @@ export type UserUncheckedUpdateWithoutMailboxesInput = {
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
   workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserCreateWithoutWorkspaceInput = {
@@ -1198,6 +1349,7 @@ export type UserCreateWithoutWorkspaceInput = {
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
 }
 
 export type UserUncheckedCreateWithoutWorkspaceInput = {
@@ -1220,6 +1372,7 @@ export type UserUncheckedCreateWithoutWorkspaceInput = {
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
 }
 
 export type UserCreateOrConnectWithoutWorkspaceInput = {
@@ -1258,6 +1411,7 @@ export type UserUpdateWithoutWorkspaceInput = {
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWorkspaceInput = {
@@ -1280,6 +1434,7 @@ export type UserUncheckedUpdateWithoutWorkspaceInput = {
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
   platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserCreateWithoutPlatformCredentialsInput = {
@@ -1302,6 +1457,7 @@ export type UserCreateWithoutPlatformCredentialsInput = {
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceCreateNestedOneWithoutOwnerInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
 }
 
 export type UserUncheckedCreateWithoutPlatformCredentialsInput = {
@@ -1324,6 +1480,7 @@ export type UserUncheckedCreateWithoutPlatformCredentialsInput = {
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
   workspace?: Prisma.WorkspaceUncheckedCreateNestedOneWithoutOwnerInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
 }
 
 export type UserCreateOrConnectWithoutPlatformCredentialsInput = {
@@ -1362,6 +1519,7 @@ export type UserUpdateWithoutPlatformCredentialsInput = {
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUpdateOneWithoutOwnerNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPlatformCredentialsInput = {
@@ -1384,6 +1542,7 @@ export type UserUncheckedUpdateWithoutPlatformCredentialsInput = {
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
   workspace?: Prisma.WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
 }
 
 
@@ -1398,6 +1557,7 @@ export type UserCountOutputType = {
   assignedComments: number
   mailboxes: number
   platformCredentials: number
+  savedWhatsAppMsgs: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1407,6 +1567,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   assignedComments?: boolean | UserCountOutputTypeCountAssignedCommentsArgs
   mailboxes?: boolean | UserCountOutputTypeCountMailboxesArgs
   platformCredentials?: boolean | UserCountOutputTypeCountPlatformCredentialsArgs
+  savedWhatsAppMsgs?: boolean | UserCountOutputTypeCountSavedWhatsAppMsgsArgs
 }
 
 /**
@@ -1461,6 +1622,13 @@ export type UserCountOutputTypeCountPlatformCredentialsArgs<ExtArgs extends runt
   where?: Prisma.PlatformCredentialWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountSavedWhatsAppMsgsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WhatsAppMessageWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1483,6 +1651,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   mailboxes?: boolean | Prisma.User$mailboxesArgs<ExtArgs>
   workspace?: boolean | Prisma.User$workspaceArgs<ExtArgs>
   platformCredentials?: boolean | Prisma.User$platformCredentialsArgs<ExtArgs>
+  savedWhatsAppMsgs?: boolean | Prisma.User$savedWhatsAppMsgsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1543,6 +1712,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   mailboxes?: boolean | Prisma.User$mailboxesArgs<ExtArgs>
   workspace?: boolean | Prisma.User$workspaceArgs<ExtArgs>
   platformCredentials?: boolean | Prisma.User$platformCredentialsArgs<ExtArgs>
+  savedWhatsAppMsgs?: boolean | Prisma.User$savedWhatsAppMsgsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1558,6 +1728,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     mailboxes: Prisma.$MailboxPayload<ExtArgs>[]
     workspace: Prisma.$WorkspacePayload<ExtArgs> | null
     platformCredentials: Prisma.$PlatformCredentialPayload<ExtArgs>[]
+    savedWhatsAppMsgs: Prisma.$WhatsAppMessagePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1974,6 +2145,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   mailboxes<T extends Prisma.User$mailboxesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$mailboxesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MailboxPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   workspace<T extends Prisma.User$workspaceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$workspaceArgs<ExtArgs>>): Prisma.Prisma__WorkspaceClient<runtime.Types.Result.GetResult<Prisma.$WorkspacePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   platformCredentials<T extends Prisma.User$platformCredentialsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$platformCredentialsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlatformCredentialPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  savedWhatsAppMsgs<T extends Prisma.User$savedWhatsAppMsgsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$savedWhatsAppMsgsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2569,6 +2741,30 @@ export type User$platformCredentialsArgs<ExtArgs extends runtime.Types.Extension
   take?: number
   skip?: number
   distinct?: Prisma.PlatformCredentialScalarFieldEnum | Prisma.PlatformCredentialScalarFieldEnum[]
+}
+
+/**
+ * User.savedWhatsAppMsgs
+ */
+export type User$savedWhatsAppMsgsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WhatsAppMessage
+   */
+  select?: Prisma.WhatsAppMessageSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WhatsAppMessage
+   */
+  omit?: Prisma.WhatsAppMessageOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppMessageInclude<ExtArgs> | null
+  where?: Prisma.WhatsAppMessageWhereInput
+  orderBy?: Prisma.WhatsAppMessageOrderByWithRelationInput | Prisma.WhatsAppMessageOrderByWithRelationInput[]
+  cursor?: Prisma.WhatsAppMessageWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WhatsAppMessageScalarFieldEnum | Prisma.WhatsAppMessageScalarFieldEnum[]
 }
 
 /**
