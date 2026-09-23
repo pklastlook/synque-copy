@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, ShieldCheck, Check, Lock, Mail as MailIcon, Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
+import { ArrowRight, ShieldCheck, Check, Lock, Mail as MailIcon, Eye, EyeOff, Loader2, ShieldAlert, Sparkles, Zap, BarChart3 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { LogoWordmark } from "@/components/glass/logo";
 import Link from "next/link";
@@ -30,106 +30,173 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div className="retaina-bg" aria-hidden>
-        <div className="blob-3" />
+    <div className="relative min-h-screen overflow-hidden bg-background">
+      {/* Ambient background glow — subtle, premium */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-primary/8 blur-[120px]" />
+        <div className="absolute bottom-0 right-0 h-[400px] w-[400px] rounded-full bg-[var(--gold)]/6 blur-[100px]" />
       </div>
 
-      <div className="flex min-h-screen items-center justify-center px-4 py-8">
-        <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl lg:grid-cols-2">
-          {/* Left — brand panel */}
-          <div className="glass-strong crystal-in relative hidden flex-col justify-between p-10 lg:flex">
-            <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[var(--gold)]/15 blur-3xl" />
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
+        <div className="grid w-full max-w-[1020px] overflow-hidden rounded-[20px] lg:grid-cols-[1.1fr_1fr]" style={{ boxShadow: "0 25px 60px -15px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06)" }}>
+
+          {/* === LEFT — Brand Panel === */}
+          <div className="relative hidden flex-col justify-between p-10 lg:flex bg-card border-r border-border">
+            {/* Ambient glow inside the panel */}
+            <div className="pointer-events-none absolute -left-20 top-1/3 h-72 w-72 rounded-full bg-primary/8 blur-[80px]" />
+
+            {/* Logo */}
             <div className="relative">
-              <Link href="/"><LogoWordmark size="text-lg" logoSize={30} /></Link>
+              <Link href="/" className="inline-block transition hover:scale-[1.02] duration-300">
+                <LogoWordmark size="text-lg" logoSize={30} />
+              </Link>
             </div>
+
+            {/* Hero text */}
             <div className="relative">
-              <h2 className="text-3xl font-bold leading-tight tracking-tight">
-                Welcome back to your <span className="gold-text">command center.</span>
+              <div className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Social Media Management
+              </div>
+              <h2 className="text-[32px] font-bold leading-[1.15] tracking-tight">
+                Welcome back to your<br />
+                <span className="retaina-text">command center.</span>
               </h2>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Sign in to manage your team, publish across every platform, and keep your accounts safe.
+              <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-muted-foreground">
+                Sign in to manage your team, publish across every platform, and keep your accounts safe — all from one beautiful workspace.
               </p>
-              <ul className="mt-6 space-y-2.5">
-                {["17 integrated modules", "AI per-account content generation", "Account suspension protection", "Custom domain mail server"].map((t) => (
-                  <li key={t} className="flex items-center gap-2.5 text-sm">
-                    <span className="grid h-5 w-5 place-items-center rounded-full bg-[var(--gold)]/15 text-[var(--gold)]">
-                      <Check className="h-3 w-3" strokeWidth={3} />
-                    </span>
-                    {t}
-                  </li>
+
+              {/* Feature list — clean, generous spacing */}
+              <div className="mt-8 space-y-3.5">
+                {[
+                  { icon: Zap, text: "AI per-account content generation" },
+                  { icon: ShieldCheck, text: "Account suspension protection" },
+                  { icon: BarChart3, text: "Real-time analytics & insights" },
+                ].map(({ icon: Icon, text }) => (
+                  <div key={text} className="flex items-center gap-3">
+                    <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-[13px] font-medium text-foreground/80">{text}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
-            <div className="relative flex items-center gap-2 text-[11px] text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-[var(--gold)]" />
-              Encrypted at rest · 2FA supported · SOC2-ready
+
+            {/* Security badges — pill style */}
+            <div className="relative flex items-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="h-3 w-3" />
+                Encrypted
+              </div>
+              <div className="rounded-full border border-border bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+                2FA Ready
+              </div>
+              <div className="rounded-full border border-border bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+                SOC2
+              </div>
             </div>
           </div>
 
-          {/* Right — login form */}
-          <div className="glass crystal-in flex flex-col justify-center p-8 sm:p-10" style={{ animationDelay: "0.15s" }}>
-            <Link href="/" className="mb-6 flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
+          {/* === RIGHT — Login Form === */}
+          <div className="flex flex-col justify-center bg-card px-8 py-10 sm:px-12">
+
+            {/* Back link */}
+            <Link href="/" className="mb-8 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
               <ArrowRight className="h-3 w-3 rotate-180" /> Back to home
             </Link>
 
-            <h1 className="text-2xl font-bold tracking-tight">Sign in to SocialFlow</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Enter your credentials to continue</p>
+            {/* Form */}
+            <div className="max-w-sm">
+              <h1 className="text-[22px] font-bold tracking-tight">Sign in</h1>
+              <p className="mt-1 text-[13px] text-muted-foreground">Enter your credentials to continue</p>
 
-            <form className="mt-6 space-y-4" onSubmit={submit}>
-              <div>
-                <label className="label-caps text-muted-foreground">Email</label>
-                <div className="relative mt-1.5">
-                  <MailIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-[var(--primary)]/50 focus:bg-background/50"
-                    placeholder="you@yourcompany.com"
-                  />
+              <form className="mt-8 space-y-5" onSubmit={submit}>
+                {/* Email */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Email</label>
+                  <div className="relative mt-2">
+                    <MailIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-3 text-sm outline-none transition-all duration-200 focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+                      placeholder="you@yourcompany.com"
+                      autoComplete="email"
+                      autoFocus
+                    />
+                  </div>
                 </div>
+
+                {/* Password */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Password</label>
+                  <div className="relative mt-2">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+                    <input
+                      type={showPw ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-10 text-sm outline-none transition-all duration-200 focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                    />
+                    <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 transition hover:text-foreground">
+                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember + forgot */}
+                <div className="flex items-center justify-between text-[12px]">
+                  <label className="flex items-center gap-2 text-muted-foreground cursor-pointer">
+                    <input type="checkbox" className="h-3.5 w-3.5 rounded accent-primary" defaultChecked />
+                    Remember me
+                  </label>
+                  <button type="button" className="font-medium text-primary transition hover:underline">Forgot password?</button>
+                </div>
+
+                {/* Error */}
+                {error && (
+                  <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2.5 text-[12px] font-medium text-rose-600 dark:text-rose-400">
+                    <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                    {error}
+                  </div>
+                )}
+
+                {/* Submit — solid, tactile */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="liquid-pill flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                  {loading ? "Signing in…" : "Sign in"}
+                </button>
+              </form>
+
+              {/* Divider */}
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/50">or</span>
+                <div className="h-px flex-1 bg-border" />
               </div>
 
-              <div>
-                <label className="label-caps text-muted-foreground">Password</label>
-                <div className="relative mt-1.5">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type={showPw ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-[var(--primary)]/50 focus:bg-background/50"
-                    placeholder="••••••••"
-                  />
-                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
+              {/* Trial CTA */}
+              <Link
+                href="/"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted/50 hover:scale-[1.01] active:scale-[0.99]"
+              >
+                <Sparkles className="h-4 w-4 text-primary" />
+                Start a 15-day free trial
+              </Link>
 
-              <div className="flex items-center justify-between text-xs">
-                <label className="flex items-center gap-2 text-muted-foreground">
-                  <input type="checkbox" className="accent-[var(--primary)]" defaultChecked /> Remember me
-                </label>
-                <button type="button" className="font-medium text-[var(--primary)] hover:underline">Forgot password?</button>
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 rounded-xl bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-500">
-                  <ShieldAlert className="h-3.5 w-3.5" /> {error}
-                </div>
-              )}
-
-              <button type="submit" disabled={loading} className="liquid-pill glow-ring flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                {loading ? "Signing in…" : "Sign in"}
-              </button>
-            </form>
-
-            <p className="mt-6 text-center text-xs text-muted-foreground">
-              Don&apos;t have an account? Contact your workspace admin to get invited.
-            </p>
+              <p className="mt-6 text-center text-[12px] text-muted-foreground">
+                Don&apos;t have an account?{" "}
+                <Link href="/" className="font-medium text-primary hover:underline">Contact your admin</Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>
