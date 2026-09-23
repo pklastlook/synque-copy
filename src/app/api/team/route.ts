@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -37,4 +38,46 @@ export async function GET() {
       };
     })
   );
+}
+
+/** POST /api/team — invite/create a new team member */
+export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const { name, email, role, title, department, password } = body as {
+    name: string;
+    email: string;
+    role?: string;
+    title?: string;
+    department?: string;
+    password?: string;
+  };
+
+  if (!name || !email) {
+    return NextResponse.json({ error: "name and email required" }, { status: 400 });
+  }
+
+  // Check for existing email
+  const existing = await db.user.findUnique({ where: { email } }).catch(() => null);
+  if (existing) {
+    return NextResponse.json({ error: "A user with this email already exists" }, { status: 409 });
+  }
+
+  // Hash password (generate random if not provided — invited user sets it later)
+  const hashedPassword = password
+    ? await bcrypt.hash(password, 12)
+    : await bcrypt.hash(Math.random().toString(36).slice(2), 12);
+
+  const user = await db.user.create({
+    data: {
+      name,
+      email,
+      password: hashedPassword,
+      role: role ?? "member",
+      title: title ?? null,
+      department: department ?? null,
+      status: "active",
+    },
+  });
+
+  return NextResponse.json({ id: user.id, ok: true });
 }
