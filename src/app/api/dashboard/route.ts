@@ -9,6 +9,17 @@ function fmt(n: number) {
   return n.toString();
 }
 
+const PLATFORMS_COLOR_MAP: Record<string, string> = {
+  instagram: "#E1306C",
+  facebook: "#1877F2",
+  x: "#0F1419",
+  twitter: "#0F1419",
+  linkedin: "#0A66C2",
+  tiktok: "#010101",
+  youtube: "#FF0000",
+  threads: "#000000",
+};
+
 /**
  * GET /api/dashboard
  *
@@ -299,6 +310,164 @@ export async function GET() {
       .sort((a, b) => b.engagement - a.engagement)
       .slice(0, 4);
 
+    // === AI Insights (smart recommendations based on real data) ===
+    const insights: { type: "warning" | "info" | "success" | "tip"; title: string; desc: string; action?: string; actionView?: string }[] = [];
+
+    if (failedCount > 0) {
+      insights.push({
+        type: "warning",
+        title: `${failedCount} post${failedCount > 1 ? "s" : ""} failed to publish`,
+        desc: "These drafts need attention — republish from the composer to retry.",
+        action: "View drafts",
+        actionView: "composer",
+      });
+    }
+    if (commentsPending > 0) {
+      insights.push({
+        type: "info",
+        title: `${commentsPending} unread comments need replies`,
+        desc: `Your reply rate is ${replyRate}%. Responding within 24h boosts engagement by 3-5x.`,
+        action: "Open inbox",
+        actionView: "inbox",
+      });
+    }
+    if (draftCount > 0) {
+      insights.push({
+        type: "tip",
+        title: `${draftCount} draft${draftCount > 1 ? "s" : ""} waiting to be published`,
+        desc: "Publish or schedule them to maintain a consistent posting cadence.",
+        action: "Open composer",
+        actionView: "composer",
+      });
+    }
+    if (postsLast7d > 0 && postsLast7d >= 3) {
+      insights.push({
+        type: "success",
+        title: `Strong week — ${postsLast7d} posts created`,
+        desc: `You're on track. Keep the momentum going with ${Math.max(0, 5 - postsLast7d)} more posts this week to hit your target.`,
+      });
+    }
+    if (postsLast7d === 0) {
+      insights.push({
+        type: "warning",
+        title: "No posts created this week",
+        desc: "Consistency is key to social growth. Start with a quick post using AI composer.",
+        action: "Compose with AI",
+        actionView: "composer",
+      });
+    }
+    if (insights.length === 0) {
+      insights.push({
+        type: "success",
+        title: "All caught up!",
+        desc: "No urgent actions needed. Your team is performing well.",
+      });
+    }
+
+    // === Goal tracking (weekly targets) ===
+    const weeklyPostTarget = 5; // 5 posts/week target
+    const replyRateTarget = 80; // 80% reply rate target
+    const engagementTarget = 100; // 100 engagement interactions target
+    const publishingTarget = 7; // 7 published posts/week target
+
+    const weeklyPostProgress = Math.min(100, Math.round((postsLast7d / weeklyPostTarget) * 100));
+    const replyRateProgress = Math.min(100, Math.round((replyRate / replyRateTarget) * 100));
+    const engagementProgress = Math.min(100, Math.round((totalEngagement / engagementTarget) * 100));
+    const publishingProgress = Math.min(100, Math.round((publishedLast7d / publishingTarget) * 100));
+
+    const goals = {
+      weeklyPosts: { current: postsLast7d, target: weeklyPostTarget, progress: weeklyPostProgress, label: "Posts this week" },
+      publishing: { current: publishedLast7d, target: publishingTarget, progress: publishingProgress, label: "Published this week" },
+      replyRate: { current: replyRate, target: replyRateTarget, progress: replyRateProgress, label: "Reply rate" },
+      engagement: { current: totalEngagement, target: engagementTarget, progress: engagementProgress, label: "Total engagement" },
+    };
+
+    // === Smart notifications (recent important events) ===
+    const notifications: { id: string; type: "urgent" | "info" | "success"; title: string; desc: string; time: string; actionView?: string }[] = [];
+
+    if (failedCount > 0) {
+      notifications.push({
+        id: "notif-failed",
+        type: "urgent",
+        title: `${failedCount} failed publish attempt${failedCount > 1 ? "s" : ""}`,
+        desc: "Posts couldn't be published to the platform. Check credentials and retry.",
+        time: new Date().toISOString(),
+        actionView: "composer",
+      });
+    }
+    if (commentsPending > 0) {
+      notifications.push({
+        id: "notif-comments",
+        type: "urgent",
+        title: `${commentsPending} unread comments`,
+        desc: "Reply to maintain engagement and build community trust.",
+        time: new Date().toISOString(),
+        actionView: "inbox",
+      });
+    }
+    if (scheduledCount > 0) {
+      const nextScheduled = posts
+        .filter((p) => p.status === "scheduled" && p.scheduledAt)
+        .sort((a, b) => (a.scheduledAt?.getTime() ?? 0) - (b.scheduledAt?.getTime() ?? 0))[0];
+      if (nextScheduled && nextScheduled.scheduledAt) {
+        const timeUntil = nextScheduled.scheduledAt.getTime() - now;
+        const hoursUntil = Math.round(timeUntil / (60 * 60 * 1000));
+        notifications.push({
+          id: "notif-scheduled",
+          type: "info",
+          title: `Next post in ${hoursUntil}h`,
+          desc: `"${nextScheduled.title}" is scheduled to publish soon.`,
+          time: nextScheduled.scheduledAt.toISOString(),
+          actionView: "calendar",
+        });
+      }
+    }
+    if (publishedLast7d > 0) {
+      notifications.push({
+        id: "notif-published",
+        type: "success",
+        title: `${publishedLast7d} posts published this week`,
+        desc: "Great work! Your content is live across platforms.",
+        time: new Date().toISOString(),
+      });
+    }
+
+    // === Audience breakdown (platform summary) ===
+    const audienceByPlatform: { platform: string; followers: number; accounts: number; posts: number; engagement: number; color: string }[] = [];
+    const platformMap: Record<string, { followers: number; accounts: number; posts: number; engagement: number }> = {};
+    for (const acc of accounts) {
+      if (!platformMap[acc.platform]) platformMap[acc.platform] = { followers: 0, accounts: 0, posts: 0, engagement: 0 };
+      platformMap[acc.platform].followers += acc.followers;
+      platformMap[acc.platform].accounts++;
+      const accVariants = variants.filter((v) => v.accountId === acc.id);
+      platformMap[acc.platform].posts += accVariants.length;
+      platformMap[acc.platform].engagement += accVariants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0);
+    }
+    for (const [platform, data] of Object.entries(platformMap)) {
+      audienceByPlatform.push({
+        platform,
+        ...data,
+        color: PLATFORMS_COLOR_MAP[platform] ?? "var(--primary)",
+      });
+    }
+
+    // === Weekly mini-calendar (next 7 days scheduled posts) ===
+    const weekCalendar: { date: string; dayName: string; dayNum: number; postCount: number; isToday: boolean }[] = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(now + d * day);
+      const dayKey = date.toISOString().slice(0, 10);
+      const dayPosts = posts.filter((p) =>
+        p.status === "scheduled" && p.scheduledAt && p.scheduledAt.toISOString().slice(0, 10) === dayKey
+      );
+      weekCalendar.push({
+        date: dayKey,
+        dayName: date.toLocaleDateString(undefined, { weekday: "short" }),
+        dayNum: date.getDate(),
+        postCount: dayPosts.length,
+        isToday: d === 0,
+      });
+    }
+
     return NextResponse.json({
       kpis: {
         // Vanity metrics (with deltas)
@@ -328,6 +497,11 @@ export async function GET() {
       commentInbox,
       upcoming,
       topPosts,
+      insights,
+      goals,
+      notifications,
+      audienceByPlatform,
+      weekCalendar,
       activities: activities.map((a) => ({
         id: a.id,
         userId: a.userId,

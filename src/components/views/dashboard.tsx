@@ -10,6 +10,7 @@ import {
   Sparkles, CheckCircle2, UserPlus, Wand2, ArrowUpRight, ArrowDownRight,
   ChevronRight, ChevronUp, ChevronDown, FileEdit, XCircle, Layers, Inbox,
   PenLine, Hash, Activity, Crown, Award, Trophy, Globe,
+  Lightbulb, Bell, Target, Zap, Calendar, BarChart3, AlertCircle,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -21,6 +22,7 @@ import { PLATFORMS, type PlatformId } from "@/lib/platforms";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
+import type { ViewId } from "@/lib/types";
 
 // ============ Types ============
 
@@ -85,6 +87,29 @@ interface DashboardData {
     id: string; userId: string; userName: string; userColor: string | null;
     userAvatar: string | null; type: string; description: string; createdAt: string;
   }[];
+  insights: {
+    type: "warning" | "info" | "success" | "tip";
+    title: string; desc: string;
+    action?: string; actionView?: string;
+  }[];
+  goals: {
+    weeklyPosts: { current: number; target: number; progress: number; label: string };
+    publishing: { current: number; target: number; progress: number; label: string };
+    replyRate: { current: number; target: number; progress: number; label: string };
+    engagement: { current: number; target: number; progress: number; label: string };
+  };
+  notifications: {
+    id: string; type: "urgent" | "info" | "success";
+    title: string; desc: string; time: string; actionView?: string;
+  }[];
+  audienceByPlatform: {
+    platform: string; followers: number; accounts: number;
+    posts: number; engagement: number; color: string;
+  }[];
+  weekCalendar: {
+    date: string; dayName: string; dayNum: number;
+    postCount: number; isToday: boolean;
+  }[];
 }
 
 const ACTIVITY_ICON: Record<string, React.ElementType> = {
@@ -119,6 +144,27 @@ const TOOLTIP_STYLE = {
 };
 
 type SortKey = "followers" | "reach" | "engagement" | "postsCount" | "engagementRate";
+
+const INSIGHT_META: Record<string, { icon: LucideIcon; color: string; bg: string; border: string; glow: string }> = {
+  warning: { icon: AlertCircle, color: "text-amber-500", bg: "bg-amber-500/15", border: "border-amber-500/30", glow: "bg-amber-500/20" },
+  info: { icon: Lightbulb, color: "text-blue-500", bg: "bg-blue-500/15", border: "border-blue-500/30", glow: "bg-blue-500/20" },
+  success: { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/15", border: "border-emerald-500/30", glow: "bg-emerald-500/20" },
+  tip: { icon: Sparkles, color: "text-purple-500", bg: "bg-purple-500/15", border: "border-purple-500/30", glow: "bg-purple-500/20" },
+};
+
+const NOTIF_META: Record<string, { icon: LucideIcon; bg: string; border: string; iconBg: string; iconColor: string }> = {
+  urgent: { icon: AlertCircle, bg: "bg-rose-500/5", border: "border-rose-500/30", iconBg: "bg-rose-500/15", iconColor: "text-rose-500" },
+  info: { icon: Bell, bg: "bg-blue-500/5", border: "border-blue-500/30", iconBg: "bg-blue-500/15", iconColor: "text-blue-500" },
+  success: { icon: CheckCircle2, bg: "bg-emerald-500/5", border: "border-emerald-500/30", iconBg: "bg-emerald-500/15", iconColor: "text-emerald-500" },
+};
+
+const QUICK_ACTIONS: { label: string; icon: LucideIcon; view: string; bg: string; color: string }[] = [
+  { label: "Compose", icon: Wand2, view: "composer", bg: "bg-primary/15", color: "text-primary" },
+  { label: "Inbox", icon: Inbox, view: "inbox", bg: "bg-amber-500/15", color: "text-amber-500" },
+  { label: "Calendar", icon: Calendar, view: "calendar", bg: "bg-blue-500/15", color: "text-blue-500" },
+  { label: "Analytics", icon: BarChart3, view: "analytics", bg: "bg-emerald-500/15", color: "text-emerald-500" },
+  { label: "Performance", icon: Activity, view: "team-performance", bg: "bg-purple-500/15", color: "text-purple-500" },
+];
 
 // ============ Main view ============
 
@@ -244,6 +290,153 @@ export function DashboardView() {
         />
       </div>
 
+      {/* === AI INSIGHTS BANNER (NEW) — smart recommendations === */}
+      {data.insights.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" style={{ animationDelay: "0.28s" }}>
+          {data.insights.slice(0, 3).map((insight, i) => {
+            const meta = INSIGHT_META[insight.type];
+            const InsightIcon = meta.icon;
+            return (
+              <div
+                key={i}
+                className={cn(
+                  "crystal-in glass relative overflow-hidden rounded-2xl border p-4 transition hover:lift-hover",
+                  meta.border
+                )}
+                style={{ animationDelay: `${0.04 * i}s` }}
+              >
+                <div className={cn("pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-3xl", meta.glow)} />
+                <div className="relative flex items-start gap-3">
+                  <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", meta.bg, meta.color)}>
+                    <InsightIcon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-bold">{insight.title}</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">{insight.desc}</div>
+                    {insight.action && insight.actionView && (
+                      <button
+                        onClick={() => setView(insight.actionView as ViewId)}
+                        className={cn("mt-2 flex items-center gap-1 text-[11px] font-semibold", meta.color)}
+                      >
+                        {insight.action} <ChevronRight className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* === QUICK ACTIONS STRIP (NEW) — one-click shortcuts === */}
+      <div className="flex flex-wrap gap-2" style={{ animationDelay: "0.32s" }}>
+        {QUICK_ACTIONS.map((qa, i) => (
+          <button
+            key={qa.label}
+            onClick={() => setView(qa.view as ViewId)}
+            className="crystal-in glass group flex items-center gap-2 rounded-xl border border-border/40 px-4 py-2.5 text-[12px] font-semibold transition hover:border-primary/40 hover:bg-muted/40"
+            style={{ animationDelay: `${0.04 * i}s` }}
+          >
+            <span className={cn("grid h-6 w-6 place-items-center rounded-lg", qa.bg, qa.color)}>
+              <qa.icon className="h-3.5 w-3.5" />
+            </span>
+            {qa.label}
+            <ChevronRight className="h-3 w-3 text-muted-foreground transition group-hover:translate-x-0.5" />
+          </button>
+        ))}
+      </div>
+
+      {/* === GOAL TRACKING + NOTIFICATIONS (NEW) === */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Goal tracking — 4 progress rings */}
+        <GlassCard className="crystal-in p-5 lg:col-span-2" style={{ animationDelay: "0.36s" }}>
+          <SectionTitle
+            title="Weekly goals"
+            desc="Progress toward this week's targets"
+            action={<Target className="h-4 w-4 text-primary" />}
+          />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {([
+              { key: "weeklyPosts", icon: FileText, color: "oklch(0.62 0.22 255)" },
+              { key: "publishing", icon: Send, color: "oklch(0.74 0.18 165)" },
+              { key: "replyRate", icon: Reply, color: "oklch(0.66 0.22 305)" },
+              { key: "engagement", icon: TrendingUp, color: "oklch(0.7 0.2 25)" },
+            ] as const).map((g, i) => {
+              const goal = data.goals[g.key];
+              return (
+                <GoalRing
+                  key={g.key}
+                  label={goal.label}
+                  current={goal.current}
+                  target={goal.target}
+                  progress={goal.progress}
+                  icon={g.icon}
+                  color={g.color}
+                  delay={0.04 * i}
+                />
+              );
+            })}
+          </div>
+        </GlassCard>
+
+        {/* Smart notifications */}
+        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.44s" }}>
+          <SectionTitle
+            title="Notifications"
+            desc="Important alerts"
+            action={
+              <span className="flex items-center gap-1.5 text-[10px]">
+                {data.notifications.length > 0 && (
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+                    {data.notifications.length}
+                  </span>
+                )}
+                <Bell className="h-4 w-4 text-primary" />
+              </span>
+            }
+          />
+          <div className="scroll-liquid max-h-[240px] space-y-2 overflow-y-auto pr-1">
+            {data.notifications.length > 0 ? (
+              data.notifications.map((n, i) => {
+                const meta = NOTIF_META[n.type];
+                const NotifIcon = meta.icon;
+                return (
+                  <div
+                    key={n.id}
+                    className={cn("flex items-start gap-2 rounded-xl border p-2.5 transition hover:bg-muted/40", meta.border, meta.bg)}
+                    style={{ animationDelay: `${0.04 * i}s` }}
+                  >
+                    <div className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-lg", meta.iconBg, meta.iconColor)}>
+                      <NotifIcon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold">{n.title}</div>
+                      <div className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">{n.desc}</div>
+                      {n.actionView && (
+                        <button
+                          onClick={() => setView(n.actionView as ViewId)}
+                          className={cn("mt-1 text-[10px] font-semibold", meta.iconColor)}
+                        >
+                          View →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/15 text-emerald-500">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div className="text-xs text-muted-foreground">All clear — no alerts</div>
+              </div>
+            )}
+          </div>
+        </GlassCard>
+      </div>
+
       {/* === PAGES RANKING (NEW) — interactive sortable table === */}
       <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.30s" }}>
         <SectionTitle
@@ -335,6 +528,93 @@ export function DashboardView() {
           </ResponsiveContainer>
         </div>
       </GlassCard>
+
+      {/* === AUDIENCE BREAKDOWN + WEEK CALENDAR (NEW) === */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Audience by platform */}
+        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.42s" }}>
+          <SectionTitle title="Audience" desc="Followers by platform" action={<Users className="h-4 w-4 text-primary" />} />
+          {data.audienceByPlatform.length > 0 ? (
+            <div className="space-y-2">
+              {data.audienceByPlatform.map((p, i) => {
+                const total = data.audienceByPlatform.reduce((s, x) => s + x.followers, 0) || 1;
+                const pct = Math.round((p.followers / total) * 100);
+                return (
+                  <div key={p.platform} className="rounded-xl border border-border/40 bg-muted/20 p-2.5" style={{ animationDelay: `${0.04 * i}s` }}>
+                    <div className="flex items-center gap-2">
+                      <PlatformBadge platform={p.platform as PlatformId} size={18} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-bold">{PLATFORMS[p.platform as PlatformId]?.name ?? p.platform}</div>
+                        <div className="text-[9px] text-muted-foreground">{p.accounts} acc · {p.posts} posts</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="num-display text-sm font-bold">{fmt(p.followers)}</div>
+                        <div className="text-[8px] text-muted-foreground">{pct}%</div>
+                      </div>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(pct, 2)}%`, background: p.color }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-muted text-muted-foreground">
+                <Users className="h-5 w-5" />
+              </div>
+              <div className="text-xs text-muted-foreground">No audience data yet</div>
+            </div>
+          )}
+        </GlassCard>
+
+        {/* Week calendar strip */}
+        <GlassCard className="crystal-in p-5 lg:col-span-2" style={{ animationDelay: "0.48s" }}>
+          <SectionTitle
+            title="This week"
+            desc="Scheduled posts for the next 7 days"
+            action={
+              <button onClick={() => setView("calendar")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                Calendar <ArrowUpRight className="h-3 w-3" />
+              </button>
+            }
+          />
+          <div className="grid grid-cols-7 gap-2">
+            {data.weekCalendar.map((d, i) => (
+              <div
+                key={d.date}
+                className={cn(
+                  "crystal-in glass relative overflow-hidden rounded-xl border p-2 text-center transition hover:lift-hover",
+                  d.isToday ? "border-primary/50 bg-primary/5" : "border-border/40 bg-muted/20"
+                )}
+                style={{ animationDelay: `${0.04 * i}s` }}
+              >
+                <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{d.dayName}</div>
+                <div className={cn("num-display mt-1 text-base font-bold", d.isToday && "text-primary")}>{d.dayNum}</div>
+                {d.postCount > 0 ? (
+                  <div className="mt-1 flex items-center justify-center gap-0.5">
+                    <span className="grid h-4 w-4 place-items-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground">
+                      {d.postCount}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-1 h-4" />
+                )}
+                {d.isToday && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center justify-between rounded-xl bg-muted/30 px-3 py-2 text-[10px]">
+            <span className="text-muted-foreground">
+              {data.weekCalendar.reduce((s, d) => s + d.postCount, 0)} posts scheduled this week
+            </span>
+            <button onClick={() => setView("composer")} className="flex items-center gap-1 font-semibold text-primary">
+              <Wand2 className="h-3 w-3" /> Schedule more
+            </button>
+          </div>
+        </GlassCard>
+      </div>
 
       {/* === CONTENT PIPELINE + COMMENT INBOX === */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -826,6 +1106,43 @@ function PagesRankingTable({
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ Goal Ring — animated circular progress ============
+function GoalRing({
+  label, current, target, progress, icon: Icon, color, delay,
+}: {
+  label: string; current: number; target: number; progress: number;
+  icon: LucideIcon; color: string; delay: number;
+}) {
+  const r = 28;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (progress / 100) * circ;
+  return (
+    <div
+      className="crystal-in glass flex flex-col items-center rounded-2xl border border-border/40 p-3 transition hover:lift-hover"
+      style={{ animationDelay: `${delay}s` }}
+    >
+      <div className="relative h-16 w-16">
+        <svg className="h-full w-full -rotate-90" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r={r} fill="none" stroke="var(--muted)" strokeWidth="5" opacity={0.3} />
+          <circle
+            cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="5"
+            strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
+            style={{ transition: "stroke-dashoffset 1s ease-out" }}
+          />
+        </svg>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <Icon className="h-4 w-4" style={{ color }} />
+        </div>
+      </div>
+      <div className="mt-2 text-center">
+        <div className="num-display text-sm font-bold">{current}<span className="text-[10px] text-muted-foreground">/{target}</span></div>
+        <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className="mt-0.5 text-[9px] font-bold" style={{ color }}>{progress}%</div>
       </div>
     </div>
   );
