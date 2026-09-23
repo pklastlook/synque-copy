@@ -58,8 +58,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
     let twitterClient: TwitterApi;
 
     try {
-      if (cred.apiKey && cred.apiSecret && cred.accessToken && cred.accessSecret) {
-        // OAuth 1.0a — full read+write access (recommended for posting)
+      // Try OAuth 2.0 access token first (from OAuth login flow)
+      if (cred.accessToken && cred.accessSecret && cred.apiKey && cred.apiSecret) {
+        // OAuth 1.0a — full read+write access
         twitterClient = new TwitterApi({
           appKey: cred.apiKey,
           appSecret: cred.apiSecret,
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
         twitterClient = new TwitterApi(cred.accessToken);
       } else {
         return NextResponse.json({
-          error: "Posting requires OAuth 1.0a credentials (Consumer Key + Secret + Access Token + Secret) or an OAuth 2.0 access token with tweet.write scope. Bearer Token is read-only.",
+          error: "You need to connect your X/Twitter account first. Go to Accounts → Connect account → click X → login with Twitter. This grants posting permission.",
         }, { status: 400 });
       }
 
@@ -103,16 +104,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
       const message = err instanceof Error ? err.message : "Twitter posting error";
       console.error("[publish/twitter]", message);
 
+      // 402 = Payment Required (Free tier doesn't allow posting)
+      if (message.includes("402") || message.includes("Payment Required")) {
+        return NextResponse.json({
+          error: "Your Twitter Developer App is on the Free tier which doesn't allow posting. Go to developer.twitter.com → your app → upgrade to Basic tier ($100/month) to enable tweet posting. Alternatively, connect your X account via OAuth login (Accounts → Connect → X) which uses your user token instead.",
+        }, { status: 402 });
+      }
+      // 401 = Unauthorized
       if (message.includes("401") || message.includes("Unauthorized")) {
         return NextResponse.json({
-          error: "Authentication failed. Your Twitter API credentials are invalid or expired. Re-check them in Settings → Platform API Keys.",
+          error: "Authentication failed. Connect your X account via OAuth login first: go to Accounts → Connect account → click X → login with Twitter. This grants posting permission.",
         }, { status: 401 });
       }
+      // 403 = Forbidden
       if (message.includes("403") || message.includes("Forbidden")) {
         return NextResponse.json({
           error: "Permission denied. Your Twitter app needs 'Read and Write' permissions. Go to developer.twitter.com → your app → App permissions → change to 'Read and Write'.",
         }, { status: 403 });
       }
+      // 429 = Rate limited
       if (message.includes("429") || message.includes("Too Many Requests")) {
         return NextResponse.json({
           error: "Rate limit exceeded. Twitter limits API calls per 15-minute window. Please wait and try again.",
