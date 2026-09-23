@@ -10,7 +10,6 @@ export type ViewId =
   | "campaigns"
   | "media"
   | "listening"
-  | "approvals"
   | "hashtags"
   | "competitors"
   | "reports"

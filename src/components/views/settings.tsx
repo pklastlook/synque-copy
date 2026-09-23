@@ -171,18 +171,17 @@ interface TeamMember {
 const CAPABILITIES = [
   "Posts/Create",
   "Posts/Publish",
-  "Approvals/Review",
   "Analytics/View",
   "Team/Manage",
   "Accounts/Connect",
 ] as const;
 
 const PERMISSION_MATRIX: Record<Role, Record<string, boolean>> = {
-  admin: { "Posts/Create": true, "Posts/Publish": true, "Approvals/Review": true, "Analytics/View": true, "Team/Manage": true, "Accounts/Connect": true },
-  manager: { "Posts/Create": true, "Posts/Publish": true, "Approvals/Review": true, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": true },
-  editor: { "Posts/Create": true, "Posts/Publish": false, "Approvals/Review": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
-  member: { "Posts/Create": true, "Posts/Publish": false, "Approvals/Review": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
-  viewer: { "Posts/Create": false, "Posts/Publish": false, "Approvals/Review": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
+  admin: { "Posts/Create": true, "Posts/Publish": true, "Analytics/View": true, "Team/Manage": true, "Accounts/Connect": true },
+  manager: { "Posts/Create": true, "Posts/Publish": true, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": true },
+  editor: { "Posts/Create": true, "Posts/Publish": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
+  member: { "Posts/Create": true, "Posts/Publish": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
+  viewer: { "Posts/Create": false, "Posts/Publish": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
 };
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -1114,8 +1113,6 @@ function NotificationsSection() {
     postLiked: false,
   });
   const [workflow, setWorkflow] = React.useState<Record<string, boolean>>({
-    approvalRequested: true,
-    approvalResolved: true,
     taskAssigned: true,
     taskOverdue: true,
   });
@@ -1163,9 +1160,7 @@ function NotificationsSection() {
           <ToggleRow label="Post liked" desc="High-velocity likes spike on a post." checked={engagement.postLiked} onChange={flip(setEngagement, "postLiked")} />
         </NotificationGroup>
 
-        <NotificationGroup title="Workflow" desc="Approval and task events">
-          <ToggleRow label="Approval requested" desc="A teammate requests your review." checked={workflow.approvalRequested} onChange={flip(setWorkflow, "approvalRequested")} />
-          <ToggleRow label="Approval resolved" desc="A pending approval is actioned." checked={workflow.approvalResolved} onChange={flip(setWorkflow, "approvalResolved")} />
+        <NotificationGroup title="Workflow" desc="Task events">
           <ToggleRow label="Task assigned" desc="You're assigned a new task." checked={workflow.taskAssigned} onChange={flip(setWorkflow, "taskAssigned")} />
           <ToggleRow label="Task overdue" desc="A task passes its due date." checked={workflow.taskOverdue} onChange={flip(setWorkflow, "taskOverdue")} />
         </NotificationGroup>
@@ -1771,7 +1766,7 @@ function IntegrationsSection() {
   const integrations = [
     { id: "mail", name: "Mail Server", desc: "Send digests & alerts from your own SMTP.", icon: Mail, status: "Connected" },
     { id: "zapier", name: "Zapier", desc: "Trigger SocialFlow actions from 6,000+ apps.", icon: Zap, status: "Connected" },
-    { id: "slack", name: "Slack", desc: "Pipe approvals and alerts into your channels.", icon: MessageSquare, status: "Disconnected" },
+    { id: "slack", name: "Slack", desc: "Pipe alerts and notifications into your channels.", icon: MessageSquare, status: "Disconnected" },
     { id: "ga", name: "Google Analytics", desc: "Pull GA4 traffic data into analytics reports.", icon: BarChart3, status: "Connected" },
     { id: "canva", name: "Canva", desc: "Import Canva designs straight into your media library.", icon: ImageIcon, status: "Disconnected" },
     { id: "unsplash", name: "Unsplash", desc: "Free stock photography for your next post.", icon: ImageIcon, status: "Connected" },
