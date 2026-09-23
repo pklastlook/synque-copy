@@ -1529,3 +1529,38 @@ Work Log:
 Stage Summary:
 - 7 source files + generated Prisma client. Committed (b381b30) by pklastlook@gmail.com, pushed to GitHub.
 - tsc: 0 errors in src/. lint: 0 errors.
+
+---
+Task ID: oauth2-token-field
+Agent: main (code assistant)
+Task: Add a separate `oauth2UserToken` field so the OAuth login flow stops overwriting the OAuth 1.0a token; publish route should try the OAuth 2.0 user token first.
+
+Work Log:
+- Added `oauth2UserToken String?` to the PlatformCredential model in prisma/schema.prisma (kept the existing `accessToken` for OAuth 1.0a).
+- Pushed schema to Neon: `DATABASE_URL=...neon... bunx prisma db push --accept-data-loss` → "already in sync" (column existed from earlier push).
+- Updated /api/oauth/callback/[platform]/route.ts: callback now writes the OAuth 2.0 access token into `oauth2UserToken` instead of `accessToken`, so the "Login with X" flow no longer clobbers a previously-added OAuth 1.0a access token.
+- Updated /api/publish/[platform]/route.ts (twitter branch) with a 2-priority strategy:
+    PRIORITY 1 — POST /2/tweets with `Bearer ${cred.oauth2UserToken}` (user-context token, pay-per-use billing). On success → done. On 401 → token expired, fall through.
+    PRIORITY 2 — twitter-api-v2 OAuth 1.0a client using apiKey/apiSecret/accessToken/accessSecret (app-level).
+- Ran a one-time MIGRATION script (scripts/migrate-oauth2-token.ts) because the PRE-fix callback had stored the existing user's OAuth 2.0 token into `accessToken`. The script copies `accessToken` → `oauth2UserToken` for Twitter rows where: oauth2UserToken is null, clientId+clientSecret set, accessToken length > 60 (OAuth 1.0a tokens are ~50 chars; OAuth 2.0 tokens are ~91 chars). Result: 1 row migrated (userId=cmud7haf8…) → oauth2UserToken now populated with the 91-char OAuth 2.0 user token. accessToken/accessSecret left untouched so OAuth 1.0a still has its old (possibly polluted) data as a fallback only.
+- Added scripts/check-cred.ts (read-only audit of Twitter PlatformCredential rows: clientId/clientSecret/apiKey/apiSecret/accessToken/accessSecret/oauth2UserToken/bearerToken with truncated previews + lengths).
+
+Verification (DB query via Prisma client):
+  userId: cmud7haf8000032pcaefhr434
+  connected: true
+  clientId: SET (len=34)                 ← OAuth 2.0 App ID
+  clientSecret: SET (len=50)
+  apiKey: SET                            ← OAuth 1.0a Consumer Key (from Settings)
+  apiSecret: SET                         ← OAuth 1.0a Consumer Secret (from Settings)
+  accessToken: SET (len=91)             ← legacy slot, now ignored by PRIORITY 1
+  accessSecret: SET (len=45)
+  oauth2UserToken: SET (len=91)          ← NEW field, populated by migration ✓
+  bearerToken: NULL
+
+Stage Summary:
+- Schema change: 1 new nullable column `PlatformCredential.oauth2UserToken`.
+- Publish route: tries OAuth 2.0 user token first, falls back to OAuth 1.0a only on 401.
+- OAuth callback: no longer overwrites OAuth 1.0a accessToken when user logs in via "Login with X".
+- Existing user (Ashraf) does NOT need to re-run the "Login with X" flow — the 91-char OAuth 2.0 user token was migrated from `accessToken` into `oauth2UserToken`. Posting will use the migrated token immediately.
+- If the migrated OAuth 2.0 token has expired (Twitter issues 2-hour tokens without offline.access refresh handling), the user will need to click "Login with X" ONCE to refresh — the callback will write the fresh token directly into `oauth2UserToken` without disturbing OAuth 1.0a creds.
+- Files: prisma/schema.prisma, src/app/api/oauth/callback/[platform]/route.ts, src/app/api/publish/[platform]/route.ts, scripts/check-cred.ts, scripts/migrate-oauth2-token.ts.
