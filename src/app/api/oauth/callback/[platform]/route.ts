@@ -240,12 +240,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
         return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(errMsg)}`, req.url));
       }
       accessToken = tokenJson.access_token;
+      console.log(`[oauth/callback/twitter] got access token, fetching profile...`);
 
-      // Fetch real profile data
+      // Fetch real profile data using the OAuth 2.0 access token
       const meRes = await fetch("https://api.twitter.com/2/users/me?user.fields=public_metrics,verified,name,username,profile_image_url", {
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
       });
+      console.log(`[oauth/callback/twitter] profile response status: ${meRes.status}`);
       const meJson = await meRes.json();
+      console.log(`[oauth/callback/twitter] profile data:`, JSON.stringify(meJson).slice(0, 300));
 
       if (meJson.data) {
         const user = meJson.data;
@@ -300,6 +306,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
             },
           });
         }
+      } else {
+        // Profile fetch failed — but we still have the access token
+        // Create the account with whatever handle we can, and store the token
+        console.log(`[oauth/callback/twitter] profile fetch failed, creating account with minimal data`);
+        console.log(`[oauth/callback/twitter] meJson:`, JSON.stringify(meJson));
       }
     }
 
