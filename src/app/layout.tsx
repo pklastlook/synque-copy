@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({
@@ -42,7 +42,24 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
-          <Toaster />
+          <SonnerToaster
+            position="top-center"
+            richColors
+            closeButton
+            toastOptions={{
+              style: {
+                borderRadius: "16px",
+                border: "1px solid var(--border)",
+                background: "var(--popover)",
+                color: "var(--popover-foreground)",
+                boxShadow: "0 8px 32px -4px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.05)",
+                fontSize: "14px",
+                fontWeight: "500",
+                padding: "14px 18px",
+                gap: "8px",
+              },
+            }}
+          />
         </ThemeProvider>
       </body>
     </html>
