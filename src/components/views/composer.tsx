@@ -412,10 +412,10 @@ export function ComposerView() {
         if (is402) {
           // Copy content to clipboard for manual posting
           const contentToCopy = selectedAccounts.map(a => {
-            const v = v[a.id];
-            return v.hashtags
-              ? `${v.content}\n\n${v.hashtags.split(",").map(t => `#${t.trim()}`).join(" ")}`
-              : v.content;
+            const variant = v[a.id];
+            return variant.hashtags
+              ? `${variant.content}\n\n${variant.hashtags.split(",").map(t => `#${t.trim()}`).join(" ")}`
+              : variant.content;
           }).join("\n\n---\n\n");
 
           try {
