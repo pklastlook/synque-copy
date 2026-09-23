@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, ShieldCheck, Check, Rocket } from "lucide-react";
+import { ArrowRight, ShieldCheck, Check, Rocket, Lock, Mail as MailIcon, Users, Building2, PhoneCall, CreditCard, Loader2, Sparkles, Wifi, ShieldCheck as Shield, Zap } from "lucide-react";
 import { LogoWordmark } from "@/components/glass/logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
@@ -23,7 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Lock, Mail as MailIcon, Users, Building2, PhoneCall, CreditCard, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 /** Shared nav bar for all landing pages */
@@ -124,10 +123,47 @@ export function TrialCTA({ className, label = "Start your 15-day trial" }: { cla
   );
 }
 
+/** Premium animated credit card preview */
+function CardPreview({ name, number, expiry, cvc }: { name: string; number: string; expiry: string; cvc: string }) {
+  const displayNum = number || "•••• •••• •••• ••••";
+  const displayName = name || "YOUR NAME";
+  const displayExp = expiry || "MM/YY";
+  return (
+    <div className="crystal-in relative h-44 w-full max-w-sm overflow-hidden rounded-2xl bg-gradient-to-br from-[oklch(0.25_0.04_275)] via-[oklch(0.2_0.06_280)] to-[oklch(0.15_0.03_270)] p-5 shadow-2xl" style={{ animationDelay: "0.1s" }}>
+      {/* Shimmer */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10" />
+      {/* Chip */}
+      <div className="relative h-8 w-10 rounded-md bg-gradient-to-br from-[oklch(0.75_0.15_85)] to-[oklch(0.6_0.12_65)] shadow-inner">
+        <div className="absolute inset-1 grid grid-cols-3 grid-rows-3 gap-px opacity-40">
+          {Array.from({ length: 9 }).map((_, i) => <div key={i} className="rounded-sm bg-amber-900/30" />)}
+        </div>
+      </div>
+      {/* Number */}
+      <div className="relative mt-4 font-mono text-lg tracking-wider text-white/90">{displayNum}</div>
+      {/* Footer */}
+      <div className="relative mt-4 flex items-end justify-between">
+        <div>
+          <div className="text-[8px] uppercase tracking-wide text-white/40">Card Holder</div>
+          <div className="text-xs font-medium uppercase text-white/80">{displayName}</div>
+        </div>
+        <div>
+          <div className="text-[8px] uppercase tracking-wide text-white/40">Expires</div>
+          <div className="text-xs font-medium text-white/80">{displayExp}</div>
+        </div>
+        {/* Card brand */}
+        <div className="flex gap-1">
+          <div className="h-5 w-5 rounded-full bg-rose-500/60" />
+          <div className="-ml-2 h-5 w-5 rounded-full bg-amber-400/60" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Trial dialog — creates real user on activation (with card payment) */
 export function TrialDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (b: boolean) => void }) {
   const { signup } = useAuth();
-  const [step, setStep] = React.useState<"details" | "payment" | "activating" | "done">("details");
+  const [step, setStep] = React.useState<"details" | "payment" | "processing" | "done">("details");
   const [form, setForm] = React.useState({
     name: "", email: "", company: "", teamSize: "5-10", phone: "", password: "",
     cardName: "", cardNumber: "", expiry: "", cvc: "",
@@ -165,28 +201,40 @@ export function TrialDialog({ open, onOpenChange }: { open: boolean; onOpenChang
 
   const activate = async () => {
     if (!validatePayment()) return;
-    setStep("activating");
+    setStep("processing");
+    // Simulate payment processing
+    await new Promise((r) => setTimeout(r, 2000));
+    // Create the user account
     const success = await signup(form.name.trim(), form.email.trim(), form.password);
     if (success) {
       setStep("done");
-      setTimeout(() => { onOpenChange(false); window.location.href = "/"; }, 1500);
+      setTimeout(() => { onOpenChange(false); window.location.href = "/"; }, 2500);
     } else {
       setStep("payment");
       toast.error("Failed to create account. This email may already be registered.");
     }
   };
 
+  const processingSteps = [
+    { label: "Validating card details", done: true, icon: CreditCard },
+    { label: "Authorizing payment", done: true, icon: Shield },
+    { label: "Creating your workspace", done: false, icon: Loader2 },
+    { label: "Provisioning modules", done: false, icon: Loader2 },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-strong max-h-[92vh] max-w-lg overflow-y-auto">
-        <div className="mb-2 flex items-center gap-2">
-          <StepDot n={1} active={step === "details"} done={step !== "details"} />
-          <div className={cn("h-px flex-1 transition", step !== "details" ? "bg-[var(--gold)]" : "bg-border")} />
-          <StepDot n={2} active={step === "payment" || step === "activating"} done={step === "activating" || step === "done"} />
-          <div className={cn("h-px flex-1 transition", step === "done" ? "bg-[var(--gold)]" : "bg-border")} />
-          <StepDot n={3} active={step === "done"} done={step === "done"} />
+        {/* Step indicator */}
+        <div className="mb-4 flex items-center gap-2">
+          <StepDot n={1} label="Details" active={step === "details"} done={step !== "details"} />
+          <div className={cn("h-px flex-1 transition-all duration-300", step !== "details" ? "bg-[var(--gold)]" : "bg-border")} />
+          <StepDot n={2} label="Payment" active={step === "payment" || step === "processing"} done={step === "processing" || step === "done"} />
+          <div className={cn("h-px flex-1 transition-all duration-300", step === "done" ? "bg-[var(--gold)]" : "bg-border")} />
+          <StepDot n={3} label="Active" active={step === "done"} done={step === "done"} />
         </div>
 
+        {/* STEP 1: Details */}
         {step === "details" && (
           <>
             <DialogHeader>
@@ -215,7 +263,7 @@ export function TrialDialog({ open, onOpenChange }: { open: boolean; onOpenChang
               <Field icon={<Lock className="h-3.5 w-3.5" />} label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder="Min 6 characters" error={errors.password} />
               <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
                 <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
-                <span>Your card won&apos;t be charged today. Cancel anytime.</span>
+                <span>Your card won&apos;t be charged today. You&apos;ll get a reminder 3 days before the trial ends. Cancel anytime.</span>
               </div>
             </div>
             <DialogFooter>
@@ -227,12 +275,19 @@ export function TrialDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           </>
         )}
 
+        {/* STEP 2: Payment */}
         {step === "payment" && (
           <>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-lg"><CreditCard className="h-5 w-5 text-[var(--gold)]" /> Add a payment method</DialogTitle>
+              <DialogTitle className="flex items-center gap-2 text-lg"><CreditCard className="h-5 w-5 text-[var(--gold)]" /> Payment method</DialogTitle>
               <DialogDescription>Required to activate. <b className="text-foreground">You won&apos;t be charged</b> for 15 days.</DialogDescription>
             </DialogHeader>
+
+            {/* Premium card preview */}
+            <div className="flex justify-center py-3">
+              <CardPreview name={form.cardName} number={form.cardNumber} expiry={form.expiry} cvc={form.cvc} />
+            </div>
+
             <div className="space-y-3">
               <Field icon={<Users className="h-3.5 w-3.5" />} label="Name on card" value={form.cardName} onChange={(v) => setForm({ ...form, cardName: v })} placeholder="Ashraf" error={errors.cardName} />
               <div>
@@ -252,6 +307,12 @@ export function TrialDialog({ open, onOpenChange }: { open: boolean; onOpenChang
                   {errors.cvc && <p className="mt-1 text-[11px] font-medium text-rose-500">{errors.cvc}</p>}
                 </div>
               </div>
+              {/* Security badges */}
+              <div className="flex items-center gap-4 rounded-xl bg-muted/30 p-3 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1"><Lock className="h-3 w-3 text-[var(--gold)]" /> 256-bit SSL</span>
+                <span className="flex items-center gap-1"><Shield className="h-3 w-3 text-[var(--gold)]" /> PCI-DSS</span>
+                <span className="flex items-center gap-1"><Wifi className="h-3 w-3 text-[var(--gold)]" /> Encrypted</span>
+              </div>
             </div>
             <DialogFooter>
               <button onClick={() => setStep("details")} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">Back</button>
@@ -262,36 +323,91 @@ export function TrialDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           </>
         )}
 
-        {step === "activating" && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-[var(--gold)]" />
-            <h3 className="mt-5 text-lg font-semibold">Activating your trial…</h3>
+        {/* STEP 3: Processing */}
+        {step === "processing" && (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            {/* Animated payment processing */}
+            <div className="relative mb-6">
+              <div className="grid h-20 w-20 place-items-center rounded-full bg-[var(--primary)]/15 text-[var(--primary)]">
+                <Loader2 className="h-10 w-10 animate-spin" />
+              </div>
+              <span className="absolute inset-0 animate-ping rounded-full bg-[var(--primary)]/10" />
+              <Sparkles className="absolute -right-1 -top-1 h-5 w-5 text-[var(--gold)] animate-bounce" />
+            </div>
+            <h3 className="text-xl font-bold">Processing your payment…</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Setting up your 15-day trial</p>
+
+            {/* Processing steps */}
+            <div className="mt-6 w-full max-w-xs space-y-3 text-left">
+              {processingSteps.map((s, i) => {
+                const Icon = s.done ? Check : s.icon;
+                return (
+                  <div key={i} className="crystal-in flex items-center gap-3 rounded-xl bg-muted/30 p-3" style={{ animationDelay: `${i * 0.2}s` }}>
+                    <div className={cn("grid h-7 w-7 place-items-center rounded-lg", s.done ? "bg-emerald-500/15 text-emerald-500" : "bg-[var(--primary)]/15 text-[var(--primary)]")}>
+                      <Icon className={cn("h-3.5 w-3.5", !s.done && "animate-spin")} />
+                    </div>
+                    <span className={cn("text-xs font-medium", s.done ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
+                    {s.done && <Check className="ml-auto h-3.5 w-3.5 text-emerald-500" strokeWidth={3} />}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Animated progress bar */}
+            <div className="mt-6 h-1 w-full max-w-xs overflow-hidden rounded-full bg-muted">
+              <div className="h-full animate-pulse rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--gold)]" style={{ width: "75%" }} />
+            </div>
           </div>
         )}
 
+        {/* STEP 4: Done */}
         {step === "done" && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="relative mb-4">
-              <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
-                <Check className="h-10 w-10" strokeWidth={3} />
+          <div className="flex flex-col items-center justify-center py-8 text-center" style={{ animation: "successPop 0.6s cubic-bezier(0.34,1.56,0.64,1) both" }}>
+            {/* Success animation */}
+            <div className="relative mb-6">
+              <div className="grid h-24 w-24 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
+                <Check className="h-12 w-12" strokeWidth={3} />
               </div>
               <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/10" />
+              <Sparkles className="absolute -right-2 -top-2 h-6 w-6 text-[var(--gold)] animate-bounce" />
+              <Zap className="absolute -left-2 -bottom-2 h-5 w-5 text-[var(--primary)] animate-pulse" />
             </div>
-            <h3 className="text-xl font-bold">Trial activated! Welcome to SocialFlow.</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Entering your workspace…</p>
+            <h3 className="text-2xl font-bold">Trial Activated!</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Your 15-day trial is now live. Entering your workspace…</p>
+
+            {/* Trial summary card */}
+            <div className="mt-6 w-full max-w-xs rounded-2xl border border-border/40 bg-muted/30 p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trial Plan</span>
+                <span className="rounded-full bg-[var(--gold)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--gold)]">GROWTH</span>
+              </div>
+              <div className="mt-3 space-y-1.5 text-xs">
+                <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span className="font-medium">15 days</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Charge today</span><span className="font-medium text-emerald-500">$0.00</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">After trial</span><span className="font-medium">$89/mo</span></div>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Redirecting to your dashboard…
+            </div>
           </div>
         )}
+
+        <style>{`@keyframes successPop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }`}</style>
       </DialogContent>
     </Dialog>
   );
 }
 
-function StepDot({ n, active, done }: { n: number; active: boolean; done: boolean }) {
+function StepDot({ n, label, active, done }: { n: number; label: string; active: boolean; done: boolean }) {
   return (
-    <div className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold transition",
-      done ? "bg-[var(--gold)] text-[var(--gold-foreground)]" : active ? "bg-[var(--gold)]/15 text-[var(--gold)] ring-2 ring-[var(--gold)]/30" : "bg-muted text-muted-foreground"
-    )}>
-      {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : n}
+    <div className="flex flex-col items-center gap-1">
+      <div className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold transition-all duration-300",
+        done ? "bg-[var(--gold)] text-[var(--gold-foreground)] shadow-lg" : active ? "bg-[var(--gold)]/15 text-[var(--gold)] ring-2 ring-[var(--gold)]/30" : "bg-muted text-muted-foreground"
+      )}>
+        {done ? <Check className="h-4 w-4" strokeWidth={3} /> : n}
+      </div>
+      <span className={cn("text-[9px] font-medium", done || active ? "text-foreground" : "text-muted-foreground")}>{label}</span>
     </div>
   );
 }
