@@ -23,8 +23,8 @@ import {
   ChevronRight,
   Shield,
   Zap,
-  Globe,
-  Search,
+  AtSign,
+  Building2,
   Activity,
   AlertTriangle,
   ShieldAlert,
@@ -288,53 +288,9 @@ export function AccountsView() {
 
 /* ===================== Connect Account Dialog (multi-step) ===================== */
 
-type Step = "platform" | "detecting" | "permission" | "connecting" | "success";
+type Step = "platform" | "consent" | "handle" | "connecting" | "success";
 
-/** A browser session detected for a given platform — simulates the
- *  "you're already signed in as @handle" UX that real OAuth provides. */
-interface DetectedSession {
-  handle: string;
-  displayName: string;
-  avatar: string;
-  followers: number;
-  verified: boolean;
-  isBusiness: boolean;
-}
-
-/**
- * Plausible signed-in sessions per platform. In a real deployment these
- * would come from the platform's OAuth identity provider after the user
- * approves the connect popup. For the in-app demo we surface a realistic
- * "already signed in" set so the user just grants permission — no manual
- * credential entry.
- */
-const PLATFORM_SESSIONS: Record<PlatformId, DetectedSession[]> = {
-  instagram: [
-    { handle: "@prism.studio", displayName: "Prism Studio", avatar: "", followers: 24800, verified: true, isBusiness: true },
-    { handle: "@ashraf.creator", displayName: "Ashraf", avatar: "", followers: 1240, verified: false, isBusiness: false },
-  ],
-  facebook: [
-    { handle: "Prism Studio", displayName: "Prism Studio", avatar: "", followers: 18200, verified: true, isBusiness: true },
-  ],
-  x: [
-    { handle: "@testclient", displayName: "Test Client", avatar: "", followers: 5400, verified: false, isBusiness: false },
-    { handle: "@prism_social", displayName: "Prism Social", avatar: "", followers: 31200, verified: true, isBusiness: true },
-  ],
-  linkedin: [
-    { handle: "Prism Studio", displayName: "Prism Studio", avatar: "", followers: 8900, verified: true, isBusiness: true },
-  ],
-  tiktok: [
-    { handle: "@prismstudio", displayName: "Prism Studio", avatar: "", followers: 156000, verified: true, isBusiness: true },
-  ],
-  youtube: [
-    { handle: "@PrismStudio", displayName: "Prism Studio", avatar: "", followers: 42300, verified: true, isBusiness: true },
-  ],
-  threads: [
-    { handle: "@prism.studio", displayName: "Prism Studio", avatar: "", followers: 7600, verified: false, isBusiness: false },
-  ],
-};
-
-/** OAuth-style permission scopes shown on the grant step. */
+/** OAuth-style permission scopes shown on the consent step. */
 const PERMISSION_SCOPES: { icon: React.ElementType; label: string; desc: string }[] = [
   { icon: Eye, label: "Read profile", desc: "Handle, name, avatar & follower count" },
   { icon: ImageIcon, label: "Publish posts", desc: "Schedule & publish on your behalf" },
@@ -351,8 +307,10 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
   const { user } = useAuth();
   const [step, setStep] = React.useState<Step>("platform");
   const [platform, setPlatform] = React.useState<PlatformId | null>(null);
-  const [sessions, setSessions] = React.useState<DetectedSession[]>([]);
-  const [selected, setSelected] = React.useState<DetectedSession | null>(null);
+  // Real handle data entered by the user — persisted to the database.
+  const [handle, setHandle] = React.useState("");
+  const [displayName, setDisplayName] = React.useState("");
+  const [isBusiness, setIsBusiness] = React.useState(true);
 
   // Reset when closed
   React.useEffect(() => {
@@ -360,8 +318,9 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
       const t = setTimeout(() => {
         setStep("platform");
         setPlatform(null);
-        setSessions([]);
-        setSelected(null);
+        setHandle("");
+        setDisplayName("");
+        setIsBusiness(true);
       }, 300);
       return () => clearTimeout(t);
     }
@@ -369,37 +328,40 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
 
   const p = platform ? PLATFORMS[platform] : null;
 
-  /** Pick a platform → scan the browser for signed-in sessions. */
+  /** Pick a platform → show the OAuth consent screen. */
   const pickPlatform = (id: PlatformId) => {
     setPlatform(id);
-    setStep("detecting");
-    setSelected(null);
-    // Simulate the OAuth identity probe (~1.4s) — checking the browser's
-    // active login sessions (cookies) for this platform.
-    setTimeout(() => {
-      setSessions(PLATFORM_SESSIONS[id] ?? []);
-      setStep("permission");
-    }, 1400);
+    setStep("consent");
   };
 
-  /** Grant permission → POST the account to the API. */
-  const grantPermission = async () => {
-    if (!platform || !selected) return;
+  /** After the user "authorizes" (OAuth grant), ask for their real handle. */
+  const authorize = () => {
+    setStep("handle");
+  };
+
+  /** Connect → POST the real handle to the API. */
+  const connect = async () => {
+    if (!platform) return;
+    if (!handle.trim()) {
+      toast.error("Enter your handle");
+      return;
+    }
     if (!user?.id) {
       toast.error("Sign in to connect an account");
       return;
     }
     setStep("connecting");
     try {
+      const cleanHandle = handle.trim().startsWith("@") ? handle.trim() : "@" + handle.trim();
       const res = await fetch("/api/accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           platform,
-          handle: selected.handle,
-          displayName: selected.displayName,
+          handle: cleanHandle,
+          displayName: displayName.trim() || cleanHandle,
           loginEmail: null,
-          businessAccount: selected.isBusiness,
+          businessAccount: isBusiness,
           ownerId: user.id,
         }),
       });
@@ -409,17 +371,19 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
       } else {
         const j = await res.json().catch(() => ({}));
         toast.error(j.error ?? "Failed to connect account");
-        setStep("permission");
+        setStep("handle");
       }
     } catch {
       toast.error("Network error");
-      setStep("permission");
+      setStep("handle");
     }
   };
 
-  /** Step labels for the indicator — gives users context on where they are. */
-  const stepLabels = ["Choose", "Grant", "Done"];
-  const currentStepIndex = step === "platform" ? 0 : step === "detecting" || step === "permission" ? 1 : 2;
+  /** Step labels for the indicator. */
+  const stepLabels = ["Choose", "Authorize", "Done"];
+  const currentStepIndex = step === "platform" ? 0 : step === "consent" || step === "handle" || step === "connecting" ? 1 : 2;
+
+  const cleanHandle = handle.trim().startsWith("@") ? handle.trim() : handle.trim() ? "@" + handle.trim() : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -468,8 +432,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 Connect a new account
               </DialogTitle>
               <DialogDescription className="text-[13px]">
-                Choose a platform. We&apos;ll scan your browser for existing
-                sign-in sessions — no passwords to type.
+                Choose a platform to connect via secure OAuth authorization.
               </DialogDescription>
             </DialogHeader>
 
@@ -492,199 +455,196 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
               <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
               <span>
                 <strong className="font-semibold text-foreground">Official OAuth.</strong>{" "}
-                We never see or store your password. You can revoke access anytime
-                from account settings.
+                We never see or store your password. You authorize access on
+                {` `}{PLATFORM_LIST[0].name}'s own consent screen, and you can revoke it anytime.
               </span>
             </div>
           </>
         )}
 
         {/* ================================================================
-            STEP 2a — scanning the browser for signed-in sessions
+            STEP 2a — OAuth consent screen (what SocialFlow will access)
             ================================================================ */}
-        {step === "detecting" && p && (
-          <div className="flex flex-col items-center justify-center py-14 text-center">
-            <div className="relative mb-6">
-              {/* Pulsing radar rings behind the platform icon */}
-              <div className="absolute inset-0 -m-4">
-                <div className="absolute inset-0 animate-ping rounded-3xl bg-primary/10" />
-                <div className="absolute inset-0 animate-ping rounded-3xl bg-primary/10 [animation-delay:0.4s]" />
-              </div>
-              <div className="relative grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[var(--gold)] text-white shadow-xl">
-                <PlatformBadge platform={platform!} size={44} />
-              </div>
-            </div>
-
-            <h3 className="text-lg font-bold">Scanning your browser…</h3>
-            <p className="mt-1.5 max-w-xs text-[13px] text-muted-foreground">
-              Looking for {p.name} accounts you&apos;re already signed in to
-              in this browser.
-            </p>
-
-            {/* Browser-scanning steps indicator */}
-            <div className="mt-6 w-full max-w-xs space-y-2 text-left">
-              <ScanStep icon={Globe} label="Checking browser sessions" active />
-              <ScanStep icon={Search} label="Finding signed-in accounts" pending />
-              <ScanStep icon={ShieldCheck} label="Secure OAuth handshake" pending />
-            </div>
-
-            <div className="mt-6 flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-              <Lock className="h-3 w-3" />
-              No credentials accessed · encrypted
-            </div>
-          </div>
-        )}
-
-        {/* ================================================================
-            STEP 2b — permission grant (OAuth-style)
-            ================================================================ */}
-        {step === "permission" && p && (
+        {step === "consent" && p && (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2.5 text-lg">
                 <button
-                  onClick={() => { setStep("platform"); setPlatform(null); setSessions([]); setSelected(null); }}
+                  onClick={() => { setStep("platform"); setPlatform(null); }}
                   className="grid h-7 w-7 place-items-center rounded-lg bg-muted/60 transition hover:bg-muted"
                   aria-label="Back to platform picker"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
-                <PlatformBadge platform={platform!} size={28} />
-                Grant {p.name} access
+                Authorize {p.name}
               </DialogTitle>
               <DialogDescription className="text-[13px]">
-                {sessions.length > 0
-                  ? "We found these accounts in your browser's active sessions. Pick one to connect."
-                  : "No active browser session found."}
+                SocialFlow needs permission to manage your {p.name} account.
               </DialogDescription>
             </DialogHeader>
 
-            {sessions.length > 0 ? (
-              <>
-                {/* Source banner — clarifies WHERE accounts were found */}
-                <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px]">
-                  <Globe className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-muted-foreground">
-                    <strong className="font-semibold text-emerald-600 dark:text-emerald-400">
-                      {sessions.length} {sessions.length === 1 ? "account" : "accounts"}
-                    </strong>{" "}
-                    found from your browser · sign in to {p.name} to add more
-                  </span>
+            {/* OAuth consent card — like the real platform consent screens */}
+            <div className="crystal-in rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-center justify-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+                  <Sparkles className="h-6 w-6" />
                 </div>
-
-                {/* Detected sessions — selectable cards with radio indicator */}
-                <div className="space-y-2">
-                  {sessions.map((s) => {
-                    const isSel = selected?.handle === s.handle;
-                    return (
-                      <button
-                        key={s.handle}
-                        onClick={() => setSelected(s)}
-                        className={cn(
-                          "flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition-all duration-200",
-                          isSel
-                            ? "border-primary bg-primary/5 shadow-[0_0_0_3px_var(--ring)]"
-                            : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
-                        )}
-                      >
-                        {/* Avatar — platform badge moved to a clean side label */}
-                        <NameAvatar
-                          name={s.displayName}
-                          color="rose"
-                          className={cn("h-11 w-11 shrink-0 text-sm transition", isSel && "ring-2 ring-primary/40")}
-                        />
-
-                        {/* Identity */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate text-sm font-bold">{s.displayName}</span>
-                            {s.verified && <VerifiedTick className="h-3 w-3" />}
-                          </div>
-                          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                            <span className="font-medium">{s.handle}</span>
-                            <span className="text-border">·</span>
-                            <span className="flex items-center gap-0.5">
-                              <Users className="h-2.5 w-2.5" />
-                              {fmt(s.followers)} followers
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Type badge */}
-                        {s.isBusiness && (
-                          <span className="rounded-full bg-[var(--gold)]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--gold)]">
-                            Business
-                          </span>
-                        )}
-
-                        {/* Radio indicator — clear selected state */}
-                        <div
-                          className={cn(
-                            "grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-all",
-                            isSel ? "border-primary bg-primary" : "border-border bg-background"
-                          )}
-                        >
-                          {isSel && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <span className="text-lg">→</span>
                 </div>
-
-                {/* Permission scopes — only after selection */}
-                {selected && (
-                  <div className="crystal-in rounded-2xl border border-border bg-muted/30 p-3.5">
-                    <div className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-foreground">
-                      <Shield className="h-3.5 w-3.5 text-primary" />
-                      SocialFlow will be able to
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      {PERMISSION_SCOPES.map((scope) => {
-                        const Icon = scope.icon;
-                        return (
-                          <div key={scope.label} className="flex flex-col gap-1.5 rounded-xl bg-card p-2.5">
-                            <div className="flex items-center gap-1.5">
-                              <div className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                                <Icon className="h-3 w-3" />
-                              </div>
-                              <span className="text-[11px] font-semibold">{scope.label}</span>
-                            </div>
-                            <span className="text-[10px] leading-tight text-muted-foreground">{scope.desc}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              /* No-session fallback — clearer path to manual connect */
-              <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-8 text-center">
-                <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
-                  <Search className="h-6 w-6" />
+                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-border bg-muted">
+                  <PlatformBadge platform={platform!} size={32} />
                 </div>
-                <p className="mt-3 text-sm font-semibold">No active {p.name} browser session</p>
-                <p className="mt-1.5 text-[12px] text-muted-foreground">
-                  Open {p.name} in a new tab, sign in, then come back here.
-                  We&apos;ll detect it automatically.
-                </p>
               </div>
-            )}
+              <p className="mt-4 text-center text-[13px] text-muted-foreground">
+                <strong className="font-semibold text-foreground">SocialFlow</strong> wants to access your{" "}
+                <strong className="font-semibold text-foreground">{p.name}</strong> account
+              </p>
+
+              {/* Permission scopes */}
+              <div className="mt-5 space-y-2.5">
+                {PERMISSION_SCOPES.map((scope) => {
+                  const Icon = scope.icon;
+                  return (
+                    <div key={scope.label} className="flex items-start gap-3 rounded-xl bg-muted/40 p-2.5">
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-[13px] font-semibold">{scope.label}</div>
+                        <div className="text-[11px] text-muted-foreground">{scope.desc}</div>
+                      </div>
+                      <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-500" strokeWidth={3} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] text-muted-foreground">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>
+                You&apos;ll be redirected to {p.name} to approve this request.
+                SocialFlow never sees your password — only an access token you can revoke.
+              </span>
+            </div>
 
             <DialogFooter className="gap-2 sm:gap-2">
               <button
                 onClick={() => { setStep("platform"); setPlatform(null); }}
                 className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-muted"
               >
+                Cancel
+              </button>
+              <button
+                onClick={authorize}
+                className="liquid-pill glow-ring flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold sm:flex-none"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Authorize with {p.name}
+              </button>
+            </DialogFooter>
+          </>
+        )}
+
+        {/* ================================================================
+            STEP 2b — Enter your handle (after OAuth authorization)
+            In production this would come from the OAuth provider's response.
+            Here the user enters their real handle, which is persisted to the DB.
+            ================================================================ */}
+        {step === "handle" && p && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2.5 text-lg">
+                <button
+                  onClick={() => setStep("consent")}
+                  className="grid h-7 w-7 place-items-center rounded-lg bg-muted/60 transition hover:bg-muted"
+                  aria-label="Back"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                Your {p.name} account
+              </DialogTitle>
+              <DialogDescription className="text-[13px]">
+                Authorization granted. Enter your {p.name} handle to finish connecting.
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Authorization granted banner */}
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px]">
+              <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
+              <span className="text-muted-foreground">
+                <strong className="font-semibold text-emerald-600 dark:text-emerald-400">Authorized.</strong>{" "}
+                {p.name} granted read, publish & insights access.
+              </span>
+            </div>
+
+            {/* Handle input form — real data persisted to DB */}
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <AtSign className="h-3.5 w-3.5 text-muted-foreground" />
+                  {p.name} handle
+                </label>
+                <div className="flex items-center overflow-hidden rounded-xl border border-border bg-card focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20">
+                  <input
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9@._-]/g, ""))}
+                    placeholder="@yourbrand"
+                    autoFocus
+                    className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none"
+                  />
+                  {cleanHandle && (
+                    <span className="px-3 text-[11px] font-medium text-muted-foreground">{cleanHandle}</span>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  The {`@`}username exactly as it appears on {p.name}.
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  Display name
+                </label>
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your Brand"
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              {/* Business account toggle */}
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-[13px] font-semibold">Business / Creator account</div>
+                    <div className="text-[11px] text-muted-foreground">Enables insights, ads & scheduling</div>
+                  </div>
+                </div>
+                <Switch checked={isBusiness} onCheckedChange={setIsBusiness} />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <button
+                onClick={() => setStep("consent")}
+                className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-muted"
+              >
                 Back
               </button>
               <button
-                onClick={grantPermission}
-                disabled={!selected}
+                onClick={connect}
+                disabled={!handle.trim()}
                 className="liquid-pill glow-ring flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
               >
                 <ShieldCheck className="h-4 w-4" />
-                {selected ? `Allow access to ${selected.displayName}` : "Select an account"}
+                Connect {cleanHandle || p.name}
               </button>
             </DialogFooter>
           </>
@@ -693,7 +653,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
         {/* ================================================================
             STEP 3 — connecting
             ================================================================ */}
-        {step === "connecting" && p && selected && (
+        {step === "connecting" && p && (
           <div className="flex flex-col items-center justify-center py-14 text-center">
             <div className="relative mb-6">
               <div className="grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[var(--gold)] text-white shadow-xl">
@@ -701,12 +661,12 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
               </div>
               <Loader2 className="absolute -bottom-1 -right-1 h-8 w-8 animate-spin rounded-full bg-background p-0.5 text-primary" />
             </div>
-            <h3 className="text-lg font-bold">Connecting {selected.displayName}…</h3>
+            <h3 className="text-lg font-bold">Connecting {cleanHandle}…</h3>
             <p className="mt-1.5 text-[13px] text-muted-foreground">
               Fetching profile & syncing analytics
             </p>
             <div className="mt-6 w-full max-w-xs space-y-2.5 text-left">
-              <ConnectingStep label="Permission granted" done />
+              <ConnectingStep label="Authorization granted" done />
               <ConnectingStep label="Fetching profile info" />
               <ConnectingStep label="Syncing analytics" pending />
             </div>
@@ -716,7 +676,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
         {/* ================================================================
             STEP 4 — success
             ================================================================ */}
-        {step === "success" && p && selected && (
+        {step === "success" && p && (
           <div className="flex flex-col items-center justify-center py-14 text-center">
             <div className="relative mb-5">
               <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
@@ -724,53 +684,18 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
               </div>
               <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/10" />
             </div>
-            <h3 className="text-xl font-bold">{selected.displayName} connected!</h3>
+            <h3 className="text-xl font-bold">Connected!</h3>
             <p className="mt-1.5 text-[13px] text-muted-foreground">
-              {selected.handle} on {p.name} is now live in your workspace.
+              <span className="font-semibold text-foreground">{cleanHandle}</span> on {p.name} is now live in your workspace.
             </p>
             <div className="mt-5 flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
               <ShieldCheck className="h-3.5 w-3.5" />
-              OAuth access granted · {selected.isBusiness ? "Business account" : "Personal account"}
+              OAuth access granted · {isBusiness ? "Business account" : "Personal account"}
             </div>
           </div>
         )}
       </DialogContent>
     </Dialog>
-  );
-}
-
-/** Small scanning-step row used in the "detecting" state. */
-function ScanStep({
-  icon: Icon,
-  label,
-  active,
-  pending,
-}: {
-  icon: React.ElementType;
-  label: string;
-  active?: boolean;
-  pending?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div
-        className={cn(
-          "grid h-7 w-7 shrink-0 place-items-center rounded-lg transition",
-          active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-        )}
-      >
-        {active ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
-      </div>
-      <span
-        className={cn(
-          "text-[12px] transition",
-          active ? "font-medium text-foreground" : pending ? "text-muted-foreground/60" : "text-muted-foreground"
-        )}
-      >
-        {label}
-      </span>
-      {active && <div className="ml-auto h-1 w-1 animate-pulse rounded-full bg-primary" />}
-    </div>
   );
 }
 
