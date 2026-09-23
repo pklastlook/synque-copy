@@ -84,49 +84,49 @@ export function KpiCard({
 
   return (
     <GlassCard hover className="crystal-card glass-sheen crystal-in group relative overflow-hidden p-6" style={{ animationDelay: `${delay}ms` }}>
-      {/* ambient gradient glow */}
+      {/* ambient gradient glow — subtle, controlled */}
       <div
-        className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full opacity-[0.16] blur-2xl transition duration-500 group-hover:opacity-30 group-hover:scale-125"
+        className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full opacity-[0.12] blur-2xl transition duration-500 group-hover:opacity-25"
         style={{ background: accent ?? "var(--primary)" }}
       />
       {/* shimmer sweep on hover */}
       <span className="crystal-sweep pointer-events-none absolute inset-0" />
-      {/* Premium icon — glass tile with accent-colored icon (matches sidebar style) */}
-      <div className="relative flex items-start justify-between">
-        <div className="relative">
+
+      {/* Top row: label (tiny, uppercase, muted) + delta badge */}
+      <div className="relative flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
           <div
-            className="grid h-11 w-11 place-items-center rounded-xl border backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3"
+            className="grid h-9 w-9 place-items-center rounded-lg border backdrop-blur-md transition-transform duration-300 group-hover:scale-110"
             style={{
-              background: `${accent ?? "var(--primary)"}15`,
-              borderColor: `${accent ?? "var(--primary)"}30`,
+              background: `${accent ?? "var(--primary)"}12`,
+              borderColor: `${accent ?? "var(--primary)"}25`,
             }}
           >
-            <span
-              className="pointer-events-none absolute inset-0 rounded-xl opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70"
-              style={{ background: accent ?? "var(--primary)" }}
-            />
-            <span className="relative transition-transform duration-300 group-hover:scale-110" style={{ color: accent ?? "var(--primary)" }}>
+            <span style={{ color: accent ?? "var(--primary)" }} className="[&_svg]:h-4 [&_svg]:w-4">
               {icon}
             </span>
           </div>
+          <span className="label-caps text-muted-foreground">{label}</span>
         </div>
         {delta !== undefined && (
           <span
             className={cn(
-              "flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold tabular-nums transition-transform duration-300 group-hover:scale-105",
-              up ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"
+              "flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums transition-transform duration-300 group-hover:scale-105",
+              up ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
             )}
           >
-            {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {up ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
             {Math.abs(delta)}%
           </span>
         )}
       </div>
-      <div className="relative mt-5">
-        <div className="num-display text-[32px] font-semibold leading-none tracking-tight">{display}</div>
-        <div className="label-caps mt-2 text-muted-foreground">{label}</div>
-        {hint && <div className="mt-0.5 text-[11px] text-muted-foreground/60">{hint}</div>}
+
+      {/* Massive number — the hero of the card (Apple-style typographic confidence) */}
+      <div className="relative mt-4">
+        <div className="num-display text-[40px] font-bold leading-none tracking-tight sm:text-[44px]">{display}</div>
+        {hint && <div className="mt-1.5 text-[11px] font-medium text-muted-foreground">{hint}</div>}
       </div>
+
       {/* Real data bars — show actual time-series data from the database */}
       {bars.length > 0 && (
         <div className="relative mt-4 flex h-8 items-end gap-[2px]">
@@ -145,8 +145,9 @@ export function KpiCard({
         </div>
       )}
       {bars.length === 0 && (
-        <div className="relative mt-4 flex h-8 items-center justify-center">
-          <span className="text-[10px] text-muted-foreground/40">No data yet</span>
+        <div className="relative mt-4 flex h-8 items-center gap-1.5 text-muted-foreground/50">
+          <span className="h-1.5 w-1.5 rounded-full bg-current opacity-40" />
+          <span className="text-[10px] font-medium">Awaiting data</span>
         </div>
       )}
       <style>{`@keyframes sparkRise { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }`}</style>
@@ -164,10 +165,10 @@ export function SectionTitle({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-end justify-between gap-3">
+    <div className="mb-4 flex items-start justify-between gap-3">
       <div>
-        <h2 className="text-base font-semibold tracking-tight sm:text-lg">{title}</h2>
-        {desc && <p className="text-xs text-muted-foreground sm:text-sm">{desc}</p>}
+        <h2 className="text-base font-bold tracking-tight sm:text-lg">{title}</h2>
+        {desc && <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>}
       </div>
       {action}
     </div>
