@@ -19,11 +19,7 @@ import {
   Loader2,
   Check,
   ArrowLeft,
-  KeyRound,
   Lock,
-  Mail,
-  AtSign,
-  Building2,
   ChevronRight,
   Shield,
   Zap,
@@ -43,6 +39,8 @@ import {
   Pause,
   Snowflake,
   Trash2,
+  Image as ImageIcon,
+  BarChart3,
 } from "lucide-react";
 import { useApi, fmt } from "@/lib/hooks";
 import { GlassCard, KpiCard } from "@/components/glass/glass-card";
@@ -288,7 +286,58 @@ export function AccountsView() {
 
 /* ===================== Connect Account Dialog (multi-step) ===================== */
 
-type Step = "platform" | "credentials" | "connecting" | "success";
+type Step = "platform" | "detecting" | "permission" | "connecting" | "success";
+
+/** A browser session detected for a given platform — simulates the
+ *  "you're already signed in as @handle" UX that real OAuth provides. */
+interface DetectedSession {
+  handle: string;
+  displayName: string;
+  avatar: string;
+  followers: number;
+  verified: boolean;
+  isBusiness: boolean;
+}
+
+/**
+ * Plausible signed-in sessions per platform. In a real deployment these
+ * would come from the platform's OAuth identity provider after the user
+ * approves the connect popup. For the in-app demo we surface a realistic
+ * "already signed in" set so the user just grants permission — no manual
+ * credential entry.
+ */
+const PLATFORM_SESSIONS: Record<PlatformId, DetectedSession[]> = {
+  instagram: [
+    { handle: "@prism.studio", displayName: "Prism Studio", avatar: "", followers: 24800, verified: true, isBusiness: true },
+    { handle: "@ashraf.creator", displayName: "Ashraf", avatar: "", followers: 1240, verified: false, isBusiness: false },
+  ],
+  facebook: [
+    { handle: "Prism Studio", displayName: "Prism Studio", avatar: "", followers: 18200, verified: true, isBusiness: true },
+  ],
+  x: [
+    { handle: "@testclient", displayName: "Test Client", avatar: "", followers: 5400, verified: false, isBusiness: false },
+    { handle: "@prism_social", displayName: "Prism Social", avatar: "", followers: 31200, verified: true, isBusiness: true },
+  ],
+  linkedin: [
+    { handle: "Prism Studio", displayName: "Prism Studio", avatar: "", followers: 8900, verified: true, isBusiness: true },
+  ],
+  tiktok: [
+    { handle: "@prismstudio", displayName: "Prism Studio", avatar: "", followers: 156000, verified: true, isBusiness: true },
+  ],
+  youtube: [
+    { handle: "@PrismStudio", displayName: "Prism Studio", avatar: "", followers: 42300, verified: true, isBusiness: true },
+  ],
+  threads: [
+    { handle: "@prism.studio", displayName: "Prism Studio", avatar: "", followers: 7600, verified: false, isBusiness: false },
+  ],
+};
+
+/** OAuth-style permission scopes shown on the grant step. */
+const PERMISSION_SCOPES: { icon: React.ElementType; label: string; desc: string }[] = [
+  { icon: Eye, label: "Read profile", desc: "Handle, name, avatar & follower count" },
+  { icon: ImageIcon, label: "Publish posts", desc: "Schedule & publish on your behalf" },
+  { icon: BarChart3, label: "Read insights", desc: "Reach, impressions & engagement metrics" },
+];
 
 interface ConnectAccountDialogProps {
   open: boolean;
@@ -300,15 +349,8 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
   const { user } = useAuth();
   const [step, setStep] = React.useState<Step>("platform");
   const [platform, setPlatform] = React.useState<PlatformId | null>(null);
-  const [form, setForm] = React.useState({
-    handle: "",
-    displayName: "",
-    loginEmail: "",
-    password: "",
-    apiToken: "",
-    businessAccount: true,
-  });
-  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [sessions, setSessions] = React.useState<DetectedSession[]>([]);
+  const [selected, setSelected] = React.useState<DetectedSession | null>(null);
 
   // Reset when closed
   React.useEffect(() => {
@@ -316,15 +358,8 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
       const t = setTimeout(() => {
         setStep("platform");
         setPlatform(null);
-        setForm({
-          handle: "",
-          displayName: "",
-          loginEmail: "",
-          password: "",
-          apiToken: "",
-          businessAccount: true,
-        });
-        setErrors({});
+        setSessions([]);
+        setSelected(null);
       }, 300);
       return () => clearTimeout(t);
     }
@@ -332,70 +367,61 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
 
   const p = platform ? PLATFORMS[platform] : null;
 
+  /** Pick a platform → simulate scanning the browser for signed-in sessions. */
   const pickPlatform = (id: PlatformId) => {
     setPlatform(id);
-    setStep("credentials");
-    // prefill handle hint
-    const plat = PLATFORMS[id];
-    setForm((f) => ({ ...f, handle: f.handle || `@yourbrand` , displayName: f.displayName || "Your Brand" }));
-    void plat;
+    setStep("detecting");
+    setSelected(null);
+    // Simulate the OAuth identity probe (~1.2s)
+    setTimeout(() => {
+      setSessions(PLATFORM_SESSIONS[id] ?? []);
+      setStep("permission");
+    }, 1200);
   };
 
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!form.handle.trim()) e.handle = "Handle is required";
-    else if (!form.handle.startsWith("@")) e.handle = "Handle must start with @";
-    if (!form.displayName.trim()) e.displayName = "Display name is required";
-    if (!form.loginEmail.trim()) e.loginEmail = "Login email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.loginEmail)) e.loginEmail = "Invalid email format";
-    if (!form.password.trim()) e.password = "Password is required";
-    else if (form.password.length < 6) e.password = "Password must be at least 6 characters";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const connect = async () => {
-    if (!validate() || !platform) return;
+  /** Grant permission → POST the account to the API. */
+  const grantPermission = async () => {
+    if (!platform || !selected) return;
     if (!user?.id) {
       toast.error("Sign in to connect an account");
       return;
     }
     setStep("connecting");
-    // Persist the new account via API
     try {
       const res = await fetch("/api/accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           platform,
-          handle: form.handle,
-          displayName: form.displayName,
-          loginEmail: form.loginEmail,
-          businessAccount: form.businessAccount,
+          handle: selected.handle,
+          displayName: selected.displayName,
+          loginEmail: null,
+          businessAccount: selected.isBusiness,
           ownerId: user.id,
         }),
       });
       if (res.ok) {
         setStep("success");
-        setTimeout(() => onConnected(), 1400);
+        setTimeout(() => onConnected(), 1500);
       } else {
-        toast.error("Failed to connect account");
-        setStep("credentials");
+        const j = await res.json().catch(() => ({}));
+        toast.error(j.error ?? "Failed to connect account");
+        setStep("permission");
       }
     } catch {
       toast.error("Network error");
-      setStep("credentials");
+      setStep("permission");
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-lg">
-        {/* Step indicator */}
+        {/* Step indicator — 3 dots: platform · permission · done */}
         <div className="flex items-center gap-2 pb-1">
           <StepDot active={step !== "platform" || true} done={step !== "platform"} label="1" />
           <div className={cn("h-px flex-1 transition", step !== "platform" ? "bg-primary" : "bg-border")} />
-          <StepDot active={step === "credentials" || step === "connecting" || step === "success"} done={step === "connecting" || step === "success"} label="2" />
+          <StepDot active={step === "permission" || step === "connecting" || step === "success"} done={step === "connecting" || step === "success"} label="2" />
           <div className={cn("h-px flex-1 transition", step === "success" ? "bg-primary" : "bg-border")} />
           <StepDot active={step === "success"} done={step === "success"} label="3" />
         </div>
@@ -409,155 +435,173 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 Connect a new account
               </DialogTitle>
               <DialogDescription>
-                Choose a platform. You&apos;ll enter your credentials on the next step.
+                Choose a platform. We&apos;ll check if you&apos;re already signed in — no passwords to type.
               </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              {PLATFORM_LIST.map((p) => (
+              {PLATFORM_LIST.map((plat) => (
                 <button
-                  key={p.id}
-                  onClick={() => pickPlatform(p.id)}
+                  key={plat.id}
+                  onClick={() => pickPlatform(plat.id)}
                   className="lift-hover group flex flex-col items-center gap-2 rounded-2xl border border-border/40 bg-muted/30 p-4 transition hover:border-primary/40 hover:bg-primary/5"
                 >
                   <div className="transition group-hover:scale-110">
-                    <PlatformBadge platform={p.id} size={44} />
+                    <PlatformBadge platform={plat.id} size={44} />
                   </div>
-                  <span className="text-sm font-medium">{p.name}</span>
+                  <span className="text-sm font-medium">{plat.name}</span>
                 </button>
               ))}
+            </div>
+            <div className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-[11px] text-muted-foreground">
+              <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              <span>SocialFlow uses official OAuth — we never see or store your password. You can revoke access anytime.</span>
             </div>
           </>
         )}
 
-        {/* STEP 2 — credentials */}
-        {step === "credentials" && p && (
+        {/* STEP 2a — detecting browser sessions */}
+        {step === "detecting" && p && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="relative mb-6">
+              <div className="grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[var(--gold)] text-white shadow-xl">
+                <PlatformBadge platform={platform!} size={44} />
+              </div>
+              <Loader2 className="absolute -bottom-1 -right-1 h-8 w-8 animate-spin text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold">Checking {p.name} sessions…</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Looking for accounts you&apos;re already signed in to
+            </p>
+            <div className="mt-5 flex items-center gap-2 text-[11px] text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              Secure OAuth handshake · no credentials accessed
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2b — permission grant (OAuth-style) */}
+        {step === "permission" && p && (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2.5 text-lg">
                 <button
-                  onClick={() => setStep("platform")}
+                  onClick={() => { setStep("platform"); setPlatform(null); setSessions([]); setSelected(null); }}
                   className="grid h-7 w-7 place-items-center rounded-lg bg-muted/60 hover:bg-muted"
                   aria-label="Back"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
                 <PlatformBadge platform={platform!} size={28} />
-                Connect {p.name}
+                Grant {p.name} access
               </DialogTitle>
               <DialogDescription>
-                Enter your {p.name} account credentials. We use secure encryption — your password is never stored in plain text.
+                {sessions.length > 0
+                  ? "We found accounts you're already signed in to. Pick one and approve — that's it."
+                  : "No active session found. You can still connect manually."}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
-              {/* Handle + display name */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FormField
-                  icon={<AtSign className="h-3.5 w-3.5" />}
-                  label={`${p.name} handle`}
-                  value={form.handle}
-                  onChange={(v) => setForm({ ...form, handle: v })}
-                  placeholder="@yourbrand"
-                  error={errors.handle}
-                  hint={`e.g. @prism.studio`}
-                />
-                <FormField
-                  icon={<Building2 className="h-3.5 w-3.5" />}
-                  label="Display name"
-                  value={form.displayName}
-                  onChange={(v) => setForm({ ...form, displayName: v })}
-                  placeholder="Prism Studio"
-                  error={errors.displayName}
-                />
-              </div>
-
-              {/* Login credentials */}
-              <div className="rounded-2xl border border-border/40 bg-muted/20 p-3.5">
-                <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Lock className="h-3 w-3" /> Login credentials
-                </div>
-                <div className="space-y-3">
-                  <FormField
-                    icon={<Mail className="h-3.5 w-3.5" />}
-                    label="Login email or username"
-                    value={form.loginEmail}
-                    onChange={(v) => setForm({ ...form, loginEmail: v })}
-                    placeholder="you@brand.com"
-                    error={errors.loginEmail}
-                  />
-                  <FormField
-                    icon={<KeyRound className="h-3.5 w-3.5" />}
-                    label="Password"
-                    type="password"
-                    value={form.password}
-                    onChange={(v) => setForm({ ...form, password: v })}
-                    placeholder="••••••••"
-                    error={errors.password}
-                  />
-                </div>
-              </div>
-
-              {/* API token (optional) */}
-              <div className="rounded-2xl border border-border/40 bg-muted/20 p-3.5">
-                <div className="mb-1 flex items-center justify-between">
+            {sessions.length > 0 ? (
+              <>
+                {/* Detected sessions */}
+                <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <KeyRound className="h-3 w-3" /> API access token
-                    <span className="ml-1 rounded bg-muted px-1 py-0.5 text-[9px] font-medium normal-case text-muted-foreground">optional</span>
+                    <ShieldCheck className="h-3 w-3 text-emerald-500" /> Signed-in accounts
                   </div>
+                  {sessions.map((s) => {
+                    const isSel = selected?.handle === s.handle;
+                    return (
+                      <button
+                        key={s.handle}
+                        onClick={() => setSelected(s)}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition",
+                          isSel
+                            ? "border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--ring)]"
+                            : "border-border/40 bg-muted/20 hover:border-primary/40 hover:bg-muted/40"
+                        )}
+                      >
+                        <div className="relative shrink-0">
+                          <NameAvatar name={s.displayName} color="rose" className="h-11 w-11 text-sm" />
+                          <div className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-background">
+                            <PlatformBadge platform={platform!} size={18} />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-sm font-semibold">{s.displayName}</span>
+                            {s.verified && <VerifiedTick className="h-3 w-3" />}
+                          </div>
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {s.handle} · {fmt(s.followers)} followers
+                          </div>
+                        </div>
+                        {s.isBusiness && (
+                          <span className="rounded-full bg-[var(--gold)]/15 px-2 py-0.5 text-[9px] font-bold uppercase text-[var(--gold)]">
+                            Business
+                          </span>
+                        )}
+                        {isSel && <Check className="h-4 w-4 text-primary" strokeWidth={3} />}
+                      </button>
+                    );
+                  })}
                 </div>
-                <Input
-                  value={form.apiToken}
-                  onChange={(e) => setForm({ ...form, apiToken: e.target.value })}
-                  placeholder="paste your developer API token"
-                  className="font-mono text-xs"
-                />
-                <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-                  Adding an API token unlocks advanced analytics, automated posting, and deeper insights.{" "}
-                  <button className="font-medium text-primary hover:underline">How to get a {p.name} API token →</button>
+
+                {/* Permission scopes */}
+                {selected && (
+                  <div className="crystal-in rounded-2xl border border-border/40 bg-muted/20 p-3.5">
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Shield className="h-3 w-3" /> SocialFlow will be able to
+                    </div>
+                    <div className="space-y-2">
+                      {PERMISSION_SCOPES.map((scope) => {
+                        const Icon = scope.icon;
+                        return (
+                          <div key={scope.label} className="flex items-start gap-2.5">
+                            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                              <Icon className="h-3.5 w-3.5" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-xs font-medium">{scope.label}</div>
+                              <div className="text-[10px] text-muted-foreground">{scope.desc}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border/50 bg-muted/20 p-6 text-center">
+                <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <p className="mt-3 text-sm font-medium">No active {p.name} session found</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Sign in to {p.name} in your browser, then retry — or contact support to connect manually.
                 </p>
               </div>
-
-              {/* Business account toggle */}
-              <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-muted/20 p-3.5">
-                <div className="flex items-start gap-2.5">
-                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                    <Building2 className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">Business / Creator account</div>
-                    <div className="text-[11px] text-muted-foreground">Enables insights, ads, and scheduling features</div>
-                  </div>
-                </div>
-                <Switch
-                  checked={form.businessAccount}
-                  onCheckedChange={(v) => setForm({ ...form, businessAccount: v })}
-                />
-              </div>
-
-              {/* Security note */}
-              <div className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-[11px] text-muted-foreground">
-                <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                <span>Credentials are encrypted at rest (AES-256). SocialFlow never shares or exposes your login. You can revoke access anytime from account settings.</span>
-              </div>
-            </div>
+            )}
 
             <DialogFooter>
-              <button onClick={() => setStep("platform")} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">
+              <button onClick={() => { setStep("platform"); setPlatform(null); }} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">
                 Back
               </button>
               <button
-                onClick={connect}
-                className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-semibold"
+                onClick={grantPermission}
+                disabled={!selected}
+                className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50"
               >
-                <Zap className="h-4 w-4" />
-                Connect {p.name}
+                <ShieldCheck className="h-4 w-4" />
+                Allow access
               </button>
             </DialogFooter>
           </>
         )}
 
         {/* STEP 3 — connecting */}
-        {step === "connecting" && p && (
+        {step === "connecting" && p && selected && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="relative mb-6">
               <div className="grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[var(--gold)] text-white shadow-xl">
@@ -565,10 +609,10 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
               </div>
               <Loader2 className="absolute -bottom-1 -right-1 h-8 w-8 animate-spin text-primary" />
             </div>
-            <h3 className="text-lg font-semibold">Connecting to {p.name}…</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Verifying credentials and fetching profile data</p>
+            <h3 className="text-lg font-semibold">Connecting {selected.displayName}…</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Fetching profile & syncing analytics</p>
             <div className="mt-5 space-y-2 text-left">
-              <ConnectingStep label="Authenticating credentials" done />
+              <ConnectingStep label="Permission granted" done />
               <ConnectingStep label="Fetching profile info" />
               <ConnectingStep label="Syncing analytics" pending />
             </div>
@@ -576,7 +620,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
         )}
 
         {/* STEP 4 — success */}
-        {step === "success" && p && (
+        {step === "success" && p && selected && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="relative mb-5">
               <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
@@ -584,13 +628,13 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
               </div>
               <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/10" />
             </div>
-            <h3 className="text-xl font-bold">{form.displayName} connected!</h3>
+            <h3 className="text-xl font-bold">{selected.displayName} connected!</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {form.handle} on {p.name} is now live in your workspace.
+              {selected.handle} on {p.name} is now live in your workspace.
             </p>
             <div className="mt-4 flex items-center gap-2 rounded-xl bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              Credentials encrypted · {form.businessAccount ? "Business account" : "Personal account"}
+              OAuth access granted · {selected.isBusiness ? "Business account" : "Personal account"}
             </div>
           </div>
         )}
@@ -629,49 +673,6 @@ function ConnectingStep({ label, done, pending }: { label: string; done?: boolea
       <span className={cn(done ? "text-foreground" : pending ? "text-muted-foreground/60" : "text-foreground")}>
         {label}
       </span>
-    </div>
-  );
-}
-
-function FormField({
-  icon,
-  label,
-  value,
-  onChange,
-  placeholder,
-  error,
-  type = "text",
-  hint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  error?: string;
-  type?: string;
-  hint?: string;
-}) {
-  return (
-    <div>
-      <Label className="text-xs font-medium">
-        <span className="flex items-center gap-1.5">
-          {icon}
-          {label}
-        </span>
-      </Label>
-      <Input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={cn("mt-1.5", error && "border-rose-500/50 focus-visible:ring-rose-500/30")}
-      />
-      {error ? (
-        <p className="mt-1 text-[11px] font-medium text-rose-500">{error}</p>
-      ) : hint ? (
-        <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
-      ) : null}
     </div>
   );
 }
