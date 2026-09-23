@@ -78,7 +78,10 @@ export const ModelName = {
   SerialKey: 'SerialKey',
   Invoice: 'Invoice',
   Quotation: 'Quotation',
-  BankAccount: 'BankAccount'
+  BankAccount: 'BankAccount',
+  ApiKey: 'ApiKey',
+  Device: 'Device',
+  Subscription: 'Subscription'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -578,6 +581,50 @@ export const BankAccountScalarFieldEnum = {
 } as const
 
 export type BankAccountScalarFieldEnum = (typeof BankAccountScalarFieldEnum)[keyof typeof BankAccountScalarFieldEnum]
+
+
+export const ApiKeyScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  key: 'key',
+  permissions: 'permissions',
+  status: 'status',
+  lastUsed: 'lastUsed',
+  createdAt: 'createdAt'
+} as const
+
+export type ApiKeyScalarFieldEnum = (typeof ApiKeyScalarFieldEnum)[keyof typeof ApiKeyScalarFieldEnum]
+
+
+export const DeviceScalarFieldEnum = {
+  id: 'id',
+  serialKeyId: 'serialKeyId',
+  deviceName: 'deviceName',
+  fingerprint: 'fingerprint',
+  ipAddress: 'ipAddress',
+  location: 'location',
+  status: 'status',
+  lastSeen: 'lastSeen',
+  createdAt: 'createdAt'
+} as const
+
+export type DeviceScalarFieldEnum = (typeof DeviceScalarFieldEnum)[keyof typeof DeviceScalarFieldEnum]
+
+
+export const SubscriptionScalarFieldEnum = {
+  id: 'id',
+  customerId: 'customerId',
+  plan: 'plan',
+  status: 'status',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  trialEnds: 'trialEnds',
+  amount: 'amount',
+  currency: 'currency',
+  createdAt: 'createdAt'
+} as const
+
+export type SubscriptionScalarFieldEnum = (typeof SubscriptionScalarFieldEnum)[keyof typeof SubscriptionScalarFieldEnum]
 
 
 export const SortOrder = {

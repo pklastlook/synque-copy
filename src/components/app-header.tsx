@@ -34,8 +34,8 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   reports: { title: "Reports", subtitle: "Build, schedule and export custom reports" },
   linkbio: { title: "Link in Bio", subtitle: "Your shoppable link-in-bio page" },
   mail: { title: "Mail Server", subtitle: "Custom domain mailboxes for your team" },
-  admin: { title: "Admin Panel", subtitle: "Complete team performance, workflow & oversight" },
-  owner: { title: "Owner Panel", subtitle: "Customers, invoices, quotations, serial keys & banking" },
+  admin: { title: "Admin Panel", subtitle: "Team performance, workflow & oversight" },
+  owner: { title: "Owner Panel", subtitle: "Clients, invoices, serial keys, devices, finance & API keys" },
 };
 
 export function AppHeader({ onMenu }: { onMenu: () => void }) {
