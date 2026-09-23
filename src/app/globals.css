@@ -45,120 +45,141 @@
   --radius-3xl: calc(var(--radius) + 22px);
 }
 
+/* ============================================================================
+   SocialFlow Color System
+   Combines the best of macOS Sonoma (14) · Sequoia (15) · Tahoe (26)
+
+   Sonoma  → vibrant solid system colors, deep accents
+   Sequoia → window tinting, richer materials, refined dark mode
+   Tahoe   → "Liquid Glass" — crystal-clear high-opacity glass with real depth
+
+   Design rules:
+   • Base background is SOLID (not a faded mesh) — glass sits on a solid color
+   • All accent colors use Apple's actual system color values at full chroma
+   • Glass surfaces are 97-99% opacity (essentially solid) with crisp edges
+   • Shadows are layered + defined (not muddy blobs)
+   • 1px top-edge highlight = the "crystal" signature
+   ============================================================================ */
+
 :root {
   --radius: 0.875rem;
 
-  /* Apple macOS 27 "Tahoe" — light: vibrant mesh gradient base */
-  --background: oklch(0.96 0.02 270);
-  --foreground: oklch(0.16 0.01 270);
+  /* Solid background — a clean, near-white with the faintest cool tint
+     (Sonoma wallpaper clarity, not a faded mesh). */
+  --background: oklch(0.985 0.003 264);
+  --foreground: oklch(0.18 0.012 264);
 
-  /* Crystal-solid cards (high opacity white = premium solid glass) */
-  --card: oklch(1 0 0 / 96%);
-  --card-foreground: oklch(0.16 0.01 270);
+  /* Crystal-solid cards — 98% opacity white = premium solid glass.
+     Tahoe glass is CRYSTAL clear, not muddy translucent. */
+  --card: oklch(1 0 0 / 98%);
+  --card-foreground: oklch(0.18 0.012 264);
 
-  --popover: oklch(1 0 0 / 98%);
-  --popover-foreground: oklch(0.16 0.01 270);
+  --popover: oklch(1 0 0 / 99%);
+  --popover-foreground: oklch(0.18 0.012 264);
 
-  /* Brand — Apple blue */
-  --primary: oklch(0.55 0.2 255);
+  /* Brand — Apple system blue (#007AFF) — solid, retina-ready */
+  --primary: oklch(0.588 0.167 254);
   --primary-foreground: oklch(0.99 0 0);
 
-  /* Accent — vivid violet */
-  --gold: oklch(0.62 0.22 300);
+  /* Accent — Apple system purple (#AF52DE) — solid, vivid */
+  --gold: oklch(0.636 0.197 307);
   --gold-foreground: oklch(0.99 0 0);
-  --accent-strong: oklch(0.58 0.24 300);
+  --accent-strong: oklch(0.58 0.21 307);
 
-  --secondary: oklch(0.94 0.01 270);
-  --secondary-foreground: oklch(0.22 0.02 270);
+  /* Sonoma-style solid neutrals — full chroma, not washed out */
+  --secondary: oklch(0.952 0.004 264);
+  --secondary-foreground: oklch(0.22 0.01 264);
 
-  --muted: oklch(0.94 0.008 270);
-  --muted-foreground: oklch(0.45 0.015 270);
+  --muted: oklch(0.952 0.004 264);
+  --muted-foreground: oklch(0.48 0.012 264);
 
-  --accent: oklch(0.93 0.03 300);
-  --accent-foreground: oklch(0.32 0.18 300);
+  --accent: oklch(0.94 0.015 307);
+  --accent-foreground: oklch(0.36 0.15 307);
 
-  --destructive: oklch(0.6 0.24 27);
-  --border: oklch(0.85 0.01 270 / 70%);
-  --input: oklch(0.88 0.01 270 / 80%);
-  --ring: oklch(0.55 0.2 255 / 50%);
+  /* Apple system red (#FF3B30) — solid */
+  --destructive: oklch(0.626 0.225 27);
+  --border: oklch(0.88 0.004 264);
+  --input: oklch(0.92 0.003 264);
+  --ring: oklch(0.588 0.167 254);
 
-  /* Chart palette — vivid multi-color (Apple-style saturated) */
-  --chart-1: oklch(0.55 0.2 255);    /* Apple blue */
-  --chart-2: oklch(0.62 0.22 300);   /* violet */
-  --chart-3: oklch(0.68 0.22 145);   /* green */
-  --chart-4: oklch(0.7 0.2 25);      /* coral */
-  --chart-5: oklch(0.72 0.18 75);    /* amber */
+  /* Chart palette — Apple system colors at full saturation (retina-ready) */
+  --chart-1: oklch(0.588 0.167 254);  /* Apple blue    #007AFF */
+  --chart-2: oklch(0.636 0.197 307);  /* Apple purple  #AF52DE */
+  --chart-3: oklch(0.723 0.178 142);  /* Apple green   #34C759 */
+  --chart-4: oklch(0.635 0.217 17);   /* Apple pink    #FF2D55 */
+  --chart-5: oklch(0.737 0.165 55);   /* Apple orange  #FF9500 */
 
-  --sidebar: oklch(0.99 0.004 270 / 78%);
-  --sidebar-foreground: oklch(0.16 0.01 270);
-  --sidebar-primary: oklch(0.55 0.2 255);
+  /* Sidebar — solid (Sequoia tinted material, not translucent mud) */
+  --sidebar: oklch(0.972 0.003 264);
+  --sidebar-foreground: oklch(0.18 0.012 264);
+  --sidebar-primary: oklch(0.588 0.167 254);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.94 0.012 270 / 80%);
-  --sidebar-accent-foreground: oklch(0.2 0.02 270);
-  --sidebar-border: oklch(0.85 0.01 270 / 50%);
-  --sidebar-ring: oklch(0.55 0.2 255 / 45%);
+  --sidebar-accent: oklch(0.93 0.008 264);
+  --sidebar-accent-foreground: oklch(0.22 0.01 264);
+  --sidebar-border: oklch(0.88 0.004 264);
+  --sidebar-ring: oklch(0.588 0.167 254);
 
-  /* Platform brand colors */
-  --p-instagram: oklch(0.68 0.24 25);
-  --p-facebook: oklch(0.55 0.21 264);
-  --p-x: oklch(0.2 0 0);
-  --p-linkedin: oklch(0.5 0.16 250);
-  --p-tiktok: oklch(0.3 0.02 250);
-  --p-youtube: oklch(0.58 0.23 25);
-  --p-threads: oklch(0.25 0 0);
+  /* Platform brand colors — solid Apple-spectrum values */
+  --p-instagram: oklch(0.635 0.217 17);
+  --p-facebook: oklch(0.588 0.167 254);
+  --p-x: oklch(0.18 0 0);
+  --p-linkedin: oklch(0.54 0.16 250);
+  --p-tiktok: oklch(0.2 0.02 250);
+  --p-youtube: oklch(0.626 0.225 27);
+  --p-threads: oklch(0.2 0 0);
 }
 
 .dark {
-  /* Apple macOS 27 "Tahoe" dark — deep space with vivid mesh */
-  --background: oklch(0.13 0.02 275);
-  --foreground: oklch(0.97 0.005 270);
+  /* Tahoe dark — deep, rich, SOLID (not a washed-out mesh) */
+  --background: oklch(0.16 0.012 264);
+  --foreground: oklch(0.97 0.003 264);
 
-  /* Crystal-solid cards (high opacity dark = premium solid glass, not muddy) */
-  --card: oklch(0.2 0.015 275 / 92%);
-  --card-foreground: oklch(0.97 0.005 270);
+  /* Crystal-solid cards — 96% opacity = solid glass with the faintest depth */
+  --card: oklch(0.225 0.014 264 / 96%);
+  --card-foreground: oklch(0.97 0.003 264);
 
-  --popover: oklch(0.22 0.018 275 / 96%);
-  --popover-foreground: oklch(0.97 0.005 270);
+  --popover: oklch(0.25 0.016 264 / 98%);
+  --popover-foreground: oklch(0.97 0.003 264);
 
-  /* Brand — bright Apple blue */
-  --primary: oklch(0.66 0.2 255);
-  --primary-foreground: oklch(0.12 0.02 275);
+  /* Brand — bright Apple blue on dark */
+  --primary: oklch(0.69 0.165 254);
+  --primary-foreground: oklch(0.14 0.02 264);
 
-  /* Accent — vivid violet */
-  --gold: oklch(0.72 0.22 300);
-  --gold-foreground: oklch(0.12 0.02 275);
-  --accent-strong: oklch(0.66 0.24 300);
+  /* Accent — vivid Apple purple */
+  --gold: oklch(0.7 0.197 307);
+  --gold-foreground: oklch(0.14 0.02 264);
+  --accent-strong: oklch(0.66 0.21 307);
 
-  --secondary: oklch(0.26 0.015 275 / 85%);
-  --secondary-foreground: oklch(0.97 0.005 270);
+  --secondary: oklch(0.27 0.014 264);
+  --secondary-foreground: oklch(0.97 0.003 264);
 
-  --muted: oklch(0.24 0.012 275 / 80%);
-  --muted-foreground: oklch(0.68 0.012 270);
+  --muted: oklch(0.27 0.012 264);
+  --muted-foreground: oklch(0.7 0.01 264);
 
-  --accent: oklch(0.34 0.08 300 / 85%);
-  --accent-foreground: oklch(0.92 0.06 300);
+  --accent: oklch(0.32 0.06 307);
+  --accent-foreground: oklch(0.92 0.05 307);
 
-  --destructive: oklch(0.68 0.22 22);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.66 0.2 255 / 50%);
+  --destructive: oklch(0.696 0.195 22);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.69 0.165 254);
 
-  /* Chart palette — vivid multi-color (glows on dark) */
-  --chart-1: oklch(0.66 0.2 255);    /* Apple blue */
-  --chart-2: oklch(0.72 0.22 300);   /* violet */
-  --chart-3: oklch(0.74 0.2 145);    /* green */
-  --chart-4: oklch(0.72 0.22 25);    /* coral */
-  --chart-5: oklch(0.78 0.18 75);    /* amber */
+  /* Chart palette — vivid Apple system colors that glow on dark */
+  --chart-1: oklch(0.69 0.165 254);   /* Apple blue    */
+  --chart-2: oklch(0.7 0.197 307);    /* Apple purple  */
+  --chart-3: oklch(0.76 0.178 142);   /* Apple green   */
+  --chart-4: oklch(0.69 0.217 17);    /* Apple pink    */
+  --chart-5: oklch(0.78 0.165 55);    /* Apple orange  */
 
-  /* Sidebar darker than page content for premium depth */
-  --sidebar: oklch(0.1 0.015 275 / 88%);
-  --sidebar-foreground: oklch(0.95 0.006 270);
-  --sidebar-primary: oklch(0.66 0.2 255);
-  --sidebar-primary-foreground: oklch(0.1 0.015 275);
-  --sidebar-accent: oklch(0.18 0.015 275 / 90%);
-  --sidebar-accent-foreground: oklch(0.95 0.006 270);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.66 0.2 255 / 45%);
+  /* Sidebar — solid, slightly darker than page for Tahoe depth */
+  --sidebar: oklch(0.135 0.012 264);
+  --sidebar-foreground: oklch(0.95 0.004 264);
+  --sidebar-primary: oklch(0.69 0.165 254);
+  --sidebar-primary-foreground: oklch(0.14 0.02 264);
+  --sidebar-accent: oklch(0.22 0.014 264);
+  --sidebar-accent-foreground: oklch(0.95 0.004 264);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.69 0.165 254);
 }
 
 @layer base {
@@ -172,61 +193,84 @@
   body {
     min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-feature-settings: "ss01", "cv01", "cv11";
   }
 }
 
-/* ===== Crystal Glass surfaces (macOS 27 Tahoe — SOLID, not muddy) ===== */
+/* ============================================================================
+   Crystal Glass surfaces
+   macOS Tahoe "Liquid Glass" — SOLID, crisp, with real depth
+
+   • 97-99% opacity (essentially solid — glass you can read through clearly)
+   • Crisp 1px top-edge highlight = the crystal signature
+   • Layered soft shadows for real depth
+   • NO heavy noise texture (that caused the "splashed/muddy" look)
+   • Subtle backdrop blur only on overlay elements (dialogs, popovers)
+   ============================================================================ */
+
+:root {
+  /* Crystal glass — solid, premium, retina-ready */
+  --glass-bg: oklch(1 0 0 / 97%);
+  --glass-border: oklch(0.88 0.004 264 / 80%);
+  --glass-highlight: oklch(1 0 0 / 100%);
+  --glass-shadow: oklch(0.3 0.02 264 / 14%);
+  --glass-shadow-soft: oklch(0.2 0.02 264 / 10%);
+  --glass-bg-strong: oklch(1 0 0 / 99%);
+
+  /* Crystal accent glow — subtle, controlled */
+  --crystal-glow: oklch(0.588 0.167 254 / 6%);
+}
+.dark {
+  --glass-bg: oklch(0.225 0.014 264 / 97%);
+  --glass-border: oklch(1 0 0 / 10%);
+  --glass-highlight: oklch(1 0 0 / 8%);
+  --glass-shadow: oklch(0 0 0 / 50%);
+  --glass-shadow-soft: oklch(0 0 0 / 35%);
+  --glass-bg-strong: oklch(0.25 0.016 264 / 99%);
+
+  --crystal-glow: oklch(0.69 0.165 254 / 10%);
+}
+
+/* Glass — the standard crystal surface (cards, panels) */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   border: 1px solid var(--glass-border);
   box-shadow:
     0 1px 0 0 var(--glass-highlight) inset,
-    0 8px 24px -8px var(--glass-shadow-soft),
-    0 24px 64px -20px var(--glass-shadow-soft);
+    0 1px 3px 0 var(--glass-shadow-soft),
+    0 8px 24px -8px var(--glass-shadow-soft);
   position: relative;
 }
+/* Subtle crystal sheen — a single soft top highlight, NOT noise */
 .glass::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.025 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: 0.5;
-  mix-blend-mode: overlay;
+  background: linear-gradient(
+    180deg,
+    var(--glass-highlight) 0%,
+    transparent 30%
+  );
+  opacity: 0.6;
 }
 
-:root {
-  /* HIGH opacity = solid crystal (not muddy/translucent) */
-  --glass-bg: oklch(1 0 0 / 92%);
-  --glass-border: oklch(1 0 0 / 75%);
-  --glass-highlight: oklch(1 0 0 / 95%);
-  --glass-shadow: oklch(0.35 0.03 275 / 12%);
-  --glass-shadow-soft: oklch(0.2 0.04 275 / 22%);
-  --glass-bg-strong: oklch(1 0 0 / 97%);
-}
-.dark {
-  --glass-bg: oklch(0.21 0.018 275 / 93%);
-  --glass-border: oklch(1 0 0 / 13%);
-  --glass-highlight: oklch(1 0 0 / 11%);
-  --glass-shadow: oklch(0 0 0 / 45%);
-  --glass-shadow-soft: oklch(0 0 0 / 60%);
-  --glass-bg-strong: oklch(0.23 0.02 275 / 97%);
-}
-
+/* Glass strong — for dialogs, modals, popovers (more opaque) */
 .glass-strong {
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(36px) saturate(200%);
-  -webkit-backdrop-filter: blur(36px) saturate(200%);
+  backdrop-filter: blur(32px) saturate(160%);
+  -webkit-backdrop-filter: blur(32px) saturate(160%);
   border: 1px solid var(--glass-border);
   box-shadow:
     0 1px 0 0 var(--glass-highlight) inset,
-    0 12px 32px -8px var(--glass-shadow-soft),
-    0 32px 80px -24px var(--glass-shadow-soft);
+    0 4px 12px -2px var(--glass-shadow-soft),
+    0 16px 48px -8px var(--glass-shadow),
+    0 32px 80px -16px var(--glass-shadow);
   position: relative;
 }
 .glass-strong::after {
@@ -235,50 +279,40 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.022 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background: linear-gradient(
+    180deg,
+    var(--glass-highlight) 0%,
+    transparent 25%
+  );
   opacity: 0.5;
-  mix-blend-mode: overlay;
 }
 
-/* Premium modal scrim — heavy backdrop blur */
+/* Premium modal scrim — solid dark, not muddy */
 .premium-scrim {
-  background: oklch(0.08 0.01 280 / 55%);
-  backdrop-filter: blur(16px) saturate(120%);
-  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  background: oklch(0.1 0.01 264 / 60%);
+  backdrop-filter: blur(8px) saturate(100%);
+  -webkit-backdrop-filter: blur(8px) saturate(100%);
 }
 
-/* Sidebar — solid crystal, darker than page content for premium depth */
+/* Sidebar — solid Sequoia-tinted material (crisp, not muddy) */
 .glass-sidebar {
   background: var(--sidebar);
-  backdrop-filter: blur(40px) saturate(160%);
-  -webkit-backdrop-filter: blur(40px) saturate(160%);
   border-right: 1px solid var(--sidebar-border);
-  box-shadow:
-    inset -1px 0 0 0 var(--sidebar-border),
-    0 0 0 0 transparent;
-}
-.glass-sidebar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.025 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: 0.5;
-  mix-blend-mode: overlay;
+  box-shadow: inset -1px 0 0 0 var(--sidebar-border);
 }
 
-/* Floating pill topbar */
+/* Floating topbar — solid crystal */
 .glass-topbar {
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid var(--glass-border);
   box-shadow:
     0 1px 0 0 var(--glass-highlight) inset,
-    0 8px 32px -8px var(--glass-shadow-soft);
+    0 2px 8px -2px var(--glass-shadow-soft);
 }
 
-/* Liquid sheen — a subtle moving highlight */
+/* Liquid sheen — subtle moving highlight (kept minimal) */
 .glass-sheen {
   position: relative;
   overflow: hidden;
@@ -293,143 +327,137 @@
     var(--glass-highlight) 45%,
     transparent 55%
   );
-  opacity: 0.5;
+  opacity: 0.3;
   pointer-events: none;
-  mix-blend-mode: overlay;
 }
 
-/* Vibrant mesh background — Apple macOS 27 Tahoe liquid gradient */
+/* ============================================================================
+   Background — SOLID with a single subtle accent glow
+   (Replaces the 4 faded overlapping blobs that caused "splashed" look)
+
+   Tahoe: a solid base with ONE soft accent gradient = clean & premium
+   ============================================================================ */
 .retaina-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 80% 60% at 0% 0%, oklch(0.7 0.18 280 / 0.55), transparent 60%),
-    radial-gradient(ellipse 70% 60% at 100% 0%, oklch(0.65 0.2 25 / 0.4), transparent 55%),
-    radial-gradient(ellipse 80% 70% at 100% 100%, oklch(0.6 0.2 300 / 0.45), transparent 60%),
-    radial-gradient(ellipse 70% 60% at 0% 100%, oklch(0.66 0.18 200 / 0.4), transparent 55%),
-    var(--background);
+  background: var(--background);
 }
-.retaina-bg::before,
-.retaina-bg::after {
+/* Single subtle accent glow — top-right, controlled, not splashed */
+.retaina-bg::before {
   content: "";
   position: absolute;
-  width: 55vw;
-  height: 55vw;
+  top: -20%;
+  right: -10%;
+  width: 60vw;
+  height: 60vw;
+  max-width: 900px;
+  max-height: 900px;
   border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.5;
-  animation: floatBlob 18s ease-in-out infinite;
+  filter: blur(80px);
+  opacity: 0.25;
+  background: radial-gradient(
+    circle at center,
+    var(--crystal-glow),
+    transparent 70%
+  );
 }
-.retaina-bg::before {
-  top: -12vw;
-  left: -8vw;
-  background: radial-gradient(circle at center, oklch(0.62 0.22 280 / 0.6), transparent 70%);
-}
-.retaina-bg::after {
-  bottom: -15vw;
-  right: -10vw;
-  background: radial-gradient(circle at center, oklch(0.66 0.22 330 / 0.45), transparent 70%);
-  animation-delay: -9s;
-}
-.dark .retaina-bg::before { opacity: 0.4; }
-.dark .retaina-bg::after { opacity: 0.35; }
-
-.retaina-bg .blob-3 {
-  position: absolute;
-  top: 30%;
-  left: 45%;
-  width: 40vw;
-  height: 40vw;
-  border-radius: 50%;
-  filter: blur(140px);
+.dark .retaina-bg::before {
   opacity: 0.4;
-  background: radial-gradient(circle at center, oklch(0.7 0.2 200 / 0.5), transparent 70%);
-  animation: floatBlob 22s ease-in-out infinite;
-  animation-delay: -4s;
-}
-.dark .retaina-bg .blob-3 { opacity: 0.3; }
-
-@keyframes floatBlob {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(4vw, -3vw) scale(1.08); }
-  66% { transform: translate(-3vw, 4vw) scale(0.95); }
+  background: radial-gradient(
+    circle at center,
+    oklch(0.588 0.167 254 / 12%),
+    transparent 70%
+  );
 }
 
-/* Retina gradient text */
+/* Retina gradient text — solid, crisp, not animated (less distracting) */
 .retaina-text {
-  background: linear-gradient(135deg, oklch(0.66 0.2 255), oklch(0.72 0.22 300) 50%, oklch(0.7 0.2 25));
-  background-size: 200% 200%;
+  background: linear-gradient(135deg,
+    oklch(0.588 0.167 254),
+    oklch(0.636 0.197 307) 60%,
+    oklch(0.635 0.217 17)
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: gradientShift 8s ease infinite;
 }
 
-/* Accent gradient text (violet) */
+/* Accent gradient text (purple) */
 .gold-text {
-  background: linear-gradient(135deg, oklch(0.72 0.22 300), oklch(0.7 0.2 25) 60%, oklch(0.66 0.2 255));
-  background-size: 200% 200%;
+  background: linear-gradient(135deg,
+    oklch(0.636 0.197 307),
+    oklch(0.635 0.217 17) 60%
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: gradientShift 8s ease infinite;
-}
-@keyframes gradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
 }
 
-/* Liquid pill button base — Apple blue with glow */
+/* ============================================================================
+   Liquid pill buttons — SOLID Apple-blue with crisp edges
+   ============================================================================ */
 .liquid-pill {
-  background: linear-gradient(135deg, var(--primary), oklch(0.45 0.18 265));
+  background: linear-gradient(135deg,
+    oklch(0.588 0.167 254),
+    oklch(0.52 0.18 260)
+  );
   color: var(--primary-foreground);
-  border: 1px solid oklch(1 0 0 / 25%);
+  border: 1px solid oklch(0.45 0.12 254);
   box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 35%) inset,
-    0 6px 20px -6px oklch(0.35 0.18 255 / 55%);
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s ease;
+    0 1px 0 0 oklch(1 0 0 / 30%) inset,
+    0 1px 2px 0 oklch(0.3 0.1 254 / 40%),
+    0 4px 12px -4px oklch(0.3 0.12 254 / 50%);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease, filter 0.2s ease;
 }
 .liquid-pill:hover {
   transform: translateY(-1px);
-  filter: brightness(1.1);
+  filter: brightness(1.08);
   box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 45%) inset,
-    0 10px 28px -6px oklch(0.4 0.18 255 / 65%),
-    0 0 16px -2px var(--gold);
+    0 1px 0 0 oklch(1 0 0 / 40%) inset,
+    0 2px 4px 0 oklch(0.3 0.1 254 / 50%),
+    0 8px 20px -4px oklch(0.3 0.12 254 / 60%);
 }
 .liquid-pill:active { transform: translateY(0) scale(0.98); }
 
-/* Accent variant button — vivid violet */
+/* Accent variant — solid Apple purple */
 .liquid-gold {
-  background: linear-gradient(135deg, var(--gold), oklch(0.5 0.22 320));
+  background: linear-gradient(135deg,
+    oklch(0.636 0.197 307),
+    oklch(0.56 0.2 312)
+  );
   color: var(--gold-foreground);
-  border: 1px solid oklch(1 0 0 / 35%);
+  border: 1px solid oklch(0.5 0.15 307);
   box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 50%) inset,
-    0 6px 20px -6px oklch(0.5 0.2 300 / 55%);
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s ease;
+    0 1px 0 0 oklch(1 0 0 / 35%) inset,
+    0 1px 2px 0 oklch(0.3 0.1 307 / 40%),
+    0 4px 12px -4px oklch(0.3 0.12 307 / 50%);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease, filter 0.2s ease;
 }
 .liquid-gold:hover {
   transform: translateY(-1px);
-  filter: brightness(1.1);
+  filter: brightness(1.08);
   box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 60%) inset,
-    0 10px 28px -6px oklch(0.5 0.2 300 / 70%);
+    0 1px 0 0 oklch(1 0 0 / 45%) inset,
+    0 2px 4px 0 oklch(0.3 0.1 307 / 50%),
+    0 8px 20px -4px oklch(0.3 0.12 307 / 60%);
 }
 .liquid-gold:active { transform: translateY(0) scale(0.98); }
 
 /* Premium hover lift — for cards */
 .lift-hover {
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.3s ease, border-color 0.3s ease;
 }
 .lift-hover:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   box-shadow:
     0 1px 0 0 var(--glass-highlight) inset,
-    0 2px 4px 0 var(--glass-shadow-soft),
-    0 24px 64px -16px var(--glass-shadow-soft);
+    0 2px 6px 0 var(--glass-shadow-soft),
+    0 16px 40px -12px var(--glass-shadow-soft);
 }
 
 /* Premium display number — large, light weight, tabular */
@@ -449,15 +477,17 @@
 
 /* Premium gradient ring for active selection */
 .ring-primary-glow {
-  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring), 0 0 24px -4px var(--primary);
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--ring),
+    0 0 16px -4px var(--primary);
 }
 
-/* Custom scrollbar — thin, glassy */
+/* Custom scrollbar — thin, solid, crisp */
 .scroll-liquid::-webkit-scrollbar { width: 8px; height: 8px; }
 .scroll-liquid::-webkit-scrollbar-track { background: transparent; }
 .scroll-liquid::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
-  opacity: 0.3;
+  background: oklch(0.5 0.01 264 / 0.3);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
@@ -476,8 +506,8 @@
 
 /* Staggered entrance for grid children */
 @keyframes crystalIn {
-  from { opacity: 0; transform: translateY(18px) scale(0.96); filter: blur(6px); }
-  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .crystal-in { animation: crystalIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
@@ -498,11 +528,11 @@
   pointer-events: none;
 }
 .crystal-sweep:hover::after {
-  opacity: 0.5;
+  opacity: 0.4;
   animation: crystalSweep 1.1s ease;
 }
 
-/* Crystal card — premium animated surface with living edge glow */
+/* Crystal card — premium surface with crisp edge glow */
 .crystal-card {
   position: relative;
   isolation: isolate;
@@ -513,21 +543,22 @@
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, var(--glass-highlight), transparent 40%, transparent 60%, var(--glass-highlight));
+  background: linear-gradient(
+    135deg,
+    var(--glass-highlight),
+    transparent 40%,
+    transparent 60%,
+    var(--glass-highlight)
+  );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  opacity: 0.5;
+  opacity: 0.4;
   pointer-events: none;
   transition: opacity 0.4s ease;
 }
 .crystal-card:hover::before {
-  opacity: 1;
-  animation: edgeShimmer 2s linear infinite;
-}
-@keyframes edgeShimmer {
-  0% { filter: hue-rotate(0deg); }
-  100% { filter: hue-rotate(20deg); }
+  opacity: 0.8;
 }
 
 /* Number count-up reveal */
@@ -543,7 +574,12 @@
   100% { background-position: 200% 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, transparent, var(--glass-highlight), transparent);
+  background: linear-gradient(
+    90deg,
+    var(--muted),
+    var(--glass-highlight),
+    var(--muted)
+  );
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
@@ -551,7 +587,7 @@
 /* Premium glow pulse for active nav */
 @keyframes glowPulse {
   0%, 100% { box-shadow: 0 0 0 0 var(--ring); }
-  50% { box-shadow: 0 0 16px 2px var(--ring); }
+  50% { box-shadow: 0 0 12px 2px var(--ring); }
 }
 .glow-pulse { animation: glowPulse 2.5s ease-in-out infinite; }
 
@@ -573,21 +609,33 @@
 .sf-logo .sf-bar-2 { animation: sfFlow2 2.5s ease-in-out infinite 0.3s; }
 .sf-logo .sf-bar-3 { animation: sfFlow3 2.5s ease-in-out infinite 0.6s; }
 
-/* Platform gradient utility classes */
+/* Platform gradient utility classes — SOLID Apple-spectrum brand colors */
 .pl-ig {
-  background: linear-gradient(135deg, oklch(0.72 0.25 350), oklch(0.7 0.24 25) 50%, oklch(0.72 0.22 75));
+  background: linear-gradient(135deg,
+    oklch(0.635 0.217 17),
+    oklch(0.635 0.217 350) 50%,
+    oklch(0.737 0.165 55)
+  );
 }
-.pl-fb { background: oklch(0.55 0.21 264); }
-.pl-x { background: oklch(0.12 0 0); }
-.pl-li { background: oklch(0.5 0.16 250); }
-.pl-tt { background: linear-gradient(135deg, oklch(0.2 0.02 250), oklch(0.6 0.2 195) 50%, oklch(0.5 0.24 350)); }
-.pl-yt { background: oklch(0.58 0.23 25); }
+.pl-fb { background: oklch(0.588 0.167 254); }
+.pl-x { background: oklch(0.18 0 0); }
+.pl-li { background: oklch(0.54 0.16 250); }
+.pl-tt {
+  background: linear-gradient(135deg,
+    oklch(0.18 0 0),
+    oklch(0.723 0.178 142) 50%,
+    oklch(0.69 0.217 17)
+  );
+}
+.pl-yt { background: oklch(0.626 0.225 27); }
 .pl-th { background: oklch(0.18 0 0); }
 
 /* Focus ring glow */
 .glow-ring:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px var(--ring);
 }
 
 /* hide scrollbar */
