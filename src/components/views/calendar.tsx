@@ -23,6 +23,7 @@ import {
   Clock,
   FileEdit,
   Plus,
+  RotateCw,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
@@ -31,6 +32,7 @@ import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Post } from "@/lib/types";
 
 type StatusFilter = "all" | "scheduled" | "published" | "draft";
@@ -62,7 +64,7 @@ function postDate(p: Post): Date | null {
 
 export function CalendarView() {
   const { data, loading } = useApi<Post[]>("/api/posts");
-  const { openComposer } = useNav();
+  const { openComposer, openComposerWithPost } = useNav();
 
   const [currentMonth, setCurrentMonth] = React.useState<Date>(() => startOfMonth(new Date()));
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
@@ -334,6 +336,7 @@ export function CalendarView() {
             ) : (
               selectedDayPosts.map((p) => {
                 const dt = postDate(p);
+                const canRepublish = p.status === "draft" || p.status === "failed";
                 return (
                   <div
                     key={p.id}
@@ -342,7 +345,6 @@ export function CalendarView() {
                     <div className="flex gap-3">
                       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-muted">
                         {p.mediaUrl ? (
-                           
                           <img src={p.mediaUrl} alt="" className="h-full w-full object-cover" />
                         ) : (
                           <div className="grid h-full w-full place-items-center text-muted-foreground">
@@ -371,7 +373,7 @@ export function CalendarView() {
                       ))}
                       <span
                         className={cn(
-                          "ml-auto rounded-full px-2 py-0.5 text-[9px] font-semibold capitalize",
+                          "rounded-full px-2 py-0.5 text-[9px] font-semibold capitalize",
                           p.status === "published"
                             ? "bg-emerald-500/15 text-emerald-500"
                             : p.status === "scheduled"
@@ -384,6 +386,23 @@ export function CalendarView() {
                         {p.status}
                       </span>
                     </div>
+
+                    {(canRepublish || p.status === "scheduled") && (
+                      <button
+                        onClick={() => {
+                          openComposerWithPost(p);
+                          toast.info(`Loaded "${p.title}" into composer`, {
+                            description: canRepublish
+                              ? "Edit and republish when ready."
+                              : "Reschedule or publish now.",
+                          });
+                        }}
+                        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border/50 bg-background/60 px-3 py-1.5 text-[11px] font-semibold text-foreground transition hover:bg-primary hover:text-primary-foreground"
+                      >
+                        <RotateCw className="h-3 w-3" />
+                        {canRepublish ? "Republish draft" : "Edit & reschedule"}
+                      </button>
+                    )}
                   </div>
                 );
               })

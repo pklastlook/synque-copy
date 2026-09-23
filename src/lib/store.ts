@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { ViewId } from "@/lib/types";
+import type { ViewId, Post } from "@/lib/types";
 
 interface NavState {
   view: ViewId;
@@ -11,6 +11,10 @@ interface NavState {
   composerSeed: string | null;
   openComposer: (seed?: string) => void;
   clearComposerSeed: () => void;
+  /** When set, the composer loads this post for editing/republishing. */
+  composerEditPost: Post | null;
+  openComposerWithPost: (post: Post) => void;
+  clearComposerEditPost: () => void;
   settingsTab: string;
   setSettingsTab: (tab: string) => void;
   settingsExpanded: boolean;
@@ -34,6 +38,10 @@ export const useNav = create<NavState>((set) => ({
   composerSeed: null,
   openComposer: (seed) => set({ composerSeed: seed ?? null, view: "composer" }),
   clearComposerSeed: () => set({ composerSeed: null }),
+  composerEditPost: null,
+  openComposerWithPost: (post) =>
+    set({ composerEditPost: post, composerSeed: null, view: "composer" }),
+  clearComposerEditPost: () => set({ composerEditPost: null }),
   settingsTab: "team-roles",
   setSettingsTab: (tab) => set({ settingsTab: tab }),
   settingsExpanded: false,

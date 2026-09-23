@@ -26,9 +26,12 @@ import {
   Heart,
   MessageCircle,
   Bookmark,
+  FileEdit,
+  RotateCw,
+  Pencil,
   type LucideIcon,
 } from "lucide-react";
-import { useApi, fmt } from "@/lib/hooks";
+import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
 import { PlatformBadge, VerifiedTick } from "@/components/glass/platform-badge";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
@@ -36,6 +39,7 @@ import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import type { Post } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -128,17 +132,28 @@ const DEFAULT_STATE: ComposerState = {
 };
 
 export function ComposerView() {
-  const { composerSeed, clearComposerSeed } = useNav();
+  const { composerSeed, clearComposerSeed, composerEditPost, clearComposerEditPost } = useNav();
   const { user } = useAuth();
   const currentUserId = user?.id ?? "";
   const { data: accounts } = useApi<AccountData[]>("/api/accounts");
   const { data: mediaData } = useApi<MediaLibraryResponse>("/api/media");
+  // Drafts (status=draft) + failed posts — eligible for republish.
+  const { data: draftsData, reload: reloadDrafts } = useApi<Post[]>("/api/posts?status=draft");
+  const { data: failedData } = useApi<Post[]>("/api/posts?status=failed");
+  const draftsList = React.useMemo(() => {
+    const drafts = draftsData ?? [];
+    const failed = failedData ?? [];
+    // De-dupe by id (a post can't be both draft + failed, but be safe).
+    const seen = new Set(drafts.map((p) => p.id));
+    return [...drafts, ...failed.filter((p) => !seen.has(p.id))].slice(0, 12);
+  }, [draftsData, failedData]);
   const mediaAssets = React.useMemo(
     () => (mediaData?.assets ?? []).filter((a) => a.type === "image"),
     [mediaData]
   );
 
   const [state, setState] = React.useState<ComposerState>(DEFAULT_STATE);
+  const [editingPostId, setEditingPostId] = React.useState<string | null>(null);
   const [generating, setGenerating] = React.useState(false);
   const [publishing, setPublishing] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -147,6 +162,7 @@ export function ComposerView() {
   const [cropAspect, setCropAspect] = React.useState("1:1");
 
   const initRef = React.useRef(false);
+  const editHydrateRef = React.useRef<string | null>(null);
 
   // Preselect the top 4 accounts by followers (the /api/accounts route
   // already sorts by followers desc) so the composer opens with a sensible
@@ -167,6 +183,67 @@ export function ComposerView() {
       clearComposerSeed();
     }
   }, [composerSeed, clearComposerSeed]);
+
+  // When openComposerWithPost(post) is called, hydrate the composer state
+  // from the post's data and jump to Step 2 so the user can edit + regenerate.
+  React.useEffect(() => {
+    if (!composerEditPost) return;
+    if (editHydrateRef.current === composerEditPost.id) return; // already hydrated
+    editHydrateRef.current = composerEditPost.id;
+
+    const p = composerEditPost;
+    const variantMap: Record<string, Variant> = {};
+    for (const v of p.variants) {
+      variantMap[v.accountId] = {
+        content: v.content ?? "",
+        hashtags: v.hashtags ?? "",
+      };
+    }
+    let selectedAccountIds = p.variants.map((v) => v.accountId);
+
+    // Some older drafts were saved without any variants (e.g. drafts created
+    // from a partial /api/posts POST that never made it to the publish step).
+    // If that's the case, preselect the top 4 user accounts so the user has
+    // somewhere to publish to — and let them know.
+    const hadNoVariants = selectedAccountIds.length === 0;
+    if (hadNoVariants && accounts && accounts.length > 0) {
+      selectedAccountIds = accounts.slice(0, 4).map((a) => a.id);
+    }
+
+    setState({
+      step: 2, // jump straight into editing content
+      selectedAccountIds,
+      caption: p.caption ?? "",
+      tone: p.tone ?? "Friendly",
+      mediaUrl: p.mediaUrl ?? "",
+      mediaType: (p.mediaType === "video" ? "video" : p.mediaType === "carousel" ? "carousel" : "image"),
+      altText: "",
+      variants: variantMap,
+      scheduledAt: p.scheduledAt ?? "",
+      scheduleEnabled: false,
+    });
+    setEditingPostId(p.id);
+    toast.info(`Loaded draft "${p.title}"`, {
+      description: hadNoVariants
+        ? "Edit and publish when ready. (No destination accounts were saved — preselected for you.)"
+        : "Edit and publish when ready. This will overwrite the existing draft.",
+    });
+  }, [composerEditPost, accounts]);
+
+  function discardEdit() {
+    editHydrateRef.current = null;
+    setEditingPostId(null);
+    clearComposerEditPost();
+    setState(DEFAULT_STATE);
+    // Re-run account preselect if accounts already loaded.
+    initRef.current = false;
+  }
+
+  function loadDraft(post: Post) {
+    // Use the store so the same hydrate effect handles it.
+    // (Calling openComposerWithPost triggers the effect above.)
+    useNav.getState().openComposerWithPost(post);
+  }
 
   const update = React.useCallback((patch: Partial<ComposerState>) => {
     setState((s) => ({ ...s, ...patch }));
@@ -287,7 +364,7 @@ export function ComposerView() {
     }
     setPublishing(true);
     try {
-      // 1. Save the post to the database
+      // 1. Save the post to the database — POST for new, PATCH for republish/edit.
       const v: Record<string, { content: string; hashtags?: string }> = {};
       for (const a of selectedAccounts) {
         const ex = state.variants[a.id];
@@ -298,32 +375,64 @@ export function ComposerView() {
           ? new Date(state.scheduledAt).toISOString()
           : null;
 
-      const res = await fetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: state.caption.slice(0, 50).trim() || "Untitled",
-          caption: state.caption,
-          mediaUrl: state.mediaUrl || null,
-          tone: state.tone,
-          scheduledAt,
-          accountIds: selectedAccounts.map((a) => a.id),
-          variants: v,
-          authorId: currentUserId,
-        }),
-      });
+      const newStatus = scheduledAt ? "scheduled" : "published";
+      const postPayload = {
+        title: state.caption.slice(0, 50).trim() || "Untitled",
+        caption: state.caption,
+        mediaUrl: state.mediaUrl || null,
+        tone: state.tone,
+        scheduledAt,
+        accountIds: selectedAccounts.map((a) => a.id),
+        variants: v,
+        authorId: currentUserId,
+      };
 
-      if (!res.ok) {
-        toast.error("Failed to save post");
-        return;
+      let savedPostId: string | null = editingPostId;
+
+      if (editingPostId) {
+        // Republish path — PATCH the existing draft/failed post.
+        const res = await fetch(`/api/posts/${editingPostId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: postPayload.title,
+            caption: postPayload.caption,
+            mediaUrl: postPayload.mediaUrl,
+            tone: postPayload.tone,
+            status: newStatus,
+            scheduledAt,
+            variants: v,
+          }),
+        });
+        if (!res.ok) {
+          toast.error("Failed to update draft");
+          return;
+        }
+      } else {
+        // New post path — POST.
+        const res = await fetch("/api/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(postPayload),
+        });
+        if (!res.ok) {
+          toast.error("Failed to save post");
+          return;
+        }
+        const json = await res.json();
+        savedPostId = json.id ?? null;
       }
 
       // 2. If scheduled, skip real posting (will be posted later)
       if (state.scheduleEnabled && scheduledAt) {
-        toast.success("Post scheduled", {
+        toast.success(editingPostId ? "Draft updated & scheduled" : "Post scheduled", {
           description: `Will be published on ${new Date(scheduledAt).toLocaleString()}`,
         });
+        editHydrateRef.current = null;
+        setEditingPostId(null);
+        clearComposerEditPost();
         setState(DEFAULT_STATE);
+        reloadDrafts();
         return;
       }
 
@@ -377,12 +486,27 @@ export function ComposerView() {
         }
       }
 
-      // 4. Show results with iOS-style popups
+      // 4. If every platform failed, flip the post status back to "draft"
+      //    so the user can retry from the drafts list (instead of leaving
+      //    it stranded as "published" with zero real delivery).
       const succeeded = results.filter((r) => r.success);
       const failed = results.filter((r) => !r.success);
 
+      if (savedPostId && succeeded.length === 0 && failed.length > 0) {
+        await fetch(`/api/posts/${savedPostId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "failed" }),
+        }).catch(() => null);
+      } else if (savedPostId && failed.length === 0 && !state.scheduleEnabled) {
+        // Mark fully published — the PATCH route already sets status=published
+        // for the editing path; for the POST path the route set it on creation.
+        // Nothing to do here.
+      }
+
+      // 5. Show results with iOS-style popups
       if (succeeded.length > 0 && failed.length === 0) {
-        toast.success("Published!", {
+        toast.success(editingPostId ? "Republished!" : "Published!", {
           description: `Posted to ${succeeded.length} account${succeeded.length > 1 ? "s" : ""}.`,
         });
         succeeded.forEach((r) => {
@@ -439,14 +563,20 @@ export function ComposerView() {
             });
           }
         } else {
-          toast.error("Post saved but not published", {
+          toast.error(editingPostId ? "Republish failed — draft restored" : "Post saved but not published", {
             description: firstError?.message?.slice(0, 150) ?? "Unknown error.",
             duration: 8000,
           });
         }
       }
 
+      // Reset composer state on any "completed" outcome (success/partial/failure
+      // with restored draft). User can re-load from the drafts list if needed.
+      editHydrateRef.current = null;
+      setEditingPostId(null);
+      clearComposerEditPost();
       setState(DEFAULT_STATE);
+      reloadDrafts();
     } catch {
       toast.error("Network error");
     } finally {
@@ -479,6 +609,23 @@ export function ComposerView() {
   return (
     <div className="space-y-5 pb-28">
       <StepIndicator step={state.step} onStep={goToStep} />
+
+      {/* Editing / republish banner */}
+      {editingPostId && (
+        <EditingBanner
+          postId={editingPostId}
+          title={state.caption.slice(0, 50).trim() || "Untitled"}
+          onDiscard={discardEdit}
+        />
+      )}
+
+      {/* Drafts / failed posts picker — only on Step 1 when NOT already editing */}
+      {state.step === 1 && !editingPostId && (
+        <DraftsPanel
+          drafts={draftsList}
+          onLoad={loadDraft}
+        />
+      )}
 
       <div className="mx-auto w-full max-w-3xl space-y-5">
         {state.step === 1 && (
@@ -564,7 +711,147 @@ export function ComposerView() {
         onPublish={publish}
         publishing={publishing}
         scheduleEnabled={state.scheduleEnabled}
+        editing={!!editingPostId}
       />
+    </div>
+  );
+}
+
+/* ============================================================
+   Editing banner — shown when a draft/failed post is loaded
+   ============================================================ */
+function EditingBanner({
+  postId,
+  title,
+  onDiscard,
+}: {
+  postId: string;
+  title: string;
+  onDiscard: () => void;
+}) {
+  return (
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="glass-strong flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 sm:px-4">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+          <RotateCw className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+              Republishing draft
+            </span>
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
+              {postId.slice(-6)}
+            </span>
+          </div>
+          <div className="truncate text-sm font-semibold">{title}</div>
+        </div>
+        <button
+          onClick={onDiscard}
+          className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-background/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-3 w-3" />
+          <span className="hidden sm:inline">Discard</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Drafts panel — list of saved draft + failed posts that can be
+   re-opened and republished. Renders as a horizontally scrollable
+   strip above the step content.
+   ============================================================ */
+function DraftsPanel({
+  drafts,
+  onLoad,
+}: {
+  drafts: Post[];
+  onLoad: (post: Post) => void;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+
+  if (drafts.length === 0) return null;
+
+  const visible = expanded ? drafts : drafts.slice(0, 4);
+
+  return (
+    <div className="mx-auto w-full max-w-3xl">
+      <GlassCard className="p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="grid h-7 w-7 place-items-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+              <FileEdit className="h-3.5 w-3.5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold">
+                Drafts &amp; failed posts
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                {drafts.length} saved — click to edit &amp; republish
+              </div>
+            </div>
+          </div>
+          {drafts.length > 4 && (
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="rounded-lg bg-muted/60 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
+            >
+              {expanded ? "Show less" : `Show all (${drafts.length})`}
+            </button>
+          )}
+        </div>
+
+        <div className="scroll-liquid -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {visible.map((p) => {
+            const isFailed = p.status === "failed";
+            return (
+              <button
+                key={p.id}
+                onClick={() => onLoad(p)}
+                className="group relative w-64 shrink-0 rounded-2xl border border-border/40 bg-muted/20 p-3 text-left transition hover:border-primary/40 hover:bg-muted/40"
+              >
+                <div className="mb-2 flex items-center gap-1.5">
+                  {p.variants.slice(0, 4).map((v) => (
+                    <PlatformBadge key={v.id} platform={v.platform} size={16} />
+                  ))}
+                  {p.variants.length > 4 && (
+                    <span className="text-[9px] text-muted-foreground">
+                      +{p.variants.length - 4}
+                    </span>
+                  )}
+                  <span
+                    className={cn(
+                      "ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase",
+                      isFailed
+                        ? "bg-rose-500/15 text-rose-500"
+                        : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                    )}
+                  >
+                    {p.status}
+                  </span>
+                </div>
+                <div className="line-clamp-1 text-xs font-semibold">
+                  {p.title || "Untitled"}
+                </div>
+                <div className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
+                  {p.caption || "(no caption)"}
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[9px] text-muted-foreground">
+                    {timeAgo(p.createdAt)}
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-primary opacity-0 transition group-hover:opacity-100">
+                    <Pencil className="h-3 w-3" />
+                    Edit &amp; publish
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </GlassCard>
     </div>
   );
 }
@@ -1854,6 +2141,7 @@ function StepFooter({
   onPublish,
   publishing,
   scheduleEnabled,
+  editing,
 }: {
   step: Step;
   onBack: () => void;
@@ -1862,6 +2150,7 @@ function StepFooter({
   onPublish: () => void;
   publishing: boolean;
   scheduleEnabled: boolean;
+  editing: boolean;
 }) {
   const isPublish = step === 5;
   return (
@@ -1893,13 +2182,21 @@ function StepFooter({
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : scheduleEnabled ? (
                 <CalendarClock className="h-4 w-4" />
+              ) : editing ? (
+                <RotateCw className="h-4 w-4" />
               ) : (
                 <Send className="h-4 w-4" />
               )}
               {publishing
-                ? "Publishing…"
+                ? editing
+                  ? "Republishing…"
+                  : "Publishing…"
                 : scheduleEnabled
-                ? "Schedule post"
+                ? editing
+                  ? "Update & schedule"
+                  : "Schedule post"
+                : editing
+                ? "Republish now"
                 : "Publish now"}
             </button>
           ) : (
