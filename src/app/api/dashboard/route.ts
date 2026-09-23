@@ -10,14 +10,15 @@ function fmt(n: number) {
 }
 
 export async function GET() {
-  const [accounts, posts, variants, comments, activities, analytics] = await Promise.all([
-    db.account.findMany({ include: { owner: true } }),
-    db.post.findMany({ include: { author: true, variants: { include: { account: true } } } }),
-    db.postVariant.findMany(),
-    db.comment.findMany({ include: { account: true, assignee: true } }),
-    db.activity.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 12 }),
-    db.analyticsDaily.findMany({ orderBy: { date: "asc" } }),
-  ]);
+  try {
+    const [accounts, posts, variants, comments, activities, analytics] = await Promise.all([
+      db.account.findMany({ include: { owner: true } }),
+      db.post.findMany({ include: { author: true, variants: { include: { account: true } } } }),
+      db.postVariant.findMany(),
+      db.comment.findMany({ include: { account: true, assignee: true } }),
+      db.activity.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 12 }),
+      db.analyticsDaily.findMany({ orderBy: { date: "asc" } }),
+    ]);
 
   const totalFollowers = accounts.reduce((s, a) => s + a.followers, 0);
   const totalImpressions = analytics.reduce((s, a) => s + a.impressions, 0);
@@ -125,4 +126,12 @@ export async function GET() {
         authorName: p.author.name,
       })),
   });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[/api/dashboard] DB error:", message);
+    return NextResponse.json(
+      { error: "Dashboard load failed", detail: message },
+      { status: 500 }
+    );
+  }
 }

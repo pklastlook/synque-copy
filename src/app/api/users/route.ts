@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   const body = await req.json();
-  const { id, role, title, department, permissions, status } = body;
+  const { id, role, title, department, permissions, status, password } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
   const data: Record<string, unknown> = {};
   if (role !== undefined) data.role = role;
@@ -32,6 +33,12 @@ export async function PATCH(req: NextRequest) {
   if (department !== undefined) data.department = department;
   if (permissions !== undefined) data.permissions = JSON.stringify(permissions);
   if (status !== undefined) data.status = status;
+  // Optional password change — only when the caller explicitly provides one
+  // (e.g. Settings → Security → Update password). Hashes with bcrypt cost 12
+  // to match /api/auth/signup.
+  if (typeof password === "string" && password.length >= 8) {
+    data.password = await bcrypt.hash(password, 12);
+  }
   await db.user.update({ where: { id }, data });
   return NextResponse.json({ ok: true });
 }

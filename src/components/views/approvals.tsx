@@ -17,6 +17,7 @@ import {
 import { useApi, timeAgo } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -95,11 +96,22 @@ const STATUS_META: Record<
   Status,
   { label: string; className: string }
 > = {
-  pending: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  approved: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  rejected: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-  changes_requested:
-    "bg-[var(--gold)]/15 text-[var(--gold)]",
+  pending: {
+    label: "Pending",
+    className: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  },
+  approved: {
+    label: "Approved",
+    className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  },
+  rejected: {
+    label: "Rejected",
+    className: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+  },
+  changes_requested: {
+    label: "Changes",
+    className: "bg-[var(--gold)]/15 text-[var(--gold)]",
+  },
 };
 
 const STACK_COLORS: Record<Status, string> = {
@@ -205,8 +217,7 @@ export function ApprovalsView() {
           <RequestForm
             members={team ?? []}
             onCancel={() => setRequestOpen(false)}
-            onSubmit={() => {
-              toast.success("Approval requested");
+            onDone={() => {
               setRequestOpen(false);
               reload();
             }}
@@ -336,19 +347,61 @@ export function ApprovalsView() {
 function RequestForm({
   members,
   onCancel,
-  onSubmit,
+  onDone,
 }: {
   members: TeamMember[];
   onCancel: () => void;
-  onSubmit: () => void;
+  onDone: () => void;
 }) {
+  const { user } = useAuth();
   const [title, setTitle] = React.useState("");
-  const [authorId, setAuthorId] = React.useState(members[0]?.id ?? "");
+  const [authorId, setAuthorId] = React.useState(user?.id ?? members[0]?.id ?? "");
   const [approverId, setApproverId] = React.useState(
     members.find((m) => m.role === "admin")?.id ?? members[0]?.id ?? "",
   );
   const [priority, setPriority] = React.useState<Priority>("normal");
   const [dueAt, setDueAt] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (user?.id) setAuthorId(user.id);
+  }, [user?.id]);
+
+  const canSubmit =
+    !!title.trim() && !!authorId && !!approverId && !submitting;
+
+  async function handleSubmit() {
+    if (!title.trim() || !authorId || !approverId) {
+      toast.error("Title, author and approver are required");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/approvals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          authorId,
+          approverId,
+          priority,
+          dueAt: dueAt || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? "Failed to create approval");
+      }
+      toast.success("Approval requested", {
+        description: `Routed to ${members.find((m) => m.id === approverId)?.name ?? "approver"}`,
+      });
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not request approval");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="space-y-4 py-2">
@@ -421,16 +474,22 @@ function RequestForm({
           />
         </div>
       </div>
+      {members.length === 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          No team members yet — create one in Team to route approvals.
+        </p>
+      )}
       <DialogFooter>
-        <Button variant="ghost" onClick={onCancel}>
+        <Button variant="ghost" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
         <button
-          onClick={onSubmit}
-          className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
         >
           <Send className="h-4 w-4" />
-          Send request
+          {submitting ? "Sending…" : "Send request"}
         </button>
       </DialogFooter>
     </div>

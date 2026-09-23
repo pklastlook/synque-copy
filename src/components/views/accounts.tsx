@@ -356,9 +356,11 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
 
   const connect = async () => {
     if (!validate() || !platform) return;
+    if (!user?.id) {
+      toast.error("Sign in to connect an account");
+      return;
+    }
     setStep("connecting");
-    // Simulate the OAuth/credential verification + account fetch
-    await new Promise((r) => setTimeout(r, 2200));
     // Persist the new account via API
     try {
       const res = await fetch("/api/accounts", {
@@ -370,7 +372,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
           displayName: form.displayName,
           loginEmail: form.loginEmail,
           businessAccount: form.businessAccount,
-          ownerId: user?.id ?? "u-admin",
+          ownerId: user.id,
         }),
       });
       if (res.ok) {

@@ -190,6 +190,25 @@ export function LinkBioView() {
     }
   };
 
+  const createNewPage = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/linkbio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Untitled page" }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const j = await res.json();
+      toast.success("New page created", { description: `prism.co/${j.slug}` });
+      setSelectedId(j.id);
+      reload();
+    } catch {
+      toast.error("Could not create page");
+    } finally {
+      setSaving(false);
+    }
+  };
   const savePage = async () => {
     if (!draft) return;
     setSaving(true);
@@ -210,6 +229,23 @@ export function LinkBioView() {
       reload();
     } catch {
       toast.error("Could not save changes");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deletePage = async (page: LinkBioPage) => {
+    if (!confirm(`Delete "${page.title}"? This cannot be undone.`)) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/linkbio/${page.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("Page deleted");
+      setSelectedId(null);
+      setDraft(null);
+      reload();
+    } catch {
+      toast.error("Could not delete page");
     } finally {
       setSaving(false);
     }
@@ -261,11 +297,12 @@ export function LinkBioView() {
             </p>
           </div>
           <button
-            onClick={() => toast.info("Coming soon — page builder v2")}
-            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+            onClick={createNewPage}
+            disabled={saving}
+            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
-            New page
+            {saving ? "Creating…" : "New page"}
           </button>
         </div>
       </GlassCard>
@@ -547,6 +584,26 @@ export function LinkBioView() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Danger zone: delete this page */}
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-3">
+                <div className="flex items-start gap-2">
+                  <Trash2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" />
+                  <div>
+                    <div className="text-xs font-semibold text-rose-500">Delete page</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Permanently remove this link-in-bio page and all its analytics.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => deletePage(draft)}
+                  disabled={saving}
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-rose-500/15 px-3 py-1.5 text-[11px] font-semibold text-rose-500 transition hover:bg-rose-500/25 disabled:opacity-50"
+                >
+                  <Trash2 className="h-3 w-3" /> Delete page
+                </button>
               </div>
             </div>
           </GlassCard>

@@ -22,6 +22,10 @@ import {
   ArrowRight,
   Sparkles,
   ArrowUpDown,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
@@ -44,6 +48,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -80,6 +91,14 @@ interface Competitor {
 
 type StatusFilter = "all" | "tracking" | "paused";
 
+interface AccountInfo {
+  id: string;
+  platform: PlatformId;
+  handle: string;
+  displayName: string;
+  followers: number;
+}
+
 const LINE_COLORS = [
   "var(--primary)",
   "oklch(0.74 0.18 165)",
@@ -87,14 +106,41 @@ const LINE_COLORS = [
   "oklch(0.78 0.18 75)",
 ];
 
-const OUR_FOLLOWERS = 184_300;
+function platformProfileUrl(platform: PlatformId, handle: string): string | null {
+  const h = handle.replace(/^@/, "");
+  switch (platform) {
+    case "instagram":
+      return `https://instagram.com/${h}`;
+    case "facebook":
+      return `https://facebook.com/${h}`;
+    case "x":
+      return `https://x.com/${h}`;
+    case "linkedin":
+      return `https://linkedin.com/company/${h}`;
+    case "tiktok":
+      return `https://tiktok.com/@${h}`;
+    case "youtube":
+      return `https://youtube.com/@${h}`;
+    case "threads":
+      return `https://threads.net/@${h}`;
+    default:
+      return null;
+  }
+}
 
 export function CompetitorsView() {
   const { data, loading, reload } = useApi<Competitor[]>("/api/competitors");
+  const { data: accounts } = useApi<AccountInfo[]>("/api/accounts");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [addOpen, setAddOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<Competitor | null>(null);
 
   if (loading || !data) return <CompetitorsSkeleton />;
+
+  // Our top account's followers — used for honest benchmarking.
+  const ourFollowers = accounts && accounts.length > 0
+    ? Math.max(...accounts.map((a) => a.followers))
+    : 0;
 
   const sorted = [...data].sort((a, b) => b.followers - a.followers);
   const filtered =
@@ -397,7 +443,14 @@ export function CompetitorsView() {
                         variant="ghost"
                         size="sm"
                         className="h-8 rounded-xl"
-                        onClick={() => toast.info(`Opening ${c.name} profile`)}
+                        onClick={() => {
+                          const url = platformProfileUrl(c.platform, c.handle);
+                          if (url) {
+                            window.open(url, "_blank", "noopener,noreferrer");
+                          } else {
+                            toast.info(`No profile URL for ${PLATFORMS[c.platform].name}`);
+                          }
+                        }}
                       >
                         View
                       </Button>
@@ -442,7 +495,21 @@ export function CompetitorsView() {
       {/* Detail cards grid */}
       <div className="grid gap-4 lg:grid-cols-2">
         {filtered.map((c) => (
-          <CompetitorCard key={c.id} competitor={c} />
+          <CompetitorCard
+            key={c.id}
+            competitor={c}
+            ourFollowers={ourFollowers}
+            hasOurAccounts={!!accounts && accounts.length > 0}
+            onEdit={() => setEditing(c)}
+            onToggleStatus={() =>
+              patchCompetitor(
+                c.id,
+                { status: c.status === "tracking" ? "paused" : "tracking" },
+                reload,
+              )
+            }
+            onDelete={() => deleteCompetitor(c.id, c.name, reload)}
+          />
         ))}
         {filtered.length === 0 && (
           <GlassCard className="col-span-full p-10 text-center text-sm text-muted-foreground">
@@ -450,8 +517,51 @@ export function CompetitorsView() {
           </GlassCard>
         )}
       </div>
+
+      <EditCompetitorDialog
+        competitor={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null);
+          reload();
+        }}
+      />
     </div>
   );
+}
+
+async function patchCompetitor(
+  id: string,
+  patch: Partial<Pick<Competitor, "name" | "handle" | "platform" | "notes" | "status">>,
+  reload: () => void,
+) {
+  try {
+    const res = await fetch(`/api/competitors/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) throw new Error("Failed");
+    toast.success("Competitor updated");
+    reload();
+  } catch {
+    toast.error("Could not update competitor");
+  }
+}
+
+async function deleteCompetitor(
+  id: string,
+  name: string,
+  reload: () => void,
+) {
+  try {
+    const res = await fetch(`/api/competitors/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Failed");
+    toast.success("Competitor removed", { description: name });
+    reload();
+  } catch {
+    toast.error("Could not delete competitor");
+  }
 }
 
 function AddCompetitorForm({
@@ -564,7 +674,21 @@ function AddCompetitorForm({
   );
 }
 
-function CompetitorCard({ competitor }: { competitor: Competitor }) {
+function CompetitorCard({
+  competitor,
+  ourFollowers,
+  hasOurAccounts,
+  onEdit,
+  onToggleStatus,
+  onDelete,
+}: {
+  competitor: Competitor;
+  ourFollowers: number;
+  hasOurAccounts: boolean;
+  onEdit: () => void;
+  onToggleStatus: () => void;
+  onDelete: () => void;
+}) {
   const growthUp = competitor.growthRate >= 0;
   const sparkColor = growthUp ? "oklch(0.76 0.18 145)" : "var(--primary)";
   const series = competitor.series.length
@@ -572,11 +696,12 @@ function CompetitorCard({ competitor }: { competitor: Competitor }) {
     : [
         { date: new Date().toISOString().slice(0, 10), followers: competitor.followers, engagement: 0, posts: 0 },
       ];
+  const profileUrl = platformProfileUrl(competitor.platform, competitor.handle);
   const benchmarkPct =
-    competitor.followers > 0
-      ? Math.min(100, Math.round((competitor.followers / OUR_FOLLOWERS) * 100))
+    hasOurAccounts && ourFollowers > 0 && competitor.followers > 0
+      ? Math.min(100, Math.round((competitor.followers / ourFollowers) * 100))
       : 0;
-  const ahead = competitor.followers >= OUR_FOLLOWERS;
+  const ahead = hasOurAccounts && competitor.followers >= ourFollowers;
 
   return (
     <GlassCard hover className="flex flex-col p-5">
@@ -609,11 +734,51 @@ function CompetitorCard({ competitor }: { competitor: Competitor }) {
             className="mt-1"
           />
         </div>
-        <div className="text-right">
+        <div className="flex flex-col items-end gap-1">
           <div className="text-xl font-bold tabular-nums leading-none">
             {fmt(competitor.followers)}
           </div>
           <div className="text-[10px] text-muted-foreground">followers</div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                aria-label={`Actions for ${competitor.name}`}
+                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onEdit}>
+                <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onToggleStatus}>
+                {competitor.status === "paused" ? (
+                  <>
+                    <Play className="mr-2 h-3.5 w-3.5" /> Resume tracking
+                  </>
+                ) : (
+                  <>
+                    <Pause className="mr-2 h-3.5 w-3.5" /> Pause tracking
+                  </>
+                )}
+              </DropdownMenuItem>
+              {profileUrl && (
+                <DropdownMenuItem
+                  onSelect={() => window.open(profileUrl, "_blank", "noopener,noreferrer")}
+                >
+                  <ExternalLink className="mr-2 h-3.5 w-3.5" /> View on {PLATFORMS[competitor.platform].name}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-rose-500 focus:text-rose-500"
+                onSelect={onDelete}
+              >
+                <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -655,33 +820,41 @@ function CompetitorCard({ competitor }: { competitor: Competitor }) {
 
       {/* Benchmark vs us */}
       <div className="mt-4 rounded-xl bg-muted/40 p-3">
-        <div className="mb-1.5 flex items-center justify-between text-[11px]">
-          <span className="text-muted-foreground">vs. our top account</span>
-          <span
-            className={cn(
-              "font-semibold",
-              ahead ? "text-rose-500" : "text-emerald-500",
-            )}
-          >
-            {ahead ? "+" : "−"}
-            {fmt(Math.abs(competitor.followers - OUR_FOLLOWERS))}
-          </span>
-        </div>
-        <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-[var(--gold)]"
-            style={{ width: `${benchmarkPct}%` }}
-          />
-          <div
-            className="absolute inset-y-0 w-px bg-foreground/60"
-            style={{ left: "100%", transform: "translateX(-100%)" }}
-            aria-hidden
-          />
-        </div>
-        <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>{fmt(competitor.followers)} rival</span>
-          <span>{fmt(OUR_FOLLOWERS)} us</span>
-        </div>
+        {hasOurAccounts ? (
+          <>
+            <div className="mb-1.5 flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground">vs. our top account</span>
+              <span
+                className={cn(
+                  "font-semibold",
+                  ahead ? "text-rose-500" : "text-emerald-500",
+                )}
+              >
+                {ahead ? "+" : "−"}
+                {fmt(Math.abs(competitor.followers - ourFollowers))}
+              </span>
+            </div>
+            <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary to-[var(--gold)]"
+                style={{ width: `${benchmarkPct}%` }}
+              />
+              <div
+                className="absolute inset-y-0 w-px bg-foreground/60"
+                style={{ left: "100%", transform: "translateX(-100%)" }}
+                aria-hidden
+              />
+            </div>
+            <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>{fmt(competitor.followers)} rival</span>
+              <span>{fmt(ourFollowers)} us</span>
+            </div>
+          </>
+        ) : (
+          <div className="text-[11px] text-muted-foreground">
+            Connect one of your own accounts to benchmark against this rival.
+          </div>
+        )}
       </div>
 
       {/* Notes */}
@@ -698,7 +871,13 @@ function CompetitorCard({ competitor }: { competitor: Competitor }) {
           variant="ghost"
           size="sm"
           className="h-8 rounded-xl"
-          onClick={() => toast.info(`Opening ${competitor.name} profile`)}
+          onClick={() => {
+            if (profileUrl) {
+              window.open(profileUrl, "_blank", "noopener,noreferrer");
+            } else {
+              toast.info(`No profile URL for ${PLATFORMS[competitor.platform].name}`);
+            }
+          }}
         >
           View profile <ArrowRight className="ml-1 h-3.5 w-3.5" />
         </Button>
@@ -768,6 +947,135 @@ function FilterPill({
         {count}
       </span>
     </button>
+  );
+}
+
+function EditCompetitorDialog({
+  competitor,
+  onClose,
+  onSaved,
+}: {
+  competitor: Competitor | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = React.useState("");
+  const [handle, setHandle] = React.useState("");
+  const [platform, setPlatform] = React.useState<PlatformId>("instagram");
+  const [notes, setNotes] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    if (competitor) {
+      setName(competitor.name);
+      setHandle(competitor.handle);
+      setPlatform(competitor.platform);
+      setNotes(competitor.notes ?? "");
+    }
+  }, [competitor]);
+
+  const submit = async () => {
+    if (!competitor) return;
+    if (!name.trim() || !handle.trim()) {
+      toast.error("Name and handle are required");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/competitors/${competitor.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          handle: handle.trim().replace(/^@/, ""),
+          platform,
+          notes: notes.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      toast.success("Competitor updated");
+      onSaved();
+    } catch {
+      toast.error("Could not update competitor");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!competitor} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="rounded-3xl sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="h-5 w-5 text-primary" />
+            Edit competitor
+          </DialogTitle>
+          <DialogDescription>
+            Update the rival&apos;s profile details. Tracking status and notes can be changed here.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="ce-name">Name</Label>
+            <Input
+              id="ce-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="ce-handle">Handle</Label>
+              <Input
+                id="ce-handle"
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Platform</Label>
+              <Select
+                value={platform}
+                onValueChange={(v) => setPlatform(v as PlatformId)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLATFORM_LIST.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ce-notes">Notes</Label>
+            <Textarea
+              id="ce-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[80px] resize-none"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <button
+            onClick={submit}
+            disabled={busy}
+            className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+          >
+            <Pencil className="h-4 w-4" />
+            {busy ? "Saving…" : "Save changes"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

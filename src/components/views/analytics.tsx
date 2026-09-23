@@ -24,7 +24,6 @@ import {
   Layers,
   BarChart3,
   Sparkles,
-  ArrowUpRight,
   ImageIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -32,7 +31,6 @@ import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card"
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
-import { useNav } from "@/lib/store";
 import {
   Select,
   SelectContent,
@@ -557,7 +555,6 @@ export function AnalyticsView() {
 }
 
 function TopContentCard({ content }: { content: TopContent }) {
-  const { setView } = useNav();
   return (
     <GlassCard
       hover
@@ -618,12 +615,6 @@ function TopContentCard({ content }: { content: TopContent }) {
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setView("analytics")}
-          className="mt-3 flex items-center justify-center gap-1 rounded-xl bg-muted/50 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
-        >
-          View details <ArrowUpRight className="h-3 w-3" />
-        </button>
       </div>
     </GlassCard>
   );

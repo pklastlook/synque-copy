@@ -8,7 +8,7 @@ import {
   MoreVertical,
   Pencil,
   Copy,
-  Archive,
+  Trash2,
   ArrowRight,
   CheckCircle2,
   FileEdit,
@@ -120,7 +120,7 @@ function fmtRange(start: string | null, end: string | null) {
   if (!s && !e) return null;
   if (s && !e) return format(s, "MMM d, yyyy");
   if (!s && e) return `→ ${format(e, "MMM d, yyyy")}`;
-  return `${format(s, "MMM d")} → ${format(e, "MMM d, yyyy")}`;
+  return `${format(s as Date, "MMM d")} → ${format(e as Date, "MMM d, yyyy")}`;
 }
 
 export function CampaignsView() {
@@ -128,6 +128,48 @@ export function CampaignsView() {
   const { setView } = useNav();
   const [filter, setFilter] = React.useState<StatusFilter>("all");
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<Campaign | null>(null);
+
+  const handleDuplicate = React.useCallback(
+    async (c: Campaign) => {
+      try {
+        const res = await fetch("/api/campaigns", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `${c.name} (copy)`,
+            description: c.description,
+            color: c.color,
+            objective: c.objective,
+            startDate: c.startDate,
+            endDate: c.endDate,
+            ownerId: c.ownerId,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json.error ?? "Failed to duplicate");
+        toast.success(`"${c.name}" duplicated`);
+        reload();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not duplicate campaign");
+      }
+    },
+    [reload],
+  );
+
+  const handleDelete = React.useCallback(
+    async (c: Campaign) => {
+      try {
+        const res = await fetch(`/api/campaigns/${c.id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Failed to delete");
+        toast.success(`"${c.name}" deleted`);
+        reload();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not delete campaign");
+      }
+    },
+    [reload],
+  );
 
   if (loading || !data) return <CampaignsSkeleton />;
 
@@ -260,6 +302,9 @@ export function CampaignsView() {
               key={c.id}
               campaign={c}
               onViewPosts={() => setView("calendar")}
+              onEdit={() => setEditing(c)}
+              onDuplicate={() => handleDuplicate(c)}
+              onDelete={() => handleDelete(c)}
             />
           ))}
         </div>
@@ -273,6 +318,17 @@ export function CampaignsView() {
           setCreateOpen(false);
         }}
       />
+
+      <EditCampaignDialog
+        campaign={editing}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+        onSaved={() => {
+          setEditing(null);
+          reload();
+        }}
+      />
     </div>
   );
 }
@@ -280,9 +336,15 @@ export function CampaignsView() {
 function CampaignCard({
   campaign,
   onViewPosts,
+  onEdit,
+  onDuplicate,
+  onDelete,
 }: {
   campaign: Campaign;
   onViewPosts: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
 }) {
   const status = STATUS_META[campaign.status];
   const range = fmtRange(campaign.startDate, campaign.endDate);
@@ -324,20 +386,18 @@ function CampaignCard({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 rounded-xl">
-              <DropdownMenuItem onClick={() => toast.info(`Editing "${campaign.name}"`)}>
+              <DropdownMenuItem onClick={onEdit}>
                 <Pencil className="mr-2 h-4 w-4" /> Edit
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => toast.success(`"${campaign.name}" duplicated`)}
-              >
+              <DropdownMenuItem onClick={onDuplicate}>
                 <Copy className="mr-2 h-4 w-4" /> Duplicate
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-rose-500 focus:text-rose-500"
-                onClick={() => toast.error(`"${campaign.name}" archived`)}
+                onClick={onDelete}
               >
-                <Archive className="mr-2 h-4 w-4" /> Archive
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -420,6 +480,10 @@ function CreateCampaignDialog({
       toast.error("Campaign name is required");
       return;
     }
+    if (!user?.id) {
+      toast.error("You must be signed in to create a campaign");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/campaigns", {
@@ -432,7 +496,7 @@ function CreateCampaignDialog({
           objective,
           startDate: startDate || null,
           endDate: endDate || null,
-          ownerId: user?.id ?? "u-admin",
+          ownerId: user.id,
         }),
       });
       if (!res.ok) throw new Error("Failed to create campaign");
@@ -562,6 +626,209 @@ function CreateCampaignDialog({
           >
             <Plus className="h-4 w-4" />
             {submitting ? "Creating..." : "Create campaign"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function isoToDateInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = parseISO(iso);
+  if (!isValid(d)) return "";
+  return format(d, "yyyy-MM-dd");
+}
+
+function EditCampaignDialog({
+  campaign,
+  onOpenChange,
+  onSaved,
+}: {
+  campaign: Campaign | null;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const open = campaign !== null;
+  const [name, setName] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [color, setColor] = React.useState(COLOR_SWATCHES[0]);
+  const [objective, setObjective] = React.useState<string>("awareness");
+  const [status, setStatus] = React.useState<Campaign["status"]>("draft");
+  const [startDate, setStartDate] = React.useState<string>("");
+  const [endDate, setEndDate] = React.useState<string>("");
+  const [submitting, setSubmitting] = React.useState(false);
+
+  // Prefill when a campaign is selected
+  React.useEffect(() => {
+    if (!campaign) return;
+    setName(campaign.name);
+    setDescription(campaign.description ?? "");
+    setColor(campaign.color || COLOR_SWATCHES[0]);
+    setObjective(campaign.objective ?? "awareness");
+    setStatus(campaign.status);
+    setStartDate(isoToDateInput(campaign.startDate));
+    setEndDate(isoToDateInput(campaign.endDate));
+  }, [campaign]);
+
+  async function handleSubmit() {
+    if (!campaign) return;
+    if (!name.trim()) {
+      toast.error("Campaign name is required");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaign.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          description: description.trim() || null,
+          color,
+          objective,
+          status,
+          startDate: startDate || null,
+          endDate: endDate || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update campaign");
+      toast.success(`Campaign "${name.trim()}" updated`);
+      onSaved();
+    } catch {
+      toast.error("Could not update campaign");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg rounded-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span
+              className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground"
+            >
+              <Pencil className="h-4 w-4" />
+            </span>
+            Edit campaign
+          </DialogTitle>
+          <DialogDescription>
+            Update the details, status, or timeline of this campaign.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edt-name">Campaign name</Label>
+            <Input
+              id="edt-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edt-desc">Description</Label>
+            <Input
+              id="edt-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select
+              value={status}
+              onValueChange={(v) => setStatus(v as Campaign["status"])}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="paused">Paused</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Accent color</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              {COLOR_SWATCHES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={cn(
+                    "h-7 w-7 rounded-full border-2 transition",
+                    color === c
+                      ? "border-foreground scale-110"
+                      : "border-transparent hover:scale-110",
+                  )}
+                  style={{ background: c }}
+                  aria-label={`Select color ${c}`}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Objective</Label>
+            <Select value={objective} onValueChange={setObjective}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OBJECTIVES.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    <span className="flex items-center gap-2">
+                      <o.icon className="h-3.5 w-3.5" />
+                      {o.label}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="edt-start">Start date</Label>
+              <Input
+                id="edt-start"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edt-end">End date</Label>
+              <Input
+                id="edt-end"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {submitting ? "Saving..." : "Save changes"}
           </button>
         </DialogFooter>
       </DialogContent>

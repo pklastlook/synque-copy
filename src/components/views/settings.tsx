@@ -58,6 +58,7 @@ import {
   MoreHorizontal,
   Send,
   ShieldAlert,
+  CheckCircle2,
 } from "lucide-react";
 import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
@@ -166,15 +167,6 @@ interface TeamMember {
   status: MemberStatus;
   permissions: string[];
 }
-
-const SEED_TEAM: TeamMember[] = [
-  { id: "u-admin", name: "Maya Reyes", email: "maya@prism.co", color: "rose", role: "admin", title: "Head of Social", department: "Leadership", status: "active", permissions: ["*"] },
-  { id: "u-1", name: "Daniel Cho", email: "daniel@prism.co", color: "amber", role: "manager", title: "Content Strategist", department: "Content", status: "active", permissions: ["posts:create", "posts:publish", "approvals:review", "media:*", "campaigns:*"] },
-  { id: "u-2", name: "Priya Nair", email: "priya@prism.co", color: "teal", role: "manager", title: "Community Lead", department: "Community", status: "active", permissions: ["inbox:*", "comments:reply", "listening:*", "approvals:review"] },
-  { id: "u-3", name: "Leo Marchetti", email: "leo@prism.co", color: "magenta", role: "editor", title: "Video Producer", department: "Content", status: "active", permissions: ["posts:create", "media:upload", "media:*"] },
-  { id: "u-4", name: "Sara Okafor", email: "sara@prism.co", color: "green", role: "manager", title: "Paid Social Manager", department: "Paid Social", status: "active", permissions: ["posts:publish", "analytics:*", "reports:*", "competitors:*"] },
-  { id: "u-5", name: "Tom Becker", email: "tom@prism.co", color: "blue", role: "editor", title: "Copywriter", department: "Content", status: "invited", permissions: ["posts:create", "media:read"] },
-];
 
 const CAPABILITIES = [
   "Posts/Create",
@@ -298,7 +290,7 @@ export function SettingsView() {
 // ===== 1. Profile =====
 function ProfileSection() {
   const { user } = useAuth();
-  const { reload } = useApi<ApiUser[]>("/api/users");
+  const { data, reload } = useApi<ApiUser[]>("/api/users");
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [title, setTitle] = React.useState("");
@@ -308,14 +300,21 @@ function ProfileSection() {
   const [language, setLanguage] = React.useState("en-US");
   const [saving, setSaving] = React.useState(false);
 
-  // Load real user data
+  // Load real user data — prefer department from /api/users (the auth-store's
+  // AuthUser shape doesn't carry department).
   React.useEffect(() => {
     if (!user) return;
     setName(user.name);
     setEmail(user.email);
     setTitle(user.title ?? "");
-    setDepartment((user.title as Department) ?? "General");
-  }, [user]);
+    const dbUser = (data ?? []).find((u) => u.id === user.id);
+    const dept = dbUser?.department as Department | undefined;
+    if (dept && (DEPARTMENTS as string[]).includes(dept)) {
+      setDepartment(dept);
+    } else {
+      setDepartment("Leadership");
+    }
+  }, [user, data]);
 
   const save = async () => {
     if (!user) return;
@@ -359,7 +358,7 @@ function ProfileSection() {
           <div className="text-xs text-muted-foreground">PNG / JPG up to 4MB · square recommended</div>
           <div className="flex gap-2">
             <button
-              onClick={() => toast.success("Avatar upload — choose a file", { description: "Mock picker — backend hooked to /api/media." })}
+              onClick={() => toast.info("Avatar upload — configure a storage provider in Integrations")}
               className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
             >
               <Camera className="h-3.5 w-3.5" /> Change
@@ -483,7 +482,7 @@ function WorkspaceSection() {
           <div className="text-sm font-semibold">{name}</div>
           <div className="text-xs text-muted-foreground">SVG / PNG · square recommended</div>
           <button
-            onClick={() => toast.success("Logo picker — mock")}
+            onClick={() => toast.info("Logo upload — configure in Integrations")}
             className="mt-2 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
           >
             Upload logo
@@ -1210,41 +1209,126 @@ function NotificationsSection() {
 }
 
 // ===== 6. Security =====
+interface SettingsApiKey {
+  id: string;
+  name: string;
+  key: string;
+  status: string;
+  lastUsed: string | null;
+  createdAt: string;
+}
+
 function SecuritySection() {
+  const { user } = useAuth();
   const [current, setCurrent] = React.useState("");
   const [next, setNext] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [showPwd, setShowPwd] = React.useState(false);
   const [twoFA, setTwoFA] = React.useState(false);
   const [setup2FA, setSetup2FA] = React.useState(false);
-  const [copiedKey, setCopiedKey] = React.useState(false);
+  const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
   const [ipAllow, setIpAllow] = React.useState("192.168.1.0/24\n10.0.0.0/8");
+  const [genName, setGenName] = React.useState("");
+  const [genOpen, setGenOpen] = React.useState(false);
+  const [genBusy, setGenBusy] = React.useState(false);
+  const [newKey, setNewKey] = React.useState<string | null>(null);
 
-  const apiKey = "prism_live_sk_9f3b2a8e4c1d7e6f5a3b2c1d9e8f7a6b";
+  const { data: apiKeys, loading: apiKeysLoading, reload: reloadKeys } =
+    useApi<SettingsApiKey[]>("/api/api-keys");
+  const keys = apiKeys ?? [];
 
-  const changePwd = () => {
+  const changePwd = async () => {
+    if (!user) return;
     if (!current || !next) return toast.error("Fill in current and new password");
     if (next !== confirm) return toast.error("Passwords do not match");
     if (next.length < 8) return toast.error("Password must be at least 8 characters");
-    toast.success("Password updated");
-    setCurrent(""); setNext(""); setConfirm("");
+    try {
+      // 1. Verify the current password by attempting a login.
+      const verifyRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, password: current }),
+      });
+      if (!verifyRes.ok) {
+        throw new Error("Current password is incorrect");
+      }
+      // 2. Patch the new (already-validated) password via /api/users.
+      const patchRes = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: user.id, password: next }),
+      });
+      if (!patchRes.ok) {
+        const j = (await patchRes.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? "Failed to update password");
+      }
+      toast.success("Password updated");
+      setCurrent(""); setNext(""); setConfirm("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update password");
+    }
   };
 
-  const sessions = [
-    { id: "s1", device: "MacBook Pro · Chrome 122", location: "San Francisco, US", ip: "73.158.42.10", last: "Active now", current: true },
-    { id: "s2", device: "iPhone 15 Pro · SocialFlow iOS", location: "San Francisco, US", ip: "73.158.42.11", last: "2h ago", current: false },
-    { id: "s3", device: "Windows · Edge 122", location: "London, UK", ip: "82.6.124.18", last: "1d ago", current: false },
-    { id: "s4", device: "iPad Air · Safari", location: "New York, US", ip: "108.29.84.221", last: "3d ago", current: false },
-  ];
+  // Sessions and login history are not yet tracked in the database.
+  // Honest empty states instead of fabricated device rows.
+  const sessions: { id: string; device: string; location: string; ip: string; last: string; current: boolean }[] = [];
+  const history: { id: string; device: string; location: string; time: string; status: string }[] = [];
 
-  const history = [
-    { id: "h1", device: "MacBook Pro · Chrome", location: "San Francisco, US", time: "Today, 9:42am", status: "Success" },
-    { id: "h2", device: "iPhone 15 · SocialFlow iOS", location: "San Francisco, US", time: "Today, 7:18am", status: "Success" },
-    { id: "h3", device: "Unknown · Chrome", location: "Lagos, NG", time: "Yesterday, 11:05pm", status: "Blocked" },
-    { id: "h4", device: "MacBook Pro · Safari", location: "San Francisco, US", time: "Mar 14, 8:02am", status: "Success" },
-    { id: "h5", device: "Pixel 8 · Chrome", location: "San Francisco, US", time: "Mar 13, 6:51pm", status: "Success" },
-    { id: "h6", device: "Unknown · Firefox", location: "Moscow, RU", time: "Mar 12, 3:14am", status: "Blocked" },
-  ];
+  const generateKey = async () => {
+    if (!genName.trim()) return toast.error("Enter a name for the key");
+    setGenBusy(true);
+    try {
+      const res = await fetch("/api/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: genName.trim(), permissions: ["*"] }),
+      });
+      const data = (await res.json()) as { key?: string; error?: string };
+      if (!res.ok || !data.key) throw new Error(data.error ?? "Failed");
+      setNewKey(data.key);
+      setGenName("");
+      setGenOpen(false);
+      reloadKeys();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate key");
+    } finally {
+      setGenBusy(false);
+    }
+  };
+
+  const revokeKey = async (id: string) => {
+    try {
+      const res = await fetch(`/api/api-keys/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "revoked" }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("API key revoked");
+      reloadKeys();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const deleteKey = async (id: string) => {
+    if (!window.confirm("Delete this API key permanently?")) return;
+    try {
+      const res = await fetch(`/api/api-keys/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("API key deleted");
+      reloadKeys();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const copyKey = (key: string) => {
+    navigator.clipboard?.writeText(key).catch(() => {});
+    setCopiedKey(key);
+    toast.success("API key copied");
+    setTimeout(() => setCopiedKey(null), 1500);
+  };
 
   return (
     <div className="space-y-4">
@@ -1321,70 +1405,83 @@ function SecuritySection() {
       {/* Active sessions */}
       <GlassCard className="crystal-in p-5">
         <SectionTitle title="Active sessions" desc="Devices currently signed in to your account." />
-        <div className="space-y-2">
-          {sessions.map((s) => (
-            <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-muted/20 p-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                {s.device.includes("iPhone") || s.device.includes("iPad") || s.device.includes("Pixel") ? (
-                  <Smartphone className="h-4 w-4" />
-                ) : (
-                  <MonitorSmartphone className="h-4 w-4" />
+        {sessions.length === 0 ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">
+            No session tracking yet. Active sessions will appear here once device
+            tracking is enabled.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {sessions.map((s) => (
+              <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-muted/20 p-3">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  {s.device.includes("iPhone") || s.device.includes("iPad") || s.device.includes("Pixel") ? (
+                    <Smartphone className="h-4 w-4" />
+                  ) : (
+                    <MonitorSmartphone className="h-4 w-4" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-medium">{s.device}</span>
+                    {s.current && <Badge className="bg-emerald-500/15 text-emerald-500">This device</Badge>}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {s.location} · {s.ip} · {s.last}
+                  </div>
+                </div>
+                {!s.current && (
+                  <button
+                    onClick={() => toast.success(`Session revoked (${s.device})`)}
+                    className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
+                  >
+                    <LogOut className="h-3 w-3" /> Revoke
+                  </button>
                 )}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-sm font-medium">{s.device}</span>
-                  {s.current && <Badge className="bg-emerald-500/15 text-emerald-500">This device</Badge>}
-                </div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {s.location} · {s.ip} · {s.last}
-                </div>
-              </div>
-              {!s.current && (
-                <button
-                  onClick={() => toast.success(`Session revoked (${s.device})`)}
-                  className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
-                >
-                  <LogOut className="h-3 w-3" /> Revoke
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </GlassCard>
 
       {/* Login history */}
       <GlassCard className="crystal-in p-5">
         <SectionTitle title="Login history" desc="Recent sign-in attempts on your account." />
-        <div className="overflow-x-auto no-scrollbar">
-          <table className="w-full min-w-[480px] text-sm">
-            <thead>
-              <tr className="text-left text-xs text-muted-foreground">
-                <th className="px-2 py-2 font-medium">Device</th>
-                <th className="px-2 py-2 font-medium">Location</th>
-                <th className="px-2 py-2 font-medium">Time</th>
-                <th className="px-2 py-2 text-right font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((h) => (
-                <tr key={h.id} className="border-t border-border/50">
-                  <td className="px-2 py-2.5 text-xs">{h.device}</td>
-                  <td className="px-2 py-2.5 text-xs text-muted-foreground">{h.location}</td>
-                  <td className="px-2 py-2.5 text-xs text-muted-foreground">{h.time}</td>
-                  <td className="px-2 py-2.5 text-right">
-                    <span className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                      h.status === "Success" ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"
-                    )}>
-                      {h.status}
-                    </span>
-                  </td>
+        {history.length === 0 ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">
+            No login history yet. Recent sign-ins will be logged here.
+          </div>
+        ) : (
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-2 py-2 font-medium">Device</th>
+                  <th className="px-2 py-2 font-medium">Location</th>
+                  <th className="px-2 py-2 font-medium">Time</th>
+                  <th className="px-2 py-2 text-right font-medium">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id} className="border-t border-border/50">
+                    <td className="px-2 py-2.5 text-xs">{h.device}</td>
+                    <td className="px-2 py-2.5 text-xs text-muted-foreground">{h.location}</td>
+                    <td className="px-2 py-2.5 text-xs text-muted-foreground">{h.time}</td>
+                    <td className="px-2 py-2.5 text-right">
+                      <span className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        h.status === "Success" ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"
+                      )}>
+                        {h.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </GlassCard>
 
       {/* API keys */}
@@ -1394,42 +1491,72 @@ function SecuritySection() {
           desc="Use these to authenticate with the SocialFlow API."
           action={
             <button
-              onClick={() => toast.success("API key generated", { description: "Copy it now — you won't see it again." })}
+              onClick={() => { setNewKey(null); setGenOpen(true); }}
               className="liquid-gold flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
             >
               <KeyRound className="h-3.5 w-3.5" /> Generate key
             </button>
           }
         />
-        <div className="rounded-2xl bg-muted/30 p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="min-w-0 flex-1 font-mono text-xs">
-              {apiKey.slice(0, 14)}{"•".repeat(18)}{apiKey.slice(-4)}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard?.writeText(apiKey).catch(() => {});
-                  setCopiedKey(true);
-                  toast.success("API key copied");
-                  setTimeout(() => setCopiedKey(false), 1500);
-                }}
-                className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium transition hover:bg-muted/60"
-              >
-                {copiedKey ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />} Copy
-              </button>
-              <button
-                onClick={() => toast.success("API key revoked")}
-                className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
-              >
-                <Trash2 className="h-3 w-3" /> Revoke
-              </button>
-            </div>
+        {apiKeysLoading ? (
+          <div className="space-y-2">
+            <div className="shimmer h-12 rounded-2xl" />
+            <div className="shimmer h-12 rounded-2xl" />
           </div>
-          <div className="mt-2 text-[11px] text-muted-foreground">
-            Created Mar 12, 2025 · Last used 2h ago
+        ) : keys.length === 0 ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">
+            No API keys yet. Generate one to authenticate external integrations.
           </div>
-        </div>
+        ) : (
+          <div className="space-y-2">
+            {keys.map((k) => (
+              <div key={k.id} className="rounded-2xl bg-muted/30 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-semibold">{k.name}</span>
+                      <span className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium capitalize",
+                        k.status === "active" ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"
+                      )}>
+                        {k.status}
+                      </span>
+                    </div>
+                    <div className="mt-1 font-mono text-xs text-muted-foreground">
+                      {k.key.slice(0, 14)}{"•".repeat(18)}{k.key.slice(-4)}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => copyKey(k.key)}
+                      className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium transition hover:bg-muted/60"
+                    >
+                      {copiedKey === k.key ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />} Copy
+                    </button>
+                    {k.status === "active" && (
+                      <button
+                        onClick={() => revokeKey(k.id)}
+                        className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 px-2.5 py-1 text-xs font-medium text-amber-500 transition hover:bg-amber-500/10"
+                      >
+                        <Ban className="h-3 w-3" /> Revoke
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteKey(k.id)}
+                      className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
+                    >
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  Created {new Date(k.createdAt).toLocaleDateString()}
+                  {k.lastUsed && ` · Last used ${new Date(k.lastUsed).toLocaleDateString()}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </GlassCard>
 
       {/* IP allowlist */}
@@ -1496,6 +1623,64 @@ function SecuritySection() {
               <ShieldCheck className="h-4 w-4" /> Verify & enable
             </button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generate API key dialog */}
+      <Dialog
+        open={genOpen || !!newKey}
+        onOpenChange={(v) => { setGenOpen(v); if (!v) setNewKey(null); }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {newKey ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" /> Key generated
+                </DialogTitle>
+                <DialogDescription>
+                  Copy this key now — it won&apos;t be shown in full again.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="rounded-2xl border border-border bg-muted/30 p-4">
+                <code className="break-all font-mono text-xs">{newKey}</code>
+              </div>
+              <DialogFooter>
+                <button
+                  onClick={() => copyKey(newKey)}
+                  className="liquid-pill flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+                >
+                  <Copy className="h-4 w-4" /> Copy key
+                </button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Generate API key</DialogTitle>
+                <DialogDescription>
+                  Create a new key for external integrations.
+                </DialogDescription>
+              </DialogHeader>
+              <Field label="Key name">
+                <Input
+                  value={genName}
+                  onChange={(e) => setGenName(e.target.value)}
+                  placeholder="Production API"
+                />
+              </Field>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setGenOpen(false)}>Cancel</Button>
+                <button
+                  onClick={generateKey}
+                  disabled={genBusy || !genName.trim()}
+                  className="liquid-pill flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+                >
+                  <KeyRound className="h-4 w-4" /> {genBusy ? "Generating…" : "Generate"}
+                </button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -1643,21 +1828,29 @@ function IntegrationsSection() {
 }
 
 // ===== 9. Billing =====
-function BillingSection() {
-  const usage = [
-    { label: "Posts this month", used: 184, limit: 500, unit: "" },
-    { label: "Connected accounts", used: 10, limit: 25, unit: "" },
-    { label: "AI generations", used: 412, limit: 2000, unit: "" },
-    { label: "Media storage", used: 6.4, limit: 50, unit: "GB" },
-    { label: "Team seats", used: 6, limit: 15, unit: "" },
-  ];
+interface BillingInvoice {
+  id: string;
+  number: string;
+  status: string;
+  issueDate: string;
+  total: number;
+}
 
-  const invoices = [
-    { id: "INV-2025-006", date: "Mar 1, 2025", amount: "$249.00", status: "Paid" },
-    { id: "INV-2025-005", date: "Feb 1, 2025", amount: "$249.00", status: "Paid" },
-    { id: "INV-2025-004", date: "Jan 1, 2025", amount: "$199.00", status: "Paid" },
-    { id: "INV-2024-012", date: "Dec 1, 2024", amount: "$199.00", status: "Paid" },
-    { id: "INV-2024-011", date: "Nov 1, 2024", amount: "$149.00", status: "Refunded" },
+function BillingSection() {
+  // Real invoices from the database (POST /api/invoices is managed by the
+  // Owner Panel — here we only read them).
+  const { data: invoicesData, loading: invoicesLoading } =
+    useApi<BillingInvoice[]>("/api/invoices");
+  const invoices = invoicesData ?? [];
+
+  // Local-only usage snapshot — no DB backing yet, so we keep these as
+  // honestly-zero defaults rather than fabricated "184/500" numbers.
+  const usage = [
+    { label: "Posts this month", used: 0, limit: 500, unit: "" },
+    { label: "Connected accounts", used: 0, limit: 25, unit: "" },
+    { label: "AI generations", used: 0, limit: 2000, unit: "" },
+    { label: "Media storage", used: 0, limit: 50, unit: "GB" },
+    { label: "Team seats", used: 0, limit: 15, unit: "" },
   ];
 
   return (
@@ -1687,13 +1880,13 @@ function BillingSection() {
           </div>
           <div className="flex flex-col gap-2">
             <button
-              onClick={() => toast.success("Upgrade flow — Stripe Checkout mock")}
+              onClick={() => toast.info("Stripe not connected — add a payment gateway in Integrations")}
               className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
             >
               <Crown className="h-4 w-4" /> Upgrade plan
             </button>
             <button
-              onClick={() => toast.success("Stripe customer portal — mock")}
+              onClick={() => toast.info("Stripe not connected — add a payment gateway in Integrations")}
               className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted/60"
             >
               Manage billing
@@ -1734,7 +1927,7 @@ function BillingSection() {
           desc="Card used for subscription renewals."
           action={
             <button
-              onClick={() => toast.success("Update card — Stripe Elements mock")}
+              onClick={() => toast.info("Stripe not connected — add a payment gateway in Integrations")}
               className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
             >
               Update
@@ -1756,35 +1949,55 @@ function BillingSection() {
       {/* Invoices */}
       <GlassCard className="crystal-in p-5">
         <SectionTitle title="Invoices" desc="Download past invoices and receipts." />
-        <div className="overflow-x-auto no-scrollbar">
-          <table className="w-full min-w-[480px] text-sm">
-            <thead>
-              <tr className="text-left text-xs text-muted-foreground">
-                <th className="px-2 py-2 font-medium">Invoice</th>
-                <th className="px-2 py-2 font-medium">Date</th>
-                <th className="px-2 py-2 font-medium">Amount</th>
-                <th className="px-2 py-2 text-right font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((inv) => (
-                <tr key={inv.id} className="border-t border-border/50">
-                  <td className="px-2 py-2.5 text-xs font-medium">{inv.id}</td>
-                  <td className="px-2 py-2.5 text-xs text-muted-foreground">{inv.date}</td>
-                  <td className="px-2 py-2.5 text-xs">{inv.amount}</td>
-                  <td className="px-2 py-2.5 text-right">
-                    <span className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                      inv.status === "Paid" ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"
-                    )}>
-                      {inv.status}
-                    </span>
-                  </td>
+        {invoicesLoading ? (
+          <div className="space-y-2">
+            <div className="shimmer h-8 rounded-lg" />
+            <div className="shimmer h-8 rounded-lg" />
+            <div className="shimmer h-8 rounded-lg" />
+          </div>
+        ) : invoices.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            No invoices yet. Owner-Panel invoices will appear here.
+          </div>
+        ) : (
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-2 py-2 font-medium">Invoice</th>
+                  <th className="px-2 py-2 font-medium">Date</th>
+                  <th className="px-2 py-2 font-medium">Amount</th>
+                  <th className="px-2 py-2 text-right font-medium">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {invoices.map((inv) => (
+                  <tr key={inv.id} className="border-t border-border/50">
+                    <td className="px-2 py-2.5 text-xs font-medium">{inv.number}</td>
+                    <td className="px-2 py-2.5 text-xs text-muted-foreground">
+                      {new Date(inv.issueDate).toLocaleDateString()}
+                    </td>
+                    <td className="px-2 py-2.5 text-xs">
+                      ${inv.total.toFixed(2)}
+                    </td>
+                    <td className="px-2 py-2.5 text-right">
+                      <span className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium capitalize",
+                        inv.status === "paid"
+                          ? "bg-emerald-500/15 text-emerald-500"
+                          : inv.status === "overdue"
+                            ? "bg-rose-500/15 text-rose-500"
+                            : "bg-amber-500/15 text-amber-500"
+                      )}>
+                        {inv.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </GlassCard>
     </div>
   );
@@ -1907,7 +2120,7 @@ function DataSection() {
           placeholder="Prism Studio"
           confirmText="Prism Studio"
           buttonLabel="Delete workspace"
-          onConfirm={() => toast.success("Workspace deletion scheduled (mock)")}
+          onConfirm={() => toast.info("Contact support to schedule workspace deletion")}
         />
       </div>
     </GlassCard>
@@ -1916,8 +2129,65 @@ function DataSection() {
 
 // ===== 11. Danger Zone =====
 function DangerSection() {
-  const [suspendId, setSuspendId] = React.useState("u-3");
-  const [transferTo, setTransferTo] = React.useState("u-1");
+  const { user } = useAuth();
+  const { data, loading, reload } = useApi<ApiUser[]>("/api/users");
+  const users = data ?? [];
+  // Exclude the current user from both suspend and transfer lists.
+  const others = users.filter((u) => u.id !== user?.id);
+  const [suspendId, setSuspendId] = React.useState("");
+  const [transferTo, setTransferTo] = React.useState("");
+  const [acting, setActing] = React.useState(false);
+
+  // Keep selects valid once data arrives.
+  React.useEffect(() => {
+    if (!others.length) return;
+    if (!suspendId || !others.some((u) => u.id === suspendId)) {
+      setSuspendId(others[0].id);
+    }
+    if (!transferTo || !others.some((u) => u.id === transferTo)) {
+      setTransferTo(others[0].id);
+    }
+  }, [others, suspendId, transferTo]);
+
+  const patchUser = async (id: string, patch: Record<string, unknown>) => {
+    setActing(true);
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...patch }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? "Request failed");
+      }
+      reload();
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const suspend = async () => {
+    const target = users.find((u) => u.id === suspendId);
+    if (!target) return;
+    try {
+      await patchUser(target.id, { status: "suspended" });
+      toast.success(`Suspended ${target.name}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to suspend");
+    }
+  };
+
+  const transfer = async () => {
+    const target = users.find((u) => u.id === transferTo);
+    if (!target) return;
+    try {
+      await patchUser(target.id, { role: "admin" });
+      toast.success(`Ownership transferred to ${target.name}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to transfer");
+    }
+  };
 
   return (
     <GlassCard className="crystal-in border-2 border-rose-500/40 p-5">
@@ -1936,17 +2206,24 @@ function DangerSection() {
             <div className="text-sm font-semibold">Suspend a member</div>
             <div className="text-xs text-muted-foreground">Temporarily revoke access. They keep their content history.</div>
           </div>
-          <Select value={suspendId} onValueChange={setSuspendId}>
-            <SelectTrigger className="h-9 w-44 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {SEED_TEAM.filter((m) => m.role !== "admin").map((m) => (
-                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {loading ? (
+            <div className="shimmer h-9 w-44 rounded-lg" />
+          ) : others.length === 0 ? (
+            <span className="text-xs text-muted-foreground">No other members</span>
+          ) : (
+            <Select value={suspendId} onValueChange={setSuspendId}>
+              <SelectTrigger className="h-9 w-44 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {others.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <button
-            onClick={() => toast.success(`Suspended ${SEED_TEAM.find((m) => m.id === suspendId)?.name}`)}
-            className="flex items-center gap-1.5 rounded-xl border border-rose-500/40 px-3.5 py-1.5 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10"
+            onClick={suspend}
+            disabled={acting || !suspendId}
+            className="flex items-center gap-1.5 rounded-xl border border-rose-500/40 px-3.5 py-1.5 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-60"
           >
             <Ban className="h-3.5 w-3.5" /> Suspend
           </button>
@@ -1961,17 +2238,24 @@ function DangerSection() {
             <div className="text-sm font-semibold">Transfer ownership</div>
             <div className="text-xs text-muted-foreground">Hand over workspace admin rights to another member.</div>
           </div>
-          <Select value={transferTo} onValueChange={setTransferTo}>
-            <SelectTrigger className="h-9 w-44 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {SEED_TEAM.filter((m) => m.id !== "u-admin").map((m) => (
-                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {loading ? (
+            <div className="shimmer h-9 w-44 rounded-lg" />
+          ) : others.length === 0 ? (
+            <span className="text-xs text-muted-foreground">No other members</span>
+          ) : (
+            <Select value={transferTo} onValueChange={setTransferTo}>
+              <SelectTrigger className="h-9 w-44 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {others.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <button
-            onClick={() => toast.success(`Ownership transfer initiated to ${SEED_TEAM.find((m) => m.id === transferTo)?.name}`)}
-            className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 px-3.5 py-1.5 text-xs font-semibold text-amber-500 transition hover:bg-amber-500/10"
+            onClick={transfer}
+            disabled={acting || !transferTo}
+            className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 px-3.5 py-1.5 text-xs font-semibold text-amber-500 transition hover:bg-amber-500/10 disabled:opacity-60"
           >
             <ArrowLeftRight className="h-3.5 w-3.5" /> Transfer
           </button>
@@ -1991,7 +2275,7 @@ function DangerSection() {
             placeholder="DELETE"
             confirmText="DELETE"
             buttonLabel="Delete my account"
-            onConfirm={() => toast.success("Account deletion scheduled (mock)")}
+            onConfirm={() => toast.info("Contact support to schedule account deletion")}
           />
         </div>
       </div>

@@ -21,6 +21,10 @@ import {
   Eye,
   Layers,
   Flame,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
@@ -36,6 +40,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -133,6 +144,21 @@ function PlatformCell({ platform }: { platform: HashtagPlatform }) {
 export function HashtagsView() {
   const { data, loading, reload } = useApi<HashtagData>("/api/hashtags");
   const { openComposer } = useNav();
+  const [editing, setEditing] = React.useState<HashtagGroup | null>(null);
+
+  const handleDelete = React.useCallback(
+    async (g: HashtagGroup) => {
+      try {
+        const res = await fetch(`/api/hashtags/${g.id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Failed to delete");
+        toast.success(`"${g.name}" deleted`);
+        reload();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not delete group");
+      }
+    },
+    [reload],
+  );
 
   if (loading || !data) return <HashtagsSkeleton />;
 
@@ -272,6 +298,8 @@ export function HashtagsView() {
                 const tags = parseTags(g.tags).map((t) => `#${t}`).join(" ");
                 openComposer(tags);
               }}
+              onEdit={() => setEditing(g)}
+              onDelete={() => handleDelete(g)}
             />
           ))}
           {data.groups.length === 0 && (
@@ -330,6 +358,17 @@ export function HashtagsView() {
           </div>
         </GlassCard>
       </div>
+
+      <EditGroupDialog
+        group={editing}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+        onSaved={() => {
+          setEditing(null);
+          reload();
+        }}
+      />
     </div>
   );
 }
@@ -338,10 +377,14 @@ function GroupCard({
   group,
   maxUsage,
   onUseInComposer,
+  onEdit,
+  onDelete,
 }: {
   group: HashtagGroup;
   maxUsage: number;
   onUseInComposer: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const tags = parseTags(group.tags);
   const usagePct = Math.round((group.usageCount / maxUsage) * 100);
@@ -379,12 +422,36 @@ function GroupCard({
             <PlatformCell platform={group.platform} />
           </div>
         </div>
-        <span
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl text-white shadow-sm"
-          style={{ background: group.color }}
-        >
-          <Hash className="h-4 w-4" />
-        </span>
+        <div className="flex shrink-0 items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                aria-label={`Actions for ${group.name}`}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40 rounded-xl">
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="mr-2 h-4 w-4" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-rose-500 focus:text-rose-500"
+                onClick={onDelete}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <span
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl text-white shadow-sm"
+            style={{ background: group.color }}
+          >
+            <Hash className="h-4 w-4" />
+          </span>
+        </div>
       </div>
 
       {/* Tag pills */}
@@ -612,6 +679,154 @@ function CreateGroupDialog({ onCreated }: { onCreated: () => void }) {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function EditGroupDialog({
+  group,
+  onOpenChange,
+  onSaved,
+}: {
+  group: HashtagGroup | null;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const open = group !== null;
+  const [name, setName] = React.useState("");
+  const [tags, setTags] = React.useState("");
+  const [platform, setPlatform] = React.useState<HashtagPlatform>("all");
+  const [color, setColor] = React.useState(SWATCHES[0]);
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!group) return;
+    setName(group.name);
+    setTags(group.tags);
+    setPlatform((group.platform as HashtagPlatform) ?? "all");
+    setColor(group.color || SWATCHES[0]);
+  }, [group]);
+
+  async function handleSubmit() {
+    if (!group) return;
+    if (!name.trim() || !tags.trim()) {
+      toast.error("Name and tags are required");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/hashtags/${group.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          tags: tags.trim(),
+          platform,
+          color,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? "Failed to update group");
+      }
+      toast.success("Hashtag group updated", { description: name.trim() });
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const previewCount = parseTags(tags).length;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-3xl sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="h-5 w-5 text-primary" />
+            Edit hashtag group
+          </DialogTitle>
+          <DialogDescription>
+            Update the name, tags, platform, or color of this group.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="edt-hg-name">Group name</Label>
+            <Input
+              id="edt-hg-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edt-hg-tags">
+              Tags{" "}
+              <span className="text-[11px] font-normal text-muted-foreground">
+                ({previewCount} parsed)
+              </span>
+            </Label>
+            <Textarea
+              id="edt-hg-tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              rows={4}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Comma or newline separated. The <code>#</code> prefix is added automatically.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Platform</Label>
+            <Select
+              value={platform}
+              onValueChange={(v) => setPlatform(v as HashtagPlatform)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PLATFORM_OPTIONS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Color</Label>
+            <div className="flex flex-wrap gap-2">
+              {SWATCHES.map((sw) => (
+                <button
+                  key={sw}
+                  type="button"
+                  onClick={() => setColor(sw)}
+                  className={cn(
+                    "h-8 w-8 rounded-full transition",
+                    color === sw
+                      ? "ring-2 ring-offset-2 ring-offset-background"
+                      : "opacity-80 hover:opacity-100",
+                  )}
+                  style={{ background: sw, boxShadow: color === sw ? `0 0 0 2px ${sw}` : undefined }}
+                  aria-label={`Color ${sw}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={saving} className="gap-1.5">
+            {saving ? "Saving…" : "Save changes"}
+            {!saving && <CheckCircle2 className="h-3.5 w-3.5" />}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

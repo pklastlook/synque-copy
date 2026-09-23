@@ -26,6 +26,15 @@ import {
   Mail,
   ShieldCheck,
   Briefcase,
+  CircleUserRound,
+  CreditCard,
+  FileText,
+  FileSignature,
+  KeyRound,
+  Smartphone,
+  Lock,
+  Landmark,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
@@ -76,8 +85,6 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const {
     view,
     setView,
-    adminMode,
-    currentUserId,
     settingsTab,
     settingsExpanded,
     toggleSettings,
@@ -240,7 +247,6 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Settings className={cn("h-4 w-4", settingsActive && "text-primary")} />
         </button>
       </div>
-      <span className="hidden">{currentUserId}</span>
     </div>
   );
 }

@@ -38,3 +38,24 @@ export async function PATCH(req: NextRequest) {
   await db.approval.update({ where: { id }, data });
   return NextResponse.json({ ok: true });
 }
+
+export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const { title, authorId, approverId, priority, dueAt } = body;
+  if (!title || !authorId) {
+    return NextResponse.json(
+      { error: "title and authorId required" },
+      { status: 400 },
+    );
+  }
+  const a = await db.approval.create({
+    data: {
+      title: String(title),
+      authorId: String(authorId),
+      approverId: approverId ? String(approverId) : null,
+      priority: priority ?? "normal",
+      dueAt: dueAt ? new Date(dueAt) : null,
+    },
+  });
+  return NextResponse.json({ id: a.id, ok: true });
+}

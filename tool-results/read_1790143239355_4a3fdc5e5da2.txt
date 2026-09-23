@@ -1,0 +1,699 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Plus,
+     6→  Trash2,
+     7→  Save,
+     8→  ExternalLink,
+     9→  Eye,
+    10→  MousePointerClick,
+    11→  Link as LinkIcon,
+    12→  Globe,
+    13→  Smartphone,
+    14→  Sparkles,
+    15→  GripVertical,
+    16→  ShoppingBag,
+    17→  BookOpen,
+    18→  Play,
+    19→  Music,
+    20→  Mail,
+    21→  MessageCircle,
+    22→  Instagram,
+    23→  Youtube,
+    24→  CheckCircle2,
+    25→} from "lucide-react";
+    26→import { toast } from "sonner";
+    27→import { useApi, fmt } from "@/lib/hooks";
+    28→import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+    29→import { Switch } from "@/components/ui/switch";
+    30→import { Input } from "@/components/ui/input";
+    31→import { Label } from "@/components/ui/label";
+    32→import {
+    33→  Select,
+    34→  SelectContent,
+    35→  SelectItem,
+    36→  SelectTrigger,
+    37→  SelectValue,
+    38→} from "@/components/ui/select";
+    39→import { cn } from "@/lib/utils";
+    40→
+    41→interface LinkItem {
+    42→  title: string;
+    43→  url: string;
+    44→  icon: string;
+    45→}
+    46→
+    47→interface LinkBioPage {
+    48→  id: string;
+    49→  slug: string;
+    50→  title: string;
+    51→  subtitle: string | null;
+    52→  avatar: string | null;
+    53→  theme: string;
+    54→  visits: number;
+    55→  clicks: number;
+    56→  accountId: string | null;
+    57→  active: boolean;
+    58→  links: LinkItem[];
+    59→  createdAt: string;
+    60→}
+    61→
+    62→type ThemeKey = "rose" | "teal" | "amber" | "magenta" | "green" | "dark";
+    63→
+    64→const THEMES: Record<ThemeKey, { color: string; gradient: string; label: string }> = {
+    65→  rose: {
+    66→    color: "oklch(0.7 0.24 14)",
+    67→    gradient: "linear-gradient(160deg, oklch(0.72 0.24 14) 0%, oklch(0.66 0.22 305) 100%)",
+    68→    label: "Rose",
+    69→  },
+    70→  teal: {
+    71→    color: "oklch(0.74 0.18 165)",
+    72→    gradient: "linear-gradient(160deg, oklch(0.74 0.18 165) 0%, oklch(0.6 0.14 200) 100%)",
+    73→    label: "Teal",
+    74→  },
+    75→  amber: {
+    76→    color: "oklch(0.78 0.18 75)",
+    77→    gradient: "linear-gradient(160deg, oklch(0.8 0.18 75) 0%, oklch(0.7 0.2 25) 100%)",
+    78→    label: "Amber",
+    79→  },
+    80→  magenta: {
+    81→    color: "oklch(0.66 0.22 305)",
+    82→    gradient: "linear-gradient(160deg, oklch(0.66 0.22 305) 0%, oklch(0.55 0.24 350) 100%)",
+    83→    label: "Magenta",
+    84→  },
+    85→  green: {
+    86→    color: "oklch(0.76 0.18 145)",
+    87→    gradient: "linear-gradient(160deg, oklch(0.76 0.18 145) 0%, oklch(0.6 0.16 165) 100%)",
+    88→    label: "Green",
+    89→  },
+    90→  dark: {
+    91→    color: "oklch(0.18 0.02 250)",
+    92→    gradient: "linear-gradient(160deg, oklch(0.16 0.02 260) 0%, oklch(0.08 0 0) 100%)",
+    93→    label: "Midnight",
+    94→  },
+    95→};
+    96→
+    97→const ICON_SET: { name: string; component: React.ElementType }[] = [
+    98→  { name: "shopping-bag", component: ShoppingBag },
+    99→  { name: "book-open", component: BookOpen },
+   100→  { name: "play", component: Play },
+   101→  { name: "music", component: Music },
+   102→  { name: "mail", component: Mail },
+   103→  { name: "message-circle", component: MessageCircle },
+   104→  { name: "link", component: LinkIcon },
+   105→  { name: "globe", component: Globe },
+   106→  { name: "instagram", component: Instagram },
+   107→  { name: "youtube", component: Youtube },
+   108→];
+   109→
+   110→function iconComponent(name: string): React.ElementType {
+   111→  return ICON_SET.find((i) => i.name === name)?.component ?? LinkIcon;
+   112→}
+   113→
+   114→export function LinkBioView() {
+   115→  const { data, loading, reload } = useApi<LinkBioPage[]>("/api/linkbio");
+   116→
+   117→  const pages = data ?? [];
+   118→  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+   119→
+   120→  // Local edit buffer for the selected page — initialized from server data.
+   121→  const [draft, setDraft] = React.useState<LinkBioPage | null>(null);
+   122→  const [saving, setSaving] = React.useState(false);
+   123→
+   124→  // Initialise selection + draft whenever data arrives / changes.
+   125→  React.useEffect(() => {
+   126→    if (pages.length === 0) {
+   127→      if (draft) setDraft(null);
+   128→      return;
+   129→    }
+   130→    if (!selectedId || !pages.some((p) => p.id === selectedId)) {
+   131→      setSelectedId(pages[0].id);
+   132→    }
+   133→  }, [pages, selectedId, draft]);
+   134→
+   135→  React.useEffect(() => {
+   136→    if (!selectedId || !data) return;
+   137→    const serverPage = data.find((p) => p.id === selectedId);
+   138→    if (!serverPage) return;
+   139→    // Only reset draft when switching to a different page (not on every reload).
+   140→    setDraft((prev) => {
+   141→      if (prev && prev.id === selectedId) {
+   142→        // Merge server values that aren't user-editable: visits/clicks/active/slug.
+   143→        return {
+   144→          ...serverPage,
+   145→          title: prev.title,
+   146→          subtitle: prev.subtitle,
+   147→          avatar: prev.avatar,
+   148→          theme: prev.theme,
+   149→          links: prev.links,
+   150→        };
+   151→      }
+   152→      return serverPage;
+   153→    });
+   154→  }, [selectedId, data]);
+   155→
+   156→  if (loading || !data) return <LinkBioSkeleton />;
+   157→
+   158→  const totalVisits = pages.reduce((s, p) => s + p.visits, 0);
+   159→  const totalClicks = pages.reduce((s, p) => s + p.clicks, 0);
+   160→  const avgCtr = totalVisits > 0 ? (totalClicks / totalVisits) * 100 : 0;
+   161→
+   162→  const toggleActive = async (page: LinkBioPage, next: boolean) => {
+   163→    setDraft((prev) => (prev && prev.id === page.id ? { ...prev, active: next } : prev));
+   164→    try {
+   165→      await fetch("/api/linkbio", {
+   166→        method: "PATCH",
+   167→        headers: { "Content-Type": "application/json" },
+   168→        body: JSON.stringify({ id: page.id, active: next }),
+   169→      });
+   170→      toast.success(next ? "Page published" : "Page paused");
+   171→      reload();
+   172→    } catch {
+   173→      toast.error("Could not update page");
+   174→    }
+   175→  };
+   176→
+   177→  const changeTheme = async (themeKey: ThemeKey) => {
+   178→    if (!draft) return;
+   179→    setDraft({ ...draft, theme: themeKey });
+   180→    try {
+   181→      await fetch("/api/linkbio", {
+   182→        method: "PATCH",
+   183→        headers: { "Content-Type": "application/json" },
+   184→        body: JSON.stringify({ id: draft.id, theme: themeKey }),
+   185→      });
+   186→      toast.success(`Theme: ${THEMES[themeKey].label}`);
+   187→      reload();
+   188→    } catch {
+   189→      toast.error("Could not change theme");
+   190→    }
+   191→  };
+   192→
+   193→  const savePage = async () => {
+   194→    if (!draft) return;
+   195→    setSaving(true);
+   196→    try {
+   197→      const res = await fetch("/api/linkbio", {
+   198→        method: "PATCH",
+   199→        headers: { "Content-Type": "application/json" },
+   200→        body: JSON.stringify({
+   201→          id: draft.id,
+   202→          title: draft.title,
+   203→          subtitle: draft.subtitle,
+   204→          theme: draft.theme,
+   205→          links: draft.links,
+   206→        }),
+   207→      });
+   208→      if (!res.ok) throw new Error("Failed");
+   209→      toast.success("Changes saved");
+   210→      reload();
+   211→    } catch {
+   212→      toast.error("Could not save changes");
+   213→    } finally {
+   214→      setSaving(false);
+   215→    }
+   216→  };
+   217→
+   218→  const updateDraft = (patch: Partial<LinkBioPage>) => {
+   219→    setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+   220→  };
+   221→
+   222→  const updateLink = (idx: number, patch: Partial<LinkItem>) => {
+   223→    if (!draft) return;
+   224→    setDraft({
+   225→      ...draft,
+   226→      links: draft.links.map((l, i) => (i === idx ? { ...l, ...patch } : l)),
+   227→    });
+   228→  };
+   229→
+   230→  const removeLink = (idx: number) => {
+   231→    if (!draft) return;
+   232→    setDraft({ ...draft, links: draft.links.filter((_, i) => i !== idx) });
+   233→  };
+   234→
+   235→  const addLink = () => {
+   236→    if (!draft) return;
+   237→    setDraft({
+   238→      ...draft,
+   239→      links: [...draft.links, { title: "New link", url: "https://", icon: "link" }],
+   240→    });
+   241→  };
+   242→
+   243→  return (
+   244→    <div className="space-y-5">
+   245→      {/* Hero */}
+   246→      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
+   247→        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />
+   248→        <div className="relative flex flex-wrap items-center justify-between gap-4">
+   249→          <div>
+   250→            <div className="flex items-center gap-2 text-xs font-medium text-primary">
+   251→              <LinkIcon className="h-3.5 w-3.5" />
+   252→              Link-in-bio · Build &amp; preview
+   253→            </div>
+   254→            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+   255→              Your <span className="retaina-text">link-in-bio</span> pages
+   256→            </h2>
+   257→            <p className="mt-1 text-sm text-muted-foreground">
+   258→              <span className="font-semibold text-foreground">{pages.length}</span> live pages ·{" "}
+   259→              <span className="font-semibold text-foreground">{fmt(totalVisits)}</span> visits ·{" "}
+   260→              <span className="font-semibold text-foreground">{avgCtr.toFixed(1)}%</span> avg CTR.
+   261→            </p>
+   262→          </div>
+   263→          <button
+   264→            onClick={() => toast.info("Coming soon — page builder v2")}
+   265→            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+   266→          >
+   267→            <Plus className="h-4 w-4" />
+   268→            New page
+   269→          </button>
+   270→        </div>
+   271→      </GlassCard>
+   272→
+   273→      {/* KPI strip */}
+   274→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   275→        <KpiCard
+   276→          label="Pages"
+   277→          value={pages.length}
+   278→          icon={<Smartphone className="h-5 w-5" />}
+   279→          accent="var(--primary)"
+   280→          hint={`${pages.filter((p) => p.active).length} active`}
+   281→        />
+   282→        <KpiCard
+   283→          label="Total visits"
+   284→          value={fmt(totalVisits)}
+   285→          icon={<Eye className="h-5 w-5" />}
+   286→          accent="oklch(0.74 0.18 165)"
+   287→          hint="all-time"
+   288→        />
+   289→        <KpiCard
+   290→          label="Total clicks"
+   291→          value={fmt(totalClicks)}
+   292→          icon={<MousePointerClick className="h-5 w-5" />}
+   293→          accent="oklch(0.66 0.22 305)"
+   294→          hint="on link buttons"
+   295→        />
+   296→        <KpiCard
+   297→          label="Avg CTR"
+   298→          value={`${avgCtr.toFixed(1)}%`}
+   299→          icon={<ExternalLink className="h-5 w-5" />}
+   300→          accent="oklch(0.78 0.18 75)"
+   301→          hint="clicks / visits"
+   302→        />
+   303→      </div>
+   304→
+   305→      {/* Pages list */}
+   306→      <GlassCard className="p-5">
+   307→        <SectionTitle
+   308→          title="Your pages"
+   309→          desc="Pick a page to edit. Toggle live status with the switch."
+   310→          action={<Sparkles className="h-4 w-4 text-primary" />}
+   311→        />
+   312→        <div className="grid gap-3 sm:grid-cols-2">
+   313→          {pages.map((p) => {
+   314→            const isActive = selectedId === p.id;
+   315→            const theme = (THEMES[p.theme as ThemeKey] ?? THEMES.rose);
+   316→            const ctr = p.visits > 0 ? (p.clicks / p.visits) * 100 : 0;
+   317→            return (
+   318→              <div
+   319→                key={p.id}
+   320→                role="button"
+   321→                tabIndex={0}
+   322→                onClick={() => setSelectedId(p.id)}
+   323→                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedId(p.id); } }}
+   324→                className={cn(
+   325→                  "group glass-sheen relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-2xl border bg-background/40 p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg",
+   326→                  isActive ? "border-primary ring-2 ring-primary" : "border-border/40",
+   327→                )}
+   328→              >
+   329→                <div
+   330→                  className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-25 blur-2xl"
+   331→                  style={{ background: theme.color }}
+   332→                />
+   333→                <div className="relative flex items-start justify-between gap-3">
+   334→                  <div className="flex items-center gap-3">
+   335→                    <div
+   336→                      className="grid h-10 w-10 place-items-center rounded-2xl text-white shadow-md"
+   337→                      style={{ background: theme.gradient }}
+   338→                    >
+   339→                      <LinkIcon className="h-5 w-5" />
+   340→                    </div>
+   341→                    <div className="min-w-0">
+   342→                      <div className="truncate text-sm font-semibold">{p.title}</div>
+   343→                      <div className="truncate text-[11px] text-muted-foreground">
+   344→                        prism.co/{p.slug}
+   345→                      </div>
+   346→                    </div>
+   347→                  </div>
+   348→                  <div onClick={(e) => e.stopPropagation()}>
+   349→                    <Switch
+   350→                      checked={p.active}
+   351→                      onCheckedChange={(v) => toggleActive(p, v)}
+   352→                    />
+   353→                  </div>
+   354→                </div>
+   355→                <div className="relative grid grid-cols-3 gap-2 text-center">
+   356→                  <div className="rounded-lg bg-muted/40 px-2 py-1.5">
+   357→                    <div className="text-sm font-bold tabular-nums">{fmt(p.visits)}</div>
+   358→                    <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Visits</div>
+   359→                  </div>
+   360→                  <div className="rounded-lg bg-muted/40 px-2 py-1.5">
+   361→                    <div className="text-sm font-bold tabular-nums">{fmt(p.clicks)}</div>
+   362→                    <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Clicks</div>
+   363→                  </div>
+   364→                  <div className="rounded-lg bg-muted/40 px-2 py-1.5">
+   365→                    <div className="text-sm font-bold tabular-nums">{ctr.toFixed(1)}%</div>
+   366→                    <div className="text-[9px] uppercase tracking-wide text-muted-foreground">CTR</div>
+   367→                  </div>
+   368→                </div>
+   369→              </div>
+   370→            );
+   371→          })}
+   372→          {pages.length === 0 && (
+   373→            <div className="col-span-full rounded-2xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+   374→              No link-in-bio pages yet.
+   375→            </div>
+   376→          )}
+   377→        </div>
+   378→      </GlassCard>
+   379→
+   380→      {/* Editor + phone preview */}
+   381→      {draft && (
+   382→        <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+   383→          {/* Editor */}
+   384→          <GlassCard className="p-5">
+   385→            <SectionTitle
+   386→              title="Editor"
+   387→              desc={`Editing prism.co/${draft.slug}`}
+   388→              action={
+   389→                <button
+   390→                  onClick={savePage}
+   391→                  disabled={saving}
+   392→                  className="liquid-pill flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+   393→                >
+   394→                  <Save className="h-3.5 w-3.5" />
+   395→                  {saving ? "Saving…" : "Save changes"}
+   396→                </button>
+   397→              }
+   398→            />
+   399→
+   400→            <div className="space-y-4">
+   401→              {/* Title + subtitle */}
+   402→              <div className="grid gap-3 sm:grid-cols-2">
+   403→                <div className="space-y-2">
+   404→                  <Label htmlFor="lb-title">Title</Label>
+   405→                  <Input
+   406→                    id="lb-title"
+   407→                    value={draft.title}
+   408→                    onChange={(e) => updateDraft({ title: e.target.value })}
+   409→                    placeholder="Your page title"
+   410→                  />
+   411→                </div>
+   412→                <div className="space-y-2">
+   413→                  <Label htmlFor="lb-subtitle">Subtitle</Label>
+   414→                  <Input
+   415→                    id="lb-subtitle"
+   416→                    value={draft.subtitle ?? ""}
+   417→                    onChange={(e) => updateDraft({ subtitle: e.target.value || null })}
+   418→                    placeholder="A short tagline"
+   419→                  />
+   420→                </div>
+   421→              </div>
+   422→
+   423→              {/* Avatar URL */}
+   424→              <div className="space-y-2">
+   425→                <Label htmlFor="lb-avatar">Avatar URL</Label>
+   426→                <div className="flex items-center gap-3">
+   427→                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
+   428→                    {draft.avatar ? (
+   429→                       
+   430→                      <img
+   431→                        src={draft.avatar}
+   432→                        alt="Avatar"
+   433→                        className="h-full w-full object-cover"
+   434→                      />
+   435→                    ) : (
+   436→                      <div className="grid h-full w-full place-items-center text-[10px] font-medium text-muted-foreground">
+   437→                        {draft.title.charAt(0).toUpperCase()}
+   438→                      </div>
+   439→                    )}
+   440→                  </div>
+   441→                  <Input
+   442→                    id="lb-avatar"
+   443→                    value={draft.avatar ?? ""}
+   444→                    onChange={(e) => updateDraft({ avatar: e.target.value || null })}
+   445→                    placeholder="https://example.com/avatar.png"
+   446→                  />
+   447→                </div>
+   448→              </div>
+   449→
+   450→              {/* Theme picker */}
+   451→              <div className="space-y-2">
+   452→                <Label>Theme</Label>
+   453→                <div className="flex flex-wrap gap-2">
+   454→                  {(Object.keys(THEMES) as ThemeKey[]).map((t) => {
+   455→                    const isActive = (draft.theme ?? "rose") === t;
+   456→                    return (
+   457→                      <button
+   458→                        key={t}
+   459→                        onClick={() => changeTheme(t)}
+   460→                        aria-label={`Theme ${THEMES[t].label}`}
+   461→                        className={cn(
+   462→                          "relative h-9 w-9 rounded-full shadow-md transition-all",
+   463→                          isActive
+   464→                            ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+   465→                            : "ring-1 ring-border/60 hover:scale-105",
+   466→                        )}
+   467→                        style={{ background: THEMES[t].gradient }}
+   468→                      >
+   469→                        {isActive && (
+   470→                          <CheckCircle2 className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />
+   471→                        )}
+   472→                      </button>
+   473→                    );
+   474→                  })}
+   475→                </div>
+   476→              </div>
+   477→
+   478→              {/* Links manager */}
+   479→              <div className="space-y-2">
+   480→                <div className="flex items-center justify-between">
+   481→                  <Label>Links ({draft.links.length})</Label>
+   482→                  <button
+   483→                    onClick={addLink}
+   484→                    className="flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
+   485→                  >
+   486→                    <Plus className="h-3 w-3" /> Add link
+   487→                  </button>
+   488→                </div>
+   489→                <div className="space-y-2">
+   490→                  {draft.links.map((link, idx) => {
+   491→                    const Icon = iconComponent(link.icon);
+   492→                    return (
+   493→                      <div
+   494→                        key={idx}
+   495→                        className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/40 bg-background/40 p-2 sm:flex-nowrap"
+   496→                      >
+   497→                        <GripVertical className="hidden h-4 w-4 shrink-0 text-muted-foreground/60 sm:block" />
+   498→                        <Select
+   499→                          value={link.icon}
+   500→                          onValueChange={(v) => updateLink(idx, { icon: v })}
+   501→                        >
+   502→                          <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-xl">
+   503→                            <span className="flex items-center gap-2">
+   504→                              <Icon className="h-3.5 w-3.5" />
+   505→                              <SelectValue />
+   506→                            </span>
+   507→                          </SelectTrigger>
+   508→                          <SelectContent>
+   509→                            {ICON_SET.map((opt) => {
+   510→                              const OptIcon = opt.component;
+   511→                              return (
+   512→                                <SelectItem key={opt.name} value={opt.name}>
+   513→                                  <span className="flex items-center gap-2">
+   514→                                    <OptIcon className="h-3.5 w-3.5" />
+   515→                                    {opt.name}
+   516→                                  </span>
+   517→                                </SelectItem>
+   518→                              );
+   519→                            })}
+   520→                          </SelectContent>
+   521→                        </Select>
+   522→                        <Input
+   523→                          value={link.title}
+   524→                          onChange={(e) => updateLink(idx, { title: e.target.value })}
+   525→                          placeholder="Button label"
+   526→                          className="h-9 min-w-[120px] flex-1 rounded-xl"
+   527→                        />
+   528→                        <Input
+   529→                          value={link.url}
+   530→                          onChange={(e) => updateLink(idx, { url: e.target.value })}
+   531→                          placeholder="https://"
+   532→                          className="h-9 min-w-[140px] flex-1 rounded-xl"
+   533→                        />
+   534→                        <button
+   535→                          onClick={() => removeLink(idx)}
+   536→                          aria-label="Remove link"
+   537→                          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-rose-500/10 text-rose-500 transition hover:bg-rose-500/20"
+   538→                        >
+   539→                          <Trash2 className="h-3.5 w-3.5" />
+   540→                        </button>
+   541→                      </div>
+   542→                    );
+   543→                  })}
+   544→                  {draft.links.length === 0 && (
+   545→                    <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-xs text-muted-foreground">
+   546→                      No links yet. Add one to make your page live.
+   547→                    </div>
+   548→                  )}
+   549→                </div>
+   550→              </div>
+   551→            </div>
+   552→          </GlassCard>
+   553→
+   554→          {/* Phone preview */}
+   555→          <PhonePreview page={draft} />
+   556→        </div>
+   557→      )}
+   558→    </div>
+   559→  );
+   560→}
+   561→
+   562→function PhonePreview({ page }: { page: LinkBioPage }) {
+   563→  const theme = THEMES[(page.theme as ThemeKey) ?? "rose"] ?? THEMES.rose;
+   564→  const isDark = page.theme === "dark";
+   565→  const ctr = page.visits > 0 ? (page.clicks / page.visits) * 100 : 0;
+   566→
+   567→  return (
+   568→    <div className="flex flex-col items-center gap-3">
+   569→      <SectionTitle title="Live preview" desc="iPhone 15 Pro" />
+   570→      <div className="relative h-[620px] w-[300px] shrink-0 rounded-[2.8rem] border-[10px] border-neutral-900 bg-neutral-900 shadow-2xl">
+   571→        {/* Notch */}
+   572→        <div className="pointer-events-none absolute left-1/2 top-2 z-30 h-6 w-28 -translate-x-1/2 rounded-full bg-neutral-900" />
+   573→        {/* Screen */}
+   574→        <div
+   575→          className="relative h-full w-full overflow-y-auto overflow-x-hidden rounded-[2.1rem] scroll-liquid"
+   576→          style={{ background: theme.gradient }}
+   577→        >
+   578→          {/* URL bar */}
+   579→          <div className="sticky top-0 z-20 flex items-center justify-between gap-2 bg-black/20 px-3 py-2 backdrop-blur-md">
+   580→            <div className="flex min-w-0 items-center gap-1 rounded-full bg-white/25 px-2.5 py-1 text-[10px] font-medium text-white">
+   581→              <Globe className="h-2.5 w-2.5 shrink-0" />
+   582→              <span className="truncate">prism.co/{page.slug}</span>
+   583→            </div>
+   584→            <div className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-1 text-[9px] font-semibold text-white">
+   585→              <Eye className="h-2.5 w-2.5" />
+   586→              {fmt(page.visits)}
+   587→            </div>
+   588→          </div>
+   589→
+   590→          {/* Profile */}
+   591→          <div className="flex flex-col items-center px-5 pb-6 pt-8 text-center">
+   592→            <div className="relative h-20 w-20 overflow-hidden rounded-full border-[3px] border-white/40 shadow-xl">
+   593→              {page.avatar ? (
+   594→                 
+   595→                <img
+   596→                  src={page.avatar}
+   597→                  alt={page.title}
+   598→                  className="h-full w-full object-cover"
+   599→                />
+   600→              ) : (
+   601→                <div className="grid h-full w-full place-items-center bg-white/20 text-2xl font-bold text-white">
+   602→                  {page.title.charAt(0).toUpperCase()}
+   603→                </div>
+   604→              )}
+   605→            </div>
+   606→            <h1
+   607→              className={cn(
+   608→                "mt-3 text-lg font-bold leading-tight",
+   609→                isDark ? "text-white" : "text-white",
+   610→              )}
+   611→              style={{
+   612→                background: "linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.78) 100%)",
+   613→                WebkitBackgroundClip: "text",
+   614→                backgroundClip: "text",
+   615→                color: "transparent",
+   616→              }}
+   617→            >
+   618→              {page.title || "Untitled page"}
+   619→            </h1>
+   620→            {page.subtitle && (
+   621→              <p
+   622→                className={cn(
+   623→                  "mt-1 max-w-[220px] text-[11px] leading-snug",
+   624→                  isDark ? "text-white/70" : "text-white/85",
+   625→                )}
+   626→              >
+   627→                {page.subtitle}
+   628→              </p>
+   629→            )}
+   630→          </div>
+   631→
+   632→          {/* Links */}
+   633→          <div className="space-y-2 px-4 pb-8">
+   634→            {page.links.map((link, idx) => {
+   635→              const Icon = iconComponent(link.icon);
+   636→              return (
+   637→                <a
+   638→                  key={idx}
+   639→                  href={link.url}
+   640→                  onClick={(e) => e.preventDefault()}
+   641→                  className="group flex items-center gap-2.5 rounded-2xl bg-white/90 px-3.5 py-2.5 text-neutral-900 shadow-md backdrop-blur-sm transition-all hover:bg-white hover:shadow-lg active:scale-[0.98]"
+   642→                >
+   643→                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white" style={{ background: theme.color }}>
+   644→                    <Icon className="h-3.5 w-3.5" />
+   645→                  </span>
+   646→                  <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">
+   647→                    {link.title || "Untitled"}
+   648→                  </span>
+   649→                  <ExternalLink className="h-3 w-3 shrink-0 text-neutral-400 transition group-hover:text-neutral-700" />
+   650→                </a>
+   651→              );
+   652→            })}
+   653→            {page.links.length === 0 && (
+   654→              <div className="rounded-2xl border border-dashed border-white/30 bg-white/5 px-4 py-6 text-center text-[11px] text-white/70">
+   655→                Add links to see them here.
+   656→              </div>
+   657→            )}
+   658→          </div>
+   659→
+   660→          {/* Footer brand */}
+   661→          <div className="px-4 pb-5 text-center">
+   662→            <div className="inline-flex items-center gap-1 text-[9px] font-medium text-white/60">
+   663→              made with <Sparkles className="h-2.5 w-2.5" /> SocialFlow
+   664→            </div>
+   665→          </div>
+   666→        </div>
+   667→
+   668→        {/* Visit / click overlay */}
+   669→        <div className="pointer-events-none absolute bottom-3 right-3 z-20 rounded-xl bg-black/60 px-2.5 py-1.5 text-right backdrop-blur-md">
+   670→          <div className="text-[9px] font-medium uppercase tracking-wide text-white/60">CTR</div>
+   671→          <div className="text-xs font-bold text-white">{ctr.toFixed(1)}%</div>
+   672→        </div>
+   673→      </div>
+   674→
+   675→      <p className="text-center text-[11px] text-muted-foreground">
+   676→        {fmt(page.clicks)} clicks · {fmt(page.visits)} visits
+   677→      </p>
+   678→    </div>
+   679→  );
+   680→}
+   681→
+   682→function LinkBioSkeleton() {
+   683→  return (
+   684→    <div className="space-y-5">
+   685→      <div className="shimmer h-28 rounded-3xl" />
+   686→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   687→        {Array.from({ length: 4 }).map((_, i) => (
+   688→          <div key={i} className="shimmer h-32 rounded-3xl" />
+   689→        ))}
+   690→      </div>
+   691→      <div className="shimmer h-32 rounded-3xl" />
+   692→      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+   693→        <div className="shimmer h-[460px] rounded-3xl" />
+   694→        <div className="shimmer h-[460px] rounded-3xl" />
+   695→      </div>
+   696→    </div>
+   697→  );
+   698→}
+   699→

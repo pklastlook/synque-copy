@@ -1,0 +1,1540 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Bar,
+     6→  BarChart,
+     7→  CartesianGrid,
+     8→  Cell,
+     9→  ResponsiveContainer,
+    10→  Tooltip,
+    11→  XAxis,
+    12→  YAxis,
+    13→} from "recharts";
+    14→import {
+    15→  Activity,
+    16→  AlertTriangle,
+    17→  ArrowDown,
+    18→  ArrowUp,
+    19→  AtSign,
+    20→  CalendarClock,
+    21→  CheckCircle2,
+    22→  ChevronRight,
+    23→  ClipboardList,
+    24→  Clock,
+    25→  Crown,
+    26→  Download,
+    27→  Eye,
+    28→  FileText,
+    29→  Flag,
+    30→  Heart,
+    31→  LayoutDashboard,
+    32→  ListChecks,
+    33→  Mail,
+    34→  MessageCircle,
+    35→  Pause,
+    36→  Pencil,
+    37→  Send,
+    38→  Shield,
+    39→  ShieldCheck,
+    40→  Sparkles,
+    41→  Timer,
+    42→  TrendingUp,
+    43→  UserPlus,
+    44→  Users,
+    45→  Wand2,
+    46→} from "lucide-react";
+    47→import { toast } from "sonner";
+    48→import { useApi, fmt, timeAgo } from "@/lib/hooks";
+    49→import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+    50→import { NameAvatar } from "@/components/glass/name-avatar";
+    51→import { PlatformBadge } from "@/components/glass/platform-badge";
+    52→import { PLATFORMS, type PlatformId } from "@/lib/platforms";
+    53→import { cn } from "@/lib/utils";
+    54→import {
+    55→  Dialog,
+    56→  DialogContent,
+    57→  DialogDescription,
+    58→  DialogFooter,
+    59→  DialogHeader,
+    60→  DialogTitle,
+    61→} from "@/components/ui/dialog";
+    62→import { Button } from "@/components/ui/button";
+    63→
+    64→/* ============================== Types ============================== */
+    65→
+    66→interface Overview {
+    67→  totalUsers: number;
+    68→  activeUsers: number;
+    69→  totalAccounts: number;
+    70→  totalPosts: number;
+    71→  publishedPosts: number;
+    72→  scheduledPosts: number;
+    73→  pendingApprovals: number;
+    74→  unreadInbox: number;
+    75→  atRiskAccounts: number;
+    76→  healthyAccounts: number;
+    77→  totalEngagement: number;
+    78→  totalFollowers: number;
+    79→}
+    80→
+    81→interface TeamMember {
+    82→  id: string;
+    83→  name: string;
+    84→  email: string;
+    85→  role: string;
+    86→  title: string | null;
+    87→  department: string | null;
+    88→  color: string | null;
+    89→  permissions: string[];
+    90→  status: string;
+    91→  lastActive: string | null;
+    92→  postsCount: number;
+    93→  accountsCount: number;
+    94→  tasksDone: number;
+    95→  tasksTotal: number;
+    96→  taskCompletionRate: number;
+    97→  engagement: number;
+    98→  followers: number;
+    99→  approvalsCount: number;
+   100→}
+   101→
+   102→type TaskStatus = "todo" | "in_progress" | "review" | "done" | "blocked";
+   103→type TaskPriority = "low" | "normal" | "high" | "urgent";
+   104→
+   105→interface Task {
+   106→  id: string;
+   107→  title: string;
+   108→  assigneeId: string | null;
+   109→  assigneeName: string;
+   110→  status: TaskStatus;
+   111→  priority: TaskPriority;
+   112→  type: string;
+   113→  dueAt: string | null;
+   114→  createdAt: string;
+   115→  completedAt: string | null;
+   116→}
+   117→
+   118→interface AccountHealthRow {
+   119→  id: string;
+   120→  platform: string;
+   121→  handle: string;
+   122→  displayName: string;
+   123→  ownerId: string;
+   124→  followers: number;
+   125→  riskLevel: string;
+   126→  riskScore: number;
+   127→  status: string;
+   128→  reportCount: number;
+   129→}
+   130→
+   131→interface DepartmentRow {
+   132→  name: string;
+   133→  count: number;
+   134→  posts: number;
+   135→  engagement: number;
+   136→}
+   137→
+   138→interface ActivityRow {
+   139→  id: string;
+   140→  userId: string;
+   141→  userName: string;
+   142→  type: string;
+   143→  description: string;
+   144→  createdAt: string;
+   145→}
+   146→
+   147→interface AdminData {
+   148→  overview: Overview;
+   149→  teamPerformance: TeamMember[];
+   150→  tasks: Task[];
+   151→  taskStatus: { todo: number; in_progress: number; review: number; done: number; blocked: number };
+   152→  accountHealth: AccountHealthRow[];
+   153→  departments: DepartmentRow[];
+   154→  activities: ActivityRow[];
+   155→}
+   156→
+   157→/* ============================== Style maps ============================== */
+   158→
+   159→const ROLE_STYLE: Record<
+   160→  string,
+   161→  { label: string; className: string; icon: React.ElementType }
+   162→> = {
+   163→  admin: {
+   164→    label: "Admin",
+   165→    className: "bg-[var(--gold)]/15 text-[var(--gold)]",
+   166→    icon: Crown,
+   167→  },
+   168→  manager: {
+   169→    label: "Manager",
+   170→    className: "bg-primary/15 text-primary",
+   171→    icon: Shield,
+   172→  },
+   173→  editor: {
+   174→    label: "Editor",
+   175→    className: "bg-[oklch(0.76_0.15_165)]/15 text-[oklch(0.55_0.15_165)]",
+   176→    icon: Pencil,
+   177→  },
+   178→  member: {
+   179→    label: "Member",
+   180→    className: "bg-muted text-muted-foreground",
+   181→    icon: Users,
+   182→  },
+   183→};
+   184→
+   185→const STATUS_DOT: Record<string, string> = {
+   186→  active: "bg-emerald-500",
+   187→  invited: "bg-amber-500",
+   188→  suspended: "bg-rose-500",
+   189→};
+   190→
+   191→const PRIORITY_STYLE: Record<
+   192→  TaskPriority,
+   193→  { color: string; pill: string; label: string }
+   194→> = {
+   195→  urgent: {
+   196→    color: "var(--primary)",
+   197→    pill: "bg-primary/15 text-primary",
+   198→    label: "Urgent",
+   199→  },
+   200→  high: {
+   201→    color: "oklch(0.78 0.18 75)",
+   202→    pill: "bg-[oklch(0.78_0.18_75)]/15 text-[oklch(0.6_0.18_65)]",
+   203→    label: "High",
+   204→  },
+   205→  normal: {
+   206→    color: "oklch(0.76 0.15 165)",
+   207→    pill: "bg-[oklch(0.76_0.15_165)]/15 text-[oklch(0.55_0.15_165)]",
+   208→    label: "Normal",
+   209→  },
+   210→  low: {
+   211→    color: "var(--muted-foreground)",
+   212→    pill: "bg-muted text-muted-foreground",
+   213→    label: "Low",
+   214→  },
+   215→};
+   216→
+   217→const TASK_STATUS_META: Record<
+   218→  TaskStatus,
+   219→  { label: string; color: string; bg: string; icon: React.ElementType }
+   220→> = {
+   221→  todo: {
+   222→    label: "To Do",
+   223→    color: "var(--muted-foreground)",
+   224→    bg: "bg-muted/40",
+   225→    icon: ListChecks,
+   226→  },
+   227→  in_progress: {
+   228→    label: "In Progress",
+   229→    color: "oklch(0.72 0.16 200)",
+   230→    bg: "bg-[oklch(0.72_0.16_200)]/15",
+   231→    icon: Timer,
+   232→  },
+   233→  review: {
+   234→    label: "Review",
+   235→    color: "oklch(0.78 0.18 75)",
+   236→    bg: "bg-[oklch(0.78_0.18_75)]/15",
+   237→    icon: Eye,
+   238→  },
+   239→  done: {
+   240→    label: "Done",
+   241→    color: "oklch(0.76 0.18 145)",
+   242→    bg: "bg-[oklch(0.76_0.18_145)]/15",
+   243→    icon: CheckCircle2,
+   244→  },
+   245→  blocked: {
+   246→    label: "Blocked",
+   247→    color: "var(--primary)",
+   248→    bg: "bg-primary/15",
+   249→    icon: Pause,
+   250→  },
+   251→};
+   252→
+   253→const TASK_TYPE_ICON: Record<string, React.ElementType> = {
+   254→  publish: Send,
+   255→  design: Pencil,
+   256→  review: Eye,
+   257→  research: ClipboardList,
+   258→  campaign: Sparkles,
+   259→  outreach: Mail,
+   260→  schedule: CalendarClock,
+   261→  approve: ShieldCheck,
+   262→  compose: Wand2,
+   263→  default: ClipboardList,
+   264→};
+   265→
+   266→const RISK_STYLE: Record<
+   267→  string,
+   268→  { color: string; bg: string; label: string }
+   269→> = {
+   270→  safe: { color: "text-emerald-500", bg: "bg-emerald-500/15", label: "Healthy" },
+   271→  moderate: { color: "text-amber-500", bg: "bg-amber-500/15", label: "Moderate" },
+   272→  elevated: { color: "text-orange-500", bg: "bg-orange-500/15", label: "Elevated" },
+   273→  high: { color: "text-rose-500", bg: "bg-rose-500/15", label: "High risk" },
+   274→  critical: { color: "text-rose-600", bg: "bg-rose-600/20", label: "Critical" },
+   275→};
+   276→
+   277→const ACTIVITY_ICON: Record<string, React.ElementType> = {
+   278→  post_published: Send,
+   279→  post_scheduled: CalendarClock,
+   280→  comment_replied: MessageCircle,
+   281→  account_connected: UserPlus,
+   282→  ai_generated: Wand2,
+   283→  team_joined: CheckCircle2,
+   284→  approval_requested: ShieldCheck,
+   285→  approval_resolved: ClipboardList,
+   286→  task_completed: ListChecks,
+   287→  task_created: ClipboardList,
+   288→  member_invited: UserPlus,
+   289→};
+   290→
+   291→const TOOLTIP_STYLE = {
+   292→  background: "var(--popover)",
+   293→  border: "1px solid var(--border)",
+   294→  borderRadius: 12,
+   295→  fontSize: 12,
+   296→  boxShadow: "0 8px 32px -8px rgba(0,0,0,0.2)",
+   297→};
+   298→
+   299→function riskBarColor(score: number): string {
+   300→  if (score >= 70) return "var(--primary)";
+   301→  if (score >= 50) return "oklch(0.7 0.19 50)";
+   302→  if (score >= 30) return "oklch(0.78 0.18 75)";
+   303→  return "oklch(0.76 0.18 145)";
+   304→}
+   305→
+   306→function platformOf(p: string): PlatformId | null {
+   307→  return p in PLATFORMS ? (p as PlatformId) : null;
+   308→}
+   309→
+   310→/* ============================== Main view ============================== */
+   311→
+   312→export function AdminPanelView() {
+   313→  const { data, loading } = useApi<AdminData>("/api/admin");
+   314→
+   315→  if (loading || !data) return <AdminSkeleton />;
+   316→
+   317→  return <AdminContent data={data} />;
+   318→}
+   319→
+   320→function AdminContent({ data }: { data: AdminData }) {
+   321→  const { overview } = data;
+   322→
+   323→  return (
+   324→    <div className="space-y-6">
+   325→      <AdminHero overview={overview} />
+   326→      <OverviewKpiStrip overview={overview} />
+   327→      <TeamPerformanceSection members={data.teamPerformance} />
+   328→      <TaskBoardSection tasks={data.tasks} taskStatus={data.taskStatus} />
+   329→      <AccountHealthSection accounts={data.accountHealth} overview={overview} />
+   330→      <DepartmentSection departments={data.departments} />
+   331→      <ActivitySection activities={data.activities} />
+   332→    </div>
+   333→  );
+   334→}
+   335→
+   336→/* ============================== 1. Hero ============================== */
+   337→
+   338→function AdminHero({ overview }: { overview: Overview }) {
+   339→  return (
+   340→    <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
+   341→      <div className="pointer-events-none absolute -right-12 -top-12 h-56 w-56 rounded-full bg-primary/30 blur-3xl" />
+   342→      <div className="pointer-events-none absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-[var(--gold)]/25 blur-3xl" />
+   343→      <div className="relative flex flex-wrap items-center justify-between gap-4">
+   344→        <div>
+   345→          <div className="flex items-center gap-2 text-xs font-medium text-primary">
+   346→            <ShieldCheck className="h-3.5 w-3.5" />
+   347→            Workspace · Command center
+   348→          </div>
+   349→          <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+   350→            Admin <span className="gold-text">Command Center</span>
+   351→          </h2>
+   352→          <p className="mt-1 text-sm text-muted-foreground">
+   353→            <span className="font-semibold text-foreground">
+   354→              {overview.totalUsers}
+   355→            </span>{" "}
+   356→            members ·{" "}
+   357→            <span className="font-semibold text-foreground">
+   358→              {overview.totalAccounts}
+   359→            </span>{" "}
+   360→            accounts ·{" "}
+   361→            <span className="font-semibold text-foreground">
+   362→              {fmt(overview.totalFollowers)}
+   363→            </span>{" "}
+   364→            followers ·{" "}
+   365→            <span className="font-semibold text-foreground">
+   366→              {fmt(overview.totalEngagement)}
+   367→            </span>{" "}
+   368→            engagement
+   369→          </p>
+   370→        </div>
+   371→        <button
+   372→          onClick={() =>
+   373→            toast.success("Report exported", {
+   374→              description: "Workspace snapshot downloaded as PDF.",
+   375→            })
+   376→          }
+   377→          className="liquid-gold glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+   378→        >
+   379→          <Download className="h-4 w-4" />
+   380→          Export report
+   381→        </button>
+   382→      </div>
+   383→    </GlassCard>
+   384→  );
+   385→}
+   386→
+   387→/* ============================== 2. KPI strip ============================== */
+   388→
+   389→function OverviewKpiStrip({ overview }: { overview: Overview }) {
+   390→  const cards: {
+   391→    label: string;
+   392→    value: string | number;
+   393→    icon: React.ReactNode;
+   394→    accent: string;
+   395→    hint?: string;
+   396→  }[] = [
+   397→    {
+   398→      label: "Total members",
+   399→      value: overview.totalUsers,
+   400→      icon: <Users className="h-5 w-5" />,
+   401→      accent: "var(--primary)",
+   402→      hint: `${overview.activeUsers} active now`,
+   403→    },
+   404→    {
+   405→      label: "Active now",
+   406→      value: overview.activeUsers,
+   407→      icon: <Activity className="h-5 w-5" />,
+   408→      accent: "oklch(0.76 0.18 145)",
+   409→      hint: "online today",
+   410→    },
+   411→    {
+   412→      label: "Total accounts",
+   413→      value: overview.totalAccounts,
+   414→      icon: <AtSign className="h-5 w-5" />,
+   415→      accent: "oklch(0.72 0.16 200)",
+   416→      hint: "connected socials",
+   417→    },
+   418→    {
+   419→      label: "At-risk accounts",
+   420→      value: overview.atRiskAccounts,
+   421→      icon: <AlertTriangle className="h-5 w-5" />,
+   422→      accent: "var(--primary)",
+   423→      hint: `${overview.healthyAccounts} healthy`,
+   424→    },
+   425→    {
+   426→      label: "Published posts",
+   427→      value: overview.publishedPosts,
+   428→      icon: <Send className="h-5 w-5" />,
+   429→      accent: "oklch(0.76 0.15 165)",
+   430→      hint: `${overview.totalPosts} total`,
+   431→    },
+   432→    {
+   433→      label: "Scheduled posts",
+   434→      value: overview.scheduledPosts,
+   435→      icon: <CalendarClock className="h-5 w-5" />,
+   436→      accent: "oklch(0.78 0.18 75)",
+   437→      hint: "queued for publish",
+   438→    },
+   439→    {
+   440→      label: "Pending approvals",
+   441→      value: overview.pendingApprovals,
+   442→      icon: <ClipboardList className="h-5 w-5" />,
+   443→      accent: "oklch(0.66 0.16 230)",
+   444→      hint: "awaiting review",
+   445→    },
+   446→    {
+   447→      label: "Unread inbox",
+   448→      value: overview.unreadInbox,
+   449→      icon: <Mail className="h-5 w-5" />,
+   450→      accent: "var(--gold)",
+   451→      hint: "conversations open",
+   452→    },
+   453→  ];
+   454→
+   455→  return (
+   456→    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   457→      {cards.map((c, i) => (
+   458→        <div
+   459→          key={c.label}
+   460→          className="crystal-in"
+   461→          style={{ animationDelay: `${0.05 + i * 0.06}s` }}
+   462→        >
+   463→          <KpiCard
+   464→            label={c.label}
+   465→            value={typeof c.value === "number" ? fmt(c.value) : c.value}
+   466→            icon={c.icon}
+   467→            accent={c.accent}
+   468→            hint={c.hint}
+   469→          />
+   470→        </div>
+   471→      ))}
+   472→    </div>
+   473→  );
+   474→}
+   475→
+   476→/* ============================== 3. Team performance table ============================== */
+   477→
+   478→type SortKey = "engagement" | "posts" | "followers" | "accounts" | "tasks";
+   479→type SortDir = "asc" | "desc";
+   480→
+   481→function TeamPerformanceSection({ members }: { members: TeamMember[] }) {
+   482→  const [sortKey, setSortKey] = React.useState<SortKey>("engagement");
+   483→  const [sortDir, setSortDir] = React.useState<SortDir>("desc");
+   484→  const [selected, setSelected] = React.useState<TeamMember | null>(null);
+   485→
+   486→  const sorted = React.useMemo(() => {
+   487→    const copy = [...members];
+   488→    copy.sort((a, b) => {
+   489→      const va =
+   490→        sortKey === "tasks"
+   491→          ? a.tasksDone
+   492→          : sortKey === "engagement"
+   493→            ? a.engagement
+   494→            : sortKey === "posts"
+   495→              ? a.postsCount
+   496→              : sortKey === "followers"
+   497→                ? a.followers
+   498→                : a.accountsCount;
+   499→      const vb =
+   500→        sortKey === "tasks"
+   501→          ? b.tasksDone
+   502→          : sortKey === "engagement"
+   503→            ? b.engagement
+   504→            : sortKey === "posts"
+   505→              ? b.postsCount
+   506→              : sortKey === "followers"
+   507→                ? b.followers
+   508→                : b.accountsCount;
+   509→      return sortDir === "asc" ? va - vb : vb - va;
+   510→    });
+   511→    return copy;
+   512→  }, [members, sortKey, sortDir]);
+   513→
+   514→  const toggleSort = (k: SortKey) => {
+   515→    if (k === sortKey) {
+   516→      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+   517→    } else {
+   518→      setSortKey(k);
+   519→      setSortDir("desc");
+   520→    }
+   521→  };
+   522→
+   523→  return (
+   524→    <GlassCard className="crystal-in overflow-hidden p-0" style={{ animationDelay: "0.5s" }}>
+   525→      <div className="p-5 pb-3">
+   526→        <SectionTitle
+   527→          title="Team performance"
+   528→          desc="Per-member output across accounts, posts, tasks & engagement"
+   529→          action={
+   530→            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+   531→              <TrendingUp className="h-3.5 w-3.5 text-primary" />
+   532→              sorted by{" "}
+   533→              <span className="font-medium text-foreground">{sortKey}</span>
+   534→            </div>
+   535→          }
+   536→        />
+   537→      </div>
+   538→
+   539→      <div className="overflow-x-auto">
+   540→        <div className="min-w-[820px]">
+   541→          {/* Header */}
+   542→          <div className="grid grid-cols-[2.2fr_0.8fr_0.8fr_1fr_1fr_1fr_auto] items-center gap-3 border-b border-border/40 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+   543→            <SortHeader
+   544→              label="Member"
+   545→              active={false}
+   546→              dir={sortDir}
+   547→              onClick={() => toggleSort("engagement")}
+   548→            />
+   549→            <SortHeader
+   550→              label="Accounts"
+   551→              active={sortKey === "accounts"}
+   552→              dir={sortDir}
+   553→              onClick={() => toggleSort("accounts")}
+   554→              align="right"
+   555→            />
+   556→            <SortHeader
+   557→              label="Posts"
+   558→              active={sortKey === "posts"}
+   559→              dir={sortDir}
+   560→              onClick={() => toggleSort("posts")}
+   561→              align="right"
+   562→            />
+   563→            <SortHeader
+   564→              label="Tasks"
+   565→              active={sortKey === "tasks"}
+   566→              dir={sortDir}
+   567→              onClick={() => toggleSort("tasks")}
+   568→              align="right"
+   569→            />
+   570→            <SortHeader
+   571→              label="Engagement"
+   572→              active={sortKey === "engagement"}
+   573→              dir={sortDir}
+   574→              onClick={() => toggleSort("engagement")}
+   575→              align="right"
+   576→            />
+   577→            <SortHeader
+   578→              label="Followers"
+   579→              active={sortKey === "followers"}
+   580→              dir={sortDir}
+   581→              onClick={() => toggleSort("followers")}
+   582→              align="right"
+   583→            />
+   584→            <span className="text-right">Profile</span>
+   585→          </div>
+   586→
+   587→          {/* Rows */}
+   588→          <div className="max-h-[640px] overflow-y-auto scroll-liquid">
+   589→            {sorted.map((m) => (
+   590→              <TeamRow
+   591→                key={m.id}
+   592→                member={m}
+   593→                onProfile={() => setSelected(m)}
+   594→              />
+   595→            ))}
+   596→            {sorted.length === 0 && (
+   597→              <div className="py-12 text-center text-sm text-muted-foreground">
+   598→                No team members yet.
+   599→              </div>
+   600→            )}
+   601→          </div>
+   602→        </div>
+   603→      </div>
+   604→
+   605→      <MemberProfileDialog
+   606→        member={selected}
+   607→        onClose={() => setSelected(null)}
+   608→      />
+   609→    </GlassCard>
+   610→  );
+   611→}
+   612→
+   613→function SortHeader({
+   614→  label,
+   615→  active,
+   616→  dir,
+   617→  onClick,
+   618→  align = "left",
+   619→}: {
+   620→  label: string;
+   621→  active: boolean;
+   622→  dir: SortDir;
+   623→  onClick: () => void;
+   624→  align?: "left" | "right";
+   625→}) {
+   626→  return (
+   627→    <button
+   628→      onClick={onClick}
+   629→      className={cn(
+   630→        "flex items-center gap-1 transition hover:text-foreground",
+   631→        align === "right" ? "justify-end" : "justify-start",
+   632→        active && "text-foreground",
+   633→      )}
+   634→    >
+   635→      {label}
+   636→      {active &&
+   637→        (dir === "asc" ? (
+   638→          <ArrowUp className="h-3 w-3" />
+   639→        ) : (
+   640→          <ArrowDown className="h-3 w-3" />
+   641→        ))}
+   642→    </button>
+   643→  );
+   644→}
+   645→
+   646→function TeamRow({
+   647→  member,
+   648→  onProfile,
+   649→}: {
+   650→  member: TeamMember;
+   651→  onProfile: () => void;
+   652→}) {
+   653→  const role = ROLE_STYLE[member.role] ?? ROLE_STYLE.member;
+   654→  const RoleIcon = role.icon;
+   655→  const statusDot =
+   656→    STATUS_DOT[member.status] ?? "bg-muted-foreground";
+   657→
+   658→  return (
+   659→    <button
+   660→      onClick={onProfile}
+   661→      className="grid w-full grid-cols-[2.2fr_0.8fr_0.8fr_1fr_1fr_1fr_auto] items-center gap-3 border-b border-border/15 px-5 py-3 text-left transition hover:bg-muted/40 hover:shadow-[inset_2px_0_0_0_var(--primary)]"
+   662→    >
+   663→      {/* Member */}
+   664→      <div className="flex min-w-0 items-center gap-3">
+   665→        <NameAvatar
+   666→          name={member.name}
+   667→          color={member.color}
+   668→          className="h-10 w-10 text-[11px]"
+   669→          ring
+   670→        />
+   671→        <div className="min-w-0 flex-1">
+   672→          <div className="flex items-center gap-1.5">
+   673→            <span className="truncate text-sm font-semibold">{member.name}</span>
+   674→            <span
+   675→              className={cn(
+   676→                "inline-flex h-1.5 w-1.5 rounded-full",
+   677→                statusDot,
+   678→              )}
+   679→              title={`Status: ${member.status}`}
+   680→            />
+   681→          </div>
+   682→          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+   683→            <span
+   684→              className={cn(
+   685→                "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+   686→                role.className,
+   687→              )}
+   688→            >
+   689→              <RoleIcon className="h-2.5 w-2.5" />
+   690→              {role.label}
+   691→            </span>
+   692→            {member.title && (
+   693→              <span className="truncate">{member.title}</span>
+   694→            )}
+   695→            {member.department && (
+   696→              <span className="text-muted-foreground/60">
+   697→                · {member.department}
+   698→              </span>
+   699→            )}
+   700→          </div>
+   701→        </div>
+   702→      </div>
+   703→
+   704→      {/* Accounts */}
+   705→      <div className="text-right">
+   706→        <div className="num-display text-sm font-semibold">
+   707→          {member.accountsCount}
+   708→        </div>
+   709→      </div>
+   710→
+   711→      {/* Posts */}
+   712→      <div className="text-right">
+   713→        <div className="num-display text-sm font-semibold">
+   714→          {member.postsCount}
+   715→        </div>
+   716→      </div>
+   717→
+   718→      {/* Tasks */}
+   719→      <div className="text-right">
+   720→        <div className="num-display text-sm font-semibold">
+   721→          {member.tasksDone}
+   722→          <span className="text-muted-foreground">/{member.tasksTotal}</span>
+   723→        </div>
+   724→        <div className="mt-1 ml-auto h-1 w-16 overflow-hidden rounded-full bg-muted">
+   725→          <div
+   726→            className="h-full rounded-full bg-gradient-to-r from-primary to-[var(--gold)]"
+   727→            style={{ width: `${member.taskCompletionRate}%` }}
+   728→          />
+   729→        </div>
+   730→      </div>
+   731→
+   732→      {/* Engagement */}
+   733→      <div className="text-right">
+   734→        <div className="num-display text-sm font-semibold">
+   735→          {fmt(member.engagement)}
+   736→        </div>
+   737→        <div className="text-[10px] text-muted-foreground">engagement</div>
+   738→      </div>
+   739→
+   740→      {/* Followers */}
+   741→      <div className="text-right">
+   742→        <div className="num-display text-sm font-semibold">
+   743→          {fmt(member.followers)}
+   744→        </div>
+   745→        <div className="text-[10px] text-muted-foreground">followers</div>
+   746→      </div>
+   747→
+   748→      {/* Profile */}
+   749→      <div className="flex justify-end">
+   750→        <span className="inline-flex items-center gap-1 rounded-xl px-2 py-1 text-[11px] font-medium text-primary transition group-hover:bg-primary/10">
+   751→          <Eye className="h-3.5 w-3.5" />
+   752→          View
+   753→          <ChevronRight className="h-3 w-3" />
+   754→        </span>
+   755→      </div>
+   756→    </button>
+   757→  );
+   758→}
+   759→
+   760→function MemberProfileDialog({
+   761→  member,
+   762→  onClose,
+   763→}: {
+   764→  member: TeamMember | null;
+   765→  onClose: () => void;
+   766→}) {
+   767→  return (
+   768→    <Dialog open={!!member} onOpenChange={(o) => !o && onClose()}>
+   769→      <DialogContent className="rounded-3xl sm:max-w-xl">
+   770→        {member && <ProfileBody member={member} />}
+   771→      </DialogContent>
+   772→    </Dialog>
+   773→  );
+   774→}
+   775→
+   776→function ProfileBody({ member }: { member: TeamMember }) {
+   777→  const role = ROLE_STYLE[member.role] ?? ROLE_STYLE.member;
+   778→  const RoleIcon = role.icon;
+   779→  const statusDot = STATUS_DOT[member.status] ?? "bg-muted-foreground";
+   780→
+   781→  const stats: { label: string; value: string | number; icon: React.ReactNode; accent: string }[] = [
+   782→    {
+   783→      label: "Posts authored",
+   784→      value: member.postsCount,
+   785→      icon: <FileText className="h-4 w-4" />,
+   786→      accent: "oklch(0.72 0.16 200)",
+   787→    },
+   788→    {
+   789→      label: "Accounts owned",
+   790→      value: member.accountsCount,
+   791→      icon: <AtSign className="h-4 w-4" />,
+   792→      accent: "oklch(0.76 0.15 165)",
+   793→    },
+   794→    {
+   795→      label: "Engagement",
+   796→      value: fmt(member.engagement),
+   797→      icon: <Heart className="h-4 w-4" />,
+   798→      accent: "var(--primary)",
+   799→    },
+   800→    {
+   801→      label: "Followers",
+   802→      value: fmt(member.followers),
+   803→      icon: <Users className="h-4 w-4" />,
+   804→      accent: "oklch(0.66 0.16 230)",
+   805→    },
+   806→  ];
+   807→
+   808→  return (
+   809→    <div>
+   810→      <DialogHeader>
+   811→        <DialogTitle className="flex items-center gap-3">
+   812→          <NameAvatar
+   813→            name={member.name}
+   814→            color={member.color}
+   815→            className="h-12 w-12 text-sm"
+   816→            ring
+   817→          />
+   818→          <div className="min-w-0 flex-1">
+   819→            <div className="flex items-center gap-2">
+   820→              <span className="truncate">{member.name}</span>
+   821→              <span
+   822→                className={cn(
+   823→                  "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+   824→                  role.className,
+   825→                )}
+   826→              >
+   827→                <RoleIcon className="h-2.5 w-2.5" />
+   828→                {role.label}
+   829→              </span>
+   830→            </div>
+   831→            <div className="mt-1 flex items-center gap-2 text-xs font-normal text-muted-foreground">
+   832→              {member.title && <span>{member.title}</span>}
+   833→              {member.department && (
+   834→                <span className="flex items-center gap-1">
+   835→                  <span>·</span>
+   836→                  {member.department}
+   837→                </span>
+   838→              )}
+   839→            </div>
+   840→          </div>
+   841→        </DialogTitle>
+   842→        <DialogDescription className="flex items-center gap-2">
+   843→          <span
+   844→            className={cn("inline-flex h-1.5 w-1.5 rounded-full", statusDot)}
+   845→          />
+   846→          {member.status}
+   847→          <span>·</span>
+   848→          <a
+   849→            href={`mailto:${member.email}`}
+   850→            className="hover:text-foreground hover:underline"
+   851→          >
+   852→            {member.email}
+   853→          </a>
+   854→        </DialogDescription>
+   855→      </DialogHeader>
+   856→
+   857→      {/* Stats grid */}
+   858→      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+   859→        {stats.map((s) => (
+   860→          <div
+   861→            key={s.label}
+   862→            className="rounded-2xl border border-border/40 bg-muted/30 p-3"
+   863→          >
+   864→            <div
+   865→              className="grid h-8 w-8 place-items-center rounded-xl text-white"
+   866→              style={{ background: s.accent }}
+   867→            >
+   868→              {s.icon}
+   869→            </div>
+   870→            <div className="num-display mt-2 text-lg font-semibold">
+   871→              {s.value}
+   872→            </div>
+   873→            <div className="label-caps mt-0.5 text-muted-foreground">
+   874→              {s.label}
+   875→            </div>
+   876→          </div>
+   877→        ))}
+   878→      </div>
+   879→
+   880→      {/* Task completion + approvals */}
+   881→      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   882→        <div className="rounded-2xl border border-border/40 bg-muted/30 p-3">
+   883→          <div className="flex items-center justify-between text-xs">
+   884→            <span className="label-caps text-muted-foreground">
+   885→              Task completion
+   886→            </span>
+   887→            <span className="num-display text-sm font-semibold">
+   888→              {member.taskCompletionRate}%
+   889→            </span>
+   890→          </div>
+   891→          <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full bg-muted">
+   892→            <div
+   893→              className="h-full rounded-full bg-gradient-to-r from-primary to-[var(--gold)] transition-all"
+   894→              style={{ width: `${member.taskCompletionRate}%` }}
+   895→            />
+   896→          </div>
+   897→          <div className="mt-1.5 text-[11px] text-muted-foreground">
+   898→            {member.tasksDone} of {member.tasksTotal} tasks done
+   899→          </div>
+   900→        </div>
+   901→        <div className="rounded-2xl border border-border/40 bg-muted/30 p-3">
+   902→          <div className="flex items-center justify-between text-xs">
+   903→            <span className="label-caps text-muted-foreground">
+   904→              Approvals authored
+   905→            </span>
+   906→            <span className="num-display text-sm font-semibold">
+   907→              {member.approvalsCount}
+   908→            </span>
+   909→          </div>
+   910→          <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
+   911→            <Clock className="h-3 w-3" />
+   912→            Last active{" "}
+   913→            {member.lastActive ? timeAgo(member.lastActive) : "never"}
+   914→          </div>
+   915→        </div>
+   916→      </div>
+   917→
+   918→      {/* Permissions */}
+   919→      <div>
+   920→        <div className="label-caps mb-2 text-muted-foreground">Permissions</div>
+   921→        {member.permissions.length === 0 ? (
+   922→          <div className="text-xs text-muted-foreground">
+   923→            No explicit permissions granted.
+   924→          </div>
+   925→        ) : (
+   926→          <div className="flex flex-wrap gap-1.5">
+   927→            {member.permissions.map((p) => (
+   928→              <span
+   929→                key={p}
+   930→                className="rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[11px] font-medium text-foreground/80"
+   931→              >
+   932→                {p.replace(/_/g, " ")}
+   933→              </span>
+   934→            ))}
+   935→          </div>
+   936→        )}
+   937→      </div>
+   938→
+   939→      <DialogFooter>
+   940→        <Button variant="ghost" onClick={() => toast.info(`Emailing ${member.name}`)}>
+   941→          <Mail className="mr-2 h-4 w-4" />
+   942→          Message
+   943→        </Button>
+   944→        <button
+   945→          onClick={() =>
+   946→            toast.success(`Permissions synced for ${member.name}`)
+   947→          }
+   948→          className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+   949→        >
+   950→          <ShieldCheck className="h-4 w-4" />
+   951→          Manage access
+   952→        </button>
+   953→      </DialogFooter>
+   954→    </div>
+   955→  );
+   956→}
+   957→
+   958→/* ============================== 4. Task board ============================== */
+   959→
+   960→function TaskBoardSection({
+   961→  tasks,
+   962→  taskStatus,
+   963→}: {
+   964→  tasks: Task[];
+   965→  taskStatus: AdminData["taskStatus"];
+   966→}) {
+   967→  const statusOrder: TaskStatus[] = [
+   968→    "todo",
+   969→    "in_progress",
+   970→    "review",
+   971→    "done",
+   972→    "blocked",
+   973→  ];
+   974→
+   975→  const chartData = statusOrder.map((s) => ({
+   976→    name: TASK_STATUS_META[s].label,
+   977→    short: s,
+   978→    count: taskStatus[s],
+   979→    color: TASK_STATUS_META[s].color,
+   980→  }));
+   981→  const totalTasks = tasks.length || 1;
+   982→
+   983→  return (
+   984→    <GlassCard
+   985→      className="crystal-in p-5"
+   986→      style={{ animationDelay: "0.58s" }}
+   987→    >
+   988→      <SectionTitle
+   989→        title="Task board"
+   990→        desc="Workflow distribution across the workspace"
+   991→        action={
+   992→          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+   993→            <ClipboardList className="h-3.5 w-3.5 text-primary" />
+   994→            {tasks.length} tasks
+   995→          </div>
+   996→        }
+   997→      />
+   998→
+   999→      {/* Distribution bar chart */}
+  1000→      <div className="mb-5 h-[140px] w-full">
+  1001→        <ResponsiveContainer width="100%" height="100%">
+  1002→          <BarChart
+  1003→            data={chartData}
+  1004→            margin={{ left: -16, right: 8, top: 8, bottom: 0 }}
+  1005→          >
+  1006→            <CartesianGrid
+  1007→              strokeDasharray="3 3"
+  1008→              stroke="var(--border)"
+  1009→              vertical={false}
+  1010→            />
+  1011→            <XAxis
+  1012→              dataKey="name"
+  1013→              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+  1014→              axisLine={false}
+  1015→              tickLine={false}
+  1016→            />
+  1017→            <YAxis
+  1018→              tickFormatter={(v) => fmt(v)}
+  1019→              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+  1020→              axisLine={false}
+  1021→              tickLine={false}
+  1022→              width={32}
+  1023→            />
+  1024→            <Tooltip
+  1025→              cursor={{ fill: "var(--muted)", opacity: 0.35 }}
+  1026→              contentStyle={TOOLTIP_STYLE}
+  1027→              formatter={(v: number) => [`${v} tasks`, "Count"]}
+  1028→            />
+  1029→            <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={48}>
+  1030→              {chartData.map((d) => (
+  1031→                <Cell key={d.short} fill={d.color} />
+  1032→              ))}
+  1033→            </Bar>
+  1034→          </BarChart>
+  1035→        </ResponsiveContainer>
+  1036→      </div>
+  1037→
+  1038→      {/* Kanban columns */}
+  1039→      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 scroll-liquid">
+  1040→        {statusOrder.map((s) => {
+  1041→          const meta = TASK_STATUS_META[s];
+  1042→          const Icon = meta.icon;
+  1043→          const colTasks = tasks
+  1044→            .filter((t) => t.status === s)
+  1045→            .sort(
+  1046→              (a, b) =>
+  1047→                priorityRank(b.priority) - priorityRank(a.priority) ||
+  1048→                (a.dueAt ?? "").localeCompare(b.dueAt ?? ""),
+  1049→            );
+  1050→          const ratio = Math.round(
+  1051→            (colTasks.length / totalTasks) * 100,
+  1052→          );
+  1053→          return (
+  1054→            <div
+  1055→              key={s}
+  1056→              className="flex w-[260px] shrink-0 flex-col rounded-2xl border border-border/40 bg-muted/20 p-3"
+  1057→            >
+  1058→              <div className="mb-2 flex items-center gap-2">
+  1059→                <span
+  1060→                  className={cn(
+  1061→                    "grid h-7 w-7 place-items-center rounded-xl",
+  1062→                    meta.bg,
+  1063→                  )}
+  1064→                  style={{ color: meta.color }}
+  1065→                >
+  1066→                  <Icon className="h-3.5 w-3.5" />
+  1067→                </span>
+  1068→                <div className="min-w-0 flex-1">
+  1069→                  <div className="flex items-center gap-1.5 text-sm font-semibold">
+  1070→                    {meta.label}
+  1071→                    <span className="text-[11px] font-normal text-muted-foreground">
+  1072→                      {colTasks.length}
+  1073→                    </span>
+  1074→                  </div>
+  1075→                  <div className="text-[10px] text-muted-foreground">
+  1076→                    {ratio}% of board
+  1077→                  </div>
+  1078→                </div>
+  1079→              </div>
+  1080→
+  1081→              <div className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-1 scroll-liquid">
+  1082→                {colTasks.length === 0 ? (
+  1083→                  <div className="rounded-xl border border-dashed border-border/50 py-6 text-center text-[11px] text-muted-foreground">
+  1084→                    No tasks
+  1085→                  </div>
+  1086→                ) : (
+  1087→                  colTasks.map((t) => (
+  1088→                    <TaskCard key={t.id} task={t} />
+  1089→                  ))
+  1090→                )}
+  1091→              </div>
+  1092→            </div>
+  1093→          );
+  1094→        })}
+  1095→      </div>
+  1096→    </GlassCard>
+  1097→  );
+  1098→}
+  1099→
+  1100→function priorityRank(p: TaskPriority): number {
+  1101→  return { urgent: 3, high: 2, normal: 1, low: 0 }[p];
+  1102→}
+  1103→
+  1104→function TaskCard({ task }: { task: Task }) {
+  1105→  const ps = PRIORITY_STYLE[task.priority];
+  1106→  const typeIcon =
+  1107→    TASK_TYPE_ICON[task.type] ?? TASK_TYPE_ICON.default;
+  1108→  const overdue =
+  1109→    task.dueAt && new Date(task.dueAt).getTime() < Date.now();
+  1110→  const TypeIcon = typeIcon;
+  1111→
+  1112→  return (
+  1113→    <div
+  1114→      className="relative overflow-hidden rounded-xl border border-border/40 bg-background/60 p-2.5 pl-3 transition hover:bg-muted/30"
+  1115→      title={task.title}
+  1116→    >
+  1117→      <span
+  1118→        className="absolute inset-y-0 left-0 w-1"
+  1119→        style={{ background: ps.color }}
+  1120→      />
+  1121→      <div className="flex items-start gap-2">
+  1122→        <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+  1123→          <TypeIcon className="h-3 w-3" />
+  1124→        </span>
+  1125→        <div className="min-w-0 flex-1">
+  1126→          <div className="truncate text-[12px] font-semibold leading-snug">
+  1127→            {task.title}
+  1128→          </div>
+  1129→          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+  1130→            <span
+  1131→              className={cn(
+  1132→                "rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+  1133→                ps.pill,
+  1134→              )}
+  1135→            >
+  1136→              {ps.label}
+  1137→            </span>
+  1138→            {task.dueAt && (
+  1139→              <span
+  1140→                className={cn(
+  1141→                  "inline-flex items-center gap-0.5",
+  1142→                  overdue && "font-semibold text-rose-500",
+  1143→                )}
+  1144→              >
+  1145→                {overdue && <AlertTriangle className="h-2.5 w-2.5" />}
+  1146→                {new Date(task.dueAt).toLocaleDateString(undefined, {
+  1147→                  month: "short",
+  1148→                  day: "numeric",
+  1149→                })}
+  1150→              </span>
+  1151→            )}
+  1152→          </div>
+  1153→        </div>
+  1154→      </div>
+  1155→      {task.assigneeName && task.assigneeName !== "Unassigned" && (
+  1156→        <div className="mt-2 flex items-center gap-1.5">
+  1157→          <NameAvatar
+  1158→            name={task.assigneeName}
+  1159→            className="h-5 w-5 text-[9px]"
+  1160→          />
+  1161→          <span className="truncate text-[10px] text-muted-foreground">
+  1162→            {task.assigneeName}
+  1163→          </span>
+  1164→        </div>
+  1165→      )}
+  1166→    </div>
+  1167→  );
+  1168→}
+  1169→
+  1170→/* ============================== 5. Account health ============================== */
+  1171→
+  1172→function AccountHealthSection({
+  1173→  accounts,
+  1174→  overview,
+  1175→}: {
+  1176→  accounts: AccountHealthRow[];
+  1177→  overview: Overview;
+  1178→}) {
+  1179→  const total = accounts.length || 1;
+  1180→  const healthyPct = Math.round((overview.healthyAccounts / total) * 100);
+  1181→  const atRiskPct = 100 - healthyPct;
+  1182→  const sorted = [...accounts].sort(
+  1183→    (a, b) => b.riskScore - a.riskScore,
+  1184→  );
+  1185→
+  1186→  return (
+  1187→    <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.66s" }}>
+  1188→      <SectionTitle
+  1189→        title="Account health"
+  1190→        desc="Risk, status & report signals across connected accounts"
+  1191→        action={
+  1192→          <div className="flex items-center gap-3 text-[11px]">
+  1193→            <span className="flex items-center gap-1.5">
+  1194→              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+  1195→              {overview.healthyAccounts} healthy
+  1196→            </span>
+  1197→            <span className="flex items-center gap-1.5">
+  1198→              <span className="h-2 w-2 rounded-full bg-rose-500" />
+  1199→              {overview.atRiskAccounts} at risk
+  1200→            </span>
+  1201→          </div>
+  1202→        }
+  1203→      />
+  1204→
+  1205→      {/* Healthy vs at-risk bar */}
+  1206→      <div className="mb-4 rounded-2xl border border-border/40 bg-muted/20 p-3">
+  1207→        <div className="mb-2 flex items-center justify-between text-[11px] font-medium">
+  1208→          <span className="text-muted-foreground">Health ratio</span>
+  1209→          <span className="num-display">
+  1210→            <span className="text-emerald-500">{healthyPct}%</span>
+  1211→            <span className="text-muted-foreground">
+  1212→              {" "}
+  1213→              /{" "}
+  1214→              <span className="text-rose-500">{atRiskPct}%</span>
+  1215→            </span>
+  1216→          </span>
+  1217→        </div>
+  1218→        <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+  1219→          <div
+  1220→            className="h-full bg-emerald-500 transition-all"
+  1221→            style={{ width: `${healthyPct}%` }}
+  1222→          />
+  1223→          <div
+  1224→            className="h-full bg-rose-500 transition-all"
+  1225→            style={{ width: `${atRiskPct}%` }}
+  1226→          />
+  1227→        </div>
+  1228→      </div>
+  1229→
+  1230→      {/* List */}
+  1231→      <div className="max-h-[560px] space-y-2 overflow-y-auto pr-1 scroll-liquid">
+  1232→        {sorted.map((a) => (
+  1233→          <AccountHealthRowCard key={a.id} account={a} />
+  1234→        ))}
+  1235→        {sorted.length === 0 && (
+  1236→          <div className="py-12 text-center text-sm text-muted-foreground">
+  1237→            No accounts connected.
+  1238→          </div>
+  1239→        )}
+  1240→      </div>
+  1241→    </GlassCard>
+  1242→  );
+  1243→}
+  1244→
+  1245→function AccountHealthRowCard({ account }: { account: AccountHealthRow }) {
+  1246→  const pid = platformOf(account.platform);
+  1247→  const risk =
+  1248→    RISK_STYLE[account.riskLevel] ?? RISK_STYLE.safe;
+  1249→  const atRisk = account.riskLevel !== "safe";
+  1250→  const barColor = riskBarColor(account.riskScore);
+  1251→
+  1252→  return (
+  1253→    <div
+  1254→      className={cn(
+  1255→        "flex flex-wrap items-center gap-3 rounded-2xl border bg-background/50 p-3 transition hover:bg-muted/30",
+  1256→        atRisk
+  1257→          ? "border-primary/30 shadow-[inset_2px_0_0_0_var(--primary)]"
+  1258→          : "border-border/40",
+  1259→      )}
+  1260→    >
+  1261→      <div className="flex min-w-0 flex-1 items-center gap-3">
+  1262→        {pid ? (
+  1263→          <PlatformBadge platform={pid} size={36} />
+  1264→        ) : (
+  1265→          <span className="grid h-9 w-9 place-items-center rounded-[28%] bg-muted text-xs font-bold text-muted-foreground">
+  1266→            {account.platform.slice(0, 2).toUpperCase()}
+  1267→          </span>
+  1268→        )}
+  1269→        <div className="min-w-0 flex-1">
+  1270→          <div className="truncate text-sm font-semibold">
+  1271→            {account.displayName}
+  1272→          </div>
+  1273→          <div className="truncate text-[11px] text-muted-foreground">
+  1274→            @{account.handle}
+  1275→          </div>
+  1276→        </div>
+  1277→      </div>
+  1278→
+  1279→      {/* Followers */}
+  1280→      <div className="text-right">
+  1281→        <div className="num-display text-sm font-semibold">
+  1282→          {fmt(account.followers)}
+  1283→        </div>
+  1284→        <div className="text-[10px] text-muted-foreground">followers</div>
+  1285→      </div>
+  1286→
+  1287→      {/* Risk score mini bar */}
+  1288→      <div className="w-28">
+  1289→        <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+  1290→          <span>Risk score</span>
+  1291→          <span
+  1292→            className="num-display font-semibold"
+  1293→            style={{ color: barColor }}
+  1294→          >
+  1295→            {account.riskScore}
+  1296→          </span>
+  1297→        </div>
+  1298→        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+  1299→          <div
+  1300→            className="h-full rounded-full transition-all"
+  1301→            style={{ width: `${account.riskScore}%`, background: barColor }}
+  1302→          />
+  1303→        </div>
+  1304→      </div>
+  1305→
+  1306→      {/* Risk badge */}
+  1307→      <span
+  1308→        className={cn(
+  1309→          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+  1310→          risk.bg,
+  1311→          risk.color,
+  1312→        )}
+  1313→      >
+  1314→        {atRisk && (
+  1315→          <span
+  1316→            className={cn(
+  1317→              "inline-flex h-1.5 w-1.5 rounded-full",
+  1318→              risk.color.replace("text-", "bg-"),
+  1319→            )}
+  1320→          />
+  1321→        )}
+  1322→        {risk.label}
+  1323→      </span>
+  1324→
+  1325→      {/* Status */}
+  1326→      <span className="hidden text-[10px] text-muted-foreground capitalize sm:inline">
+  1327→        {account.status}
+  1328→      </span>
+  1329→
+  1330→      {/* Reports */}
+  1331→      <div className="flex items-center gap-1 text-[11px]">
+  1332→        <Flag
+  1333→          className={cn(
+  1334→            "h-3 w-3",
+  1335→            account.reportCount > 0 ? "text-rose-500" : "text-muted-foreground",
+  1336→          )}
+  1337→        />
+  1338→        <span
+  1339→          className={cn(
+  1340→            "num-display font-semibold",
+  1341→            account.reportCount > 0 && "text-rose-500",
+  1342→          )}
+  1343→        >
+  1344→          {account.reportCount}
+  1345→        </span>
+  1346→      </div>
+  1347→    </div>
+  1348→  );
+  1349→}
+  1350→
+  1351→/* ============================== 6. Department breakdown ============================== */
+  1352→
+  1353→function DepartmentSection({ departments }: { departments: DepartmentRow[] }) {
+  1354→  const sorted = [...departments].sort((a, b) => b.engagement - a.engagement);
+  1355→  const maxEngagement = Math.max(1, ...sorted.map((d) => d.engagement));
+  1356→  const colors = [
+  1357→    "var(--primary)",
+  1358→    "oklch(0.72 0.16 200)",
+  1359→    "oklch(0.76 0.15 165)",
+  1360→    "oklch(0.66 0.16 230)",
+  1361→    "oklch(0.78 0.18 75)",
+  1362→    "var(--gold)",
+  1363→    "oklch(0.66 0.22 305)",
+  1364→  ];
+  1365→  const chartData = sorted.map((d, i) => ({
+  1366→    name: d.name,
+  1367→    engagement: d.engagement,
+  1368→    fill: colors[i % colors.length],
+  1369→  }));
+  1370→
+  1371→  return (
+  1372→    <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.74s" }}>
+  1373→      <SectionTitle
+  1374→        title="Department breakdown"
+  1375→        desc="Engagement generated per department"
+  1376→        action={
+  1377→          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+  1378→            <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
+  1379→            {sorted.length} departments
+  1380→          </div>
+  1381→        }
+  1382→      />
+  1383→      <div
+  1384→        style={{ height: Math.max(180, sorted.length * 48) }}
+  1385→        className="w-full"
+  1386→      >
+  1387→        <ResponsiveContainer width="100%" height="100%">
+  1388→          <BarChart
+  1389→            data={chartData}
+  1390→            layout="vertical"
+  1391→            margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
+  1392→          >
+  1393→            <CartesianGrid
+  1394→              strokeDasharray="3 3"
+  1395→              stroke="var(--border)"
+  1396→              horizontal={false}
+  1397→            />
+  1398→            <XAxis
+  1399→              type="number"
+  1400→              tickFormatter={(v) => fmt(v)}
+  1401→              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+  1402→              axisLine={false}
+  1403→              tickLine={false}
+  1404→            />
+  1405→            <YAxis
+  1406→              type="category"
+  1407→              dataKey="name"
+  1408→              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+  1409→              axisLine={false}
+  1410→              tickLine={false}
+  1411→              width={120}
+  1412→            />
+  1413→            <Tooltip
+  1414→              cursor={{ fill: "var(--muted)", opacity: 0.35 }}
+  1415→              contentStyle={TOOLTIP_STYLE}
+  1416→              formatter={(v: number) => [fmt(v), "Engagement"]}
+  1417→            />
+  1418→            <Bar dataKey="engagement" radius={[0, 6, 6, 0]} barSize={20}>
+  1419→              {chartData.map((d) => (
+  1420→                <Cell key={d.name} fill={d.fill} />
+  1421→              ))}
+  1422→            </Bar>
+  1423→          </BarChart>
+  1424→        </ResponsiveContainer>
+  1425→      </div>
+  1426→
+  1427→      {/* Legend */}
+  1428→      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+  1429→        {sorted.map((d, i) => (
+  1430→          <div
+  1431→            key={d.name}
+  1432→            className="flex items-center gap-2 rounded-xl border border-border/40 bg-muted/20 p-2"
+  1433→          >
+  1434→            <span
+  1435→              className="h-2.5 w-2.5 rounded-full"
+  1436→              style={{ background: colors[i % colors.length] }}
+  1437→            />
+  1438→            <div className="min-w-0 flex-1">
+  1439→              <div className="truncate text-[12px] font-medium">{d.name}</div>
+  1440→              <div className="text-[10px] text-muted-foreground">
+  1441→                {d.count} members · {fmt(d.engagement)}
+  1442→              </div>
+  1443→            </div>
+  1444→            <div className="h-1 w-10 overflow-hidden rounded-full bg-muted">
+  1445→              <div
+  1446→                className="h-full rounded-full"
+  1447→                style={{
+  1448→                  width: `${(d.engagement / maxEngagement) * 100}%`,
+  1449→                  background: colors[i % colors.length],
+  1450→                }}
+  1451→              />
+  1452→            </div>
+  1453→          </div>
+  1454→        ))}
+  1455→        {sorted.length === 0 && (
+  1456→          <div className="col-span-full py-8 text-center text-sm text-muted-foreground">
+  1457→            No department data yet.
+  1458→          </div>
+  1459→        )}
+  1460→      </div>
+  1461→    </GlassCard>
+  1462→  );
+  1463→}
+  1464→
+  1465→/* ============================== 7. Activity feed ============================== */
+  1466→
+  1467→function ActivitySection({ activities }: { activities: ActivityRow[] }) {
+  1468→  const top = activities.slice(0, 15);
+  1469→
+  1470→  return (
+  1471→    <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.82s" }}>
+  1472→      <SectionTitle
+  1473→        title="Activity feed"
+  1474→        desc="Latest actions across your workspace"
+  1475→        action={
+  1476→          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+  1477→            <Activity className="h-3.5 w-3.5 text-primary" />
+  1478→            {activities.length} events
+  1479→          </div>
+  1480→        }
+  1481→      />
+  1482→      <div className="space-y-1">
+  1483→        {top.map((a) => {
+  1484→          const Icon = ACTIVITY_ICON[a.type] ?? CheckCircle2;
+  1485→          return (
+  1486→            <div
+  1487→              key={a.id}
+  1488→              className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-muted/50"
+  1489→            >
+  1490→              <NameAvatar name={a.userName} className="h-8 w-8 text-[11px]" />
+  1491→              <div className="min-w-0 flex-1">
+  1492→                <div className="truncate text-sm">
+  1493→                  <span className="font-semibold">{a.userName}</span>{" "}
+  1494→                  <span className="text-muted-foreground">
+  1495→                    {a.description.replace(a.userName + " ", "")}
+  1496→                  </span>
+  1497→                </div>
+  1498→                <div className="text-[10px] text-muted-foreground">
+  1499→                  {a.type.replace(/_/g, " ")}
+  1500→                </div>
+  1501→              </div>
+  1502→              <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
+  1503→                <Icon className="h-3.5 w-3.5" />
+  1504→              </div>
+  1505→              <span className="hidden w-16 text-right text-[11px] text-muted-foreground sm:block">
+  1506→                {timeAgo(a.createdAt)}
+  1507→              </span>
+  1508→            </div>
+  1509→          );
+  1510→        })}
+  1511→        {top.length === 0 && (
+  1512→          <div className="py-12 text-center text-sm text-muted-foreground">
+  1513→            No recent activity.
+  1514→          </div>
+  1515→        )}
+  1516→      </div>
+  1517→    </GlassCard>
+  1518→  );
+  1519→}
+  1520→
+  1521→/* ============================== Skeleton ============================== */
+  1522→
+  1523→function AdminSkeleton() {
+  1524→  return (
+  1525→    <div className="space-y-6">
+  1526→      <div className="shimmer h-32 rounded-3xl" />
+  1527→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+  1528→        {Array.from({ length: 8 }).map((_, i) => (
+  1529→          <div key={i} className="shimmer h-32 rounded-3xl" />
+  1530→        ))}
+  1531→      </div>
+  1532→      <div className="shimmer h-96 rounded-3xl" />
+  1533→      <div className="shimmer h-[420px] rounded-3xl" />
+  1534→      <div className="shimmer h-80 rounded-3xl" />
+  1535→      <div className="shimmer h-72 rounded-3xl" />
+  1536→      <div className="shimmer h-64 rounded-3xl" />
+  1537→    </div>
+  1538→  );
+  1539→}
+  1540→

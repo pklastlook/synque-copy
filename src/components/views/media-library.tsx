@@ -494,8 +494,18 @@ export function MediaLibraryView() {
           openComposer();
           setSelected(null);
         }}
-        onDelete={(a) => {
-          toast.error(`"${a.name}" deleted (mock)`);
+        onDelete={async (a) => {
+          try {
+            const res = await fetch(`/api/media/${a.id}`, { method: "DELETE" });
+            if (res.ok) {
+              toast.success(`"${a.name}" deleted`);
+              reload();
+            } else {
+              toast.error("Failed to delete asset");
+            }
+          } catch {
+            toast.error("Network error");
+          }
           setSelected(null);
         }}
       />
@@ -631,6 +641,10 @@ function UploadDialog({
       toast.error("URL and name are required");
       return;
     }
+    if (!user?.id) {
+      toast.error("You must be signed in to upload media");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/media", {
@@ -642,7 +656,7 @@ function UploadDialog({
           type,
           tags: (override?.tags ?? tags) || null,
           folder,
-          uploadedById: user?.id ?? "u-admin",
+          uploadedById: user.id,
         }),
       });
       if (!res.ok) throw new Error("Upload failed");
@@ -793,7 +807,7 @@ function AssetDetailDialog({
   asset: MediaAsset | null;
   onClose: () => void;
   onUse: () => void;
-  onDelete: (a: MediaAsset) => void;
+  onDelete: (a: MediaAsset) => void | Promise<void>;
 }) {
   const tags = asset ? parseTags(asset.tags) : [];
   const typeMeta = asset ? TYPE_META[asset.type] : TYPE_META.image;
