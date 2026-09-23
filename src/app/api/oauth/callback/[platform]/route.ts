@@ -36,11 +36,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     return NextResponse.redirect(new URL("/?oauth_error=missing_code_or_state", req.url));
   }
 
-  // Decode the state to get userId + codeVerifier (for PKCE)
-  let state: { userId: string; platform: string; codeVerifier?: string };
+  // Decode the state to get userId + code_verifier (for PKCE)
+  let state: { userId: string; platform: string; cv?: string };
   try {
     state = JSON.parse(Buffer.from(stateParam, "base64url").toString());
-    console.log(`[oauth/callback/${platform}] decoded state: userId=${state.userId}`);
+    console.log(`[oauth/callback/${platform}] decoded state: userId=${state.userId}, has_cv=${!!state.cv}`);
   } catch {
     return NextResponse.redirect(new URL("/?oauth_error=invalid_state", req.url));
   }
@@ -229,7 +229,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
           grant_type: "authorization_code",
           client_id: cred.clientId,
           redirect_uri: redirectUri,
-          code_verifier: state.codeVerifier ?? "challenge",
+          code_verifier: state.cv ?? "challenge",
           client_secret: cred.clientSecret,
         }),
       });
