@@ -41,6 +41,7 @@ model Account {
   displayName String
   avatar      String?
   followers   Int      @default(0)
+  postsCount  Int      @default(0)
   verified    Boolean  @default(false)
   ownerId     String
   owner       User     @relation(fields: [ownerId], references: [id])

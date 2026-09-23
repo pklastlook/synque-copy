@@ -311,6 +311,9 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
   const [handle, setHandle] = React.useState("");
   const [displayName, setDisplayName] = React.useState("");
   const [followers, setFollowers] = React.useState("");
+  const [posts, setPosts] = React.useState("");
+  const [impressions, setImpressions] = React.useState("");
+  const [engagement, setEngagement] = React.useState("");
   const [verified, setVerified] = React.useState(false);
   const [isBusiness, setIsBusiness] = React.useState(true);
 
@@ -323,6 +326,9 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
         setHandle("");
         setDisplayName("");
         setFollowers("");
+        setPosts("");
+        setImpressions("");
+        setEngagement("");
         setVerified(false);
         setIsBusiness(true);
       }, 300);
@@ -357,7 +363,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
     setStep("connecting");
     try {
       const cleanHandle = handle.trim().startsWith("@") ? handle.trim() : "@" + handle.trim();
-      const parsedFollowers = parseInt(followers.replace(/[^0-9]/g, ""), 10);
+      const num = (s: string) => { const n = parseInt(s.replace(/[^0-9]/g, ""), 10); return isNaN(n) ? 0 : n; };
       const res = await fetch("/api/accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -368,7 +374,11 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
           loginEmail: null,
           businessAccount: isBusiness,
           ownerId: user.id,
-          followers: isNaN(parsedFollowers) ? 0 : parsedFollowers,
+          followers: num(followers),
+          postsCount: num(posts),
+          impressions: num(impressions),
+          engagement: num(engagement),
+          reach: num(impressions),
           verified,
         }),
       });
@@ -623,7 +633,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 />
               </div>
 
-              {/* Follower count + verified — real data the user reads from their profile */}
+              {/* Followers + verified — real data from the profile */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -654,6 +664,49 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                     <span className="text-[13px] font-medium">{verified ? "Yes" : "No"}</span>
                     <Switch checked={verified} onCheckedChange={setVerified} />
                   </button>
+                </div>
+              </div>
+
+              {/* Posts + Impressions + Engagement — real profile metrics */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    Posts
+                  </label>
+                  <input
+                    value={posts}
+                    onChange={(e) => setPosts(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="132"
+                    inputMode="numeric"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm tabular-nums outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                    Impressions
+                  </label>
+                  <input
+                    value={impressions}
+                    onChange={(e) => setImpressions(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="45000"
+                    inputMode="numeric"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm tabular-nums outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Heart className="h-3.5 w-3.5 text-muted-foreground" />
+                    Engagement
+                  </label>
+                  <input
+                    value={engagement}
+                    onChange={(e) => setEngagement(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="3200"
+                    inputMode="numeric"
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm tabular-nums outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  />
                 </div>
               </div>
 

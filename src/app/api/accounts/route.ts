@@ -19,7 +19,12 @@ export async function GET() {
       const first = aAnalytics[0];
       const followerGrowth = last && first ? last.followers - first.followers : 0;
       const aVariants = variants.filter((v) => v.accountId === a.id);
-      const engagement = aVariants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0);
+      // Engagement = max of (SocialFlow variant engagement, analytics row engagement)
+      // so real profile data entered at connect time isn't overwritten by 0
+      // when no posts have been published through SocialFlow yet.
+      const variantEng = aVariants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0);
+      const analyticsEng = aAnalytics.reduce((s, x) => s + x.engagement, 0);
+      const engagement = Math.max(variantEng, analyticsEng);
       const impressions = aAnalytics.reduce((s, x) => s + x.impressions, 0);
 
       const h = a.health;
@@ -40,7 +45,7 @@ export async function GET() {
         ownerName: a.owner.name,
         ownerAvatar: a.owner.avatar,
         ownerColor: a.owner.color,
-        postsCount: aVariants.length,
+        postsCount: a.postsCount,
         followerGrowth,
         impressions,
         engagement,
@@ -90,7 +95,7 @@ export async function GET() {
 /** Connect a new account with credentials (credentials are NOT stored in plain text). */
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { platform, handle, displayName, loginEmail, businessAccount, ownerId, followers, verified } = body as {
+  const { platform, handle, displayName, loginEmail, businessAccount, ownerId, followers, verified, postsCount, impressions, engagement, reach } = body as {
     platform: string;
     handle: string;
     displayName: string;
@@ -99,15 +104,16 @@ export async function POST(req: NextRequest) {
     ownerId?: string;
     followers?: number;
     verified?: boolean;
+    postsCount?: number;
+    impressions?: number;
+    engagement?: number;
+    reach?: number;
   };
 
   if (!platform || !handle || !displayName) {
     return NextResponse.json({ error: "platform, handle, displayName required" }, { status: 400 });
   }
 
-  // ownerId must be a real user id (FK → User.id). Do NOT default to a
-  // hardcoded "u-admin" placeholder — the client (useAuth().user.id) must
-  // identify the actual owner of this social account.
   if (!ownerId) {
     return NextResponse.json({ error: "ownerId is required" }, { status: 400 });
   }
@@ -120,16 +126,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "An account with this handle already exists" }, { status: 409 });
   }
 
-  // Create the account. The real follower count + verified status are
-  // provided by the user (who reads them from the platform) and persisted.
-  // Credentials (loginEmail/password/token) are intentionally NOT persisted.
+  const realFollowers = typeof followers === "number" && followers >= 0 ? followers : 0;
+  const realPosts = typeof postsCount === "number" && postsCount >= 0 ? postsCount : 0;
+  const realImpressions = typeof impressions === "number" && impressions >= 0 ? impressions : 0;
+  const realEngagement = typeof engagement === "number" && engagement >= 0 ? engagement : 0;
+  const realReach = typeof reach === "number" && reach >= 0 ? reach : 0;
+
+  // Create the account with real profile metrics from the platform.
   const account = await db.account.create({
     data: {
       platform,
       handle,
       displayName,
       avatar: null,
-      followers: typeof followers === "number" && followers >= 0 ? followers : 0,
+      followers: realFollowers,
+      postsCount: realPosts,
       verified: verified === true,
       ownerId,
       health: { create: { riskScore: 5, riskLevel: "safe", status: "healthy", riskReasons: "[]" } },
@@ -137,18 +148,16 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Seed a single analytics row so the new account shows up cleanly,
-  // using the real follower count so the dashboard reflects truth immediately.
-  const realFollowers = typeof followers === "number" && followers >= 0 ? followers : 0;
+  // Seed analytics with real data so the dashboard + account card show truth
   await db.analyticsDaily.create({
     data: {
       accountId: account.id,
       date: new Date(),
       followers: realFollowers,
-      impressions: 0,
-      reach: 0,
-      engagement: 0,
-      posts: 0,
+      impressions: realImpressions,
+      reach: realReach,
+      engagement: realEngagement,
+      posts: realPosts,
     },
   }).catch(() => null);
 

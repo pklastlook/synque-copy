@@ -23,7 +23,10 @@ export async function GET() {
   const totalFollowers = accounts.reduce((s, a) => s + a.followers, 0);
   const totalImpressions = analytics.reduce((s, a) => s + a.impressions, 0);
   const totalReach = analytics.reduce((s, a) => s + a.reach, 0);
-  const totalEng = variants.reduce((s, v) => s + v.likes + v.comments + v.shares + v.saves, 0);
+  const totalEng = Math.max(
+    variants.reduce((s, v) => s + v.likes + v.comments + v.shares + v.saves, 0),
+    analytics.reduce((s, a) => s + a.engagement, 0),
+  );
   const published = variants.filter((v) => v.status === "published").length;
   const scheduled = posts.filter((p) => p.status === "scheduled").length;
   const pendingInbox = comments.filter((c) => !c.replied).length;
