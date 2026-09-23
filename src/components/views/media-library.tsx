@@ -688,143 +688,32 @@ function UploadDialog({
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Upload className="h-4 w-4" />
             </span>
-            Add media
+            Upload media
           </DialogTitle>
           <DialogDescription>
-            Paste a URL or pick from the preset library below.
+            Upload a file and copy the link to use anywhere.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* === Real file upload (drag-and-drop or click) === */}
-          <FileUploadZone
-            onUploaded={(file, uploadedUrl) => {
-              setName(file.name.replace(/\.[^/.]+$/, ""));
-              setUrl(uploadedUrl);
-              const mime = file.type.toLowerCase();
-              if (mime.startsWith("video/")) setType("video");
-              else if (mime.startsWith("audio/")) setType("audio");
-              else setType("image");
-            }}
-            submitting={submitting}
-            userId={user?.id ?? null}
-            folder={folder}
-            onDone={onUploaded}
-          />
-
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">or paste a URL</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="m-url">Asset URL</Label>
-            <Input
-              id="m-url"
-              placeholder="https://example.com/image.jpg"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="m-name">Name</Label>
-              <Input
-                id="m-name"
-                placeholder="Photo name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="m-tags">Tags</Label>
-              <Input
-                id="m-tags"
-                placeholder="brand, product"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select
-                value={type}
-                onValueChange={(v) => setType(v as "image" | "video" | "audio")}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="image">Image</SelectItem>
-                  <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="audio">Audio</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Folder</Label>
-              <Select value={folder} onValueChange={setFolder}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="root">root</SelectItem>
-                  {folders
-                    .filter((f) => f !== "root")
-                    .map((f) => (
-                      <SelectItem key={f} value={f}>
-                        {f}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Preset library */}
-          <div className="space-y-2">
-            <Label>Or pick from library</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {PRESET_LIBRARY.map((p) => (
-                <button
-                  key={p.url}
-                  type="button"
-                  onClick={() => handleSubmit(p)}
-                  disabled={submitting}
-                  className="group relative aspect-square overflow-hidden rounded-xl border border-border/40 transition hover:-translate-y-0.5 hover:border-primary/40"
-                  title={p.name}
-                >
-                  <img
-                    src={p.url}
-                    alt={p.name}
-                    className="h-full w-full object-cover transition group-hover:scale-105"
-                  />
-                  <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/30" />
-                  <span className="absolute bottom-1 left-1 right-1 truncate rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-medium opacity-0 transition group-hover:opacity-100">
-                    {p.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <FileUploadZone
+          onUploaded={(file, uploadedUrl) => {
+            setName(file.name.replace(/\.[^/.]+$/, ""));
+            setUrl(uploadedUrl);
+            const mime = file.type.toLowerCase();
+            if (mime.startsWith("video/")) setType("video");
+            else if (mime.startsWith("audio/")) setType("audio");
+            else setType("image");
+          }}
+          submitting={submitting}
+          userId={user?.id ?? null}
+          folder={folder}
+          onDone={onUploaded}
+        />
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Close
           </Button>
-          <button
-            onClick={() => handleSubmit()}
-            disabled={submitting}
-            className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
-          >
-            <Plus className="h-4 w-4" />
-            {submitting ? "Adding…" : "Add asset"}
-          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
