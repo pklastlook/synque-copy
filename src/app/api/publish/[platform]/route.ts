@@ -58,34 +58,50 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
     try {
       // Try OAuth 1.0a first (works on Free tier for user-context posting)
       if (cred.apiKey && cred.apiSecret && cred.accessToken && cred.accessSecret) {
-        const twitterClient = new TwitterApi({
-          appKey: cred.apiKey,
-          appSecret: cred.apiSecret,
-          accessToken: cred.accessToken,
-          accessSecret: cred.accessSecret,
-        });
+        try {
+          const twitterClient = new TwitterApi({
+            appKey: cred.apiKey,
+            appSecret: cred.apiSecret,
+            accessToken: cred.accessToken,
+            accessSecret: cred.accessSecret,
+          });
 
-        const tweet = await twitterClient.v2.tweet(content);
+          const tweet = await twitterClient.v2.tweet(content);
 
-        await db.account.update({
-          where: { id: accountId },
-          data: { postsCount: { increment: 1 } },
-        });
+          await db.account.update({
+            where: { id: accountId },
+            data: { postsCount: { increment: 1 } },
+          });
 
-        await db.activity.create({
-          data: {
-            userId,
-            type: "post_published",
-            description: `published a tweet: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
-          },
-        }).catch(() => null);
+          await db.activity.create({
+            data: {
+              userId,
+              type: "post_published",
+              description: `published a tweet: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
+            },
+          }).catch(() => null);
 
-        return NextResponse.json({
-          ok: true,
-          tweetId: tweet.data.id,
-          url: `https://x.com/i/status/${tweet.data.id}`,
-          message: "Tweet published successfully!",
-        });
+          return NextResponse.json({
+            ok: true,
+            tweetId: tweet.data.id,
+            url: `https://x.com/i/status/${tweet.data.id}`,
+            message: "Tweet published successfully!",
+          });
+        } catch (err1: unknown) {
+          const msg1 = err1 instanceof Error ? err1.message : String(err1);
+          console.error("[publish/twitter] OAuth 1.0a failed:", msg1);
+
+          // If it's 402 (Free tier paywall), provide clear guidance
+          if (msg1.includes("402") || msg1.includes("credits")) {
+            return NextResponse.json({
+              error: "Twitter Free tier doesn't allow posting via the API. You have two options:\n\n1. Upgrade to Basic tier ($100/month) at developer.twitter.com\n2. Copy your content and post manually at x.com/compose/post\n\nYour post has been saved in SocialFlow.",
+              savedContent: content,
+              manualUrl: "https://x.com/compose/post",
+            }, { status: 200 });
+          }
+
+          // For other errors (401, 403, etc), fall through to OAuth 2.0
+        }
       }
 
       // Fallback: OAuth 2.0 user token (direct fetch)
