@@ -81,7 +81,8 @@ export const ModelName = {
   BankAccount: 'BankAccount',
   ApiKey: 'ApiKey',
   Device: 'Device',
-  Subscription: 'Subscription'
+  Subscription: 'Subscription',
+  Workspace: 'Workspace'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -625,6 +626,25 @@ export const SubscriptionScalarFieldEnum = {
 } as const
 
 export type SubscriptionScalarFieldEnum = (typeof SubscriptionScalarFieldEnum)[keyof typeof SubscriptionScalarFieldEnum]
+
+
+export const WorkspaceScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  timezone: 'timezone',
+  cadence: 'cadence',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  autoVariants: 'autoVariants',
+  tone: 'tone',
+  brandVoice: 'brandVoice',
+  colors: 'colors',
+  ownerId: 'ownerId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WorkspaceScalarFieldEnum = (typeof WorkspaceScalarFieldEnum)[keyof typeof WorkspaceScalarFieldEnum]
 
 
 export const SortOrder = {

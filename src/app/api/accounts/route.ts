@@ -90,13 +90,15 @@ export async function GET() {
 /** Connect a new account with credentials (credentials are NOT stored in plain text). */
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { platform, handle, displayName, loginEmail, businessAccount, ownerId } = body as {
+  const { platform, handle, displayName, loginEmail, businessAccount, ownerId, followers, verified } = body as {
     platform: string;
     handle: string;
     displayName: string;
     loginEmail?: string;
     businessAccount?: boolean;
     ownerId?: string;
+    followers?: number;
+    verified?: boolean;
   };
 
   if (!platform || !handle || !displayName) {
@@ -118,29 +120,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "An account with this handle already exists" }, { status: 409 });
   }
 
-  // Create the account. Credentials (loginEmail/password/token) are intentionally
-  // NOT persisted in the DB for this demo — we only store the public profile.
-  // In production these would be encrypted at rest (AES-256) in a secrets vault.
+  // Create the account. The real follower count + verified status are
+  // provided by the user (who reads them from the platform) and persisted.
+  // Credentials (loginEmail/password/token) are intentionally NOT persisted.
   const account = await db.account.create({
     data: {
       platform,
       handle,
       displayName,
       avatar: null,
-      followers: 0,
-      verified: false,
+      followers: typeof followers === "number" && followers >= 0 ? followers : 0,
+      verified: verified === true,
       ownerId,
       health: { create: { riskScore: 5, riskLevel: "safe", status: "healthy", riskReasons: "[]" } },
       protection: { create: { enabled: true } },
     },
   });
 
-  // Seed a single analytics row so the new account shows up cleanly
+  // Seed a single analytics row so the new account shows up cleanly,
+  // using the real follower count so the dashboard reflects truth immediately.
+  const realFollowers = typeof followers === "number" && followers >= 0 ? followers : 0;
   await db.analyticsDaily.create({
     data: {
       accountId: account.id,
       date: new Date(),
-      followers: 0,
+      followers: realFollowers,
       impressions: 0,
       reach: 0,
       engagement: 0,

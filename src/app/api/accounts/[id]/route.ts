@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const allowed = ["handle", "displayName", "avatar", "verified", "ownerId"];
+  const allowed = ["handle", "displayName", "avatar", "verified", "ownerId", "followers"];
   const data: Record<string, unknown> = {};
   for (const k of allowed) if (k in body) data[k] = body[k];
   await db.account.update({ where: { id }, data });
