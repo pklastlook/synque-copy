@@ -1719,3 +1719,74 @@ Stage Summary:
 - Preserved: Activity Heatmap (90-day cadence), Leaderboard (now content-ranked), Member Cards (now content-focused), Recent Activity.
 - Lint: 0 errors. TypeScript: 0 errors in src/. API: all content-activity sections return real data.
 - Dev server restarted for user preview at http://localhost:3000/ → Performance in sidebar.
+
+---
+Task ID: dashboard-content-activity-redesign
+Agent: main (code assistant)
+Task: Update dashboard with enhanced, interactive layout focused on content activity (posts/tweets/comments) — not vanity metrics.
+
+Work Log:
+- Completely rewrote /api/dashboard GET route (140 → 240 lines):
+  • Removed: totalFollowers, impressions, engagement, byPlatform (follower-based), platform donut data.
+  • Added content-activity aggregations:
+    - kpis.postsCreated + delta (7d vs prev 7d)
+    - kpis.published + delta (variants published in last 7d)
+    - kpis.comments + delta (comments received in last 7d)
+    - kpis.replyRate + delta (replied in last 7d)
+    - kpis.drafts, scheduled, failed, pendingInbox, variantsPublished, accounts
+    - pipeline: { draft, scheduled, published, failed }
+    - pipelineTotal
+    - series: 14-day { postsCreated, published, comments } (was impressions/engagement/followers)
+    - topContributors: members with most posts created in last 30 days (with published count + comments replied)
+    - recentPosts: latest 6 posts (all statuses) with platforms + author info — clickable for republish
+    - commentInbox: latest 5 unread comments with sentiment + platform + handle
+    - upcoming: scheduled posts with platforms + author avatar
+    - topPosts: by engagement (kept, but now includes platforms array + author color)
+    - activities: now includes userColor + userAvatar for richer feed
+
+- Completely rewrote dashboard.tsx (447 → 770 lines):
+  • Hero: "9 posts created · 5 published · 5 comments need replies · 1 failed" with animated pulse rings + PenLine icon (was "X scheduled and Y conversations waiting" with Sparkles).
+  • Added quick-action "X unread" button in hero when pendingInbox > 0 (links to inbox).
+  • KPI grid: Posts Created / Published / Comments Received / Reply Rate (was Total Followers / Impressions / Engagement / Scheduled). Each card now shows real series sparkline from the new content-activity trend data.
+  • NEW Content Pipeline widget: interactive horizontal flow with 4 stages (Drafts → Scheduled → Published → Failed) connected by chevron arrows. Each stage is a clickable button with: icon tile, count, % of total, animated background fill bar (height proportional to %), color-coded per stage. Summary row shows total content count.
+  • Content Creation Trend: 14-day area chart with 3 series (postsCreated + published + comments) — was impressions + engagement.
+  • NEW Comment Inbox preview card: scrollable list of latest 5 unread comments with: platform badge, author, sentiment icon (positive=up/neutral=hash/negative=down), comment text (2-line clamp), handle, hover-reveal "Reply" button. Empty state: "All caught up!" with green checkmark.
+  • NEW Recent Posts card (interactive): click any post to open it in the Composer for republishing/editing. Each post card shows: media thumbnail with status badge overlay, title, author avatar+name, time-ago, platform badges, hover-reveal "Edit" CTA. Scrollable up to 6 posts.
+  • NEW Top Contributors card: ranked list (1-5) with medal-colored rank badges (gold/silver/bronze), avatar, name, posts created / published / replies stats. "All" link goes to team-performance view.
+  • Top Performing Posts: kept but enhanced with author avatar + platform badges per post.
+  • Upcoming Scheduled: kept but enhanced with author avatar + platform badges.
+  • Team Activity feed: enhanced with userColor + userAvatar, scrollable max-h-320 with custom scrollbar.
+  • All sections use animationDelay for staggered entrance, lift-hover for cards, group-hover for action reveals.
+
+- Interactive enhancements:
+  • Click any Recent Post → opens Composer with that post loaded for republish (uses openComposerWithPost from nav store).
+  • Click any pipeline stage → links to Calendar view.
+  • Click "X unread" in hero → links to Inbox.
+  • Hover any post card → reveals "Edit" CTA with chevron.
+  • Hover any comment in inbox → reveals "Reply" button.
+  • All "View all" links route to the relevant detailed view (analytics, calendar, team-performance, composer).
+
+Verification:
+- bunx tsc --noEmit → 0 errors in src/
+- bun run lint → exit 0, 0 warnings
+- API verified via curl + Python:
+  • postsCreated=9 (Δ100%), published=5 (Δ100%), comments=8 (Δ100%), replyRate=38%
+  • pipeline: draft=3 (33%), scheduled=0, published=5 (56%), failed=1 (11%), total=9
+  • trend: 14 days of postsCreated/published/comments
+  • topContributors: Ashraf (8 posts, 5 published, 3 replies), Test Client (1 post)
+  • recentPosts: 6 posts with platforms + author info
+  • commentInbox: 5 unread comments with sentiment + handle
+  • upcoming: 0 scheduled
+  • topPosts: 4 by engagement
+  • activities: 12 recent
+- HTML renders cleanly (106KB, no errors, no error boundary)
+- Dev log shows 0 compile errors
+
+Stage Summary:
+- Files: src/app/api/dashboard/route.ts (rewritten, content-activity focused), src/components/views/dashboard.tsx (447 → 770 lines, 6 new sections + interactive enhancements).
+- Removed ALL follower/impression/engagement KPIs from the dashboard.
+- NEW sections: Content Pipeline (interactive horizontal flow), Comment Inbox preview, Recent Posts (clickable for republish), Top Contributors (ranked leaderboard).
+- Enhanced: KPIs (now content-activity), Trend chart (now 3 content series), Hero (animated pulse + quick-action unread button), Top Posts + Upcoming (with author avatars + platform badges), Activity feed (with userColor + avatar).
+- Interactive: clickable post cards open Composer for republish, hover-reveal action buttons, animated pipeline fill bars, staggered card entrances, scrollable lists with custom scrollbars.
+- Lint: 0 errors. TypeScript: 0 errors in src/. API: all sections return real data.
+- Dev server restarted for user preview at http://localhost:3000/ → log in → Dashboard.
