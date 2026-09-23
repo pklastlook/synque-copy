@@ -1790,3 +1790,59 @@ Stage Summary:
 - Interactive: clickable post cards open Composer for republish, hover-reveal action buttons, animated pipeline fill bars, staggered card entrances, scrollable lists with custom scrollbars.
 - Lint: 0 errors. TypeScript: 0 errors in src/. API: all sections return real data.
 - Dev server restarted for user preview at http://localhost:3000/ → log in → Dashboard.
+
+---
+Task ID: dashboard-comprehensive-redesign
+Agent: main (code assistant)
+Task: Dashboard showing similar data as Performance — integrate pages ranking, followers, reach, and all missing content to make it the comprehensive advanced interactive overview.
+
+Work Log:
+- Differentiation strategy: Dashboard = comprehensive command center with BOTH vanity metrics (followers, reach) AND content activity (posts, comments). Performance module = purely content-activity focused (posts/tweets/comments deep-dive).
+
+- Extended /api/dashboard GET route (240 → 350 lines):
+  • Added analyticsDaily fetch (was previously only fetched by the old follower-based dashboard, removed in the content-activity refactor, now re-added).
+  • NEW KPIs: totalFollowers (value + display + delta vs prev 7d), totalReach (value + display + delta), impressions (value + display + delta), totalEngagement. Kept: postsCreated, published, comments, replyRate, drafts, scheduled, failed, pendingInbox, accounts, variantsPublished.
+  • NEW series: 14-day { followers, reach, impressions, postsCreated, published, comments } — all 6 metrics per day (was only content activity).
+  • NEW pagesRanking[]: per-account leaderboard with { id, platform, handle, displayName, avatar, verified, followers, reach, impressions, engagement, postsCount, engagementRate, growth7d, sparkline[14], ownerName, ownerColor, healthStatus, riskLevel }. Sorted by followers by default.
+  • Kept: pipeline, pipelineTotal, topContributors, recentPosts, commentInbox, upcoming, topPosts (now with impressions + platforms), activities.
+
+- Rebuilt dashboard.tsx (770 → 880 lines):
+  • Hero: now shows "X followers · Y reach · Z posts · N unread · M failed" (was content-only).
+  • KPI grid: Total Followers / Total Reach / Posts Created / Comments (was Posts Created / Published / Comments / Reply Rate). Mixed vanity + content. Each with delta + sparkline.
+  • NEW Pages Ranking section: interactive sortable table with:
+    - Rank badge (gold/silver/bronze for top 3)
+    - Platform badge + handle + verified tick
+    - Mini 14-day sparkline per account
+    - Sortable columns: Followers, Reach, Engagement, Posts, Eng. Rate (click column header to sort)
+    - 7-day growth % indicator (green/red) under followers
+    - Health status dot (green=healthy, amber=warning, orange=restricted, red=suspended)
+    - Horizontal scroll on mobile, sticky header
+  • NEW Performance Trend chart with metric switcher: 4 buttons (Followers / Reach / Posts / Comments) — click to switch the area chart's data series. Active button is colored, inactive are muted.
+  • Content Pipeline (kept): interactive horizontal flow with 4 stages.
+  • Comment Inbox (kept): scrollable preview of latest 5 unread.
+  • Top Performing Posts (kept): by engagement + reach, with author avatars + platform badges.
+  • Top Contributors (kept): ranked leaderboard with medal badges.
+  • Recent Posts (kept, interactive): click to open in Composer for republish.
+  • Upcoming (kept): scheduled posts with date tiles.
+  • Team Activity (kept): scrollable feed with userColor + avatar.
+  • All sections use staggered animationDelay, lift-hover, group-hover action reveals, custom scrollbars.
+
+Verification:
+- bunx tsc --noEmit → 0 errors in src/
+- bun run lint → exit 0, 0 warnings
+- API verified via curl + Python:
+  • KPIs: totalFollowers=0 (Δ-100%), totalReach=0 (Δ-100%), postsCreated=9 (Δ100%), comments=8 (Δ100%), replyRate=38%
+  • pagesRanking: 1 account (@pklastlook) with 14-pt sparkline, health=healthy, owner=Ashraf, 2 posts
+  • series: 14 days × 6 metrics (followers/reach/impressions/postsCreated/published/comments)
+  • pipeline: draft=3, scheduled=0, published=5, failed=1, total=9
+  • topContributors: 2 (Ashraf, Test Client)
+  • recentPosts: 6, commentInbox: 5 unread, topPosts: 4, activities: 12
+- HTML renders cleanly (106KB, no errors, no error boundary)
+- Dev log shows 0 compile errors
+
+Stage Summary:
+- Files: src/app/api/dashboard/route.ts (extended with followers/reach/pagesRanking), src/components/views/dashboard.tsx (770 → 880 lines, 2 major new sections).
+- NEW sections: Pages Ranking (interactive sortable table with sparklines + health), Performance Trend (metric switcher chart).
+- Differentiated from Performance: Dashboard has vanity metrics (followers, reach, impressions) + pages ranking + metric-switcher trend chart that Performance doesn't have. Performance has content-pipeline deep-dive, posting cadence, activity heatmap, account comment load that Dashboard doesn't have.
+- Lint: 0 errors. TypeScript: 0 errors in src/. API: all sections return real data.
+- Dev server restarted for user preview.
