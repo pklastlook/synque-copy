@@ -21,6 +21,7 @@ import {
   ExternalLink,
   KeyRound,
   Trash2,
+  Youtube,
 } from "lucide-react";
 
 interface PlatformCredential {
@@ -99,6 +100,30 @@ const PLATFORM_CONFIG: Record<string, {
     ],
     docsUrl: "https://developers.facebook.com/docs/pages-api",
     helpText: "Create a Meta Developer app → add Facebook Login product → set OAuth redirect URI to your app URL + /api/oauth/callback/facebook. Users click 'Connect Facebook' and get redirected to login → pick their page.",
+  },
+  tiktok: {
+    icon: Youtube, // placeholder — will use TikTok icon when available
+    name: "TikTok",
+    color: "oklch(0.3 0.02 250)",
+    fields: [
+      { key: "clientId", label: "Client Key", placeholder: "From TikTok Developers → Client Key", required: true },
+      { key: "clientSecret", label: "Client Secret", placeholder: "From TikTok Developers → Client Secret", required: true, type: "password" },
+      { key: "pageId", label: "Open ID", placeholder: "Fetched automatically after OAuth login" },
+    ],
+    docsUrl: "https://developers.tiktok.com/doc/login-kit-web/",
+    helpText: "Go to developers.tiktok.com → create an app → add Login Kit → set redirect URI to your app URL + /api/oauth/callback/tiktok. Request scopes: user.info.basic, video.publish, video.list.",
+  },
+  youtube: {
+    icon: Youtube,
+    name: "YouTube",
+    color: "oklch(0.626 0.225 27)",
+    fields: [
+      { key: "clientId", label: "Google Client ID", placeholder: "From Google Cloud Console → OAuth Client ID", required: true },
+      { key: "clientSecret", label: "Google Client Secret", placeholder: "From Google Cloud Console → OAuth Client Secret", required: true, type: "password" },
+      { key: "pageId", label: "Channel ID", placeholder: "Fetched automatically after OAuth login" },
+    ],
+    docsUrl: "https://console.cloud.google.com/apis/credentials",
+    helpText: "Go to Google Cloud Console → create a project → enable YouTube Data API v3 → create OAuth 2.0 credentials → set redirect URI to your app URL + /api/oauth/callback/youtube. Request scopes: youtube.upload, youtube.readonly.",
   },
 };
 

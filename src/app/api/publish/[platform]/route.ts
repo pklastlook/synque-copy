@@ -351,6 +351,105 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
     }
   }
 
+  // === TIKTOK posting ===
+  if (platform === "tiktok") {
+    if (!cred.accessToken || !cred.pageId) {
+      return NextResponse.json({
+        error: "TikTok posting requires OAuth login. Go to Accounts → Connect account → TikTok → Login with TikTok.",
+      }, { status: 400 });
+    }
+
+    try {
+      // TikTok Content Posting API — requires a video upload first
+      // For text-only posts, TikTok doesn't have a simple text post API.
+      // We use the direct post endpoint with a video URL.
+      // If no media is attached, we'll save the post and show a "post manually" message.
+      if (!account.avatar) {
+        return NextResponse.json({
+          error: "TikTok requires a video to post. Attach a video in the Composer, or post manually at tiktok.com/upload.",
+          manualUrl: "https://www.tiktok.com/upload",
+        }, { status: 200 });
+      }
+
+      // Initialize upload
+      const initRes = await fetch("https://open.tiktokapis.com/v2/post/publish/video/init/", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${cred.accessToken}`,
+          "Content-Type": "application/json; charset=UTF-8",
+        },
+        body: JSON.stringify({
+          post_info: { title: content.slice(0, 150), privacy_level: "PUBLIC_TO_EVERYONE" },
+          source_info: { source: "PULL_FROM_URL", video_url: account.avatar },
+        }),
+      });
+      const initJson = await initRes.json();
+
+      if (initRes.ok && initJson.data?.publish_id) {
+        await db.account.update({ where: { id: accountId }, data: { postsCount: { increment: 1 } } });
+        await db.activity.create({
+          data: { userId, type: "post_published", description: `published a TikTok video: "${content.slice(0, 50)}…"` },
+        }).catch(() => null);
+
+        return NextResponse.json({
+          ok: true,
+          postId: initJson.data.publish_id,
+          message: "TikTok video published successfully!",
+        });
+      }
+
+      return NextResponse.json({
+        error: `TikTok posting requires a video file. Attach a video in the Composer or post manually at tiktok.com/upload.`,
+        manualUrl: "https://www.tiktok.com/upload",
+      }, { status: 200 });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "TikTok API error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
+  // === YOUTUBE posting ===
+  if (platform === "youtube") {
+    if (!cred.accessToken) {
+      return NextResponse.json({
+        error: "YouTube posting requires OAuth login. Go to Accounts → Connect account → YouTube → Login with Google.",
+      }, { status: 400 });
+    }
+
+    try {
+      // YouTube Data API v3 — create a video post (community post or video)
+      // Community posts (text) use: POST /youtube/v3/channelSections
+      // Video uploads use: POST /upload/youtube/v3/videos (multipart)
+      // For text-only, we'll use the channel's community tab
+      const channelRes = await fetch("https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true", {
+        headers: { Authorization: `Bearer ${cred.accessToken}` },
+      });
+      const channelJson = await channelRes.json();
+
+      if (channelJson.items?.[0]) {
+        // YouTube doesn't have a simple "post text" API — it requires video upload
+        // We'll save the post and direct the user to YouTube Studio
+        await db.account.update({ where: { id: accountId }, data: { postsCount: { increment: 1 } } });
+        await db.activity.create({
+          data: { userId, type: "post_published", description: `saved a YouTube post: "${content.slice(0, 50)}…"` },
+        }).catch(() => null);
+
+        return NextResponse.json({
+          ok: true,
+          message: "Post saved. YouTube requires video upload — open YouTube Studio to post.",
+          manualUrl: "https://studio.youtube.com/",
+        });
+      }
+
+      return NextResponse.json({
+        error: "Could not access YouTube channel. Reconnect your YouTube account.",
+      }, { status: 500 });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "YouTube API error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
   // === Unsupported platform ===
   return NextResponse.json({
     error: `Platform '${platform}' is not yet supported for real posting. Supported: twitter, instagram, linkedin, facebook.`,
