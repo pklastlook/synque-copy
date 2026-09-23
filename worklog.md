@@ -1491,3 +1491,28 @@ Verification:
 Stage Summary:
 - 1 file changed, 187 insertions, 262 deletions (net -75 lines — simpler, more honest).
 - Committed (46218e7) by pklastlook@gmail.com, pushed to GitHub.
+
+---
+Task ID: sonoma-upgrade
+Agent: main (code assistant)
+Task: Upgrade entire system UI/UX design to macOS Sonoma.
+
+Work Log:
+- Senior-designer VLM audit identified 7 priorities: vibrant materials, content-first (remove box-itis), typographic confidence, semantic color, native controls, refined sidebar, SF Symbol consistency.
+- Implemented all 7 in globals.css + glass-card.tsx + app-sidebar.tsx + dashboard.tsx (6 files, +227/-285 lines):
+  1. Vibrant materials: cards SOLID (100% opacity .regularMaterial), sidebar TRANSLUCENT (.sidebar blur 40px saturate 180%), toolbar translucent. Removed noise textures + top-highlight gradients.
+  2. Content-first: KpiCard removed ambient glow + shimmer sweep. Cards are clean neutral; only icon is colored. GlassCard rounded-2xl (was rounded-3xl).
+  3. Typographic confidence: body -0.011em tracking, headings -0.022em. KpiCard number text-[38px] font-bold. SectionTitle text-[17px] font-bold. Greeting text-[28px]/[32px].
+  4. Semantic color: data cards neutral, color for meaning only. Delta badge text-only (emerald/rose, no pill). Accent → Apple system indigo (#5856D6).
+  5. Native controls: liquid-pill SOLID color (.borderedProminent), no gradient. New Post button → .bordered secondary (not dominant). Removed glow-ring/crystal-sweep.
+  6. Refined sidebar: translucent .sidebar material. Nav items rounded-lg, soft accent tint selection (was rounded-xl + left bar). New Post secondary bordered.
+  7. Color system: warm greys (hue 250) not cold blue-greys (hue 264). Light bg oklch(0.98 0.002 250). Dark bg oklch(0.17 0.004 250) warm charcoal. Borders barely visible.
+
+VLM grades:
+- Light dashboard: A- ("exceptionally polished Sonoma interpretation, solid materials, refined spacing, native, modern, functional, premium")
+- Dark dashboard + accounts: A- ("solid high-elevation cards, beautifully translucent sidebar with subtle blur, sophisticated dark palette, strong typographic structure")
+
+Stage Summary:
+- 6 files changed, 227 insertions, 285 deletions (net -58 lines — simpler, more Sonoma).
+- Committed (5a0fb40) by pklastlook@gmail.com, pushed to GitHub.
+- tsc: 0 errors in src/. lint: 0 errors.
