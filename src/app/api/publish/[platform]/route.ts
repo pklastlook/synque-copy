@@ -91,16 +91,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           const msg1 = err1 instanceof Error ? err1.message : String(err1);
           console.error("[publish/twitter] OAuth 1.0a failed:", msg1);
 
-          // If it's 402 (Free tier paywall), provide clear guidance
+          // If it's 402 (paywall), try OAuth 2.0 direct fetch as fallback
+          // (pay-per-use billing might work with OAuth 2.0 even if OAuth 1.0a fails)
           if (msg1.includes("402") || msg1.includes("credits")) {
+            console.log("[publish/twitter] 402 from OAuth 1.0a, trying OAuth 2.0 direct fetch...");
+            // Fall through to OAuth 2.0 attempt below
+          } else {
+            // For other errors (401, 403), return the error directly
             return NextResponse.json({
-              error: "Twitter Free tier doesn't allow posting via the API. You have two options:\n\n1. Upgrade to Basic tier ($100/month) at developer.twitter.com\n2. Copy your content and post manually at x.com/compose/post\n\nYour post has been saved in SocialFlow.",
-              savedContent: content,
-              manualUrl: "https://x.com/compose/post",
-            }, { status: 200 });
+              error: `Failed to post tweet: ${msg1}`,
+            }, { status: 500 });
           }
-
-          // For other errors (401, 403, etc), fall through to OAuth 2.0
         }
       }
 
