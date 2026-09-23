@@ -376,6 +376,130 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
       }
     }
 
+    // === TIKTOK OAuth 2.0 ===
+    if (platform === "tiktok") {
+      const tokenRes = await fetch("https://open-api.tiktok.com/oauth/access_token/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_key: cred.clientId,
+          client_secret: cred.clientSecret,
+          code,
+          grant_type: "authorization_code",
+          redirect_uri: redirectUri,
+        }),
+      });
+      const tokenJson = await tokenRes.json();
+      console.log(`[oauth/callback/tiktok] token response:`, JSON.stringify(tokenJson).slice(0, 300));
+
+      if (tokenJson.data?.access_token) {
+        accessToken = tokenJson.data.access_token;
+        const openId = tokenJson.data.open_id;
+
+        // Fetch user profile
+        const userRes = await fetch(`https://open-api.tiktok.com/user/info/`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ open_id: openId, fields: ["open_id", "union_id", "display_name", "avatar_url", "follower_count", "likes_count", "video_count"] }),
+        });
+        const userJson = await userRes.json();
+        console.log(`[oauth/callback/tiktok] profile:`, JSON.stringify(userJson).slice(0, 300));
+
+        if (userJson.data?.user) {
+          const u = userJson.data.user;
+          const existing = await db.account.findFirst({
+            where: { platform: "tiktok", handle: u.display_name ?? "TikTok User" },
+          }).catch(() => null);
+
+          if (!existing) {
+            await db.account.create({
+              data: {
+                platform: "tiktok",
+                handle: u.display_name ?? "TikTok User",
+                displayName: u.display_name ?? "TikTok User",
+                followers: u.follower_count ?? 0,
+                postsCount: u.video_count ?? 0,
+                verified: false,
+                ownerId: userId,
+                avatar: u.avatar_url ?? null,
+                health: { create: { riskScore: 5, riskLevel: "safe", status: "healthy", riskReasons: "[]" } },
+                protection: { create: { enabled: true } },
+              },
+            });
+
+            await db.activity.create({
+              data: { userId, type: "account_connected", description: `connected ${u.display_name} on TikTok` },
+            }).catch(() => null);
+          }
+        }
+        pageId = openId;
+      } else {
+        return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(tokenJson.error?.message ?? "tiktok_token_failed")}`, req.url));
+      }
+    }
+
+    // === YOUTUBE OAuth 2.0 ===
+    if (platform === "youtube") {
+      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: cred.clientId,
+          client_secret: cred.clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }),
+      });
+      const tokenJson = await tokenRes.json();
+      console.log(`[oauth/callback/youtube] token response:`, JSON.stringify(tokenJson).slice(0, 300));
+
+      if (tokenJson.access_token) {
+        accessToken = tokenJson.access_token;
+
+        // Fetch YouTube channel info
+        const channelRes = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const channelJson = await channelRes.json();
+        console.log(`[oauth/callback/youtube] channel:`, JSON.stringify(channelJson).slice(0, 300));
+
+        if (channelJson.items?.[0]) {
+          const ch = channelJson.items[0];
+          const existing = await db.account.findFirst({
+            where: { platform: "youtube", handle: ch.snippet?.title ?? "YouTube Channel" },
+          }).catch(() => null);
+
+          if (!existing) {
+            await db.account.create({
+              data: {
+                platform: "youtube",
+                handle: ch.snippet?.title ?? "YouTube Channel",
+                displayName: ch.snippet?.title ?? "YouTube Channel",
+                followers: parseInt(ch.statistics?.subscriberCount ?? "0"),
+                postsCount: parseInt(ch.statistics?.videoCount ?? "0"),
+                verified: false,
+                ownerId: userId,
+                avatar: ch.snippet?.thumbnails?.default?.url ?? null,
+                health: { create: { riskScore: 5, riskLevel: "safe", status: "healthy", riskReasons: "[]" } },
+                protection: { create: { enabled: true } },
+              },
+            });
+
+            await db.activity.create({
+              data: { userId, type: "account_connected", description: `connected ${ch.snippet?.title} on YouTube` },
+            }).catch(() => null);
+          }
+          pageId = ch.id;
+        }
+      } else {
+        return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(tokenJson.error?.message ?? "youtube_token_failed")}`, req.url));
+      }
+    }
+
     // Save the access token + page ID for future posting
     await db.platformCredential.update({
       where: { userId_platform: { userId, platform } },

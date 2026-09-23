@@ -47,6 +47,18 @@ const OAUTH_CONFIG: Record<string, {
     authUrl: "https://www.linkedin.com/oauth/v2/authorization",
     scopes: ["r_liteprofile", "w_member_social", "r_organization_social"],
   },
+  tiktok: {
+    authUrl: "https://www.tiktok.com/v2/auth/authorize/",
+    scopes: ["user.info.basic", "video.publish", "video.list"],
+  },
+  youtube: {
+    authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    scopes: [
+      "https://www.googleapis.com/auth/youtube.upload",
+      "https://www.googleapis.com/auth/youtube.readonly",
+      "https://www.googleapis.com/auth/yt-analytics.readonly",
+    ],
+  },
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
@@ -93,16 +105,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
   // For Twitter OAuth 2.0, need PKCE code_challenge
   if (platform === "twitter") {
-    // Generate a random code_verifier (43-128 chars, RFC 7636)
     const codeVerifier = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    // For "plain" method, code_challenge = code_verifier (no hashing)
     authUrl.searchParams.set("code_challenge", codeVerifier);
     authUrl.searchParams.set("code_challenge_method", "plain");
-    // Store the code_verifier in the state so the callback can use it
     const stateData = { userId, platform, cv: codeVerifier };
     const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString("base64url");
     authUrl.searchParams.set("state", stateEncoded);
     console.log(`[oauth/connect/twitter] code_verifier length: ${codeVerifier.length}`);
+  }
+
+  // TikTok OAuth 2.0 with PKCE
+  if (platform === "tiktok") {
+    const codeVerifier = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    authUrl.searchParams.set("code_challenge", codeVerifier);
+    authUrl.searchParams.set("code_challenge_method", "S256");
+    const stateData = { userId, platform, cv: codeVerifier };
+    const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString("base64url");
+    authUrl.searchParams.set("state", stateEncoded);
+  }
+
+  // YouTube/Google OAuth 2.0 — uses access_type=offline for refresh token
+  if (platform === "youtube") {
+    authUrl.searchParams.set("access_type", "offline");
+    authUrl.searchParams.set("prompt", "consent");
   }
 
   console.log(`[oauth/connect/${platform}] redirect_uri=${redirectUri}`);

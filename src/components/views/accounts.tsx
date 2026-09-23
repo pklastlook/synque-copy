@@ -354,8 +354,8 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
     setPlatform(id);
     const apiPlatform = id === "x" ? "twitter" : id;
 
-    // Only facebook/instagram/twitter/linkedin support OAuth redirect
-    if (!["facebook", "instagram", "x", "linkedin"].includes(id)) {
+    // Only facebook/instagram/twitter/linkedin/tiktok/youtube support OAuth redirect
+    if (!["facebook", "instagram", "x", "linkedin", "tiktok", "youtube"].includes(id)) {
       setStep("consent");
       return;
     }
@@ -594,6 +594,8 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 "instagram",
                 "x",
                 "linkedin",
+                "tiktok",
+                "youtube",
               ].includes(platform!) && user?.id && (
                 <button
                   onClick={() => {
