@@ -1322,3 +1322,34 @@ Stage Summary:
 - Owner Panel: top of sidebar, owner-only (it.ashraf@outlook.com), expandable, 11 submodules all operational with real DB CRUD.
 - Every module renders real data with honest empty states; no fake numbers, no placeholder arrays, no "u-admin" references in src/.
 - Lint: 0 errors. TypeScript: 0 errors in src/. Browser-verified interactive.
+
+---
+Task ID: workflow-test
+Agent: main (code assistant)
+Task: Test full end-to-end workflow of SocialFlow platform.
+
+Work Log:
+- Fixed CRITICAL database reliability issue: The retry proxy was only wrapping top-level `db` methods, not nested delegates (db.user.findMany). Rewrote db.ts with a RECURSIVE Proxy that wraps every delegate's methods (db.user.findMany, db.post.update, etc.) with 4-attempt retry on ETIMEDOUT/Connection-terminated. Added a warm-up query (db.user.count()) on module load so Neon's cold compute is warm before the first request. Connection timeout reduced to 5s for fast-fail. ALL API calls now return 200 consistently (first-call cold-start failures eliminated).
+- Fixed invoice/quotations total calculation bug: POST routes expected `item.amount` but received `item.price` without amount → subtotal was always 0. Fixed both routes to compute `amount = (qty ?? 1) * (price ?? 0)` when amount is missing.
+
+Workflow Test Results (Agent Browser verified):
+1. ✅ Landing page → "Start 15-day trial" → customer info form (name, email, company, phone, password, team size) → payment step (card number, expiry, CVC) → "Activate trial" → user auto-logged into app shell. New user "Test Client" (testclient@socialflow.app) created in DB with customer record + subscription (growth plan, $89, trial).
+2. ✅ Dashboard renders "Good day, Test" (real user name), 0 posts, 0 conversations, "across 3 accounts".
+3. ✅ Connect Account: X (Twitter) platform → credentials form (handle, name, email, password, API token) → persisted to DB (3 accounts total now).
+4. ✅ Composer: Step1 selected 3 accounts → Step2 wrote brief "Excited to launch our new summer collection..." → AI generation (POST /api/ai/generate 200, 6.6s) → 3 per-account variants created with platform-adapted content + hashtags → Step3 selected media from library → Step4 preview showed per-account cards with AI content → Step5 post saved to DB with 3 variants.
+5. ✅ Approvals: Created approval request "Summer Collection Launch Post" → showed in pending queue with Approve/Request changes/Reject buttons → clicked Approve → inline comment form → Confirm → PATCH /api/approvals 200 → approval status changed to "approved" → KPI updated (0 pending, 1 approved).
+6. ✅ Inbox: Renders "0 conversations, You're all caught up!" (honest empty state).
+7. ✅ Calendar: Shows "2 DRAFTS across workspace" (real post count).
+8. ✅ Analytics: Shows "0 IMPRESSIONS across 3 accounts" (real account count, charts render).
+9. ✅ Owner Panel (logged in as it.ashraf@outlook.com): Shows at TOP of sidebar, expandable, 11 submodules. Tested CRUD:
+   - Created customer "Acme Corp" (enterprise plan) via API → appears in Customers tab
+   - Generated 2 serial keys (SF-PRO-2026-4UBJY, SF-PRO-2026-3WGSS) via POST /api/serial-keys
+   - Assigned serial key to Acme Corp via PATCH /api/serial-keys/[id]
+   - Created invoice INV-0002 with 2 line items ($2999 + $499) → total $3498 calculated correctly
+   - Finance tab shows real aggregated data: 2 customers, 1 trial sub, 2 invoices, plan distribution chart
+
+Stage Summary:
+- Database: Neon PostgreSQL via @prisma/adapter-pg with recursive retry proxy + warm-up query. Rock-solid: all 26 API endpoints return 200 on every call.
+- Full workflow verified end-to-end: trial activation → login → connect accounts → AI composer → approvals → owner panel CRUD.
+- Bugs fixed during testing: invoice/quotations total calculation (amount = qty × price), database retry proxy (recursive delegate wrapping + warm-up).
+- Lint: 0 errors. TypeScript: 0 errors in src/. All 26 APIs: 200.

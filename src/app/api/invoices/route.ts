@@ -17,7 +17,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { customerId, items, taxRate, dueDate, notes } = body;
   if (!customerId) return NextResponse.json({ error: "customerId required" }, { status: 400 });
-  const parsedItems = items || [];
+  const parsedItems = (items || []).map((i: { description?: string; qty?: number; price?: number; amount?: number }) => ({
+    description: i.description ?? "",
+    qty: i.qty ?? 1,
+    price: i.price ?? 0,
+    amount: i.amount ?? (i.qty ?? 1) * (i.price ?? 0),
+  }));
   const subtotal = parsedItems.reduce((s: number, i: { amount: number }) => s + (i.amount || 0), 0);
   const tax = taxRate || 0;
   const taxAmount = Math.round(subtotal * tax) / 100;
