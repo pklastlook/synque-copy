@@ -52,6 +52,7 @@ import {
   VerifiedTick,
 } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { HelpText } from "@/components/glass/help-text";
 import { PLATFORMS, PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
 import { useAuth } from "@/lib/auth-store";
 import { useNav } from "@/lib/store";
@@ -169,6 +170,7 @@ export function AccountsView() {
 
   return (
     <div className="space-y-6">
+      <HelpText module="accounts"><strong className="text-foreground">Accounts</strong> shows all your connected social profiles. Click <strong className="text-foreground">Connect account</strong> to add a new platform via secure OAuth.</HelpText>
       {/* Header */}
       <GlassCard
         strong

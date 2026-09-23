@@ -27,6 +27,7 @@ import {
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { HelpText } from "@/components/glass/help-text";
 import {
   Dialog,
   DialogContent,
@@ -159,6 +160,7 @@ export function MailView() {
 
   return (
     <div className="space-y-5">
+      <HelpText module="mail"><strong className="text-foreground">Mail Server</strong> manages custom-domain email for your team. Connect a mail server to send and receive from your domain.</HelpText>
       {/* Hero */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
         <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[var(--primary)]/30 blur-3xl" />

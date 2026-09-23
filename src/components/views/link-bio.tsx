@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+import { HelpText } from "@/components/glass/help-text";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -278,6 +279,7 @@ export function LinkBioView() {
 
   return (
     <div className="space-y-5">
+      <HelpText module="link-bio"><strong className="text-foreground">Link in Bio</strong> creates a customizable landing page for your social profiles. Add links to drive traffic from your bio.</HelpText>
       {/* Hero */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
         <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />

@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { HelpText } from "@/components/glass/help-text";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import {
@@ -119,6 +120,7 @@ export function TeamView() {
 
   return (
     <div className="animate-rise space-y-5">
+      <HelpText module="team"><strong className="text-foreground">Team</strong> shows all workspace members and their roles. Invite teammates to collaborate on content.</HelpText>
       {/* Header */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
         <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />

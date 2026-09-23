@@ -33,6 +33,7 @@ import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PlatformBadge } from "@/components/glass/platform-badge";
+import { HelpText } from "@/components/glass/help-text";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -204,6 +205,7 @@ export function ListeningView() {
 
   return (
     <div className="space-y-5">
+      <HelpText module="listening"><strong className="text-foreground">Listening</strong> tracks brand mentions and keywords across the web. Create a query to monitor what people say about your brand.</HelpText>
       {/* Hero */}
       <GlassCard strong className="glass-sheen animate-rise relative overflow-hidden p-5">
         <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/25 blur-3xl" />

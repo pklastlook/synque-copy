@@ -21,10 +21,12 @@ import {
   Hash,
   Calendar,
   FolderOpen,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/hooks";
 import { GlassCard, KpiCard } from "@/components/glass/glass-card";
+import { HelpText } from "@/components/glass/help-text";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
@@ -210,6 +212,12 @@ export function MediaLibraryView() {
 
   return (
     <div className="animate-rise space-y-5">
+      {/* Help text for new users */}
+      <HelpText module="media-library">
+        <strong className="text-foreground">Media Library</strong> stores all your images, videos, and audio for use
+        in posts. Click <strong className="text-foreground">Upload</strong> to drag-and-drop a file from your computer,
+        or paste a URL. Assets are organized into folders by tag.
+      </HelpText>
       {/* Hero */}
       <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
         <div
@@ -686,6 +694,29 @@ function UploadDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* === Real file upload (drag-and-drop or click) === */}
+          <FileUploadZone
+            onUploaded={(file, uploadedUrl) => {
+              setName(file.name.replace(/\.[^/.]+$/, ""));
+              setUrl(uploadedUrl);
+              const mime = file.type.toLowerCase();
+              if (mime.startsWith("video/")) setType("video");
+              else if (mime.startsWith("audio/")) setType("audio");
+              else setType("image");
+            }}
+            submitting={submitting}
+            userId={user?.id ?? null}
+            folder={folder}
+            onDone={onUploaded}
+          />
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">or paste a URL</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="m-url">Asset URL</Label>
             <Input
@@ -987,6 +1018,115 @@ function MediaSkeleton() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * FileUploadZone — drag-and-drop or click-to-browse file upload.
+ * Uploads to /api/media/upload (multipart), saves to public/uploads/.
+ * On success, calls onUploaded(file, publicUrl) so the parent can
+ * prefill the URL + name + type fields.
+ */
+function FileUploadZone({
+  onUploaded,
+  submitting,
+  userId,
+  folder,
+  onDone,
+}: {
+  onUploaded: (file: File, url: string) => void;
+  submitting: boolean;
+  userId: string | null;
+  folder: string;
+  onDone: () => void;
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const [progress, setProgress] = React.useState<string>("");
+
+  const handleFile = async (file: File) => {
+    if (!userId) {
+      toast.error("Sign in to upload files");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("File too large (max 50MB)");
+      return;
+    }
+    setUploading(true);
+    setProgress(`Uploading ${file.name}…`);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("uploadedById", userId);
+      fd.append("folder", folder);
+      const res = await fetch("/api/media/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (res.ok && json.url) {
+        toast.success(`"${file.name}" uploaded`);
+        onUploaded(file, json.url);
+        onDone();
+      } else {
+        toast.error(json.error ?? "Upload failed");
+      }
+    } catch {
+      toast.error("Network error during upload");
+    } finally {
+      setUploading(false);
+      setProgress("");
+    }
+  };
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const f = e.dataTransfer.files[0];
+        if (f) handleFile(f);
+      }}
+      onClick={() => !uploading && !submitting && inputRef.current?.click()}
+      className={cn(
+        "relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-8 text-center transition",
+        dragOver
+          ? "border-primary bg-primary/10"
+          : "border-border hover:border-primary/40 hover:bg-muted/40",
+        (uploading || submitting) && "pointer-events-none opacity-60"
+      )}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,video/*,audio/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+          e.target.value = "";
+        }}
+      />
+      {uploading ? (
+        <>
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="text-[13px] font-medium text-muted-foreground">{progress}</span>
+        </>
+      ) : (
+        <>
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <Upload className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold">Drop a file or click to browse</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              PNG, JPG, MP4, MP3 · up to 50MB
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
