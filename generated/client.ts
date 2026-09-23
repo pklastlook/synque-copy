@@ -142,6 +142,11 @@ export type Report = Prisma.ReportModel
  */
 export type LinkInBio = Prisma.LinkInBioModel
 /**
+ * Model WhatsAppMessage
+ * 
+ */
+export type WhatsAppMessage = Prisma.WhatsAppMessageModel
+/**
  * Model MailServer
  * 
  */

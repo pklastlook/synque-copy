@@ -22,6 +22,7 @@ import { CompetitorsView } from "@/components/views/competitors";
 import { ReportsView } from "@/components/views/reports";
 import { LinkBioView } from "@/components/views/link-bio";
 import { MailView } from "@/components/views/mail";
+import { WhatsAppView } from "@/components/views/whatsapp";
 import { AdminPanelView } from "@/components/views/admin-panel";
 import { OwnerView } from "@/components/views/owner";
 import { TeamPerformanceView } from "@/components/views/team-performance";
@@ -69,6 +70,7 @@ export function AppShell() {
               {view === "reports" && <ReportsView />}
               {view === "linkbio" && <LinkBioView />}
               {view === "mail" && <MailView />}
+              {view === "whatsapp" && <WhatsAppView />}
               {view === "admin" && <AdminPanelView />}
               {view === "owner" && <OwnerView />}
               {view === "team-performance" && <TeamPerformanceView />}
