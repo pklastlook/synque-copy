@@ -110,13 +110,13 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         <LogoWordmark size="text-[18px]" logoSize={30} />
       </div>
 
-      {/* New Post — Sonoma .bordered style (secondary, not dominant) */}
+      {/* New Post — prominent primary action */}
       <button
         onClick={() => {
           setView("composer");
           onNavigate?.();
         }}
-        className="mb-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-[13px] font-semibold transition hover:bg-muted"
+        className="liquid-pill glow-ring crystal-sweep mb-1 flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
       >
         <PenSquare className="h-4 w-4" />
         New Post
@@ -157,23 +157,30 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                       onNavigate?.();
                     }}
                     className={cn(
-                      "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors duration-150",
+                      "group crystal-sweep relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
                       active
-                        ? "font-semibold text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "font-semibold text-foreground shadow-[inset_0_0_0_1px_var(--ring)]"
+                        : "text-foreground/55 hover:bg-muted/50 hover:text-foreground"
                     )}
                     style={active ? ({ ["--section-accent" as string]: n.accent } as React.CSSProperties) : undefined}
                   >
-                    {/* Active: Sonoma soft selection — accent tint background */}
+                    {/* Active: bold accent-colored left bar */}
                     {active && (
                       <span
-                        className="absolute inset-0 rounded-lg"
-                        style={{ background: `${n.accent}18` }}
+                        className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full"
+                        style={{ background: n.accent, boxShadow: `0 0 8px ${n.accent}` }}
+                      />
+                    )}
+                    {/* Active: accent-tinted background */}
+                    {active && (
+                      <span
+                        className="absolute inset-0 rounded-xl"
+                        style={{ background: n.accent, opacity: 0.12 }}
                       />
                     )}
                     <Icon
-                      className={cn("relative h-4 w-4 shrink-0", active && "scale-105")}
-                      style={{ color: active ? n.accent : undefined }}
+                      className={cn("relative h-[18px] w-[18px] shrink-0 transition-transform", !active && "group-hover:scale-110")}
+                      style={{ color: n.accent }}
                     />
                     <span className="relative truncate">{n.label}</span>
                     {n.badge && (
@@ -184,7 +191,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                         {n.badge}
                       </span>
                     )}
-                    {active && !n.badge && <ChevronRight className="relative ml-auto h-3 w-3" style={{ color: n.accent }} />}
+                    {active && !n.badge && <ChevronRight className="relative ml-auto h-3.5 w-3.5" style={{ color: n.accent }} />}
                   </button>
                 );
               })}
