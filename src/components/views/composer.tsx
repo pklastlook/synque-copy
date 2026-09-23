@@ -286,6 +286,7 @@ export function ComposerView() {
     }
     setPublishing(true);
     try {
+      // 1. Save the post to the database
       const v: Record<string, { content: string; hashtags?: string }> = {};
       for (const a of selectedAccounts) {
         const ex = state.variants[a.id];
@@ -295,6 +296,7 @@ export function ComposerView() {
         state.scheduleEnabled && state.scheduledAt
           ? new Date(state.scheduledAt).toISOString()
           : null;
+
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -309,16 +311,95 @@ export function ComposerView() {
           authorId: currentUserId,
         }),
       });
-      if (res.ok) {
-        toast.success(
-          state.scheduleEnabled && scheduledAt
-            ? "Post scheduled successfully"
-            : "Post published to all accounts"
-        );
-        setState(DEFAULT_STATE);
-      } else {
-        toast.error("Failed to publish");
+
+      if (!res.ok) {
+        toast.error("Failed to save post");
+        return;
       }
+
+      // 2. If scheduled, skip real posting (will be posted later)
+      if (state.scheduleEnabled && scheduledAt) {
+        toast.success("Post scheduled", {
+          description: `Will be published on ${new Date(scheduledAt).toLocaleString()}`,
+        });
+        setState(DEFAULT_STATE);
+        return;
+      }
+
+      // 3. Attempt REAL platform publishing for each selected account
+      const results: { account: string; platform: string; success: boolean; message: string; url?: string }[] = [];
+
+      for (const a of selectedAccounts) {
+        const variant = v[a.id];
+        const content = variant.hashtags
+          ? `${variant.content}\n\n${variant.hashtags.split(",").map(t => `#${t.trim()}`).join(" ")}`
+          : variant.content;
+
+        // Map platform id to API platform name
+        const apiPlatform = a.platform === "x" ? "twitter" : a.platform;
+
+        try {
+          const pubRes = await fetch(`/api/publish/${apiPlatform}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: currentUserId,
+              accountId: a.id,
+              content,
+            }),
+          });
+          const pubJson = await pubRes.json();
+
+          if (pubRes.ok && pubJson.ok) {
+            results.push({
+              account: a.displayName,
+              platform: a.platform,
+              success: true,
+              message: "Published successfully",
+              url: pubJson.url,
+            });
+          } else {
+            results.push({
+              account: a.displayName,
+              platform: a.platform,
+              success: false,
+              message: pubJson.error ?? "Failed to publish",
+            });
+          }
+        } catch {
+          results.push({
+            account: a.displayName,
+            platform: a.platform,
+            success: false,
+            message: "Network error during publish",
+          });
+        }
+      }
+
+      // 4. Show results
+      const succeeded = results.filter((r) => r.success);
+      const failed = results.filter((r) => !r.success);
+
+      if (succeeded.length > 0 && failed.length === 0) {
+        toast.success(`Published to ${succeeded.length} account${succeeded.length > 1 ? "s" : ""}`, {
+          description: succeeded.map(r => `✓ ${r.account}${r.url ? ` — ${r.url}` : ""}`).join("\n"),
+        });
+      } else if (succeeded.length > 0 && failed.length > 0) {
+        toast.warning(`Published to ${succeeded.length}, failed ${failed.length}`, {
+          description: [
+            ...succeeded.map(r => `✓ ${r.account}`),
+            ...failed.map(r => `✗ ${r.account}: ${r.message.slice(0, 80)}`),
+          ].join("\n"),
+        });
+      } else {
+        // All failed — show the first error with guidance
+        const firstError = failed[0];
+        toast.error("Post saved to workspace (not published to platforms)", {
+          description: firstError?.message ?? "Add platform API keys in Settings → Platform API Keys to enable real posting.",
+        });
+      }
+
+      setState(DEFAULT_STATE);
     } catch {
       toast.error("Network error");
     } finally {

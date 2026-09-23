@@ -428,7 +428,8 @@ export const ModelName = {
   ApiKey: 'ApiKey',
   Device: 'Device',
   Subscription: 'Subscription',
-  Workspace: 'Workspace'
+  Workspace: 'Workspace',
+  PlatformCredential: 'PlatformCredential'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -444,7 +445,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspace"
+    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspace" | "platformCredential"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2816,6 +2817,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    PlatformCredential: {
+      payload: Prisma.$PlatformCredentialPayload<ExtArgs>
+      fields: Prisma.PlatformCredentialFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PlatformCredentialFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PlatformCredentialFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload>
+        }
+        findFirst: {
+          args: Prisma.PlatformCredentialFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PlatformCredentialFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload>
+        }
+        findMany: {
+          args: Prisma.PlatformCredentialFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload>[]
+        }
+        create: {
+          args: Prisma.PlatformCredentialCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload>
+        }
+        createMany: {
+          args: Prisma.PlatformCredentialCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PlatformCredentialCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload>[]
+        }
+        delete: {
+          args: Prisma.PlatformCredentialDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload>
+        }
+        update: {
+          args: Prisma.PlatformCredentialUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload>
+        }
+        deleteMany: {
+          args: Prisma.PlatformCredentialDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PlatformCredentialUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PlatformCredentialUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload>[]
+        }
+        upsert: {
+          args: Prisma.PlatformCredentialUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PlatformCredentialPayload>
+        }
+        aggregate: {
+          args: Prisma.PlatformCredentialAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePlatformCredential>
+        }
+        groupBy: {
+          args: Prisma.PlatformCredentialGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PlatformCredentialGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PlatformCredentialCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PlatformCredentialCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -3402,6 +3477,25 @@ export const WorkspaceScalarFieldEnum = {
 export type WorkspaceScalarFieldEnum = (typeof WorkspaceScalarFieldEnum)[keyof typeof WorkspaceScalarFieldEnum]
 
 
+export const PlatformCredentialScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  platform: 'platform',
+  apiKey: 'apiKey',
+  apiSecret: 'apiSecret',
+  accessToken: 'accessToken',
+  accessSecret: 'accessSecret',
+  bearerToken: 'bearerToken',
+  pageId: 'pageId',
+  profileId: 'profileId',
+  connected: 'connected',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PlatformCredentialScalarFieldEnum = (typeof PlatformCredentialScalarFieldEnum)[keyof typeof PlatformCredentialScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -3677,6 +3771,7 @@ export type GlobalOmitConfig = {
   device?: Prisma.DeviceOmit
   subscription?: Prisma.SubscriptionOmit
   workspace?: Prisma.WorkspaceOmit
+  platformCredential?: Prisma.PlatformCredentialOmit
 }
 
 /* Types for Logging */

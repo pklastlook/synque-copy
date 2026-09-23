@@ -82,7 +82,8 @@ export const ModelName = {
   ApiKey: 'ApiKey',
   Device: 'Device',
   Subscription: 'Subscription',
-  Workspace: 'Workspace'
+  Workspace: 'Workspace',
+  PlatformCredential: 'PlatformCredential'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -646,6 +647,25 @@ export const WorkspaceScalarFieldEnum = {
 } as const
 
 export type WorkspaceScalarFieldEnum = (typeof WorkspaceScalarFieldEnum)[keyof typeof WorkspaceScalarFieldEnum]
+
+
+export const PlatformCredentialScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  platform: 'platform',
+  apiKey: 'apiKey',
+  apiSecret: 'apiSecret',
+  accessToken: 'accessToken',
+  accessSecret: 'accessSecret',
+  bearerToken: 'bearerToken',
+  pageId: 'pageId',
+  profileId: 'profileId',
+  connected: 'connected',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PlatformCredentialScalarFieldEnum = (typeof PlatformCredentialScalarFieldEnum)[keyof typeof PlatformCredentialScalarFieldEnum]
 
 
 export const SortOrder = {
