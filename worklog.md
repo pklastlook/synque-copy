@@ -1353,3 +1353,33 @@ Stage Summary:
 - Full workflow verified end-to-end: trial activation → login → connect accounts → AI composer → approvals → owner panel CRUD.
 - Bugs fixed during testing: invoice/quotations total calculation (amount = qty × price), database retry proxy (recursive delegate wrapping + warm-up).
 - Lint: 0 errors. TypeScript: 0 errors in src/. All 26 APIs: 200.
+
+---
+Task ID: remove-approvals
+Agent: main (code assistant)
+Task: Remove the Approvals module entirely (team doesn't need approval for content sharing) and push to GitHub.
+
+Work Log:
+- Removed "approvals" from ViewId union type in src/lib/types.ts.
+- Removed the Approvals nav item (ClipboardCheck icon) from the sidebar NAV array in app-sidebar.tsx; removed the now-unused ClipboardCheck lucide import.
+- Removed the ApprovalsView import and the `{view === "approvals" && <ApprovalsView />}` render branch from app-shell.tsx.
+- Deleted the approvals view file (src/components/views/approvals.tsx, ~785 lines) and both API route handlers (src/app/api/approvals/route.ts, src/app/api/approvals/[id]/route.ts).
+- Cleaned admin-panel.tsx: removed pendingApprovals KPI card, approvalsCount field from the TeamMember interface, the "Approvals authored" team metric card, and the approval_requested/approval_resolved entries from the ACTIVITY_ICON map.
+- Cleaned /api/admin/route.ts: removed db.approval.findMany() from the Promise.all, removed uApprovals/pendingApprovals/approvalsCount from the response payload.
+- Cleaned settings.tsx: removed "Approvals/Review" from CAPABILITIES and PERMISSION_MATRIX (all 5 roles), removed the approvalRequested/approvalResolved toggles from the Workflow notification group (now "Task events"), updated the Slack integration description.
+- Updated landing-page.tsx: changed "Approvals stuck" pain-point card to "Content stuck", changed step 4 title from "Preview & approve" to "Preview & publish", removed "Approval workflows" feature from the Growth plan.
+- Updated app-header.tsx: removed the "Approval resolved" entry from the NOTIFICATIONS array and the unused CheckCircle2 import; removed the "approvals" entry from the VIEW_TITLES map.
+- Updated about page: removed "approvals" from the "Built for teams" value description.
+
+Verification:
+- bunx tsc --noEmit → 0 errors in src/ (only the external skills/ folder error remains, out of scope).
+- bun run lint → exit 0, 0 warnings.
+- Dev server: GET / → 200; GET /api/admin → 200; all 25 remaining API endpoints → 200.
+- Browser verification: logged in as owner, sidebar no longer contains "Approvals" — Overview group is now Dashboard / Composer / Calendar / Inbox only.
+- Committed (adcc9f1) and pushed to https://github.com/pklastlook/SocialFlow.git (main → main). 12 files changed, 22 insertions, 926 deletions.
+
+Stage Summary:
+- Approvals module fully removed: view, API routes, sidebar entry, view render branch, ViewId type member, admin KPI/metrics, settings permission matrix, notification toggles, landing-page copy, about-page copy.
+- Net change: -926 lines, +22 lines.
+- All other modules remain fully operational; 25 API endpoints return 200.
+- Pushed to GitHub successfully.
