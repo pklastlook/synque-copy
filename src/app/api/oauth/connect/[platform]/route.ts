@@ -92,17 +92,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   authUrl.searchParams.set("scope", config.scopes.join(" "));
 
   // For Twitter OAuth 2.0, need PKCE code_challenge
-  // Using a random string that we'll verify in the callback
   if (platform === "twitter") {
-    // Generate a random code_verifier (32 chars)
-    const codeVerifier = Math.random().toString(36).substring(2, 34) + Math.random().toString(36).substring(2, 34);
-    // For "plain" method, code_challenge = code_verifier
+    // Generate a random code_verifier (43-128 chars, RFC 7636)
+    const codeVerifier = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    // For "plain" method, code_challenge = code_verifier (no hashing)
     authUrl.searchParams.set("code_challenge", codeVerifier);
     authUrl.searchParams.set("code_challenge_method", "plain");
     // Store the code_verifier in the state so the callback can use it
-    const stateData = { userId, platform, codeVerifier };
+    const stateData = { userId, platform, cv: codeVerifier };
     const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString("base64url");
     authUrl.searchParams.set("state", stateEncoded);
+    console.log(`[oauth/connect/twitter] code_verifier length: ${codeVerifier.length}`);
   }
 
   console.log(`[oauth/connect/${platform}] redirect_uri=${redirectUri}`);
