@@ -34,3 +34,49 @@ export async function PATCH(req: NextRequest) {
   await db.linkInBio.update({ where: { id }, data });
   return NextResponse.json({ ok: true });
 }
+
+/** POST — create a new link-in-bio page with a unique slug. */
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const { title, subtitle, theme, slug, accountId, avatar } = body as {
+    title?: string;
+    subtitle?: string;
+    theme?: string;
+    slug?: string;
+    accountId?: string;
+    avatar?: string;
+  };
+
+  const finalTitle = (title ?? "My link-in-bio").trim() || "My link-in-bio";
+
+  // Generate a unique slug. If provided, sanitize; otherwise derive from title.
+  const baseSlugRaw = (slug ?? finalTitle)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "page";
+  const baseSlug = baseSlugRaw.slice(0, 40);
+  let uniqueSlug = baseSlug;
+  let suffix = 1;
+  while (await db.linkInBio.findUnique({ where: { slug: uniqueSlug } }).catch(() => null)) {
+    suffix += 1;
+    uniqueSlug = `${baseSlug}-${suffix}`;
+    if (suffix > 999) break;
+  }
+
+  const page = await db.linkInBio.create({
+    data: {
+      slug: uniqueSlug,
+      title: finalTitle,
+      subtitle: subtitle ?? null,
+      avatar: avatar ?? null,
+      theme: theme ?? "rose",
+      links: JSON.stringify([]),
+      visits: 0,
+      clicks: 0,
+      accountId: accountId ?? null,
+      active: true,
+    },
+  });
+
+  return NextResponse.json({ id: page.id, slug: page.slug, ok: true });
+}

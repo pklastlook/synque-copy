@@ -6,8 +6,6 @@ import type { ViewId } from "@/lib/types";
 interface NavState {
   view: ViewId;
   setView: (v: ViewId) => void;
-  currentUserId: string;
-  setCurrentUserId: (id: string) => void;
   adminMode: boolean;
   setAdminMode: (b: boolean) => void;
   composerSeed: string | null;
@@ -31,8 +29,6 @@ interface NavState {
 export const useNav = create<NavState>((set) => ({
   view: "dashboard",
   setView: (v) => set({ view: v }),
-  currentUserId: "u-admin",
-  setCurrentUserId: (id) => set({ currentUserId: id }),
   adminMode: true,
   setAdminMode: (b) => set({ adminMode: b }),
   composerSeed: null,

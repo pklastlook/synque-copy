@@ -12,11 +12,12 @@ interface Target {
 }
 
 export async function POST(req: NextRequest) {
-  const { caption, tone, targets, mediaHint } = (await req.json()) as {
+  const { caption, tone, targets, mediaHint, userId } = (await req.json()) as {
     caption: string;
     tone: string;
     targets: Target[];
     mediaHint?: string;
+    userId?: string;
   };
 
   if (!caption || !targets?.length) {
@@ -143,17 +144,20 @@ The "index" MUST match the destination number above, in order. Include exactly o
     }
   }
 
-  // log activity
-  try {
-    await db.activity.create({
-      data: {
-        userId: "u-admin",
-        type: "ai_generated",
-        description: `generated ${targets.length} platform-specific captions for “${caption.slice(0, 40)}…”`,
-      },
-    });
-  } catch {
-    /* ignore */
+  // log activity (only if we have a real userId from the session — never
+  // hardcode one. Activity logging is non-critical so failures are swallowed.)
+  if (userId) {
+    try {
+      await db.activity.create({
+        data: {
+          userId,
+          type: "ai_generated",
+          description: `generated ${targets.length} platform-specific captions for “${caption.slice(0, 40)}…”`,
+        },
+      });
+    } catch {
+      /* ignore — activity log is non-critical */
+    }
   }
 
   return NextResponse.json({ variants: variantsByAccount });

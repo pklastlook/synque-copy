@@ -712,7 +712,17 @@ function AddServerDialog({ open, onOpenChange, onCreated }: { open: boolean; onO
   );
 }
 
+interface TeamMemberLite {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  title: string | null;
+  status: string;
+}
+
 function CreateMailboxDialog({ open, onOpenChange, servers, onCreated }: { open: boolean; onOpenChange: (b: boolean) => void; servers: ServerInfo[]; onCreated: () => void }) {
+  const { data: team } = useApi<TeamMemberLite[]>("/api/team");
   const [serverId, setServerId] = React.useState(servers[0]?.id ?? "");
   const [localPart, setLocalPart] = React.useState("");
   const [displayName, setDisplayName] = React.useState("");
@@ -795,12 +805,9 @@ function CreateMailboxDialog({ open, onOpenChange, servers, onCreated }: { open:
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="Unassigned" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Unassigned</SelectItem>
-                  <SelectItem value="u-admin">Maya Reyes (Admin)</SelectItem>
-                  <SelectItem value="u-1">Daniel Cho</SelectItem>
-                  <SelectItem value="u-2">Priya Nair</SelectItem>
-                  <SelectItem value="u-3">Leo Marchetti</SelectItem>
-                  <SelectItem value="u-4">Sara Okafor</SelectItem>
-                  <SelectItem value="u-5">Tom Becker</SelectItem>
+                  {(team ?? []).filter((m) => m.status !== "suspended").map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name} ({m.role})</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

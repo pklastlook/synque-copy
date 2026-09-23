@@ -3031,23 +3031,23 @@ function DevicesTab() {
 
   const add = async () => {
     if (!form.deviceName.trim()) return toast.error("Device name required");
-    await api("/api/devices", "POST", form);
+    await api("POST", "/api/devices", form);
     toast.success("Device registered");
     setForm({ deviceName: "", serialKeyId: "", ipAddress: "", location: "" });
     setAddOpen(false); reload();
   };
 
   const block = async (id: string, name: string) => {
-    await api(`/api/devices/${id}`, "PATCH", { status: "blocked" });
+    await api("PATCH", `/api/devices/${id}`, { status: "blocked" });
     toast.success(`${name} blocked`); reload();
   };
   const unblock = async (id: string, name: string) => {
-    await api(`/api/devices/${id}`, "PATCH", { status: "active" });
+    await api("PATCH", `/api/devices/${id}`, { status: "active" });
     toast.success(`${name} unblocked`); reload();
   };
   const remove = async (id: string, name: string) => {
     if (!confirm(`Remove ${name}?`)) return;
-    await api(`/api/devices/${id}`, "DELETE");
+    await api("DELETE", `/api/devices/${id}`);
     toast.success(`${name} removed`); reload();
   };
 
@@ -3121,13 +3121,13 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
 
   const add = async () => {
     if (!form.customerId) return toast.error("Select a customer");
-    await api("/api/subscriptions", "POST", form);
+    await api("POST", "/api/subscriptions", form);
     toast.success("Subscription created"); setAddOpen(false); reload();
   };
 
   const cancel = async (id: string) => {
     if (!confirm("Cancel this subscription?")) return;
-    await api(`/api/subscriptions/${id}`, "PATCH", { status: "cancelled" });
+    await api("PATCH", `/api/subscriptions/${id}`, { status: "cancelled" });
     toast.success("Subscription cancelled"); reload();
   };
 
@@ -3208,13 +3208,13 @@ function ApiKeysTab() {
 
   const revoke = async (id: string) => {
     if (!confirm("Revoke this API key? This cannot be undone.")) return;
-    await api(`/api/api-keys/${id}`, "PATCH", { status: "revoked" });
+    await api("PATCH", `/api/api-keys/${id}`, { status: "revoked" });
     toast.success("API key revoked"); reload();
   };
 
   const del = async (id: string) => {
     if (!confirm("Delete this API key?")) return;
-    await api(`/api/api-keys/${id}`, "DELETE");
+    await api("DELETE", `/api/api-keys/${id}`);
     toast.success("API key deleted"); reload();
   };
 

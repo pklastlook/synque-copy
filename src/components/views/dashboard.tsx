@@ -32,6 +32,7 @@ import { PlatformBadge, VerifiedTick } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
 import { useNav } from "@/lib/store";
+import { useAuth } from "@/lib/auth-store";
 
 interface DashboardData {
   kpis: {
@@ -78,6 +79,8 @@ const ACTIVITY_ICON: Record<string, React.ElementType> = {
 export function DashboardView() {
   const { data, loading } = useApi<DashboardData>("/api/dashboard");
   const { setView } = useNav();
+  const { user } = useAuth();
+  const firstName = user?.name?.split(" ")[0] || "there";
 
   if (loading || !data) return <DashboardSkeleton />;
 
@@ -102,7 +105,7 @@ export function DashboardView() {
               {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
             </div>
             <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-              Good day, <span className="retaina-text">Maya</span>
+              Good day, <span className="retaina-text">{firstName}</span>
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               You have <span className="font-semibold text-foreground">{data.kpis.scheduled}</span> posts scheduled and{" "}

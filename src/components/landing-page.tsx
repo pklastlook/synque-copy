@@ -475,8 +475,8 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
           {[
             { v: "17", l: "Integrated modules", icon: Layers },
             { v: "7+", l: "Social platforms", icon: Globe },
-            { v: "2.4M", l: "Impressions tracked", icon: BarChart3 },
-            { v: "99.9%", l: "Account safety score", icon: ShieldCheck },
+            { v: "Live", l: "Real-time analytics", icon: BarChart3 },
+            { v: "24/7", l: "Account protection", icon: ShieldCheck },
           ].map((s, i) => (
             <div key={s.l} className="crystal-in relative p-6 text-center" style={{ animationDelay: `${0.08 * i + 0.1}s` }}>
               <s.icon className="mx-auto h-6 w-6 text-[var(--gold)]" />

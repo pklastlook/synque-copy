@@ -1,0 +1,720 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Area,
+     6→  AreaChart,
+     7→  CartesianGrid,
+     8→  Cell,
+     9→  Pie,
+    10→  PieChart,
+    11→  ResponsiveContainer,
+    12→  Tooltip,
+    13→  XAxis,
+    14→  YAxis,
+    15→} from "recharts";
+    16→import {
+    17→  MessagesSquare,
+    18→  Radar,
+    19→  Globe,
+    20→  Eye,
+    21→  Heart,
+    22→  Smile,
+    23→  Plus,
+    24→  Reply,
+    25→  ExternalLink,
+    26→  Sparkles,
+    27→  Hash,
+    28→  TrendingUp,
+    29→  CircleDot,
+    30→} from "lucide-react";
+    31→import { toast } from "sonner";
+    32→import { useApi, fmt, timeAgo } from "@/lib/hooks";
+    33→import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+    34→import { NameAvatar } from "@/components/glass/name-avatar";
+    35→import { PlatformBadge } from "@/components/glass/platform-badge";
+    36→import { cn } from "@/lib/utils";
+    37→import {
+    38→  Dialog,
+    39→  DialogContent,
+    40→  DialogDescription,
+    41→  DialogFooter,
+    42→  DialogHeader,
+    43→  DialogTitle,
+    44→} from "@/components/ui/dialog";
+    45→import {
+    46→  Select,
+    47→  SelectContent,
+    48→  SelectItem,
+    49→  SelectTrigger,
+    50→  SelectValue,
+    51→} from "@/components/ui/select";
+    52→import { Input } from "@/components/ui/input";
+    53→import { Label } from "@/components/ui/label";
+    54→import { Button } from "@/components/ui/button";
+    55→import { Textarea } from "@/components/ui/textarea";
+    56→import type { PlatformId } from "@/lib/platforms";
+    57→
+    58→// ===== API types =====
+    59→interface Mention {
+    60→  id: string;
+    61→  source: string;
+    62→  author: string;
+    63→  authorAvatar: string | null;
+    64→  text: string;
+    65→  url: string | null;
+    66→  sentiment: "positive" | "neutral" | "negative";
+    67→  reach: number;
+    68→  engagement: number;
+    69→  date: string;
+    70→}
+    71→
+    72→type QueryType = "brand" | "competitor" | "keyword" | "hashtag";
+    73→
+    74→interface ListeningQuery {
+    75→  id: string;
+    76→  name: string;
+    77→  keywords: string;
+    78→  type: QueryType;
+    79→  color: string;
+    80→  status: string;
+    81→  mentionCount: number;
+    82→  reach: number;
+    83→  engagement: number;
+    84→  mentions: Mention[];
+    85→}
+    86→
+    87→interface RecentMention extends Mention {
+    88→  queryName: string;
+    89→  queryColor: string;
+    90→}
+    91→
+    92→interface ListeningData {
+    93→  queries: ListeningQuery[];
+    94→  recent: RecentMention[];
+    95→  sentiments: { positive: number; neutral: number; negative: number };
+    96→  series: { date: string; count: number; sentiment: number }[];
+    97→}
+    98→
+    99→const KNOWN_SOURCES: PlatformId[] = [
+   100→  "instagram",
+   101→  "x",
+   102→  "facebook",
+   103→  "linkedin",
+   104→  "tiktok",
+   105→  "youtube",
+   106→  "threads",
+   107→];
+   108→
+   109→const TYPE_LABEL: Record<QueryType, string> = {
+   110→  brand: "Brand",
+   111→  competitor: "Competitor",
+   112→  keyword: "Keyword",
+   113→  hashtag: "Hashtag",
+   114→};
+   115→
+   116→const TYPE_ACCENT: Record<QueryType, string> = {
+   117→  brand: "oklch(0.7 0.24 14)",
+   118→  competitor: "oklch(0.66 0.22 305)",
+   119→  keyword: "oklch(0.74 0.18 165)",
+   120→  hashtag: "oklch(0.78 0.18 75)",
+   121→};
+   122→
+   123→const SWATCHES = [
+   124→  "#E1306C",
+   125→  "#9b51e0",
+   126→  "#2d9cdb",
+   127→  "#27ae60",
+   128→  "#f2994a",
+   129→  "#eb5757",
+   130→  "#0EA5E9",
+   131→  "#F43F5E",
+   132→];
+   133→
+   134→const SENT_COLORS = {
+   135→  positive: "oklch(0.76 0.18 145)",
+   136→  neutral: "oklch(0.7 0.0 0)",
+   137→  negative: "oklch(0.7 0.24 14)",
+   138→};
+   139→
+   140→function SentimentTag({ sentiment }: { sentiment: Mention["sentiment"] }) {
+   141→  const cfg = {
+   142→    positive: { label: "Positive", cls: "bg-emerald-500/15 text-emerald-500" },
+   143→    neutral: { label: "Neutral", cls: "bg-muted text-muted-foreground" },
+   144→    negative: { label: "Negative", cls: "bg-rose-500/15 text-rose-500" },
+   145→  }[sentiment];
+   146→  return (
+   147→    <span
+   148→      className={cn(
+   149→        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+   150→        cfg.cls,
+   151→      )}
+   152→    >
+   153→      <CircleDot className="h-2.5 w-2.5" />
+   154→      {cfg.label}
+   155→    </span>
+   156→  );
+   157→}
+   158→
+   159→function SourceBadge({ source }: { source: string }) {
+   160→  const isKnown = (KNOWN_SOURCES as string[]).includes(source);
+   161→  if (isKnown) {
+   162→    return <PlatformBadge platform={source as PlatformId} size={32} />;
+   163→  }
+   164→  return (
+   165→    <span className="grid h-8 w-8 place-items-center rounded-[28%] bg-muted text-muted-foreground shadow-sm">
+   166→      <Globe className="h-4 w-4" />
+   167→    </span>
+   168→  );
+   169→}
+   170→
+   171→export function ListeningView() {
+   172→  const { data, loading, reload } = useApi<ListeningData>("/api/listening");
+   173→  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+   174→
+   175→  if (loading || !data) return <ListeningSkeleton />;
+   176→
+   177→  // KPIs
+   178→  const totalMentions = data.queries.reduce((s, q) => s + q.mentionCount, 0);
+   179→  const totalReach = data.queries.reduce((s, q) => s + q.reach, 0);
+   180→  const totalEngagement = data.queries.reduce((s, q) => s + q.engagement, 0);
+   181→  const sentimentTotal =
+   182→    data.sentiments.positive + data.sentiments.neutral + data.sentiments.negative;
+   183→  const positivePct =
+   184→    sentimentTotal > 0
+   185→      ? Math.round((data.sentiments.positive / sentimentTotal) * 100)
+   186→      : 0;
+   187→  const avgEngagement = totalMentions > 0 ? Math.round(totalEngagement / totalMentions) : 0;
+   188→
+   189→  // Filtered feed
+   190→  const selectedQuery = data.queries.find((q) => q.id === selectedId) ?? null;
+   191→  const feed: RecentMention[] = selectedQuery
+   192→    ? selectedQuery.mentions.map((m) => ({
+   193→        ...m,
+   194→        queryName: selectedQuery.name,
+   195→        queryColor: selectedQuery.color,
+   196→      }))
+   197→    : data.recent;
+   198→
+   199→  const sentimentData = [
+   200→    { name: "Positive", value: data.sentiments.positive, color: SENT_COLORS.positive },
+   201→    { name: "Neutral", value: data.sentiments.neutral, color: SENT_COLORS.neutral },
+   202→    { name: "Negative", value: data.sentiments.negative, color: SENT_COLORS.negative },
+   203→  ];
+   204→
+   205→  return (
+   206→    <div className="space-y-5">
+   207→      {/* Hero */}
+   208→      <GlassCard strong className="glass-sheen animate-rise relative overflow-hidden p-5">
+   209→        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/25 blur-3xl" />
+   210→        <div className="relative flex flex-wrap items-center justify-between gap-4">
+   211→          <div className="flex items-center gap-3">
+   212→            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-md">
+   213→              <Radar className="h-5 w-5" />
+   214→            </div>
+   215→            <div>
+   216→              <div className="flex items-center gap-2 text-[11px] font-medium text-primary">
+   217→                <Sparkles className="h-3 w-3" />
+   218→                <span>Listening</span>
+   219→              </div>
+   220→              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+   221→                Brand &amp; competitor monitoring
+   222→              </h2>
+   223→              <p className="mt-0.5 text-sm text-muted-foreground">
+   224→                {data.queries.length} active queries · {fmt(totalMentions)} mentions tracked
+   225→              </p>
+   226→            </div>
+   227→          </div>
+   228→          <AddQueryDialog onCreated={() => reload()} />
+   229→        </div>
+   230→      </GlassCard>
+   231→
+   232→      {/* KPIs */}
+   233→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 animate-rise">
+   234→        <KpiCard
+   235→          label="Total mentions"
+   236→          value={fmt(totalMentions)}
+   237→          icon={<MessagesSquare className="h-5 w-5" />}
+   238→          accent="oklch(0.7 0.24 14)"
+   239→          hint="across all queries"
+   240→        />
+   241→        <KpiCard
+   242→          label="Total reach"
+   243→          value={fmt(totalReach)}
+   244→          icon={<Eye className="h-5 w-5" />}
+   245→          accent="oklch(0.74 0.18 165)"
+   246→          hint="sum of mention reach"
+   247→        />
+   248→        <KpiCard
+   249→          label="Positive sentiment"
+   250→          value={`${positivePct}%`}
+   251→          icon={<Smile className="h-5 w-5" />}
+   252→          accent="oklch(0.76 0.18 145)"
+   253→          hint={`${data.sentiments.positive} positive mentions`}
+   254→        />
+   255→        <KpiCard
+   256→          label="Avg engagement"
+   257→          value={fmt(avgEngagement)}
+   258→          icon={<Heart className="h-5 w-5" />}
+   259→          accent="oklch(0.66 0.22 305)"
+   260→          hint="per mention"
+   261→        />
+   262→      </div>
+   263→
+   264→      {/* Main grid */}
+   265→      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+   266→        {/* Left: query list */}
+   267→        <GlassCard className="animate-rise p-4">
+   268→          <SectionTitle
+   269→            title="Queries"
+   270→            desc="Click to filter feed"
+   271→          />
+   272→          <div className="max-h-[640px] space-y-1.5 overflow-y-auto scroll-liquid pr-1">
+   273→            <button
+   274→              onClick={() => setSelectedId(null)}
+   275→              className={cn(
+   276→                "flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition",
+   277→                selectedId === null
+   278→                  ? "bg-primary/10 ring-1 ring-primary/30"
+   279→                  : "hover:bg-muted/50",
+   280→              )}
+   281→            >
+   282→              <span className="grid h-8 w-8 place-items-center rounded-full bg-muted text-muted-foreground">
+   283→                <Hash className="h-4 w-4" />
+   284→              </span>
+   285→              <div className="min-w-0 flex-1">
+   286→                <div className="truncate text-sm font-semibold">All recent mentions</div>
+   287→                <div className="text-[11px] text-muted-foreground">
+   288→                  {data.recent.length} mentions · combined
+   289→                </div>
+   290→              </div>
+   291→            </button>
+   292→            {data.queries.map((q) => (
+   293→              <button
+   294→                key={q.id}
+   295→                onClick={() => setSelectedId(q.id)}
+   296→                className={cn(
+   297→                  "flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition",
+   298→                  selectedId === q.id
+   299→                    ? "bg-primary/10 ring-1 ring-primary/30"
+   300→                    : "hover:bg-muted/50",
+   301→                )}
+   302→              >
+   303→                <span
+   304→                  className="h-9 w-9 shrink-0 rounded-full shadow-inner"
+   305→                  style={{ background: q.color }}
+   306→                />
+   307→                <div className="min-w-0 flex-1">
+   308→                  <div className="flex items-center gap-1.5">
+   309→                    <span className="truncate text-sm font-semibold">{q.name}</span>
+   310→                  </div>
+   311→                  <div className="truncate text-[11px] text-muted-foreground">
+   312→                    {q.keywords}
+   313→                  </div>
+   314→                  <div className="mt-1 flex items-center gap-1.5">
+   315→                    <span
+   316→                      className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+   317→                      style={{
+   318→                        background: `${TYPE_ACCENT[q.type]}22`,
+   319→                        color: TYPE_ACCENT[q.type],
+   320→                      }}
+   321→                    >
+   322→                      {TYPE_LABEL[q.type]}
+   323→                    </span>
+   324→                    <span className="text-[10px] text-muted-foreground">
+   325→                      {q.mentionCount} mentions · {fmt(q.reach)} reach
+   326→                    </span>
+   327→                  </div>
+   328→                </div>
+   329→              </button>
+   330→            ))}
+   331→          </div>
+   332→        </GlassCard>
+   333→
+   334→        {/* Right: chart + feed */}
+   335→        <div className="space-y-4">
+   336→          {/* Charts row */}
+   337→          <div className="grid gap-4 sm:grid-cols-5">
+   338→            <GlassCard className="animate-rise p-5 sm:col-span-3">
+   339→              <SectionTitle
+   340→                title="Mention volume"
+   341→                desc="Daily mentions across all queries · last 14 days"
+   342→              />
+   343→              <div className="h-[240px] w-full">
+   344→                <ResponsiveContainer width="100%" height="100%">
+   345→                  <AreaChart data={data.series} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
+   346→                    <defs>
+   347→                      <linearGradient id="gMentions" x1="0" y1="0" x2="0" y2="1">
+   348→                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.45} />
+   349→                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+   350→                      </linearGradient>
+   351→                    </defs>
+   352→                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+   353→                    <XAxis
+   354→                      dataKey="date"
+   355→                      tickFormatter={(d) =>
+   356→                        new Date(d).toLocaleDateString(undefined, {
+   357→                          day: "numeric",
+   358→                          month: "short",
+   359→                        })
+   360→                      }
+   361→                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+   362→                      axisLine={false}
+   363→                      tickLine={false}
+   364→                      interval={2}
+   365→                    />
+   366→                    <YAxis
+   367→                      tickFormatter={(v) => fmt(v)}
+   368→                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+   369→                      axisLine={false}
+   370→                      tickLine={false}
+   371→                      width={36}
+   372→                    />
+   373→                    <Tooltip
+   374→                      contentStyle={{
+   375→                        background: "var(--popover)",
+   376→                        border: "1px solid var(--border)",
+   377→                        borderRadius: 12,
+   378→                        fontSize: 12,
+   379→                        boxShadow: "0 8px 32px -8px rgba(0,0,0,0.2)",
+   380→                      }}
+   381→                      labelFormatter={(d) =>
+   382→                        new Date(d).toLocaleDateString(undefined, {
+   383→                          weekday: "short",
+   384→                          month: "short",
+   385→                          day: "numeric",
+   386→                        })
+   387→                      }
+   388→                      formatter={(v: number) => [fmt(v), "Mentions"]}
+   389→                    />
+   390→                    <Area
+   391→                      type="monotone"
+   392→                      dataKey="count"
+   393→                      stroke="var(--primary)"
+   394→                      strokeWidth={2.5}
+   395→                      fill="url(#gMentions)"
+   396→                    />
+   397→                  </AreaChart>
+   398→                </ResponsiveContainer>
+   399→              </div>
+   400→            </GlassCard>
+   401→
+   402→            <GlassCard className="animate-rise p-5 sm:col-span-2">
+   403→              <SectionTitle title="Sentiment" desc="Distribution" />
+   404→              <div className="relative mx-auto h-[160px] w-full">
+   405→                <ResponsiveContainer width="100%" height="100%">
+   406→                  <PieChart>
+   407→                    <Pie
+   408→                      data={sentimentData}
+   409→                      dataKey="value"
+   410→                      nameKey="name"
+   411→                      innerRadius={42}
+   412→                      outerRadius={66}
+   413→                      paddingAngle={3}
+   414→                      stroke="none"
+   415→                    >
+   416→                      {sentimentData.map((s) => (
+   417→                        <Cell key={s.name} fill={s.color} />
+   418→                      ))}
+   419→                    </Pie>
+   420→                    <Tooltip
+   421→                      contentStyle={{
+   422→                        background: "var(--popover)",
+   423→                        border: "1px solid var(--border)",
+   424→                        borderRadius: 12,
+   425→                        fontSize: 12,
+   426→                      }}
+   427→                      formatter={(v: number, n) => [fmt(v), n]}
+   428→                    />
+   429→                  </PieChart>
+   430→                </ResponsiveContainer>
+   431→                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+   432→                  <span className="text-lg font-bold">{positivePct}%</span>
+   433→                  <span className="text-[9px] text-muted-foreground">positive</span>
+   434→                </div>
+   435→              </div>
+   436→              <div className="mt-2 space-y-1">
+   437→                {sentimentData.map((s) => (
+   438→                  <div key={s.name} className="flex items-center gap-2 text-[11px]">
+   439→                    <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
+   440→                    <span className="text-muted-foreground">{s.name}</span>
+   441→                    <span className="ml-auto font-medium">{s.value}</span>
+   442→                  </div>
+   443→                ))}
+   444→              </div>
+   445→            </GlassCard>
+   446→          </div>
+   447→
+   448→          {/* Mentions feed */}
+   449→          <GlassCard className="animate-rise p-5">
+   450→            <SectionTitle
+   451→              title={selectedQuery ? `Mentions · ${selectedQuery.name}` : "Recent mentions"}
+   452→              desc={
+   453→                selectedQuery
+   454→                  ? `Filtered feed · ${feed.length} mentions`
+   455→                  : "Combined feed across all queries"
+   456→              }
+   457→              action={
+   458→                selectedQuery && (
+   459→                  <button
+   460→                    onClick={() => setSelectedId(null)}
+   461→                    className="text-xs font-medium text-primary hover:underline"
+   462→                  >
+   463→                    Clear filter
+   464→                  </button>
+   465→                )
+   466→              }
+   467→            />
+   468→            <div className="max-h-[600px] space-y-2 overflow-y-auto scroll-liquid pr-1">
+   469→              {feed.length === 0 && (
+   470→                <div className="py-12 text-center text-sm text-muted-foreground">
+   471→                  No mentions yet for this query.
+   472→                </div>
+   473→              )}
+   474→              {feed.map((m) => (
+   475→                <MentionCard key={m.id} mention={m} />
+   476→              ))}
+   477→            </div>
+   478→          </GlassCard>
+   479→        </div>
+   480→      </div>
+   481→    </div>
+   482→  );
+   483→}
+   484→
+   485→function MentionCard({ mention }: { mention: RecentMention }) {
+   486→  return (
+   487→    <div className="rounded-2xl border border-border/40 bg-muted/20 p-3 transition hover:bg-muted/40">
+   488→      <div className="flex items-start gap-3">
+   489→        <SourceBadge source={mention.source} />
+   490→        <div className="min-w-0 flex-1">
+   491→          <div className="flex items-center gap-2">
+   492→            <NameAvatar
+   493→              name={mention.author}
+   494→              src={mention.authorAvatar}
+   495→              className="h-6 w-6 text-[10px]"
+   496→            />
+   497→            <span className="truncate text-sm font-semibold">{mention.author}</span>
+   498→            <SentimentTag sentiment={mention.sentiment} />
+   499→            <span className="ml-auto text-[10px] text-muted-foreground">
+   500→              {timeAgo(mention.date)}
+   501→            </span>
+   502→          </div>
+   503→          <p className="mt-1.5 line-clamp-3 text-sm text-foreground/90">{mention.text}</p>
+   504→          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+   505→            <span
+   506→              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5"
+   507→              style={{
+   508→                background: `${mention.queryColor}22`,
+   509→                color: mention.queryColor,
+   510→              }}
+   511→            >
+   512→              <span
+   513→                className="h-1.5 w-1.5 rounded-full"
+   514→                style={{ background: mention.queryColor }}
+   515→              />
+   516→              {mention.queryName}
+   517→            </span>
+   518→            <span className="inline-flex items-center gap-1">
+   519→              <Eye className="h-3 w-3" /> {fmt(mention.reach)}
+   520→            </span>
+   521→            <span className="inline-flex items-center gap-1">
+   522→              <Heart className="h-3 w-3" /> {fmt(mention.engagement)}
+   523→            </span>
+   524→            <div className="ml-auto flex items-center gap-1">
+   525→              <Button
+   526→                size="sm"
+   527→                variant="ghost"
+   528→                className="h-7 px-2 text-[11px]"
+   529→                onClick={() => toast.info("Reply drafted", { description: mention.author })}
+   530→              >
+   531→                <Reply className="h-3 w-3" /> Reply
+   532→              </Button>
+   533→              <Button
+   534→                size="sm"
+   535→                variant="ghost"
+   536→                className="h-7 px-2 text-[11px]"
+   537→                onClick={() => {
+   538→                  if (mention.url) {
+   539→                    toast.success("Opening mention", { description: mention.url });
+   540→                  } else {
+   541→                    toast.info("No external URL for this mention");
+   542→                  }
+   543→                }}
+   544→              >
+   545→                <ExternalLink className="h-3 w-3" /> View
+   546→              </Button>
+   547→            </div>
+   548→          </div>
+   549→        </div>
+   550→      </div>
+   551→    </div>
+   552→  );
+   553→}
+   554→
+   555→function AddQueryDialog({ onCreated }: { onCreated: () => void }) {
+   556→  const [open, setOpen] = React.useState(false);
+   557→  const [name, setName] = React.useState("");
+   558→  const [keywords, setKeywords] = React.useState("");
+   559→  const [type, setType] = React.useState<QueryType>("brand");
+   560→  const [color, setColor] = React.useState(SWATCHES[0]);
+   561→  const [saving, setSaving] = React.useState(false);
+   562→
+   563→  function reset() {
+   564→    setName("");
+   565→    setKeywords("");
+   566→    setType("brand");
+   567→    setColor(SWATCHES[0]);
+   568→  }
+   569→
+   570→  async function handleSubmit() {
+   571→    if (!name.trim() || !keywords.trim()) {
+   572→      toast.error("Name and keywords are required");
+   573→      return;
+   574→    }
+   575→    setSaving(true);
+   576→    try {
+   577→      const res = await fetch("/api/listening", {
+   578→        method: "POST",
+   579→        headers: { "Content-Type": "application/json" },
+   580→        body: JSON.stringify({ name: name.trim(), keywords: keywords.trim(), type, color }),
+   581→      });
+   582→      const json = await res.json();
+   583→      if (json.ok) {
+   584→        toast.success("Listening query created", { description: name.trim() });
+   585→        setOpen(false);
+   586→        reset();
+   587→        onCreated();
+   588→      } else {
+   589→        toast.error(json.error ?? "Failed to create query");
+   590→      }
+   591→    } catch {
+   592→      toast.error("Network error");
+   593→    } finally {
+   594→      setSaving(false);
+   595→    }
+   596→  }
+   597→
+   598→  return (
+   599→    <>
+   600→      <button
+   601→        onClick={() => setOpen(true)}
+   602→        className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold"
+   603→      >
+   604→        <Plus className="h-4 w-4" />
+   605→        Add listening query
+   606→      </button>
+   607→      <Dialog
+   608→        open={open}
+   609→        onOpenChange={(o) => {
+   610→          setOpen(o);
+   611→          if (!o) reset();
+   612→        }}
+   613→      >
+   614→        <DialogContent className="rounded-3xl sm:max-w-md">
+   615→          <DialogHeader>
+   616→            <DialogTitle className="flex items-center gap-2">
+   617→              <Radar className="h-5 w-5 text-primary" />
+   618→              New listening query
+   619→            </DialogTitle>
+   620→            <DialogDescription>
+   621→              Track brand mentions, competitor activity, or trending keywords across the web
+   622→              &amp; social platforms.
+   623→            </DialogDescription>
+   624→          </DialogHeader>
+   625→          <div className="space-y-4 py-2">
+   626→            <div className="space-y-2">
+   627→              <Label htmlFor="lq-name">Query name</Label>
+   628→              <Input
+   629→                id="lq-name"
+   630→                placeholder="e.g. SocialFlow Brand"
+   631→                value={name}
+   632→                onChange={(e) => setName(e.target.value)}
+   633→              />
+   634→            </div>
+   635→            <div className="space-y-2">
+   636→              <Label htmlFor="lq-keywords">Keywords</Label>
+   637→              <Textarea
+   638→                id="lq-keywords"
+   639→                placeholder="prism social, prism studio, @prism"
+   640→                value={keywords}
+   641→                onChange={(e) => setKeywords(e.target.value)}
+   642→                rows={3}
+   643→              />
+   644→              <p className="text-[11px] text-muted-foreground">
+   645→                Comma-separated. Use # for hashtags or @ for handles.
+   646→              </p>
+   647→            </div>
+   648→            <div className="space-y-2">
+   649→              <Label>Type</Label>
+   650→              <Select
+   651→                value={type}
+   652→                onValueChange={(v) => setType(v as QueryType)}
+   653→              >
+   654→                <SelectTrigger className="w-full">
+   655→                  <SelectValue />
+   656→                </SelectTrigger>
+   657→                <SelectContent>
+   658→                  <SelectItem value="brand">Brand — your own brand</SelectItem>
+   659→                  <SelectItem value="competitor">Competitor — rival brand</SelectItem>
+   660→                  <SelectItem value="keyword">Keyword — topic / phrase</SelectItem>
+   661→                  <SelectItem value="hashtag">Hashtag — #tag tracking</SelectItem>
+   662→                </SelectContent>
+   663→              </Select>
+   664→            </div>
+   665→            <div className="space-y-2">
+   666→              <Label>Color</Label>
+   667→              <div className="flex flex-wrap gap-2">
+   668→                {SWATCHES.map((sw) => (
+   669→                  <button
+   670→                    key={sw}
+   671→                    type="button"
+   672→                    onClick={() => setColor(sw)}
+   673→                    className={cn(
+   674→                      "h-8 w-8 rounded-full transition",
+   675→                      color === sw
+   676→                        ? "ring-2 ring-offset-2 ring-offset-background"
+   677→                        : "opacity-80 hover:opacity-100",
+   678→                    )}
+   679→                    style={{ background: sw, boxShadow: color === sw ? `0 0 0 2px ${sw}` : undefined }}
+   680→                    aria-label={`Color ${sw}`}
+   681→                  />
+   682→                ))}
+   683→              </div>
+   684→            </div>
+   685→          </div>
+   686→          <DialogFooter>
+   687→            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>
+   688→              Cancel
+   689→            </Button>
+   690→            <Button onClick={handleSubmit} disabled={saving} className="gap-1.5">
+   691→              {saving ? "Creating…" : "Create query"}
+   692→              {!saving && <Plus className="h-3.5 w-3.5" />}
+   693→            </Button>
+   694→          </DialogFooter>
+   695→        </DialogContent>
+   696→      </Dialog>
+   697→    </>
+   698→  );
+   699→}
+   700→
+   701→function ListeningSkeleton() {
+   702→  return (
+   703→    <div className="space-y-5">
+   704→      <div className="shimmer h-28 rounded-3xl" />
+   705→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   706→        {Array.from({ length: 4 }).map((_, i) => (
+   707→          <div key={i} className="shimmer h-32 rounded-3xl" />
+   708→        ))}
+   709→      </div>
+   710→      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+   711→        <div className="shimmer h-[640px] rounded-3xl" />
+   712→        <div className="space-y-4">
+   713→          <div className="shimmer h-[300px] rounded-3xl" />
+   714→          <div className="shimmer h-[400px] rounded-3xl" />
+   715→        </div>
+   716→      </div>
+   717→    </div>
+   718→  );
+   719→}
+   720→

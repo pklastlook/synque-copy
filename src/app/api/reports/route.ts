@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       description,
       config: config ?? JSON.stringify({ metrics: [] }),
       schedule: schedule ?? null,
-      createdBy: "u-admin",
+      createdBy: body.createdBy ?? null,
     },
   });
   return NextResponse.json({ id: r.id, ok: true });

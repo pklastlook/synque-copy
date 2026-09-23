@@ -1,0 +1,845 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Mail,
+     6→  Server,
+     7→  Plus,
+     8→  RefreshCw,
+     9→  CheckCircle2,
+    10→  AlertCircle,
+    11→  Loader2,
+    12→  Inbox as InboxIcon,
+    13→  Send,
+    14→  Star,
+    15→  Trash2,
+    16→  Search,
+    17→  Shield,
+    18→  HardDrive,
+    19→  UserPlus,
+    20→  Mailbox,
+    21→  Settings2,
+    22→  Wifi,
+    23→  Lock,
+    24→  ArrowLeft,
+    25→  CornerDownLeft,
+    26→} from "lucide-react";
+    27→import { useApi, fmt, timeAgo } from "@/lib/hooks";
+    28→import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+    29→import { NameAvatar } from "@/components/glass/name-avatar";
+    30→import {
+    31→  Dialog,
+    32→  DialogContent,
+    33→  DialogHeader,
+    34→  DialogTitle,
+    35→  DialogDescription,
+    36→  DialogFooter,
+    37→} from "@/components/ui/dialog";
+    38→import { Input } from "@/components/ui/input";
+    39→import { Label } from "@/components/ui/label";
+    40→import {
+    41→  Select,
+    42→  SelectContent,
+    43→  SelectItem,
+    44→  SelectTrigger,
+    45→  SelectValue,
+    46→} from "@/components/ui/select";
+    47→import { cn } from "@/lib/utils";
+    48→import { toast } from "sonner";
+    49→
+    50→interface MailServerData {
+    51→  servers: ServerInfo[];
+    52→  totalMessages: number;
+    53→}
+    54→interface ServerInfo {
+    55→  id: string;
+    56→  name: string;
+    57→  provider: string;
+    58→  domain: string;
+    59→  imapHost: string;
+    60→  imapPort: number;
+    61→  imapSecure: boolean;
+    62→  smtpHost: string;
+    63→  smtpPort: number;
+    64→  smtpSecure: boolean;
+    65→  username: string;
+    66→  fromName: string;
+    67→  fromEmail: string;
+    68→  status: "pending" | "connected" | "error";
+    69→  lastCheck: string | null;
+    70→  createdAt: string;
+    71→  mailboxCount: number;
+    72→  usedMb: number;
+    73→  totalQuotaMb: number;
+    74→  mailboxes: MailboxInfo[];
+    75→}
+    76→interface MailboxInfo {
+    77→  id: string;
+    78→  email: string;
+    79→  displayName: string;
+    80→  quotaMb: number;
+    81→  usedMb: number;
+    82→  ownerId: string;
+    83→  ownerName: string | null;
+    84→  ownerColor: string | null;
+    85→  status: "active" | "suspended" | "creating";
+    86→  role: "admin" | "member";
+    87→  unread: number;
+    88→  createdAt: string;
+    89→}
+    90→interface MessageInfo {
+    91→  id: string;
+    92→  mailboxId: string;
+    93→  mailboxEmail: string;
+    94→  fromAddr: string;
+    95→  toAddr: string;
+    96→  subject: string;
+    97→  body: string;
+    98→  direction: "in" | "out";
+    99→  folder: string;
+   100→  isRead: boolean;
+   101→  isStarred: boolean;
+   102→  date: string;
+   103→}
+   104→
+   105→const PROVIDERS = [
+   106→  { id: "hostinger", name: "Hostinger", imap: "imap.hostinger.com", smtp: "smtp.hostinger.com", hint: "imap.hostinger.com:993 · smtp.hostinger.com:465" },
+   107→  { id: "cpanel", name: "cPanel / Web Host", imap: "mail.yourdomain.com", smtp: "mail.yourdomain.com", hint: "Uses your hosting's mail server" },
+   108→  { id: "zoho", name: "Zoho Mail", imap: "imap.zoho.com", smtp: "smtp.zoho.com", hint: "imap.zoho.com:993 · smtp.zoho.com:465" },
+   109→  { id: "mailgun", name: "Mailgun", imap: "", smtp: "smtp.mailgun.org", hint: "SMTP relay service" },
+   110→  { id: "custom", name: "Custom / Other", imap: "", smtp: "", hint: "Enter your own IMAP & SMTP settings" },
+   111→];
+   112→
+   113→export function MailView() {
+   114→  const { data, loading, reload } = useApi<MailServerData>("/api/mail");
+   115→  const [serverOpen, setServerOpen] = React.useState(false);
+   116→  const [mailboxOpen, setMailboxOpen] = React.useState(false);
+   117→  const [activeMailbox, setActiveMailbox] = React.useState<string | null>(null);
+   118→  const [testing, setTesting] = React.useState<string | null>(null);
+   119→
+   120→  const servers = data?.servers ?? [];
+   121→
+   122→  const testConnection = async (serverId: string) => {
+   123→    setTesting(serverId);
+   124→    try {
+   125→      const res = await fetch("/api/mail/test", {
+   126→        method: "POST",
+   127→        headers: { "Content-Type": "application/json" },
+   128→        body: JSON.stringify({ serverId }),
+   129→      });
+   130→      const json = await res.json();
+   131→      if (json.ok) {
+   132→        toast.success("Mail server connected", { description: json.message });
+   133→        reload();
+   134→      } else toast.error(json.error ?? "Connection failed");
+   135→    } catch {
+   136→      toast.error("Network error");
+   137→    } finally {
+   138→      setTesting(null);
+   139→    }
+   140→  };
+   141→
+   142→  if (loading || !data) {
+   143→    return (
+   144→      <div className="space-y-4">
+   145→        <div className="shimmer h-28 rounded-3xl" />
+   146→        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   147→          {Array.from({ length: 4 }).map((_, i) => (
+   148→            <div key={i} className="shimmer h-32 rounded-3xl" />
+   149→          ))}
+   150→        </div>
+   151→        <div className="shimmer h-[500px] rounded-3xl" />
+   152→      </div>
+   153→    );
+   154→  }
+   155→
+   156→  const totalMailboxes = servers.reduce((s, x) => s + x.mailboxCount, 0);
+   157→  const totalUsedMb = servers.reduce((s, x) => s + x.usedMb, 0);
+   158→  const activeServers = servers.filter((s) => s.status === "connected").length;
+   159→
+   160→  return (
+   161→    <div className="space-y-5">
+   162→      {/* Hero */}
+   163→      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
+   164→        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[var(--primary)]/30 blur-3xl" />
+   165→        <div className="relative flex flex-wrap items-center justify-between gap-4">
+   166→          <div>
+   167→            <div className="flex items-center gap-2 text-xs font-medium text-primary">
+   168→              <Mail className="h-3.5 w-3.5" />
+   169→              Custom domain mail · {servers[0]?.domain ?? "no domain configured"}
+   170→            </div>
+   171→            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+   172→              Your team&apos;s <span className="retaina-text">mail server</span>
+   173→            </h2>
+   174→            <p className="mt-1 text-sm text-muted-foreground">
+   175→              Host your own mailboxes on a custom domain — no Google or third-party accounts needed.
+   176→              Connect Hostinger, cPanel, Zoho or any provider, then create and assign mailboxes to your team.
+   177→            </p>
+   178→          </div>
+   179→          <button
+   180→            onClick={() => setServerOpen(true)}
+   181→            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+   182→          >
+   183→            <Server className="h-4 w-4" />
+   184→            Connect mail server
+   185→          </button>
+   186→        </div>
+   187→      </GlassCard>
+   188→
+   189→      {/* KPIs */}
+   190→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   191→        <KpiCard label="Mail servers" value={servers.length} icon={<Server className="h-5 w-5" />} accent="oklch(0.7 0.24 14)" hint={`${activeServers} connected`} />
+   192→        <KpiCard label="Mailboxes" value={totalMailboxes} icon={<Mailbox className="h-5 w-5" />} accent="oklch(0.74 0.18 165)" hint="team accounts" />
+   193→        <KpiCard label="Storage used" value={fmt(totalUsedMb) + " MB"} icon={<HardDrive className="h-5 w-5" />} accent="oklch(0.66 0.22 305)" hint="across mailboxes" />
+   194→        <KpiCard label="Messages" value={data.totalMessages} icon={<InboxIcon className="h-5 w-5" />} accent="oklch(0.78 0.18 75)" hint="stored" />
+   195→      </div>
+   196→
+   197→      {/* Servers + Mailboxes */}
+   198→      {servers.length === 0 ? (
+   199→        <GlassCard className="p-12">
+   200→          <div className="grid place-items-center text-center">
+   201→            <div className="grid h-16 w-16 place-items-center rounded-3xl bg-primary/10 text-primary">
+   202→              <Server className="h-8 w-8" />
+   203→            </div>
+   204→            <h3 className="mt-4 text-lg font-semibold">No mail server connected</h3>
+   205→            <p className="mt-1 max-w-md text-sm text-muted-foreground">
+   206→              Connect your own mail server (Hostinger, cPanel, Zoho or any provider) on your custom domain to start creating team mailboxes.
+   207→            </p>
+   208→            <button
+   209→              onClick={() => setServerOpen(true)}
+   210→              className="liquid-pill glow-ring mt-4 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+   211→            >
+   212→              <Plus className="h-4 w-4" /> Connect your first server
+   213→            </button>
+   214→          </div>
+   215→        </GlassCard>
+   216→      ) : (
+   217→        servers.map((s) => (
+   218→          <ServerCard
+   219→            key={s.id}
+   220→            server={s}
+   221→            testing={testing === s.id}
+   222→            onTest={() => testConnection(s.id)}
+   223→            onCreateMailbox={() => setMailboxOpen(true)}
+   224→            onOpenMailbox={(id) => setActiveMailbox(id)}
+   225→          />
+   226→        ))
+   227→      )}
+   228→
+   229→      {/* Mailbox inbox view (drawer-like) */}
+   230→      {activeMailbox && (
+   231→        <MailboxInbox
+   232→          mailboxId={activeMailbox}
+   233→          onClose={() => setActiveMailbox(null)}
+   234→        />
+   235→      )}
+   236→
+   237→      <AddServerDialog open={serverOpen} onOpenChange={setServerOpen} onCreated={() => { setServerOpen(false); reload(); }} />
+   238→      <CreateMailboxDialog
+   239→        open={mailboxOpen}
+   240→        onOpenChange={setMailboxOpen}
+   241→        servers={servers}
+   242→        onCreated={() => { setMailboxOpen(false); reload(); }}
+   243→      />
+   244→    </div>
+   245→  );
+   246→}
+   247→
+   248→function ServerCard({
+   249→  server,
+   250→  testing,
+   251→  onTest,
+   252→  onCreateMailbox,
+   253→  onOpenMailbox,
+   254→}: {
+   255→  server: ServerInfo;
+   256→  testing: boolean;
+   257→  onTest: () => void;
+   258→  onCreateMailbox: () => void;
+   259→  onOpenMailbox: (id: string) => void;
+   260→}) {
+   261→  const statusColor =
+   262→    server.status === "connected"
+   263→      ? "bg-emerald-500/15 text-emerald-500"
+   264→      : server.status === "error"
+   265→      ? "bg-rose-500/15 text-rose-500"
+   266→      : "bg-amber-500/15 text-amber-500";
+   267→  const StatusIcon = server.status === "connected" ? CheckCircle2 : server.status === "error" ? AlertCircle : Loader2;
+   268→  const usedPct = server.totalQuotaMb ? Math.round((server.usedMb / server.totalQuotaMb) * 100) : 0;
+   269→
+   270→  return (
+   271→    <GlassCard strong className="overflow-hidden">
+   272→      {/* Server header */}
+   273→      <div className="flex flex-wrap items-center gap-3 border-b border-border/40 p-5">
+   274→        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-white shadow-lg">
+   275→          <Server className="h-6 w-6" />
+   276→        </div>
+   277→        <div className="min-w-0 flex-1">
+   278→          <div className="flex items-center gap-2">
+   279→            <h3 className="truncate text-lg font-semibold">{server.name}</h3>
+   280→            <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize", statusColor)}>
+   281→              <StatusIcon className={cn("h-3 w-3", server.status === "pending" && "animate-spin")} />
+   282→              {server.status}
+   283→            </span>
+   284→          </div>
+   285→          <div className="text-xs text-muted-foreground">
+   286→            {server.provider} · @{server.domain} · {server.mailboxCount} mailboxes
+   287→          </div>
+   288→        </div>
+   289→        <button
+   290→          onClick={onTest}
+   291→          disabled={testing}
+   292→          className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-xs font-medium transition hover:bg-muted"
+   293→        >
+   294→          {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+   295→          Test connection
+   296→        </button>
+   297→        <button
+   298→          onClick={onCreateMailbox}
+   299→          className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold"
+   300→        >
+   301→          <UserPlus className="h-3.5 w-3.5" /> Create mailbox
+   302→        </button>
+   303→      </div>
+   304→
+   305→      {/* Connection details */}
+   306→      <div className="grid gap-3 p-5 sm:grid-cols-2">
+   307→        <div className="rounded-2xl border border-border/40 bg-muted/20 p-3">
+   308→          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+   309→            <Lock className="h-3 w-3" /> IMAP (incoming)
+   310→          </div>
+   311→          <div className="mt-1.5 font-mono text-sm">{server.imapHost}:{server.imapPort}</div>
+   312→          <div className="text-[11px] text-muted-foreground">SSL/TLS: {server.imapSecure ? "Yes" : "No"}</div>
+   313→        </div>
+   314→        <div className="rounded-2xl border border-border/40 bg-muted/20 p-3">
+   315→          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+   316→            <Send className="h-3 w-3" /> SMTP (outgoing)
+   317→          </div>
+   318→          <div className="mt-1.5 font-mono text-sm">{server.smtpHost}:{server.smtpPort}</div>
+   319→          <div className="text-[11px] text-muted-foreground">SSL/TLS: {server.smtpSecure ? "Yes" : "No"}</div>
+   320→        </div>
+   321→      </div>
+   322→
+   323→      {/* Storage bar */}
+   324→      <div className="px-5 pb-3">
+   325→        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+   326→          <span className="flex items-center gap-1.5"><HardDrive className="h-3 w-3" /> Storage</span>
+   327→          <span>{fmt(server.usedMb)} MB / {fmt(server.totalQuotaMb)} MB ({usedPct}%)</span>
+   328→        </div>
+   329→        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+   330→          <div className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--gold)]" style={{ width: `${Math.min(usedPct, 100)}%` }} />
+   331→        </div>
+   332→      </div>
+   333→
+   334→      {/* Mailboxes list */}
+   335→      <div className="border-t border-border/40 p-5">
+   336→        <SectionTitle title="Mailboxes" desc={`${server.mailboxCount} email accounts on @${server.domain}`} />
+   337→        <div className="scroll-liquid max-h-80 space-y-1.5 overflow-y-auto pr-1">
+   338→          {server.mailboxes.map((m) => {
+   339→            const pct = m.quotaMb ? Math.round((m.usedMb / m.quotaMb) * 100) : 0;
+   340→            return (
+   341→              <button
+   342→                key={m.id}
+   343→                onClick={() => onOpenMailbox(m.id)}
+   344→                className="group flex w-full items-center gap-3 rounded-2xl border border-border/40 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5"
+   345→              >
+   346→                <NameAvatar name={m.displayName} color={m.ownerColor} className="h-10 w-10 text-xs" />
+   347→                <div className="min-w-0 flex-1">
+   348→                  <div className="flex items-center gap-1.5">
+   349→                    <span className="truncate text-sm font-semibold">{m.email}</span>
+   350→                    {m.role === "admin" && (
+   351→                      <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">Admin</span>
+   352→                    )}
+   353→                    {m.status === "creating" && (
+   354→                      <span className="flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-500">
+   355→                        <Loader2 className="h-2.5 w-2.5 animate-spin" /> Provisioning
+   356→                      </span>
+   357→                    )}
+   358→                  </div>
+   359→                  <div className="truncate text-[11px] text-muted-foreground">
+   360→                    {m.ownerName ? `Owned by ${m.ownerName}` : "Unassigned"} · {fmt(m.usedMb)} MB used
+   361→                  </div>
+   362→                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
+   363→                    <div className="h-full rounded-full bg-primary/60" style={{ width: `${Math.min(pct, 100)}%` }} />
+   364→                  </div>
+   365→                </div>
+   366→                <div className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition group-hover:bg-primary/10 group-hover:text-primary">
+   367→                  <InboxIcon className="h-4 w-4" />
+   368→                </div>
+   369→              </button>
+   370→            );
+   371→          })}
+   372→        </div>
+   373→      </div>
+   374→    </GlassCard>
+   375→  );
+   376→}
+   377→
+   378→function MailboxInbox({ mailboxId, onClose }: { mailboxId: string; onClose: () => void }) {
+   379→  const { data: messages, reload } = useApi<MessageInfo[]>(`/api/mail/messages?mailboxId=${mailboxId}`);
+   380→  const [folder, setFolder] = React.useState("inbox");
+   381→  const [selected, setSelected] = React.useState<string | null>(null);
+   382→  const [composing, setComposing] = React.useState(false);
+   383→
+   384→  const all = messages ?? [];
+   385→  const filtered = folder === "all" ? all : all.filter((m) => m.folder === folder);
+   386→  const selectedMsg = filtered.find((m) => m.id === selected) ?? null;
+   387→  const unread = all.filter((m) => m.folder === "inbox" && !m.isRead).length;
+   388→
+   389→  const markRead = async (id: string) => {
+   390→    await fetch("/api/mail/messages", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, isRead: true }) });
+   391→    reload();
+   392→  };
+   393→
+   394→  const FOLDERS = [
+   395→    { id: "inbox", label: "Inbox", icon: InboxIcon, count: unread },
+   396→    { id: "starred", label: "Starred", icon: Star, count: all.filter((m) => m.folder === "starred").length },
+   397→    { id: "sent", label: "Sent", icon: Send, count: all.filter((m) => m.folder === "sent").length },
+   398→  ];
+   399→
+   400→  return (
+   401→    <GlassCard strong className="overflow-hidden">
+   402→      <div className="flex items-center gap-3 border-b border-border/40 p-4">
+   403→        <button onClick={onClose} className="grid h-9 w-9 place-items-center rounded-xl bg-muted/50 hover:bg-muted" aria-label="Back">
+   404→          <ArrowLeft className="h-4 w-4" />
+   405→        </button>
+   406→        <div className="min-w-0 flex-1">
+   407→          <div className="truncate text-sm font-semibold">Mailbox inbox</div>
+   408→          <div className="text-[11px] text-muted-foreground">{unread} unread · {all.length} total</div>
+   409→        </div>
+   410→        <button onClick={() => setComposing(true)} className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold">
+   411→          <PenSquare className="h-3.5 w-3.5" /> Compose
+   412→        </button>
+   413→      </div>
+   414→
+   415→      <div className="grid gap-0 lg:grid-cols-[200px_320px_1fr]">
+   416→        {/* Folders */}
+   417→        <div className="hidden border-r border-border/40 p-3 lg:block">
+   418→          {FOLDERS.map((f) => {
+   419→            const Icon = f.icon;
+   420→            const active = folder === f.id;
+   421→            return (
+   422→              <button
+   423→                key={f.id}
+   424→                onClick={() => { setFolder(f.id); setSelected(null); }}
+   425→                className={cn(
+   426→                  "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm transition",
+   427→                  active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+   428→                )}
+   429→              >
+   430→                <Icon className="h-4 w-4" />
+   431→                <span className="flex-1 text-left">{f.label}</span>
+   432→                {f.count > 0 && (
+   433→                  <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold", active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+   434→                    {f.count}
+   435→                  </span>
+   436→                )}
+   437→              </button>
+   438→            );
+   439→          })}
+   440→        </div>
+   441→
+   442→        {/* Message list */}
+   443→        <div className="scroll-liquid max-h-[500px] overflow-y-auto border-r border-border/40 lg:max-h-[600px]">
+   444→          {filtered.length === 0 ? (
+   445→            <div className="grid place-items-center py-12 text-center text-sm text-muted-foreground">
+   446→              <InboxIcon className="mb-2 h-8 w-8 opacity-40" />
+   447→              No messages in {folder}
+   448→            </div>
+   449→          ) : (
+   450→            filtered.map((m) => (
+   451→              <button
+   452→                key={m.id}
+   453→                onClick={() => { setSelected(m.id); if (!m.isRead) markRead(m.id); }}
+   454→                className={cn(
+   455→                  "flex w-full flex-col gap-1 border-b border-border/30 p-3 text-left transition hover:bg-muted/40",
+   456→                  selected === m.id && "bg-primary/10",
+   457→                  !m.isRead && m.direction === "in" && "bg-primary/5"
+   458→                )}
+   459→              >
+   460→                <div className="flex items-center gap-2">
+   461→                  {!m.isRead && m.direction === "in" && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+   462→                  {m.isStarred && <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />}
+   463→                  <span className="truncate text-sm font-medium">{m.direction === "out" ? `To: ${m.toAddr}` : m.fromAddr}</span>
+   464→                  <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{timeAgo(m.date)}</span>
+   465→                </div>
+   466→                <div className="truncate text-xs font-medium">{m.subject}</div>
+   467→                <div className="truncate text-[11px] text-muted-foreground">{m.body.replace(/\n/g, " ").slice(0, 80)}</div>
+   468→              </button>
+   469→            ))
+   470→          )}
+   471→        </div>
+   472→
+   473→        {/* Message preview */}
+   474→        <div className="hidden lg:block">
+   475→          {selectedMsg ? (
+   476→            <div className="flex h-full flex-col">
+   477→              <div className="border-b border-border/40 p-4">
+   478→                <div className="flex items-center gap-2">
+   479→                  <NameAvatar name={selectedMsg.fromAddr} className="h-9 w-9 text-[11px]" />
+   480→                  <div className="min-w-0 flex-1">
+   481→                    <div className="truncate text-sm font-semibold">{selectedMsg.fromAddr}</div>
+   482→                    <div className="truncate text-[11px] text-muted-foreground">to {selectedMsg.toAddr}</div>
+   483→                  </div>
+   484→                  <span className="text-[11px] text-muted-foreground">{timeAgo(selectedMsg.date)}</span>
+   485→                </div>
+   486→                <h3 className="mt-3 text-base font-semibold">{selectedMsg.subject}</h3>
+   487→              </div>
+   488→              <div className="scroll-liquid flex-1 overflow-y-auto p-4">
+   489→                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground/90">{selectedMsg.body}</pre>
+   490→              </div>
+   491→              <div className="flex gap-2 border-t border-border/40 p-3">
+   492→                <button
+   493→                  onClick={() => setComposing(true)}
+   494→                  className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-xs font-medium hover:bg-muted"
+   495→                >
+   496→                  <CornerDownLeft className="h-3.5 w-3.5" /> Reply
+   497→                </button>
+   498→                <button className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-xs font-medium hover:bg-muted">
+   499→                  <Star className="h-3.5 w-3.5" /> Star
+   500→                </button>
+   501→                <button className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-xs font-medium hover:bg-muted">
+   502→                  <Trash2 className="h-3.5 w-3.5" /> Delete
+   503→                </button>
+   504→              </div>
+   505→            </div>
+   506→          ) : (
+   507→            <div className="grid h-full place-items-center text-center">
+   508→              <div>
+   509→                <Mail className="mx-auto h-10 w-10 text-muted-foreground/40" />
+   510→                <p className="mt-2 text-sm text-muted-foreground">Select a message to read</p>
+   511→              </div>
+   512→            </div>
+   513→          )}
+   514→        </div>
+   515→      </div>
+   516→
+   517→      <ComposeDialog open={composing} onOpenChange={setComposing} mailboxId={mailboxId} onSent={() => { setComposing(false); reload(); }} />
+   518→    </GlassCard>
+   519→  );
+   520→}
+   521→
+   522→function ComposeDialog({ open, onOpenChange, mailboxId, onSent }: { open: boolean; onOpenChange: (b: boolean) => void; mailboxId: string; onSent: () => void }) {
+   523→  const [to, setTo] = React.useState("");
+   524→  const [subject, setSubject] = React.useState("");
+   525→  const [body, setBody] = React.useState("");
+   526→  const [sending, setSending] = React.useState(false);
+   527→
+   528→  const send = async () => {
+   529→    if (!to || !subject) return toast.error("Recipient and subject required");
+   530→    setSending(true);
+   531→    try {
+   532→      const res = await fetch("/api/mail/messages", {
+   533→        method: "POST",
+   534→        headers: { "Content-Type": "application/json" },
+   535→        body: JSON.stringify({ mailboxId, toAddr: to, subject, body }),
+   536→      });
+   537→      if (res.ok) {
+   538→        toast.success("Message sent", { description: `Delivered to ${to}` });
+   539→        setTo(""); setSubject(""); setBody("");
+   540→        onSent();
+   541→      } else toast.error("Failed to send");
+   542→    } catch {
+   543→      toast.error("Network error");
+   544→    } finally {
+   545→      setSending(false);
+   546→    }
+   547→  };
+   548→
+   549→  return (
+   550→    <Dialog open={open} onOpenChange={onOpenChange}>
+   551→      <DialogContent className="glass-strong max-w-lg">
+   552→        <DialogHeader>
+   553→          <DialogTitle className="flex items-center gap-2"><Send className="h-4 w-4 text-primary" /> Compose new mail</DialogTitle>
+   554→          <DialogDescription>Send from this mailbox to any address.</DialogDescription>
+   555→        </DialogHeader>
+   556→        <div className="space-y-3">
+   557→          <div>
+   558→            <Label className="text-xs">To</Label>
+   559→            <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="recipient@example.com" className="mt-1" />
+   560→          </div>
+   561→          <div>
+   562→            <Label className="text-xs">Subject</Label>
+   563→            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" className="mt-1" />
+   564→          </div>
+   565→          <div>
+   566→            <Label className="text-xs">Message</Label>
+   567→            <textarea
+   568→              value={body}
+   569→              onChange={(e) => setBody(e.target.value)}
+   570→              placeholder="Write your message…"
+   571→              className="mt-1 min-h-[140px] w-full resize-y rounded-xl border border-border/50 bg-muted/30 p-3 text-sm outline-none focus:border-primary/50"
+   572→            />
+   573→          </div>
+   574→        </div>
+   575→        <DialogFooter>
+   576→          <button onClick={() => onOpenChange(false)} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
+   577→          <button onClick={send} disabled={sending} className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50">
+   578→            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+   579→            Send
+   580→          </button>
+   581→        </DialogFooter>
+   582→      </DialogContent>
+   583→    </Dialog>
+   584→  );
+   585→}
+   586→
+   587→function AddServerDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (b: boolean) => void; onCreated: () => void }) {
+   588→  const [provider, setProvider] = React.useState("hostinger");
+   589→  const [form, setForm] = React.useState({
+   590→    name: "SocialFlow Primary Mail",
+   591→    domain: "prism.co",
+   592→    imapHost: "imap.hostinger.com",
+   593→    imapPort: 993,
+   594→    smtpHost: "smtp.hostinger.com",
+   595→    smtpPort: 465,
+   596→    username: "admin@prism.co",
+   597→    password: "",
+   598→    fromName: "SocialFlow Team",
+   599→    fromEmail: "hello@prism.co",
+   600→  });
+   601→  const [creating, setCreating] = React.useState(false);
+   602→
+   603→  const preset = PROVIDERS.find((p) => p.id === provider);
+   604→  const onProviderChange = (v: string) => {
+   605→    setProvider(v);
+   606→    const p = PROVIDERS.find((x) => x.id === v);
+   607→    if (p && (p.imap || p.smtp)) {
+   608→      setForm((f) => ({ ...f, imapHost: p.imap || f.imapHost, smtpHost: p.smtp || f.smtpHost }));
+   609→    }
+   610→  };
+   611→
+   612→  const create = async () => {
+   613→    if (!form.domain || !form.imapHost || !form.smtpHost || !form.username || !form.password) {
+   614→      return toast.error("Fill all required fields");
+   615→    }
+   616→    setCreating(true);
+   617→    try {
+   618→      const res = await fetch("/api/mail", {
+   619→        method: "POST",
+   620→        headers: { "Content-Type": "application/json" },
+   621→        body: JSON.stringify({ ...form, provider, imapSecure: true, smtpSecure: true }),
+   622→      });
+   623→      if (res.ok) {
+   624→        toast.success("Mail server added", { description: "Running connection test…" });
+   625→        onCreated();
+   626→      } else toast.error("Failed to add server");
+   627→    } catch {
+   628→      toast.error("Network error");
+   629→    } finally {
+   630→      setCreating(false);
+   631→    }
+   632→  };
+   633→
+   634→  return (
+   635→    <Dialog open={open} onOpenChange={onOpenChange}>
+   636→      <DialogContent className="glass-strong max-h-[90vh] max-w-2xl overflow-y-auto">
+   637→        <DialogHeader>
+   638→          <DialogTitle className="flex items-center gap-2"><Server className="h-5 w-5 text-primary" /> Connect mail server</DialogTitle>
+   639→          <DialogDescription>
+   640→            Configure your own mail server on a custom domain. No Google accounts — host your team&apos;s email on Hostinger, cPanel, Zoho, or any provider.
+   641→          </DialogDescription>
+   642→        </DialogHeader>
+   643→
+   644→        <div className="space-y-4">
+   645→          <div>
+   646→            <Label className="text-xs font-medium">Provider</Label>
+   647→            <Select value={provider} onValueChange={onProviderChange}>
+   648→              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+   649→              <SelectContent>
+   650→                {PROVIDERS.map((p) => (
+   651→                  <SelectItem key={p.id} value={p.id}>
+   652→                    <div>
+   653→                      <div className="font-medium">{p.name}</div>
+   654→                      <div className="text-[10px] text-muted-foreground">{p.hint}</div>
+   655→                    </div>
+   656→                  </SelectItem>
+   657→                ))}
+   658→              </SelectContent>
+   659→            </Select>
+   660→          </div>
+   661→
+   662→          <div className="grid gap-3 sm:grid-cols-2">
+   663→            <Field label="Server name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+   664→            <Field label="Domain" value={form.domain} onChange={(v) => setForm({ ...form, domain: v })} placeholder="prism.co" />
+   665→          </div>
+   666→
+   667→          <div className="rounded-2xl border border-border/40 bg-muted/20 p-3">
+   668→            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+   669→              <Lock className="h-3 w-3" /> IMAP (incoming mail)
+   670→            </div>
+   671→            <div className="mt-2 grid gap-3 sm:grid-cols-[1fr_100px]">
+   672→              <Field label="IMAP host" value={form.imapHost} onChange={(v) => setForm({ ...form, imapHost: v })} />
+   673→              <NumberField label="Port" value={form.imapPort} onChange={(v) => setForm({ ...form, imapPort: v })} />
+   674→            </div>
+   675→          </div>
+   676→
+   677→          <div className="rounded-2xl border border-border/40 bg-muted/20 p-3">
+   678→            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+   679→              <Send className="h-3 w-3" /> SMTP (outgoing mail)
+   680→            </div>
+   681→            <div className="mt-2 grid gap-3 sm:grid-cols-[1fr_100px]">
+   682→              <Field label="SMTP host" value={form.smtpHost} onChange={(v) => setForm({ ...form, smtpHost: v })} />
+   683→              <NumberField label="Port" value={form.smtpPort} onChange={(v) => setForm({ ...form, smtpPort: v })} />
+   684→            </div>
+   685→          </div>
+   686→
+   687→          <div className="grid gap-3 sm:grid-cols-2">
+   688→            <Field label="Admin username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} />
+   689→            <Field label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder="••••••••" />
+   690→          </div>
+   691→
+   692→          <div className="grid gap-3 sm:grid-cols-2">
+   693→            <Field label="From name" value={form.fromName} onChange={(v) => setForm({ ...form, fromName: v })} />
+   694→            <Field label="From email" value={form.fromEmail} onChange={(v) => setForm({ ...form, fromEmail: v })} />
+   695→          </div>
+   696→
+   697→          <div className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-[11px] text-muted-foreground">
+   698→            <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+   699→            <span>Credentials are stored encrypted for this workspace. SocialFlow uses this connection to provision and manage mailboxes on your domain.</span>
+   700→          </div>
+   701→        </div>
+   702→
+   703→        <DialogFooter>
+   704→          <button onClick={() => onOpenChange(false)} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
+   705→          <button onClick={create} disabled={creating} className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50">
+   706→            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
+   707→            Connect & test
+   708→          </button>
+   709→        </DialogFooter>
+   710→      </DialogContent>
+   711→    </Dialog>
+   712→  );
+   713→}
+   714→
+   715→function CreateMailboxDialog({ open, onOpenChange, servers, onCreated }: { open: boolean; onOpenChange: (b: boolean) => void; servers: ServerInfo[]; onCreated: () => void }) {
+   716→  const [serverId, setServerId] = React.useState(servers[0]?.id ?? "");
+   717→  const [localPart, setLocalPart] = React.useState("");
+   718→  const [displayName, setDisplayName] = React.useState("");
+   719→  const [password, setPassword] = React.useState("");
+   720→  const [quotaMb, setQuotaMb] = React.useState(2048);
+   721→  const [ownerId, setOwnerId] = React.useState("");
+   722→  const [creating, setCreating] = React.useState(false);
+   723→
+   724→  const domain = servers.find((s) => s.id === serverId)?.domain ?? "";
+   725→  const fullEmail = localPart ? `${localPart}@${domain}` : "name@" + domain;
+   726→
+   727→  React.useEffect(() => { if (!serverId && servers[0]) setServerId(servers[0].id); }, [servers, serverId]);
+   728→
+   729→  const create = async () => {
+   730→    if (!localPart || !password) return toast.error("Local part and password required");
+   731→    setCreating(true);
+   732→    try {
+   733→      const res = await fetch("/api/mail/mailboxes", {
+   734→        method: "POST",
+   735→        headers: { "Content-Type": "application/json" },
+   736→        body: JSON.stringify({ serverId, localPart, displayName, password, quotaMb, ownerId: ownerId && ownerId !== "none" ? ownerId : null }),
+   737→      });
+   738→      if (res.ok) {
+   739→        toast.success("Mailbox created", { description: `${localPart}@${domain} is being provisioned` });
+   740→        setLocalPart(""); setDisplayName(""); setPassword("");
+   741→        onCreated();
+   742→      } else {
+   743→        const j = await res.json();
+   744→        toast.error(j.error ?? "Failed");
+   745→      }
+   746→    } catch {
+   747→      toast.error("Network error");
+   748→    } finally {
+   749→      setCreating(false);
+   750→    }
+   751→  };
+   752→
+   753→  return (
+   754→    <Dialog open={open} onOpenChange={onOpenChange}>
+   755→      <DialogContent className="glass-strong max-w-md">
+   756→        <DialogHeader>
+   757→          <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-primary" /> Create new mailbox</DialogTitle>
+   758→          <DialogDescription>Provision a new email account on your custom domain for a team member.</DialogDescription>
+   759→        </DialogHeader>
+   760→        <div className="space-y-3">
+   761→          <div>
+   762→            <Label className="text-xs">Mail server</Label>
+   763→            <Select value={serverId} onValueChange={setServerId}>
+   764→              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+   765→              <SelectContent>
+   766→                {servers.map((s) => (
+   767→                  <SelectItem key={s.id} value={s.id}>{s.name} · @{s.domain}</SelectItem>
+   768→                ))}
+   769→              </SelectContent>
+   770→            </Select>
+   771→          </div>
+   772→          <div>
+   773→            <Label className="text-xs">Email address</Label>
+   774→            <div className="mt-1.5 flex items-center overflow-hidden rounded-xl border border-border/50 bg-muted/30">
+   775→              <input
+   776→                value={localPart}
+   777→                onChange={(e) => setLocalPart(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
+   778→                placeholder="daniel"
+   779→                className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
+   780→              />
+   781→              <span className="border-l border-border/50 bg-muted/60 px-3 py-2 text-sm text-muted-foreground">@{domain}</span>
+   782→            </div>
+   783→            <div className="mt-1 text-[10px] text-muted-foreground">Preview: <span className="font-mono">{fullEmail}</span></div>
+   784→          </div>
+   785→          <Field label="Display name" value={displayName} onChange={setDisplayName} placeholder="Daniel Cho" />
+   786→          <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" />
+   787→          <div className="grid grid-cols-2 gap-3">
+   788→            <div>
+   789→              <Label className="text-xs">Quota (MB)</Label>
+   790→              <Input type="number" value={quotaMb} onChange={(e) => setQuotaMb(parseInt(e.target.value) || 2048)} className="mt-1.5" />
+   791→            </div>
+   792→            <div>
+   793→              <Label className="text-xs">Assign to</Label>
+   794→              <Select value={ownerId} onValueChange={setOwnerId}>
+   795→                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+   796→                <SelectContent>
+   797→                  <SelectItem value="none">Unassigned</SelectItem>
+   798→                  <SelectItem value="u-admin">Maya Reyes (Admin)</SelectItem>
+   799→                  <SelectItem value="u-1">Daniel Cho</SelectItem>
+   800→                  <SelectItem value="u-2">Priya Nair</SelectItem>
+   801→                  <SelectItem value="u-3">Leo Marchetti</SelectItem>
+   802→                  <SelectItem value="u-4">Sara Okafor</SelectItem>
+   803→                  <SelectItem value="u-5">Tom Becker</SelectItem>
+   804→                </SelectContent>
+   805→              </Select>
+   806→            </div>
+   807→          </div>
+   808→        </div>
+   809→        <DialogFooter>
+   810→          <button onClick={() => onOpenChange(false)} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
+   811→          <button onClick={create} disabled={creating} className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50">
+   812→            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+   813→            Create mailbox
+   814→          </button>
+   815→        </DialogFooter>
+   816→      </DialogContent>
+   817→    </Dialog>
+   818→  );
+   819→}
+   820→
+   821→function Field({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+   822→  return (
+   823→    <div>
+   824→      <Label className="text-xs">{label}</Label>
+   825→      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="mt-1.5" />
+   826→    </div>
+   827→  );
+   828→}
+   829→function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+   830→  return (
+   831→    <div>
+   832→      <Label className="text-xs">{label}</Label>
+   833→      <Input type="number" value={value} onChange={(e) => onChange(parseInt(e.target.value) || 0)} className="mt-1.5" />
+   834→    </div>
+   835→  );
+   836→}
+   837→
+   838→function PenSquare({ className }: { className?: string }) {
+   839→  return (
+   840→    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+   841→      <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+   842→    </svg>
+   843→  );
+   844→}
+   845→

@@ -73,16 +73,16 @@ const TONES = [
   "Luxurious",
 ];
 
-const MEDIA_OPTIONS = [
-  "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/90d070238cd1.jpg",
-  "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/3d5f9bc2b845.png",
-  "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/26cfb8da4289.jpg",
-  "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/d5a2b9f5b9fa.jpg",
-  "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/59081f9405e0.jpg",
-  "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/0dad1278a197.jpg",
-  "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/499f6186a75b.jpg",
-  "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/82df782b5ca8.jpg",
-];
+interface MediaAssetLite {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+}
+
+interface MediaLibraryResponse {
+  assets: MediaAssetLite[];
+}
 
 type Step = 1 | 2 | 3 | 4 | 5;
 type MediaType = "image" | "video" | "carousel";
@@ -130,8 +130,13 @@ const DEFAULT_STATE: ComposerState = {
 export function ComposerView() {
   const { composerSeed, clearComposerSeed } = useNav();
   const { user } = useAuth();
-  const currentUserId = user?.id ?? "u-admin";
+  const currentUserId = user?.id ?? "";
   const { data: accounts } = useApi<AccountData[]>("/api/accounts");
+  const { data: mediaData } = useApi<MediaLibraryResponse>("/api/media");
+  const mediaAssets = React.useMemo(
+    () => (mediaData?.assets ?? []).filter((a) => a.type === "image"),
+    [mediaData]
+  );
 
   const [state, setState] = React.useState<ComposerState>(DEFAULT_STATE);
   const [generating, setGenerating] = React.useState(false);
@@ -142,13 +147,13 @@ export function ComposerView() {
 
   const initRef = React.useRef(false);
 
-  // Preselect 4 diverse accounts on first load
+  // Preselect the top 4 accounts by followers (the /api/accounts route
+  // already sorts by followers desc) so the composer opens with a sensible
+  // multi-platform default — without relying on hardcoded seeded IDs.
   React.useEffect(() => {
     if (initRef.current || !accounts || accounts.length === 0) return;
     initRef.current = true;
-    const presets = ["ac-ig-1", "ac-x-1", "ac-li-1", "ac-tt-1"].filter((id) =>
-      accounts.some((a) => a.id === id)
-    );
+    const presets = accounts.slice(0, 4).map((a) => a.id);
     if (presets.length) {
       setState((s) => ({ ...s, selectedAccountIds: presets }));
     }
@@ -208,6 +213,10 @@ export function ComposerView() {
       toast.error("Select at least one account");
       return;
     }
+    if (!user) {
+      toast.error("Your session is loading — please try again in a moment");
+      return;
+    }
     setGenerating(true);
     const targets = selectedAccounts.map((a) => ({
       accountId: a.id,
@@ -226,6 +235,7 @@ export function ComposerView() {
           tone: state.tone,
           targets: bodyTargets,
           mediaHint: state.mediaUrl ? "attached visual" : "no media",
+          userId: currentUserId,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -266,6 +276,10 @@ export function ComposerView() {
   }
 
   async function publish() {
+    if (!user) {
+      toast.error("Your session is loading — please try again in a moment");
+      return;
+    }
     if (selectedAccounts.length === 0) {
       toast.error("Select accounts");
       return;
@@ -376,6 +390,7 @@ export function ComposerView() {
             urlInput={urlInput}
             onUrlInput={setUrlInput}
             onUrlSubmit={submitUrl}
+            mediaAssets={mediaAssets}
           />
         )}
         {state.step === 4 && (
@@ -836,6 +851,7 @@ function Step3({
   urlInput,
   onUrlInput,
   onUrlSubmit,
+  mediaAssets,
 }: {
   mediaUrl: string;
   mediaType: MediaType;
@@ -848,6 +864,7 @@ function Step3({
   urlInput: string;
   onUrlInput: (v: string) => void;
   onUrlSubmit: () => void;
+  mediaAssets: MediaAssetLite[];
 }) {
   return (
     <GlassCard
@@ -858,7 +875,7 @@ function Step3({
       <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.74_0.12_145)]/20 blur-3xl" />
       <SectionTitle
         title="Add visuals"
-        desc="Pick from the preset library, paste an image URL, or upload a file."
+        desc="Pick from your media library, or paste an image URL."
       />
 
       {/* Media type toggle */}
@@ -915,30 +932,37 @@ function Step3({
         )}
       </button>
 
-      {/* Quick presets grid */}
+      {/* Media library grid */}
       <div className="mt-4">
         <div className="mb-2 text-xs font-medium text-muted-foreground">
-          Preset library
+          Media library
         </div>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {MEDIA_OPTIONS.map((m) => (
-            <button
-              key={m}
-              onClick={() => onMedia(m)}
-              className={cn(
-                "relative aspect-square overflow-hidden rounded-xl ring-2 transition",
-                mediaUrl === m ? "ring-primary" : "ring-transparent hover:ring-border"
-              )}
-            >
-              <img src={m} alt="" className="h-full w-full object-cover" />
-              {mediaUrl === m && (
-                <span className="absolute inset-0 grid place-items-center bg-primary/30">
-                  <Check className="h-4 w-4 text-white drop-shadow" />
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        {mediaAssets.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+            No media yet. Paste a URL above, or upload assets from the Media
+            Library view first.
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+            {mediaAssets.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => onMedia(m.url)}
+                className={cn(
+                  "relative aspect-square overflow-hidden rounded-xl ring-2 transition",
+                  mediaUrl === m.url ? "ring-primary" : "ring-transparent hover:ring-border"
+                )}
+              >
+                <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
+                {mediaUrl === m.url && (
+                  <span className="absolute inset-0 grid place-items-center bg-primary/30">
+                    <Check className="h-4 w-4 text-white drop-shadow" />
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Alt text + crop hint */}
@@ -980,6 +1004,7 @@ function Step3({
         onUrlInput={onUrlInput}
         onUrlSubmit={onUrlSubmit}
         current={mediaUrl}
+        mediaAssets={mediaAssets}
       />
     </GlassCard>
   );
@@ -993,6 +1018,7 @@ function UploadDialog({
   onUrlInput,
   onUrlSubmit,
   current,
+  mediaAssets,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -1001,6 +1027,7 @@ function UploadDialog({
   onUrlInput: (v: string) => void;
   onUrlSubmit: () => void;
   current: string;
+  mediaAssets: MediaAssetLite[];
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1031,25 +1058,31 @@ function UploadDialog({
             or pick from library
             <div className="h-px flex-1 bg-border/40" />
           </div>
-          <div className="grid grid-cols-4 gap-2">
-            {MEDIA_OPTIONS.map((m) => (
-              <button
-                key={m}
-                onClick={() => onPick(m)}
-                className={cn(
-                  "relative aspect-square overflow-hidden rounded-xl ring-2 transition",
-                  current === m ? "ring-primary" : "ring-transparent hover:ring-border"
-                )}
-              >
-                <img src={m} alt="" className="h-full w-full object-cover" />
-                {current === m && (
-                  <span className="absolute inset-0 grid place-items-center bg-primary/30">
-                    <Check className="h-4 w-4 text-white drop-shadow" />
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          {mediaAssets.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+              Your media library is empty. Paste a URL above.
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {mediaAssets.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => onPick(m.url)}
+                  className={cn(
+                    "relative aspect-square overflow-hidden rounded-xl ring-2 transition",
+                    current === m.url ? "ring-primary" : "ring-transparent hover:ring-border"
+                  )}
+                >
+                  <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
+                  {current === m.url && (
+                    <span className="absolute inset-0 grid place-items-center bg-primary/30">
+                      <Check className="h-4 w-4 text-white drop-shadow" />
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="mt-2 flex justify-end">
           <DialogClose asChild>

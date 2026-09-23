@@ -83,28 +83,41 @@ export function InboxView() {
     setReplyText("");
   };
 
-  const markReplied = async (c: Comment) => {
+  const markReplied = async (c: Comment, replied = true) => {
     try {
       const res = await fetch("/api/inbox", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: c.id, replied: true }),
+        body: JSON.stringify({ id: c.id, replied }),
       });
       if (!res.ok) throw new Error("patch failed");
-      toast.success("Marked as replied");
+      if (replied) toast.success("Marked as replied");
+      else toast.success("Marked unread");
       reload();
     } catch {
       toast.error("Could not update — try again");
     }
   };
 
-  const sendReply = () => {
+  const sendReply = async () => {
+    if (!selected) return;
     if (!replyText.trim()) {
       toast.error("Write a reply first");
       return;
     }
-    toast.success("Reply sent");
-    setReplyText("");
+    try {
+      const res = await fetch("/api/inbox", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selected.id, replied: true }),
+      });
+      if (!res.ok) throw new Error("patch failed");
+      toast.success("Reply sent");
+      setReplyText("");
+      reload();
+    } catch {
+      toast.error("Could not send — try again");
+    }
   };
 
   if (loading && !data) return <InboxSkeleton />;

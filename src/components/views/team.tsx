@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
-import { useNav } from "@/lib/store";
+import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -74,7 +74,8 @@ const MEMBER_COLOR = "oklch(0.74 0.18 165)";
 
 export function TeamView() {
   const { data, loading } = useApi<TeamMember[]>("/api/team");
-  const { currentUserId } = useNav();
+  const { user } = useAuth();
+  const currentUserId = user?.id;
   const [inviteOpen, setInviteOpen] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [role, setRole] = React.useState<"admin" | "member">("member");

@@ -103,6 +103,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "platform, handle, displayName required" }, { status: 400 });
   }
 
+  // ownerId must be a real user id (FK → User.id). Do NOT default to a
+  // hardcoded "u-admin" placeholder — the client (useAuth().user.id) must
+  // identify the actual owner of this social account.
+  if (!ownerId) {
+    return NextResponse.json({ error: "ownerId is required" }, { status: 400 });
+  }
+
   // Check for duplicate handle on the same platform
   const existing = await db.account.findFirst({
     where: { platform, handle },
@@ -122,7 +129,7 @@ export async function POST(req: NextRequest) {
       avatar: null,
       followers: 0,
       verified: false,
-      ownerId: ownerId || "u-admin",
+      ownerId,
       health: { create: { riskScore: 5, riskLevel: "safe", status: "healthy", riskReasons: "[]" } },
       protection: { create: { enabled: true } },
     },
@@ -144,7 +151,7 @@ export async function POST(req: NextRequest) {
   // Log the connection activity
   await db.activity.create({
     data: {
-      userId: ownerId || "u-admin",
+      userId: ownerId,
       type: "account_connected",
       description: `connected ${handle} on ${platform}`,
     },
