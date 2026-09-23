@@ -340,15 +340,47 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
 
   const p = platform ? PLATFORMS[platform] : null;
 
-  /** Pick a platform → show the OAuth consent screen. */
-  const pickPlatform = (id: PlatformId) => {
-    setPlatform(id);
-    setStep("consent");
-  };
+  /** Check if OAuth is configured for a platform */
+  const oauthConfigured = React.useMemo(() => {
+    if (!platform || !user?.id) return false;
+    const apiPlatform = platform === "x" ? "twitter" : platform;
+    // Only facebook, instagram, twitter, linkedin support OAuth redirect
+    if (!["facebook", "instagram", "x", "linkedin"].includes(platform)) return false;
+    return true; // We check the actual credential existence on the server
+  }, [platform, user?.id]);
 
-  /** After the user "authorizes" (OAuth grant), ask for their real handle. */
-  const authorize = () => {
-    setStep("handle");
+  /** Pick a platform → redirect to OAuth login (like Later) or fall back to manual entry */
+  const pickPlatform = async (id: PlatformId) => {
+    setPlatform(id);
+    const apiPlatform = id === "x" ? "twitter" : id;
+
+    // Only facebook/instagram/twitter/linkedin support OAuth redirect
+    if (!["facebook", "instagram", "x", "linkedin"].includes(id)) {
+      setStep("consent");
+      return;
+    }
+
+    if (!user?.id) {
+      toast.error("Sign in first");
+      return;
+    }
+
+    // Try OAuth redirect — if credentials aren't configured, show manual fallback
+    setStep("connecting");
+    try {
+      const res = await fetch(`/api/oauth/check?platform=${apiPlatform}&userId=${user.id}`);
+      const json = await res.json();
+      if (json.configured) {
+        // Redirect browser to the platform's login page (like Later)
+        const redirectUrl = `/api/oauth/connect/${apiPlatform}?userId=${user.id}`;
+        setTimeout(() => { window.location.href = redirectUrl; }, 100);
+      } else {
+        // OAuth not configured — show manual entry with a clear explanation
+        setStep("consent");
+      }
+    } catch {
+      setStep("consent");
+    }
   };
 
   /** Connect → POST the real handle to the API. */
@@ -543,8 +575,10 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
             <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] text-muted-foreground">
               <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
               <span>
-                You&apos;ll be redirected to {p.name} to approve this request.
-                SocialFlow never sees your password — only an access token you can revoke.
+                <strong className="font-semibold text-amber-600 dark:text-amber-400">One-time setup needed.</strong>{" "}
+                The workspace owner must add {p.name} OAuth App credentials in{" "}
+                <strong className="text-foreground">Settings → Platform API Keys</strong> to enable
+                one-click login. Until then, enter your handle manually below.
               </span>
             </div>
 
@@ -555,12 +589,28 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
               >
                 Cancel
               </button>
+              {[
+                "facebook",
+                "instagram",
+                "x",
+                "linkedin",
+              ].includes(platform!) && user?.id && (
+                <button
+                  onClick={() => {
+                    const apiPlatform = platform === "x" ? "twitter" : platform;
+                    window.location.href = `/api/oauth/connect/${apiPlatform}?userId=${user.id}`;
+                  }}
+                  className="liquid-gold flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold sm:flex-none"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Login with {p.name}
+                </button>
+              )}
               <button
-                onClick={authorize}
-                className="liquid-pill glow-ring flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold sm:flex-none"
+                onClick={() => setStep("handle")}
+                className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-muted"
               >
-                <ShieldCheck className="h-4 w-4" />
-                Authorize with {p.name}
+                Enter manually
               </button>
             </DialogFooter>
           </>

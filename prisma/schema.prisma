@@ -548,6 +548,11 @@ model PlatformCredential {
   id            String   @id @default(cuid())
   userId        String   // owner
   platform      String   // twitter | instagram | linkedin | facebook | tiktok
+  // OAuth App credentials (one-time setup by the platform owner):
+  clientId      String?  // OAuth App ID / Consumer Key
+  clientSecret  String?  // OAuth App Secret / Consumer Secret
+  // For platforms that need it:
+  redirectUri   String?  // OAuth redirect URI (usually https://yourdomain.com/api/oauth/callback/{platform})
   // Twitter API v2 (OAuth 2.0 or OAuth 1.0a):
   apiKey        String?  // Consumer Key (Twitter) / App ID (Instagram)
   apiSecret     String?  // Consumer Secret / App Secret

@@ -28,6 +28,9 @@ export type PlatformCredentialMinAggregateOutputType = {
   id: string | null
   userId: string | null
   platform: string | null
+  clientId: string | null
+  clientSecret: string | null
+  redirectUri: string | null
   apiKey: string | null
   apiSecret: string | null
   accessToken: string | null
@@ -44,6 +47,9 @@ export type PlatformCredentialMaxAggregateOutputType = {
   id: string | null
   userId: string | null
   platform: string | null
+  clientId: string | null
+  clientSecret: string | null
+  redirectUri: string | null
   apiKey: string | null
   apiSecret: string | null
   accessToken: string | null
@@ -60,6 +66,9 @@ export type PlatformCredentialCountAggregateOutputType = {
   id: number
   userId: number
   platform: number
+  clientId: number
+  clientSecret: number
+  redirectUri: number
   apiKey: number
   apiSecret: number
   accessToken: number
@@ -78,6 +87,9 @@ export type PlatformCredentialMinAggregateInputType = {
   id?: true
   userId?: true
   platform?: true
+  clientId?: true
+  clientSecret?: true
+  redirectUri?: true
   apiKey?: true
   apiSecret?: true
   accessToken?: true
@@ -94,6 +106,9 @@ export type PlatformCredentialMaxAggregateInputType = {
   id?: true
   userId?: true
   platform?: true
+  clientId?: true
+  clientSecret?: true
+  redirectUri?: true
   apiKey?: true
   apiSecret?: true
   accessToken?: true
@@ -110,6 +125,9 @@ export type PlatformCredentialCountAggregateInputType = {
   id?: true
   userId?: true
   platform?: true
+  clientId?: true
+  clientSecret?: true
+  redirectUri?: true
   apiKey?: true
   apiSecret?: true
   accessToken?: true
@@ -199,6 +217,9 @@ export type PlatformCredentialGroupByOutputType = {
   id: string
   userId: string
   platform: string
+  clientId: string | null
+  clientSecret: string | null
+  redirectUri: string | null
   apiKey: string | null
   apiSecret: string | null
   accessToken: string | null
@@ -236,6 +257,9 @@ export type PlatformCredentialWhereInput = {
   id?: Prisma.StringFilter<"PlatformCredential"> | string
   userId?: Prisma.StringFilter<"PlatformCredential"> | string
   platform?: Prisma.StringFilter<"PlatformCredential"> | string
+  clientId?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
+  clientSecret?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
+  redirectUri?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   apiKey?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   apiSecret?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   accessToken?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
@@ -253,6 +277,9 @@ export type PlatformCredentialOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   platform?: Prisma.SortOrder
+  clientId?: Prisma.SortOrderInput | Prisma.SortOrder
+  clientSecret?: Prisma.SortOrderInput | Prisma.SortOrder
+  redirectUri?: Prisma.SortOrderInput | Prisma.SortOrder
   apiKey?: Prisma.SortOrderInput | Prisma.SortOrder
   apiSecret?: Prisma.SortOrderInput | Prisma.SortOrder
   accessToken?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -274,6 +301,9 @@ export type PlatformCredentialWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.PlatformCredentialWhereInput | Prisma.PlatformCredentialWhereInput[]
   userId?: Prisma.StringFilter<"PlatformCredential"> | string
   platform?: Prisma.StringFilter<"PlatformCredential"> | string
+  clientId?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
+  clientSecret?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
+  redirectUri?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   apiKey?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   apiSecret?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   accessToken?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
@@ -291,6 +321,9 @@ export type PlatformCredentialOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   platform?: Prisma.SortOrder
+  clientId?: Prisma.SortOrderInput | Prisma.SortOrder
+  clientSecret?: Prisma.SortOrderInput | Prisma.SortOrder
+  redirectUri?: Prisma.SortOrderInput | Prisma.SortOrder
   apiKey?: Prisma.SortOrderInput | Prisma.SortOrder
   apiSecret?: Prisma.SortOrderInput | Prisma.SortOrder
   accessToken?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -313,6 +346,9 @@ export type PlatformCredentialScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"PlatformCredential"> | string
   userId?: Prisma.StringWithAggregatesFilter<"PlatformCredential"> | string
   platform?: Prisma.StringWithAggregatesFilter<"PlatformCredential"> | string
+  clientId?: Prisma.StringNullableWithAggregatesFilter<"PlatformCredential"> | string | null
+  clientSecret?: Prisma.StringNullableWithAggregatesFilter<"PlatformCredential"> | string | null
+  redirectUri?: Prisma.StringNullableWithAggregatesFilter<"PlatformCredential"> | string | null
   apiKey?: Prisma.StringNullableWithAggregatesFilter<"PlatformCredential"> | string | null
   apiSecret?: Prisma.StringNullableWithAggregatesFilter<"PlatformCredential"> | string | null
   accessToken?: Prisma.StringNullableWithAggregatesFilter<"PlatformCredential"> | string | null
@@ -328,6 +364,9 @@ export type PlatformCredentialScalarWhereWithAggregatesInput = {
 export type PlatformCredentialCreateInput = {
   id?: string
   platform: string
+  clientId?: string | null
+  clientSecret?: string | null
+  redirectUri?: string | null
   apiKey?: string | null
   apiSecret?: string | null
   accessToken?: string | null
@@ -345,6 +384,9 @@ export type PlatformCredentialUncheckedCreateInput = {
   id?: string
   userId: string
   platform: string
+  clientId?: string | null
+  clientSecret?: string | null
+  redirectUri?: string | null
   apiKey?: string | null
   apiSecret?: string | null
   accessToken?: string | null
@@ -360,6 +402,9 @@ export type PlatformCredentialUncheckedCreateInput = {
 export type PlatformCredentialUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   platform?: Prisma.StringFieldUpdateOperationsInput | string
+  clientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  redirectUri?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accessToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -377,6 +422,9 @@ export type PlatformCredentialUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   platform?: Prisma.StringFieldUpdateOperationsInput | string
+  clientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  redirectUri?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accessToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -393,6 +441,9 @@ export type PlatformCredentialCreateManyInput = {
   id?: string
   userId: string
   platform: string
+  clientId?: string | null
+  clientSecret?: string | null
+  redirectUri?: string | null
   apiKey?: string | null
   apiSecret?: string | null
   accessToken?: string | null
@@ -408,6 +459,9 @@ export type PlatformCredentialCreateManyInput = {
 export type PlatformCredentialUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   platform?: Prisma.StringFieldUpdateOperationsInput | string
+  clientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  redirectUri?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accessToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -424,6 +478,9 @@ export type PlatformCredentialUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   platform?: Prisma.StringFieldUpdateOperationsInput | string
+  clientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  redirectUri?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accessToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -455,6 +512,9 @@ export type PlatformCredentialCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   platform?: Prisma.SortOrder
+  clientId?: Prisma.SortOrder
+  clientSecret?: Prisma.SortOrder
+  redirectUri?: Prisma.SortOrder
   apiKey?: Prisma.SortOrder
   apiSecret?: Prisma.SortOrder
   accessToken?: Prisma.SortOrder
@@ -471,6 +531,9 @@ export type PlatformCredentialMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   platform?: Prisma.SortOrder
+  clientId?: Prisma.SortOrder
+  clientSecret?: Prisma.SortOrder
+  redirectUri?: Prisma.SortOrder
   apiKey?: Prisma.SortOrder
   apiSecret?: Prisma.SortOrder
   accessToken?: Prisma.SortOrder
@@ -487,6 +550,9 @@ export type PlatformCredentialMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   platform?: Prisma.SortOrder
+  clientId?: Prisma.SortOrder
+  clientSecret?: Prisma.SortOrder
+  redirectUri?: Prisma.SortOrder
   apiKey?: Prisma.SortOrder
   apiSecret?: Prisma.SortOrder
   accessToken?: Prisma.SortOrder
@@ -544,6 +610,9 @@ export type PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput = {
 export type PlatformCredentialCreateWithoutUserInput = {
   id?: string
   platform: string
+  clientId?: string | null
+  clientSecret?: string | null
+  redirectUri?: string | null
   apiKey?: string | null
   apiSecret?: string | null
   accessToken?: string | null
@@ -559,6 +628,9 @@ export type PlatformCredentialCreateWithoutUserInput = {
 export type PlatformCredentialUncheckedCreateWithoutUserInput = {
   id?: string
   platform: string
+  clientId?: string | null
+  clientSecret?: string | null
+  redirectUri?: string | null
   apiKey?: string | null
   apiSecret?: string | null
   accessToken?: string | null
@@ -604,6 +676,9 @@ export type PlatformCredentialScalarWhereInput = {
   id?: Prisma.StringFilter<"PlatformCredential"> | string
   userId?: Prisma.StringFilter<"PlatformCredential"> | string
   platform?: Prisma.StringFilter<"PlatformCredential"> | string
+  clientId?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
+  clientSecret?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
+  redirectUri?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   apiKey?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   apiSecret?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   accessToken?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
@@ -619,6 +694,9 @@ export type PlatformCredentialScalarWhereInput = {
 export type PlatformCredentialCreateManyUserInput = {
   id?: string
   platform: string
+  clientId?: string | null
+  clientSecret?: string | null
+  redirectUri?: string | null
   apiKey?: string | null
   apiSecret?: string | null
   accessToken?: string | null
@@ -634,6 +712,9 @@ export type PlatformCredentialCreateManyUserInput = {
 export type PlatformCredentialUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   platform?: Prisma.StringFieldUpdateOperationsInput | string
+  clientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  redirectUri?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accessToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -649,6 +730,9 @@ export type PlatformCredentialUpdateWithoutUserInput = {
 export type PlatformCredentialUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   platform?: Prisma.StringFieldUpdateOperationsInput | string
+  clientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  redirectUri?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accessToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -664,6 +748,9 @@ export type PlatformCredentialUncheckedUpdateWithoutUserInput = {
 export type PlatformCredentialUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   platform?: Prisma.StringFieldUpdateOperationsInput | string
+  clientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  redirectUri?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   apiSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accessToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -682,6 +769,9 @@ export type PlatformCredentialSelect<ExtArgs extends runtime.Types.Extensions.In
   id?: boolean
   userId?: boolean
   platform?: boolean
+  clientId?: boolean
+  clientSecret?: boolean
+  redirectUri?: boolean
   apiKey?: boolean
   apiSecret?: boolean
   accessToken?: boolean
@@ -699,6 +789,9 @@ export type PlatformCredentialSelectCreateManyAndReturn<ExtArgs extends runtime.
   id?: boolean
   userId?: boolean
   platform?: boolean
+  clientId?: boolean
+  clientSecret?: boolean
+  redirectUri?: boolean
   apiKey?: boolean
   apiSecret?: boolean
   accessToken?: boolean
@@ -716,6 +809,9 @@ export type PlatformCredentialSelectUpdateManyAndReturn<ExtArgs extends runtime.
   id?: boolean
   userId?: boolean
   platform?: boolean
+  clientId?: boolean
+  clientSecret?: boolean
+  redirectUri?: boolean
   apiKey?: boolean
   apiSecret?: boolean
   accessToken?: boolean
@@ -733,6 +829,9 @@ export type PlatformCredentialSelectScalar = {
   id?: boolean
   userId?: boolean
   platform?: boolean
+  clientId?: boolean
+  clientSecret?: boolean
+  redirectUri?: boolean
   apiKey?: boolean
   apiSecret?: boolean
   accessToken?: boolean
@@ -745,7 +844,7 @@ export type PlatformCredentialSelectScalar = {
   updatedAt?: boolean
 }
 
-export type PlatformCredentialOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "platform" | "apiKey" | "apiSecret" | "accessToken" | "accessSecret" | "bearerToken" | "pageId" | "profileId" | "connected" | "createdAt" | "updatedAt", ExtArgs["result"]["platformCredential"]>
+export type PlatformCredentialOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "platform" | "clientId" | "clientSecret" | "redirectUri" | "apiKey" | "apiSecret" | "accessToken" | "accessSecret" | "bearerToken" | "pageId" | "profileId" | "connected" | "createdAt" | "updatedAt", ExtArgs["result"]["platformCredential"]>
 export type PlatformCredentialInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -765,6 +864,9 @@ export type $PlatformCredentialPayload<ExtArgs extends runtime.Types.Extensions.
     id: string
     userId: string
     platform: string
+    clientId: string | null
+    clientSecret: string | null
+    redirectUri: string | null
     apiKey: string | null
     apiSecret: string | null
     accessToken: string | null
@@ -1202,6 +1304,9 @@ export interface PlatformCredentialFieldRefs {
   readonly id: Prisma.FieldRef<"PlatformCredential", 'String'>
   readonly userId: Prisma.FieldRef<"PlatformCredential", 'String'>
   readonly platform: Prisma.FieldRef<"PlatformCredential", 'String'>
+  readonly clientId: Prisma.FieldRef<"PlatformCredential", 'String'>
+  readonly clientSecret: Prisma.FieldRef<"PlatformCredential", 'String'>
+  readonly redirectUri: Prisma.FieldRef<"PlatformCredential", 'String'>
   readonly apiKey: Prisma.FieldRef<"PlatformCredential", 'String'>
   readonly apiSecret: Prisma.FieldRef<"PlatformCredential", 'String'>
   readonly accessToken: Prisma.FieldRef<"PlatformCredential", 'String'>
