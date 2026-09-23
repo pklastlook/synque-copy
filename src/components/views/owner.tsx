@@ -3338,8 +3338,252 @@ function FinanceTab() {
   );
 }
 
+// ============================================================================
+// Client Users Tab — shows all users created via subscription/owner panel
+// ============================================================================
+interface ClientUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  title: string | null;
+  department: string | null;
+  status: string;
+  lastActive: string | null;
+  createdAt: string;
+}
+
+function ClientUsersTab() {
+  const { data, loading, reload } = useApi<ClientUser[]>("/api/users");
+  const [loginOpen, setLoginOpen] = React.useState(false);
+  const [form, setForm] = React.useState({ name: "", email: "", password: "", role: "member", company: "" });
+  const [busy, setBusy] = React.useState(false);
+
+  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  const users = data ?? [];
+
+  const createLogin = async () => {
+    if (!form.name.trim() || !form.email.includes("@")) {
+      toast.error("Enter a valid name and email");
+      return;
+    }
+    if (form.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setBusy(true);
+    try {
+      // 1. Create user account
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(), password: form.password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        // 2. Set role + department
+        if (form.role !== "member" || form.company) {
+          await fetch("/api/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: data.user.id,
+              role: form.role,
+              title: form.role === "admin" ? "Administrator" : form.role === "manager" ? "Manager" : "Team Member",
+              department: form.company || null,
+            }),
+          }).catch(() => {});
+        }
+        // 3. Create customer record if company provided
+        if (form.company.trim()) {
+          await fetch("/api/customers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: form.name.trim(),
+              email: form.email.trim(),
+              company: form.company.trim(),
+              plan: "growth",
+            }),
+          }).catch(() => {});
+        }
+        toast.success("User created!", {
+          description: `${form.name} can sign in at /login`,
+        });
+        setForm({ name: "", email: "", password: "", role: "member", company: "" });
+        setLoginOpen(false);
+        reload();
+      } else {
+        toast.error(data.error || "Failed to create user — email may already exist");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeUser = async (id: string, name: string) => {
+    if (!confirm(`Remove ${name}? They will lose access immediately.`)) return;
+    try {
+      await api("DELETE", "/api/users", { id });
+      toast.success(`${name} removed`);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to remove user");
+    }
+  };
+
+  const suspendUser = async (id: string, name: string) => {
+    try {
+      await api("PATCH", "/api/users", { id, status: "suspended" });
+      toast.success(`${name} suspended`);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const reactivateUser = async (id: string, name: string) => {
+    try {
+      await api("PATCH", "/api/users", { id, status: "active" });
+      toast.success(`${name} reactivated`);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const roleBadge: Record<string, string> = {
+    admin: "bg-[var(--gold)]/15 text-[var(--gold)]",
+    manager: "bg-primary/15 text-primary",
+    editor: "bg-emerald-500/15 text-emerald-500",
+    member: "bg-muted text-muted-foreground",
+    viewer: "bg-muted text-muted-foreground",
+  };
+
+  const statusBadge: Record<string, string> = {
+    active: "bg-emerald-500/15 text-emerald-500",
+    suspended: "bg-rose-500/15 text-rose-500",
+    invited: "bg-amber-500/15 text-amber-500",
+  };
+
+  return (
+    <GlassCard className="crystal-in p-5">
+      <SectionTitle
+        title="Client Users"
+        desc="All users with login access — created via subscriptions or owner panel"
+        action={
+          <button onClick={() => setLoginOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold">
+            <UserPlus className="h-3.5 w-3.5" /> Create user
+          </button>
+        }
+      />
+
+      {users.length === 0 ? (
+        <div className="py-12 text-center">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+            <CircleUserRound className="h-5 w-5" />
+          </div>
+          <p className="mt-3 text-sm font-medium">No users yet</p>
+          <p className="text-xs text-muted-foreground">Create a user to give them login access.</p>
+        </div>
+      ) : (
+        <div className="scroll-liquid max-h-[560px] space-y-2 overflow-y-auto">
+          {users.map((u) => (
+            <div key={u.id} className="crystal-in flex items-center gap-3 rounded-2xl border border-border/40 bg-muted/20 p-4 transition hover:bg-muted/30">
+              <NameAvatar name={u.name} className="h-10 w-10 text-xs shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold">{u.name}</span>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", roleBadge[u.role] ?? roleBadge.member)}>{u.role}</span>
+                  <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusBadge[u.status] ?? statusBadge.active)}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", u.status === "active" ? "bg-emerald-500" : u.status === "suspended" ? "bg-rose-500" : "bg-amber-500")} />
+                    {u.status}
+                  </span>
+                </div>
+                <div className="truncate text-[11px] text-muted-foreground">
+                  {u.email}{u.department ? ` · ${u.department}` : ""}{u.title ? ` · ${u.title}` : ""}
+                </div>
+                {u.lastActive && (
+                  <div className="text-[10px] text-muted-foreground/60">Last active: {new Date(u.lastActive).toLocaleString()}</div>
+                )}
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted" aria-label="Actions">
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {u.status === "active" ? (
+                    <DropdownMenuItem onClick={() => suspendUser(u.id, u.name)}>
+                      <Ban className="h-3.5 w-3.5" /> Suspend
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => reactivateUser(u.id, u.name)}>
+                      <ShieldCheck className="h-3.5 w-3.5" /> Reactivate
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => removeUser(u.id, u.name)} className="text-rose-500 focus:text-rose-600">
+                    <Trash2 className="h-3.5 w-3.5" /> Remove
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create User Dialog */}
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+        <DialogContent className="glass-strong max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-[var(--gold)]" /> Create Client User
+            </DialogTitle>
+            <DialogDescription>
+              Create a user account with login access. They sign in at /login.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Full name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Smith" className="mt-1.5" /></div>
+            <div><Label className="text-xs">Email (login)</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@company.com" className="mt-1.5" /></div>
+            <div><Label className="text-xs">Password</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Min 6 characters" className="mt-1.5" /></div>
+            <div><Label className="text-xs">Company (optional)</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Acme Inc." className="mt-1.5" /></div>
+            <div>
+              <Label className="text-xs">Role</Label>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
+              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
+              <span>User can sign in at <code className="font-mono text-foreground">/login</code> with these credentials. If company is provided, a customer record is also created.</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setLoginOpen(false)}>Cancel</Button>
+            <button onClick={createLogin} disabled={busy} className="liquid-pill flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              {busy ? "Creating…" : "Create user"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </GlassCard>
+  );
+}
+
 const TABS: TabDef[] = [
   { id: "customers", label: "Customers", icon: Users },
+  { id: "clientUsers", label: "Client Users", icon: CircleUserRound },
   { id: "keys", label: "Serial Keys", icon: KeyRound },
   { id: "devices", label: "Devices", icon: Smartphone },
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
@@ -3395,6 +3639,7 @@ export function OwnerView() {
       <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
 
       {tab === "customers" && <CustomersTab />}
+      {tab === "clientUsers" && <ClientUsersTab />}
       {tab === "keys" && <SerialKeysTab customers={customerList} />}
       {tab === "devices" && <DevicesTab />}
       {tab === "subscriptions" && <SubscriptionsTab customers={customerList} />}
