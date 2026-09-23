@@ -377,26 +377,39 @@ export function ComposerView() {
         }
       }
 
-      // 4. Show results
+      // 4. Show results with iOS-style popups
       const succeeded = results.filter((r) => r.success);
       const failed = results.filter((r) => !r.success);
 
       if (succeeded.length > 0 && failed.length === 0) {
-        toast.success(`Published to ${succeeded.length} account${succeeded.length > 1 ? "s" : ""}`, {
-          description: succeeded.map(r => `✓ ${r.account}${r.url ? ` — ${r.url}` : ""}`).join("\n"),
+        toast.success("Published!", {
+          description: `Posted to ${succeeded.length} account${succeeded.length > 1 ? "s" : ""}.`,
+        });
+        succeeded.forEach((r) => {
+          if (r.url) {
+            toast.success(r.account, {
+              description: `View tweet: ${r.url}`,
+              duration: 6000,
+            });
+          }
         });
       } else if (succeeded.length > 0 && failed.length > 0) {
-        toast.warning(`Published to ${succeeded.length}, failed ${failed.length}`, {
-          description: [
-            ...succeeded.map(r => `✓ ${r.account}`),
-            ...failed.map(r => `✗ ${r.account}: ${r.message.slice(0, 80)}`),
-          ].join("\n"),
+        toast.warning("Partial publish", {
+          description: `Published to ${succeeded.length}, failed ${failed.length}.`,
+          duration: 6000,
+        });
+        failed.forEach((r) => {
+          toast.error(`Failed: ${r.account}`, {
+            description: r.message.slice(0, 120),
+            duration: 8000,
+          });
         });
       } else {
-        // All failed — show the first error with guidance
+        // All failed — show error popup with the reason
         const firstError = failed[0];
-        toast.error("Post saved to workspace (not published to platforms)", {
-          description: firstError?.message ?? "Add platform API keys in Settings → Platform API Keys to enable real posting.",
+        toast.error("Post saved but not published", {
+          description: firstError?.message?.slice(0, 150) ?? "Unknown error. Check Settings → Platform API Keys.",
+          duration: 8000,
         });
       }
 
