@@ -1,0 +1,1920 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Wand2,
+     6→  Sparkles,
+     7→  Loader2,
+     8→  Image as ImageIcon,
+     9→  Video,
+    10→  Layers,
+    11→  CalendarClock,
+    12→  Send,
+    13→  RefreshCw,
+    14→  Check,
+    15→  Hash,
+    16→  Search,
+    17→  CheckCircle2,
+    18→  ArrowLeft,
+    19→  ArrowRight,
+    20→  Upload,
+    21→  Link2,
+    22→  Lightbulb,
+    23→  AlertCircle,
+    24→  X,
+    25→  MoreHorizontal,
+    26→  Heart,
+    27→  MessageCircle,
+    28→  Bookmark,
+    29→  type LucideIcon,
+    30→} from "lucide-react";
+    31→import { useApi, fmt } from "@/lib/hooks";
+    32→import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
+    33→import { PlatformBadge, VerifiedTick } from "@/components/glass/platform-badge";
+    34→import { PLATFORMS, type PlatformId } from "@/lib/platforms";
+    35→import { useNav } from "@/lib/store";
+    36→import { useAuth } from "@/lib/auth-store";
+    37→import { cn } from "@/lib/utils";
+    38→import { toast } from "sonner";
+    39→import {
+    40→  Dialog,
+    41→  DialogContent,
+    42→  DialogHeader,
+    43→  DialogTitle,
+    44→  DialogClose,
+    45→} from "@/components/ui/dialog";
+    46→import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+    47→import { Switch } from "@/components/ui/switch";
+    48→import { Label } from "@/components/ui/label";
+    49→
+    50→interface AccountData {
+    51→  id: string;
+    52→  platform: PlatformId;
+    53→  handle: string;
+    54→  displayName: string;
+    55→  followers: number;
+    56→  verified: boolean;
+    57→  ownerName: string;
+    58→  ownerColor: string | null;
+    59→}
+    60→
+    61→interface Variant {
+    62→  content: string;
+    63→  hashtags: string;
+    64→}
+    65→
+    66→const TONES = [
+    67→  "Professional",
+    68→  "Friendly",
+    69→  "Energetic",
+    70→  "Inspirational",
+    71→  "Witty",
+    72→  "Educational",
+    73→  "Luxurious",
+    74→];
+    75→
+    76→interface MediaAssetLite {
+    77→  id: string;
+    78→  name: string;
+    79→  type: string;
+    80→  url: string;
+    81→}
+    82→
+    83→interface MediaLibraryResponse {
+    84→  assets: MediaAssetLite[];
+    85→}
+    86→
+    87→type Step = 1 | 2 | 3 | 4 | 5;
+    88→type MediaType = "image" | "video" | "carousel";
+    89→
+    90→interface ComposerState {
+    91→  step: Step;
+    92→  selectedAccountIds: string[];
+    93→  caption: string;
+    94→  tone: string;
+    95→  mediaUrl: string;
+    96→  mediaType: MediaType;
+    97→  altText: string;
+    98→  variants: Record<string, Variant>;
+    99→  scheduledAt: string;
+   100→  scheduleEnabled: boolean;
+   101→}
+   102→
+   103→const STEPS: { id: Step; label: string; short: string; icon: LucideIcon }[] = [
+   104→  { id: 1, label: "Select Accounts", short: "Accounts", icon: CheckCircle2 },
+   105→  { id: 2, label: "Text Content", short: "Text", icon: Sparkles },
+   106→  { id: 3, label: "Graphics / Media", short: "Media", icon: ImageIcon },
+   107→  { id: 4, label: "Preview", short: "Preview", icon: Wand2 },
+   108→  { id: 5, label: "Post", short: "Publish", icon: Send },
+   109→];
+   110→
+   111→const MEDIA_TYPE_OPTIONS: { id: MediaType; label: string; icon: LucideIcon }[] = [
+   112→  { id: "image", label: "Image", icon: ImageIcon },
+   113→  { id: "video", label: "Video", icon: Video },
+   114→  { id: "carousel", label: "Carousel", icon: Layers },
+   115→];
+   116→
+   117→const DEFAULT_STATE: ComposerState = {
+   118→  step: 1,
+   119→  selectedAccountIds: [],
+   120→  caption: "",
+   121→  tone: "Friendly",
+   122→  mediaUrl: "",
+   123→  mediaType: "image",
+   124→  altText: "",
+   125→  variants: {},
+   126→  scheduledAt: "",
+   127→  scheduleEnabled: false,
+   128→};
+   129→
+   130→export function ComposerView() {
+   131→  const { composerSeed, clearComposerSeed } = useNav();
+   132→  const { user } = useAuth();
+   133→  const currentUserId = user?.id ?? "";
+   134→  const { data: accounts } = useApi<AccountData[]>("/api/accounts");
+   135→  const { data: mediaData } = useApi<MediaLibraryResponse>("/api/media");
+   136→  const mediaAssets = React.useMemo(
+   137→    () => (mediaData?.assets ?? []).filter((a) => a.type === "image"),
+   138→    [mediaData]
+   139→  );
+   140→
+   141→  const [state, setState] = React.useState<ComposerState>(DEFAULT_STATE);
+   142→  const [generating, setGenerating] = React.useState(false);
+   143→  const [publishing, setPublishing] = React.useState(false);
+   144→  const [search, setSearch] = React.useState("");
+   145→  const [uploadOpen, setUploadOpen] = React.useState(false);
+   146→  const [urlInput, setUrlInput] = React.useState("");
+   147→  const [cropAspect, setCropAspect] = React.useState("1:1");
+   148→
+   149→  const initRef = React.useRef(false);
+   150→
+   151→  // Preselect the top 4 accounts by followers (the /api/accounts route
+   152→  // already sorts by followers desc) so the composer opens with a sensible
+   153→  // multi-platform default — without relying on hardcoded seeded IDs.
+   154→  React.useEffect(() => {
+   155→    if (initRef.current || !accounts || accounts.length === 0) return;
+   156→    initRef.current = true;
+   157→    const presets = accounts.slice(0, 4).map((a) => a.id);
+   158→    if (presets.length) {
+   159→      setState((s) => ({ ...s, selectedAccountIds: presets }));
+   160→    }
+   161→  }, [accounts]);
+   162→
+   163→  // Composer seed prefill — set caption + jump to step 2 (keeps existing behavior)
+   164→  React.useEffect(() => {
+   165→    if (composerSeed) {
+   166→      setState((s) => ({ ...s, caption: composerSeed, step: 2 }));
+   167→      clearComposerSeed();
+   168→    }
+   169→  }, [composerSeed, clearComposerSeed]);
+   170→
+   171→  const update = React.useCallback((patch: Partial<ComposerState>) => {
+   172→    setState((s) => ({ ...s, ...patch }));
+   173→  }, []);
+   174→
+   175→  const accountsList = accounts ?? [];
+   176→  const selectedAccounts = accountsList.filter((a) =>
+   177→    state.selectedAccountIds.includes(a.id)
+   178→  );
+   179→  const filteredAccounts = accountsList.filter((a) => {
+   180→    const q = search.trim().toLowerCase();
+   181→    if (!q) return true;
+   182→    return (
+   183→      a.displayName.toLowerCase().includes(q) ||
+   184→      a.handle.toLowerCase().includes(q) ||
+   185→      PLATFORMS[a.platform].name.toLowerCase().includes(q)
+   186→    );
+   187→  });
+   188→
+   189→  function toggleAccount(id: string) {
+   190→    setState((s) => {
+   191→      const next = new Set(s.selectedAccountIds);
+   192→      if (next.has(id)) next.delete(id);
+   193→      else next.add(id);
+   194→      return { ...s, selectedAccountIds: Array.from(next) };
+   195→    });
+   196→  }
+   197→
+   198→  const selectAll = () =>
+   199→    setState((s) => ({ ...s, selectedAccountIds: accountsList.map((a) => a.id) }));
+   200→  const clearAll = () => setState((s) => ({ ...s, selectedAccountIds: [] }));
+   201→
+   202→  const goToStep = (step: Step) => setState((s) => ({ ...s, step }));
+   203→  const next = () =>
+   204→    setState((s) => ({ ...s, step: Math.min(5, (s.step as number) + 1) as Step }));
+   205→  const back = () =>
+   206→    setState((s) => ({ ...s, step: Math.max(1, (s.step as number) - 1) as Step }));
+   207→
+   208→  async function generate(regenerateOnly?: string) {
+   209→    if (!state.caption.trim()) {
+   210→      toast.error("Write a caption first");
+   211→      return;
+   212→    }
+   213→    if (selectedAccounts.length === 0) {
+   214→      toast.error("Select at least one account");
+   215→      return;
+   216→    }
+   217→    if (!user) {
+   218→      toast.error("Your session is loading — please try again in a moment");
+   219→      return;
+   220→    }
+   221→    setGenerating(true);
+   222→    const targets = selectedAccounts.map((a) => ({
+   223→      accountId: a.id,
+   224→      platform: a.platform,
+   225→      handle: a.handle,
+   226→    }));
+   227→    const bodyTargets = regenerateOnly
+   228→      ? targets.filter((t) => t.accountId === regenerateOnly)
+   229→      : targets;
+   230→    try {
+   231→      const res = await fetch("/api/ai/generate", {
+   232→        method: "POST",
+   233→        headers: { "Content-Type": "application/json" },
+   234→        body: JSON.stringify({
+   235→          caption: state.caption,
+   236→          tone: state.tone,
+   237→          targets: bodyTargets,
+   238→          mediaHint: state.mediaUrl ? "attached visual" : "no media",
+   239→          userId: currentUserId,
+   240→        }),
+   241→      });
+   242→      const json = await res.json().catch(() => ({}));
+   243→      const incoming = json.variants ?? json.fallback?.variants;
+   244→      if (incoming && typeof incoming === "object") {
+   245→        const normalized: Record<string, Variant> = {};
+   246→        for (const k of Object.keys(incoming)) {
+   247→          normalized[k] = {
+   248→            content: incoming[k]?.content ?? "",
+   249→            hashtags: incoming[k]?.hashtags ?? "",
+   250→          };
+   251→        }
+   252→        if (regenerateOnly) {
+   253→          const nv = normalized[regenerateOnly];
+   254→          if (nv) {
+   255→            setState((s) => ({
+   256→              ...s,
+   257→              variants: { ...s.variants, [regenerateOnly]: nv },
+   258→            }));
+   259→            toast.success("Regenerated variant");
+   260→          } else {
+   261→            toast.error("Variant not found in AI response");
+   262→          }
+   263→        } else {
+   264→          setState((s) => ({ ...s, variants: normalized }));
+   265→          toast.success(
+   266→            `Generated ${Object.keys(normalized).length} platform-native captions`
+   267→          );
+   268→        }
+   269→      } else {
+   270→        toast.error(json.error ?? "Generation failed");
+   271→      }
+   272→    } catch {
+   273→      toast.error("Network error generating captions");
+   274→    } finally {
+   275→      setGenerating(false);
+   276→    }
+   277→  }
+   278→
+   279→  async function publish() {
+   280→    if (!user) {
+   281→      toast.error("Your session is loading — please try again in a moment");
+   282→      return;
+   283→    }
+   284→    if (selectedAccounts.length === 0) {
+   285→      toast.error("Select accounts");
+   286→      return;
+   287→    }
+   288→    setPublishing(true);
+   289→    try {
+   290→      // 1. Save the post to the database
+   291→      const v: Record<string, { content: string; hashtags?: string }> = {};
+   292→      for (const a of selectedAccounts) {
+   293→        const ex = state.variants[a.id];
+   294→        v[a.id] = ex ?? { content: state.caption, hashtags: "" };
+   295→      }
+   296→      const scheduledAt =
+   297→        state.scheduleEnabled && state.scheduledAt
+   298→          ? new Date(state.scheduledAt).toISOString()
+   299→          : null;
+   300→
+   301→      const res = await fetch("/api/posts", {
+   302→        method: "POST",
+   303→        headers: { "Content-Type": "application/json" },
+   304→        body: JSON.stringify({
+   305→          title: state.caption.slice(0, 50).trim() || "Untitled",
+   306→          caption: state.caption,
+   307→          mediaUrl: state.mediaUrl || null,
+   308→          tone: state.tone,
+   309→          scheduledAt,
+   310→          accountIds: selectedAccounts.map((a) => a.id),
+   311→          variants: v,
+   312→          authorId: currentUserId,
+   313→        }),
+   314→      });
+   315→
+   316→      if (!res.ok) {
+   317→        toast.error("Failed to save post");
+   318→        return;
+   319→      }
+   320→
+   321→      // 2. If scheduled, skip real posting (will be posted later)
+   322→      if (state.scheduleEnabled && scheduledAt) {
+   323→        toast.success("Post scheduled", {
+   324→          description: `Will be published on ${new Date(scheduledAt).toLocaleString()}`,
+   325→        });
+   326→        setState(DEFAULT_STATE);
+   327→        return;
+   328→      }
+   329→
+   330→      // 3. Attempt REAL platform publishing for each selected account
+   331→      const results: { account: string; platform: string; success: boolean; message: string; url?: string }[] = [];
+   332→
+   333→      for (const a of selectedAccounts) {
+   334→        const variant = v[a.id];
+   335→        const content = variant.hashtags
+   336→          ? `${variant.content}\n\n${variant.hashtags.split(",").map(t => `#${t.trim()}`).join(" ")}`
+   337→          : variant.content;
+   338→
+   339→        // Map platform id to API platform name
+   340→        const apiPlatform = a.platform === "x" ? "twitter" : a.platform;
+   341→
+   342→        try {
+   343→          const pubRes = await fetch(`/api/publish/${apiPlatform}`, {
+   344→            method: "POST",
+   345→            headers: { "Content-Type": "application/json" },
+   346→            body: JSON.stringify({
+   347→              userId: currentUserId,
+   348→              accountId: a.id,
+   349→              content,
+   350→            }),
+   351→          });
+   352→          const pubJson = await pubRes.json();
+   353→
+   354→          if (pubRes.ok && pubJson.ok) {
+   355→            results.push({
+   356→              account: a.displayName,
+   357→              platform: a.platform,
+   358→              success: true,
+   359→              message: "Published successfully",
+   360→              url: pubJson.url,
+   361→            });
+   362→          } else {
+   363→            results.push({
+   364→              account: a.displayName,
+   365→              platform: a.platform,
+   366→              success: false,
+   367→              message: pubJson.error ?? "Failed to publish",
+   368→            });
+   369→          }
+   370→        } catch {
+   371→          results.push({
+   372→            account: a.displayName,
+   373→            platform: a.platform,
+   374→            success: false,
+   375→            message: "Network error during publish",
+   376→          });
+   377→        }
+   378→      }
+   379→
+   380→      // 4. Show results with iOS-style popups
+   381→      const succeeded = results.filter((r) => r.success);
+   382→      const failed = results.filter((r) => !r.success);
+   383→
+   384→      if (succeeded.length > 0 && failed.length === 0) {
+   385→        toast.success("Published!", {
+   386→          description: `Posted to ${succeeded.length} account${succeeded.length > 1 ? "s" : ""}.`,
+   387→        });
+   388→        succeeded.forEach((r) => {
+   389→          if (r.url) {
+   390→            toast.success(r.account, {
+   391→              description: `View tweet: ${r.url}`,
+   392→              duration: 6000,
+   393→            });
+   394→          }
+   395→        });
+   396→      } else if (succeeded.length > 0 && failed.length > 0) {
+   397→        toast.warning("Partial publish", {
+   398→          description: `Published to ${succeeded.length}, failed ${failed.length}.`,
+   399→          duration: 6000,
+   400→        });
+   401→        failed.forEach((r) => {
+   402→          toast.error(`Failed: ${r.account}`, {
+   403→            description: r.message.slice(0, 120),
+   404→            duration: 8000,
+   405→          });
+   406→        });
+   407→      } else {
+   408→        // All failed — check if it's a 402 (Free tier paywall)
+   409→        const firstError = failed[0];
+   410→        const is402 = firstError?.message.includes("Free tier") || firstError?.message.includes("doesn't allow posting");
+   411→
+   412→        if (is402) {
+   413→          // Copy content to clipboard for manual posting
+   414→          const contentToCopy = selectedAccounts.map(a => {
+   415→            const variant = v[a.id];
+   416→            return variant.hashtags
+   417→              ? `${variant.content}\n\n${variant.hashtags.split(",").map(t => `#${t.trim()}`).join(" ")}`
+   418→              : variant.content;
+   419→          }).join("\n\n---\n\n");
+   420→
+   421→          try {
+   422→            await navigator.clipboard.writeText(contentToCopy);
+   423→            toast.warning("Post saved — copy to clipboard ready", {
+   424→              description: "Twitter Free tier doesn't allow API posting. Content copied! Click 'Open X' to paste manually.",
+   425→              duration: 10000,
+   426→              action: {
+   427→                label: "Open X",
+   428→                onClick: () => window.open("https://x.com/compose/post", "_blank"),
+   429→              },
+   430→            });
+   431→          } catch {
+   432→            toast.warning("Post saved — manual posting required", {
+   433→              description: "Twitter Free tier doesn't allow API posting. Upgrade to Basic ($100/mo) or post manually at x.com/compose/post",
+   434→              duration: 10000,
+   435→              action: {
+   436→                label: "Open X",
+   437→                onClick: () => window.open("https://x.com/compose/post", "_blank"),
+   438→              },
+   439→            });
+   440→          }
+   441→        } else {
+   442→          toast.error("Post saved but not published", {
+   443→            description: firstError?.message?.slice(0, 150) ?? "Unknown error.",
+   444→            duration: 8000,
+   445→          });
+   446→        }
+   447→      }
+   448→
+   449→      setState(DEFAULT_STATE);
+   450→    } catch {
+   451→      toast.error("Network error");
+   452→    } finally {
+   453→      setPublishing(false);
+   454→    }
+   455→  }
+   456→
+   457→  function submitUrl() {
+   458→    if (!urlInput.trim()) {
+   459→      toast.error("Enter an image URL");
+   460→      return;
+   461→    }
+   462→    update({ mediaUrl: urlInput.trim() });
+   463→    setUrlInput("");
+   464→    setUploadOpen(false);
+   465→    toast.success("Media URL added");
+   466→  }
+   467→
+   468→  const canContinue =
+   469→    state.step === 1
+   470→      ? selectedAccounts.length > 0
+   471→      : state.step === 2
+   472→      ? state.caption.trim().length > 0
+   473→      : state.step === 3
+   474→      ? !!state.mediaUrl
+   475→      : state.step === 4
+   476→      ? true
+   477→      : false;
+   478→
+   479→  return (
+   480→    <div className="space-y-5 pb-28">
+   481→      <StepIndicator step={state.step} onStep={goToStep} />
+   482→
+   483→      <div className="mx-auto w-full max-w-3xl space-y-5">
+   484→        {state.step === 1 && (
+   485→          <Step1
+   486→            accounts={filteredAccounts}
+   487→            selectedIds={state.selectedAccountIds}
+   488→            onToggle={toggleAccount}
+   489→            onSelectAll={selectAll}
+   490→            onClear={clearAll}
+   491→            search={search}
+   492→            onSearch={setSearch}
+   493→            selectedAccounts={selectedAccounts}
+   494→          />
+   495→        )}
+   496→        {state.step === 2 && (
+   497→          <Step2
+   498→            caption={state.caption}
+   499→            onCaption={(caption) => update({ caption })}
+   500→            tone={state.tone}
+   501→            onTone={(tone) => update({ tone })}
+   502→            onGenerate={() => generate()}
+   503→            generating={generating}
+   504→            hasVariants={Object.keys(state.variants).length > 0}
+   505→            selectedCount={selectedAccounts.length}
+   506→            variants={state.variants}
+   507→            selectedAccounts={selectedAccounts}
+   508→          />
+   509→        )}
+   510→        {state.step === 3 && (
+   511→          <Step3
+   512→            mediaUrl={state.mediaUrl}
+   513→            mediaType={state.mediaType}
+   514→            altText={state.altText}
+   515→            onMedia={(mediaUrl) => update({ mediaUrl })}
+   516→            onMediaType={(mediaType) => update({ mediaType })}
+   517→            onAltText={(altText) => update({ altText })}
+   518→            uploadOpen={uploadOpen}
+   519→            onUploadOpen={setUploadOpen}
+   520→            urlInput={urlInput}
+   521→            onUrlInput={setUrlInput}
+   522→            onUrlSubmit={submitUrl}
+   523→            mediaAssets={mediaAssets}
+   524→            user={user}
+   525→            cropAspect={cropAspect}
+   526→            onCropAspect={setCropAspect}
+   527→          />
+   528→        )}
+   529→        {state.step === 4 && (
+   530→          <Step4
+   531→            accounts={selectedAccounts}
+   532→            variants={state.variants}
+   533→            onVariantChange={(id, v) =>
+   534→              setState((s) => ({ ...s, variants: { ...s.variants, [id]: v } }))
+   535→            }
+   536→            mediaUrl={state.mediaUrl}
+   537→            caption={state.caption}
+   538→            onRegenerate={(id) => generate(id)}
+   539→            onRegenerateAll={() => generate()}
+   540→            generating={generating}
+   541→          />
+   542→        )}
+   543→        {state.step === 5 && (
+   544→          <Step5
+   545→            accounts={selectedAccounts}
+   546→            mediaUrl={state.mediaUrl}
+   547→            mediaType={state.mediaType}
+   548→            tone={state.tone}
+   549→            caption={state.caption}
+   550→            scheduleEnabled={state.scheduleEnabled}
+   551→            onScheduleEnabled={(scheduleEnabled) => update({ scheduleEnabled })}
+   552→            scheduledAt={state.scheduledAt}
+   553→            onScheduledAt={(scheduledAt) => update({ scheduledAt })}
+   554→            hasVariants={Object.keys(state.variants).length > 0}
+   555→          />
+   556→        )}
+   557→      </div>
+   558→
+   559→      <StepFooter
+   560→        step={state.step}
+   561→        onBack={back}
+   562→        onNext={next}
+   563→        canContinue={canContinue}
+   564→        onPublish={publish}
+   565→        publishing={publishing}
+   566→        scheduleEnabled={state.scheduleEnabled}
+   567→      />
+   568→    </div>
+   569→  );
+   570→}
+   571→
+   572→/* ============================================================
+   573→   Step indicator — sticky, responsive (collapses on mobile)
+   574→   ============================================================ */
+   575→function StepIndicator({
+   576→  step,
+   577→  onStep,
+   578→}: {
+   579→  step: Step;
+   580→  onStep: (s: Step) => void;
+   581→}) {
+   582→  const current = STEPS.find((s) => s.id === step) ?? STEPS[0];
+   583→  return (
+   584→    <div className="sticky top-0 z-30 -mx-4 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+   585→      <div className="glass-strong glass-sheen rounded-2xl px-4 py-3 sm:px-5">
+   586→        {/* Mobile — compact */}
+   587→        <div className="flex items-center justify-between gap-3 sm:hidden">
+   588→          <div className="flex items-center gap-2.5">
+   589→            <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground glow-pulse">
+   590→              {step}
+   591→            </span>
+   592→            <div className="min-w-0">
+   593→              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+   594→                Step {step} of {STEPS.length}
+   595→              </div>
+   596→              <div className="truncate text-sm font-semibold">{current.label}</div>
+   597→            </div>
+   598→          </div>
+   599→          <div className="flex gap-1">
+   600→            {STEPS.map((s) => (
+   601→              <span
+   602→                key={s.id}
+   603→                className={cn(
+   604→                  "h-1.5 rounded-full transition-all",
+   605→                  s.id === step
+   606→                    ? "w-5 bg-primary"
+   607→                    : s.id < step
+   608→                    ? "w-1.5 bg-primary/60"
+   609→                    : "w-1.5 bg-muted-foreground/30"
+   610→                )}
+   611→              />
+   612→            ))}
+   613→          </div>
+   614→        </div>
+   615→
+   616→        {/* Desktop — full stepper */}
+   617→        <div className="hidden items-center sm:flex">
+   618→          {STEPS.map((s, i) => {
+   619→            const done = s.id < step;
+   620→            const active = s.id === step;
+   621→            const clickable = s.id <= step;
+   622→            return (
+   623→              <React.Fragment key={s.id}>
+   624→                <button
+   625→                  type="button"
+   626→                  disabled={!clickable}
+   627→                  onClick={() => clickable && onStep(s.id)}
+   628→                  className={cn(
+   629→                    "group flex shrink-0 items-center gap-2.5 transition",
+   630→                    clickable ? "cursor-pointer" : "cursor-default"
+   631→                  )}
+   632→                >
+   633→                  <span
+   634→                    className={cn(
+   635→                      "grid h-9 w-9 place-items-center rounded-full border text-sm font-semibold transition-all",
+   636→                      active
+   637→                        ? "border-primary bg-primary text-primary-foreground glow-pulse"
+   638→                        : done
+   639→                        ? "border-primary/40 bg-primary/15 text-primary"
+   640→                        : "border-border bg-muted/40 text-muted-foreground"
+   641→                    )}
+   642→                  >
+   643→                    {done ? <Check className="h-4 w-4" /> : s.id}
+   644→                  </span>
+   645→                  <div className="text-left">
+   646→                    <div
+   647→                      className={cn(
+   648→                        "text-xs font-semibold leading-tight",
+   649→                        active
+   650→                          ? "text-foreground"
+   651→                          : done
+   652→                          ? "text-foreground/80"
+   653→                          : "text-muted-foreground"
+   654→                      )}
+   655→                    >
+   656→                      {s.label}
+   657→                    </div>
+   658→                  </div>
+   659→                </button>
+   660→                {i < STEPS.length - 1 && (
+   661→                  <span
+   662→                    className={cn(
+   663→                      "mx-2 h-0.5 flex-1 rounded-full transition-all",
+   664→                      s.id < step ? "bg-primary/50" : "bg-border"
+   665→                    )}
+   666→                  />
+   667→                )}
+   668→              </React.Fragment>
+   669→            );
+   670→          })}
+   671→        </div>
+   672→      </div>
+   673→    </div>
+   674→  );
+   675→}
+   676→
+   677→/* ============================================================
+   678→   Step 1 — Select Accounts
+   679→   ============================================================ */
+   680→function Step1({
+   681→  accounts,
+   682→  selectedIds,
+   683→  onToggle,
+   684→  onSelectAll,
+   685→  onClear,
+   686→  search,
+   687→  onSearch,
+   688→  selectedAccounts,
+   689→}: {
+   690→  accounts: AccountData[];
+   691→  selectedIds: string[];
+   692→  onToggle: (id: string) => void;
+   693→  onSelectAll: () => void;
+   694→  onClear: () => void;
+   695→  search: string;
+   696→  onSearch: (v: string) => void;
+   697→  selectedAccounts: AccountData[];
+   698→}) {
+   699→  const combinedReach = selectedAccounts.reduce((s, a) => s + a.followers, 0);
+   700→  return (
+   701→    <GlassCard
+   702→      strong
+   703→      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
+   704→      style={{ animationDelay: "0.05s" }}
+   705→    >
+   706→      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-primary/20 blur-3xl" />
+   707→      <SectionTitle
+   708→        title="Where should we publish?"
+   709→        desc="Pick the destination accounts. We'll adapt your message for each platform."
+   710→        action={
+   711→          <div className="flex items-center gap-2 text-xs">
+   712→            <button
+   713→              onClick={onSelectAll}
+   714→              className="font-medium text-primary hover:underline"
+   715→            >
+   716→              Select all
+   717→            </button>
+   718→            <span className="text-muted-foreground/60">·</span>
+   719→            <button
+   720→              onClick={onClear}
+   721→              className="text-muted-foreground hover:text-foreground"
+   722→            >
+   723→              Clear
+   724→            </button>
+   725→          </div>
+   726→        }
+   727→      />
+   728→
+   729→      {/* Search */}
+   730→      <div className="relative mb-4">
+   731→        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+   732→        <input
+   733→          value={search}
+   734→          onChange={(e) => onSearch(e.target.value)}
+   735→          placeholder="Search by name, handle, or platform…"
+   736→          className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+   737→        />
+   738→      </div>
+   739→
+   740→      <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
+   741→        {/* Account grid */}
+   742→        <div className="scroll-liquid max-h-[480px] space-y-2 overflow-y-auto pr-1">
+   743→          {accounts.length === 0 ? (
+   744→            <div className="grid place-items-center py-12 text-center text-sm text-muted-foreground">
+   745→              No accounts match your search.
+   746→            </div>
+   747→          ) : (
+   748→            accounts.map((a, i) => {
+   749→              const on = selectedIds.includes(a.id);
+   750→              return (
+   751→                <button
+   752→                  key={a.id}
+   753→                  onClick={() => onToggle(a.id)}
+   754→                  style={{ animationDelay: `${0.05 + i * 0.03}s` }}
+   755→                  className={cn(
+   756→                    "crystal-in flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition",
+   757→                    on
+   758→                      ? "border-primary/40 bg-primary/10 ring-1 ring-primary/30"
+   759→                      : "border-border/40 hover:border-border hover:bg-muted/50"
+   760→                  )}
+   761→                >
+   762→                  <PlatformBadge platform={a.platform} size={40} />
+   763→                  <div className="min-w-0 flex-1">
+   764→                    <div className="flex items-center gap-1">
+   765→                      <span className="truncate text-sm font-semibold">
+   766→                        {a.displayName}
+   767→                      </span>
+   768→                      {a.verified && <VerifiedTick className="text-primary" />}
+   769→                    </div>
+   770→                    <div className="truncate text-[11px] text-muted-foreground">
+   771→                      {a.handle} · {fmt(a.followers)} followers
+   772→                    </div>
+   773→                  </div>
+   774→                  <span
+   775→                    className={cn(
+   776→                      "grid h-5 w-5 place-items-center rounded-full border transition",
+   777→                      on
+   778→                        ? "border-primary bg-primary text-primary-foreground"
+   779→                        : "border-border"
+   780→                    )}
+   781→                  >
+   782→                    {on && <Check className="h-3 w-3" />}
+   783→                  </span>
+   784→                </button>
+   785→              );
+   786→            })
+   787→          )}
+   788→        </div>
+   789→
+   790→        {/* Summary panel — desktop */}
+   791→        <div className="hidden lg:block">
+   792→          <div className="sticky top-24 rounded-2xl border border-border/40 bg-muted/20 p-4">
+   793→            <div className="mb-3 flex items-center justify-between">
+   794→              <div className="label-caps text-muted-foreground">Selected</div>
+   795→              <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground">
+   796→                {selectedIds.length}
+   797→              </span>
+   798→            </div>
+   799→            <div className="scroll-liquid max-h-[340px] space-y-1 overflow-y-auto pr-1">
+   800→              {selectedAccounts.length === 0 ? (
+   801→                <div className="py-6 text-center text-xs text-muted-foreground">
+   802→                  Nothing selected yet.
+   803→                </div>
+   804→              ) : (
+   805→                selectedAccounts.map((a) => (
+   806→                  <div
+   807→                    key={a.id}
+   808→                    className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-muted/40"
+   809→                  >
+   810→                    <PlatformBadge platform={a.platform} size={22} />
+   811→                    <span className="truncate text-xs font-medium">
+   812→                      {a.displayName}
+   813→                    </span>
+   814→                    <button
+   815→                      onClick={() => onToggle(a.id)}
+   816→                      className="ml-auto text-muted-foreground hover:text-foreground"
+   817→                      aria-label={`Remove ${a.displayName}`}
+   818→                    >
+   819→                      <X className="h-3.5 w-3.5" />
+   820→                    </button>
+   821→                  </div>
+   822→                ))
+   823→              )}
+   824→            </div>
+   825→            {selectedAccounts.length > 0 && (
+   826→              <div className="mt-3 border-t border-border/40 pt-3 text-[10px] text-muted-foreground">
+   827→                Combined reach:{" "}
+   828→                <b className="text-foreground">{fmt(combinedReach)}</b> followers
+   829→              </div>
+   830→            )}
+   831→          </div>
+   832→        </div>
+   833→      </div>
+   834→
+   835→      {/* Mobile inline summary */}
+   836→      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground lg:hidden">
+   837→        <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-primary px-1.5 font-bold text-primary-foreground">
+   838→          {selectedIds.length}
+   839→        </span>
+   840→        accounts selected · combined reach{" "}
+   841→        <b className="text-foreground">{fmt(combinedReach)}</b>
+   842→      </div>
+   843→    </GlassCard>
+   844→  );
+   845→}
+   846→
+   847→/* ============================================================
+   848→   Step 2 — Text Content
+   849→   ============================================================ */
+   850→function Step2({
+   851→  caption,
+   852→  onCaption,
+   853→  tone,
+   854→  onTone,
+   855→  onGenerate,
+   856→  generating,
+   857→  hasVariants,
+   858→  selectedCount,
+   859→  variants,
+   860→  selectedAccounts,
+   861→}: {
+   862→  caption: string;
+   863→  onCaption: (v: string) => void;
+   864→  tone: string;
+   865→  onTone: (v: string) => void;
+   866→  onGenerate: () => void;
+   867→  generating: boolean;
+   868→  hasVariants: boolean;
+   869→  selectedCount: number;
+   870→  variants: Record<string, Variant>;
+   871→  selectedAccounts: { id: string; platform: PlatformId; handle: string; displayName: string }[];
+   872→}) {
+   873→  const charCount = caption.length;
+   874→  return (
+   875→    <GlassCard
+   876→      strong
+   877→      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
+   878→      style={{ animationDelay: "0.05s" }}
+   879→    >
+   880→      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.72_0.13_190)]/20 blur-3xl" />
+   881→      <SectionTitle
+   882→        title="What's the message?"
+   883→        desc="Write your brief once. Our AI adapts it natively for each platform in the next step."
+   884→      />
+   885→
+   886→      <div className="relative">
+   887→        <textarea
+   888→          value={caption}
+   889→          onChange={(e) => onCaption(e.target.value)}
+   890→          placeholder="e.g. Introducing our new collection — designed for creators who move fast. Built to last, made to inspire."
+   891→          className="scroll-liquid min-h-[160px] w-full resize-y rounded-2xl border border-border/50 bg-muted/30 p-4 text-[15px] outline-none transition focus:border-primary/50 focus:bg-background/60"
+   892→        />
+   893→        <div className="pointer-events-none absolute bottom-3 right-3">
+   894→          <span
+   895→            className={cn(
+   896→              "rounded-full px-2 py-1 text-[10px] font-medium",
+   897→              charCount > 500
+   898→                ? "bg-rose-500/15 text-rose-500"
+   899→                : "bg-muted/70 text-muted-foreground"
+   900→            )}
+   901→          >
+   902→            {charCount} chars
+   903→          </span>
+   904→        </div>
+   905→      </div>
+   906→
+   907→      <div className="mt-4">
+   908→        <div className="mb-2 text-xs font-medium text-muted-foreground">
+   909→          Tone of voice
+   910→        </div>
+   911→        <div className="flex flex-wrap gap-1.5">
+   912→          {TONES.map((t) => (
+   913→            <button
+   914→              key={t}
+   915→              onClick={() => onTone(t)}
+   916→              className={cn(
+   917→                "rounded-full px-3 py-1.5 text-xs font-medium transition",
+   918→                tone === t
+   919→                  ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
+   920→                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+   921→              )}
+   922→            >
+   923→              {t}
+   924→            </button>
+   925→          ))}
+   926→        </div>
+   927→      </div>
+   928→
+   929→      <div className="mt-4 flex flex-wrap items-center gap-3">
+   930→        <button
+   931→          onClick={onGenerate}
+   932→          disabled={generating || !caption.trim() || selectedCount === 0}
+   933→          className="liquid-gold glow-ring flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+   934→        >
+   935→          {generating ? (
+   936→            <Loader2 className="h-4 w-4 animate-spin" />
+   937→          ) : (
+   938→            <Wand2 className="h-4 w-4" />
+   939→          )}
+   940→          {generating
+   941→            ? "Generating…"
+   942→            : hasVariants
+   943→            ? "Regenerate AI variants"
+   944→            : "Generate AI variants"}
+   945→        </button>
+   946→        {selectedCount > 0 ? (
+   947→          <span className="text-xs text-muted-foreground">
+   948→            For{" "}
+   949→            <b className="text-foreground">{selectedCount}</b> selected account
+   950→            {selectedCount === 1 ? "" : "s"}
+   951→          </span>
+   952→        ) : (
+   953→          <span className="text-xs text-muted-foreground">
+   954→            Select accounts in step 1 first
+   955→          </span>
+   956→        )}
+   957→      </div>
+   958→
+   959→      {/* === Generated variants preview — shown immediately after AI completes === */}
+   960→      {hasVariants && !generating && (
+   961→        <div className="mt-5 space-y-3">
+   962→          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+   963→            <CheckCircle2 className="h-3.5 w-3.5" />
+   964→            {Object.keys(variants).length} AI-generated variant{Object.keys(variants).length === 1 ? "" : "s"} ready
+   965→          </div>
+   966→          {selectedAccounts.map((a) => {
+   967→            const v = variants[a.id];
+   968→            if (!v) return null;
+   969→            const p = PLATFORMS[a.platform];
+   970→            return (
+   971→              <div key={a.id} className="crystal-in rounded-2xl border border-border bg-muted/30 p-4">
+   972→                <div className="mb-2 flex items-center gap-2">
+   973→                  <div className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
+   974→                    <PlatformBadge platform={a.platform} size={18} />
+   975→                  </div>
+   976→                  <span className="text-xs font-semibold">{p.name}</span>
+   977→                  <span className="text-[11px] text-muted-foreground">{a.handle}</span>
+   978→                  <span className="ml-auto text-[10px] text-muted-foreground">{v.content.length} chars</span>
+   979→                </div>
+   980→                <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">{v.content}</p>
+   981→                {v.hashtags && (
+   982→                  <div className="mt-2 flex flex-wrap gap-1">
+   983→                    {v.hashtags.split(",").map((tag, i) => (
+   984→                      <span key={i} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+   985→                        #{tag.trim()}
+   986→                      </span>
+   987→                    ))}
+   988→                  </div>
+   989→                )}
+   990→              </div>
+   991→            );
+   992→          })}
+   993→        </div>
+   994→      )}
+   995→
+   996→      <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+   997→        <div className="flex items-start gap-3">
+   998→          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+   999→            <Lightbulb className="h-4 w-4" />
+  1000→          </div>
+  1001→          <div className="text-xs leading-relaxed text-foreground/80">
+  1002→            <b className="text-foreground">Tip:</b> Front-load your hook in the
+  1003→            first 1–2 lines. Mention the offer or emotion early — our AI will
+  1004→            keep your angle but reshape length, hashtags, and tone per platform.
+  1005→            Aim for 60–280 characters for best results.
+  1006→          </div>
+  1007→        </div>
+  1008→      </div>
+  1009→    </GlassCard>
+  1010→  );
+  1011→}
+  1012→
+  1013→/* ============================================================
+  1014→   Step 3 — Graphics / Media Upload
+  1015→   ============================================================ */
+  1016→function Step3({
+  1017→  mediaUrl,
+  1018→  mediaType,
+  1019→  altText,
+  1020→  onMedia,
+  1021→  onMediaType,
+  1022→  onAltText,
+  1023→  uploadOpen,
+  1024→  onUploadOpen,
+  1025→  urlInput,
+  1026→  onUrlInput,
+  1027→  onUrlSubmit,
+  1028→  mediaAssets,
+  1029→  user,
+  1030→  cropAspect,
+  1031→  onCropAspect,
+  1032→}: {
+  1033→  mediaUrl: string;
+  1034→  mediaType: MediaType;
+  1035→  altText: string;
+  1036→  onMedia: (v: string) => void;
+  1037→  onMediaType: (v: MediaType) => void;
+  1038→  onAltText: (v: string) => void;
+  1039→  uploadOpen: boolean;
+  1040→  onUploadOpen: (o: boolean) => void;
+  1041→  urlInput: string;
+  1042→  onUrlInput: (v: string) => void;
+  1043→  onUrlSubmit: () => void;
+  1044→  mediaAssets: MediaAssetLite[];
+  1045→  user?: { id: string } | null;
+  1046→  cropAspect: string;
+  1047→  onCropAspect: (v: string) => void;
+  1048→}) {
+  1049→  return (
+  1050→    <GlassCard
+  1051→      strong
+  1052→      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
+  1053→      style={{ animationDelay: "0.05s" }}
+  1054→    >
+  1055→      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.74_0.12_145)]/20 blur-3xl" />
+  1056→      <SectionTitle
+  1057→        title="Add visuals"
+  1058→        desc="Pick from your media library, or paste an image URL."
+  1059→      />
+  1060→
+  1061→      {/* Media type toggle */}
+  1062→      <div className="mb-4 flex flex-wrap gap-1.5">
+  1063→        {MEDIA_TYPE_OPTIONS.map((opt) => (
+  1064→          <button
+  1065→            key={opt.id}
+  1066→            onClick={() => onMediaType(opt.id)}
+  1067→            className={cn(
+  1068→              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
+  1069→              mediaType === opt.id
+  1070→                ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
+  1071→                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+  1072→            )}
+  1073→          >
+  1074→            <opt.icon className="h-3.5 w-3.5" />
+  1075→            {opt.label}
+  1076→          </button>
+  1077→        ))}
+  1078→      </div>
+  1079→
+  1080→      {/* Drop zone / preview */}
+  1081→      <button
+  1082→        type="button"
+  1083→        onClick={() => onUploadOpen(true)}
+  1084→        className={cn(
+  1085→          "group relative flex w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border/60 bg-muted/30 p-2 transition hover:border-primary/50 hover:bg-muted/40",
+  1086→          mediaUrl ? "min-h-[280px]" : "min-h-[220px]"
+  1087→        )}
+  1088→      >
+  1089→        {mediaUrl ? (
+  1090→          <>
+  1091→            <div className="flex items-center justify-center" style={{ aspectRatio: cropAspect.replace(":", "/") }}>
+  1092→              <img
+  1093→                src={mediaUrl}
+  1094→                alt={altText || "Selected media"}
+  1095→                className="max-h-[340px] w-full rounded-xl object-cover"
+  1096→              />
+  1097→            </div>
+  1098→            <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 via-transparent to-transparent p-3 opacity-0 transition group-hover:opacity-100">
+  1099→              <span className="flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg backdrop-blur">
+  1100→                <RefreshCw className="h-3 w-3" /> Replace media
+  1101→              </span>
+  1102→            </div>
+  1103→          </>
+  1104→        ) : (
+  1105→          <div className="grid place-items-center py-8 text-center">
+  1106→            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+  1107→              <Upload className="h-5 w-5" />
+  1108→            </div>
+  1109→            <div className="mt-3 text-sm font-medium">Click to browse or upload</div>
+  1110→            <div className="mt-1 text-xs text-muted-foreground">
+  1111→              PNG, JPG, MP4 · up to 50MB
+  1112→            </div>
+  1113→          </div>
+  1114→        )}
+  1115→      </button>
+  1116→
+  1117→      {/* Media library grid */}
+  1118→      <div className="mt-4">
+  1119→        <div className="mb-2 text-xs font-medium text-muted-foreground">
+  1120→          Media library
+  1121→        </div>
+  1122→        {mediaAssets.length === 0 ? (
+  1123→          <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
+  1124→            No media yet. Paste a URL above, or upload assets from the Media
+  1125→            Library view first.
+  1126→          </div>
+  1127→        ) : (
+  1128→          <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+  1129→            {mediaAssets.map((m) => (
+  1130→              <button
+  1131→                key={m.id}
+  1132→                onClick={() => onMedia(m.url)}
+  1133→                className={cn(
+  1134→                  "relative aspect-square overflow-hidden rounded-xl ring-2 transition",
+  1135→                  mediaUrl === m.url ? "ring-primary" : "ring-transparent hover:ring-border"
+  1136→                )}
+  1137→              >
+  1138→                <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
+  1139→                {mediaUrl === m.url && (
+  1140→                  <span className="absolute inset-0 grid place-items-center bg-primary/30">
+  1141→                    <Check className="h-4 w-4 text-white drop-shadow" />
+  1142→                  </span>
+  1143→                )}
+  1144→              </button>
+  1145→            ))}
+  1146→          </div>
+  1147→        )}
+  1148→      </div>
+  1149→
+  1150→      {/* Alt text + crop hint */}
+  1151→      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+  1152→        <div>
+  1153→          <Label className="mb-1.5 text-xs text-muted-foreground">
+  1154→            Alt text (accessibility)
+  1155→          </Label>
+  1156→          <input
+  1157→            value={altText}
+  1158→            onChange={(e) => onAltText(e.target.value)}
+  1159→            placeholder="Describe the image for screen readers"
+  1160→            className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+  1161→          />
+  1162→        </div>
+  1163→        <div>
+  1164→          <Label className="mb-1.5 text-xs text-muted-foreground">Crop aspect</Label>
+  1165→          <div className="flex flex-wrap gap-1.5">
+  1166→            {["1:1", "4:5", "16:9", "9:16"].map((c) => (
+  1167→              <button
+  1168→                key={c}
+  1169→                onClick={() => onCropAspect(c)}
+  1170→                className={cn(
+  1171→                  "rounded-lg border px-2.5 py-2 text-xs font-medium transition",
+  1172→                  cropAspect === c
+  1173→                    ? "border-primary bg-primary/10 text-primary"
+  1174→                    : "border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground"
+  1175→                )}
+  1176→              >
+  1177→                {c}
+  1178→              </button>
+  1179→            ))}
+  1180→          </div>
+  1181→        </div>
+  1182→      </div>
+  1183→
+  1184→      <UploadDialog
+  1185→        open={uploadOpen}
+  1186→        onOpenChange={onUploadOpen}
+  1187→        onPick={(m) => {
+  1188→          onMedia(m);
+  1189→          onUploadOpen(false);
+  1190→        }}
+  1191→        urlInput={urlInput}
+  1192→        onUrlInput={onUrlInput}
+  1193→        onUrlSubmit={onUrlSubmit}
+  1194→        current={mediaUrl}
+  1195→        mediaAssets={mediaAssets}
+  1196→        userId={user?.id}
+  1197→      />
+  1198→    </GlassCard>
+  1199→  );
+  1200→}
+  1201→
+  1202→function UploadDialog({
+  1203→  open,
+  1204→  onOpenChange,
+  1205→  onPick,
+  1206→  urlInput,
+  1207→  onUrlInput,
+  1208→  onUrlSubmit,
+  1209→  current,
+  1210→  mediaAssets,
+  1211→  userId,
+  1212→}: {
+  1213→  open: boolean;
+  1214→  onOpenChange: (o: boolean) => void;
+  1215→  onPick: (m: string) => void;
+  1216→  urlInput: string;
+  1217→  onUrlInput: (v: string) => void;
+  1218→  onUrlSubmit: () => void;
+  1219→  current: string;
+  1220→  mediaAssets: MediaAssetLite[];
+  1221→  userId?: string;
+  1222→}) {
+  1223→  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  1224→  const [uploading, setUploading] = React.useState(false);
+  1225→  const [dragOver, setDragOver] = React.useState(false);
+  1226→
+  1227→  const handleFile = async (file: File) => {
+  1228→    if (!userId) {
+  1229→      toast.error("Sign in to upload files");
+  1230→      return;
+  1231→    }
+  1232→    if (file.size > 1.5 * 1024 * 1024) {
+  1233→      toast.error("File too large (max 1.5MB). Use a URL for larger files.");
+  1234→      return;
+  1235→    }
+  1236→    setUploading(true);
+  1237→    try {
+  1238→      const fd = new FormData();
+  1239→      fd.append("file", file);
+  1240→      fd.append("uploadedById", userId);
+  1241→      fd.append("folder", "root");
+  1242→      const res = await fetch("/api/media/upload", { method: "POST", body: fd });
+  1243→      const json = await res.json();
+  1244→      if (res.ok && json.url) {
+  1245→        toast.success(`"${file.name}" uploaded`);
+  1246→        onPick(json.url);
+  1247→        onOpenChange(false);
+  1248→      } else {
+  1249→        toast.error(json.error ?? "Upload failed");
+  1250→      }
+  1251→    } catch {
+  1252→      toast.error("Network error during upload");
+  1253→    } finally {
+  1254→      setUploading(false);
+  1255→    }
+  1256→  };
+  1257→
+  1258→  return (
+  1259→    <Dialog open={open} onOpenChange={onOpenChange}>
+  1260→      <DialogContent className="glass-strong max-w-2xl">
+  1261→        <DialogHeader>
+  1262→          <DialogTitle>Choose media</DialogTitle>
+  1263→        </DialogHeader>
+  1264→        <div className="space-y-4">
+  1265→          {/* === Direct file upload (drag-and-drop) === */}
+  1266→          <div
+  1267→            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+  1268→            onDragLeave={() => setDragOver(false)}
+  1269→            onDrop={(e) => {
+  1270→              e.preventDefault();
+  1271→              setDragOver(false);
+  1272→              const f = e.dataTransfer.files[0];
+  1273→              if (f) handleFile(f);
+  1274→            }}
+  1275→            onClick={() => !uploading && fileInputRef.current?.click()}
+  1276→            className={cn(
+  1277→              "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-6 text-center transition",
+  1278→              dragOver ? "border-primary bg-primary/10" : "border-border hover:border-primary/40 hover:bg-muted/40",
+  1279→              uploading && "pointer-events-none opacity-60"
+  1280→            )}
+  1281→          >
+  1282→            <input
+  1283→              ref={fileInputRef}
+  1284→              type="file"
+  1285→              accept="image/*,video/*,audio/*"
+  1286→              className="hidden"
+  1287→              onChange={(e) => {
+  1288→                const f = e.target.files?.[0];
+  1289→                if (f) handleFile(f);
+  1290→                e.target.value = "";
+  1291→              }}
+  1292→            />
+  1293→            {uploading ? (
+  1294→              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  1295→            ) : (
+  1296→              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+  1297→                <Upload className="h-5 w-5" />
+  1298→              </div>
+  1299→            )}
+  1300→            <div className="text-sm font-medium">
+  1301→              {uploading ? "Uploading…" : "Drop a file or click to upload"}
+  1302→            </div>
+  1303→            <div className="text-[11px] text-muted-foreground">
+  1304→              PNG, JPG, MP4 · max 1.5MB
+  1305→            </div>
+  1306→          </div>
+  1307→
+  1308→          {/* Divider */}
+  1309→          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+  1310→            <div className="h-px flex-1 bg-border/40" />
+  1311→            or paste URL
+  1312→            <div className="h-px flex-1 bg-border/40" />
+  1313→          </div>
+  1314→
+  1315→          {/* URL input */}
+  1316→          <div>
+  1317→            <Label className="mb-2 text-xs text-muted-foreground">Image URL</Label>
+  1318→            <div className="flex gap-2">
+  1319→              <input
+  1320→                value={urlInput}
+  1321→                onChange={(e) => onUrlInput(e.target.value)}
+  1322→                placeholder="https://example.com/image.jpg"
+  1323→                className="flex-1 rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+  1324→              />
+  1325→              <button
+  1326→                onClick={onUrlSubmit}
+  1327→                className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold"
+  1328→              >
+  1329→                <Link2 className="h-3.5 w-3.5" /> Use URL
+  1330→              </button>
+  1331→            </div>
+  1332→          </div>
+  1333→
+  1334→          {/* Media library grid */}
+  1335→          {mediaAssets.length > 0 && (
+  1336→            <>
+  1337→              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+  1338→                <div className="h-px flex-1 bg-border/40" />
+  1339→                or pick from library
+  1340→                <div className="h-px flex-1 bg-border/40" />
+  1341→              </div>
+  1342→              <div className="grid grid-cols-4 gap-2">
+  1343→                {mediaAssets.map((m) => (
+  1344→                  <button
+  1345→                    key={m.id}
+  1346→                    onClick={() => {
+  1347→                      onPick(m.url);
+  1348→                      onOpenChange(false);
+  1349→                    }}
+  1350→                    className={cn(
+  1351→                      "relative aspect-square overflow-hidden rounded-xl ring-2 transition",
+  1352→                      current === m.url ? "ring-primary" : "ring-transparent hover:ring-border"
+  1353→                    )}
+  1354→                  >
+  1355→                    <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
+  1356→                    {current === m.url && (
+  1357→                      <span className="absolute inset-0 grid place-items-center bg-primary/30">
+  1358→                        <Check className="h-4 w-4 text-white drop-shadow" />
+  1359→                      </span>
+  1360→                    )}
+  1361→                  </button>
+  1362→                ))}
+  1363→              </div>
+  1364→            </>
+  1365→          )}
+  1366→        </div>
+  1367→        <div className="mt-2 flex justify-end">
+  1368→          <DialogClose asChild>
+  1369→            <button className="rounded-xl border border-border/50 bg-muted/40 px-4 py-2 text-sm font-medium hover:bg-muted">
+  1370→              Done
+  1371→            </button>
+  1372→          </DialogClose>
+  1373→        </div>
+  1374→      </DialogContent>
+  1375→    </Dialog>
+  1376→  );
+  1377→}
+  1378→
+  1379→/* ============================================================
+  1380→   Step 4 — Preview
+  1381→   ============================================================ */
+  1382→function Step4({
+  1383→  accounts,
+  1384→  variants,
+  1385→  onVariantChange,
+  1386→  mediaUrl,
+  1387→  caption,
+  1388→  onRegenerate,
+  1389→  onRegenerateAll,
+  1390→  generating,
+  1391→}: {
+  1392→  accounts: AccountData[];
+  1393→  variants: Record<string, Variant>;
+  1394→  onVariantChange: (id: string, v: Variant) => void;
+  1395→  mediaUrl: string;
+  1396→  caption: string;
+  1397→  onRegenerate: (id: string) => void;
+  1398→  onRegenerateAll: () => void;
+  1399→  generating: boolean;
+  1400→}) {
+  1401→  const hasVariants = Object.keys(variants).length > 0;
+  1402→
+  1403→  if (accounts.length === 0) {
+  1404→    return (
+  1405→      <GlassCard className="crystal-in grid place-items-center p-10 text-center">
+  1406→        <Sparkles className="h-8 w-8 text-muted-foreground/40" />
+  1407→        <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+  1408→          Go back to step 1 and select at least one account to preview your
+  1409→          posts.
+  1410→        </p>
+  1411→      </GlassCard>
+  1412→    );
+  1413→  }
+  1414→
+  1415→  return (
+  1416→    <GlassCard
+  1417→      strong
+  1418→      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
+  1419→      style={{ animationDelay: "0.05s" }}
+  1420→    >
+  1421→      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.66_0.11_220)]/20 blur-3xl" />
+  1422→      <SectionTitle
+  1423→        title="Review your posts"
+  1424→        desc="AI-generated per platform. Edit freely — these will be published as-is."
+  1425→        action={
+  1426→          <button
+  1427→            onClick={onRegenerateAll}
+  1428→            disabled={generating}
+  1429→            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+  1430→          >
+  1431→            <RefreshCw className={cn("h-3 w-3", generating && "animate-spin")} />
+  1432→            Regenerate all
+  1433→          </button>
+  1434→        }
+  1435→      />
+  1436→
+  1437→      <Tabs defaultValue={accounts[0]?.id} className="w-full">
+  1438→        <div className="scroll-liquid mb-4 max-w-full overflow-x-auto pb-1">
+  1439→          <TabsList className="h-auto flex w-max gap-1 bg-muted/40 p-1">
+  1440→            {accounts.map((a) => (
+  1441→              <TabsTrigger
+  1442→                key={a.id}
+  1443→                value={a.id}
+  1444→                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+  1445→              >
+  1446→                <PlatformBadge platform={a.platform} size={20} />
+  1447→                <span className="hidden sm:inline">{a.handle}</span>
+  1448→                <span className="sm:hidden">{PLATFORMS[a.platform].short}</span>
+  1449→                {variants[a.id] && (
+  1450→                  <span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-emerald-500/30 text-emerald-500">
+  1451→                    <Check className="h-2.5 w-2.5" />
+  1452→                  </span>
+  1453→                )}
+  1454→              </TabsTrigger>
+  1455→            ))}
+  1456→          </TabsList>
+  1457→        </div>
+  1458→
+  1459→        {accounts.map((a) => {
+  1460→          const p = PLATFORMS[a.platform];
+  1461→          const variant = variants[a.id];
+  1462→          const content = variant?.content ?? caption;
+  1463→          const hashtags = variant?.hashtags ?? "";
+  1464→          const overLimit = content.length > p.charLimit;
+  1465→          return (
+  1466→            <TabsContent key={a.id} value={a.id} className="mt-0">
+  1467→              <div className="grid gap-4 md:grid-cols-2">
+  1468→                {/* Editor */}
+  1469→                <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1470→                  <div className="mb-3 flex items-center gap-2">
+  1471→                    <PlatformBadge platform={a.platform} size={28} />
+  1472→                    <div className="min-w-0 flex-1">
+  1473→                      <div className="flex items-center gap-1 text-sm font-semibold">
+  1474→                        {a.displayName}
+  1475→                        {a.verified && <VerifiedTick className="text-primary" />}
+  1476→                      </div>
+  1477→                      <div className="truncate text-[11px] text-muted-foreground">
+  1478→                        {a.handle} · {p.name}
+  1479→                      </div>
+  1480→                    </div>
+  1481→                    {variant && (
+  1482→                      <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500">
+  1483→                        <Sparkles className="h-3 w-3" /> AI
+  1484→                      </span>
+  1485→                    )}
+  1486→                    <button
+  1487→                      onClick={() => onRegenerate(a.id)}
+  1488→                      disabled={generating}
+  1489→                      className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-primary disabled:opacity-50"
+  1490→                      title="Regenerate this variant"
+  1491→                      aria-label={`Regenerate ${a.displayName} variant`}
+  1492→                    >
+  1493→                      <RefreshCw
+  1494→                        className={cn("h-3.5 w-3.5", generating && "animate-spin")}
+  1495→                      />
+  1496→                    </button>
+  1497→                  </div>
+  1498→                  <textarea
+  1499→                    value={content}
+  1500→                    onChange={(e) =>
+  1501→                      onVariantChange(a.id, {
+  1502→                        content: e.target.value,
+  1503→                        hashtags,
+  1504→                      })
+  1505→                    }
+  1506→                    placeholder={`Write a ${p.name}-native caption…`}
+  1507→                    className="scroll-liquid min-h-[120px] w-full resize-y rounded-xl border border-border/40 bg-background/60 p-3 text-sm outline-none transition focus:border-primary/50"
+  1508→                  />
+  1509→                  <div className="mt-2 flex items-center gap-2">
+  1510→                    <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+  1511→                    <input
+  1512→                      value={hashtags}
+  1513→                      onChange={(e) =>
+  1514→                        onVariantChange(a.id, {
+  1515→                          content,
+  1516→                          hashtags: e.target.value,
+  1517→                        })
+  1518→                      }
+  1519→                      placeholder="hashtags, comma, separated"
+  1520→                      className="flex-1 rounded-lg border border-border/40 bg-background/60 px-2.5 py-1.5 text-xs outline-none focus:border-primary/50"
+  1521→                    />
+  1522→                    <span
+  1523→                      className={cn(
+  1524→                        "shrink-0 text-[10px]",
+  1525→                        overLimit
+  1526→                          ? "font-semibold text-rose-500"
+  1527→                          : "text-muted-foreground"
+  1528→                      )}
+  1529→                    >
+  1530→                      {content.length}/{p.charLimit}
+  1531→                    </span>
+  1532→                  </div>
+  1533→                </div>
+  1534→
+  1535→                {/* Phone preview */}
+  1536→                <div>
+  1537→                  <div className="mb-2 text-xs font-medium text-muted-foreground">
+  1538→                    Preview
+  1539→                  </div>
+  1540→                  <PhonePreview
+  1541→                    account={a}
+  1542→                    content={content}
+  1543→                    mediaUrl={mediaUrl}
+  1544→                    hashtags={hashtags}
+  1545→                  />
+  1546→                </div>
+  1547→              </div>
+  1548→            </TabsContent>
+  1549→          );
+  1550→        })}
+  1551→      </Tabs>
+  1552→
+  1553→      {!hasVariants && (
+  1554→        <div className="mt-4 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-foreground/80">
+  1555→          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+  1556→          <span>
+  1557→            No AI variants yet — these previews show your base caption. Go back
+  1558→            to step 2 and tap{" "}
+  1559→            <b className="text-foreground">Generate AI variants</b> for
+  1560→            platform-native rewrites.
+  1561→          </span>
+  1562→        </div>
+  1563→      )}
+  1564→    </GlassCard>
+  1565→  );
+  1566→}
+  1567→
+  1568→function PhonePreview({
+  1569→  account,
+  1570→  content,
+  1571→  mediaUrl,
+  1572→  hashtags,
+  1573→}: {
+  1574→  account: AccountData;
+  1575→  content: string;
+  1576→  mediaUrl: string;
+  1577→  hashtags: string;
+  1578→}) {
+  1579→  const tags = hashtags
+  1580→    .split(/[,\s]+/)
+  1581→    .map((t) => t.replace(/^#/, "").trim())
+  1582→    .filter(Boolean);
+  1583→  return (
+  1584→    <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-3xl border border-border/60 bg-background shadow-lg">
+  1585→      {/* Header */}
+  1586→      <div className="flex items-center gap-2 p-3">
+  1587→        <PlatformBadge platform={account.platform} size={32} />
+  1588→        <div className="min-w-0 flex-1">
+  1589→          <div className="flex items-center gap-1 text-xs font-semibold">
+  1590→            <span className="truncate">{account.displayName}</span>
+  1591→            {account.verified && <VerifiedTick className="text-primary" />}
+  1592→          </div>
+  1593→          <div className="text-[10px] text-muted-foreground">{account.handle}</div>
+  1594→        </div>
+  1595→        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+  1596→      </div>
+  1597→
+  1598→      {/* Media */}
+  1599→      {mediaUrl && (
+  1600→        <div className="aspect-square w-full overflow-hidden bg-muted">
+  1601→          <img src={mediaUrl} alt="" className="h-full w-full object-cover" />
+  1602→        </div>
+  1603→      )}
+  1604→
+  1605→      {/* Body */}
+  1606→      <div className="p-3">
+  1607→        <div className="mb-2 flex items-center gap-3 text-muted-foreground">
+  1608→          <Heart className="h-4 w-4" />
+  1609→          <MessageCircle className="h-4 w-4" />
+  1610→          <Send className="h-4 w-4" />
+  1611→          <Bookmark className="ml-auto h-4 w-4" />
+  1612→        </div>
+  1613→        <div className="text-[10px] font-semibold">
+  1614→          {fmt(account.followers)} followers
+  1615→        </div>
+  1616→        <p className="mt-1 line-clamp-4 text-xs leading-relaxed text-foreground/90">
+  1617→          {content || "Your caption will appear here…"}
+  1618→        </p>
+  1619→        {tags.length > 0 && (
+  1620→          <div className="mt-1.5 flex flex-wrap gap-x-1 text-[11px] font-medium text-primary">
+  1621→            {tags.slice(0, 6).map((t, i) => (
+  1622→              <span key={t + i}>#{t}</span>
+  1623→            ))}
+  1624→          </div>
+  1625→        )}
+  1626→        <div className="mt-2 text-[9px] uppercase tracking-wide text-muted-foreground">
+  1627→          {PLATFORMS[account.platform].name}
+  1628→        </div>
+  1629→      </div>
+  1630→    </div>
+  1631→  );
+  1632→}
+  1633→
+  1634→/* ============================================================
+  1635→   Step 5 — Post
+  1636→   ============================================================ */
+  1637→function Step5({
+  1638→  accounts,
+  1639→  mediaUrl,
+  1640→  mediaType,
+  1641→  tone,
+  1642→  caption,
+  1643→  scheduleEnabled,
+  1644→  onScheduleEnabled,
+  1645→  scheduledAt,
+  1646→  onScheduledAt,
+  1647→  hasVariants,
+  1648→}: {
+  1649→  accounts: AccountData[];
+  1650→  mediaUrl: string;
+  1651→  mediaType: MediaType;
+  1652→  tone: string;
+  1653→  caption: string;
+  1654→  scheduleEnabled: boolean;
+  1655→  onScheduleEnabled: (v: boolean) => void;
+  1656→  scheduledAt: string;
+  1657→  onScheduledAt: (v: string) => void;
+  1658→  hasVariants: boolean;
+  1659→}) {
+  1660→  const checklist = [
+  1661→    { label: `Accounts selected (${accounts.length})`, done: accounts.length > 0 },
+  1662→    { label: "Content written", done: caption.trim().length > 0 },
+  1663→    { label: "Media added", done: !!mediaUrl },
+  1664→    { label: "AI variants ready", done: hasVariants },
+  1665→  ];
+  1666→  const allDone = checklist.every((c) => c.done);
+  1667→  const combinedReach = accounts.reduce((s, a) => s + a.followers, 0);
+  1668→
+  1669→  return (
+  1670→    <GlassCard
+  1671→      strong
+  1672→      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
+  1673→      style={{ animationDelay: "0.05s" }}
+  1674→    >
+  1675→      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.72_0.13_190)]/20 blur-3xl" />
+  1676→      <SectionTitle
+  1677→        title="Ready to publish"
+  1678→        desc="Review everything and hit publish. You can also schedule for later."
+  1679→      />
+  1680→
+  1681→      <div className="grid gap-4 lg:grid-cols-2">
+  1682→        {/* Summary */}
+  1683→        <div className="space-y-3">
+  1684→          <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1685→            <div className="label-caps mb-3 text-muted-foreground">Summary</div>
+  1686→            <div className="space-y-2.5">
+  1687→              <Row
+  1688→                label="Accounts"
+  1689→                value={`${accounts.length} selected · ${fmt(combinedReach)} reach`}
+  1690→              />
+  1691→              <Row
+  1692→                label="Media type"
+  1693→                value={mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}
+  1694→              />
+  1695→              <Row label="Tone" value={tone} />
+  1696→              <Row
+  1697→                label="Caption"
+  1698→                value={
+  1699→                  <span className="line-clamp-2 italic text-muted-foreground">
+  1700→                    “{caption.slice(0, 80) || "(empty)"}
+  1701→                    {caption.length > 80 ? "…" : ""}”
+  1702→                  </span>
+  1703→                }
+  1704→              />
+  1705→            </div>
+  1706→            {mediaUrl && (
+  1707→              <div className="mt-3 overflow-hidden rounded-xl border border-border/40">
+  1708→                <img
+  1709→                  src={mediaUrl}
+  1710→                  alt=""
+  1711→                  className="aspect-video w-full object-cover"
+  1712→                />
+  1713→              </div>
+  1714→            )}
+  1715→          </div>
+  1716→
+  1717→          <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1718→            <div className="label-caps mb-3 text-muted-foreground">
+  1719→              Destination accounts
+  1720→            </div>
+  1721→            <div className="scroll-liquid max-h-44 space-y-1 overflow-y-auto pr-1">
+  1722→              {accounts.map((a) => (
+  1723→                <div
+  1724→                  key={a.id}
+  1725→                  className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-muted/40"
+  1726→                >
+  1727→                  <PlatformBadge platform={a.platform} size={22} />
+  1728→                  <span className="truncate text-xs font-medium">
+  1729→                    {a.displayName}
+  1730→                  </span>
+  1731→                  <span className="text-[10px] text-muted-foreground">
+  1732→                    {a.handle}
+  1733→                  </span>
+  1734→                  <span className="ml-auto text-[10px] text-muted-foreground">
+  1735→                    {fmt(a.followers)}
+  1736→                  </span>
+  1737→                </div>
+  1738→              ))}
+  1739→            </div>
+  1740→          </div>
+  1741→        </div>
+  1742→
+  1743→        {/* Schedule + checklist */}
+  1744→        <div className="space-y-3">
+  1745→          <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1746→            <div className="flex items-center justify-between">
+  1747→              <div>
+  1748→                <div className="text-sm font-semibold">Publish now</div>
+  1749→                <div className="text-[11px] text-muted-foreground">
+  1750→                  Send immediately to all selected accounts
+  1751→                </div>
+  1752→              </div>
+  1753→              <Switch
+  1754→                checked={!scheduleEnabled}
+  1755→                onCheckedChange={(v) => onScheduleEnabled(!v)}
+  1756→                aria-label="Publish now"
+  1757→              />
+  1758→            </div>
+  1759→            <div className="my-3 border-t border-border/40" />
+  1760→            <div className="flex items-center justify-between">
+  1761→              <div>
+  1762→                <div className="text-sm font-semibold">Schedule for later</div>
+  1763→                <div className="text-[11px] text-muted-foreground">
+  1764→                  Pick a future date &amp; time
+  1765→                </div>
+  1766→              </div>
+  1767→              <Switch
+  1768→                checked={scheduleEnabled}
+  1769→                onCheckedChange={onScheduleEnabled}
+  1770→                aria-label="Schedule for later"
+  1771→              />
+  1772→            </div>
+  1773→            {scheduleEnabled && (
+  1774→              <div className="mt-3 flex items-center gap-2">
+  1775→                <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+  1776→                <input
+  1777→                  type="datetime-local"
+  1778→                  value={scheduledAt}
+  1779→                  onChange={(e) => onScheduledAt(e.target.value)}
+  1780→                  className="flex-1 rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-sm outline-none transition focus:border-primary/50"
+  1781→                />
+  1782→              </div>
+  1783→            )}
+  1784→          </div>
+  1785→
+  1786→          <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+  1787→            <div className="label-caps mb-3 text-muted-foreground">
+  1788→              Pre-publish checklist
+  1789→            </div>
+  1790→            <div className="space-y-2">
+  1791→              {checklist.map((c) => (
+  1792→                <div key={c.label} className="flex items-center gap-2 text-sm">
+  1793→                  <span
+  1794→                    className={cn(
+  1795→                      "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
+  1796→                      c.done
+  1797→                        ? "border-primary bg-primary text-primary-foreground"
+  1798→                        : "border-border text-muted-foreground"
+  1799→                    )}
+  1800→                  >
+  1801→                    {c.done ? (
+  1802→                      <Check className="h-3 w-3" />
+  1803→                    ) : (
+  1804→                      <AlertCircle className="h-3 w-3" />
+  1805→                    )}
+  1806→                  </span>
+  1807→                  <span className={c.done ? "text-foreground" : "text-muted-foreground"}>
+  1808→                    {c.label}
+  1809→                  </span>
+  1810→                </div>
+  1811→              ))}
+  1812→            </div>
+  1813→            <div
+  1814→              className={cn(
+  1815→                "mt-3 flex items-center gap-2 rounded-xl p-2.5 text-xs font-medium",
+  1816→                allDone
+  1817→                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+  1818→                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+  1819→              )}
+  1820→            >
+  1821→              {allDone ? (
+  1822→                <Check className="h-3.5 w-3.5" />
+  1823→              ) : (
+  1824→                <AlertCircle className="h-3.5 w-3.5" />
+  1825→              )}
+  1826→              {allDone
+  1827→                ? "All set — ready to publish."
+  1828→                : "Some items need attention before publishing."}
+  1829→            </div>
+  1830→          </div>
+  1831→        </div>
+  1832→      </div>
+  1833→    </GlassCard>
+  1834→  );
+  1835→}
+  1836→
+  1837→function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  1838→  return (
+  1839→    <div className="flex items-start justify-between gap-3">
+  1840→      <span className="text-xs text-muted-foreground">{label}</span>
+  1841→      <span className="max-w-[60%] text-right text-xs font-medium">{value}</span>
+  1842→    </div>
+  1843→  );
+  1844→}
+  1845→
+  1846→/* ============================================================
+  1847→   Sticky footer with Back / Continue / Publish
+  1848→   ============================================================ */
+  1849→function StepFooter({
+  1850→  step,
+  1851→  onBack,
+  1852→  onNext,
+  1853→  canContinue,
+  1854→  onPublish,
+  1855→  publishing,
+  1856→  scheduleEnabled,
+  1857→}: {
+  1858→  step: Step;
+  1859→  onBack: () => void;
+  1860→  onNext: () => void;
+  1861→  canContinue: boolean;
+  1862→  onPublish: () => void;
+  1863→  publishing: boolean;
+  1864→  scheduleEnabled: boolean;
+  1865→}) {
+  1866→  const isPublish = step === 5;
+  1867→  return (
+  1868→    <div className="sticky bottom-0 z-30 -mx-4 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+  1869→      <div className="glass-strong flex items-center justify-between gap-3 rounded-2xl px-4 py-3 sm:px-5">
+  1870→        <div className="flex items-center gap-2">
+  1871→          {step > 1 ? (
+  1872→            <button
+  1873→              onClick={onBack}
+  1874→              className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-sm font-medium transition hover:bg-muted"
+  1875→            >
+  1876→              <ArrowLeft className="h-3.5 w-3.5" />
+  1877→              <span className="hidden sm:inline">Back</span>
+  1878→            </button>
+  1879→          ) : (
+  1880→            <span className="text-[11px] text-muted-foreground">
+  1881→              Step {step} of 5
+  1882→            </span>
+  1883→          )}
+  1884→        </div>
+  1885→        <div className="flex items-center gap-2">
+  1886→          {isPublish ? (
+  1887→            <button
+  1888→              onClick={onPublish}
+  1889→              disabled={publishing}
+  1890→              className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+  1891→            >
+  1892→              {publishing ? (
+  1893→                <Loader2 className="h-4 w-4 animate-spin" />
+  1894→              ) : scheduleEnabled ? (
+  1895→                <CalendarClock className="h-4 w-4" />
+  1896→              ) : (
+  1897→                <Send className="h-4 w-4" />
+  1898→              )}
+  1899→              {publishing
+  1900→                ? "Publishing…"
+  1901→                : scheduleEnabled
+  1902→                ? "Schedule post"
+  1903→                : "Publish now"}
+  1904→            </button>
+  1905→          ) : (
+  1906→            <button
+  1907→              onClick={onNext}
+  1908→              disabled={!canContinue}
+  1909→              className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+  1910→            >
+  1911→              Continue
+  1912→              <ArrowRight className="h-3.5 w-3.5" />
+  1913→            </button>
+  1914→          )}
+  1915→        </div>
+  1916→      </div>
+  1917→    </div>
+  1918→  );
+  1919→}
+  1920→

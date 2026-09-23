@@ -1564,3 +1564,37 @@ Stage Summary:
 - Existing user (Ashraf) does NOT need to re-run the "Login with X" flow — the 91-char OAuth 2.0 user token was migrated from `accessToken` into `oauth2UserToken`. Posting will use the migrated token immediately.
 - If the migrated OAuth 2.0 token has expired (Twitter issues 2-hour tokens without offline.access refresh handling), the user will need to click "Login with X" ONCE to refresh — the callback will write the fresh token directly into `oauth2UserToken` without disturbing OAuth 1.0a creds.
 - Files: prisma/schema.prisma, src/app/api/oauth/callback/[platform]/route.ts, src/app/api/publish/[platform]/route.ts, scripts/check-cred.ts, scripts/migrate-oauth2-token.ts.
+
+---
+Task ID: republish-drafts
+Agent: main (code assistant)
+Task: Add option to republish draft posts — integrate into the composer module.
+
+Work Log:
+- Root cause: The composer only ever POSTed NEW posts to /api/posts. There was no UI flow to load an existing draft, edit it, and republish (PATCH). Drafts piled up in the DB with no way to revive them.
+- Schema-aware fix: extended PATCH /api/posts/[id] to also sync PostVariant rows (create/update by accountId or id) — variants not in the payload are left untouched so a republish doesn't wipe analytics for unedited accounts. When post.status flips to "published", variants get status="published" + publishedAt=now().
+- Nav store (src/lib/store.ts): added `composerEditPost: Post | null` + `openComposerWithPost(post)` + `clearComposerEditPost()`.
+- Composer (src/components/views/composer.tsx):
+  • Reads `composerEditPost` from the store; on change, hydrates ComposerState (caption, tone, mediaUrl, mediaType, scheduledAt, selectedAccountIds from variants, variants map from per-account content+hashtags) and jumps to Step 2.
+  • Edge case: drafts saved with 0 variants now auto-preselect the top 4 user accounts so publish() doesn't silently fail the "Select accounts" guard.
+  • Shows an "Editing banner" (republishing-draft pill + post ID + Discard button) above the step content while in edit mode.
+  • Step 1 now also shows a DraftsPanel — horizontally-scrollable cards of all status=draft + status=failed posts (up to 12), each showing platforms, status pill, title, caption snippet, timeAgo, "Edit & publish" hover affordance. "Show all (N)" toggle when >4.
+  • publish() branches: if editingPostId is set → PATCH /api/posts/[id] (title/caption/mediaUrl/tone/status/scheduledAt/variants); else → POST /api/posts as before. Either way, after the save, calls /api/publish/[platform] per account for real posting.
+  • Safety net: if every platform publish failed AND we have a savedPostId, PATCH status="failed" so the post shows back up in the drafts panel for retry (instead of being stranded as "published" with zero delivery).
+  • StepFooter: when editing=true the publish button reads "Republish now" / "Republishing…" / "Update & schedule" (instead of "Publish now" / "Publishing…" / "Schedule post") and shows a RotateCw icon instead of Send.
+- Calendar (src/components/views/calendar.tsx): day-detail sidebar now shows a "Republish draft" button (RotateCw icon) for posts with status=draft/failed, and "Edit & reschedule" for status=scheduled. Clicking calls openComposerWithPost(p) and toasts "Loaded '<title>' into composer".
+
+Verification (Agent Browser, logged in as it.ashraf@outlook.com):
+- Composer Step 1 now shows a "Drafts & failed posts" panel with 4 saved drafts visible as horizontal cards.
+- Clicked "Winter collection 2026 is launching soon" card → composer jumped to Step 2 with caption pre-filled, "REPUBLISHING DRAFT" banner visible, "Discard" button available, Step 2 nav enabled.
+- Advanced to Step 5 → footer button read "Republish now" (not "Publish now").
+- Clicked Republish → server log: PATCH /api/posts/cmue36gqx000004jsp8pqsbpl 200 (draft updated, 1 variant created + attached to the X account), then POST /api/publish/twitter 500 (OAuth 1.0a 401 because the stored OAuth 1.0a token is for a different account — known data issue, not code). Then a second PATCH flipped status → "failed" (safety net). The drafts panel reloaded.
+- DB verified: post now has status="failed", 1 variant attached to @pklastlook X account, content preserved, updatedAt fresh.
+- Calendar: clicked "Republish draft" on a draft in the day-detail sidebar → composer opened with the draft loaded ("Excited to launch our new summer collection!" caption prefilled).
+- Discard button: clicked → composer reset to Step 1 with empty state (fresh compose).
+
+Stage Summary:
+- Files: src/app/api/posts/[id]/route.ts (PATCH extended with variant sync), src/lib/store.ts (composerEditPost + openComposerWithPost), src/components/views/composer.tsx (EditingBanner + DraftsPanel + publish() republish branch + StepFooter labels), src/components/views/calendar.tsx (Republish draft button on day cards).
+- Also added scripts/check-post-status.ts + scripts/migrate-oauth2-token.ts + scripts/check-cred.ts + scripts/reset-pw.ts (debug helpers, kept for future use).
+- Lint: 0 errors. TypeScript: 0 errors in src/. All API routes 200 (except the expected Twitter publish 500 because OAuth 1.0a token is for a different account — data fix needed, not a code bug).
+- The republish flow now works from BOTH the Composer (Drafts panel on Step 1) AND the Calendar (per-day "Republish draft" button).
