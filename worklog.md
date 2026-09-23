@@ -1444,3 +1444,25 @@ Work Log:
 Stage Summary:
 - 2 files changed: src/app/globals.css (full rewrite), src/components/glass/retina-bg.tsx (removed blob-3 div).
 - Pushed to GitHub (bd65788). Lint: 0 errors. TypeScript: 0 errors in src/.
+
+---
+Task ID: ux-elevation
+Agent: main (code assistant)
+Task: Elevate dashboard + sidebar UX to Apple-premium quality (typographic hierarchy, subtle nav, actionable empty states).
+
+Work Log:
+- Based on senior-designer VLM audit (B+ rating, "modern SaaS not Apple premium"), implemented 3 high-impact fixes:
+- FIX 1 — KPI typographic hierarchy (glass-card.tsx): Numbers now text-[40px]/[44px] font-bold (was 32px semibold). Label moved to top row as tiny uppercase caps next to smaller icon tile. Delta badge shrunk to 10px. Empty data state: "Awaiting data" with dot indicator (was faint "No data yet"). Removed heavy blur-glow behind icons.
+- FIX 2 — Active sidebar nav (app-sidebar.tsx): Replaced solid bg-primary/12 block + inset ring with subtle accent tint (item's own accent color at ~8% opacity). Left accent bar refined to 3px with soft glow. Active text font-semibold, inactive muted-foreground. Added breathing room (space-y-1 between groups). VLM rated sidebar: A-.
+- FIX 3 — Actionable empty states (dashboard.tsx): "No scheduled posts" → centered CalendarClock icon + "Open composer" CTA. "No accounts connected" (Followers donut) → centered Users icon + "Connect account" CTA. "No published posts yet" (Top posts) → centered Heart icon + guidance. "No recent activity" → centered icon + guidance. Every empty state now tells the user what to do next.
+- BONUS: Dashboard greeting display-style typography (text-[28px]/[34px] font-bold). SectionTitle: font-bold title, tighter desc. Chart gridlines opacity 0.4. Followers donut center: num-display font-bold. Top posts metrics: font-bold.
+
+VLM verification:
+- KPI cards: A- ("strong hierarchy, massive bold numerals paired with tiny muted labels — hallmark of premium SaaS")
+- Sidebar: A- ("subtle, blue text tint + thin left accent bar, not heavy solid block. Premium Apple feel through refined spacing")
+- Overall: B+/A- (up from B+)
+
+Stage Summary:
+- 3 files changed, 147 insertions, 80 deletions.
+- Committed (c3558a4) by pklastlook@gmail.com, pushed to GitHub.
+- tsc: 0 errors in src/. lint: 0 errors.
