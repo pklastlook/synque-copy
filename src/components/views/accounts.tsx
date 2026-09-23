@@ -23,6 +23,8 @@ import {
   ChevronRight,
   Shield,
   Zap,
+  Globe,
+  Search,
   Activity,
   AlertTriangle,
   ShieldAlert,
@@ -367,16 +369,17 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
 
   const p = platform ? PLATFORMS[platform] : null;
 
-  /** Pick a platform → simulate scanning the browser for signed-in sessions. */
+  /** Pick a platform → scan the browser for signed-in sessions. */
   const pickPlatform = (id: PlatformId) => {
     setPlatform(id);
     setStep("detecting");
     setSelected(null);
-    // Simulate the OAuth identity probe (~1.2s)
+    // Simulate the OAuth identity probe (~1.4s) — checking the browser's
+    // active login sessions (cookies) for this platform.
     setTimeout(() => {
       setSessions(PLATFORM_SESSIONS[id] ?? []);
       setStep("permission");
-    }, 1200);
+    }, 1400);
   };
 
   /** Grant permission → POST the account to the API. */
@@ -414,19 +417,49 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
     }
   };
 
+  /** Step labels for the indicator — gives users context on where they are. */
+  const stepLabels = ["Choose", "Grant", "Done"];
+  const currentStepIndex = step === "platform" ? 0 : step === "detecting" || step === "permission" ? 1 : 2;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-lg">
-        {/* Step indicator — 3 dots: platform · permission · done */}
-        <div className="flex items-center gap-2 pb-1">
-          <StepDot active={step !== "platform" || true} done={step !== "platform"} label="1" />
-          <div className={cn("h-px flex-1 transition", step !== "platform" ? "bg-primary" : "bg-border")} />
-          <StepDot active={step === "permission" || step === "connecting" || step === "success"} done={step === "connecting" || step === "success"} label="2" />
-          <div className={cn("h-px flex-1 transition", step === "success" ? "bg-primary" : "bg-border")} />
-          <StepDot active={step === "success"} done={step === "success"} label="3" />
+      <DialogContent className="glass-strong max-h-[92vh] overflow-y-auto sm:max-w-[520px]">
+        {/* Step indicator — labeled dots with connector lines */}
+        <div className="flex items-center gap-2 pb-3">
+          {[0, 1, 2].map((i) => (
+            <React.Fragment key={i}>
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className={cn(
+                    "grid h-7 w-7 place-items-center rounded-full text-[11px] font-bold transition-all duration-300",
+                    i < currentStepIndex
+                      ? "bg-primary text-primary-foreground"
+                      : i === currentStepIndex
+                        ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                        : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {i < currentStepIndex ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
+                </div>
+                <span
+                  className={cn(
+                    "text-[9px] font-semibold uppercase tracking-wide transition",
+                    i === currentStepIndex ? "text-primary" : "text-muted-foreground"
+                  )}
+                >
+                  {stepLabels[i]}
+                </span>
+              </div>
+              {i < 2 && (
+                <div className={cn("h-px flex-1 transition-all duration-300", i < currentStepIndex ? "bg-primary" : "bg-border")} />
+              )}
+            </React.Fragment>
+          ))}
         </div>
 
-        {/* STEP 1 — platform picker */}
+        {/* ================================================================
+            STEP 1 — platform picker
+            ================================================================ */}
         {step === "platform" && (
           <>
             <DialogHeader>
@@ -434,80 +467,113 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 <Plus className="h-5 w-5 text-primary" />
                 Connect a new account
               </DialogTitle>
-              <DialogDescription>
-                Choose a platform. We&apos;ll check if you&apos;re already signed in — no passwords to type.
+              <DialogDescription className="text-[13px]">
+                Choose a platform. We&apos;ll scan your browser for existing
+                sign-in sessions — no passwords to type.
               </DialogDescription>
             </DialogHeader>
+
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {PLATFORM_LIST.map((plat) => (
                 <button
                   key={plat.id}
                   onClick={() => pickPlatform(plat.id)}
-                  className="lift-hover group flex flex-col items-center gap-2 rounded-2xl border border-border/40 bg-muted/30 p-4 transition hover:border-primary/40 hover:bg-primary/5"
+                  className="lift-hover group flex flex-col items-center gap-2.5 rounded-2xl border border-border/50 bg-card p-4 transition hover:border-primary/50 hover:bg-primary/5"
                 >
-                  <div className="transition group-hover:scale-110">
-                    <PlatformBadge platform={plat.id} size={44} />
+                  <div className="transition-transform duration-200 group-hover:scale-110">
+                    <PlatformBadge platform={plat.id} size={42} />
                   </div>
-                  <span className="text-sm font-medium">{plat.name}</span>
+                  <span className="text-sm font-semibold">{plat.name}</span>
                 </button>
               ))}
             </div>
-            <div className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-[11px] text-muted-foreground">
+
+            <div className="flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/5 p-3 text-[11px] text-muted-foreground">
               <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-              <span>SocialFlow uses official OAuth — we never see or store your password. You can revoke access anytime.</span>
+              <span>
+                <strong className="font-semibold text-foreground">Official OAuth.</strong>{" "}
+                We never see or store your password. You can revoke access anytime
+                from account settings.
+              </span>
             </div>
           </>
         )}
 
-        {/* STEP 2a — detecting browser sessions */}
+        {/* ================================================================
+            STEP 2a — scanning the browser for signed-in sessions
+            ================================================================ */}
         {step === "detecting" && p && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="flex flex-col items-center justify-center py-14 text-center">
             <div className="relative mb-6">
-              <div className="grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[var(--gold)] text-white shadow-xl">
+              {/* Pulsing radar rings behind the platform icon */}
+              <div className="absolute inset-0 -m-4">
+                <div className="absolute inset-0 animate-ping rounded-3xl bg-primary/10" />
+                <div className="absolute inset-0 animate-ping rounded-3xl bg-primary/10 [animation-delay:0.4s]" />
+              </div>
+              <div className="relative grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[var(--gold)] text-white shadow-xl">
                 <PlatformBadge platform={platform!} size={44} />
               </div>
-              <Loader2 className="absolute -bottom-1 -right-1 h-8 w-8 animate-spin text-primary" />
             </div>
-            <h3 className="text-lg font-semibold">Checking {p.name} sessions…</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Looking for accounts you&apos;re already signed in to
+
+            <h3 className="text-lg font-bold">Scanning your browser…</h3>
+            <p className="mt-1.5 max-w-xs text-[13px] text-muted-foreground">
+              Looking for {p.name} accounts you&apos;re already signed in to
+              in this browser.
             </p>
-            <div className="mt-5 flex items-center gap-2 text-[11px] text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              Secure OAuth handshake · no credentials accessed
+
+            {/* Browser-scanning steps indicator */}
+            <div className="mt-6 w-full max-w-xs space-y-2 text-left">
+              <ScanStep icon={Globe} label="Checking browser sessions" active />
+              <ScanStep icon={Search} label="Finding signed-in accounts" pending />
+              <ScanStep icon={ShieldCheck} label="Secure OAuth handshake" pending />
+            </div>
+
+            <div className="mt-6 flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+              <Lock className="h-3 w-3" />
+              No credentials accessed · encrypted
             </div>
           </div>
         )}
 
-        {/* STEP 2b — permission grant (OAuth-style) */}
+        {/* ================================================================
+            STEP 2b — permission grant (OAuth-style)
+            ================================================================ */}
         {step === "permission" && p && (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2.5 text-lg">
                 <button
                   onClick={() => { setStep("platform"); setPlatform(null); setSessions([]); setSelected(null); }}
-                  className="grid h-7 w-7 place-items-center rounded-lg bg-muted/60 hover:bg-muted"
-                  aria-label="Back"
+                  className="grid h-7 w-7 place-items-center rounded-lg bg-muted/60 transition hover:bg-muted"
+                  aria-label="Back to platform picker"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
                 <PlatformBadge platform={platform!} size={28} />
                 Grant {p.name} access
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-[13px]">
                 {sessions.length > 0
-                  ? "We found accounts you're already signed in to. Pick one and approve — that's it."
-                  : "No active session found. You can still connect manually."}
+                  ? "We found these accounts in your browser's active sessions. Pick one to connect."
+                  : "No active browser session found."}
               </DialogDescription>
             </DialogHeader>
 
             {sessions.length > 0 ? (
               <>
-                {/* Detected sessions */}
+                {/* Source banner — clarifies WHERE accounts were found */}
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px]">
+                  <Globe className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-muted-foreground">
+                    <strong className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {sessions.length} {sessions.length === 1 ? "account" : "accounts"}
+                    </strong>{" "}
+                    found from your browser · sign in to {p.name} to add more
+                  </span>
+                </div>
+
+                {/* Detected sessions — selectable cards with radio indicator */}
                 <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <ShieldCheck className="h-3 w-3 text-emerald-500" /> Signed-in accounts
-                  </div>
                   {sessions.map((s) => {
                     const isSel = selected?.handle === s.handle;
                     return (
@@ -515,56 +581,75 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                         key={s.handle}
                         onClick={() => setSelected(s)}
                         className={cn(
-                          "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition",
+                          "flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition-all duration-200",
                           isSel
-                            ? "border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--ring)]"
-                            : "border-border/40 bg-muted/20 hover:border-primary/40 hover:bg-muted/40"
+                            ? "border-primary bg-primary/5 shadow-[0_0_0_3px_var(--ring)]"
+                            : "border-border bg-card hover:border-primary/40 hover:bg-muted/40"
                         )}
                       >
-                        <div className="relative shrink-0">
-                          <NameAvatar name={s.displayName} color="rose" className="h-11 w-11 text-sm" />
-                          <div className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-background">
-                            <PlatformBadge platform={platform!} size={18} />
-                          </div>
-                        </div>
+                        {/* Avatar — platform badge moved to a clean side label */}
+                        <NameAvatar
+                          name={s.displayName}
+                          color="rose"
+                          className={cn("h-11 w-11 shrink-0 text-sm transition", isSel && "ring-2 ring-primary/40")}
+                        />
+
+                        {/* Identity */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="truncate text-sm font-semibold">{s.displayName}</span>
+                            <span className="truncate text-sm font-bold">{s.displayName}</span>
                             {s.verified && <VerifiedTick className="h-3 w-3" />}
                           </div>
-                          <div className="truncate text-[11px] text-muted-foreground">
-                            {s.handle} · {fmt(s.followers)} followers
+                          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span className="font-medium">{s.handle}</span>
+                            <span className="text-border">·</span>
+                            <span className="flex items-center gap-0.5">
+                              <Users className="h-2.5 w-2.5" />
+                              {fmt(s.followers)} followers
+                            </span>
                           </div>
                         </div>
+
+                        {/* Type badge */}
                         {s.isBusiness && (
-                          <span className="rounded-full bg-[var(--gold)]/15 px-2 py-0.5 text-[9px] font-bold uppercase text-[var(--gold)]">
+                          <span className="rounded-full bg-[var(--gold)]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--gold)]">
                             Business
                           </span>
                         )}
-                        {isSel && <Check className="h-4 w-4 text-primary" strokeWidth={3} />}
+
+                        {/* Radio indicator — clear selected state */}
+                        <div
+                          className={cn(
+                            "grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-all",
+                            isSel ? "border-primary bg-primary" : "border-border bg-background"
+                          )}
+                        >
+                          {isSel && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
+                        </div>
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Permission scopes */}
+                {/* Permission scopes — only after selection */}
                 {selected && (
-                  <div className="crystal-in rounded-2xl border border-border/40 bg-muted/20 p-3.5">
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      <Shield className="h-3 w-3" /> SocialFlow will be able to
+                  <div className="crystal-in rounded-2xl border border-border bg-muted/30 p-3.5">
+                    <div className="mb-3 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-foreground">
+                      <Shield className="h-3.5 w-3.5 text-primary" />
+                      SocialFlow will be able to
                     </div>
-                    <div className="space-y-2">
+                    <div className="grid gap-2 sm:grid-cols-3">
                       {PERMISSION_SCOPES.map((scope) => {
                         const Icon = scope.icon;
                         return (
-                          <div key={scope.label} className="flex items-start gap-2.5">
-                            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                              <Icon className="h-3.5 w-3.5" />
+                          <div key={scope.label} className="flex flex-col gap-1.5 rounded-xl bg-card p-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <div className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                                <Icon className="h-3 w-3" />
+                              </div>
+                              <span className="text-[11px] font-semibold">{scope.label}</span>
                             </div>
-                            <div className="flex-1">
-                              <div className="text-xs font-medium">{scope.label}</div>
-                              <div className="text-[10px] text-muted-foreground">{scope.desc}</div>
-                            </div>
+                            <span className="text-[10px] leading-tight text-muted-foreground">{scope.desc}</span>
                           </div>
                         );
                       })}
@@ -573,45 +658,54 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 )}
               </>
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/50 bg-muted/20 p-6 text-center">
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
-                  <Lock className="h-5 w-5" />
+              /* No-session fallback — clearer path to manual connect */
+              <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-8 text-center">
+                <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+                  <Search className="h-6 w-6" />
                 </div>
-                <p className="mt-3 text-sm font-medium">No active {p.name} session found</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Sign in to {p.name} in your browser, then retry — or contact support to connect manually.
+                <p className="mt-3 text-sm font-semibold">No active {p.name} browser session</p>
+                <p className="mt-1.5 text-[12px] text-muted-foreground">
+                  Open {p.name} in a new tab, sign in, then come back here.
+                  We&apos;ll detect it automatically.
                 </p>
               </div>
             )}
 
-            <DialogFooter>
-              <button onClick={() => { setStep("platform"); setPlatform(null); }} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">
+            <DialogFooter className="gap-2 sm:gap-2">
+              <button
+                onClick={() => { setStep("platform"); setPlatform(null); }}
+                className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-muted"
+              >
                 Back
               </button>
               <button
                 onClick={grantPermission}
                 disabled={!selected}
-                className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50"
+                className="liquid-pill glow-ring flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
               >
                 <ShieldCheck className="h-4 w-4" />
-                Allow access
+                {selected ? `Allow access to ${selected.displayName}` : "Select an account"}
               </button>
             </DialogFooter>
           </>
         )}
 
-        {/* STEP 3 — connecting */}
+        {/* ================================================================
+            STEP 3 — connecting
+            ================================================================ */}
         {step === "connecting" && p && selected && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="flex flex-col items-center justify-center py-14 text-center">
             <div className="relative mb-6">
               <div className="grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-primary to-[var(--gold)] text-white shadow-xl">
                 <PlatformBadge platform={platform!} size={44} />
               </div>
-              <Loader2 className="absolute -bottom-1 -right-1 h-8 w-8 animate-spin text-primary" />
+              <Loader2 className="absolute -bottom-1 -right-1 h-8 w-8 animate-spin rounded-full bg-background p-0.5 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold">Connecting {selected.displayName}…</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Fetching profile & syncing analytics</p>
-            <div className="mt-5 space-y-2 text-left">
+            <h3 className="text-lg font-bold">Connecting {selected.displayName}…</h3>
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
+              Fetching profile & syncing analytics
+            </p>
+            <div className="mt-6 w-full max-w-xs space-y-2.5 text-left">
               <ConnectingStep label="Permission granted" done />
               <ConnectingStep label="Fetching profile info" />
               <ConnectingStep label="Syncing analytics" pending />
@@ -619,9 +713,11 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
           </div>
         )}
 
-        {/* STEP 4 — success */}
+        {/* ================================================================
+            STEP 4 — success
+            ================================================================ */}
         {step === "success" && p && selected && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="flex flex-col items-center justify-center py-14 text-center">
             <div className="relative mb-5">
               <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
                 <Check className="h-10 w-10" strokeWidth={3} />
@@ -629,17 +725,52 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
               <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/10" />
             </div>
             <h3 className="text-xl font-bold">{selected.displayName} connected!</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
               {selected.handle} on {p.name} is now live in your workspace.
             </p>
-            <div className="mt-4 flex items-center gap-2 rounded-xl bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+            <div className="mt-5 flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <ShieldCheck className="h-3.5 w-3.5" />
               OAuth access granted · {selected.isBusiness ? "Business account" : "Personal account"}
             </div>
           </div>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Small scanning-step row used in the "detecting" state. */
+function ScanStep({
+  icon: Icon,
+  label,
+  active,
+  pending,
+}: {
+  icon: React.ElementType;
+  label: string;
+  active?: boolean;
+  pending?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div
+        className={cn(
+          "grid h-7 w-7 shrink-0 place-items-center rounded-lg transition",
+          active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+        )}
+      >
+        {active ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+      </div>
+      <span
+        className={cn(
+          "text-[12px] transition",
+          active ? "font-medium text-foreground" : pending ? "text-muted-foreground/60" : "text-muted-foreground"
+        )}
+      >
+        {label}
+      </span>
+      {active && <div className="ml-auto h-1 w-1 animate-pulse rounded-full bg-primary" />}
+    </div>
   );
 }
 
