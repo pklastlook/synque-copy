@@ -405,12 +405,45 @@ export function ComposerView() {
           });
         });
       } else {
-        // All failed — show error popup with the reason
+        // All failed — check if it's a 402 (Free tier paywall)
         const firstError = failed[0];
-        toast.error("Post saved but not published", {
-          description: firstError?.message?.slice(0, 150) ?? "Unknown error. Check Settings → Platform API Keys.",
-          duration: 8000,
-        });
+        const is402 = firstError?.message.includes("Free tier") || firstError?.message.includes("doesn't allow posting");
+
+        if (is402) {
+          // Copy content to clipboard for manual posting
+          const contentToCopy = selectedAccounts.map(a => {
+            const v = v[a.id];
+            return v.hashtags
+              ? `${v.content}\n\n${v.hashtags.split(",").map(t => `#${t.trim()}`).join(" ")}`
+              : v.content;
+          }).join("\n\n---\n\n");
+
+          try {
+            await navigator.clipboard.writeText(contentToCopy);
+            toast.warning("Post saved — copy to clipboard ready", {
+              description: "Twitter Free tier doesn't allow API posting. Content copied! Click 'Open X' to paste manually.",
+              duration: 10000,
+              action: {
+                label: "Open X",
+                onClick: () => window.open("https://x.com/compose/post", "_blank"),
+              },
+            });
+          } catch {
+            toast.warning("Post saved — manual posting required", {
+              description: "Twitter Free tier doesn't allow API posting. Upgrade to Basic ($100/mo) or post manually at x.com/compose/post",
+              duration: 10000,
+              action: {
+                label: "Open X",
+                onClick: () => window.open("https://x.com/compose/post", "_blank"),
+              },
+            });
+          }
+        } else {
+          toast.error("Post saved but not published", {
+            description: firstError?.message?.slice(0, 150) ?? "Unknown error.",
+            duration: 8000,
+          });
+        }
       }
 
       setState(DEFAULT_STATE);
