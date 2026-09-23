@@ -70,7 +70,6 @@ interface Overview {
   totalPosts: number;
   publishedPosts: number;
   scheduledPosts: number;
-  pendingApprovals: number;
   unreadInbox: number;
   atRiskAccounts: number;
   healthyAccounts: number;
@@ -96,7 +95,6 @@ interface TeamMember {
   taskCompletionRate: number;
   engagement: number;
   followers: number;
-  approvalsCount: number;
 }
 
 type TaskStatus = "todo" | "in_progress" | "review" | "done" | "blocked";
@@ -281,8 +279,6 @@ const ACTIVITY_ICON: Record<string, React.ElementType> = {
   account_connected: UserPlus,
   ai_generated: Wand2,
   team_joined: CheckCircle2,
-  approval_requested: ShieldCheck,
-  approval_resolved: ClipboardList,
   task_completed: ListChecks,
   task_created: ClipboardList,
   member_invited: UserPlus,
@@ -436,17 +432,10 @@ function OverviewKpiStrip({ overview }: { overview: Overview }) {
       accent: "oklch(0.78 0.18 75)",
       hint: "queued for publish",
     },
-    {
-      label: "Pending approvals",
-      value: overview.pendingApprovals,
-      icon: <ClipboardList className="h-5 w-5" />,
-      accent: "oklch(0.66 0.16 230)",
-      hint: "awaiting review",
-    },
-    {
-      label: "Unread inbox",
-      value: overview.unreadInbox,
-      icon: <Mail className="h-5 w-5" />,
+      {
+        label: "Unread inbox",
+        value: overview.unreadInbox,
+        icon: <Mail className="h-5 w-5" />,
       accent: "var(--gold)",
       hint: "conversations open",
     },
@@ -877,7 +866,7 @@ function ProfileBody({ member }: { member: TeamMember }) {
         ))}
       </div>
 
-      {/* Task completion + approvals */}
+      {/* Task completion */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-border/40 bg-muted/30 p-3">
           <div className="flex items-center justify-between text-xs">
@@ -901,16 +890,11 @@ function ProfileBody({ member }: { member: TeamMember }) {
         <div className="rounded-2xl border border-border/40 bg-muted/30 p-3">
           <div className="flex items-center justify-between text-xs">
             <span className="label-caps text-muted-foreground">
-              Approvals authored
+              Last active
             </span>
             <span className="num-display text-sm font-semibold">
-              {member.approvalsCount}
+              {member.lastActive ? timeAgo(member.lastActive) : "never"}
             </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            Last active{" "}
-            {member.lastActive ? timeAgo(member.lastActive) : "never"}
           </div>
         </div>
       </div>

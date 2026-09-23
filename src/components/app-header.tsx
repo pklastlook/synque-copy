@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Search, Bell, Moon, Sun, Menu, Command, LogOut, Settings, User, ChevronDown, CheckCircle2, MessageCircle, CalendarClock, ShieldAlert, Zap } from "lucide-react";
+import { Search, Bell, Moon, Sun, Menu, Command, LogOut, Settings, User, ChevronDown, MessageCircle, CalendarClock, ShieldAlert, Zap } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
@@ -28,7 +28,6 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   campaigns: { title: "Campaigns", subtitle: "Group and measure multi-post campaigns" },
   media: { title: "Media Library", subtitle: "Your shared creative asset vault" },
   listening: { title: "Listening", subtitle: "Brand mentions, keywords & sentiment across the web" },
-  approvals: { title: "Approvals", subtitle: "Review content before it goes live" },
   hashtags: { title: "Hashtag Manager", subtitle: "Save, group and research high-performing tags" },
   competitors: { title: "Competitors", subtitle: "Benchmark against rival accounts" },
   reports: { title: "Reports", subtitle: "Build, schedule and export custom reports" },
@@ -185,6 +184,5 @@ const NOTIFICATIONS = [
   { icon: MessageCircle, title: "New comment on your post", desc: "@user1: 'This is exactly what I needed!'", time: "5m ago", read: false, color: "bg-blue-500/15 text-blue-500" },
   { icon: CalendarClock, title: "Scheduled post published", desc: "'Launch Teaser' went live on 5 accounts", time: "1h ago", read: false, color: "bg-emerald-500/15 text-emerald-500" },
   { icon: ShieldAlert, title: "Account health warning", desc: "@yourbrand on Threads has elevated risk", time: "2h ago", read: false, color: "bg-amber-500/15 text-amber-500" },
-  { icon: CheckCircle2, title: "Approval resolved", desc: "'Spring Launch Carousel' was approved", time: "5h ago", read: true, color: "bg-emerald-500/15 text-emerald-500" },
-  { icon: Zap, title: "AI captions generated", desc: "5 platform-specific variants ready for review", time: "8h ago", read: true, color: "bg-violet-500/15 text-violet-500" },
+  { icon: Zap, title: "AI captions generated", desc: "5 platform-specific variants ready to publish", time: "8h ago", read: true, color: "bg-violet-500/15 text-violet-500" },
 ];

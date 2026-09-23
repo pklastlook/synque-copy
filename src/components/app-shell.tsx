@@ -17,7 +17,6 @@ import { SettingsView } from "@/components/views/settings";
 import { CampaignsView } from "@/components/views/campaigns";
 import { MediaLibraryView } from "@/components/views/media-library";
 import { ListeningView } from "@/components/views/listening";
-import { ApprovalsView } from "@/components/views/approvals";
 import { HashtagsView } from "@/components/views/hashtags";
 import { CompetitorsView } from "@/components/views/competitors";
 import { ReportsView } from "@/components/views/reports";
@@ -64,7 +63,6 @@ export function AppShell() {
               {view === "campaigns" && <CampaignsView />}
               {view === "media" && <MediaLibraryView />}
               {view === "listening" && <ListeningView />}
-              {view === "approvals" && <ApprovalsView />}
               {view === "hashtags" && <HashtagsView />}
               {view === "competitors" && <CompetitorsView />}
               {view === "reports" && <ReportsView />}

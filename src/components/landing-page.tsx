@@ -274,14 +274,14 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
               Teams waste hours every day context-switching between tools. Accounts get suspended.
-              Approvals get lost. Here&apos;s what your team deals with right now:
+              Content gets lost. Here&apos;s what your team deals with right now:
             </p>
           </div>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { icon: Layers, t: "7 tabs open", d: "Instagram, X, LinkedIn, TikTok… each its own tab. Copy-paste fatigue.", accent: "oklch(0.62 0.22 300)" },
               { icon: ShieldAlert, t: "Accounts suspended", d: "Your team posts too fast, uses banned hashtags, gets flagged.", accent: "oklch(0.7 0.2 25)" },
-              { icon: Clock, t: "Approvals stuck", d: "Content waits in DMs and spreadsheets. Nobody knows what's approved.", accent: "oklch(0.72 0.18 75)" },
+              { icon: Clock, t: "Content stuck", d: "Drafts wait in DMs and spreadsheets. Nobody knows what's ready to publish.", accent: "oklch(0.72 0.18 75)" },
               { icon: MessageCircle, t: "Inbox chaos", d: "Comments scattered across 10 accounts. Half go unanswered.", accent: "oklch(0.66 0.18 200)" },
             ].map((p, i) => (
               <div key={p.t} className="crystal-in crystal-card glass rounded-2xl p-5 lift-hover group" style={{ animationDelay: `${0.1 * i + 0.1}s` }}>
@@ -360,7 +360,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
                   { n: "01", t: "Select accounts", d: "Pick from Instagram, X, LinkedIn, TikTok, YouTube, Facebook, Threads." },
                   { n: "02", t: "Write your brief", d: "One caption + tone. AI does the rest per platform." },
                   { n: "03", t: "Upload media", d: "Drop your image or video once. We adapt it." },
-                  { n: "04", t: "Preview & approve", d: "See per-account variants in phone-style previews." },
+                  { n: "04", t: "Preview & publish", d: "See per-account variants in phone-style previews." },
                   { n: "05", t: "Publish or schedule", d: "One click sends it to every account — or queues it." },
                 ].map((s, i) => (
                   <div key={s.n} className="crystal-in flex items-start gap-3" style={{ animationDelay: `${0.1 * i + 0.2}s` }}>
@@ -1014,6 +1014,6 @@ const FEATURES = [
 
 const PLANS = [
   { name: "Starter", price: "$29", desc: "For solo creators & small teams getting started.", features: ["3 social accounts", "1 user", "AI composer (100/mo)", "Basic analytics", "Email support"], featured: false },
-  { name: "Growth", price: "$89", desc: "For growing teams that publish daily.", features: ["15 social accounts", "5 users", "Unlimited AI composer", "Advanced analytics", "Account protection", "Approval workflows", "Priority support"], featured: true },
+  { name: "Growth", price: "$89", desc: "For growing teams that publish daily.", features: ["15 social accounts", "5 users", "Unlimited AI composer", "Advanced analytics", "Account protection", "Priority support"], featured: true },
   { name: "Enterprise", price: "Custom", desc: "For large teams with custom needs.", features: ["Unlimited accounts", "Unlimited users", "Custom domain mail server", "SSO + SAML", "Dedicated success manager", "99.9% SLA"], featured: false },
 ];

@@ -49,7 +49,7 @@ export default function AboutPage() {
             { icon: Zap, title: "Speed over complexity", desc: "Every feature must make your team faster, not add more steps. If it doesn't save time, we don't ship it." },
             { icon: ShieldCheck, title: "Safety first", desc: "Your accounts are your livelihood. Every feature is designed to protect them, not put them at risk." },
             { icon: Globe, title: "Open by default", desc: "We support 7 platforms and counting. Your data is yours — export it, delete it, control it." },
-            { icon: Users, title: "Built for teams", desc: "Real collaboration: roles, permissions, approvals, and a shared workspace that actually works." },
+            { icon: Users, title: "Built for teams", desc: "Real collaboration: roles, permissions, and a shared workspace that actually works." },
           ].map((v, i) => (
             <div key={v.title} className="crystal-in glass lift-hover rounded-3xl p-6" style={{ animationDelay: `${0.08 * i + 0.1}s` }}>
               <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-white shadow-lg">

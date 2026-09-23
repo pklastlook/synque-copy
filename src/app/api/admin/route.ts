@@ -4,13 +4,12 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const [users, accounts, posts, variants, tasks, approvals, comments, activities, health] = await Promise.all([
+  const [users, accounts, posts, variants, tasks, comments, activities, health] = await Promise.all([
     db.user.findMany(),
     db.account.findMany({ include: { health: true } }),
     db.post.findMany({ include: { author: true, variants: true } }),
     db.postVariant.findMany(),
     db.task.findMany(),
-    db.approval.findMany(),
     db.comment.findMany(),
     db.activity.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 30 }),
     db.accountHealth.findMany(),
@@ -23,7 +22,6 @@ export async function GET() {
     const uVariants = variants.filter((v) => uAccounts.some((a) => a.id === v.accountId));
     const uTasks = tasks.filter((t) => t.assigneeId === u.id);
     const uDone = uTasks.filter((t) => t.status === "done");
-    const uApprovals = approvals.filter((a) => a.authorId === u.id);
     const engagement = uVariants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0);
     const followers = uAccounts.reduce((s, a) => s + a.followers, 0);
     return {
@@ -44,11 +42,8 @@ export async function GET() {
       taskCompletionRate: uTasks.length ? Math.round((uDone.length / uTasks.length) * 100) : 0,
       engagement,
       followers,
-      approvalsCount: uApprovals.length,
     };
   });
-
-  // Task status distribution
   const taskStatus = {
     todo: tasks.filter((t) => t.status === "todo").length,
     in_progress: tasks.filter((t) => t.status === "in_progress").length,
@@ -74,7 +69,6 @@ export async function GET() {
   const healthyAccounts = accountHealth.filter((a) => a.riskLevel === "safe").length;
 
   // Workflow summary
-  const pendingApprovals = approvals.filter((a) => a.status === "pending").length;
   const scheduledPosts = posts.filter((p) => p.status === "scheduled").length;
   const publishedPosts = variants.filter((v) => v.status === "published").length;
   const unreadInbox = comments.filter((c) => !c.replied).length;
@@ -98,7 +92,6 @@ export async function GET() {
       totalPosts: posts.length,
       publishedPosts,
       scheduledPosts,
-      pendingApprovals,
       unreadInbox,
       atRiskAccounts,
       healthyAccounts,
