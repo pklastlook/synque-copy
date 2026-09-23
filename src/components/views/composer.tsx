@@ -375,6 +375,8 @@ export function ComposerView() {
             generating={generating}
             hasVariants={Object.keys(state.variants).length > 0}
             selectedCount={selectedAccounts.length}
+            variants={state.variants}
+            selectedAccounts={selectedAccounts}
           />
         )}
         {state.step === 3 && (
@@ -723,6 +725,8 @@ function Step2({
   generating,
   hasVariants,
   selectedCount,
+  variants,
+  selectedAccounts,
 }: {
   caption: string;
   onCaption: (v: string) => void;
@@ -732,6 +736,8 @@ function Step2({
   generating: boolean;
   hasVariants: boolean;
   selectedCount: number;
+  variants: Record<string, Variant>;
+  selectedAccounts: { id: string; platform: PlatformId; handle: string; displayName: string }[];
 }) {
   const charCount = caption.length;
   return (
@@ -818,6 +824,43 @@ function Step2({
           </span>
         )}
       </div>
+
+      {/* === Generated variants preview — shown immediately after AI completes === */}
+      {hasVariants && !generating && (
+        <div className="mt-5 space-y-3">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {Object.keys(variants).length} AI-generated variant{Object.keys(variants).length === 1 ? "" : "s"} ready
+          </div>
+          {selectedAccounts.map((a) => {
+            const v = variants[a.id];
+            if (!v) return null;
+            const p = PLATFORMS[a.platform];
+            return (
+              <div key={a.id} className="crystal-in rounded-2xl border border-border bg-muted/30 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
+                    <PlatformBadge platform={a.platform} size={18} />
+                  </div>
+                  <span className="text-xs font-semibold">{p.name}</span>
+                  <span className="text-[11px] text-muted-foreground">{a.handle}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{v.content.length} chars</span>
+                </div>
+                <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">{v.content}</p>
+                {v.hashtags && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {v.hashtags.split(",").map((tag, i) => (
+                      <span key={i} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        #{tag.trim()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
         <div className="flex items-start gap-3">
