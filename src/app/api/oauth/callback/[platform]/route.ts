@@ -219,9 +219,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
     if (platform === "twitter") {
       // Twitter OAuth 2.0 token exchange with PKCE
+      // Twitter requires Basic Auth with client_id:client_secret
+      const basicAuth = Buffer.from(`${cred.clientId}:${cred.clientSecret}`).toString("base64");
       const tokenRes = await fetch("https://api.twitter.com/2/oauth2/token", {
         method: "POST",
         headers: {
+          "Authorization": `Basic ${basicAuth}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
@@ -230,7 +233,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
           client_id: cred.clientId,
           redirect_uri: redirectUri,
           code_verifier: state.cv ?? "challenge",
-          client_secret: cred.clientSecret,
         }),
       });
       const tokenJson = await tokenRes.json();
