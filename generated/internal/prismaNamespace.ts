@@ -2881,6 +2881,7 @@ export const AccountScalarFieldEnum = {
   displayName: 'displayName',
   avatar: 'avatar',
   followers: 'followers',
+  postsCount: 'postsCount',
   verified: 'verified',
   ownerId: 'ownerId',
   createdAt: 'createdAt'
