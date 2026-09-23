@@ -48,6 +48,7 @@ const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; 
   { id: "composer", label: "Composer", icon: PenSquare, group: "Overview", accent: "oklch(0.7 0.2 25)" },
   { id: "calendar", label: "Calendar", icon: CalendarDays, group: "Overview", accent: "oklch(0.68 0.2 145)" },
   { id: "inbox", label: "Inbox", icon: Inbox, group: "Overview", accent: "oklch(0.66 0.18 200)" },
+  { id: "team-performance", label: "Performance", icon: BarChart3, group: "Overview", accent: "oklch(0.55 0.2 255)" },
   { id: "campaigns", label: "Campaigns", icon: Megaphone, group: "Content", accent: "oklch(0.7 0.2 25)" },
   { id: "hashtags", label: "Hashtags", icon: Hash, group: "Content", accent: "oklch(0.66 0.18 200)" },
   { id: "linkbio", label: "Link in Bio", icon: Link2, group: "Content", accent: "oklch(0.68 0.2 145)" },

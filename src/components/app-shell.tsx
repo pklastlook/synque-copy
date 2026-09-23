@@ -24,6 +24,7 @@ import { LinkBioView } from "@/components/views/link-bio";
 import { MailView } from "@/components/views/mail";
 import { AdminPanelView } from "@/components/views/admin-panel";
 import { OwnerView } from "@/components/views/owner";
+import { TeamPerformanceView } from "@/components/views/team-performance";
 
 export function AppShell() {
   const { view } = useNav();
@@ -70,6 +71,7 @@ export function AppShell() {
               {view === "mail" && <MailView />}
               {view === "admin" && <AdminPanelView />}
               {view === "owner" && <OwnerView />}
+              {view === "team-performance" && <TeamPerformanceView />}
               {view === "settings" && <SettingsView />}
             </div>
           </main>
