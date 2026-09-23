@@ -4,7 +4,8 @@ import * as React from "react";
 import {
   MessageCircle, Send, Trash2, Archive, Check, Inbox as InboxIcon,
   Users, Clock, Plus, Search, Filter, Copy, CheckCheck,
-  Phone, MessageSquare, Radio, Sparkles, ChevronRight,
+  Phone, MessageSquare, Radio, Sparkles, ChevronRight, X, Wifi, WifiOff,
+  QrCode, Loader2, Smartphone, RefreshCw,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -15,6 +16,9 @@ import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose,
+} from "@/components/ui/dialog";
 
 // ============ Types ============
 
@@ -31,7 +35,16 @@ interface WhatsAppMessage {
   postId: string | null;
   savedByName: string | null;
   savedByColor: string | null;
+  isLive: boolean;
   createdAt: string;
+}
+
+interface ConnectionStatus {
+  connected: boolean;
+  qr: string | null;
+  phone: string | null;
+  serviceOffline?: boolean;
+  dbStatus?: string;
 }
 
 type StatusFilter = "all" | "new" | "used" | "archived";
@@ -55,11 +68,98 @@ export function WhatsAppView() {
   const { data, loading, reload } = useApi<WhatsAppMessage[]>("/api/whatsapp");
   const { openComposer } = useNav();
   const { user } = useAuth();
+  const ownerId = user?.id ?? "";
 
   const [showPasteForm, setShowPasteForm] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [search, setSearch] = React.useState("");
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+
+  // === WhatsApp live connection state ===
+  const [connection, setConnection] = React.useState<ConnectionStatus | null>(null);
+  const [showQR, setShowQR] = React.useState(false);
+  const [connecting, setConnecting] = React.useState(false);
+
+  // Poll connection status every 2s when modal is open OR when not connected
+  React.useEffect(() => {
+    if (!ownerId) return;
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const res = await fetch(`/api/whatsapp/connection?ownerId=${ownerId}`);
+        const json = await res.json();
+        if (!cancelled) {
+          setConnection(json);
+          // Auto-close QR modal when connected
+          if (json.connected && showQR) {
+            setShowQR(false);
+            toast.success("WhatsApp connected!", {
+              description: `Now receiving live messages from ${json.phone ?? "your phone"}.`,
+            });
+            reload();
+          }
+        }
+      } catch {
+        if (!cancelled) setConnection({ connected: false, qr: null, phone: null, serviceOffline: true });
+      }
+    }
+
+    poll();
+    // Poll every 2s while modal open OR not connected
+    const interval = setInterval(poll, showQR || !connection?.connected ? 2000 : 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [ownerId, showQR, connection?.connected]);
+
+  async function handleStartConnection() {
+    if (!ownerId) {
+      toast.error("Sign in to connect WhatsApp");
+      return;
+    }
+    setConnecting(true);
+    try {
+      const res = await fetch("/api/whatsapp/connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start", ownerId }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error("WhatsApp service unavailable", {
+          description: json.error ?? "Ask the admin to start the WhatsApp mini-service.",
+          duration: 8000,
+        });
+      } else {
+        setShowQR(true);
+        toast.info("Generating QR code...", {
+          description: "Open WhatsApp on your phone → Settings → Linked Devices → Link a Device → scan the QR.",
+        });
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function handleLogout() {
+    if (!ownerId) return;
+    try {
+      await fetch("/api/whatsapp/connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout", ownerId }),
+      });
+      toast.success("WhatsApp disconnected");
+      setConnection({ connected: false, qr: null, phone: null });
+      reload();
+    } catch {
+      toast.error("Failed to disconnect");
+    }
+  }
 
   const allMessages = data ?? [];
 
@@ -135,9 +235,36 @@ export function WhatsAppView() {
   return (
     <div className="space-y-5">
       <HelpText module="whatsapp">
-        <strong className="text-foreground">WhatsApp Inbox</strong> — paste content from WhatsApp groups & chats, then send it
-        to the AI Composer to generate platform-specific variants and publish.
+        <strong className="text-foreground">WhatsApp Inbox</strong> — connect your WhatsApp (scan QR, just like WhatsApp Web)
+        to auto-receive messages from groups & chats. Or paste manually. Then send any message to the AI Composer.
       </HelpText>
+
+      {/* === CONNECTION BANNER (NEW) — live WhatsApp connection === */}
+      <ConnectionBanner
+        connection={connection}
+        connecting={connecting}
+        onConnect={handleStartConnection}
+        onDisconnect={handleLogout}
+        onShowQR={() => setShowQR(true)}
+      />
+
+      {/* === QR MODAL === */}
+      <Dialog open={showQR} onOpenChange={setShowQR}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-primary" />
+              Scan WhatsApp QR
+            </DialogTitle>
+            <DialogClose asChild>
+              <button className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground transition hover:bg-muted">
+                <X className="h-4 w-4" />
+              </button>
+            </DialogClose>
+          </DialogHeader>
+          <QRCodeDisplay connection={connection} />
+        </DialogContent>
+      </Dialog>
 
       {/* === KPI strip === */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -517,6 +644,12 @@ function MessageCard({
             <span className={cn("rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase", statusMeta.bg, statusMeta.color)}>
               {statusMeta.label}
             </span>
+            {msg.isLive && (
+              <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-500">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Live
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             {msg.groupName && <span className="truncate">{msg.groupName}</span>}
@@ -596,6 +729,165 @@ function MessageCard({
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ============ Connection Banner — live WhatsApp status ============
+function ConnectionBanner({
+  connection,
+  connecting,
+  onConnect,
+  onDisconnect,
+  onShowQR,
+}: {
+  connection: ConnectionStatus | null;
+  connecting: boolean;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onShowQR: () => void;
+}) {
+  const isOffline = connection?.serviceOffline;
+  const isConnected = connection?.connected;
+  const hasQR = connection?.qr;
+
+  // Service offline — show error state
+  if (isOffline) {
+    return (
+      <GlassCard className="crystal-in border-rose-500/30 p-4" style={{ animationDelay: "0.15s" }}>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-500/15 text-rose-500">
+            <WifiOff className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold">WhatsApp service is not running</div>
+            <div className="text-[11px] text-muted-foreground">
+              The admin needs to start the WhatsApp mini-service:
+              <code className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px]">cd mini-services/whatsapp-service && bun run dev</code>
+            </div>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-1.5 text-xs font-semibold transition hover:bg-muted"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Retry
+          </button>
+        </div>
+      </GlassCard>
+    );
+  }
+
+  // Connected — show success state
+  if (isConnected) {
+    return (
+      <GlassCard className="crystal-in border-emerald-500/30 bg-emerald-500/5 p-4" style={{ animationDelay: "0.15s" }}>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-500">
+            <Wifi className="h-5 w-5" />
+            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background">
+              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500 opacity-75" />
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-sm font-bold text-emerald-600 dark:text-emerald-400">
+              WhatsApp Connected
+              <Check className="h-3.5 w-3.5" />
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {connection?.phone ? `+${connection.phone}` : "Live"} — auto-receiving messages from groups & chats
+            </div>
+          </div>
+          <button
+            onClick={onDisconnect}
+            className="flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/20 dark:text-rose-400"
+          >
+            <X className="h-3.5 w-3.5" /> Disconnect
+          </button>
+        </div>
+      </GlassCard>
+    );
+  }
+
+  // Disconnected — show connect button
+  return (
+    <GlassCard className="crystal-in border-amber-500/30 bg-amber-500/5 p-4" style={{ animationDelay: "0.15s" }}>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-500">
+          <Smartphone className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-bold">Connect your WhatsApp</div>
+          <div className="text-[11px] text-muted-foreground">
+            Scan a QR code with your phone — just like WhatsApp Web. Messages from groups & chats will appear here automatically.
+          </div>
+        </div>
+        <button
+          onClick={onConnect}
+          disabled={connecting}
+          className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-50"
+        >
+          {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
+          {connecting ? "Starting..." : "Scan QR Code"}
+        </button>
+        {hasQR && (
+          <button
+            onClick={onShowQR}
+            className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-2 text-xs font-semibold transition hover:bg-muted"
+          >
+            <QrCode className="h-3.5 w-3.5" /> Show QR
+          </button>
+        )}
+      </div>
+    </GlassCard>
+  );
+}
+
+// ============ QR Code Display — scan to connect ============
+function QRCodeDisplay({ connection }: { connection: ConnectionStatus | null }) {
+  const qr = connection?.qr;
+  const isConnected = connection?.connected;
+
+  if (isConnected) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-500">
+          <Check className="h-8 w-8" />
+        </div>
+        <div className="text-sm font-bold text-emerald-500">Connected!</div>
+        <div className="text-[11px] text-muted-foreground">You can close this window.</div>
+      </div>
+    );
+  }
+
+  if (!qr) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="text-sm font-semibold">Generating QR code...</div>
+        <div className="text-[11px] text-muted-foreground">
+          If this takes more than 10 seconds, the WhatsApp service may be starting up.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-2">
+      <div className="rounded-2xl border-2 border-primary/20 bg-white p-3">
+        <img src={qr} alt="WhatsApp QR Code" className="h-56 w-56" />
+      </div>
+      <div className="max-w-xs space-y-1 text-center">
+        <div className="text-sm font-bold">Scan with your phone</div>
+        <div className="text-[11px] text-muted-foreground">
+          Open WhatsApp → tap the 3-dot menu (Android) or Settings (iOS) →
+          <strong className="text-foreground"> Linked Devices</strong> →{" "}
+          <strong className="text-foreground">Link a Device</strong> → scan this QR code.
+        </div>
+      </div>
+      <div className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2 text-[10px] text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Waiting for scan...
       </div>
     </div>
   );

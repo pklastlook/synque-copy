@@ -418,6 +418,7 @@ export const ModelName = {
   Report: 'Report',
   LinkInBio: 'LinkInBio',
   WhatsAppMessage: 'WhatsAppMessage',
+  WhatsAppConnection: 'WhatsAppConnection',
   MailServer: 'MailServer',
   Mailbox: 'Mailbox',
   MailMessage: 'MailMessage',
@@ -446,7 +447,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspace" | "platformCredential"
+    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspace" | "platformCredential"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2004,6 +2005,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    WhatsAppConnection: {
+      payload: Prisma.$WhatsAppConnectionPayload<ExtArgs>
+      fields: Prisma.WhatsAppConnectionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.WhatsAppConnectionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.WhatsAppConnectionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload>
+        }
+        findFirst: {
+          args: Prisma.WhatsAppConnectionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.WhatsAppConnectionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload>
+        }
+        findMany: {
+          args: Prisma.WhatsAppConnectionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload>[]
+        }
+        create: {
+          args: Prisma.WhatsAppConnectionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload>
+        }
+        createMany: {
+          args: Prisma.WhatsAppConnectionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.WhatsAppConnectionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload>[]
+        }
+        delete: {
+          args: Prisma.WhatsAppConnectionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload>
+        }
+        update: {
+          args: Prisma.WhatsAppConnectionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload>
+        }
+        deleteMany: {
+          args: Prisma.WhatsAppConnectionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.WhatsAppConnectionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.WhatsAppConnectionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload>[]
+        }
+        upsert: {
+          args: Prisma.WhatsAppConnectionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppConnectionPayload>
+        }
+        aggregate: {
+          args: Prisma.WhatsAppConnectionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateWhatsAppConnection>
+        }
+        groupBy: {
+          args: Prisma.WhatsAppConnectionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WhatsAppConnectionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.WhatsAppConnectionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WhatsAppConnectionCountAggregateOutputType> | number
+        }
+      }
+    }
     MailServer: {
       payload: Prisma.$MailServerPayload<ExtArgs>
       fields: Prisma.MailServerFieldRefs
@@ -3356,11 +3431,26 @@ export const WhatsAppMessageScalarFieldEnum = {
   status: 'status',
   postId: 'postId',
   savedById: 'savedById',
+  isLive: 'isLive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type WhatsAppMessageScalarFieldEnum = (typeof WhatsAppMessageScalarFieldEnum)[keyof typeof WhatsAppMessageScalarFieldEnum]
+
+
+export const WhatsAppConnectionScalarFieldEnum = {
+  id: 'id',
+  ownerId: 'ownerId',
+  phone: 'phone',
+  status: 'status',
+  lastConnectedAt: 'lastConnectedAt',
+  lastDisconnectedAt: 'lastDisconnectedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppConnectionScalarFieldEnum = (typeof WhatsAppConnectionScalarFieldEnum)[keyof typeof WhatsAppConnectionScalarFieldEnum]
 
 
 export const MailServerScalarFieldEnum = {
@@ -3858,6 +3948,7 @@ export type GlobalOmitConfig = {
   report?: Prisma.ReportOmit
   linkInBio?: Prisma.LinkInBioOmit
   whatsAppMessage?: Prisma.WhatsAppMessageOmit
+  whatsAppConnection?: Prisma.WhatsAppConnectionOmit
   mailServer?: Prisma.MailServerOmit
   mailbox?: Prisma.MailboxOmit
   mailMessage?: Prisma.MailMessageOmit
