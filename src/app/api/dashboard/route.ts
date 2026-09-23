@@ -12,16 +12,27 @@ function fmt(n: number) {
 /**
  * GET /api/dashboard
  *
- * Content-activity dashboard — the admin's at-a-glance command center.
- * Tracks what the team is DOING: posts created, tweets published,
- * comments received & replied, content pipeline state, and the
- * individuals driving it all. Vanity metrics (followers, impressions)
- * are intentionally NOT surfaced here.
+ * Comprehensive command-center dashboard — the admin's at-a-glance overview.
+ * Combines reach/followers (vanity) WITH content activity (posts/comments)
+ * so the Dashboard is distinct from the Performance module (which is
+ * purely content-activity focused).
+ *
+ * Sections:
+ * - KPIs: followers, reach, posts created, comments (mixed vanity + content)
+ * - Pages ranking: per-account followers/reach/posts/engagement (sortable)
+ * - Reach + follower trend (14 days)
+ * - Content pipeline (draft/scheduled/published/failed)
+ * - Top performing content (by engagement)
+ * - Comment inbox preview (latest unread)
+ * - Top contributors (most active members)
+ * - Recent posts (clickable for republish)
+ * - Upcoming scheduled
+ * - Team activity feed
  */
 export async function GET() {
   try {
-    const [accounts, posts, variants, comments, activities] = await Promise.all([
-      db.account.findMany({ include: { owner: true } }),
+    const [accounts, posts, variants, comments, activities, analytics] = await Promise.all([
+      db.account.findMany({ include: { owner: true, health: true } }),
       db.post.findMany({
         include: {
           author: true,
@@ -31,7 +42,34 @@ export async function GET() {
       db.postVariant.findMany({ include: { account: true } }),
       db.comment.findMany({ include: { account: { include: { owner: true } } } }),
       db.activity.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 12 }),
+      db.analyticsDaily.findMany({ orderBy: { date: "asc" } }),
     ]);
+
+    const now = Date.now();
+    const day = 86400000;
+    const sevenDaysAgo = new Date(now - 7 * day);
+    const fourteenDaysAgo = new Date(now - 14 * day);
+    const thirtyDaysAgo = new Date(now - 30 * day);
+
+    // === Followers + Reach totals ===
+    const totalFollowers = accounts.reduce((s, a) => s + a.followers, 0);
+    const totalReach = analytics.reduce((s, a) => s + a.reach, 0);
+    const totalImpressions = analytics.reduce((s, a) => s + a.impressions, 0);
+    const totalEngagement = variants.reduce((s, v) => s + v.likes + v.comments + v.shares + v.saves, 0);
+
+    // 7d vs prev 7d deltas
+    const last7Analytics = analytics.filter((a) => a.date.getTime() > now - 7 * day);
+    const prev7Analytics = analytics.filter(
+      (a) => a.date.getTime() > now - 14 * day && a.date.getTime() <= now - 7 * day
+    );
+    const l7Follow = last7Analytics.reduce((s, a) => s + a.followers, 0);
+    const p7Follow = prev7Analytics.reduce((s, a) => s + a.followers, 0) || 1;
+    const l7Reach = last7Analytics.reduce((s, a) => s + a.reach, 0);
+    const p7Reach = prev7Analytics.reduce((s, a) => s + a.reach, 0) || 1;
+    const l7Imp = last7Analytics.reduce((s, a) => s + a.impressions, 0);
+    const p7Imp = prev7Analytics.reduce((s, a) => s + a.impressions, 0) || 1;
+
+    const delta = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : a > 0 ? 100 : 0);
 
     // === Content pipeline counts ===
     const publishedCount = posts.filter((p) => p.status === "published").length;
@@ -47,23 +85,18 @@ export async function GET() {
       ? Math.round((commentsReplied / commentsReceived) * 100)
       : 0;
 
-    // === Recent activity deltas (7d vs prev 7d) ===
-    const now = Date.now();
-    const day = 86400000;
-    const sevenDaysAgo = new Date(now - 7 * day);
-    const fourteenDaysAgo = new Date(now - 14 * day);
-
+    // === Content activity deltas (7d vs prev 7d) ===
     const postsLast7d = posts.filter((p) => new Date(p.createdAt) > sevenDaysAgo).length;
     const postsPrev7d = posts.filter(
       (p) => new Date(p.createdAt) > fourteenDaysAgo && new Date(p.createdAt) <= sevenDaysAgo
     ).length;
-    const postsDelta = postsPrev7d > 0 ? Math.round(((postsLast7d - postsPrev7d) / postsPrev7d) * 100) : postsLast7d > 0 ? 100 : 0;
+    const postsDelta = delta(postsLast7d, postsPrev7d);
 
     const commentsLast7d = comments.filter((c) => new Date(c.createdAt) > sevenDaysAgo).length;
     const commentsPrev7d = comments.filter(
       (c) => new Date(c.createdAt) > fourteenDaysAgo && new Date(c.createdAt) <= sevenDaysAgo
     ).length;
-    const commentsDelta = commentsPrev7d > 0 ? Math.round(((commentsLast7d - commentsPrev7d) / commentsPrev7d) * 100) : commentsLast7d > 0 ? 100 : 0;
+    const commentsDelta = delta(commentsLast7d, commentsPrev7d);
 
     const publishedLast7d = variants.filter(
       (v) => v.publishedAt && new Date(v.publishedAt) > sevenDaysAgo
@@ -71,21 +104,22 @@ export async function GET() {
     const publishedPrev7d = variants.filter(
       (v) => v.publishedAt && new Date(v.publishedAt) > fourteenDaysAgo && new Date(v.publishedAt) <= sevenDaysAgo
     ).length;
-    const publishedDelta = publishedPrev7d > 0 ? Math.round(((publishedLast7d - publishedPrev7d) / publishedPrev7d) * 100) : publishedLast7d > 0 ? 100 : 0;
+    const publishedDelta = delta(publishedLast7d, publishedPrev7d);
 
-    const repliedLast7d = comments.filter(
-      (c) => c.replied && new Date(c.createdAt) > sevenDaysAgo
-    ).length;
-    const repliedPrev7d = comments.filter(
-      (c) => c.replied && new Date(c.createdAt) > fourteenDaysAgo && new Date(c.createdAt) <= sevenDaysAgo
-    ).length;
-    const replyDelta = repliedPrev7d > 0 ? Math.round(((repliedLast7d - repliedPrev7d) / repliedPrev7d) * 100) : repliedLast7d > 0 ? 100 : 0;
-
-    // === Content creation trend (14 days) ===
-    const series: { date: string; postsCreated: number; published: number; comments: number }[] = [];
+    // === Combined trend series (14 days): followers, reach, postsCreated, comments ===
+    const series: {
+      date: string;
+      followers: number;
+      reach: number;
+      impressions: number;
+      postsCreated: number;
+      published: number;
+      comments: number;
+    }[] = [];
     for (let d = 13; d >= 0; d--) {
       const date = new Date(now - d * day);
       const dayKey = date.toISOString().slice(0, 10);
+      const dayAnalytics = analytics.filter((a) => a.date.toISOString().slice(0, 10) === dayKey);
       const dayPosts = posts.filter((p) => p.createdAt.toISOString().slice(0, 10) === dayKey);
       const dayVariants = variants.filter(
         (v) => v.publishedAt && v.publishedAt.toISOString().slice(0, 10) === dayKey
@@ -93,13 +127,75 @@ export async function GET() {
       const dayComments = comments.filter((c) => c.createdAt.toISOString().slice(0, 10) === dayKey);
       series.push({
         date: dayKey,
+        followers: dayAnalytics.reduce((s, a) => s + a.followers, 0),
+        reach: dayAnalytics.reduce((s, a) => s + a.reach, 0),
+        impressions: dayAnalytics.reduce((s, a) => s + a.impressions, 0),
         postsCreated: dayPosts.length,
         published: dayVariants.length,
         comments: dayComments.length,
       });
     }
 
-    // === Pipeline visualization data ===
+    // === Pages ranking (per-account leaderboard) ===
+    const pagesRanking = accounts.map((acc) => {
+      const accVariants = variants.filter((v) => v.accountId === acc.id);
+      const accAnalytics = analytics.filter((a) => a.accountId === acc.id);
+      const followers = acc.followers;
+      const reach = accAnalytics.reduce((s, a) => s + a.reach, 0);
+      const impressions = accAnalytics.reduce((s, a) => s + a.impressions, 0);
+      const engagement = accVariants.reduce((s, v) => s + v.likes + v.comments + v.shares + v.saves, 0);
+      const postsCount = accVariants.length;
+      const engagementRate = reach > 0 ? Math.round((engagement / reach) * 1000) / 10 : 0;
+
+      // Growth 7d
+      const sorted = [...accAnalytics].sort((a, b) => a.date.getTime() - b.date.getTime());
+      let growth7d = 0;
+      if (sorted.length >= 2) {
+        const latest = sorted[sorted.length - 1].followers;
+        const sevenAgo = sorted.find((x) => x.date.getTime() >= now - 7 * day)?.followers ?? null;
+        if (sevenAgo !== null && sevenAgo > 0) {
+          growth7d = Math.round(((latest - sevenAgo) / sevenAgo) * 1000) / 10;
+        }
+      }
+
+      // Sparkline (14-day followers)
+      const sparkline: number[] = Array(14).fill(0);
+      for (let d = 13; d >= 0; d--) {
+        const date = new Date(now - d * day);
+        const dayKey = date.toISOString().slice(0, 10);
+        const dayA = accAnalytics.find((x) => x.date.toISOString().slice(0, 10) === dayKey);
+        sparkline[13 - d] = dayA?.followers ?? (sparkline[13 - d - 1] ?? followers);
+      }
+      // Fill leading zeros with current follower count
+      let lastVal = followers;
+      for (let i = sparkline.length - 1; i >= 0; i--) {
+        if (sparkline[i] === 0) sparkline[i] = lastVal;
+        else lastVal = sparkline[i];
+      }
+
+      return {
+        id: acc.id,
+        platform: acc.platform,
+        handle: acc.handle,
+        displayName: acc.displayName,
+        avatar: acc.avatar,
+        verified: acc.verified,
+        followers,
+        reach,
+        impressions,
+        engagement,
+        postsCount,
+        engagementRate,
+        growth7d,
+        sparkline,
+        ownerName: acc.owner?.name ?? "Unassigned",
+        ownerColor: acc.owner?.color ?? null,
+        healthStatus: acc.health?.status ?? "healthy",
+        riskLevel: acc.health?.riskLevel ?? "safe",
+      };
+    }).sort((a, b) => b.followers - a.followers);
+
+    // === Pipeline ===
     const pipeline = {
       draft: draftCount,
       scheduled: scheduledCount,
@@ -108,26 +204,20 @@ export async function GET() {
     };
     const pipelineTotal = draftCount + scheduledCount + publishedCount + failedCount;
 
-    // === Top contributors (members with most posts created in last 30 days) ===
-    const thirtyDaysAgo = new Date(now - 30 * day);
+    // === Top contributors ===
     const contributorMap: Record<string, { name: string; color: string | null; avatar: string | null; posts: number; published: number; comments: number }> = {};
     for (const p of posts) {
       if (new Date(p.createdAt) < thirtyDaysAgo) continue;
       const aid = p.authorId;
       if (!contributorMap[aid]) {
         contributorMap[aid] = {
-          name: p.author.name,
-          color: p.author.color,
-          avatar: p.author.avatar,
-          posts: 0,
-          published: 0,
-          comments: 0,
+          name: p.author.name, color: p.author.color, avatar: p.author.avatar,
+          posts: 0, published: 0, comments: 0,
         };
       }
       contributorMap[aid].posts++;
       if (p.status === "published") contributorMap[aid].published++;
     }
-    // Add comment reply counts per contributor (using account owner)
     for (const c of comments) {
       if (new Date(c.createdAt) < thirtyDaysAgo) continue;
       if (c.replied && c.account?.owner) {
@@ -139,7 +229,7 @@ export async function GET() {
       .sort((a, b) => b.posts - a.posts)
       .slice(0, 5);
 
-    // === Recent posts (latest 6, all statuses) ===
+    // === Recent posts ===
     const recentPosts = [...posts]
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 6)
@@ -158,7 +248,7 @@ export async function GET() {
         variantCount: p.variants.length,
       }));
 
-    // === Comment inbox preview (latest 5 unread) ===
+    // === Comment inbox preview ===
     const commentInbox = comments
       .filter((c) => !c.replied)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
@@ -175,7 +265,7 @@ export async function GET() {
         createdAt: c.createdAt.toISOString(),
       }));
 
-    // === Scheduled posts (upcoming) ===
+    // === Upcoming ===
     const upcoming = posts
       .filter((p) => p.status === "scheduled" && p.scheduledAt)
       .sort((a, b) => (a.scheduledAt?.getTime() ?? 0) - (b.scheduledAt?.getTime() ?? 0))
@@ -190,7 +280,7 @@ export async function GET() {
         authorColor: p.author.color,
       }));
 
-    // === Top performing posts (by engagement) ===
+    // === Top performing posts ===
     const topPosts = posts
       .map((p) => ({
         id: p.id,
@@ -201,6 +291,7 @@ export async function GET() {
         authorColor: p.author.color,
         engagement: p.variants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0),
         reach: p.variants.reduce((s, v) => s + v.reach, 0),
+        impressions: p.variants.reduce((s, v) => s + v.impressions, 0),
         accounts: p.variants.length,
         platforms: p.variants.map((v) => v.account.platform),
         publishedAt: p.variants[0]?.publishedAt?.toISOString() ?? null,
@@ -210,20 +301,28 @@ export async function GET() {
 
     return NextResponse.json({
       kpis: {
+        // Vanity metrics (with deltas)
+        totalFollowers: { value: totalFollowers, display: fmt(totalFollowers), delta: delta(l7Follow, p7Follow) },
+        totalReach: { value: totalReach, display: fmt(totalReach), delta: delta(l7Reach, p7Reach) },
+        impressions: { value: totalImpressions, display: fmt(totalImpressions), delta: delta(l7Imp, p7Imp) },
+        // Content activity (with deltas)
         postsCreated: { value: posts.length, display: fmt(posts.length), delta: postsDelta },
         published: { value: publishedCount, display: fmt(publishedCount), delta: publishedDelta },
         comments: { value: commentsReceived, display: fmt(commentsReceived), delta: commentsDelta },
-        replyRate: { value: replyRate, display: `${replyRate}%`, delta: replyDelta },
+        replyRate: { value: replyRate, display: `${replyRate}%`, delta: 0 },
+        // Counts
         drafts: draftCount,
         scheduled: scheduledCount,
         failed: failedCount,
         pendingInbox: commentsPending,
         accounts: accounts.length,
         variantsPublished: variants.filter((v) => v.status === "published").length,
+        totalEngagement,
       },
       pipeline,
       pipelineTotal,
       series,
+      pagesRanking,
       topContributors,
       recentPosts,
       commentInbox,
