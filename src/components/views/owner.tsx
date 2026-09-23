@@ -492,6 +492,10 @@ function CustomersTab() {
   const [editId, setEditId] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<CustomerForm>(EMPTY_CUSTOMER);
   const [busy, setBusy] = React.useState(false);
+  const [loginOpen, setLoginOpen] = React.useState(false);
+  const [loginCustomer, setLoginCustomer] = React.useState<Customer | null>(null);
+  const [loginForm, setLoginForm] = React.useState({ name: "", email: "", password: "", role: "member" });
+  const [loginBusy, setLoginBusy] = React.useState(false);
 
   const customers = data ?? [];
   const stats = {
@@ -563,6 +567,73 @@ function CustomersTab() {
       reload();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const openCreateLogin = (c: Customer) => {
+    setLoginCustomer(c);
+    setLoginForm({ name: c.name, email: c.email, password: "", role: "member" });
+    setLoginOpen(true);
+  };
+
+  const createLogin = async () => {
+    if (!loginForm.name.trim() || !loginForm.email.includes("@")) {
+      toast.error("Enter a valid name and email");
+      return;
+    }
+    if (loginForm.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setLoginBusy(true);
+    try {
+      // Create user account via signup API
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: loginForm.name.trim(),
+          email: loginForm.email.trim(),
+          password: loginForm.password,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        // Set role if not member
+        if (loginForm.role !== "member") {
+          await fetch("/api/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: data.user.id,
+              role: loginForm.role,
+              title: loginForm.role === "admin" ? "Administrator" : "Manager",
+              department: loginCustomer?.company ?? null,
+            }),
+          }).catch(() => {});
+        } else {
+          // Set department/title for member
+          await fetch("/api/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: data.user.id,
+              title: "Team Member",
+              department: loginCustomer?.company ?? null,
+            }),
+          }).catch(() => {});
+        }
+        toast.success("Login created!", {
+          description: `${loginForm.name} can now sign in at /login with their email and password.`,
+        });
+        setLoginOpen(false);
+      } else {
+        toast.error(data.error || "Failed to create login — email may already exist");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setLoginBusy(false);
     }
   };
 
@@ -661,6 +732,9 @@ function CustomersTab() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => openEdit(c)}>
                         <Pencil className="h-3.5 w-3.5" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openCreateLogin(c)}>
+                        <UserPlus className="h-3.5 w-3.5" /> Create login
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setStatus(c, "active")}
@@ -852,6 +926,56 @@ function CustomersTab() {
             <Button onClick={submit} disabled={busy} className="liquid-pill">
               {busy ? "Saving…" : editId ? "Save changes" : "Create customer"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Login Dialog */}
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+        <DialogContent className="glass-strong max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-[var(--gold)]" /> Create login for {loginCustomer?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Create a user account so this customer can sign in at /login. They&apos;ll use their email + the password you set.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Full name</Label>
+              <Input value={loginForm.name} onChange={(e) => setLoginForm({ ...loginForm, name: e.target.value })} placeholder="John Smith" className="mt-1.5" />
+            </div>
+            <div>
+              <Label className="text-xs">Email (login)</Label>
+              <Input type="email" value={loginForm.email} onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })} placeholder="john@company.com" className="mt-1.5" />
+            </div>
+            <div>
+              <Label className="text-xs">Password</Label>
+              <Input type="password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} placeholder="Min 6 characters" className="mt-1.5" />
+            </div>
+            <div>
+              <Label className="text-xs">Role</Label>
+              <Select value={loginForm.role} onValueChange={(v) => setLoginForm({ ...loginForm, role: v })}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
+              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
+              <span>The customer will sign in at <code className="font-mono text-foreground">/login</code> with these credentials. You can change their role or suspend them anytime.</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setLoginOpen(false)}>Cancel</Button>
+            <button onClick={createLogin} disabled={loginBusy} className="liquid-pill flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+              {loginBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              {loginBusy ? "Creating…" : "Create login"}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
