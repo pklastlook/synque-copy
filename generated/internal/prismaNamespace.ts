@@ -3492,6 +3492,7 @@ export const PlatformCredentialScalarFieldEnum = {
   pageId: 'pageId',
   profileId: 'profileId',
   connected: 'connected',
+  oauth2UserToken: 'oauth2UserToken',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

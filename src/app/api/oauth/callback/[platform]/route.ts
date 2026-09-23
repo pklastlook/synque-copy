@@ -501,10 +501,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     }
 
     // Save the access token + page ID for future posting
+    // Store OAuth 2.0 user token SEPARATELY from OAuth 1.0a accessToken
     await db.platformCredential.update({
       where: { userId_platform: { userId, platform } },
       data: {
-        accessToken,
+        oauth2UserToken: accessToken || undefined,
         pageId: pageId || undefined,
         connected: true,
       },

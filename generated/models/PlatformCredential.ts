@@ -39,6 +39,7 @@ export type PlatformCredentialMinAggregateOutputType = {
   pageId: string | null
   profileId: string | null
   connected: boolean | null
+  oauth2UserToken: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -58,6 +59,7 @@ export type PlatformCredentialMaxAggregateOutputType = {
   pageId: string | null
   profileId: string | null
   connected: boolean | null
+  oauth2UserToken: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -77,6 +79,7 @@ export type PlatformCredentialCountAggregateOutputType = {
   pageId: number
   profileId: number
   connected: number
+  oauth2UserToken: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -98,6 +101,7 @@ export type PlatformCredentialMinAggregateInputType = {
   pageId?: true
   profileId?: true
   connected?: true
+  oauth2UserToken?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -117,6 +121,7 @@ export type PlatformCredentialMaxAggregateInputType = {
   pageId?: true
   profileId?: true
   connected?: true
+  oauth2UserToken?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -136,6 +141,7 @@ export type PlatformCredentialCountAggregateInputType = {
   pageId?: true
   profileId?: true
   connected?: true
+  oauth2UserToken?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -228,6 +234,7 @@ export type PlatformCredentialGroupByOutputType = {
   pageId: string | null
   profileId: string | null
   connected: boolean
+  oauth2UserToken: string | null
   createdAt: Date
   updatedAt: Date
   _count: PlatformCredentialCountAggregateOutputType | null
@@ -268,6 +275,7 @@ export type PlatformCredentialWhereInput = {
   pageId?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   profileId?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   connected?: Prisma.BoolFilter<"PlatformCredential"> | boolean
+  oauth2UserToken?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   createdAt?: Prisma.DateTimeFilter<"PlatformCredential"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PlatformCredential"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -288,6 +296,7 @@ export type PlatformCredentialOrderByWithRelationInput = {
   pageId?: Prisma.SortOrderInput | Prisma.SortOrder
   profileId?: Prisma.SortOrderInput | Prisma.SortOrder
   connected?: Prisma.SortOrder
+  oauth2UserToken?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -312,6 +321,7 @@ export type PlatformCredentialWhereUniqueInput = Prisma.AtLeast<{
   pageId?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   profileId?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   connected?: Prisma.BoolFilter<"PlatformCredential"> | boolean
+  oauth2UserToken?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   createdAt?: Prisma.DateTimeFilter<"PlatformCredential"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PlatformCredential"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -332,6 +342,7 @@ export type PlatformCredentialOrderByWithAggregationInput = {
   pageId?: Prisma.SortOrderInput | Prisma.SortOrder
   profileId?: Prisma.SortOrderInput | Prisma.SortOrder
   connected?: Prisma.SortOrder
+  oauth2UserToken?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.PlatformCredentialCountOrderByAggregateInput
@@ -357,6 +368,7 @@ export type PlatformCredentialScalarWhereWithAggregatesInput = {
   pageId?: Prisma.StringNullableWithAggregatesFilter<"PlatformCredential"> | string | null
   profileId?: Prisma.StringNullableWithAggregatesFilter<"PlatformCredential"> | string | null
   connected?: Prisma.BoolWithAggregatesFilter<"PlatformCredential"> | boolean
+  oauth2UserToken?: Prisma.StringNullableWithAggregatesFilter<"PlatformCredential"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"PlatformCredential"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"PlatformCredential"> | Date | string
 }
@@ -375,6 +387,7 @@ export type PlatformCredentialCreateInput = {
   pageId?: string | null
   profileId?: string | null
   connected?: boolean
+  oauth2UserToken?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutPlatformCredentialsInput
@@ -395,6 +408,7 @@ export type PlatformCredentialUncheckedCreateInput = {
   pageId?: string | null
   profileId?: string | null
   connected?: boolean
+  oauth2UserToken?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -413,6 +427,7 @@ export type PlatformCredentialUpdateInput = {
   pageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profileId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   connected?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  oauth2UserToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutPlatformCredentialsNestedInput
@@ -433,6 +448,7 @@ export type PlatformCredentialUncheckedUpdateInput = {
   pageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profileId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   connected?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  oauth2UserToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -452,6 +468,7 @@ export type PlatformCredentialCreateManyInput = {
   pageId?: string | null
   profileId?: string | null
   connected?: boolean
+  oauth2UserToken?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -470,6 +487,7 @@ export type PlatformCredentialUpdateManyMutationInput = {
   pageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profileId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   connected?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  oauth2UserToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -489,6 +507,7 @@ export type PlatformCredentialUncheckedUpdateManyInput = {
   pageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profileId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   connected?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  oauth2UserToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -523,6 +542,7 @@ export type PlatformCredentialCountOrderByAggregateInput = {
   pageId?: Prisma.SortOrder
   profileId?: Prisma.SortOrder
   connected?: Prisma.SortOrder
+  oauth2UserToken?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -542,6 +562,7 @@ export type PlatformCredentialMaxOrderByAggregateInput = {
   pageId?: Prisma.SortOrder
   profileId?: Prisma.SortOrder
   connected?: Prisma.SortOrder
+  oauth2UserToken?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -561,6 +582,7 @@ export type PlatformCredentialMinOrderByAggregateInput = {
   pageId?: Prisma.SortOrder
   profileId?: Prisma.SortOrder
   connected?: Prisma.SortOrder
+  oauth2UserToken?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -621,6 +643,7 @@ export type PlatformCredentialCreateWithoutUserInput = {
   pageId?: string | null
   profileId?: string | null
   connected?: boolean
+  oauth2UserToken?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -639,6 +662,7 @@ export type PlatformCredentialUncheckedCreateWithoutUserInput = {
   pageId?: string | null
   profileId?: string | null
   connected?: boolean
+  oauth2UserToken?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -687,6 +711,7 @@ export type PlatformCredentialScalarWhereInput = {
   pageId?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   profileId?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   connected?: Prisma.BoolFilter<"PlatformCredential"> | boolean
+  oauth2UserToken?: Prisma.StringNullableFilter<"PlatformCredential"> | string | null
   createdAt?: Prisma.DateTimeFilter<"PlatformCredential"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PlatformCredential"> | Date | string
 }
@@ -705,6 +730,7 @@ export type PlatformCredentialCreateManyUserInput = {
   pageId?: string | null
   profileId?: string | null
   connected?: boolean
+  oauth2UserToken?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -723,6 +749,7 @@ export type PlatformCredentialUpdateWithoutUserInput = {
   pageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profileId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   connected?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  oauth2UserToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -741,6 +768,7 @@ export type PlatformCredentialUncheckedUpdateWithoutUserInput = {
   pageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profileId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   connected?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  oauth2UserToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -759,6 +787,7 @@ export type PlatformCredentialUncheckedUpdateManyWithoutUserInput = {
   pageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profileId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   connected?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  oauth2UserToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -780,6 +809,7 @@ export type PlatformCredentialSelect<ExtArgs extends runtime.Types.Extensions.In
   pageId?: boolean
   profileId?: boolean
   connected?: boolean
+  oauth2UserToken?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -800,6 +830,7 @@ export type PlatformCredentialSelectCreateManyAndReturn<ExtArgs extends runtime.
   pageId?: boolean
   profileId?: boolean
   connected?: boolean
+  oauth2UserToken?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -820,6 +851,7 @@ export type PlatformCredentialSelectUpdateManyAndReturn<ExtArgs extends runtime.
   pageId?: boolean
   profileId?: boolean
   connected?: boolean
+  oauth2UserToken?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -840,11 +872,12 @@ export type PlatformCredentialSelectScalar = {
   pageId?: boolean
   profileId?: boolean
   connected?: boolean
+  oauth2UserToken?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type PlatformCredentialOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "platform" | "clientId" | "clientSecret" | "redirectUri" | "apiKey" | "apiSecret" | "accessToken" | "accessSecret" | "bearerToken" | "pageId" | "profileId" | "connected" | "createdAt" | "updatedAt", ExtArgs["result"]["platformCredential"]>
+export type PlatformCredentialOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "platform" | "clientId" | "clientSecret" | "redirectUri" | "apiKey" | "apiSecret" | "accessToken" | "accessSecret" | "bearerToken" | "pageId" | "profileId" | "connected" | "oauth2UserToken" | "createdAt" | "updatedAt", ExtArgs["result"]["platformCredential"]>
 export type PlatformCredentialInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -875,6 +908,7 @@ export type $PlatformCredentialPayload<ExtArgs extends runtime.Types.Extensions.
     pageId: string | null
     profileId: string | null
     connected: boolean
+    oauth2UserToken: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["platformCredential"]>
@@ -1315,6 +1349,7 @@ export interface PlatformCredentialFieldRefs {
   readonly pageId: Prisma.FieldRef<"PlatformCredential", 'String'>
   readonly profileId: Prisma.FieldRef<"PlatformCredential", 'String'>
   readonly connected: Prisma.FieldRef<"PlatformCredential", 'Boolean'>
+  readonly oauth2UserToken: Prisma.FieldRef<"PlatformCredential", 'String'>
   readonly createdAt: Prisma.FieldRef<"PlatformCredential", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"PlatformCredential", 'DateTime'>
 }

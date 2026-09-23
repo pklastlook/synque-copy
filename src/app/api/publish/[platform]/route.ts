@@ -56,7 +56,58 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
     }
 
     try {
-      // Try OAuth 1.0a first (works on Free tier for user-context posting)
+      // PRIORITY 1: OAuth 2.0 user-context token (from "Login with X" flow)
+      // This is the user's own token — works with pay-per-use billing
+      if (cred.oauth2UserToken) {
+        console.log("[publish/twitter] Trying OAuth 2.0 user token...");
+        const tweetRes = await fetch("https://api.twitter.com/2/tweets", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${cred.oauth2UserToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text: content }),
+        });
+
+        const tweetJson = await tweetRes.json();
+        console.log("[publish/twitter] OAuth 2.0 response:", tweetRes.status, JSON.stringify(tweetJson).slice(0, 300));
+
+        if (tweetRes.ok && tweetJson.data?.id) {
+          await db.account.update({
+            where: { id: accountId },
+            data: { postsCount: { increment: 1 } },
+          });
+
+          await db.activity.create({
+            data: {
+              userId,
+              type: "post_published",
+              description: `published a tweet: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
+            },
+          }).catch(() => null);
+
+          return NextResponse.json({
+            ok: true,
+            tweetId: tweetJson.data.id,
+            url: `https://x.com/i/status/${tweetJson.data.id}`,
+            message: "Tweet published successfully!",
+          });
+        }
+
+        // If 401, token expired — fall through to OAuth 1.0a
+        if (tweetRes.status !== 401) {
+          // For 402 or other errors, return the error
+          const errMsg = tweetJson.detail || tweetJson.title || tweetJson.error?.message || `HTTP ${tweetRes.status}`;
+          return NextResponse.json({
+            error: `Failed to post tweet: ${errMsg}`,
+            savedContent: content,
+            manualUrl: "https://x.com/compose/post",
+          }, { status: tweetRes.status || 500 });
+        }
+        console.log("[publish/twitter] OAuth 2.0 token expired (401), trying OAuth 1.0a...");
+      }
+
+      // PRIORITY 2: OAuth 1.0a (from Settings form — app-level)
       if (cred.apiKey && cred.apiSecret && cred.accessToken && cred.accessSecret) {
         try {
           const twitterClient = new TwitterApi({
@@ -91,70 +142,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           const msg1 = err1 instanceof Error ? err1.message : String(err1);
           console.error("[publish/twitter] OAuth 1.0a failed:", msg1);
 
-          // If it's 402 (paywall), try OAuth 2.0 direct fetch as fallback
-          // (pay-per-use billing might work with OAuth 2.0 even if OAuth 1.0a fails)
-          if (msg1.includes("402") || msg1.includes("credits")) {
-            console.log("[publish/twitter] 402 from OAuth 1.0a, trying OAuth 2.0 direct fetch...");
-            // Fall through to OAuth 2.0 attempt below
-          } else {
-            // For other errors (401, 403), return the error directly
-            return NextResponse.json({
-              error: `Failed to post tweet: ${msg1}`,
-            }, { status: 500 });
-          }
-        }
-      }
-
-      // Fallback: OAuth 2.0 user token (direct fetch)
-      // The accessToken stored from the OAuth callback is a user context token
-      if (cred.accessToken) {
-        const tweetRes = await fetch("https://api.twitter.com/2/tweets", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${cred.accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ text: content }),
-        });
-
-        const tweetJson = await tweetRes.json();
-        console.log("[publish/twitter] OAuth 2.0 response:", tweetRes.status, JSON.stringify(tweetJson).slice(0, 300));
-
-        if (tweetRes.ok && tweetJson.data?.id) {
-          await db.account.update({
-            where: { id: accountId },
-            data: { postsCount: { increment: 1 } },
-          });
-
-          await db.activity.create({
-            data: {
-              userId,
-              type: "post_published",
-              description: `published a tweet: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
-            },
-          }).catch(() => null);
-
           return NextResponse.json({
-            ok: true,
-            tweetId: tweetJson.data.id,
-            url: `https://x.com/i/status/${tweetJson.data.id}`,
-            message: "Tweet published successfully!",
-          });
+            error: `Failed to post tweet: ${msg1}`,
+            savedContent: content,
+            manualUrl: "https://x.com/compose/post",
+          }, { status: 500 });
         }
-
-        // Error handling for OAuth 2.0
-        const errMsg = tweetJson.detail || tweetJson.title || tweetJson.error?.message || `HTTP ${tweetRes.status}`;
-        console.error("[publish/twitter] OAuth 2.0 failed:", tweetRes.status, JSON.stringify(tweetJson));
-
-        return NextResponse.json({
-          error: `Failed to post tweet: ${errMsg}`,
-          savedContent: content,
-          manualUrl: "https://x.com/compose/post",
-        }, { status: tweetRes.status || 500 });
       }
 
       return NextResponse.json({
-        error: "No access token. Add OAuth 1.0a credentials (Access Token + Access Token Secret) in Settings → Platform API Keys → Twitter.",
+        error: "No valid token. Either connect via 'Login with X' or add OAuth 1.0a credentials in Settings.",
       }, { status: 400 });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Twitter posting error";
