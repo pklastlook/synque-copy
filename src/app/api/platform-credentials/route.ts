@@ -14,11 +14,13 @@ export async function GET(req: NextRequest) {
       id: c.id,
       platform: c.platform,
       connected: c.connected,
+      clientId: c.clientId ? c.clientId.slice(0, 4) + "••••" + c.clientId.slice(-4) : null,
       apiKey: c.apiKey ? c.apiKey.slice(0, 4) + "••••" + c.apiKey.slice(-4) : null,
       accessToken: c.accessToken ? "••••" + c.accessToken.slice(-4) : null,
       bearerToken: c.bearerToken ? "••••" + c.bearerToken.slice(-4) : null,
       pageId: c.pageId,
       profileId: c.profileId,
+      hasClientSecret: !!c.clientSecret,
       hasApiSecret: !!c.apiSecret,
       hasAccessSecret: !!c.accessSecret,
       updatedAt: c.updatedAt.toISOString(),
@@ -29,9 +31,11 @@ export async function GET(req: NextRequest) {
 /** PUT /api/platform-credentials — save or update platform credentials */
 export async function PUT(req: NextRequest) {
   const body = await req.json();
-  const { userId, platform, apiKey, apiSecret, accessToken, accessSecret, bearerToken, pageId, profileId } = body as {
+  const { userId, platform, clientId, clientSecret, apiKey, apiSecret, accessToken, accessSecret, bearerToken, pageId, profileId } = body as {
     userId: string;
     platform: string;
+    clientId?: string;
+    clientSecret?: string;
     apiKey?: string;
     apiSecret?: string;
     accessToken?: string;
@@ -46,6 +50,8 @@ export async function PUT(req: NextRequest) {
   }
 
   const data: Record<string, unknown> = { connected: true };
+  if (clientId !== undefined) data.clientId = clientId;
+  if (clientSecret !== undefined) data.clientSecret = clientSecret;
   if (apiKey !== undefined) data.apiKey = apiKey;
   if (apiSecret !== undefined) data.apiSecret = apiSecret;
   if (accessToken !== undefined) data.accessToken = accessToken;

@@ -27,11 +27,13 @@ interface PlatformCredential {
   id: string;
   platform: string;
   connected: boolean;
+  clientId: string | null;
   apiKey: string | null;
   accessToken: string | null;
   bearerToken: string | null;
   pageId: string | null;
   profileId: string | null;
+  hasClientSecret: boolean;
   hasApiSecret: boolean;
   hasAccessSecret: boolean;
   updatedAt: string;
@@ -50,52 +52,49 @@ const PLATFORM_CONFIG: Record<string, {
     name: "Twitter / X",
     color: "oklch(0.2 0 0)",
     fields: [
-      { key: "apiKey", label: "Consumer Key (API Key)", placeholder: "Your Twitter App Consumer Key", required: true },
-      { key: "apiSecret", label: "Consumer Secret (API Secret)", placeholder: "Your Twitter App Consumer Secret", required: true, type: "password" },
-      { key: "accessToken", label: "Access Token", placeholder: "OAuth 1.0a Access Token", required: true },
-      { key: "accessSecret", label: "Access Token Secret", placeholder: "OAuth 1.0a Access Token Secret", required: true, type: "password" },
+      { key: "clientId", label: "OAuth 2.0 Client ID", placeholder: "Your Twitter App Client ID", required: true },
+      { key: "clientSecret", label: "OAuth 2.0 Client Secret", placeholder: "Your Twitter App Client Secret", required: true, type: "password" },
+      { key: "apiKey", label: "Consumer Key (API Key)", placeholder: "Optional — for OAuth 1.0a fallback" },
+      { key: "apiSecret", label: "Consumer Secret (API Secret)", placeholder: "Optional — for OAuth 1.0a fallback", type: "password" },
     ],
     docsUrl: "https://developer.twitter.com/en/portal/dashboard",
-    helpText: "Go to developer.twitter.com → create an app → set permissions to 'Read and Write' → generate keys and tokens → paste them here.",
+    helpText: "Go to developer.twitter.com → create an app → set permissions to 'Read and Write' → under 'User authentication settings' set up OAuth 2.0 → copy the Client ID and Client Secret. Set the Callback URI to your app URL + /api/oauth/callback/twitter.",
   },
   instagram: {
     icon: Instagram,
     name: "Instagram",
     color: "oklch(0.635 0.217 17)",
     fields: [
-      { key: "apiKey", label: "App ID", placeholder: "Your Meta App ID", required: true },
-      { key: "apiSecret", label: "App Secret", placeholder: "Your Meta App Secret", required: true, type: "password" },
-      { key: "accessToken", label: "Long-Lived Access Token", placeholder: "IG Graph API access token", required: true },
-      { key: "pageId", label: "IG Business Account ID", placeholder: "e.g. 17841400000000000", required: true },
+      { key: "clientId", label: "Meta App ID", placeholder: "Your Meta App ID", required: true },
+      { key: "clientSecret", label: "Meta App Secret", placeholder: "Your Meta App Secret", required: true, type: "password" },
+      { key: "pageId", label: "IG Business Account ID", placeholder: "Fetched automatically after OAuth login" },
     ],
     docsUrl: "https://developers.facebook.com/docs/instagram-api/getting-started",
-    helpText: "Requires a Meta Developer account, an Instagram Business/Creator account, and an app with Instagram Graph API added. Generate a long-lived access token via the Graph API Explorer.",
+    helpText: "Create a Meta Developer app → add Instagram Graph API → set OAuth redirect URI to your app URL + /api/oauth/callback/instagram. Users then click 'Connect Instagram' and get redirected to login.",
   },
   linkedin: {
     icon: Linkedin,
     name: "LinkedIn",
     color: "oklch(0.54 0.16 250)",
     fields: [
-      { key: "apiKey", label: "Client ID", placeholder: "Your LinkedIn App Client ID", required: true },
-      { key: "apiSecret", label: "Client Secret", placeholder: "Your LinkedIn App Client Secret", required: true, type: "password" },
-      { key: "accessToken", label: "Access Token", placeholder: "OAuth 2.0 access token (w_member_social)", required: true },
-      { key: "profileId", label: "Member URN", placeholder: "urn:li:person:XXXXXX", required: true },
+      { key: "clientId", label: "Client ID", placeholder: "Your LinkedIn App Client ID", required: true },
+      { key: "clientSecret", label: "Client Secret", placeholder: "Your LinkedIn App Client Secret", required: true, type: "password" },
+      { key: "profileId", label: "Member URN", placeholder: "Fetched automatically after OAuth login" },
     ],
     docsUrl: "https://www.linkedin.com/developers/apps",
-    helpText: "Create a LinkedIn Developer app, add 'Share on LinkedIn' and 'Sign In with LinkedIn' products, generate an access token with w_member_social scope.",
+    helpText: "Create a LinkedIn Developer app → add 'Share on LinkedIn' product → set redirect URL to your app URL + /api/oauth/callback/linkedin. Users click 'Connect LinkedIn' and get redirected to login.",
   },
   facebook: {
     icon: Facebook,
     name: "Facebook",
     color: "oklch(0.588 0.167 254)",
     fields: [
-      { key: "apiKey", label: "App ID", placeholder: "Your Meta App ID", required: true },
-      { key: "apiSecret", label: "App Secret", placeholder: "Your Meta App Secret", required: true, type: "password" },
-      { key: "accessToken", label: "Page Access Token", placeholder: "FB Graph API page access token", required: true },
-      { key: "pageId", label: "Facebook Page ID", placeholder: "e.g. 1234567890", required: true },
+      { key: "clientId", label: "Meta App ID", placeholder: "Your Meta App ID", required: true },
+      { key: "clientSecret", label: "Meta App Secret", placeholder: "Your Meta App Secret", required: true, type: "password" },
+      { key: "pageId", label: "Facebook Page ID", placeholder: "Fetched automatically after OAuth login" },
     ],
     docsUrl: "https://developers.facebook.com/docs/pages-api",
-    helpText: "Requires a Meta Developer account + Facebook Page. Generate a Page Access Token via the Graph API Explorer with pages_manage_posts permission.",
+    helpText: "Create a Meta Developer app → add Facebook Login product → set OAuth redirect URI to your app URL + /api/oauth/callback/facebook. Users click 'Connect Facebook' and get redirected to login → pick their page.",
   },
 };
 
@@ -267,7 +266,9 @@ export function PlatformApiSection() {
               />
               {existingCred?.connected && (
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Currently set: {field.key === "apiKey" && existingCred.apiKey}
+                  Currently set: {field.key === "clientId" && existingCred.clientId}
+                  {field.key === "clientSecret" && (existingCred.hasClientSecret ? "••••••••" : "not set")}
+                  {field.key === "apiKey" && existingCred.apiKey}
                   {field.key === "accessToken" && existingCred.accessToken}
                   {field.key === "apiSecret" && (existingCred.hasApiSecret ? "••••••••" : "not set")}
                   {field.key === "accessSecret" && (existingCred.hasAccessSecret ? "••••••••" : "not set")}
