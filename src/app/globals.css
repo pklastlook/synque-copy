@@ -63,17 +63,15 @@
 :root {
   --radius: 0.75rem;
 
-  /* Sonoma window background — clean, near-white, neutral.
-     Not a wallpaper mesh — a solid canvas that lets materials shine. */
-  --background: oklch(0.98 0.002 250);
+  /* Background — darker than cards so cards POP.
+     Light grey canvas, not near-white (that blends with white cards). */
+  --background: oklch(0.95 0.004 250);
   --foreground: oklch(0.16 0.008 250);
 
-  /* Content cards — Sonoma .regularMaterial: solid white with the faintest
-     warmth, NOT a heavy glass. Borders are subtle, shadows are soft. */
+  /* Cards — pure white, clearly elevated above the grey background */
   --card: oklch(1 0 0 / 100%);
   --card-foreground: oklch(0.16 0.008 250);
 
-  /* Popovers — Sonoma .thickMaterial: solid, slightly elevated */
   --popover: oklch(1 0 0 / 100%);
   --popover-foreground: oklch(0.16 0.008 250);
 
@@ -81,25 +79,23 @@
   --primary: oklch(0.588 0.167 254);
   --primary-foreground: oklch(0.99 0 0);
 
-  /* Accent — Apple system indigo (#5856D6), Sonoma's signature secondary */
+  /* Accent — Apple system indigo (#5856D6) */
   --gold: oklch(0.588 0.209 277);
   --gold-foreground: oklch(0.99 0 0);
   --accent-strong: oklch(0.54 0.21 277);
 
-  /* Neutrals — Sonoma uses warm greys, not cold blue-greys */
-  --secondary: oklch(0.945 0.003 250);
+  --secondary: oklch(0.92 0.003 250);
   --secondary-foreground: oklch(0.22 0.008 250);
 
-  --muted: oklch(0.945 0.003 250);
-  --muted-foreground: oklch(0.50 0.008 250);
+  --muted: oklch(0.92 0.003 250);
+  --muted-foreground: oklch(0.48 0.008 250);
 
-  --accent: oklch(0.94 0.008 258);
+  --accent: oklch(0.93 0.008 258);
   --accent-foreground: oklch(0.36 0.13 258);
 
-  /* Semantic — Apple system red */
   --destructive: oklch(0.626 0.225 27);
-  --border: oklch(0.90 0.003 250);
-  --input: oklch(0.93 0.002 250);
+  --border: oklch(0.88 0.004 250);
+  --input: oklch(0.91 0.003 250);
   --ring: oklch(0.588 0.167 254 / 40%);
 
   /* Chart palette — Apple system colors (semantic, retina-ready) */
@@ -131,16 +127,15 @@
 }
 
 .dark {
-  /* Sonoma dark — deep neutral charcoal, NOT blue-black.
-     Matches macOS dark mode: warm dark grey, not cold. */
-  --background: oklch(0.17 0.004 250);
+  /* Dark background — darker so cards (0.24) clearly pop above it */
+  --background: oklch(0.14 0.004 250);
   --foreground: oklch(0.96 0.003 250);
 
-  /* Cards — solid elevated surface (Sonoma dark .regularMaterial) */
-  --card: oklch(0.225 0.005 250 / 92%);
+  /* Cards — clearly elevated surface, brighter than background */
+  --card: oklch(0.24 0.006 250 / 100%);
   --card-foreground: oklch(0.96 0.003 250);
 
-  --popover: oklch(0.26 0.006 250 / 96%);
+  --popover: oklch(0.27 0.006 250 / 100%);
   --popover-foreground: oklch(0.96 0.003 250);
 
   --primary: oklch(0.69 0.165 254);
@@ -244,14 +239,15 @@
   --crystal-glow: oklch(0.69 0.165 254 / 8%);
 }
 
-/* Glass — the standard Sonoma card surface (.regularMaterial) */
+/* Glass — the standard card surface. Must clearly POP above the background. */
 .glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  /* Sonoma shadow: single soft layer, never heavy */
+  /* Layered shadows: tight inner + soft drop = real elevation */
   box-shadow:
     0 1px 2px 0 var(--glass-shadow-soft),
-    0 4px 12px -4px var(--glass-shadow-soft);
+    0 4px 12px -2px var(--glass-shadow),
+    0 8px 24px -8px var(--glass-shadow);
   position: relative;
 }
 /* No ::after pseudo — Sonoma cards are clean, no top highlight gradient */
