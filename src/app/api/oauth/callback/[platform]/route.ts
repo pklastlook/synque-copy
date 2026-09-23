@@ -18,20 +18,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   const code = req.nextUrl.searchParams.get("code");
   const stateParam = req.nextUrl.searchParams.get("state");
   const error = req.nextUrl.searchParams.get("error");
+  const errorDescription = req.nextUrl.searchParams.get("error_description");
+
+  console.log(`[oauth/callback/${platform}] code=${code ? "present" : "MISSING"} state=${stateParam ? "present" : "MISSING"} error=${error || "none"}`);
+  if (error) {
+    console.log(`[oauth/callback/${platform}] error_description=${errorDescription}`);
+  }
 
   // User cancelled or platform returned an error
   if (error) {
-    return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(error)}`, req.url));
+    const errorMsg = encodeURIComponent(errorDescription || error);
+    return NextResponse.redirect(new URL(`/?oauth_error=${errorMsg}`, req.url));
   }
 
   if (!code || !stateParam) {
+    console.log(`[oauth/callback/${platform}] MISSING code or state — Twitter likely rejected the redirect_uri mismatch`);
     return NextResponse.redirect(new URL("/?oauth_error=missing_code_or_state", req.url));
   }
 
-  // Decode the state to get userId
-  let state: { userId: string; platform: string };
+  // Decode the state to get userId + codeVerifier (for PKCE)
+  let state: { userId: string; platform: string; codeVerifier?: string };
   try {
     state = JSON.parse(Buffer.from(stateParam, "base64url").toString());
+    console.log(`[oauth/callback/${platform}] decoded state: userId=${state.userId}`);
   } catch {
     return NextResponse.redirect(new URL("/?oauth_error=invalid_state", req.url));
   }
@@ -209,24 +218,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     }
 
     if (platform === "twitter") {
-      // Twitter OAuth 2.0 token exchange
+      // Twitter OAuth 2.0 token exchange with PKCE
       const tokenRes = await fetch("https://api.twitter.com/2/oauth2/token", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "Authorization": "Basic " + Buffer.from(`${cred.clientId}:${cred.clientSecret}`).toString("base64"),
         },
         body: new URLSearchParams({
           code,
           grant_type: "authorization_code",
           client_id: cred.clientId,
           redirect_uri: redirectUri,
-          code_verifier: "challenge",
+          code_verifier: state.codeVerifier ?? "challenge",
+          client_secret: cred.clientSecret,
         }),
       });
       const tokenJson = await tokenRes.json();
+      console.log(`[oauth/callback/twitter] token response:`, JSON.stringify(tokenJson).slice(0, 300));
       if (!tokenJson.access_token) {
-        return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent("twitter_token_failed")}`, req.url));
+        const errMsg = tokenJson.error_description || tokenJson.error || "twitter_token_failed";
+        return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(errMsg)}`, req.url));
       }
       accessToken = tokenJson.access_token;
 

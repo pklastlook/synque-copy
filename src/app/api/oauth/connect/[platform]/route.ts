@@ -91,11 +91,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   authUrl.searchParams.set("state", state);
   authUrl.searchParams.set("scope", config.scopes.join(" "));
 
-  // For Twitter OAuth 2.0, need code_challenge (PKCE)
+  // For Twitter OAuth 2.0, need PKCE code_challenge
+  // Using a random string that we'll verify in the callback
   if (platform === "twitter") {
-    authUrl.searchParams.set("code_challenge", "challenge");
+    // Generate a random code_verifier (32 chars)
+    const codeVerifier = Math.random().toString(36).substring(2, 34) + Math.random().toString(36).substring(2, 34);
+    // For "plain" method, code_challenge = code_verifier
+    authUrl.searchParams.set("code_challenge", codeVerifier);
     authUrl.searchParams.set("code_challenge_method", "plain");
+    // Store the code_verifier in the state so the callback can use it
+    const stateData = { userId, platform, codeVerifier };
+    const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString("base64url");
+    authUrl.searchParams.set("state", stateEncoded);
   }
+
+  console.log(`[oauth/connect/${platform}] redirect_uri=${redirectUri}`);
+  console.log(`[oauth/connect/${platform}] auth_url=${authUrl.toString()}`);
 
   // Redirect the browser to the platform's login page
   return NextResponse.redirect(authUrl.toString());
