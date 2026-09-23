@@ -1516,3 +1516,16 @@ Stage Summary:
 - 6 files changed, 227 insertions, 285 deletions (net -58 lines — simpler, more Sonoma).
 - Committed (5a0fb40) by pklastlook@gmail.com, pushed to GitHub.
 - tsc: 0 errors in src/. lint: 0 errors.
+
+---
+Task ID: bug-fix-followers-workspace
+Agent: main (code assistant)
+Task: Fix Instagram 0-followers bug + workspace save bug — real data must persist.
+
+Work Log:
+- BUG 1 (Instagram 0 followers): /api/accounts POST hardcoded followers:0, verified:false. Fixed to accept followers + verified from body. /api/accounts/[id] PATCH now allows followers updates. Connect dialog now has Followers + Verified input fields. VERIFIED: connected @lastlookpkofficial with followers:7499, verified:true → dashboard shows '7.5K TOTAL FOLLOWERS across 1 account'.
+- BUG 2 (Workspace not saving): WorkspaceSection save() was a fake toast. Added Workspace model to schema, created /api/workspace route (GET + PUT upsert). Rewrote WorkspaceSection to load real data + save via PUT. VERIFIED: changed name to 'SocialFlow HQ' → saved → DB shows name:'SocialFlow HQ'. Persists across reloads.
+
+Stage Summary:
+- 7 source files + generated Prisma client. Committed (b381b30) by pklastlook@gmail.com, pushed to GitHub.
+- tsc: 0 errors in src/. lint: 0 errors.
