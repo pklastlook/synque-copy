@@ -201,3 +201,8 @@ export type Subscription = Prisma.SubscriptionModel
  * 
  */
 export type Workspace = Prisma.WorkspaceModel
+/**
+ * Model PlatformCredential
+ * 
+ */
+export type PlatformCredential = Prisma.PlatformCredentialModel

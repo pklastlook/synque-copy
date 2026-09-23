@@ -32,6 +32,7 @@ model User {
   assignedComments Comment[] @relation("CommentAssignee")
   mailboxes Mailbox[] @relation("MailboxOwner")
   workspace Workspace?
+  platformCredentials PlatformCredential[]
 }
 
 model Account {
@@ -540,5 +541,30 @@ model Workspace {
   owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ===== Platform API Credentials (real API keys for posting + sync) =====
+model PlatformCredential {
+  id            String   @id @default(cuid())
+  userId        String   // owner
+  platform      String   // twitter | instagram | linkedin | facebook | tiktok
+  // Twitter API v2 (OAuth 2.0 or OAuth 1.0a):
+  apiKey        String?  // Consumer Key (Twitter) / App ID (Instagram)
+  apiSecret     String?  // Consumer Secret / App Secret
+  accessToken   String?  // OAuth 2.0 access token (with tweet.write scope)
+  accessSecret  String?  // OAuth 1.0a access token secret (Twitter only)
+  bearerToken   String?  // App-only Bearer Token (Twitter)
+  // Instagram/Facebook Graph API:
+  pageId        String?  // IG Business Account ID or FB Page ID
+  // LinkedIn:
+  profileId     String?  // LinkedIn URN (urn:li:person:xxx)
+  // Common:
+  connected     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
 }
 

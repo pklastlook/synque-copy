@@ -76,6 +76,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import { PlatformApiSection } from "@/components/views/platform-settings/platform-api-section";
 import {
   Dialog,
   DialogContent,
@@ -107,6 +108,7 @@ export type SettingsTab =
   | "notifications"
   | "security"
   | "platforms"
+  | "platform-api"
   | "integrations"
   | "billing"
   | "data"
@@ -131,6 +133,7 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
   { id: "platforms", label: "Platforms", icon: AtSign },
+  { id: "platform-api", label: "Platform API Keys", icon: KeyRound },
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "data", label: "Data & Privacy", icon: Database },
@@ -145,6 +148,7 @@ const SECTION_DESC: Record<SettingsTab, string> = {
   notifications: "Choose what reaches your inbox and how often.",
   security: "Password, 2FA, sessions, API keys, and IP allowlist.",
   platforms: "Manage which social accounts are connected to SocialFlow.",
+  "platform-api": "Connect real platform APIs for live posting and automatic data sync.",
   integrations: "Connect SocialFlow with the tools your team already uses.",
   billing: "Plan, usage, payment method, and invoices.",
   data: "Control how your data is stored, shared, and exported.",
@@ -277,6 +281,7 @@ export function SettingsView() {
         {tab === "notifications" && <NotificationsSection />}
         {tab === "security" && <SecuritySection />}
         {tab === "platforms" && <PlatformsSection />}
+        {tab === "platform-api" && <PlatformApiSection />}
         {tab === "integrations" && <IntegrationsSection />}
         {tab === "billing" && <BillingSection />}
         {tab === "data" && <DataSection />}
