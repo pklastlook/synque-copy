@@ -65,7 +65,9 @@ The "index" MUST match the destination number above, in order. Include exactly o
   let zai: Awaited<ReturnType<typeof createZaiClient>>;
   try {
     zai = await createZaiClient();
-  } catch {
+    console.log("[ai/generate] ZAI client created successfully");
+  } catch (err) {
+    console.error("[ai/generate] ZAI client creation failed:", err instanceof Error ? err.message : String(err));
     return NextResponse.json(
       { error: "AI service unavailable", fallback: fallback(caption, targets) },
       { status: 503 }
@@ -82,10 +84,12 @@ The "index" MUST match the destination number above, in order. Include exactly o
       thinking: { type: "disabled" },
     });
     raw = completion.choices[0]?.message?.content ?? "";
-  } catch {
+    console.log("[ai/generate] AI response received, length:", raw.length);
+  } catch (err) {
+    console.error("[ai/generate] AI request failed:", err instanceof Error ? err.message : String(err));
     return NextResponse.json(
       { error: "AI request failed", fallback: fallback(caption, targets) },
-      { status: 502 }
+      { status: 200 }
     );
   }
 
