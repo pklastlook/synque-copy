@@ -1650,3 +1650,72 @@ Stage Summary:
 - Lint: 0 errors. TypeScript: 0 errors in src/. API: all sections return real data.
 - All 6 existing sections preserved (hero, KPIs, trend, distribution, leaderboard, breakdown, members, activity).
 - Interactive + animated: count-up KPIs, staggered card animations, circular progress rings, animated bar fills, hover tooltips, expandable cards, hover-scale heatmap cells.
+
+---
+Task ID: performance-content-activity-refocus
+Agent: main (code assistant)
+Task: Refocus Performance module on content activity (posts/tweets/comments) — NOT followers/engagement. This is the admin command center for tracking what the team is DOING.
+
+Work Log:
+- Completely rewrote /api/team-performance GET route (452 → 294 lines, leaner and focused):
+  • Removed: platformDistribution (follower-based), platform sparklines, profile sparklines, pagesProgress (follower targets), performanceMatrix (follower/engagement bubble), engagementBuckets (engagement rate bands), workspace targets.
+  • Added content-activity aggregations:
+    - teamTotals now has: postsCreated, publishedPosts, scheduledPosts, draftPosts, failedPosts, variantsPublished, commentsReceived, commentsReplied, replyRate, postsLast7d, postsLast30d, weeklyCadence. (Removed: totalFollowers, totalImpressions, totalReach, totalEngagement, totalLikes, totalComments, totalShares, totalSaves, avgEngagementRate.)
+    - pipeline: { draft, scheduled, published, failed } — content lifecycle stages.
+    - postsByPlatform: per-platform { published, total, comments } — tweets to X, posts to IG, etc.
+    - commentsByType: count of comment/message/mention types.
+    - commentsBySentiment: { positive, neutral, negative }.
+    - accountCommentLoad: per-account { total, unread, replied, replyRate } sorted by unread (most attention-needed first).
+    - trend: per-day { postsCreated, published, comments } (was engagement/impressions).
+    - activityHeatmap: 90-day content creation cadence (was followers).
+    - leaderboard: mostPostsCreated, mostPublished, mostCommentsReplied, bestReplyRate, mostActive (was mostFollowers, mostEngagement, bestEngagementRate).
+    - members[].metrics: postsCreated, publishedPosts, scheduledPosts, draftPosts, failedPosts, variantsPublished, commentsReceived, commentsReplied, replyRate, positiveComments, neutralComments, negativeComments, weeklyCadence, monthlyCadence (was followers, impressions, reach, engagement, likes, comments, shares, saves, engagementRate).
+  • Fixed post query to include variants.account (needed for heatmap platform aggregation).
+
+- Completely rewrote team-performance.tsx (1012 → 861 lines, cleaner):
+  • Hero: "X posts created · Y published · Z comments received · N this week" (was "X active members · Y followers · Z posts").
+  • KPI grid: Posts Created / Published / Comments Received / Reply Rate (was Total Followers / Impressions / Engagement / Avg Engagement Rate).
+  • NEW Content Pipeline section: 4 cards (Drafts, Scheduled, Published, Failed) each with icon, count, %, progress bar. Color-coded per lifecycle stage (purple=draft, blue=scheduled, green=published, red=failed).
+  • Content creation trend: 14-day area chart of postsCreated + published + comments (was engagement + impressions).
+  • Posts by platform: per-platform breakdown with published/total + comments received + progress bar (was platform distribution pie of followers).
+  • NEW Comments Tracking cluster (3 cards):
+    - Reply rate radial (RadialBarChart showing % replied, with Replied/Pending stats below).
+    - Comment sentiment pie (positive/neutral/negative breakdown with legend).
+    - Comment types bar (comment/message/mention with progress bars).
+  • NEW Account Comment Load section: scrollable list of accounts with most unread comments, showing total/unread/replyRate per account. Sorted by unread (most attention-needed first).
+  • NEW Posting Cadence by Member: grouped bar chart of last-7-days vs last-30-days posts per member.
+  • Activity Heatmap: kept (already content-focused — 90-day posting cadence grid).
+  • Leaderboard: mostPostsCreated / mostPublished / mostCommentsReplied / bestReplyRate / mostActive (was follower/engagement-based).
+  • Member cards: 3-stat grid now shows Posts / Published / Replies (was Followers / Engagement / Posts). Cadence indicator shows weekly/monthly. Expanded view shows drafts/scheduled/failed/variants/comments/replyRate/tasks + sentiment breakdown + per-platform content count.
+  • Recent activity: kept (already content-focused).
+
+- Seeded 8 realistic comments on @pklastlook account for UI testing:
+  • 5 comments, 2 messages, 1 mention
+  • 4 positive, 2 neutral, 2 negative sentiment
+  • 3 replied, 5 unread → 38% reply rate
+  • Real handles like @sarah_designs, @mike_ventures, @critic_99, @fan_2026
+
+Verification:
+- bunx tsc --noEmit → 0 errors in src/
+- bun run lint → exit 0, 0 warnings
+- API verified via curl + Python: 
+  • postsCreated=9, publishedPosts=5, draftPosts=3, failedPosts=1, variantsPublished=2
+  • commentsReceived=8, commentsReplied=3, replyRate=38%
+  • commentsByType: {comment:5, message:2, mention:1}
+  • commentsBySentiment: {positive:4, neutral:2, negative:2}
+  • accountCommentLoad: @pklastlook (8 total, 5 unread, 38% replied)
+  • trend: 14 days of postsCreated/published/comments
+  • heatmap: 90 days, 2 active, 9 total activities
+  • leaderboard: 5 categories ranked by content activity
+  • members: 3 members with postsCreated/published/drafts/failed/comments/replyRate/weeklyCadence
+- HTML renders cleanly (106KB, no error boundary, no React errors)
+- Dev log shows 0 compile errors across all routes
+- Browser verification blocked by sandbox OOM (4GB total; Next dev + Chrome can't coexist). Code verified correct via TS + lint + API output + HTML render.
+
+Stage Summary:
+- Files: src/app/api/team-performance/route.ts (rewritten, focused on content activity), src/components/views/team-performance.tsx (rewritten, 6 new content-activity sections), scripts/seed-comments.ts (added 8 test comments).
+- Removed ALL follower/engagement/impressions KPIs from the Performance module.
+- NEW sections: Content Pipeline (draft→scheduled→published→failed), Posts by Platform, Reply Rate Radial, Comment Sentiment Pie, Comment Types, Account Comment Load, Posting Cadence by Member.
+- Preserved: Activity Heatmap (90-day cadence), Leaderboard (now content-ranked), Member Cards (now content-focused), Recent Activity.
+- Lint: 0 errors. TypeScript: 0 errors in src/. API: all content-activity sections return real data.
+- Dev server restarted for user preview at http://localhost:3000/ → Performance in sidebar.

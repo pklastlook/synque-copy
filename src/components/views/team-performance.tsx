@@ -2,16 +2,15 @@
 
 import * as React from "react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
-  PolarAngleAxis, PolarGrid, Radar, RadarChart, Scatter, ScatterChart,
-  ZAxis, XAxis, YAxis, Legend,
-  ResponsiveContainer, Tooltip,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
+  Pie, PieChart, PolarAngleAxis, RadialBar, RadialBarChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis, Legend,
 } from "recharts";
 import {
-  Users, Eye, Heart, TrendingUp, TrendingDown, BarChart3, MessageCircle,
-  Share2, Bookmark, CheckCircle2, Clock, FileText, Send,
-  Sparkles, Trophy, Crown, Award, Activity, Layers, Zap, Target,
-  Flame, Radio, Gauge, Calendar, ArrowUpRight, ArrowDownRight, Plane,
+  FileText, Send, Clock, MessageCircle, CheckCircle2,
+  Sparkles, Trophy, Crown, Award, Activity, Layers,
+  PenLine, Reply, Inbox, TrendingUp,
+  Hash, FileEdit, XCircle, Zap, Flame,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -25,75 +24,49 @@ import { cn } from "@/lib/utils";
 // ============ Types ============
 
 interface MemberMetrics {
-  accounts: number; posts: number; publishedPosts: number; scheduledPosts: number;
-  draftPosts: number; followers: number; impressions: number; reach: number;
-  engagement: number; likes: number; comments: number; shares: number; saves: number;
-  engagementRate: number; tasks: number; completedTasks: number; taskCompletionRate: number;
-  commentsReceived: number; recentActivity: number;
+  accounts: number; postsCreated: number; publishedPosts: number;
+  scheduledPosts: number; draftPosts: number; failedPosts: number;
+  variantsPublished: number; commentsReceived: number; commentsReplied: number;
+  replyRate: number; positiveComments: number; neutralComments: number; negativeComments: number;
+  weeklyCadence: number; monthlyCadence: number;
+  tasksAssigned: number; completedTasks: number; taskCompletionRate: number; recentActivity: number;
 }
 interface Member {
   id: string; name: string; email: string; avatar: string | null; role: string;
   title: string | null; department: string | null; color: string | null;
   status: string; metrics: MemberMetrics;
-  platforms: { platform: string; accounts: number; followers: number; engagement: number }[];
+  platforms: { platform: string; published: number; total: number }[];
 }
 interface TeamTotals {
-  members: number; activeMembers: number; accounts: number; posts: number;
-  publishedPosts: number; scheduledPosts: number; draftPosts: number;
-  totalFollowers: number; totalImpressions: number; totalReach: number;
-  totalEngagement: number; totalLikes: number; totalComments: number;
-  totalShares: number; totalSaves: number; totalTasks: number;
-  completedTasks: number; pendingTasks: number; campaigns: number;
-  avgEngagementRate: number; avgTaskCompletion: number;
-}
-interface PlatformSummary {
-  platform: string; accounts: number; followers: number; posts: number;
-  engagement: number; impressions: number; reach: number;
-  followerSparkline: number[]; engagementSparkline: number[];
-  growth7d: number; growth30d: number; topProfileId: string | null;
-  engagementRate: number; avgFollowersPerAccount: number;
-}
-interface Profile {
-  id: string; platform: PlatformId; handle: string; displayName: string;
-  avatar: string | null; followers: number; postsCount: number; verified: boolean;
-  ownerName: string; ownerColor: string | null;
-  engagement: number; reach: number; impressions: number;
-  engagementRate: number; growth7d: number; growth30d: number;
-  sparkline: number[]; postingCadencePerWeek: number; postingCadencePerMonth: number;
-  healthStatus: string; riskLevel: string; lastActiveAt: string | null;
-}
-interface PageProgress {
-  id: string; platform: PlatformId; handle: string; displayName: string;
-  followersProgress: number; postsProgress: number; engagementProgress: number;
-  overall: number; status: "on_track" | "needs_attention" | "at_risk";
-  followersTarget: number; postsTarget: number; engagementTarget: number;
-  followersCurrent: number; postsCurrent: number; engagementCurrent: number;
-}
-interface HeatmapPoint { date: string; count: number; platforms: string[] }
-interface MatrixPoint {
-  name: string; color: string; followers: number; engagementRate: number;
-  posts: number; department: string; role: string;
+  members: number; activeMembers: number; accounts: number;
+  postsCreated: number; publishedPosts: number; scheduledPosts: number; draftPosts: number; failedPosts: number;
+  variantsPublished: number; commentsReceived: number; commentsReplied: number; replyRate: number;
+  postsLast7d: number; postsLast30d: number; weeklyCadence: number;
+  totalTasks: number; completedTasks: number; pendingTasks: number; campaigns: number;
+  avgReplyRate: number; avgTaskCompletion: number;
 }
 interface TeamPerformanceData {
-  members: Member[]; teamTotals: TeamTotals;
+  members: Member[];
+  teamTotals: TeamTotals;
   leaderboard: {
-    mostFollowers: Member[]; mostPosts: Member[]; mostEngagement: Member[];
-    bestEngagementRate: Member[]; mostTasksCompleted: Member[];
+    mostPostsCreated: Member[]; mostPublished: Member[]; mostCommentsReplied: Member[];
+    bestReplyRate: Member[]; mostActive: Member[];
   };
-  platformDistribution: { platform: string; accounts: number; followers: number; engagement: number }[];
-  trend: { date: string; engagement: number; posts: number; impressions: number }[];
+  pipeline: { draft: number; scheduled: number; published: number; failed: number };
+  postsByPlatform: { platform: string; published: number; total: number; comments: number }[];
+  commentsByType: Record<string, number>;
+  commentsBySentiment: { positive: number; neutral: number; negative: number };
+  accountCommentLoad: {
+    id: string; platform: PlatformId; handle: string; displayName: string;
+    ownerName: string; ownerColor: string | null;
+    total: number; unread: number; replied: number; replyRate: number;
+  }[];
+  trend: { date: string; postsCreated: number; published: number; comments: number }[];
+  activityHeatmap: { date: string; count: number; platforms: string[] }[];
   recentActivities: {
     id: string; userId: string; userName: string; userAvatar: string | null;
     userColor: string | null; type: string; description: string; createdAt: string;
   }[];
-  // New:
-  platforms: PlatformSummary[];
-  profiles: Profile[];
-  pagesProgress: PageProgress[];
-  activityHeatmap: HeatmapPoint[];
-  performanceMatrix: MatrixPoint[];
-  engagementBuckets: { range: string; min: number; max: number; count: number; color: string }[];
-  targets: { postsPerWeek: number; followersPerAccount: number; engagementRate: number };
 }
 
 const TOOLTIP_STYLE = {
@@ -102,19 +75,19 @@ const TOOLTIP_STYLE = {
 };
 
 const ACTIVITY_ICON: Record<string, React.ElementType> = {
-  post_published: Send, post_scheduled: Clock, comment_replied: MessageCircle,
-  account_connected: Users, ai_generated: Sparkles, team_joined: CheckCircle2,
+  post_published: Send, post_scheduled: Clock, comment_replied: Reply,
+  account_connected: Layers, ai_generated: Sparkles, team_joined: CheckCircle2,
   task_completed: CheckCircle2,
 };
 const RANK_ICONS = [Crown, Award, Trophy];
 const RANK_COLORS = ["text-amber-500", "text-slate-400", "text-orange-600"];
 
-const STATUS_META: Record<PageProgress["status"], { label: string; color: string; bg: string; icon: LucideIcon }> = {
-  on_track: { label: "On track", color: "text-emerald-500", bg: "bg-emerald-500/15", icon: CheckCircle2 },
-  needs_attention: { label: "Needs attention", color: "text-amber-500", bg: "bg-amber-500/15", icon: Clock },
-  at_risk: { label: "At risk", color: "text-rose-500", bg: "bg-rose-500/15", icon: AlertCircle },
-};
-import { AlertCircle } from "lucide-react";
+const PIPELINE_META = [
+  { key: "draft", label: "Drafts", icon: FileEdit, color: "oklch(0.66 0.22 305)", desc: "Work in progress" },
+  { key: "scheduled", label: "Scheduled", icon: Clock, color: "oklch(0.62 0.22 255)", desc: "Queued for publish" },
+  { key: "published", label: "Published", icon: CheckCircle2, color: "oklch(0.74 0.18 165)", desc: "Live on platforms" },
+  { key: "failed", label: "Failed", icon: XCircle, color: "oklch(0.65 0.22 25)", desc: "Needs attention" },
+] as const;
 
 // ============ Main view ============
 
@@ -124,217 +97,396 @@ export function TeamPerformanceView() {
   if (loading || !data) return <TeamPerformanceSkeleton />;
 
   const t = data.teamTotals;
-  const engagementRadarData = [
-    { type: "Likes", value: t.totalLikes },
-    { type: "Comments", value: t.totalComments },
-    { type: "Shares", value: t.totalShares },
-    { type: "Saves", value: t.totalSaves },
-  ];
-  const maxRadar = Math.max(1, ...engagementRadarData.map(d => d.value));
 
   return (
     <div className="space-y-5">
       <HelpText module="team-performance">
-        <strong className="text-foreground">Performance</strong> is your admin command center — track every
-        account, profile, and team activity in real time. Animated cards, live sparklines, progress bars,
-        and the 90-day activity heatmap show you exactly where momentum is building.
+        <strong className="text-foreground">Performance</strong> tracks every piece of content your team creates —
+        posts drafted, tweets published, comments received & replied. This is the command center for
+        monitoring content activity, not vanity follower counts.
       </HelpText>
 
-      {/* === HERO: Team Overview (animated pulse ring) === */}
-      <TeamHero totalFollowers={t.totalFollowers} activeMembers={t.activeMembers} accounts={t.accounts} posts={t.posts} members={data.members} />
+      {/* === HERO: Content Activity === */}
+      <ContentHero
+        postsCreated={t.postsCreated}
+        published={t.publishedPosts}
+        commentsReceived={t.commentsReceived}
+        weeklyCadence={t.weeklyCadence}
+        members={data.members}
+      />
 
-      {/* === KPI GRID (animated count-up) === */}
+      {/* === KPI GRID — content activity focused === */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Total Followers" value={t.totalFollowers} icon={<Users className="h-5 w-5" />} accent="oklch(0.55 0.2 255)" hint={`across ${t.accounts} accounts`} delay={50} series={data.trend.map(d => d.engagement)} />
-        <KpiCard label="Total Impressions" value={t.totalImpressions} icon={<Eye className="h-5 w-5" />} accent="oklch(0.62 0.22 300)" hint="all time" delay={120} series={data.trend.map(d => d.impressions)} />
-        <KpiCard label="Total Engagement" value={t.totalEngagement} icon={<Heart className="h-5 w-5" />} accent="oklch(0.7 0.2 25)" hint="likes + comments + shares + saves" delay={190} series={data.trend.map(d => d.engagement)} />
-        <KpiCard label="Avg Engagement Rate" value={t.avgEngagementRate} icon={<TrendingUp className="h-5 w-5" />} accent="oklch(0.72 0.18 75)" hint="team average" delay={260} />
+        <KpiCard
+          label="Posts Created"
+          value={t.postsCreated}
+          icon={<FileText className="h-5 w-5" />}
+          accent="oklch(0.62 0.22 255)"
+          hint={`${t.draftPosts} drafts · ${t.scheduledPosts} scheduled`}
+          delay={50}
+        />
+        <KpiCard
+          label="Published"
+          value={t.publishedPosts}
+          icon={<Send className="h-5 w-5" />}
+          accent="oklch(0.74 0.18 165)"
+          hint={`${t.variantsPublished} platform posts · ${t.failedPosts} failed`}
+          delay={120}
+        />
+        <KpiCard
+          label="Comments Received"
+          value={t.commentsReceived}
+          icon={<MessageCircle className="h-5 w-5" />}
+          accent="oklch(0.7 0.2 25)"
+          hint={`${t.commentsReplied} replied · ${t.commentsReceived - t.commentsReplied} pending`}
+          delay={190}
+        />
+        <KpiCard
+          label="Reply Rate"
+          value={`${t.replyRate}%`}
+          icon={<Reply className="h-5 w-5" />}
+          accent="oklch(0.66 0.22 305)"
+          hint={`team avg ${t.avgReplyRate}%`}
+          delay={260}
+        />
       </div>
 
-      {/* === SECTION 1: Social Platforms (NEW) === */}
+      {/* === CONTENT PIPELINE (NEW) — draft → scheduled → published → failed === */}
       <SectionShell
-        icon={<Plane className="h-4 w-4" />}
-        title="Social platforms"
-        desc="Per-platform performance breakdown — followers, growth, engagement, and top profile."
+        icon={<Layers className="h-4 w-4" />}
+        title="Content pipeline"
+        desc="Every post your team has touched, by lifecycle stage."
         delay={300}
       >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {data.platforms.length === 0 ? (
-            <EmptyState icon={<Plane className="h-6 w-6" />} title="No platforms connected" desc="Connect your first social account to see platform analytics." />
-          ) : (
-            data.platforms.map((p, i) => (
-              <PlatformCard key={p.platform} platform={p} delay={i * 0.04} topProfile={data.profiles.find(x => x.id === p.topProfileId)} />
-            ))
-          )}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PIPELINE_META.map((stage, i) => {
+            const count = data.pipeline[stage.key];
+            const pct = t.postsCreated > 0 ? Math.round((count / t.postsCreated) * 100) : 0;
+            return (
+              <div
+                key={stage.key}
+                className="crystal-in glass rounded-2xl p-4 transition hover:lift-hover"
+                style={{ animationDelay: `${0.04 * i}s` }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div
+                    className="grid h-9 w-9 place-items-center rounded-xl"
+                    style={{ background: `${stage.color}14`, color: stage.color }}
+                  >
+                    <stage.icon className="h-4 w-4" />
+                  </div>
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                    style={{ background: `${stage.color}14`, color: stage.color }}
+                  >
+                    {pct}%
+                  </span>
+                </div>
+                <div className="mt-3 num-display text-2xl font-bold">{count}</div>
+                <div className="text-xs font-semibold">{stage.label}</div>
+                <div className="text-[10px] text-muted-foreground">{stage.desc}</div>
+                {/* Progress bar */}
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+                  <div
+                    className="h-full rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${Math.max(pct, 2)}%`, background: stage.color }}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </SectionShell>
 
-      {/* === SECTION 2: Profiles & Pages (NEW) === */}
-      <SectionShell
-        icon={<Radio className="h-4 w-4" />}
-        title="Profiles & pages"
-        desc="Every connected account — followers, growth, engagement, and live sparkline."
-        delay={380}
-        action={
-          <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-            {data.profiles.length} connected
-          </span>
-        }
-      >
-        {data.profiles.length === 0 ? (
-          <EmptyState icon={<Radio className="h-6 w-6" />} title="No profiles yet" desc="Connect social accounts to track them here." />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {data.profiles.slice(0, 12).map((p, i) => (
-              <ProfileCard key={p.id} profile={p} delay={i * 0.03} />
-            ))}
-          </div>
-        )}
-      </SectionShell>
-
-      {/* === SECTION 3: Pages Progress (NEW) — progress bars vs targets === */}
-      <SectionShell
-        icon={<Target className="h-4 w-4" />}
-        title="Pages progress"
-        desc={`Workspace targets: ${data.targets.followersPerAccount.toLocaleString()} followers · ${data.targets.postsPerWeek} posts/week · ${data.targets.engagementRate}% engagement.`}
-        delay={460}
-      >
-        {data.pagesProgress.length === 0 ? (
-          <EmptyState icon={<Target className="h-6 w-6" />} title="No progress to track yet" desc="Once you connect accounts, progress bars will appear here." />
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {data.pagesProgress.slice(0, 10).map((pg, i) => (
-              <ProgressCard key={pg.id} progress={pg} delay={i * 0.03} />
-            ))}
-          </div>
-        )}
-      </SectionShell>
-
-      {/* === Engagement Trend + Platform Pie === */}
+      {/* === POSTS CREATED TREND + POSTS BY PLATFORM === */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <GlassCard className="crystal-in p-5 lg:col-span-2" style={{ animationDelay: "0.54s" }}>
-          <SectionTitle title="Engagement trend" desc="Team-wide performance over the last 14 days" />
+        <GlassCard className="crystal-in p-5 lg:col-span-2" style={{ animationDelay: "0.38s" }}>
+          <SectionTitle
+            title="Content creation trend"
+            desc="Posts created, published & comments received (last 14 days)"
+          />
           <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data.trend} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="tpEng" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="postsGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
                     <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="tpImp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="oklch(0.72 0.18 75)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="oklch(0.72 0.18 75)" stopOpacity={0} />
+                  <linearGradient id="pubGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.74 0.18 165)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="oklch(0.74 0.18 165)" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="cmtGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.7 0.2 25)" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="oklch(0.7 0.2 25)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.4} />
-                <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" })} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} interval={2} />
-                <YAxis tickFormatter={(v) => fmt(v)} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={44} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(d) => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} formatter={(v: number, n) => [fmt(v), n === "engagement" ? "Engagement" : "Impressions"]} />
-                <Area type="monotone" dataKey="impressions" stroke="oklch(0.72 0.18 75)" strokeWidth={2} fill="url(#tpImp)" isAnimationActive animationBegin={200} />
-                <Area type="monotone" dataKey="engagement" stroke="var(--primary)" strokeWidth={2.5} fill="url(#tpEng)" isAnimationActive animationBegin={450} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  axisLine={false} tickLine={false} interval={2}
+                />
+                <YAxis
+                  tickFormatter={(v) => fmt(v)}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  axisLine={false} tickLine={false} width={32}
+                />
+                <Tooltip
+                  contentStyle={TOOLTIP_STYLE}
+                  labelFormatter={(d) => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                />
+                <Area type="monotone" dataKey="postsCreated" name="Posts created" stroke="var(--primary)" strokeWidth={2.5} fill="url(#postsGrad)" isAnimationActive animationBegin={200} />
+                <Area type="monotone" dataKey="published" name="Published" stroke="oklch(0.74 0.18 165)" strokeWidth={2} fill="url(#pubGrad)" isAnimationActive animationBegin={350} />
+                <Area type="monotone" dataKey="comments" name="Comments" stroke="oklch(0.7 0.2 25)" strokeWidth={2} fill="url(#cmtGrad)" isAnimationActive animationBegin={500} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </GlassCard>
 
-        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.62s" }}>
-          <SectionTitle title="Platform distribution" desc="Followers by platform" />
-          <div className="relative mx-auto h-[180px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={data.platformDistribution} dataKey="followers" nameKey="platform" innerRadius={52} outerRadius={80} paddingAngle={3} stroke="none">
-                  {data.platformDistribution.map((p) => (
-                    <Cell key={p.platform} fill={PLATFORMS[p.platform as PlatformId]?.color ?? "#888"} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n) => [fmt(v), PLATFORMS[n as PlatformId]?.name ?? n]} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="num-display text-2xl font-bold">{fmt(t.totalFollowers)}</span>
-              <span className="text-[10px] text-muted-foreground">followers</span>
-            </div>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-1.5">
-            {data.platformDistribution.map((p) => (
-              <div key={p.platform} className="flex items-center gap-1.5 text-[11px]">
-                <span className="h-2 w-2 rounded-full" style={{ background: PLATFORMS[p.platform as PlatformId]?.color ?? "#888" }} />
-                <span className="truncate text-muted-foreground">{PLATFORMS[p.platform as PlatformId]?.name ?? p.platform}</span>
-                <span className="ml-auto font-medium">{fmt(p.followers)}</span>
-              </div>
-            ))}
+        {/* Posts by platform (tweets/posts/IG posts/etc.) */}
+        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.46s" }}>
+          <SectionTitle title="Posts by platform" desc="Content published per platform" />
+          <div className="space-y-3">
+            {data.postsByPlatform.length === 0 ? (
+              <EmptyInline icon={<Send className="h-5 w-5" />} text="No content published yet" />
+            ) : (
+              data.postsByPlatform.map((p, i) => {
+                const config = PLATFORMS[p.platform as PlatformId];
+                const pct = p.total > 0 ? Math.round((p.published / p.total) * 100) : 0;
+                return (
+                  <div key={p.platform} className="rounded-xl border border-border/40 bg-muted/20 p-3" style={{ animationDelay: `${0.05 * i}s` }}>
+                    <div className="flex items-center gap-2">
+                      <PlatformBadge platform={p.platform as PlatformId} size={22} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-bold">{config?.name ?? p.platform}</div>
+                        <div className="text-[10px] text-muted-foreground">{p.comments} comments received</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="num-display text-base font-bold">{p.published}</div>
+                        <div className="text-[9px] text-muted-foreground">/ {p.total}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${Math.max(pct, 2)}%`, background: config?.color ?? "var(--primary)" }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </GlassCard>
       </div>
 
-      {/* === SECTION 4: Performance Matrix (NEW) — bubble scatter === */}
+      {/* === COMMENTS TRACKING (NEW) === */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Reply rate radial */}
+        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.54s" }}>
+          <SectionTitle title="Reply rate" desc="Comments received vs replied" />
+          <div className="relative mx-auto h-[180px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadialBarChart
+                innerRadius="65%"
+                outerRadius="100%"
+                data={[{ name: "Reply rate", value: t.replyRate, fill: "var(--primary)" }]}
+                startAngle={90}
+                endAngle={90 - (360 * t.replyRate) / 100}
+              >
+                <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                <RadialBar dataKey="value" cornerRadius={10} background={{ fill: "var(--muted)" }} />
+              </RadialBarChart>
+            </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="num-display text-3xl font-bold">{t.replyRate}%</span>
+              <span className="text-[10px] text-muted-foreground">replied</span>
+            </div>
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs">
+              <div className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />Replied</div>
+              <span className="font-bold">{t.commentsReplied}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs">
+              <div className="flex items-center gap-2"><Inbox className="h-3.5 w-3.5 text-amber-500" />Pending</div>
+              <span className="font-bold">{t.commentsReceived - t.commentsReplied}</span>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Sentiment breakdown */}
+        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.62s" }}>
+          <SectionTitle title="Comment sentiment" desc="Tone of incoming comments" />
+          <div className="relative mx-auto h-[180px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: "Positive", value: data.commentsBySentiment.positive, color: "oklch(0.74 0.18 165)" },
+                    { name: "Neutral", value: data.commentsBySentiment.neutral, color: "oklch(0.7 0.04 250)" },
+                    { name: "Negative", value: data.commentsBySentiment.negative, color: "oklch(0.65 0.22 25)" },
+                  ]}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={48}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  stroke="none"
+                >
+                  {["positive", "neutral", "negative"].map((s, i) => (
+                    <Cell
+                      key={i}
+                      fill={
+                        s === "positive" ? "oklch(0.74 0.18 165)" :
+                        s === "negative" ? "oklch(0.65 0.22 25)" :
+                        "oklch(0.7 0.04 250)"
+                      }
+                    />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="num-display text-2xl font-bold">{t.commentsReceived}</span>
+              <span className="text-[10px] text-muted-foreground">comments</span>
+            </div>
+          </div>
+          <div className="mt-3 space-y-1">
+            <SentimentRow label="Positive" value={data.commentsBySentiment.positive} total={t.commentsReceived} color="oklch(0.74 0.18 165)" />
+            <SentimentRow label="Neutral" value={data.commentsBySentiment.neutral} total={t.commentsReceived} color="oklch(0.7 0.04 250)" />
+            <SentimentRow label="Negative" value={data.commentsBySentiment.negative} total={t.commentsReceived} color="oklch(0.65 0.22 25)" />
+          </div>
+        </GlassCard>
+
+        {/* Comment types */}
+        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.70s" }}>
+          <SectionTitle title="Comment types" desc="Where comments come from" />
+          <div className="space-y-3 pt-2">
+            {Object.entries(data.commentsByType).length === 0 ? (
+              <EmptyInline icon={<MessageCircle className="h-5 w-5" />} text="No comments yet" />
+            ) : (
+              Object.entries(data.commentsByType).map(([type, count]) => {
+                const pct = t.commentsReceived > 0 ? Math.round((count / t.commentsReceived) * 100) : 0;
+                const Icon = type === "message" ? MessageCircle : type === "mention" ? Hash : MessageCircle;
+                const color = type === "message" ? "oklch(0.62 0.22 255)" : type === "mention" ? "oklch(0.66 0.22 305)" : "oklch(0.7 0.2 25)";
+                return (
+                  <div key={type} className="rounded-xl border border-border/40 bg-muted/20 p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: `${color}14`, color }}>
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
+                      <span className="text-sm font-semibold capitalize">{type}s</span>
+                      <span className="num-display ml-auto text-sm font-bold">{count}</span>
+                    </div>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(pct, 2)}%`, background: color }} />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* === ACCOUNT COMMENT LOAD (NEW) — which accounts need attention === */}
       <SectionShell
-        icon={<Gauge className="h-4 w-4" />}
-        title="Performance matrix"
-        desc="Each bubble is a team member — X = followers, Y = engagement rate, size = posts published."
-        delay={620}
+        icon={<Inbox className="h-4 w-4" />}
+        title="Account comment load"
+        desc="Which accounts have the most unread comments — needs attention."
+        delay={780}
+        action={
+          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-500">
+            {data.accountCommentLoad.reduce((s, a) => s + a.unread, 0)} unread
+          </span>
+        }
       >
-        <div className="h-[360px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ left: -8, right: 16, top: 16, bottom: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
-              <XAxis
-                type="number"
-                dataKey="followers"
-                name="Followers"
-                tickFormatter={(v) => fmt(v)}
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                type="number"
-                dataKey="engagementRate"
-                name="Engagement Rate"
-                unit="%"
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                axisLine={false}
-                tickLine={false}
-                width={44}
-              />
-              <ZAxis type="number" dataKey="posts" range={[40, 400]} name="Posts" />
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                cursor={{ strokeDasharray: "3 3", stroke: "var(--border)" }}
-                formatter={(v: number, n: string) => n === "engagementRate" ? [`${v}%`, "Engagement rate"] : n === "followers" ? [fmt(v), "Followers"] : [v, "Posts"]}
-                labelFormatter={(_, p) => p?.[0]?.payload?.name ?? ""}
-              />
-              <Scatter data={data.performanceMatrix} isAnimationActive animationBegin={400} fill="var(--primary)" fillOpacity={0.6}>
-                {data.performanceMatrix.map((p, i) => (
-                  <Cell
-                    key={i}
-                    fill={p.color === "blue" ? "oklch(0.55 0.2 255)" :
-                          p.color === "purple" ? "oklch(0.6 0.2 300)" :
-                          p.color === "pink" ? "oklch(0.65 0.22 350)" :
-                          p.color === "green" ? "oklch(0.7 0.2 145)" :
-                          p.color === "orange" ? "oklch(0.7 0.2 55)" :
-                          "oklch(0.55 0.2 255)"}
-                  />
-                ))}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
-        </div>
+        {data.accountCommentLoad.length === 0 ? (
+          <EmptyInline icon={<Inbox className="h-6 w-6" />} text="No comments received yet — connect accounts and start posting!" />
+        ) : (
+          <div className="scroll-liquid max-h-[400px] space-y-2 overflow-y-auto pr-1">
+            {data.accountCommentLoad.map((a, i) => (
+              <div
+                key={a.id}
+                className="crystal-in glass flex items-center gap-3 rounded-xl p-3 transition hover:lift-hover"
+                style={{ animationDelay: `${0.04 * i}s` }}
+              >
+                <PlatformBadge platform={a.platform} size={28} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold">{a.displayName}</div>
+                  <div className="truncate text-[10px] text-muted-foreground">{a.handle}</div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <NameAvatar name={a.ownerName} color={a.ownerColor ?? "blue"} className="h-5 w-5 text-[8px]" />
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <div className="num-display text-sm font-bold">{a.total}</div>
+                    <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Total</div>
+                  </div>
+                  <div>
+                    <div className="num-display text-sm font-bold text-amber-500">{a.unread}</div>
+                    <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Unread</div>
+                  </div>
+                  <div>
+                    <div className={cn("num-display text-sm font-bold", a.replyRate >= 66 ? "text-emerald-500" : a.replyRate >= 33 ? "text-amber-500" : "text-rose-500")}>{a.replyRate}%</div>
+                    <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Replied</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </SectionShell>
 
-      {/* === SECTION 5: Activity Heatmap (NEW) — 90-day posting cadence === */}
+      {/* === POSTING CADENCE BY MEMBER (NEW) === */}
+      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.86s" }}>
+        <SectionTitle title="Posting cadence by member" desc="Posts created per member (last 7 days vs last 30 days)" />
+        {data.members.length === 0 ? (
+          <EmptyInline icon={<TrendingUp className="h-6 w-6" />} text="No team members yet" />
+        ) : (
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data.members.map((m) => ({
+                  name: m.name.split(" ")[0],
+                  "Last 7 days": m.metrics.weeklyCadence,
+                  "Last 30 days": m.metrics.monthlyCadence,
+                  color: m.color,
+                }))}
+                margin={{ left: -16, right: 8, top: 8, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.4} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => fmt(v)} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={32} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="Last 7 days" fill="var(--primary)" radius={[6, 6, 0, 0]} isAnimationActive animationBegin={200} />
+                <Bar dataKey="Last 30 days" fill="oklch(0.66 0.22 305)" radius={[6, 6, 0, 0]} isAnimationActive animationBegin={400} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </GlassCard>
+
+      {/* === ACTIVITY HEATMAP (90-day content creation cadence) === */}
       <SectionShell
-        icon={<Calendar className="h-4 w-4" />}
+        icon={<Flame className="h-4 w-4" />}
         title="Activity heatmap"
-        desc="Posting cadence over the last 90 days — darker cells = more posts published that day."
-        delay={700}
+        desc="Posting & content creation cadence over the last 90 days — darker cells = more activity."
+        delay={940}
         action={
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <span>Less</span>
             <div className="flex gap-0.5">
-              {[0.1, 0.3, 0.5, 0.7, 1].map(o => (
-                <span key={o} className="h-2.5 w-2.5 rounded-sm" style={{ background: `var(--primary)`, opacity: o }} />
+              {[0.1, 0.3, 0.5, 0.7, 1].map((o) => (
+                <span key={o} className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--primary)", opacity: o }} />
               ))}
             </div>
             <span>More</span>
@@ -344,120 +496,31 @@ export function TeamPerformanceView() {
         <ActivityHeatmap data={data.activityHeatmap} />
       </SectionShell>
 
-      {/* === Engagement Breakdown + Engagement Buckets === */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <GlassCard className="crystal-in p-5 lg:col-span-2" style={{ animationDelay: "0.78s" }}>
-          <SectionTitle title="Engagement breakdown" desc="Likes, comments, shares & saves by team member" />
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={data.members.map(m => ({
-                  name: m.name.split(" ")[0],
-                  Likes: m.metrics.likes,
-                  Comments: m.metrics.comments,
-                  Shares: m.metrics.shares,
-                  Saves: m.metrics.saves,
-                }))}
-                margin={{ left: -16, right: 8, top: 8, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.4} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={(v) => fmt(v)} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={44} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="Likes" stackId="a" fill="var(--primary)" />
-                <Bar dataKey="Comments" stackId="a" fill="oklch(0.74 0.18 165)" />
-                <Bar dataKey="Shares" stackId="a" fill="oklch(0.66 0.22 305)" />
-                <Bar dataKey="Saves" stackId="a" fill="oklch(0.78 0.18 75)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.86s" }}>
-          <SectionTitle title="Engagement rate distribution" desc="How many profiles fall into each band" />
-          <div className="relative mx-auto h-[180px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={data.engagementBuckets} dataKey="count" nameKey="range" innerRadius={48} outerRadius={80} paddingAngle={3} stroke="none">
-                  {data.engagementBuckets.map((b, i) => <Cell key={i} fill={b.color} />)}
-                </Pie>
-                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n) => [`${v} profile${v !== 1 ? "s" : ""}`, n]} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="num-display text-2xl font-bold">{data.profiles.length}</span>
-              <span className="text-[10px] text-muted-foreground">profiles</span>
-            </div>
-          </div>
-          <div className="mt-3 space-y-1">
-            {data.engagementBuckets.map((b) => (
-              <div key={b.range} className="flex items-center gap-2 text-[11px]">
-                <span className="h-2 w-2 rounded-full" style={{ background: b.color }} />
-                <span className="text-muted-foreground">{b.range}</span>
-                <span className="ml-auto font-medium">{b.count}</span>
-              </div>
-            ))}
-          </div>
-        </GlassCard>
-      </div>
-
-      {/* === Leaderboard === */}
-      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.94s" }}>
-        <SectionTitle title="Top performers" desc="Leaderboard across key metrics" action={<Trophy className="h-5 w-5 text-amber-500" />} />
+      {/* === LEADERBOARD — content activity === */}
+      <GlassCard className="crystal-in p-5" style={{ animationDelay: "1.02s" }}>
+        <SectionTitle title="Top contributors" desc="Leaderboard by content activity" action={<Trophy className="h-5 w-5 text-amber-500" />} />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <LeaderboardCard title="Most Followers" members={data.leaderboard.mostFollowers} getValue={(m) => fmt(m.metrics.followers)} />
-          <LeaderboardCard title="Most Posts" members={data.leaderboard.mostPosts} getValue={(m) => m.metrics.posts.toString()} />
-          <LeaderboardCard title="Most Engagement" members={data.leaderboard.mostEngagement} getValue={(m) => fmt(m.metrics.engagement)} />
-          <LeaderboardCard title="Best Eng. Rate" members={data.leaderboard.bestEngagementRate} getValue={(m) => `${m.metrics.engagementRate}%`} />
-          <LeaderboardCard title="Most Tasks Done" members={data.leaderboard.mostTasksCompleted} getValue={(m) => m.metrics.completedTasks.toString()} />
+          <LeaderboardCard title="Most Posts Created" members={data.leaderboard.mostPostsCreated} getValue={(m) => m.metrics.postsCreated.toString()} />
+          <LeaderboardCard title="Most Published" members={data.leaderboard.mostPublished} getValue={(m) => m.metrics.publishedPosts.toString()} />
+          <LeaderboardCard title="Most Comments Replied" members={data.leaderboard.mostCommentsReplied} getValue={(m) => m.metrics.commentsReplied.toString()} />
+          <LeaderboardCard title="Best Reply Rate" members={data.leaderboard.bestReplyRate} getValue={(m) => `${m.metrics.replyRate}%`} />
+          <LeaderboardCard title="Most Active (7d)" members={data.leaderboard.mostActive} getValue={(m) => m.metrics.weeklyCadence.toString()} />
         </div>
       </GlassCard>
 
-      {/* === Task Completion Radar === */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <GlassCard className="crystal-in p-5" style={{ animationDelay: "1.02s" }}>
-          <SectionTitle title="Engagement radar" desc="Total engagement split" />
-          <div className="relative mx-auto h-[200px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={engagementRadarData.map(d => ({ ...d, value: Math.round((d.value / maxRadar) * 100) }))} outerRadius={75}>
-                <PolarGrid stroke="var(--border)" />
-                <PolarAngleAxis dataKey="type" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
-                <Radar name="Score" dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.35} strokeWidth={2} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`${v}%`, "Relative"]} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-3 space-y-2">
-            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs">
-              <div className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />Completed</div>
-              <span className="font-bold">{t.completedTasks}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs">
-              <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-amber-500" />Pending</div>
-              <span className="font-bold">{t.pendingTasks}</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs">
-              <div className="flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-primary" />Completion rate</div>
-              <span className="font-bold">{t.avgTaskCompletion}%</span>
-            </div>
-          </div>
-        </GlassCard>
+      {/* === TEAM MEMBER CARDS — content activity === */}
+      <GlassCard className="crystal-in p-5" style={{ animationDelay: "1.10s" }}>
+        <SectionTitle title="Team members" desc="Individual content activity breakdown" />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {data.members.map((m, i) => (
+            <MemberCard key={m.id} member={m} delay={i * 0.04} />
+          ))}
+        </div>
+      </GlassCard>
 
-        {/* === Team members === */}
-        <GlassCard className="crystal-in p-5 lg:col-span-2" style={{ animationDelay: "1.10s" }}>
-          <SectionTitle title="Team members" desc="Individual performance breakdown" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            {data.members.map((m, i) => (
-              <MemberCard key={m.id} member={m} delay={i * 0.04} />
-            ))}
-          </div>
-        </GlassCard>
-      </div>
-
-      {/* === Recent Activity === */}
+      {/* === RECENT ACTIVITY === */}
       <GlassCard className="crystal-in p-5" style={{ animationDelay: "1.18s" }}>
-        <SectionTitle title="Recent activity" desc="Latest actions across the team" action={<Activity className="h-4 w-4 text-primary" />} />
+        <SectionTitle title="Recent activity" desc="Latest content actions across the team" action={<Activity className="h-4 w-4 text-primary" />} />
         <div className="scroll-liquid max-h-96 space-y-1 overflow-y-auto pr-1">
           {data.recentActivities.map((a) => {
             const Icon = ACTIVITY_ICON[a.type] ?? Activity;
@@ -488,9 +551,19 @@ export function TeamPerformanceView() {
   );
 }
 
-// ============ Team Hero with animated pulse ring ============
-function TeamHero({ totalFollowers, activeMembers, accounts, posts, members }: {
-  totalFollowers: number; activeMembers: number; accounts: number; posts: number; members: Member[];
+// ============ Hero — content activity focused ============
+function ContentHero({
+  postsCreated,
+  published,
+  commentsReceived,
+  weeklyCadence,
+  members,
+}: {
+  postsCreated: number;
+  published: number;
+  commentsReceived: number;
+  weeklyCadence: number;
+  members: Member[];
 }) {
   return (
     <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
@@ -502,19 +575,19 @@ function TeamHero({ totalFollowers, activeMembers, accounts, posts, members }: {
             <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" style={{ animationDuration: "2.5s" }} />
             <div className="absolute inset-1 rounded-full bg-primary/10" />
             <div className="relative grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg">
-              <Zap className="h-4 w-4" />
+              <PenLine className="h-4 w-4" />
             </div>
           </div>
           <div>
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
               <Activity className="h-3.5 w-3.5" />
-              Live performance
+              Content Activity
             </div>
             <h2 className="mt-2 text-[28px] font-bold tracking-tight">
-              {activeMembers} active members
+              {postsCreated} posts created
             </h2>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              {fmt(totalFollowers)} followers · {posts} posts · {accounts} accounts
+              {published} published · {commentsReceived} comments received · {weeklyCadence} this week
             </p>
           </div>
         </div>
@@ -537,313 +610,62 @@ function TeamHero({ totalFollowers, activeMembers, accounts, posts, members }: {
 
 // ============ Section shell wrapper ============
 function SectionShell({ icon, title, desc, delay, action, children }: {
-  icon: React.ReactNode; title: string; desc?: string; delay?: number; action?: React.ReactNode; children: React.ReactNode;
+  icon: React.ReactNode;
+  title: string;
+  desc?: string;
+  delay?: number;
+  action?: React.ReactNode;
+  children: React.ReactNode;
 }) {
   return (
     <GlassCard className="crystal-in p-5" style={{ animationDelay: `${(delay ?? 300) / 1000}s` }}>
-      <SectionTitle title={title} desc={desc} action={action ?? <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">{icon}</span>} />
+      <SectionTitle
+        title={title}
+        desc={desc}
+        action={action ?? <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">{icon}</span>}
+      />
       <div className="mt-3">{children}</div>
     </GlassCard>
   );
 }
 
-// ============ Empty state ============
-function EmptyState({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+// ============ Empty inline ============
+function EmptyInline({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="col-span-full flex flex-col items-center justify-center gap-2 py-10 text-center">
-      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-muted/60 text-muted-foreground">{icon}</div>
-      <div className="text-sm font-medium">{title}</div>
-      <div className="text-[11px] text-muted-foreground">{desc}</div>
+    <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+      <div className="grid h-10 w-10 place-items-center rounded-xl bg-muted/60 text-muted-foreground">{icon}</div>
+      <div className="text-xs text-muted-foreground">{text}</div>
     </div>
   );
 }
 
-// ============ Platform Card (NEW) ============
-function PlatformCard({ platform, delay, topProfile }: { platform: PlatformSummary; delay: number; topProfile?: Profile }) {
-  const config = PLATFORMS[platform.platform as PlatformId];
-  const [expanded, setExpanded] = React.useState(false);
-  const sparkData = platform.followerSparkline.map((v, i) => ({ i, v }));
-  const growth = platform.growth7d;
-  const growthUp = growth >= 0;
-
-  return (
-    <button
-      onClick={() => setExpanded(!expanded)}
-      className="crystal-in glass rounded-2xl p-4 text-left transition hover:lift-hover"
-      style={{ animationDelay: `${delay}s` }}
-    >
-      {/* Header: platform badge + growth */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <PlatformBadge platform={platform.platform as PlatformId} size={24} />
-          <div>
-            <div className="text-sm font-bold">{config?.name ?? platform.platform}</div>
-            <div className="text-[10px] text-muted-foreground">{platform.accounts} account{platform.accounts !== 1 ? "s" : ""}</div>
-          </div>
-        </div>
-        {growth !== 0 && (
-          <span className={cn("flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-            growthUp ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"
-          )}>
-            {growthUp ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
-            {Math.abs(growth)}%
-          </span>
-        )}
-      </div>
-
-      {/* Big number */}
-      <div className="mt-3 flex items-end gap-2">
-        <span className="num-display text-2xl font-bold">{fmt(platform.followers)}</span>
-        <span className="mb-1 text-[10px] text-muted-foreground">followers</span>
-      </div>
-
-      {/* Sparkline */}
-      <div className="mt-2 h-10 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={sparkData} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
-            <defs>
-              <linearGradient id={`spark-${platform.platform}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={config?.color ?? "var(--primary)"} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={config?.color ?? "var(--primary)"} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area type="monotone" dataKey="v" stroke={config?.color ?? "var(--primary)"} strokeWidth={2} fill={`url(#spark-${platform.platform})`} isAnimationActive animationBegin={200} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Stats grid */}
-      <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
-        <div className="rounded-lg bg-muted/30 py-1.5">
-          <div className="num-display text-[13px] font-bold">{fmt(platform.engagement)}</div>
-          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Eng</div>
-        </div>
-        <div className="rounded-lg bg-muted/30 py-1.5">
-          <div className="num-display text-[13px] font-bold">{platform.posts}</div>
-          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Posts</div>
-        </div>
-        <div className="rounded-lg bg-muted/30 py-1.5">
-          <div className="num-display text-[13px] font-bold">{platform.engagementRate}%</div>
-          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Rate</div>
-        </div>
-      </div>
-
-      {/* Expanded: top profile */}
-      {expanded && topProfile && (
-        <div className="mt-3 border-t border-border/40 pt-3">
-          <div className="mb-1.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Top profile</div>
-          <div className="flex items-center gap-2">
-            <PlatformBadge platform={topProfile.platform} size={20} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-semibold">{topProfile.displayName}</div>
-              <div className="truncate text-[10px] text-muted-foreground">{topProfile.handle}</div>
-            </div>
-            <span className="text-xs font-bold">{fmt(topProfile.followers)}</span>
-          </div>
-        </div>
-      )}
-
-      {/* 30d growth footer */}
-      <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-        <span>30-day growth</span>
-        <span className={cn("font-semibold", platform.growth30d >= 0 ? "text-emerald-500" : "text-rose-500")}>
-          {platform.growth30d >= 0 ? "+" : ""}{platform.growth30d}%
-        </span>
-      </div>
-    </button>
-  );
-}
-
-// ============ Profile Card (NEW) ============
-function ProfileCard({ profile, delay }: { profile: Profile; delay: number }) {
-  const sparkData = profile.sparkline.map((v, i) => ({ i, v }));
-  const growthUp = profile.growth7d >= 0;
-  const healthColor =
-    profile.healthStatus === "healthy" ? "text-emerald-500" :
-    profile.healthStatus === "warning" ? "text-amber-500" :
-    profile.healthStatus === "restricted" ? "text-orange-500" :
-    "text-rose-500";
-
-  return (
-    <div className="crystal-in glass rounded-2xl p-4 transition hover:lift-hover" style={{ animationDelay: `${delay}s` }}>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <PlatformBadge platform={profile.platform} size={22} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-bold">{profile.displayName}</div>
-            <div className="truncate text-[10px] text-muted-foreground">{profile.handle}</div>
-          </div>
-        </div>
-        <span className={cn("h-2 w-2 rounded-full", profile.healthStatus === "healthy" ? "bg-emerald-500" : profile.healthStatus === "warning" ? "bg-amber-500" : "bg-rose-500")} />
-      </div>
-
-      {/* Owner */}
-      <div className="mt-2 flex items-center gap-1.5">
-        <NameAvatar name={profile.ownerName} color={profile.ownerColor ?? "blue"} className="h-5 w-5 text-[8px]" />
-        <span className="text-[10px] text-muted-foreground">{profile.ownerName}</span>
-      </div>
-
-      {/* Big number */}
-      <div className="mt-3 flex items-end gap-2">
-        <span className="num-display text-2xl font-bold">{fmt(profile.followers)}</span>
-        <span className="mb-1 text-[10px] text-muted-foreground">followers</span>
-        {profile.growth7d !== 0 && (
-          <span className={cn("mb-1 ml-auto flex items-center gap-0.5 text-[10px] font-bold",
-            growthUp ? "text-emerald-500" : "text-rose-500")}>
-            {growthUp ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
-            {Math.abs(profile.growth7d)}%
-          </span>
-        )}
-      </div>
-
-      {/* Sparkline */}
-      <div className="mt-1 h-9 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={sparkData} margin={{ left: 0, right: 0, top: 2, bottom: 0 }}>
-            <defs>
-              <linearGradient id={`prof-${profile.id}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={PLATFORMS[profile.platform]?.color ?? "var(--primary)"} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={PLATFORMS[profile.platform]?.color ?? "var(--primary)"} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area type="monotone" dataKey="v" stroke={PLATFORMS[profile.platform]?.color ?? "var(--primary)"} strokeWidth={1.8} fill={`url(#prof-${profile.id})`} isAnimationActive animationBegin={300} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Stats grid */}
-      <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
-        <div className="rounded-lg bg-muted/30 py-1.5">
-          <div className="num-display text-[12px] font-bold">{profile.postsCount}</div>
-          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Posts</div>
-        </div>
-        <div className="rounded-lg bg-muted/30 py-1.5">
-          <div className="num-display text-[12px] font-bold">{fmt(profile.engagement)}</div>
-          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Eng</div>
-        </div>
-        <div className="rounded-lg bg-muted/30 py-1.5">
-          <div className={cn("num-display text-[12px] font-bold", healthColor)}>{profile.engagementRate}%</div>
-          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Rate</div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-        <span>{profile.postingCadencePerWeek} posts/week</span>
-        <span className={cn("font-semibold capitalize", healthColor)}>{profile.healthStatus}</span>
-      </div>
-    </div>
-  );
-}
-
-// ============ Progress Card (NEW) ============
-function ProgressCard({ progress, delay }: { progress: PageProgress; delay: number }) {
-  const meta = STATUS_META[progress.status];
-  const StatusIcon = meta.icon;
-
-  return (
-    <div className="crystal-in glass rounded-2xl p-4 transition hover:lift-hover" style={{ animationDelay: `${delay}s` }}>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <PlatformBadge platform={progress.platform} size={20} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-xs font-bold">{progress.displayName}</div>
-            <div className="truncate text-[10px] text-muted-foreground">{progress.handle}</div>
-          </div>
-        </div>
-        <span className={cn("flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold", meta.bg, meta.color)}>
-          <StatusIcon className="h-2.5 w-2.5" />
-          {meta.label}
-        </span>
-      </div>
-
-      {/* Overall progress ring */}
-      <div className="mt-3 flex items-center gap-3">
-        <ProgressBar value={progress.overall} />
-        <div>
-          <div className="num-display text-xl font-bold">{progress.overall}%</div>
-          <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Overall</div>
-        </div>
-      </div>
-
-      {/* Per-metric breakdown */}
-      <div className="mt-3 space-y-1.5">
-        <ProgressRow
-          label="Followers"
-          current={fmt(progress.followersCurrent)}
-          target={fmt(progress.followersTarget)}
-          percent={progress.followersProgress}
-          color="oklch(0.55 0.2 255)"
-        />
-        <ProgressRow
-          label="Posts / week"
-          current={`${progress.postsCurrent}`}
-          target={`${progress.postsTarget}`}
-          percent={progress.postsProgress}
-          color="oklch(0.78 0.18 75)"
-        />
-        <ProgressRow
-          label="Engagement"
-          current={`${progress.engagementCurrent}%`}
-          target={`${progress.engagementTarget}%`}
-          percent={progress.engagementProgress}
-          color="oklch(0.74 0.18 165)"
-        />
-      </div>
-    </div>
-  );
-}
-
-function ProgressBar({ value }: { value: number }) {
-  const r = 24;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (value / 100) * circ;
-  const color = value >= 66 ? "oklch(0.74 0.18 165)" : value >= 33 ? "oklch(0.78 0.18 75)" : "oklch(0.65 0.22 25)";
-  return (
-    <div className="relative h-14 w-14 shrink-0">
-      <svg className="h-full w-full -rotate-90" viewBox="0 0 56 56">
-        <circle cx="28" cy="28" r={r} fill="none" stroke="var(--muted)" strokeWidth="4" opacity={0.3} />
-        <circle
-          cx="28" cy="28" r={r} fill="none" stroke={color} strokeWidth="4"
-          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 1s ease-out" }}
-        />
-      </svg>
-    </div>
-  );
-}
-
-function ProgressRow({ label, current, target, percent, color }: {
-  label: string; current: string; target: string; percent: number; color: string;
+// ============ Sentiment row ============
+function SentimentRow({ label, value, total, color }: {
+  label: string; value: number; total: number; color: string;
 }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between text-[10px]">
+      <div className="mb-1 flex items-center justify-between text-[11px]">
         <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium">
-          {current} <span className="text-muted-foreground">/ {target}</span>
-        </span>
+        <span className="font-medium">{value} · {pct}%</span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
-        <div
-          className="h-full rounded-full transition-all duration-700 ease-out"
-          style={{ width: `${percent}%`, background: color }}
-        />
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(pct, 2)}%`, background: color }} />
       </div>
     </div>
   );
 }
 
-// ============ Activity Heatmap (NEW) ============
-function ActivityHeatmap({ data }: { data: HeatmapPoint[] }) {
-  // Group into weeks (columns). 90 days = ~13 weeks.
-  const weeks: HeatmapPoint[][] = [];
+// ============ Activity Heatmap ============
+function ActivityHeatmap({ data }: { data: { date: string; count: number; platforms: string[] }[] }) {
+  const weeks: typeof data[] = [];
   for (let i = 0; i < data.length; i += 7) {
     weeks.push(data.slice(i, i + 7));
   }
-  const maxCount = Math.max(1, ...data.map(d => d.count));
+  const maxCount = Math.max(1, ...data.map((d) => d.count));
+  const activeDays = data.filter((d) => d.count > 0).length;
+  const totalActivity = data.reduce((s, d) => s + d.count, 0);
 
   return (
     <div className="overflow-x-auto scroll-liquid pb-2">
@@ -852,7 +674,7 @@ function ActivityHeatmap({ data }: { data: HeatmapPoint[] }) {
           <div key={wi} className="flex flex-col gap-1">
             {week.map((day) => {
               const intensity = day.count === 0 ? 0 : Math.min(1, day.count / Math.max(maxCount, 1));
-              const opacity = day.count === 0 ? 0.08 : 0.2 + intensity * 0.8;
+              const opacity = day.count === 0 ? 0.25 : 0.2 + intensity * 0.8;
               const dateLabel = new Date(day.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
               return (
                 <div
@@ -860,9 +682,9 @@ function ActivityHeatmap({ data }: { data: HeatmapPoint[] }) {
                   className="group relative h-3.5 w-3.5 rounded-sm transition hover:scale-125"
                   style={{
                     background: day.count === 0 ? "var(--muted)" : "var(--primary)",
-                    opacity: day.count === 0 ? 0.25 : opacity,
+                    opacity,
                   }}
-                  title={`${dateLabel}: ${day.count} post${day.count !== 1 ? "s" : ""}${day.platforms.length > 0 ? ` on ${day.platforms.join(", ")}` : ""}`}
+                  title={`${dateLabel}: ${day.count} activity${day.count !== 1 ? "ies" : ""}${day.platforms.length > 0 ? ` on ${day.platforms.join(", ")}` : ""}`}
                 >
                   {day.count > 0 && day.platforms.length > 0 && (
                     <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-popover px-2 py-1 text-[10px] shadow-lg group-hover:block">
@@ -877,7 +699,7 @@ function ActivityHeatmap({ data }: { data: HeatmapPoint[] }) {
       </div>
       <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
         <span>{new Date(data[0]?.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-        <span>{data.filter(d => d.count > 0).length} active days · {data.reduce((s, d) => s + d.count, 0)} total posts</span>
+        <span>{activeDays} active days · {totalActivity} total activities</span>
         <span>{new Date(data[data.length - 1]?.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
       </div>
     </div>
@@ -885,7 +707,11 @@ function ActivityHeatmap({ data }: { data: HeatmapPoint[] }) {
 }
 
 // ============ Leaderboard Card ============
-function LeaderboardCard({ title, members, getValue }: { title: string; members: Member[]; getValue: (m: Member) => string }) {
+function LeaderboardCard({ title, members, getValue }: {
+  title: string;
+  members: Member[];
+  getValue: (m: Member) => string;
+}) {
   return (
     <div className="rounded-2xl border border-border/40 bg-muted/20 p-3">
       <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{title}</div>
@@ -909,7 +735,7 @@ function LeaderboardCard({ title, members, getValue }: { title: string; members:
   );
 }
 
-// ============ Member Card (detailed individual stats) ============
+// ============ Member Card — content activity focused ============
 function MemberCard({ member, delay }: { member: Member; delay: number }) {
   const [expanded, setExpanded] = React.useState(false);
   const m = member.metrics;
@@ -936,42 +762,68 @@ function MemberCard({ member, delay }: { member: Member; delay: number }) {
         </div>
       </button>
 
+      {/* Quick stats grid — content activity */}
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-muted/30 p-2">
-          <div className="num-display text-base font-bold">{fmt(m.followers)}</div>
-          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Followers</div>
-        </div>
-        <div className="rounded-xl bg-muted/30 p-2">
-          <div className="num-display text-base font-bold">{fmt(m.engagement)}</div>
-          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Eng</div>
-        </div>
-        <div className="rounded-xl bg-muted/30 p-2">
-          <div className="num-display text-base font-bold">{m.posts}</div>
+          <div className="num-display text-base font-bold">{m.postsCreated}</div>
           <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Posts</div>
         </div>
+        <div className="rounded-xl bg-muted/30 p-2">
+          <div className="num-display text-base font-bold text-emerald-500">{m.publishedPosts}</div>
+          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Published</div>
+        </div>
+        <div className="rounded-xl bg-muted/30 p-2">
+          <div className="num-display text-base font-bold text-amber-500">{m.commentsReplied}</div>
+          <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Replies</div>
+        </div>
+      </div>
+
+      {/* Cadence indicator */}
+      <div className="mt-2 flex items-center justify-between rounded-xl bg-muted/30 px-3 py-1.5 text-[10px]">
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <Zap className="h-3 w-3" />
+          Cadence
+        </div>
+        <span className="font-bold">{m.weeklyCadence}/week · {m.monthlyCadence}/30d</span>
       </div>
 
       {expanded && (
         <div className="mt-3 space-y-2 border-t border-border/40 pt-3">
           <div className="grid grid-cols-2 gap-2 text-[11px]">
-            <StatRow icon={<Eye className="h-3 w-3" />} label="Impressions" value={fmt(m.impressions)} />
-            <StatRow icon={<TrendingUp className="h-3 w-3" />} label="Eng. Rate" value={`${m.engagementRate}%`} />
-            <StatRow icon={<Heart className="h-3 w-3" />} label="Likes" value={fmt(m.likes)} />
-            <StatRow icon={<MessageCircle className="h-3 w-3" />} label="Comments" value={fmt(m.comments)} />
-            <StatRow icon={<Share2 className="h-3 w-3" />} label="Shares" value={fmt(m.shares)} />
-            <StatRow icon={<Bookmark className="h-3 w-3" />} label="Saves" value={fmt(m.saves)} />
-            <StatRow icon={<CheckCircle2 className="h-3 w-3" />} label="Tasks done" value={`${m.completedTasks}/${m.tasks}`} />
+            <StatRow icon={<FileEdit className="h-3 w-3" />} label="Drafts" value={m.draftPosts.toString()} />
+            <StatRow icon={<Clock className="h-3 w-3" />} label="Scheduled" value={m.scheduledPosts.toString()} />
+            <StatRow icon={<XCircle className="h-3 w-3" />} label="Failed" value={m.failedPosts.toString()} />
+            <StatRow icon={<Send className="h-3 w-3" />} label="Variants" value={m.variantsPublished.toString()} />
+            <StatRow icon={<MessageCircle className="h-3 w-3" />} label="Comments" value={m.commentsReceived.toString()} />
+            <StatRow icon={<Reply className="h-3 w-3" />} label="Reply rate" value={`${m.replyRate}%`} />
+            <StatRow icon={<CheckCircle2 className="h-3 w-3" />} label="Tasks done" value={`${m.completedTasks}/${m.tasksAssigned}`} />
             <StatRow icon={<Clock className="h-3 w-3" />} label="Task rate" value={`${m.taskCompletionRate}%`} />
           </div>
-          <div className="flex items-center gap-2 rounded-xl bg-muted/30 px-3 py-2 text-[11px]">
-            <FileText className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">Posts:</span>
-            <span className="font-medium text-emerald-500">{m.publishedPosts} published</span>
-            <span className="text-muted-foreground">·</span>
-            <span className="font-medium text-amber-500">{m.scheduledPosts} scheduled</span>
-            <span className="text-muted-foreground">·</span>
-            <span className="font-medium text-muted-foreground">{m.draftPosts} drafts</span>
-          </div>
+
+          {/* Sentiment breakdown for this member's accounts */}
+          {m.commentsReceived > 0 && (
+            <div className="flex items-center gap-2 rounded-xl bg-muted/30 px-3 py-2 text-[11px]">
+              <span className="text-muted-foreground">Comments:</span>
+              <span className="font-medium text-emerald-500">+{m.positiveComments}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="font-medium">{m.neutralComments}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="font-medium text-rose-500">-{m.negativeComments}</span>
+            </div>
+          )}
+
+          {/* Per-platform content */}
+          {member.platforms.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Content per platform</div>
+              {member.platforms.map((p) => (
+                <div key={p.platform} className="flex items-center gap-2 text-[11px]">
+                  <PlatformBadge platform={p.platform as PlatformId} size={16} />
+                  <span className="text-muted-foreground">{p.published} published / {p.total} total</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -996,17 +848,14 @@ function TeamPerformanceSkeleton() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimmer h-32 rounded-3xl" />)}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => <div key={i} className="shimmer h-48 rounded-3xl" />)}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimmer h-28 rounded-3xl" />)}
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="shimmer h-[340px] rounded-3xl lg:col-span-2" />
         <div className="shimmer h-[340px] rounded-3xl" />
       </div>
       <div className="shimmer h-64 rounded-3xl" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        {Array.from({ length: 2 }).map((_, i) => <div key={i} className="shimmer h-48 rounded-3xl" />)}
-      </div>
     </div>
   );
 }
