@@ -73,9 +73,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     }, { status: 400 });
   }
 
-  // Build the redirect URI
-  const host = req.headers.get("host") || "localhost:3000";
-  const protocol = req.headers.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+  // Build the redirect URI — use the request URL to get the correct host
+  const requestUrl = new URL(req.url);
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const hostHeader = req.headers.get("host");
+  const host = forwardedHost || hostHeader || requestUrl.host;
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
   const redirectUri = `${protocol}://${host}/api/oauth/callback/${platform}`;
 
   // Build the OAuth authorize URL

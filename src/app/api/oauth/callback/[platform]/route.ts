@@ -48,8 +48,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   }
 
   // Build the redirect URI (must match the one used in the connect step)
-  const host = req.headers.get("host") || "localhost:3000";
-  const protocol = req.headers.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+  const requestUrl = new URL(req.url);
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const hostHeader = req.headers.get("host");
+  const host = forwardedHost || hostHeader || requestUrl.host;
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
   const redirectUri = `${protocol}://${host}/api/oauth/callback/${platform}`;
 
   try {
