@@ -100,7 +100,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     setOwnerTab,
   } = useNav();
   const { user } = useAuth();
-  const isOwner = user?.email === "it.ashraf@outlook.com";
+  // Owner Panel is gated by role === "admin" (admins are the workspace owner).
+  // This is real role-based access control — no hardcoded email check.
+  const isOwner = user?.role === "admin" || user?.role === "owner";
   const groups = Array.from(new Set(NAV.map((n) => n.group)));
   const settingsActive = view === "settings";
   const mediaActive = view === "media";

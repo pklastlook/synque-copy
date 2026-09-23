@@ -538,7 +538,7 @@ function MentionCard({ mention }: { mention: RecentMention }) {
                 className="h-7 px-2 text-[11px]"
                 onClick={() => {
                   if (mention.url) {
-                    toast.success("Opening mention", { description: mention.url });
+                    window.open(mention.url, "_blank", "noopener,noreferrer");
                   } else {
                     toast.info("No external URL for this mention");
                   }

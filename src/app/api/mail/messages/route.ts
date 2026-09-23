@@ -61,26 +61,11 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Simulate a reply arriving after a short delay (demo)
-  setTimeout(async () => {
-    try {
-      await db.mailMessage.create({
-        data: {
-          mailboxId,
-          fromAddr: toAddr,
-          toAddr: mailbox.email,
-          subject: "Re: " + subject,
-          body: "Thanks for your message! This is an automated demo reply confirming your email was received.\n\n— Demo Responder",
-          direction: "in",
-          folder: "inbox",
-          isRead: false,
-          date: new Date(),
-        },
-      });
-    } catch {
-      /* ignore */
-    }
-  }, 4000);
+  // NOTE: Real SMTP sending is not implemented in this SocialFlow app — the
+  // message is stored in the "sent" folder so the team has a record. To
+  // actually deliver mail, wire up nodemailer with the MailServer's SMTP
+  // credentials here. Incoming replies arrive naturally via the IMAP
+  // polling loop (not a fake setTimeout).
 
   return NextResponse.json({ id: msg.id, ok: true });
 }

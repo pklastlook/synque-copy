@@ -1,0 +1,1020 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  ArrowRight,
+     6→  ShieldCheck,
+     7→  Zap,
+     8→  Users,
+     9→  BarChart3,
+    10→  Calendar,
+    11→  Wand2,
+    12→  Check,
+    13→  Mail,
+    14→  Loader2,
+    15→  Lock,
+    16→  Mail as MailIcon,
+    17→  Eye,
+    18→  EyeOff,
+    19→  Sparkles,
+    20→  Rocket,
+    21→  Layers,
+    22→  Globe,
+    23→  Heart,
+    24→  TrendingUp,
+    25→  Clock,
+    26→  ShieldAlert,
+    27→  Server,
+    28→  Target,
+    29→  MessageCircle,
+    30→  Star,
+    31→  CreditCard,
+    32→  Building2,
+    33→  PhoneCall,
+    34→  Hash,
+    35→} from "lucide-react";
+    36→import { useAuth } from "@/lib/auth-store";
+    37→import { cn } from "@/lib/utils";
+    38→import { Logo, LogoWordmark } from "@/components/glass/logo";
+    39→import {
+    40→  Dialog,
+    41→  DialogContent,
+    42→  DialogDescription,
+    43→  DialogFooter,
+    44→  DialogHeader,
+    45→  DialogTitle,
+    46→} from "@/components/ui/dialog";
+    47→import { Input } from "@/components/ui/input";
+    48→import { Label } from "@/components/ui/label";
+    49→import {
+    50→  Select,
+    51→  SelectContent,
+    52→  SelectItem,
+    53→  SelectTrigger,
+    54→  SelectValue,
+    55→} from "@/components/ui/select";
+    56→import { toast } from "sonner";
+    57→
+    58→type Mode = "landing" | "login" | "trial";
+    59→
+    60→export function LandingPage() {
+    61→  const [mode, setMode] = React.useState<Mode>("landing");
+    62→
+    63→  if (mode === "login") {
+    64→    return <LoginScreen onBack={() => setMode("landing")} />;
+    65→  }
+    66→  return (
+    67→    <>
+    68→      <Landing onTrial={() => setMode("trial")} onSignIn={() => setMode("login")} />
+    69→      <TrialDialog
+    70→        open={mode === "trial"}
+    71→        onOpenChange={(b) => { if (!b) setMode("landing"); }}
+    72→        onActivated={() => { /* auth store handles transition to app */ }}
+    73→      />
+    74→    </>
+    75→  );
+    76→}
+    77→
+    78→/* ===================== Splash Screen ===================== */
+    79→function SplashScreen({ onComplete }: { onComplete: () => void }) {
+    80→  const [progress, setProgress] = React.useState(0);
+    81→  const [done, setDone] = React.useState(false);
+    82→
+    83→  React.useEffect(() => {
+    84→    let p = 0;
+    85→    const iv = setInterval(() => {
+    86→      p += Math.random() * 14 + 6;
+    87→      if (p >= 100) {
+    88→        p = 100;
+    89→        clearInterval(iv);
+    90→        setProgress(100);
+    91→        setTimeout(() => setDone(true), 350);
+    92→        setTimeout(onComplete, 1100);
+    93→      } else {
+    94→        setProgress(Math.floor(p));
+    95→      }
+    96→    }, 180);
+    97→    return () => clearInterval(iv);
+    98→  }, [onComplete]);
+    99→
+   100→  return (
+   101→    <div className={cn("relative min-h-screen overflow-hidden transition-opacity duration-500", done && "opacity-0")}>
+   102→      <div className="retaina-bg" aria-hidden>
+   103→        <div className="blob-3" />
+   104→      </div>
+   105→      <div className="relative flex min-h-screen flex-col items-center justify-center px-6">
+   106→        {/* Logo mark + SocialFlow text */}
+   107→        <div className="crystal-in relative mb-4 flex flex-col items-center" style={{ animationDelay: "0.05s" }}>
+   108→          <div className="pointer-events-none absolute inset-0 -z-10 scale-150 rounded-full bg-[var(--primary)]/20 blur-3xl" />
+   109→          <Logo size={72} withTile={false} className="mb-4" />
+   110→          <h1 className="text-6xl font-bold tracking-tight sm:text-7xl">
+   111→            Social<span className="retaina-text">Flow</span>
+   112→          </h1>
+   113→        </div>
+   114→        <div className="crystal-in text-center" style={{ animationDelay: "0.15s" }}>
+   115→          <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Social, Simplified</p>
+   116→        </div>
+   117→
+   118→        <div className="crystal-in mt-10 w-full max-w-xs" style={{ animationDelay: "0.3s" }}>
+   119→          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+   120→            <div
+   121→              className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--gold)] transition-all duration-200 ease-out"
+   122→              style={{ width: `${progress}%` }}
+   123→            />
+   124→          </div>
+   125→          <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+   126→            <span className="flex items-center gap-1.5">
+   127→              <Loader2 className="h-3 w-3 animate-spin" />
+   128→              {progress < 30 ? "Initializing workspace…" : progress < 60 ? "Loading modules…" : progress < 90 ? "Syncing accounts…" : "Almost there…"}
+   129→            </span>
+   130→            <span className="tabular-nums">{progress}%</span>
+   131→          </div>
+   132→        </div>
+   133→
+   134→        <div className="crystal-in mt-8 flex items-center gap-1.5" style={{ animationDelay: "0.4s" }}>
+   135→          {[0, 1, 2].map((i) => (
+   136→            <span
+   137→              key={i}
+   138→              className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]"
+   139→              style={{ animation: `dotPulse 1.2s ease-in-out ${i * 0.15}s infinite` }}
+   140→            />
+   141→          ))}
+   142→        </div>
+   143→      </div>
+   144→      <style>{`@keyframes dotPulse { 0%,80%,100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1.2); } }`}</style>
+   145→    </div>
+   146→  );
+   147→}
+   148→
+   149→/* ===================== Landing — Story Teller ===================== */
+   150→function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+   151→  return (
+   152→    <div className="relative min-h-screen overflow-x-hidden">
+   153→      <div className="retaina-bg" aria-hidden>
+   154→        <div className="blob-3" />
+   155→      </div>
+   156→
+   157→      {/* Nav */}
+   158→      <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-6xl items-center justify-between rounded-2xl px-5 py-3 sm:w-[calc(100%-3rem)]">
+   159→        <LogoWordmark size="text-[17px]" logoSize={26} />
+   160→        <div className="hidden items-center gap-6 md:flex">
+   161→          <a href="/features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</a>
+   162→          <a href="/workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</a>
+   163→          <a href="/pricing" className="text-sm text-muted-foreground transition hover:text-foreground">Pricing</a>
+   164→          <a href="/about" className="text-sm text-muted-foreground transition hover:text-foreground">About</a>
+   165→        </div>
+   166→        <div className="flex items-center gap-2">
+   167→          <button onClick={onSignIn} className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:block">
+   168→            Sign in
+   169→          </button>
+   170→          <button onClick={onTrial} className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold">
+   171→            Start 15-day trial <ArrowRight className="h-3.5 w-3.5" />
+   172→          </button>
+   173→        </div>
+   174→      </nav>
+   175→
+   176→      {/* ===== Story Act 1: The Problem ===== */}
+   177→      <section id="story" className="relative mx-auto max-w-6xl px-4 pt-20 pb-16 sm:pt-28">
+   178→        <div className="grid items-center gap-12 lg:grid-cols-2">
+   179→          <div>
+   180→            <div className="crystal-in mb-6 inline-flex items-center gap-2 rounded-full border border-border/40 bg-muted/30 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
+   181→              <span className="relative flex h-2 w-2">
+   182→                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--gold)] opacity-60" />
+   183→                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--gold)]" />
+   184→              </span>
+   185→              The enterprise platform for social media teams
+   186→            </div>
+   187→            <h1 className="crystal-in text-5xl font-bold leading-[1.05] tracking-tight sm:text-7xl" style={{ animationDelay: "0.1s" }}>
+   188→              One flow.
+   189→              <br />
+   190→              <span className="gold-text">Every platform.</span>
+   191→              <br />
+   192→              Zero chaos.
+   193→            </h1>
+   194→            <p className="crystal-in mt-6 max-w-xl text-base text-muted-foreground sm:text-lg" style={{ animationDelay: "0.2s" }}>
+   195→              Your team posts to 7+ platforms every day. Switching tabs, copy-pasting captions,
+   196→              praying nothing gets suspended. SocialFlow turns that chaos into one calm, AI-powered flow —
+   197→              so your dissemination team ships more, faster.
+   198→            </p>
+   199→            <div className="crystal-in mt-8 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "0.3s" }}>
+   200→              <button onClick={onTrial} className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold">
+   201→                <Rocket className="h-4 w-4" />
+   202→                Start 15-day trial
+   203→              </button>
+   204→              <button onClick={onSignIn} className="flex items-center gap-2 rounded-2xl border border-border/50 bg-muted/30 px-6 py-3 text-sm font-semibold backdrop-blur transition hover:bg-muted/60">
+   205→                Sign in
+   206→              </button>
+   207→            </div>
+   208→            <div className="crystal-in mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] text-muted-foreground" style={{ animationDelay: "0.4s" }}>
+   209→              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-500" /> No card to explore</span>
+   210→              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-500" /> Cancel anytime</span>
+   211→              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-500" /> 15 days full access</span>
+   212→            </div>
+   213→          </div>
+   214→          {/* Animated dashboard preview */}
+   215→          <div className="crystal-in relative" style={{ animationDelay: "0.25s" }}>
+   216→            <div className="glass-strong rounded-3xl p-4 shadow-2xl">
+   217→              <div className="mb-3 flex items-center gap-1.5">
+   218→                <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+   219→                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+   220→                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+   221→                <span className="ml-2 text-[10px] text-muted-foreground">socialflow.app/dashboard</span>
+   222→              </div>
+   223→              <div className="grid grid-cols-3 gap-2">
+   224→                {[
+   225→                  { l: "Followers", v: "1.6M", c: "oklch(0.55 0.2 255)", d: "+1%" },
+   226→                  { l: "Impressions", v: "2.4M", c: "oklch(0.62 0.22 300)", d: "+18%" },
+   227→                  { l: "Engagement", v: "191K", c: "oklch(0.7 0.2 25)", d: "+4%" },
+   228→                ].map((k, i) => (
+   229→                  <div key={k.l} className="crystal-card glass rounded-2xl p-3" style={{ animationDelay: `${0.4 + i * 0.1}s` }}>
+   230→                    <div className="grid h-7 w-7 place-items-center rounded-lg text-white" style={{ background: k.c }}>
+   231→                      <BarChart3 className="h-3.5 w-3.5" />
+   232→                    </div>
+   233→                    <div className="mt-2 num-display text-lg font-bold">{k.v}</div>
+   234→                    <div className="text-[9px] text-muted-foreground">{k.l}</div>
+   235→                    <div className="text-[9px] font-semibold text-emerald-500">{k.d}</div>
+   236→                  </div>
+   237→                ))}
+   238→              </div>
+   239→              {/* mini animated chart */}
+   240→              <div className="mt-3 crystal-card glass rounded-2xl p-3">
+   241→                <div className="mb-2 flex items-center justify-between">
+   242→                  <span className="text-[10px] font-semibold">Performance trend</span>
+   243→                  <span className="text-[9px] text-muted-foreground">14 days</span>
+   244→                </div>
+   245→                <div className="flex h-16 items-end gap-1">
+   246→                  {[35, 48, 42, 58, 65, 52, 70, 78, 68, 82, 75, 90, 85, 95].map((h, i) => (
+   247→                    <span
+   248→                      key={i}
+   249→                      className="flex-1 rounded-t-sm"
+   250→                      style={{
+   251→                        height: `${h}%`,
+   252→                        background: "linear-gradient(to top, var(--primary), var(--gold))",
+   253→                        animation: `sparkRise 0.6s cubic-bezier(0.34,1.56,0.64,1) ${0.5 + i * 0.04}s both`,
+   254→                      }}
+   255→                    />
+   256→                  ))}
+   257→                </div>
+   258→              </div>
+   259→            </div>
+   260→            <div className="pointer-events-none absolute -inset-4 -z-10 rounded-[2rem] bg-[var(--primary)]/10 blur-2xl" />
+   261→          </div>
+   262→        </div>
+   263→      </section>
+   264→
+   265→      {/* ===== Story Act 2: The Pain (before/after) ===== */}
+   266→      <section className="mx-auto max-w-6xl px-4 py-16">
+   267→        <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
+   268→          <div className="text-center">
+   269→            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-500">
+   270→              <ShieldAlert className="h-3 w-3" /> The old way
+   271→            </span>
+   272→            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+   273→              Social media management is <span className="text-rose-500">broken</span>
+   274→            </h2>
+   275→            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+   276→              Teams waste hours every day context-switching between tools. Accounts get suspended.
+   277→              Content gets lost. Here&apos;s what your team deals with right now:
+   278→            </p>
+   279→          </div>
+   280→          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   281→            {[
+   282→              { icon: Layers, t: "7 tabs open", d: "Instagram, X, LinkedIn, TikTok… each its own tab. Copy-paste fatigue.", accent: "oklch(0.62 0.22 300)" },
+   283→              { icon: ShieldAlert, t: "Accounts suspended", d: "Your team posts too fast, uses banned hashtags, gets flagged.", accent: "oklch(0.7 0.2 25)" },
+   284→              { icon: Clock, t: "Content stuck", d: "Drafts wait in DMs and spreadsheets. Nobody knows what's ready to publish.", accent: "oklch(0.72 0.18 75)" },
+   285→              { icon: MessageCircle, t: "Inbox chaos", d: "Comments scattered across 10 accounts. Half go unanswered.", accent: "oklch(0.66 0.18 200)" },
+   286→            ].map((p, i) => (
+   287→              <div key={p.t} className="crystal-in crystal-card glass rounded-2xl p-5 lift-hover group" style={{ animationDelay: `${0.1 * i + 0.1}s` }}>
+   288→                <div className="relative grid h-11 w-11 place-items-center rounded-xl border backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" style={{ background: `${p.accent}15`, borderColor: `${p.accent}30` }}>
+   289→                  <span className="pointer-events-none absolute inset-0 rounded-xl opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70" style={{ background: p.accent }} />
+   290→                  <span className="relative transition-transform duration-300 group-hover:scale-110" style={{ color: p.accent }}>
+   291→                    <p.icon className="h-5 w-5" />
+   292→                  </span>
+   293→                </div>
+   294→                <h3 className="mt-3 text-sm font-semibold">{p.t}</h3>
+   295→                <p className="mt-1 text-xs text-muted-foreground">{p.d}</p>
+   296→              </div>
+   297→            ))}
+   298→          </div>
+   299→        </div>
+   300→      </section>
+   301→
+   302→      {/* ===== Story Act 3: The Solution (features) ===== */}
+   303→      <section id="features" className="mx-auto max-w-6xl px-4 py-16">
+   304→        <div className="mb-10 text-center">
+   305→          <span className="crystal-in inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
+   306→            <Zap className="h-3 w-3" /> The SocialFlow way
+   307→          </span>
+   308→          <h2 className="crystal-in mt-4 text-3xl font-bold tracking-tight sm:text-4xl" style={{ animationDelay: "0.1s" }}>
+   309→            Everything your team needs to <span className="gold-text">win social</span>
+   310→          </h2>
+   311→          <p className="crystal-in mt-3 text-muted-foreground" style={{ animationDelay: "0.2s" }}>
+   312→            From ideation to publishing to protection — one premium platform, 17 integrated modules.
+   313→          </p>
+   314→        </div>
+   315→
+   316→        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+   317→          {FEATURES.map((f, i) => (
+   318→            <div
+   319→              key={f.title}
+   320→              className="crystal-in crystal-card glass lift-hover group relative overflow-hidden rounded-3xl p-6"
+   321→              style={{ animationDelay: `${0.05 * i + 0.1}s` }}
+   322→            >
+   323→              <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-[0.12] blur-2xl transition duration-500 group-hover:opacity-25 group-hover:scale-125" style={{ background: f.accent }} />
+   324→              {/* Premium icon — glass tile with accent color (matches sidebar/KPI style) */}
+   325→              <div className="relative grid h-12 w-12 place-items-center rounded-xl border backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" style={{ background: `${f.accent}15`, borderColor: `${f.accent}30` }}>
+   326→                <span className="pointer-events-none absolute inset-0 rounded-xl opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70" style={{ background: f.accent }} />
+   327→                <span className="relative transition-transform duration-300 group-hover:scale-110" style={{ color: f.accent }}>
+   328→                  <f.icon className="h-5 w-5" />
+   329→                </span>
+   330→              </div>
+   331→              <h3 className="relative mt-4 text-lg font-semibold">{f.title}</h3>
+   332→              <p className="relative mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+   333→              <div className="relative mt-3 flex items-center gap-1 text-xs font-medium opacity-0 transition group-hover:opacity-100" style={{ color: f.accent }}>
+   334→                Learn more <ArrowRight className="h-3 w-3" />
+   335→              </div>
+   336→            </div>
+   337→          ))}
+   338→        </div>
+   339→      </section>
+   340→
+   341→      {/* ===== Story Act 4: The Workflow ===== */}
+   342→      <section id="workflow" className="mx-auto max-w-6xl px-4 py-16">
+   343→        <div className="crystal-in glass-strong overflow-hidden rounded-3xl p-8 sm:p-12">
+   344→          <div className="grid items-center gap-8 lg:grid-cols-2">
+   345→            <div>
+   346→              <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
+   347→                <Zap className="h-3 w-3" /> The SocialFlow flow
+   348→              </div>
+   349→              <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+   350→                Write once. Publish <span className="gold-text">everywhere.</span>
+   351→              </h2>
+   352→              <p className="mt-3 text-muted-foreground">
+   353→                Compose one brief. Our AI generates distinct, platform-native captions for every
+   354→                account — respecting each platform&apos;s tone, length, and hashtag conventions.
+   355→                Review, approve, and publish to all in a single flow.
+   356→              </p>
+   357→              {/* Steps */}
+   358→              <div className="mt-6 space-y-4">
+   359→                {[
+   360→                  { n: "01", t: "Select accounts", d: "Pick from Instagram, X, LinkedIn, TikTok, YouTube, Facebook, Threads." },
+   361→                  { n: "02", t: "Write your brief", d: "One caption + tone. AI does the rest per platform." },
+   362→                  { n: "03", t: "Upload media", d: "Drop your image or video once. We adapt it." },
+   363→                  { n: "04", t: "Preview & publish", d: "See per-account variants in phone-style previews." },
+   364→                  { n: "05", t: "Publish or schedule", d: "One click sends it to every account — or queues it." },
+   365→                ].map((s, i) => (
+   366→                  <div key={s.n} className="crystal-in flex items-start gap-3" style={{ animationDelay: `${0.1 * i + 0.2}s` }}>
+   367→                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-xs font-bold text-white">
+   368→                      {s.n}
+   369→                    </span>
+   370→                    <div>
+   371→                      <div className="text-sm font-semibold">{s.t}</div>
+   372→                      <div className="text-xs text-muted-foreground">{s.d}</div>
+   373→                    </div>
+   374→                  </div>
+   375→                ))}
+   376→              </div>
+   377→              <button onClick={onTrial} className="liquid-gold glow-ring mt-8 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold">
+   378→                Try the composer <ArrowRight className="h-4 w-4" />
+   379→              </button>
+   380→            </div>
+   381→            <div className="relative">
+   382→              <div className="glass rounded-3xl p-5">
+   383→                <div className="flex items-center gap-2 border-b border-border/40 pb-3">
+   384→                  <Wand2 className="h-4 w-4 text-[var(--gold)]" />
+   385→                  <span className="text-sm font-semibold">AI Composer</span>
+   386→                  <span className="ml-auto rounded-full bg-[var(--gold)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--gold)]">5 accounts</span>
+   387→                </div>
+   388→                <div className="mt-3 space-y-2">
+   389→                  {[
+   390→                    { p: "Instagram", c: "For creators who move fast. 🚀 Built to last, made to inspire..." },
+   391→                    { p: "X", c: "Move fast, create faster. New collection, live now. 🚀" },
+   392→                    { p: "LinkedIn", c: "We're excited to introduce our latest collection engineered for..." },
+   393→                    { p: "TikTok", c: "IT'S HERE!!! ✨ New drop just went live for creators who hustle" },
+   394→                    { p: "Threads", c: "New collection just dropped. Tap in. 🔥" },
+   395→                  ].map((v, i) => (
+   396→                    <div key={v.p} className="crystal-in flex items-start gap-2.5 rounded-xl bg-muted/30 p-2.5" style={{ animationDelay: `${0.15 * i + 0.3}s` }}>
+   397→                      <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />
+   398→                      <div className="min-w-0">
+   399→                        <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--gold)]">{v.p}</div>
+   400→                        <div className="truncate text-xs text-muted-foreground">{v.c}</div>
+   401→                      </div>
+   402→                    </div>
+   403→                  ))}
+   404→                </div>
+   405→              </div>
+   406→            </div>
+   407→          </div>
+   408→        </div>
+   409→      </section>
+   410→
+   411→      {/* ===== Story Act 5: Protection ===== */}
+   412→      <section className="mx-auto max-w-6xl px-4 py-16">
+   413→        <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
+   414→          <div className="grid items-center gap-8 lg:grid-cols-2">
+   415→            <div className="order-2 lg:order-1">
+   416→              <div className="glass rounded-3xl p-5">
+   417→                <div className="flex items-center justify-between">
+   418→                  <span className="text-sm font-semibold">Account Health</span>
+   419→                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-500">Healthy</span>
+   420→                </div>
+   421→                <div className="mt-4 space-y-3">
+   422→                  {[
+   423→                    { n: "@prism.studio", r: "safe", v: 12, c: "oklch(0.55 0.2 255)" },
+   424→                    { n: "@prismhq", r: "elevated", v: 52, c: "oklch(0.72 0.18 75)" },
+   425→                    { n: "@prism", r: "high", v: 61, c: "oklch(0.7 0.2 25)" },
+   426→                    { n: "/prism-studio", r: "safe", v: 9, c: "oklch(0.68 0.2 145)" },
+   427→                  ].map((a, i) => (
+   428→                    <div key={a.n} className="crystal-in flex items-center gap-3" style={{ animationDelay: `${0.1 * i + 0.2}s` }}>
+   429→                      <span className="w-28 truncate text-xs text-muted-foreground">{a.n}</span>
+   430→                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+   431→                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${a.v}%`, background: a.c }} />
+   432→                      </div>
+   433→                      <span className="w-12 text-right text-xs font-bold tabular-nums" style={{ color: a.c }}>{a.v}</span>
+   434→                    </div>
+   435→                  ))}
+   436→                </div>
+   437→              </div>
+   438→            </div>
+   439→            <div className="order-1 lg:order-2">
+   440→              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-500">
+   441→                <ShieldCheck className="h-3 w-3" /> Account protection
+   442→              </div>
+   443→              <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+   444→                Never get <span className="gold-text">suspended</span> again
+   445→              </h2>
+   446→              <p className="mt-3 text-muted-foreground">
+   447→                SocialFlow monitors every account&apos;s health in real time. When risk rises —
+   448→                from spam flags, report spikes, or aggressive engagement — we tell you exactly what
+   449→                to fix and auto-enforce guards so your team can&apos;t accidentally trigger a suspension.
+   450→              </p>
+   451→              <ul className="mt-6 space-y-3">
+   452→                {[
+   453→                  "Posting cadence limits (no more rapid-fire spam)",
+   454→                  "Banned-hashtag blocker with custom lists",
+   455→                  "Behavior caps on DMs, follows, comments",
+   456→                  "Smart cooldown auto-pauses on warnings",
+   457→                  "2FA enforcement + warm-up for new accounts",
+   458→                ].map((t) => (
+   459→                  <li key={t} className="flex items-center gap-2.5 text-sm">
+   460→                    <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
+   461→                      <Check className="h-3 w-3" strokeWidth={3} />
+   462→                    </span>
+   463→                    {t}
+   464→                  </li>
+   465→                ))}
+   466→              </ul>
+   467→            </div>
+   468→          </div>
+   469→        </div>
+   470→      </section>
+   471→
+   472→      {/* ===== Story Act 6: Stats band ===== */}
+   473→      <section id="stats" className="mx-auto max-w-6xl px-4 py-16">
+   474→        <div className="crystal-in glass-strong grid grid-cols-2 gap-px overflow-hidden rounded-3xl md:grid-cols-4">
+   475→          {[
+   476→            { v: "17", l: "Integrated modules", icon: Layers },
+   477→            { v: "7+", l: "Social platforms", icon: Globe },
+   478→            { v: "Live", l: "Real-time analytics", icon: BarChart3 },
+   479→            { v: "24/7", l: "Account protection", icon: ShieldCheck },
+   480→          ].map((s, i) => (
+   481→            <div key={s.l} className="crystal-in relative p-6 text-center" style={{ animationDelay: `${0.08 * i + 0.1}s` }}>
+   482→              <s.icon className="mx-auto h-6 w-6 text-[var(--gold)]" />
+   483→              <div className="num-display mt-3 text-3xl font-bold text-[var(--gold)] sm:text-4xl">{s.v}</div>
+   484→              <div className="label-caps mt-2 text-muted-foreground">{s.l}</div>
+   485→            </div>
+   486→          ))}
+   487→        </div>
+   488→      </section>
+   489→
+   490→      {/* ===== Story Act 7: Get started ===== */}
+   491→      <section id="testimonials" className="mx-auto max-w-6xl px-4 py-16">
+   492→        <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12 text-center">
+   493→          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+   494→            Built for teams that <span className="gold-text">move fast</span>
+   495→          </h2>
+   496→          <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+   497→            Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
+   498→            Start your 15-day trial — full access, no card to explore.
+   499→          </p>
+   500→          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+   501→            {[
+   502→              { v: "17", l: "Integrated modules" },
+   503→              { v: "7+", l: "Social platforms" },
+   504→              { v: "AI", l: "Per-account content" },
+   505→              { v: "24/7", l: "Account protection" },
+   506→            ].map((s, i) => (
+   507→              <div key={s.l} className="crystal-in" style={{ animationDelay: `${0.1 * i + 0.1}s` }}>
+   508→                <div className="num-display text-2xl font-bold text-[var(--gold)]">{s.v}</div>
+   509→                <div className="label-caps mt-1 text-muted-foreground">{s.l}</div>
+   510→              </div>
+   511→            ))}
+   512→          </div>
+   513→        </div>
+   514→      </section>
+   515→
+   516→      {/* ===== Story Act 8: Pricing ===== */}
+   517→      <section id="pricing" className="mx-auto max-w-6xl px-4 py-16">
+   518→        <div className="mb-10 text-center">
+   519→          <span className="crystal-in inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
+   520→            <CreditCard className="h-3 w-3" /> Simple pricing
+   521→          </span>
+   522→          <h2 className="crystal-in mt-4 text-3xl font-bold tracking-tight sm:text-4xl" style={{ animationDelay: "0.1s" }}>
+   523→            Start with a <span className="gold-text">15-day free trial</span>
+   524→          </h2>
+   525→          <p className="crystal-in mt-3 text-muted-foreground" style={{ animationDelay: "0.2s" }}>
+   526→            No card to explore. Pick a plan when you&apos;re ready. Cancel anytime.
+   527→          </p>
+   528→        </div>
+   529→        <div className="grid gap-4 lg:grid-cols-3">
+   530→          {PLANS.map((p, i) => (
+   531→            <div
+   532→              key={p.name}
+   533→              className={cn(
+   534→                "crystal-in crystal-card relative overflow-hidden rounded-3xl p-6 lift-hover",
+   535→                p.featured ? "glass-strong ring-2 ring-[var(--gold)]" : "glass"
+   536→              )}
+   537→              style={{ animationDelay: `${0.1 * i + 0.1}s` }}
+   538→            >
+   539→              {p.featured && (
+   540→                <div className="absolute right-4 top-4 rounded-full bg-[var(--gold)] px-2 py-0.5 text-[10px] font-bold text-[var(--gold-foreground)]">
+   541→                  Most popular
+   542→                </div>
+   543→              )}
+   544→              <h3 className="text-lg font-bold">{p.name}</h3>
+   545→              <div className="mt-2 flex items-baseline gap-1">
+   546→                <span className="num-display text-4xl font-bold">{p.price}</span>
+   547→                {p.price !== "Custom" && <span className="text-sm text-muted-foreground">/mo</span>}
+   548→              </div>
+   549→              <p className="mt-2 text-xs text-muted-foreground">{p.desc}</p>
+   550→              <ul className="mt-5 space-y-2.5">
+   551→                {p.features.map((f) => (
+   552→                  <li key={f} className="flex items-center gap-2 text-sm">
+   553→                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
+   554→                      <Check className="h-2.5 w-2.5" strokeWidth={3} />
+   555→                    </span>
+   556→                    {f}
+   557→                  </li>
+   558→                ))}
+   559→              </ul>
+   560→              <button
+   561→                onClick={onTrial}
+   562→                className={cn(
+   563→                  "mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition",
+   564→                  p.featured ? "liquid-gold glow-ring" : "border border-border/50 bg-muted/40 hover:bg-muted"
+   565→                )}
+   566→              >
+   567→                Start 15-day trial <ArrowRight className="h-4 w-4" />
+   568→              </button>
+   569→            </div>
+   570→          ))}
+   571→        </div>
+   572→      </section>
+   573→
+   574→      {/* ===== Story Act 9: Final CTA ===== */}
+   575→      <section className="mx-auto max-w-4xl px-4 py-20 text-center">
+   576→        <div className="crystal-in glass-strong crystal-card relative overflow-hidden rounded-3xl p-10 sm:p-14">
+   577→          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[var(--gold)]/20 blur-3xl" />
+   578→          <div className="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-[var(--primary)]/20 blur-3xl" />
+   579→          <h2 className="relative text-3xl font-bold tracking-tight sm:text-4xl">
+   580→            Ready to <span className="gold-text">simplify</span> your social team?
+   581→          </h2>
+   582→          <p className="relative mx-auto mt-3 max-w-md text-muted-foreground">
+   583→            Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
+   584→          </p>
+   585→          <button onClick={onTrial} className="liquid-gold glow-ring relative mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto">
+   586→            <Rocket className="h-4 w-4" /> Start your 15-day trial <ArrowRight className="h-4 w-4" />
+   587→          </button>
+   588→          <p className="relative mt-3 text-[11px] text-muted-foreground">No card to explore · Cancel anytime · Full access for 15 days</p>
+   589→        </div>
+   590→      </section>
+   591→
+   592→      {/* Footer */}
+   593→      <footer className="border-t border-border/40 px-4 py-10">
+   594→        <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
+   595→          <div>
+   596→            <LogoWordmark size="text-sm" logoSize={22} />
+   597→            <p className="mt-2 text-xs text-muted-foreground">Social, Simplified. The enterprise command center for modern social teams.</p>
+   598→            <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+   599→              <ShieldCheck className="h-3.5 w-3.5 text-[var(--gold)]" /> Encrypted · 2FA · SOC2-ready
+   600→            </div>
+   601→          </div>
+   602→          <FooterCol title="Product" links={["Features", "Workflow", "Pricing", "AI Composer", "Account Protection"]} />
+   603→          <FooterCol title="Company" links={["About", "Customers", "Blog", "Careers", "Contact"]} />
+   604→          <FooterCol title="Resources" links={["Documentation", "API Reference", "Help Center", "Status", "Changelog"]} />
+   605→        </div>
+   606→        <div className="mx-auto mt-8 flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-border/40 pt-6 text-xs text-muted-foreground sm:flex-row">
+   607→          <span>© 2026 SocialFlow · Social, Simplified</span>
+   608→          <div className="flex gap-4">
+   609→            <a href="#" className="hover:text-foreground">Privacy</a>
+   610→            <a href="#" className="hover:text-foreground">Terms</a>
+   611→            <a href="#" className="hover:text-foreground">Security</a>
+   612→          </div>
+   613→        </div>
+   614→      </footer>
+   615→    </div>
+   616→  );
+   617→}
+   618→
+   619→function FooterCol({ title, links }: { title: string; links: string[] }) {
+   620→  return (
+   621→    <div>
+   622→      <div className="text-xs font-semibold uppercase tracking-wide text-foreground">{title}</div>
+   623→      <ul className="mt-3 space-y-2">
+   624→        {links.map((l) => (
+   625→          <li key={l}><a href="#" className="text-xs text-muted-foreground transition hover:text-foreground">{l}</a></li>
+   626→        ))}
+   627→      </ul>
+   628→    </div>
+   629→  );
+   630→}
+   631→
+   632→/* ===================== Trial Activation Dialog ===================== */
+   633→function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpenChange: (b: boolean) => void; onActivated: () => void }) {
+   634→  const { signup } = useAuth();
+   635→  const [step, setStep] = React.useState<"details" | "payment" | "activating" | "done">("details");
+   636→  const [form, setForm] = React.useState({
+   637→    name: "", email: "", company: "", teamSize: "5-10", phone: "", password: "",
+   638→    cardName: "", cardNumber: "", expiry: "", cvc: "",
+   639→  });
+   640→  const [errors, setErrors] = React.useState<Record<string, string>>({});
+   641→
+   642→  React.useEffect(() => {
+   643→    if (open) {
+   644→      setStep("details");
+   645→      setErrors({});
+   646→    }
+   647→  }, [open]);
+   648→
+   649→  const validateDetails = () => {
+   650→    const e: Record<string, string> = {};
+   651→    if (!form.name.trim()) e.name = "Full name is required";
+   652→    if (!form.email.trim()) e.email = "Email is required";
+   653→    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Invalid email";
+   654→    if (!form.company.trim()) e.company = "Company is required";
+   655→    if (!form.password.trim()) e.password = "Password is required";
+   656→    else if (form.password.length < 6) e.password = "Min 6 characters";
+   657→    setErrors(e);
+   658→    return Object.keys(e).length === 0;
+   659→  };
+   660→
+   661→  const validatePayment = () => {
+   662→    const e: Record<string, string> = {};
+   663→    if (!form.cardName.trim()) e.cardName = "Name on card required";
+   664→    if (!form.cardNumber.trim()) e.cardNumber = "Card number required";
+   665→    else if (form.cardNumber.replace(/\s/g, "").length < 15) e.cardNumber = "Invalid card number";
+   666→    if (!form.expiry.trim()) e.expiry = "Expiry required";
+   667→    else if (!/^\d{2}\/\d{2}$/.test(form.expiry)) e.expiry = "MM/YY";
+   668→    if (!form.cvc.trim()) e.cvc = "CVC required";
+   669→    else if (form.cvc.length < 3) e.cvc = "Invalid CVC";
+   670→    setErrors(e);
+   671→    return Object.keys(e).length === 0;
+   672→  };
+   673→
+   674→  const activate = async () => {
+   675→    if (!validatePayment()) return;
+   676→    setStep("activating");
+   677→    // Create the real user account via the signup API
+   678→    const success = await signup(form.name.trim(), form.email.trim(), form.password);
+   679→    if (success) {
+   680→      setStep("done");
+   681→      setTimeout(onActivated, 1400);
+   682→    } else {
+   683→      setStep("payment");
+   684→      toast.error("Failed to create account. This email may already be registered.");
+   685→    }
+   686→  };
+   687→
+   688→  return (
+   689→    <Dialog open={open} onOpenChange={onOpenChange}>
+   690→      <DialogContent className="glass-strong max-h-[92vh] max-w-lg overflow-y-auto">
+   691→        {/* Step indicator */}
+   692→        <div className="mb-2 flex items-center gap-2">
+   693→          <StepDot n={1} active={step === "details"} done={step !== "details"} />
+   694→          <div className={cn("h-px flex-1 transition", step !== "details" ? "bg-[var(--gold)]" : "bg-border")} />
+   695→          <StepDot n={2} active={step === "payment" || step === "activating"} done={step === "activating" || step === "done"} />
+   696→          <div className={cn("h-px flex-1 transition", step === "done" ? "bg-[var(--gold)]" : "bg-border")} />
+   697→          <StepDot n={3} active={step === "done"} done={step === "done"} />
+   698→        </div>
+   699→
+   700→        {step === "details" && (
+   701→          <>
+   702→            <DialogHeader>
+   703→              <DialogTitle className="flex items-center gap-2 text-lg">
+   704→                <Rocket className="h-5 w-5 text-[var(--gold)]" /> Start your 15-day trial
+   705→              </DialogTitle>
+   706→              <DialogDescription>
+   707→                Full access to every module. No charge for 15 days. Tell us about your team.
+   708→              </DialogDescription>
+   709→            </DialogHeader>
+   710→            <div className="space-y-3">
+   711→              <Field icon={<Users className="h-3.5 w-3.5" />} label="Full name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Maya Reyes" error={errors.name} />
+   712→              <Field icon={<MailIcon className="h-3.5 w-3.5" />} label="Work email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="maya@yourcompany.com" error={errors.email} />
+   713→              <Field icon={<Building2 className="h-3.5 w-3.5" />} label="Company" value={form.company} onChange={(v) => setForm({ ...form, company: v })} placeholder="Your Company Inc." error={errors.company} />
+   714→              <div className="grid grid-cols-2 gap-3">
+   715→                <div>
+   716→                  <Label className="text-xs">Team size</Label>
+   717→                  <Select value={form.teamSize} onValueChange={(v) => setForm({ ...form, teamSize: v })}>
+   718→                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+   719→                    <SelectContent>
+   720→                      <SelectItem value="1-4">1–4 members</SelectItem>
+   721→                      <SelectItem value="5-10">5–10 members</SelectItem>
+   722→                      <SelectItem value="11-25">11–25 members</SelectItem>
+   723→                      <SelectItem value="26-50">26–50 members</SelectItem>
+   724→                      <SelectItem value="50+">50+ members</SelectItem>
+   725→                    </SelectContent>
+   726→                  </Select>
+   727→                </div>
+   728→                <Field icon={<PhoneCall className="h-3.5 w-3.5" />} label="Phone (optional)" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="+1 555 0100" />
+   729→              </div>
+   730→              <Field icon={<Lock className="h-3.5 w-3.5" />} label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder="Min 6 characters" error={errors.password} />
+   731→              <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
+   732→                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
+   733→                <span>Your card won&apos;t be charged today. You&apos;ll get a reminder 3 days before the trial ends. Cancel anytime.</span>
+   734→              </div>
+   735→            </div>
+   736→            <DialogFooter>
+   737→              <button onClick={() => onOpenChange(false)} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
+   738→              <button onClick={() => validateDetails() && setStep("payment")} className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-semibold">
+   739→                Continue to payment <ArrowRight className="h-4 w-4" />
+   740→              </button>
+   741→            </DialogFooter>
+   742→          </>
+   743→        )}
+   744→
+   745→        {step === "payment" && (
+   746→          <>
+   747→            <DialogHeader>
+   748→              <DialogTitle className="flex items-center gap-2 text-lg">
+   749→                <CreditCard className="h-5 w-5 text-[var(--gold)]" /> Add a payment method
+   750→              </DialogTitle>
+   751→              <DialogDescription>
+   752→                Required to activate your trial. <b className="text-foreground">You won&apos;t be charged</b> for 15 days.
+   753→              </DialogDescription>
+   754→            </DialogHeader>
+   755→            <div className="space-y-3">
+   756→              <Field icon={<Users className="h-3.5 w-3.5" />} label="Name on card" value={form.cardName} onChange={(v) => setForm({ ...form, cardName: v })} placeholder="Maya Reyes" error={errors.cardName} />
+   757→              <div>
+   758→                <Label className="text-xs"><span className="flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5" /> Card number</span></Label>
+   759→                <Input
+   760→                  value={form.cardNumber}
+   761→                  onChange={(e) => {
+   762→                    const v = e.target.value.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+   763→                    setForm({ ...form, cardNumber: v });
+   764→                  }}
+   765→                  placeholder="4242 4242 4242 4242"
+   766→                  className={cn("mt-1.5 font-mono", errors.cardNumber && "border-rose-500/50")}
+   767→                />
+   768→                {errors.cardNumber && <p className="mt-1 text-[11px] font-medium text-rose-500">{errors.cardNumber}</p>}
+   769→              </div>
+   770→              <div className="grid grid-cols-2 gap-3">
+   771→                <div>
+   772→                  <Label className="text-xs">Expiry</Label>
+   773→                  <Input
+   774→                    value={form.expiry}
+   775→                    onChange={(e) => {
+   776→                      let v = e.target.value.replace(/\D/g, "").slice(0, 4);
+   777→                      if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+   778→                      setForm({ ...form, expiry: v });
+   779→                    }}
+   780→                    placeholder="MM/YY"
+   781→                    className={cn("mt-1.5", errors.expiry && "border-rose-500/50")}
+   782→                  />
+   783→                  {errors.expiry && <p className="mt-1 text-[11px] font-medium text-rose-500">{errors.expiry}</p>}
+   784→                </div>
+   785→                <div>
+   786→                  <Label className="text-xs"><span className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" /> CVC</span></Label>
+   787→                  <Input
+   788→                    value={form.cvc}
+   789→                    onChange={(e) => setForm({ ...form, cvc: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+   790→                    placeholder="123"
+   791→                    className={cn("mt-1.5", errors.cvc && "border-rose-500/50")}
+   792→                  />
+   793→                  {errors.cvc && <p className="mt-1 text-[11px] font-medium text-rose-500">{errors.cvc}</p>}
+   794→                </div>
+   795→              </div>
+   796→              <div className="flex items-center gap-2 rounded-xl bg-muted/30 p-3 text-[11px] text-muted-foreground">
+   797→                <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
+   798→                Payments are encrypted (AES-256) and PCI-DSS compliant. We never store your full card number.
+   799→              </div>
+   800→            </div>
+   801→            <DialogFooter>
+   802→              <button onClick={() => setStep("details")} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">Back</button>
+   803→              <button onClick={activate} className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-semibold">
+   804→                <ShieldCheck className="h-4 w-4" /> Activate trial
+   805→              </button>
+   806→            </DialogFooter>
+   807→          </>
+   808→        )}
+   809→
+   810→        {step === "activating" && (
+   811→          <div className="flex flex-col items-center justify-center py-12 text-center">
+   812→            <Loader2 className="h-12 w-12 animate-spin text-[var(--gold)]" />
+   813→            <h3 className="mt-5 text-lg font-semibold">Activating your trial…</h3>
+   814→            <p className="mt-1 text-sm text-muted-foreground">Provisioning workspace, syncing modules</p>
+   815→          </div>
+   816→        )}
+   817→
+   818→        {step === "done" && (
+   819→          <div className="flex flex-col items-center justify-center py-12 text-center">
+   820→            <div className="relative mb-4">
+   821→              <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
+   822→                <Check className="h-10 w-10" strokeWidth={3} />
+   823→              </div>
+   824→              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/10" />
+   825→            </div>
+   826→            <h3 className="text-xl font-bold">Trial activated! Welcome to SocialFlow.</h3>
+   827→            <p className="mt-1 text-sm text-muted-foreground">Account created successfully. Entering your workspace…</p>
+   828→          </div>
+   829→        )}
+   830→      </DialogContent>
+   831→    </Dialog>
+   832→  );
+   833→}
+   834→
+   835→function StepDot({ n, active, done }: { n: number; active: boolean; done: boolean }) {
+   836→  return (
+   837→    <div className={cn(
+   838→      "grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold transition",
+   839→      done ? "bg-[var(--gold)] text-[var(--gold-foreground)]" : active ? "bg-[var(--gold)]/15 text-[var(--gold)] ring-2 ring-[var(--gold)]/30" : "bg-muted text-muted-foreground"
+   840→    )}>
+   841→      {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : n}
+   842→    </div>
+   843→  );
+   844→}
+   845→
+   846→function Field({ icon, label, value, onChange, placeholder, error, type = "text" }: {
+   847→  icon: React.ReactNode; label: string; value: string; onChange: (v: string) => void; placeholder?: string; error?: string; type?: string;
+   848→}) {
+   849→  return (
+   850→    <div>
+   851→      <Label className="text-xs"><span className="flex items-center gap-1.5">{icon}{label}</span></Label>
+   852→      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cn("mt-1.5", error && "border-rose-500/50 focus-visible:ring-rose-500/30")} />
+   853→      {error && <p className="mt-1 text-[11px] font-medium text-rose-500">{error}</p>}
+   854→    </div>
+   855→  );
+   856→}
+   857→
+   858→/* ===================== Login (no role buttons) ===================== */
+   859→function LoginScreen({ onBack }: { onBack: () => void }) {
+   860→  const { login } = useAuth();
+   861→  const [email, setEmail] = React.useState("");
+   862→  const [password, setPassword] = React.useState("");
+   863→  const [showPw, setShowPw] = React.useState(false);
+   864→  const [loading, setLoading] = React.useState(false);
+   865→  const [error, setError] = React.useState("");
+   866→
+   867→  const submit = async (e: React.FormEvent) => {
+   868→    e.preventDefault();
+   869→    if (!email.trim() || !password.trim()) {
+   870→      setError("Please enter your email and password");
+   871→      return;
+   872→    }
+   873→    setLoading(true);
+   874→    setError("");
+   875→    const success = await login(email.trim(), password);
+   876→    if (!success) {
+   877→      setError("Invalid email or password. If you're new, start a free trial.");
+   878→      setLoading(false);
+   879→    }
+   880→    // If success, the auth store updates isAuthenticated and page.tsx switches to AppShell
+   881→  };
+   882→
+   883→  return (
+   884→    <div className="relative min-h-screen overflow-hidden">
+   885→      <div className="retaina-bg" aria-hidden>
+   886→        <div className="blob-3" />
+   887→      </div>
+   888→
+   889→      <div className="flex min-h-screen items-center justify-center px-4 py-8">
+   890→        <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl lg:grid-cols-2">
+   891→          {/* Left — brand panel */}
+   892→          <div className="glass-strong crystal-in relative hidden flex-col justify-between p-10 lg:flex">
+   893→            <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-[var(--gold)]/15 blur-3xl" />
+   894→            <div className="relative">
+   895→              <LogoWordmark size="text-xl" />
+   896→            </div>
+   897→            <div className="relative">
+   898→              <h2 className="text-3xl font-bold leading-tight tracking-tight">
+   899→                Welcome back to your <span className="gold-text">command center.</span>
+   900→              </h2>
+   901→              <p className="mt-3 text-sm text-muted-foreground">
+   902→                Sign in to manage your team, publish across every platform, and keep your accounts safe.
+   903→              </p>
+   904→              <ul className="mt-6 space-y-2.5">
+   905→                {["17 integrated modules", "AI per-account content generation", "Account suspension protection", "Custom domain mail server"].map((t) => (
+   906→                  <li key={t} className="flex items-center gap-2.5 text-sm">
+   907→                    <span className="grid h-5 w-5 place-items-center rounded-full bg-[var(--gold)]/15 text-[var(--gold)]">
+   908→                      <Check className="h-3 w-3" strokeWidth={3} />
+   909→                    </span>
+   910→                    {t}
+   911→                  </li>
+   912→                ))}
+   913→              </ul>
+   914→            </div>
+   915→            <div className="relative flex items-center gap-2 text-[11px] text-muted-foreground">
+   916→              <ShieldCheck className="h-3.5 w-3.5 text-[var(--gold)]" />
+   917→              Encrypted at rest · 2FA supported · SOC2-ready
+   918→            </div>
+   919→          </div>
+   920→
+   921→          {/* Right — login form (no role buttons) */}
+   922→          <div className="glass crystal-in flex flex-col justify-center p-8 sm:p-10" style={{ animationDelay: "0.15s" }}>
+   923→            <button onClick={onBack} className="mb-6 flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
+   924→              <ArrowRight className="h-3 w-3 rotate-180" /> Back to home
+   925→            </button>
+   926→
+   927→            <h1 className="text-2xl font-bold tracking-tight">Sign in to SocialFlow</h1>
+   928→            <p className="mt-1 text-sm text-muted-foreground">Enter your credentials to continue</p>
+   929→
+   930→            <form className="mt-6 space-y-4" onSubmit={submit}>
+   931→              <div>
+   932→                <label className="label-caps text-muted-foreground">Email</label>
+   933→                <div className="relative mt-1.5">
+   934→                  <MailIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+   935→                  <input
+   936→                    type="email"
+   937→                    value={email}
+   938→                    onChange={(e) => setEmail(e.target.value)}
+   939→                    className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-[var(--primary)]/50 focus:bg-background/50"
+   940→                    placeholder="you@yourcompany.com"
+   941→                  />
+   942→                </div>
+   943→              </div>
+   944→
+   945→              <div>
+   946→                <label className="label-caps text-muted-foreground">Password</label>
+   947→                <div className="relative mt-1.5">
+   948→                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+   949→                  <input
+   950→                    type={showPw ? "text" : "password"}
+   951→                    value={password}
+   952→                    onChange={(e) => setPassword(e.target.value)}
+   953→                    className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-[var(--primary)]/50 focus:bg-background/50"
+   954→                    placeholder="••••••••"
+   955→                  />
+   956→                  <button
+   957→                    type="button"
+   958→                    onClick={() => setShowPw(!showPw)}
+   959→                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+   960→                  >
+   961→                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   962→                  </button>
+   963→                </div>
+   964→              </div>
+   965→
+   966→              <div className="flex items-center justify-between text-xs">
+   967→                <label className="flex items-center gap-2 text-muted-foreground">
+   968→                  <input type="checkbox" className="accent-[var(--primary)]" defaultChecked /> Remember me
+   969→                </label>
+   970→                <button type="button" className="font-medium text-[var(--primary)] hover:underline">Forgot password?</button>
+   971→              </div>
+   972→
+   973→              {error && (
+   974→                <div className="flex items-center gap-2 rounded-xl bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-500">
+   975→                  <ShieldAlert className="h-3.5 w-3.5" /> {error}
+   976→                </div>
+   977→              )}
+   978→
+   979→              <button
+   980→                type="submit"
+   981→                disabled={loading}
+   982→                className="liquid-pill glow-ring flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
+   983→              >
+   984→                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+   985→                {loading ? "Signing in…" : "Sign in"}
+   986→              </button>
+   987→            </form>
+   988→
+   989→            <p className="mt-6 text-center text-xs text-muted-foreground">
+   990→              New to SocialFlow?{" "}
+   991→              <button onClick={onBack} className="font-medium text-[var(--primary)] hover:underline">
+   992→                Sign in
+   993→              </button>
+   994→            </p>
+   995→          </div>
+   996→        </div>
+   997→      </div>
+   998→    </div>
+   999→  );
+  1000→}
+  1001→
+  1002→/* ===================== Data ===================== */
+  1003→const FEATURES = [
+  1004→  { icon: Wand2, title: "AI Composer", desc: "Generate distinct, platform-native captions for every account from one brief — respecting tone, length & hashtag conventions.", accent: "oklch(0.55 0.2 255)" },
+  1005→  { icon: ShieldCheck, title: "Account Protection", desc: "Anti-suspension guards: posting cadence limits, banned-hashtag blocker, behavior caps, smart cooldowns, and a suspension advisor.", accent: "oklch(0.68 0.22 145)" },
+  1006→  { icon: BarChart3, title: "Advanced Analytics", desc: "Deep insights across every platform — impressions, reach, engagement, audience growth, per-account comparison.", accent: "oklch(0.62 0.22 300)" },
+  1007→  { icon: Users, title: "Team & Roles", desc: "Granular permissions per user — admin, manager, editor, member, viewer. Designations, departments, and access control.", accent: "oklch(0.7 0.2 25)" },
+  1008→  { icon: Calendar, title: "Content Calendar", desc: "Plan and schedule your entire content pipeline with a visual month grid and drag-friendly scheduling.", accent: "oklch(0.66 0.18 200)" },
+  1009→  { icon: Server, title: "Mail Server", desc: "Host your team's email on your own domain — Hostinger, cPanel, Zoho or any provider. Create mailboxes, no Google needed.", accent: "oklch(0.72 0.18 75)" },
+  1010→  { icon: MessageCircle, title: "Unified Inbox", desc: "Comments and DMs from every account in one inbox. Sentiment-tagged, assignable, reply-ready.", accent: "oklch(0.62 0.22 300)" },
+  1011→  { icon: Target, title: "Competitor Tracking", desc: "Benchmark rivals with follower-growth charts, engagement comparisons, and posting-frequency insights.", accent: "oklch(0.55 0.2 255)" },
+  1012→  { icon: Hash, title: "Hashtag Manager", desc: "Save reusable hashtag groups per platform, track trending tags, and block shadowbanned hashtags.", accent: "oklch(0.68 0.22 145)" },
+  1013→];
+  1014→
+  1015→const PLANS = [
+  1016→  { name: "Starter", price: "$29", desc: "For solo creators & small teams getting started.", features: ["3 social accounts", "1 user", "AI composer (100/mo)", "Basic analytics", "Email support"], featured: false },
+  1017→  { name: "Growth", price: "$89", desc: "For growing teams that publish daily.", features: ["15 social accounts", "5 users", "Unlimited AI composer", "Advanced analytics", "Account protection", "Priority support"], featured: true },
+  1018→  { name: "Enterprise", price: "Custom", desc: "For large teams with custom needs.", features: ["Unlimited accounts", "Unlimited users", "Custom domain mail server", "SSO + SAML", "Dedicated success manager", "99.9% SLA"], featured: false },
+  1019→];
+  1020→

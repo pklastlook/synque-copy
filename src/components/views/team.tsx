@@ -28,6 +28,7 @@ import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card"
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
 import { useAuth } from "@/lib/auth-store";
+import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -74,7 +75,7 @@ const ADMIN_COLOR = "var(--primary)";
 const MEMBER_COLOR = "oklch(0.74 0.18 165)";
 
 export function TeamView() {
-  const { data, loading } = useApi<TeamMember[]>("/api/team");
+  const { data, loading, reload } = useApi<TeamMember[]>("/api/team");
   const { user } = useAuth();
   const currentUserId = user?.id;
   const [inviteOpen, setInviteOpen] = React.useState(false);
@@ -107,15 +108,29 @@ export function TeamView() {
     fill: m.role === "admin" ? ADMIN_COLOR : MEMBER_COLOR,
   }));
 
-  const onInvite = () => {
+  const onInvite = async () => {
     if (!email.trim()) {
       toast.error("Enter an email address");
       return;
     }
-    toast.success("Invitation sent");
-    setEmail("");
-    setRole("member");
-    setInviteOpen(false);
+    try {
+      const res = await fetch("/api/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), role }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to invite");
+      }
+      toast.success("Invitation sent", { description: `${email} has been added to the team.` });
+      setEmail("");
+      setRole("member");
+      setInviteOpen(false);
+      reload();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to invite");
+    }
   };
 
   return (
@@ -244,6 +259,7 @@ export function TeamView() {
             member={m}
             maxPosts={maxPosts}
             isYou={m.id === currentUserId}
+            onReload={reload}
           />
         ))}
       </div>
@@ -313,11 +329,14 @@ function MemberCard({
   member,
   maxPosts,
   isYou,
+  onReload,
 }: {
   member: TeamMember;
   maxPosts: number;
   isYou: boolean;
+  onReload: () => void;
 }) {
+  const { setView } = useNav();
   const workload = Math.round((member.postsCount / maxPosts) * 100);
 
   return (
@@ -375,28 +394,62 @@ function MemberCard({
           <DropdownMenuContent align="end" className="w-48 rounded-xl">
             {member.role === "admin" ? (
               <DropdownMenuItem
-                onClick={() => toast.success(`${member.name} is now a member`)}
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/team/${member.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ role: "member" }),
+                    });
+                    if (!res.ok) throw new Error("Failed to update role");
+                    toast.success(`${member.name} is now a member`);
+                    onReload();
+                  } catch {
+                    toast.error("Failed to update role");
+                  }
+                }}
               >
                 <Shield className="mr-2 h-4 w-4" /> Make member
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem
-                onClick={() => toast.success(`${member.name} is now an admin`)}
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/team/${member.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ role: "admin" }),
+                    });
+                    if (!res.ok) throw new Error("Failed to update role");
+                    toast.success(`${member.name} is now an admin`);
+                    onReload();
+                  } catch {
+                    toast.error("Failed to update role");
+                  }
+                }}
               >
                 <Shield className="mr-2 h-4 w-4" /> Make admin
               </DropdownMenuItem>
             )}
             <DropdownMenuItem
-              onClick={() => toast.info(`Opening ${member.name}'s activity`)}
+              onClick={() => setView("team-performance")}
             >
               <Eye className="mr-2 h-4 w-4" /> View activity
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-rose-500 focus:text-rose-500"
-              onClick={() =>
-                toast.error(`${member.name} removed from workspace`)
-              }
+              onClick={async () => {
+                if (!confirm(`Remove ${member.name} from the workspace?`)) return;
+                try {
+                  const res = await fetch(`/api/team/${member.id}`, { method: "DELETE" });
+                  if (!res.ok) throw new Error("Failed to remove");
+                  toast.success(`${member.name} removed from workspace`);
+                  onReload();
+                } catch {
+                  toast.error("Failed to remove member");
+                }
+              }}
             >
               <Trash2 className="mr-2 h-4 w-4" /> Remove
             </DropdownMenuItem>

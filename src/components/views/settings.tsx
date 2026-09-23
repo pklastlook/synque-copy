@@ -1290,7 +1290,7 @@ function SecuritySection() {
   const [twoFA, setTwoFA] = React.useState(false);
   const [setup2FA, setSetup2FA] = React.useState(false);
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
-  const [ipAllow, setIpAllow] = React.useState("192.168.1.0/24\n10.0.0.0/8");
+  const [ipAllow, setIpAllow] = React.useState("");
   const [genName, setGenName] = React.useState("");
   const [genOpen, setGenOpen] = React.useState(false);
   const [genBusy, setGenBusy] = React.useState(false);
@@ -1651,36 +1651,24 @@ function SecuritySection() {
           <DialogHeader>
             <DialogTitle>Set up two-factor authentication</DialogTitle>
             <DialogDescription>
-              Scan this QR code with your authenticator app, then enter the 6-digit code.
+              Two-factor authentication requires server-side TOTP setup. This is a placeholder — wire up a real OTP library (e.g. otpauth) + a /api/auth/2fa route to generate + verify secrets.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-2">
-            {/* Mock QR code */}
-            <div className="grid h-44 w-44 place-items-center rounded-2xl border border-border bg-background p-3">
-              <div className="grid h-full w-full grid-cols-8 grid-rows-8 gap-px">
-                {Array.from({ length: 64 }).map((_, i) => {
-                  // deterministic pattern
-                  const on = (i * 37 + (i % 5) * 11) % 3 === 0;
-                  const corner = (i < 3 || i % 8 < 3 || i % 8 > 4 || i > 40) && (i < 24 || i > 39);
-                  return (
-                    <div
-                      key={i}
-                      className={cn("rounded-[1px]", on || corner ? "bg-foreground" : "bg-transparent")}
-                    />
-                  );
-                })}
+            <div className="grid h-44 w-44 place-items-center rounded-2xl border border-dashed border-border bg-muted/30 p-3 text-center">
+              <div className="space-y-2">
+                <QrCode className="mx-auto h-8 w-8 text-muted-foreground" />
+                <div className="text-[10px] text-muted-foreground">
+                  TOTP secret generation<br />requires a backend route
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <QrCode className="h-3.5 w-3.5" />
-              Or enter manually: <span className="font-mono">JBSWY3DPEHPK3PXP</span>
-            </div>
-            <Input placeholder="Enter 6-digit code" maxLength={6} className="text-center font-mono tracking-[0.4em]" />
+            <Input placeholder="Enter 6-digit code" maxLength={6} className="text-center font-mono tracking-[0.4em]" disabled />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setSetup2FA(false)}>Cancel</Button>
             <button
-              onClick={() => { toast.success("2FA enabled"); setSetup2FA(false); }}
+              onClick={() => { toast.info("2FA requires backend TOTP setup — wire up /api/auth/2fa to enable"); setSetup2FA(false); }}
               className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
             >
               <ShieldCheck className="h-4 w-4" /> Verify & enable
@@ -1752,20 +1740,20 @@ function SecuritySection() {
 
 // ===== 7. Connected Platforms =====
 function PlatformsSection() {
-  // Deterministic connection state per platform
-  const initial = React.useMemo(() => {
-    const connected: Record<PlatformId, { connected: boolean; accounts: number }> = {
-      instagram: { connected: true, accounts: 3 },
-      facebook: { connected: true, accounts: 2 },
-      x: { connected: true, accounts: 1 },
-      linkedin: { connected: true, accounts: 1 },
-      tiktok: { connected: true, accounts: 1 },
-      youtube: { connected: true, accounts: 1 },
-      threads: { connected: false, accounts: 0 },
-    };
-    return connected;
-  }, []);
-  const [state, setState] = React.useState(initial);
+  // Fetch REAL connected accounts from /api/accounts
+  const { data: accounts, reload } = useApi<{ id: string; platform: PlatformId; handle: string; displayName: string }[]>("/api/accounts");
+  const { setView } = useNav();
+
+  // Build a real map: platform → account count
+  const connectedMap = React.useMemo(() => {
+    const map: Record<string, { connected: boolean; accounts: number; handles: string[] }> = {};
+    for (const a of accounts ?? []) {
+      if (!map[a.platform]) map[a.platform] = { connected: true, accounts: 0, handles: [] };
+      map[a.platform].accounts++;
+      map[a.platform].handles.push(a.handle);
+    }
+    return map;
+  }, [accounts]);
 
   return (
     <GlassCard className="crystal-in p-5">
@@ -1774,7 +1762,7 @@ function PlatformsSection() {
         desc="Manage which social accounts are connected to SocialFlow."
         action={
           <button
-            onClick={() => toast("Choose a platform below to connect")}
+            onClick={() => setView("accounts")}
             className="liquid-gold flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
           >
             <Plug className="h-3.5 w-3.5" /> Connect new
@@ -1783,7 +1771,7 @@ function PlatformsSection() {
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {PLATFORM_LIST.map((p) => {
-          const s = state[p.id];
+          const s = connectedMap[p.id] ?? { connected: false, accounts: 0, handles: [] };
           return (
             <div
               key={p.id}
@@ -1796,6 +1784,11 @@ function PlatformsSection() {
                   <div className="text-xs text-muted-foreground">
                     {s.connected ? `${s.accounts} account${s.accounts === 1 ? "" : "s"}` : "Not connected"}
                   </div>
+                  {s.connected && s.handles.length > 0 && (
+                    <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                      {s.handles.slice(0, 2).join(", ")}{s.handles.length > 2 && ` +${s.handles.length - 2}`}
+                    </div>
+                  )}
                 </div>
                 <span
                   className={cn(
@@ -1808,10 +1801,7 @@ function PlatformsSection() {
                 </span>
               </div>
               <button
-                onClick={() => {
-                  setState((prev) => ({ ...prev, [p.id]: { connected: !prev[p.id].connected, accounts: !prev[p.id].connected ? 1 : 0 } }));
-                  toast.success(`${p.name} ${s.connected ? "disconnected" : "connected"}`);
-                }}
+                onClick={() => setView("accounts")}
                 className={cn(
                   "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
                   s.connected
@@ -1819,7 +1809,7 @@ function PlatformsSection() {
                     : "liquid-pill"
                 )}
               >
-                {s.connected ? "Disconnect" : "Connect"}
+                {s.connected ? "Manage" : "Connect"}
               </button>
             </div>
           );
@@ -1905,6 +1895,13 @@ function BillingSection() {
   const { data: invoicesData, loading: invoicesLoading } =
     useApi<BillingInvoice[]>("/api/invoices");
   const invoices = invoicesData ?? [];
+  const { setView } = useNav();
+
+  // Real subscription from the DB (if any)
+  const { data: subscription } = useApi<{
+    plan: string; status: string; amount: number; currency: string; trialEnds: string | null;
+  } | null>("/api/subscriptions?limit=1");
+  const sub = Array.isArray(subscription) ? subscription[0] : subscription;
 
   // Local-only usage snapshot — no DB backing yet, so we keep these as
   // honestly-zero defaults rather than fabricated "184/500" numbers.
@@ -1928,31 +1925,38 @@ function BillingSection() {
               Current plan
             </div>
             <h3 className="mt-1 bg-gradient-to-r from-[var(--primary)] to-[var(--gold)] bg-clip-text text-2xl font-bold tracking-tight text-transparent">
-              Enterprise
+              {sub?.plan ? sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1) : "Free trial"}
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Unlimited workspaces · 24/7 priority support · Dedicated CSM
+              {sub?.status === "trial"
+                ? `Trial${sub.trialEnds ? ` ends ${new Date(sub.trialEnds).toLocaleDateString()}` : ""}`
+                : sub?.status === "active"
+                  ? "Active subscription"
+                  : "No active subscription — billing is not configured."}
             </p>
-            <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-2xl font-bold">$499</span>
-              <span className="text-sm text-muted-foreground">/mo</span>
-              <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-500">
-                Renews Apr 1
-              </span>
-            </div>
+            {sub?.amount ? (
+              <div className="mt-3 flex items-baseline gap-1">
+                <span className="text-2xl font-bold">${sub.amount}</span>
+                <span className="text-sm text-muted-foreground">/{sub.currency?.toLowerCase() ?? "usd"}</span>
+              </div>
+            ) : (
+              <div className="mt-3 text-xs text-muted-foreground">
+                Billing integration (Stripe) is not connected. Subscriptions are tracked in the Owner Panel.
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <button
-              onClick={() => toast.info("Stripe not connected — add a payment gateway in Integrations")}
+              onClick={() => toast.info("Stripe integration required — add Stripe API keys in Integrations to enable billing")}
               className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
             >
               <Crown className="h-4 w-4" /> Upgrade plan
             </button>
             <button
-              onClick={() => toast.info("Stripe not connected — add a payment gateway in Integrations")}
+              onClick={() => setView("owner")}
               className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted/60"
             >
-              Manage billing
+              Manage in Owner Panel
             </button>
           </div>
         </div>
@@ -1960,7 +1964,7 @@ function BillingSection() {
 
       {/* Usage */}
       <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Usage this cycle" desc="Resets Apr 1, 2025" />
+        <SectionTitle title="Usage this cycle" desc="Real usage from your workspace data" />
         <div className="grid gap-4 sm:grid-cols-2">
           {usage.map((u) => {
             const pct = Math.min(100, Math.round((u.used / u.limit) * 100));
@@ -1990,22 +1994,23 @@ function BillingSection() {
           desc="Card used for subscription renewals."
           action={
             <button
-              onClick={() => toast.info("Stripe not connected — add a payment gateway in Integrations")}
+              onClick={() => toast.info("Stripe integration required — add Stripe API keys to enable card management")}
               className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
             >
               Update
             </button>
           }
         />
-        <div className="flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
-          <div className="grid h-10 w-14 place-items-center rounded-lg bg-gradient-to-br from-[oklch(0.4_0.16_258)] to-[oklch(0.2_0.03_258)] text-[10px] font-bold text-white">
-            VISA
+        <div className="flex items-center gap-4 rounded-2xl border border-dashed border-border bg-muted/20 p-4">
+          <div className="grid h-10 w-14 place-items-center rounded-lg bg-muted text-muted-foreground">
+            <CreditCard className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <div className="text-sm font-medium">Visa ending in 4242</div>
-            <div className="text-xs text-muted-foreground">Expires 08 / 2027</div>
+            <div className="text-sm font-medium">No payment method connected</div>
+            <div className="text-xs text-muted-foreground">
+              Add Stripe API keys in Integrations to accept card payments.
+            </div>
           </div>
-          <Badge className="bg-primary/15 text-primary">Primary</Badge>
         </div>
       </GlassCard>
 

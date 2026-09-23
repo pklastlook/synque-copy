@@ -49,6 +49,10 @@ export async function GET() {
         followerGrowth,
         impressions,
         engagement,
+        analytics: aAnalytics.map((an) => ({
+          date: an.date.toISOString(),
+          followers: an.followers,
+        })),
         health: h
           ? {
               positiveCount: pos,

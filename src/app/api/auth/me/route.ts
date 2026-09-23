@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "socialflow-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET environment variable is required in production.");
+}
+const SECRET = JWT_SECRET || "dev-only-ephemeral-secret-do-not-use-in-prod";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,7 +16,7 @@ export async function GET(req: NextRequest) {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, SECRET) as { userId: string };
 
     const user = await db.user.findUnique({
       where: { id: decoded.userId },

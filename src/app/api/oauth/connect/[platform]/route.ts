@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { randomBytes, createHash } from "node:crypto";
 
 export const dynamic = "force-dynamic";
+
+/** Generate a cryptographic PKCE code_verifier (43-128 chars, unreserved chars only). */
+function genCodeVerifier(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+/** S256 code_challenge = base64url(SHA256(verifier)). */
+function genCodeChallenge(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
 
 /**
  * GET /api/oauth/connect/[platform]?userId=xxx
@@ -103,11 +114,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   authUrl.searchParams.set("state", state);
   authUrl.searchParams.set("scope", config.scopes.join(" "));
 
-  // For Twitter OAuth 2.0, need PKCE code_challenge
+  // For Twitter OAuth 2.0, need PKCE code_challenge (S256 — not plain).
   if (platform === "twitter") {
-    const codeVerifier = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    authUrl.searchParams.set("code_challenge", codeVerifier);
-    authUrl.searchParams.set("code_challenge_method", "plain");
+    const codeVerifier = genCodeVerifier();
+    const codeChallenge = genCodeChallenge(codeVerifier);
+    authUrl.searchParams.set("code_challenge", codeChallenge);
+    authUrl.searchParams.set("code_challenge_method", "S256");
     const stateData = { userId, platform, cv: codeVerifier };
     const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString("base64url");
     authUrl.searchParams.set("state", stateEncoded);
@@ -116,8 +128,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
   // TikTok OAuth 2.0 with PKCE
   if (platform === "tiktok") {
-    const codeVerifier = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    authUrl.searchParams.set("code_challenge", codeVerifier);
+    const codeVerifier = genCodeVerifier();
+    const codeChallenge = genCodeChallenge(codeVerifier);
+    authUrl.searchParams.set("code_challenge", codeChallenge);
     authUrl.searchParams.set("code_challenge_method", "S256");
     const stateData = { userId, platform, cv: codeVerifier };
     const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString("base64url");

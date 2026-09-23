@@ -36,18 +36,15 @@ export async function POST(req: NextRequest) {
       quotaMb: quotaMb ?? 2048,
       ownerId: ownerId ?? null,
       role: role ?? "member",
-      status: "creating",
+      status: "active",
     },
   });
 
-  // Simulate provisioning, then mark active
-  setTimeout(async () => {
-    try {
-      await db.mailbox.update({ where: { id: mailbox.id }, data: { status: "active" } });
-    } catch {
-      /* ignore */
-    }
-  }, 1200);
+  // NOTE: Real mailbox provisioning on the mail server (cPanel API, Dovecot
+  // userdb, etc.) is not done here — this SocialFlow app stores the mailbox
+  // record so the team can assign it + read mail. The actual IMAP account
+  // must exist on the mail server already. The "creating" status is no
+  // longer used because there's no async provisioning step.
 
   return NextResponse.json({ id: mailbox.id, email, ok: true });
 }

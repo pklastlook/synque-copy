@@ -156,8 +156,10 @@ model Comment {
   type       String   @default("comment") // comment | message | mention
   sentiment  String   @default("neutral") // positive | neutral | negative
   replied    Boolean  @default(false)
+  replyText  String?  // the team's reply (stored so it's not lost)
   assigneeId String?
   assignee   User?    @relation("CommentAssignee", fields: [assigneeId], references: [id])
+  repliedAt  DateTime?
   createdAt  DateTime @default(now())
 }
 

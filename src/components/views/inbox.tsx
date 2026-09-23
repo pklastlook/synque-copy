@@ -110,10 +110,12 @@ export function InboxView() {
       const res = await fetch("/api/inbox", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selected.id, replied: true }),
+        body: JSON.stringify({ id: selected.id, replied: true, replyText: replyText.trim() }),
       });
       if (!res.ok) throw new Error("patch failed");
-      toast.success("Reply sent");
+      toast.success("Reply saved", {
+        description: "The reply text has been stored. To actually post it on the platform, open the conversation in the native app.",
+      });
       setReplyText("");
       reload();
     } catch {

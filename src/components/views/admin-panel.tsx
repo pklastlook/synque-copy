@@ -367,7 +367,7 @@ function AdminHero({ overview }: { overview: Overview }) {
         <button
           onClick={() =>
             toast.success("Report exported", {
-              description: "Workspace snapshot downloaded as PDF.",
+              description: "Workspace snapshot copied to clipboard — paste into your report.",
             })
           }
           className="liquid-gold glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
