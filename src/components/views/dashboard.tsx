@@ -28,6 +28,8 @@ import type { ViewId } from "@/lib/types";
 // ============ Types ============
 
 interface DashboardData {
+  isManagerView?: boolean;
+  userRole?: string;
   kpis: {
     totalFollowers: { value: number; display: string; delta: number };
     totalReach: { value: number; display: string; delta: number };
@@ -191,6 +193,7 @@ export function DashboardView() {
   const k = data.kpis;
   const pendingInbox = k.pendingInbox;
   const failedCount = k.failed;
+  const isManager = data.isManagerView !== false; // default true if not specified
 
   // Sort pages ranking by selected key
   const sortedRanking = [...data.pagesRanking].sort((a, b) => {
@@ -201,7 +204,10 @@ export function DashboardView() {
   return (
     <div className="space-y-5">
       <HelpText module="dashboard">
-        Your <strong className="text-foreground">Dashboard</strong> — the command center. Quick stats, trends, and your latest content at a glance.
+        {isManager
+          ? <>Your <strong className="text-foreground">Manager Dashboard</strong> — overall team activity, publishing, and engagement across all accounts.</>
+          : <>Your <strong className="text-foreground">Dashboard</strong> — your accounts, your posts, and your activity.</>
+        }
       </HelpText>
 
       {/* === 1. HERO — greeting + key stats + compose === */}
@@ -225,9 +231,10 @@ export function DashboardView() {
                 Good day, <span className="retaina-text">{firstName}</span>
               </h2>
               <p className="mt-1.5 text-[13px] text-muted-foreground">
-                {k.postsCreated.value} posts · {k.published.value} published ·{" "}
-                <span className={cn(pendingInbox > 0 ? "font-semibold text-amber-500" : "")}>{pendingInbox} unread</span>
-                {failedCount > 0 && <span className="font-semibold text-rose-500"> · {failedCount} failed</span>}
+                {isManager
+                  ? <>{k.postsCreated.value} posts · {k.published.value} published ·{" "}<span className={cn(pendingInbox > 0 ? "font-semibold text-amber-500" : "")}>{pendingInbox} unread</span>{failedCount > 0 && <span className="font-semibold text-rose-500"> · {failedCount} failed</span>}</>
+                  : <>{k.accounts} {k.accounts === 1 ? "account" : "accounts"} · {k.published.value} published ·{" "}<span className={cn(pendingInbox > 0 ? "font-semibold text-amber-500" : "")}>{pendingInbox} unread</span></>
+                }
               </p>
             </div>
           </div>

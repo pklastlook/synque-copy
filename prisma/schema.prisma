@@ -34,6 +34,8 @@ model User {
   workspace Workspace?
   platformCredentials PlatformCredential[]
   savedWhatsAppMsgs   WhatsAppMessage[] @relation("WhatsAppSavedBy")
+  sentMessages        ChatMessage[]     @relation("ChatSender")
+  receivedMessages    ChatMessage[]     @relation("ChatReceiver")
 }
 
 model Account {
@@ -381,6 +383,21 @@ model WhatsAppConnection {
   lastDisconnectedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ===== Team Chat (internal messaging) =====
+model ChatMessage {
+  id        String   @id @default(cuid())
+  senderId  String
+  sender    User    @relation("ChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String? // null = group message (broadcast to all team members)
+  receiver  User?   @relation("ChatReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  text      String
+  fileUrl   String? // attached file URL (image, doc, etc.)
+  fileName  String? // original file name
+  fileType  String? // image | video | document | audio
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 // ===== Mail Server =====

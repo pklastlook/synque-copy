@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getUserFromRequest } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -40,20 +41,53 @@ const PLATFORMS_COLOR_MAP: Record<string, string> = {
  * - Upcoming scheduled
  * - Team activity feed
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Get the authenticated user — managers/admins see overall, members see only their own data
+  const authUser = getUserFromRequest(req);
+  const userRole = authUser?.role ?? "member";
+  const userId = authUser?.userId ?? null;
+  // Members/editors/viewers see only their own accounts + posts; admins/managers see everything
+  const isManagerView = userRole === "admin" || userRole === "manager";
   try {
+    // For members: filter to only their own accounts + posts
+    // For managers/admins: fetch everything (overall dashboard)
+    const memberAccountIds = isManagerView || !userId
+      ? null
+      : await db.account.findMany({
+          where: { ownerId: userId },
+          select: { id: true },
+        }).then((rows) => rows.map((r) => r.id));
+
     const [accounts, posts, variants, comments, activities, analytics] = await Promise.all([
-      db.account.findMany({ include: { owner: true, health: true } }),
+      db.account.findMany({
+        include: { owner: true, health: true },
+        ...(isManagerView ? {} : userId ? { where: { ownerId: userId } } : {}),
+      }),
       db.post.findMany({
         include: {
           author: true,
           variants: { include: { account: true } },
         },
+        ...(isManagerView ? {} : userId ? { where: { authorId: userId } } : {}),
       }),
-      db.postVariant.findMany({ include: { account: true } }),
-      db.comment.findMany({ include: { account: { include: { owner: true } } } }),
-      db.activity.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 12 }),
-      db.analyticsDaily.findMany({ orderBy: { date: "asc" } }),
+      db.postVariant.findMany({
+        include: { account: true },
+        ...(isManagerView || !memberAccountIds ? {} : { where: { accountId: { in: memberAccountIds } } }),
+      }),
+      db.comment.findMany({
+        include: { account: { include: { owner: true } } },
+        ...(isManagerView || !memberAccountIds ? {} : { where: { accountId: { in: memberAccountIds } } }),
+      }),
+      db.activity.findMany({
+        include: { user: true },
+        orderBy: { createdAt: "desc" },
+        take: isManagerView ? 12 : 8,
+        ...(isManagerView ? {} : userId ? { where: { userId } } : {}),
+      }),
+      db.analyticsDaily.findMany({
+        orderBy: { date: "asc" },
+        ...(isManagerView || !memberAccountIds ? {} : { where: { accountId: { in: memberAccountIds } } }),
+      }),
     ]);
 
     const now = Date.now();
@@ -507,6 +541,8 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      isManagerView,
+      userRole,
       kpis: {
         // Vanity metrics (with deltas)
         totalFollowers: { value: totalFollowers, display: fmt(totalFollowers), delta: delta(l7Follow, p7Follow) },

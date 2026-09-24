@@ -152,6 +152,11 @@ export type WhatsAppMessage = Prisma.WhatsAppMessageModel
  */
 export type WhatsAppConnection = Prisma.WhatsAppConnectionModel
 /**
+ * Model ChatMessage
+ * 
+ */
+export type ChatMessage = Prisma.ChatMessageModel
+/**
  * Model MailServer
  * 
  */

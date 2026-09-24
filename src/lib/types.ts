@@ -16,6 +16,7 @@ export type ViewId =
   | "linkbio"
   | "mail"
   | "whatsapp"
+  | "chat"
   | "admin"
   | "owner"
   | "team-performance";

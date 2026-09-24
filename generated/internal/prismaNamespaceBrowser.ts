@@ -73,6 +73,7 @@ export const ModelName = {
   LinkInBio: 'LinkInBio',
   WhatsAppMessage: 'WhatsAppMessage',
   WhatsAppConnection: 'WhatsAppConnection',
+  ChatMessage: 'ChatMessage',
   MailServer: 'MailServer',
   Mailbox: 'Mailbox',
   MailMessage: 'MailMessage',
@@ -477,6 +478,21 @@ export const WhatsAppConnectionScalarFieldEnum = {
 } as const
 
 export type WhatsAppConnectionScalarFieldEnum = (typeof WhatsAppConnectionScalarFieldEnum)[keyof typeof WhatsAppConnectionScalarFieldEnum]
+
+
+export const ChatMessageScalarFieldEnum = {
+  id: 'id',
+  senderId: 'senderId',
+  receiverId: 'receiverId',
+  text: 'text',
+  fileUrl: 'fileUrl',
+  fileName: 'fileName',
+  fileType: 'fileType',
+  isRead: 'isRead',
+  createdAt: 'createdAt'
+} as const
+
+export type ChatMessageScalarFieldEnum = (typeof ChatMessageScalarFieldEnum)[keyof typeof ChatMessageScalarFieldEnum]
 
 
 export const MailServerScalarFieldEnum = {
