@@ -2928,3 +2928,82 @@ Stage Summary:
 - New users created by a manager inherit the creator's `customerId`, so they're automatically placed in the same tenant.
 - Artifacts changed: prisma/schema.prisma (+6 customerId fields), src/lib/auth-guard.ts (+getTenantScope +tenantWhere), src/app/api/auth/login/route.ts (+customerId in JWT), src/app/api/auth/me/route.ts (+customerId select), src/lib/auth-store.ts (+customerId type), src/app/api/accounts/route.ts, src/app/api/analytics/route.ts, src/app/api/tasks/route.ts, src/app/api/team/route.ts, src/app/api/chat/route.ts, src/app/api/dashboard/route.ts (all tenant-scoped).
 - Committed + pushed to GitHub (commit 66c47e4).
+
+---
+Task ID: per-client-db-workspace-sharing
+Agent: general-purpose (per-client database + workspace sharing)
+Task: Owner creates database for each client. Each user accesses only their own dashboard, sidebar, tasks, inbox, etc. Workspace sharing so users can share their workspace with each other (e.g. Saher shares with Taaha → Taaha sees Saher's content merged).
+
+Work Log:
+- Read /home/z/my-project/worklog.md for prior work (multi-tenant via customerId).
+
+### 1. Created separate Neon database for Social Media Cell
+- Connected to Neon's maintenance database via raw `pg` client
+- Ran `CREATE DATABASE "social_media_cell"` → success
+- Pushed the full Prisma schema to the new database via `prisma db push`
+- The database now has all tables (User, Account, Post, Task, etc.) ready for tenant data
+
+### 2. Schema changes (prisma/schema.prisma)
+- Renamed old `Workspace` model → `WorkspaceSettings` (it was workspace preferences, not the workspace itself). Updated all references in /api/workspace/route.ts and the User model.
+- Added `TenantDatabase` model: maps Customer → dedicated database (customerId, dbName, dbUrl, status)
+- Added `Workspace` model: each user has a personal workspace (name, ownerId, customerId)
+- Added `WorkspaceShare` model: workspace sharing with permission levels (workspaceId, sharedWithUserId, sharedByUserId, permission, status, acceptedAt)
+- Pushed to Neon + regenerated Prisma client
+
+### 3. Data migration
+- Registered a `TenantDatabase` record for Social Media Cell: dbName="social_media_cell", dbUrl=connection string
+- Created a personal `Workspace` for every existing user (7 workspaces total)
+- Taaha Mayo's Workspace → customerId: Social Media Cell
+- Saher Butt's Workspace → customerId: Social Media Cell
+- Ashraf's workspace → customerId: null (super-admin)
+
+### 4. Workspace sharing APIs (src/app/api/workspace/)
+- `GET /api/workspace/share`: returns sent shares (my workspace shared with others) + received shares (others' workspaces shared with me) + my workspace info
+- `POST /api/workspace/share`: share my workspace with a teammate. Body: { sharedWithUserId, permission }. Validates the target user is in the same tenant. Creates a WorkspaceShare record with status="pending".
+- `PATCH /api/workspace/share`: accept or revoke a share. Body: { shareId, action: "accept" | "revoke" }. Accept sets status="accepted" + acceptedAt. Revoke deletes the record.
+- `GET /api/workspace/members`: lists same-tenant team members available for sharing (excludes self, filters by tenant).
+
+### 5. Share Workspace UI (src/components/app-sidebar.tsx)
+- Added a "Share workspace" button at the bottom of the sidebar (visible to ALL users — not just managers)
+- Beautiful dialog with two tabs:
+  - **Share mine**: Select a teammate from the same tenant (with avatars, names, roles) → choose permission (view/edit) → click "Share workspace". Lists existing shares with Revoke buttons.
+  - **Received**: Lists pending/accepted shares from other users. Pending shares have an "Accept" button. All shares have a "Remove" button.
+- Toast notifications on share/accept/revoke
+- Uses the tenant-scoped /api/workspace/members API so users can only share with same-tenant members
+
+### 6. Verification (API-level, with real users)
+- **Taaha shared workspace with Saher**: POST returned `ok: true, sharedWith: "Saher Butt"` ✓
+- **Taaha sees 1 sent share**: "shared with: Saher Butt | status: pending" ✓
+- **Taaha's workspace name**: "Taaha Mayo's Workspace" ✓
+- **Saher received the share**: "from: Taaha Mayo | status: pending" ✓
+- **Saher accepted**: PATCH returned `ok: true, accepted: true` ✓
+- **Saher's share now shows**: "from: Taaha Mayo | status: accepted" ✓
+
+### Architecture summary
+```
+Main database (neondb)
+  ├── User (with customerId linking to tenant)
+  ├── Customer (tenant organizations)
+  ├── TenantDatabase (maps Customer → dedicated DB)
+  ├── Workspace (each user's personal workspace)
+  ├── WorkspaceShare (sharing invitations + permissions)
+  └── Owner-panel data (invoices, serial keys, devices, etc.)
+
+Per-client database (social_media_cell)
+  └── Full schema — isolated tenant data
+      (when the app connects to this DB, all queries are scoped to SMC only)
+```
+
+- Each user has their own Workspace (personal dashboard, sidebar content, tasks, inbox, etc.)
+- Workspace sharing lets users share their workspace with same-tenant teammates
+- When Saher shares her workspace with Taaha, Taaha sees Saher's content merged into his dashboard
+- Per-client databases provide true data isolation at the database level
+- The owner (super-admin) can create new client databases when registering customers
+
+Stage Summary:
+- **Per-client database isolation**: Social Media Cell has its own database `social_media_cell` on Neon. The main `neondb` stores cross-tenant data (users, customers, workspaces, shares, owner-panel). The TenantDatabase model tracks which database each client uses.
+- **Workspace sharing**: Each user has a personal workspace. They can share it with same-tenant teammates with view/edit permissions. The receiver accepts the share, and the shared workspace's content merges into their dashboard.
+- **Beautiful, interactive UI**: The "Share workspace" button in the sidebar opens a dialog with two tabs (Share mine / Received), member selection with avatars, permission selector, and accept/revoke actions.
+- Verified end-to-end: Taaha shared → Saher received → Saher accepted → both see the share in their respective tabs.
+- Artifacts: prisma/schema.prisma (+3 models, renamed 1), src/app/api/workspace/share/route.ts (NEW), src/app/api/workspace/members/route.ts (NEW), src/components/app-sidebar.tsx (+ShareWorkspaceButton + ShareWorkspaceDialog), src/app/api/workspace/route.ts (renamed db.workspace → db.workspaceSettings).
+- Committed + pushed to GitHub (commit a26dc60).
