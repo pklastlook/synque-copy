@@ -1164,7 +1164,7 @@ function AppearanceSection() {
       <SectionTitle title="Appearance" desc="Personalize how SocialFlow looks on this device." />
 
       {/* Theme cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {themeOptions.map((opt) => {
           const Icon = opt.icon;
           const active = theme === opt.id;

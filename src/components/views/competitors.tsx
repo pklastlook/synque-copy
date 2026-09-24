@@ -363,8 +363,8 @@ export function CompetitorsView() {
             </span>
           }
         />
-        <div className="max-h-[460px] overflow-y-auto scroll-liquid">
-          <table className="w-full text-sm">
+        <div className="max-h-[460px] overflow-auto scroll-liquid">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="sticky top-0 z-10 bg-background/80 backdrop-blur">
               <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                 <th className="px-3 py-2 font-medium">Competitor</th>
