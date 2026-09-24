@@ -221,3 +221,8 @@ export type Workspace = Prisma.WorkspaceModel
  * 
  */
 export type PlatformCredential = Prisma.PlatformCredentialModel
+/**
+ * Model Integration
+ * 
+ */
+export type Integration = Prisma.IntegrationModel

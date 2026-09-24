@@ -320,9 +320,12 @@ async function main() {
     process.on("uncaughtException", (err) => {
         console.error("[whatsapp-service] Uncaught exception:", err);
     });
+    process.on("unhandledRejection", (reason) => {
+        console.error("[whatsapp-service] Unhandled rejection:", reason);
+    });
     await mkdir(SESSIONS_DIR, { recursive: true });
     await loadState();
-    server.listen(PORT, () => {
+    server.listen(PORT, "0.0.0.0", () => {
         console.log(`[whatsapp-service] HTTP server on http://localhost:${PORT}`);
     });
     // Start WhatsApp connection (will generate QR if not authenticated)
@@ -344,5 +347,6 @@ async function main() {
 }
 main().catch((e) => {
     console.error("[whatsapp-service] Fatal:", e);
-    process.exit(1);
+    console.log("[whatsapp-service] Retrying main() in 5s...");
+    setTimeout(() => main().catch(console.error), 5000);
 });

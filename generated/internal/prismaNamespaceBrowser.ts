@@ -86,7 +86,8 @@ export const ModelName = {
   Device: 'Device',
   Subscription: 'Subscription',
   Workspace: 'Workspace',
-  PlatformCredential: 'PlatformCredential'
+  PlatformCredential: 'PlatformCredential',
+  Integration: 'Integration'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -727,6 +728,21 @@ export const PlatformCredentialScalarFieldEnum = {
 } as const
 
 export type PlatformCredentialScalarFieldEnum = (typeof PlatformCredentialScalarFieldEnum)[keyof typeof PlatformCredentialScalarFieldEnum]
+
+
+export const IntegrationScalarFieldEnum = {
+  id: 'id',
+  type: 'type',
+  name: 'name',
+  credentials: 'credentials',
+  enabled: 'enabled',
+  connectedAt: 'connectedAt',
+  lastSyncAt: 'lastSyncAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type IntegrationScalarFieldEnum = (typeof IntegrationScalarFieldEnum)[keyof typeof IntegrationScalarFieldEnum]
 
 
 export const SortOrder = {
