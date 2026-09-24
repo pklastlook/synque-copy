@@ -332,7 +332,8 @@ export async function GET(req: NextRequest) {
       }));
 
     // === Failed posts (posts with status "failed" — need republishing) ===
-    const failedPosts = posts
+    // User-level concern — only returned for non-manager views.
+    const failedPosts = isManagerView ? [] : posts
       .filter((p) => p.status === "failed")
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 6)
@@ -347,6 +348,38 @@ export async function GET(req: NextRequest) {
         createdAt: p.createdAt.toISOString(),
         platforms: p.variants.map((v) => v.account.platform),
         variantCount: p.variants.length,
+      }));
+
+    // === Published / shared posts (successfully posted & shared to social) ===
+    // This is what admins/managers see — content that's live on social platforms.
+    const publishedPosts = posts
+      .filter((p) => p.status === "published")
+      .sort((a, b) => {
+        const aTime = a.variants.find((v) => v.publishedAt)?.publishedAt?.getTime()
+          ?? a.variants[0]?.publishedAt?.getTime()
+          ?? a.createdAt.getTime();
+        const bTime = b.variants.find((v) => v.publishedAt)?.publishedAt?.getTime()
+          ?? b.variants[0]?.publishedAt?.getTime()
+          ?? b.createdAt.getTime();
+        return bTime - aTime;
+      })
+      .slice(0, 6)
+      .map((p) => ({
+        id: p.id,
+        title: p.title,
+        caption: p.caption,
+        mediaUrl: p.mediaUrl,
+        tone: p.tone,
+        authorName: p.author.name,
+        authorColor: p.author.color,
+        createdAt: p.createdAt.toISOString(),
+        publishedAt: p.variants.find((v) => v.publishedAt)?.publishedAt?.toISOString()
+          ?? p.variants[0]?.publishedAt?.toISOString()
+          ?? null,
+        platforms: p.variants.map((v) => v.account.platform),
+        variantCount: p.variants.length,
+        engagement: p.variants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0),
+        reach: p.variants.reduce((s, v) => s + v.reach, 0),
       }));
 
     // === Comment inbox preview ===
@@ -401,9 +434,12 @@ export async function GET(req: NextRequest) {
       .slice(0, 4);
 
     // === AI Insights (smart recommendations based on real data) ===
+    // Note: "failed to publish" / "drafts waiting" insights are user-level
+    // concerns — admins/managers only see posted & shared data, not individual
+    // draft failures. Skip those insights for the manager view.
     const insights: { type: "warning" | "info" | "success" | "tip"; title: string; desc: string; action?: string; actionView?: string }[] = [];
 
-    if (failedCount > 0) {
+    if (!isManagerView && failedCount > 0) {
       insights.push({
         type: "warning",
         title: `${failedCount} post${failedCount > 1 ? "s" : ""} failed to publish`,
@@ -421,7 +457,7 @@ export async function GET(req: NextRequest) {
         actionView: "inbox",
       });
     }
-    if (draftCount > 0) {
+    if (!isManagerView && draftCount > 0) {
       insights.push({
         type: "tip",
         title: `${draftCount} draft${draftCount > 1 ? "s" : ""} waiting to be published`,
@@ -600,6 +636,7 @@ export async function GET(req: NextRequest) {
       topContributors,
       recentPosts,
       failedPosts,
+      publishedPosts,
       commentInbox,
       upcoming,
       topPosts,

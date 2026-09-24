@@ -85,6 +85,13 @@ interface DashboardData {
     createdAt: string;
     platforms: PlatformId[]; variantCount: number;
   }[];
+  publishedPosts: {
+    id: string; title: string; caption: string; mediaUrl: string | null;
+    tone: string; authorName: string; authorColor: string | null;
+    createdAt: string; publishedAt: string | null;
+    platforms: PlatformId[]; variantCount: number;
+    engagement: number; reach: number;
+  }[];
   commentInbox: {
     id: string; author: string; text: string; type: string; sentiment: string;
     platform: PlatformId; handle: string; accountName: string; createdAt: string;
@@ -238,8 +245,8 @@ export function DashboardView() {
               </h2>
               <p className="mt-1.5 text-[13px] text-muted-foreground">
                 {isManager
-                  ? <>{k.postsCreated.value} posts · {k.published.value} published ·{" "}<span className={cn(pendingInbox > 0 ? "font-semibold text-amber-500" : "")}>{pendingInbox} unread</span>{failedCount > 0 && <span className="font-semibold text-rose-500"> · {failedCount} failed</span>}</>
-                  : <>{k.accounts} {k.accounts === 1 ? "account" : "accounts"} · {k.published.value} published ·{" "}<span className={cn(pendingInbox > 0 ? "font-semibold text-amber-500" : "")}>{pendingInbox} unread</span></>
+                  ? <>{k.postsCreated.value} posts · {k.published.value} published ·{" "}<span className={cn(pendingInbox > 0 ? "font-semibold text-amber-500" : "")}>{pendingInbox} unread</span></>
+                  : <>{k.accounts} {k.accounts === 1 ? "account" : "accounts"} · {k.published.value} published ·{" "}<span className={cn(pendingInbox > 0 ? "font-semibold text-amber-500" : "")}>{pendingInbox} unread</span>{failedCount > 0 && <span className="font-semibold text-rose-500"> · {failedCount} failed</span>}</>
                 }
               </p>
             </div>
@@ -548,7 +555,92 @@ export function DashboardView() {
         </div>
       </GlassCard>
 
-      {/* === 6b. FAILED POSTS — needs attention (mirrors Recent posts card) === */}
+      {/* === 6b. SHARED CONTENT (admin/manager) or FAILED POSTS (user) === */}
+      {isManager ? (
+        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.50s" }}>
+          <SectionTitle
+            title="Shared content"
+            desc={data.publishedPosts.length > 0 ? `${data.publishedPosts.length} post${data.publishedPosts.length > 1 ? "s" : ""} live on social` : "No posts published yet"}
+            action={
+              <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-500">
+                <Send className="h-3 w-3" />
+                {data.publishedPosts.length}
+              </div>
+            }
+          />
+          <div className="scroll-liquid max-h-[360px] space-y-2 overflow-y-auto pr-1">
+            {data.publishedPosts.length > 0 ? (
+              data.publishedPosts.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    openComposerWithPost({
+                      id: p.id,
+                      title: p.title,
+                      caption: p.caption,
+                      mediaUrl: p.mediaUrl,
+                      mediaType: "image",
+                      tone: p.tone,
+                      status: "published",
+                      scheduledAt: null,
+                      authorId: "",
+                      authorName: p.authorName,
+                      variants: [],
+                      createdAt: p.createdAt,
+                    });
+                  }}
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-left transition hover:border-emerald-500/40 hover:bg-emerald-500/10"
+                >
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
+                    {p.mediaUrl ? <img src={p.mediaUrl} alt="" className="h-full w-full object-cover" /> : (
+                      <div className="grid h-full w-full place-items-center text-emerald-500"><Send className="h-5 w-5" /></div>
+                    )}
+                    <span className="absolute bottom-0.5 left-0.5 rounded bg-emerald-500/20 px-1 text-[9px] font-bold uppercase text-emerald-500">
+                      Live
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">{p.title || "Untitled post"}</div>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <NameAvatar name={p.authorName} color={p.authorColor ?? "blue"} className="h-4 w-4 text-[7px]" />
+                      <span>{p.authorName}</span>
+                      <span>·</span>
+                      <span>{p.publishedAt ? timeAgo(p.publishedAt) : timeAgo(p.createdAt)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-1">
+                      {p.platforms.slice(0, 4).map((pl, i) => <PlatformBadge key={i} platform={pl} size={14} />)}
+                      {p.platforms.length > 4 && <span className="text-[9px] text-muted-foreground">+{p.platforms.length - 4}</span>}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-0.5 text-[10px]">
+                    {p.engagement > 0 && (
+                      <span className="flex items-center gap-0.5 font-semibold text-primary">
+                        <TrendingUp className="h-3 w-3" /> {fmt(p.engagement)}
+                      </span>
+                    )}
+                    {p.reach > 0 && (
+                      <span className="text-muted-foreground">{fmt(p.reach)} reach</span>
+                    )}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-muted text-muted-foreground">
+                  <Send className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Nothing published yet</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">Published posts will appear here</p>
+                </div>
+                <button onClick={() => setView("composer")} className="rounded-lg bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20">
+                  Open composer
+                </button>
+              </div>
+            )}
+          </div>
+        </GlassCard>
+      ) : (
       <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.50s" }}>
         <SectionTitle
           title="Failed posts"
@@ -625,6 +717,7 @@ export function DashboardView() {
           )}
         </div>
       </GlassCard>
+      )}
       </div>
 
       {/* === 7. TEAM ACTIVITY — condensed feed === */}
