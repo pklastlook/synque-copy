@@ -10,10 +10,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "ownerId required" }, { status: 400 });
   }
 
-  let ws = await db.workspace.findUnique({ where: { ownerId } });
+  let ws = await db.workspaceSettings.findUnique({ where: { ownerId } });
   if (!ws) {
     // Create with defaults on first access
-    ws = await db.workspace.create({ data: { ownerId } }).catch(() => null);
+    ws = await db.workspaceSettings.create({ data: { ownerId } }).catch(() => null);
   }
 
   if (!ws) {
@@ -77,7 +77,7 @@ export async function PUT(req: NextRequest) {
   if (brandVoice !== undefined) data.brandVoice = brandVoice;
   if (colors !== undefined) data.colors = JSON.stringify(colors);
 
-  const ws = await db.workspace.upsert({
+  const ws = await db.workspaceSettings.upsert({
     where: { ownerId },
     create: { ownerId, ...data },
     update: data,

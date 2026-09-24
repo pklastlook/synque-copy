@@ -188,10 +188,10 @@ export type Device = Prisma.DeviceModel
  */
 export type Subscription = Prisma.SubscriptionModel
 /**
- * Model Workspace
+ * Model WorkspaceSettings
  * 
  */
-export type Workspace = Prisma.WorkspaceModel
+export type WorkspaceSettings = Prisma.WorkspaceSettingsModel
 /**
  * Model PlatformCredential
  * 
@@ -202,3 +202,18 @@ export type PlatformCredential = Prisma.PlatformCredentialModel
  * 
  */
 export type Integration = Prisma.IntegrationModel
+/**
+ * Model TenantDatabase
+ * 
+ */
+export type TenantDatabase = Prisma.TenantDatabaseModel
+/**
+ * Model Workspace
+ * 
+ */
+export type Workspace = Prisma.WorkspaceModel
+/**
+ * Model WorkspaceShare
+ * 
+ */
+export type WorkspaceShare = Prisma.WorkspaceShareModel
