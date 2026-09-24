@@ -22,17 +22,17 @@ export async function POST(req: NextRequest) {
 
     // Find the user — don't swallow DB errors silently (Neon cold-start retries)
     let user;
-    try {
-      user = await db.user.findUnique({ where: { email } });
-    } catch (dbErr) {
-      console.error("[auth/login] DB error:", dbErr);
-      // Retry once after a short delay (Neon cold-start)
-      await new Promise((r) => setTimeout(r, 500));
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
         user = await db.user.findUnique({ where: { email } });
-      } catch (dbErr2) {
-        console.error("[auth/login] DB retry failed:", dbErr2);
-        return NextResponse.json({ error: "Database temporarily unavailable. Please try again." }, { status: 503 });
+        break; // success
+      } catch (dbErr) {
+        console.error(`[auth/login] DB attempt ${attempt + 1} failed:`, dbErr instanceof Error ? dbErr.message : String(dbErr));
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1))); // 1s, 2s
+        } else {
+          return NextResponse.json({ error: "Database temporarily unavailable. Please try again in a moment." }, { status: 503 });
+        }
       }
     }
     if (!user || !user.password) {
