@@ -486,6 +486,129 @@ const EMPTY_CUSTOMER: CustomerForm = {
   plan: "starter",
 };
 
+// ============ Overview Tab — enterprise cockpit ============
+interface FinanceOverview {
+  customers: number; invoices: number; paidInvoices: number; quotations: number;
+  serialKeys: number; activatedKeys: number; devices: number; apiKeys: number;
+  subscriptions: number; activeSubs: number; trialSubs: number; bankAccounts: number;
+  users: number; accounts: number; posts: number;
+  totalRevenue: number; pendingRevenue: number; overdueRevenue: number; monthlyRevenue: number;
+  planDistribution: { name: string; count: number }[];
+}
+
+function OverviewTab() {
+  const { data, loading } = useApi<FinanceOverview>("/api/finance/overview");
+
+  if (loading || !data) {
+    return (
+      <div className="grid gap-4 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => <div key={i} className="shimmer h-28 rounded-2xl" />)}
+        <div className="shimmer col-span-full h-64 rounded-3xl" />
+      </div>
+    );
+  }
+
+  const d = data;
+  const collectionRate = d.invoices > 0 ? Math.round((d.paidInvoices / d.invoices) * 100) : 0;
+  const licenseUtilization = d.serialKeys > 0 ? Math.round((d.activatedKeys / d.serialKeys) * 100) : 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Revenue KPI strip */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiCard label="Total Revenue" value={`$${fmt(d.totalRevenue)}`} icon={<DollarSign className="h-5 w-5" />} accent="oklch(0.7 0.2 145)" hint="From paid invoices" />
+        <KpiCard label="Monthly Recurring" value={`$${fmt(d.monthlyRevenue)}`} icon={<TrendingUp className="h-5 w-5" />} accent="oklch(0.62 0.2 255)" hint="From active subscriptions" />
+        <KpiCard label="Pending" value={`$${fmt(d.pendingRevenue)}`} icon={<Clock className="h-5 w-5" />} accent="oklch(0.7 0.15 75)" hint="Sent invoices" />
+        <KpiCard label="Overdue" value={`$${fmt(d.overdueRevenue)}`} icon={<AlertTriangle className="h-5 w-5" />} accent="oklch(0.55 0.22 25)" hint="Needs follow-up" />
+      </div>
+
+      {/* Customers + Subscriptions KPIs */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiCard label="Customers" value={d.customers} icon={<Users className="h-5 w-5" />} accent="oklch(0.62 0.2 255)" hint={`${d.activeSubs} active subs`} />
+        <KpiCard label="Client Users" value={d.users} icon={<CircleUserRound className="h-5 w-5" />} accent="oklch(0.66 0.22 305)" hint="With login access" />
+        <KpiCard label="Serial Keys" value={d.serialKeys} icon={<KeyRound className="h-5 w-5" />} accent="oklch(0.72 0.18 75)" hint={`${licenseUtilization}% activated`} />
+        <KpiCard label="Devices" value={d.devices} icon={<Smartphone className="h-5 w-5" />} accent="oklch(0.6 0.2 220)" hint="Registered devices" />
+      </div>
+
+      {/* Charts row */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Revenue breakdown */}
+        <GlassCard className="crystal-in p-5">
+          <SectionTitle title="Revenue breakdown" desc="Paid vs pending vs overdue" />
+          <div className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[
+                { name: "Collected", value: d.totalRevenue, fill: "oklch(0.7 0.2 145)" },
+                { name: "Pending", value: d.pendingRevenue, fill: "oklch(0.7 0.15 75)" },
+                { name: "Overdue", value: d.overdueRevenue, fill: "oklch(0.55 0.22 25)" },
+              ]} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} horizontal={false} />
+                <XAxis type="number" tickFormatter={(v) => `$${fmt(v)}`} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={70} />
+                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `$${v.toLocaleString()}`} />
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} isAnimationActive animationDuration={600} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </GlassCard>
+
+        {/* Plan distribution */}
+        <GlassCard className="crystal-in p-5">
+          <SectionTitle title="Subscription plans" desc="Distribution by plan" />
+          <div className="h-[240px]">
+            {d.planDistribution.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={d.planDistribution} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, count }) => `${name}: ${count}`} labelLine={false} isAnimationActive animationDuration={700}>
+                    <Cell fill="oklch(0.62 0.2 255)" />
+                    <Cell fill="oklch(0.7 0.2 145)" />
+                    <Cell fill="oklch(0.7 0.2 75)" />
+                    <Cell fill="oklch(0.66 0.22 305)" />
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="grid h-full place-items-center text-sm text-muted-foreground">No subscriptions yet</div>
+            )}
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* Module health grid */}
+      <GlassCard className="crystal-in p-5">
+        <SectionTitle title="Module overview" desc="All sub-modules at a glance" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {[
+            { label: "Invoices", value: d.invoices, sub: `${d.paidInvoices} paid · ${collectionRate}% collected`, icon: FileText, color: "oklch(0.62 0.2 255)" },
+            { label: "Quotations", value: d.quotations, sub: "Pending proposals", icon: FileSignature, color: "oklch(0.68 0.18 145)" },
+            { label: "Subscriptions", value: d.subscriptions, sub: `${d.activeSubs} active · ${d.trialSubs} trial`, icon: CreditCard, color: "oklch(0.7 0.2 75)" },
+            { label: "Serial Keys", value: d.serialKeys, sub: `${d.activatedKeys} activated · ${licenseUtilization}%`, icon: KeyRound, color: "oklch(0.72 0.18 75)" },
+            { label: "Devices", value: d.devices, sub: "Registered", icon: Smartphone, color: "oklch(0.6 0.2 220)" },
+            { label: "API Keys", value: d.apiKeys, sub: "Active integrations", icon: Lock, color: "oklch(0.55 0.22 25)" },
+            { label: "Bank Accounts", value: d.bankAccounts, sub: "Connected", icon: Landmark, color: "oklch(0.6 0.15 200)" },
+            { label: "Social Accounts", value: d.accounts, sub: `${d.posts} posts published`, icon: Globe, color: "oklch(0.62 0.22 300)" },
+          ].map((m, i) => {
+            const Icon = m.icon;
+            return (
+              <div key={i} className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4 transition hover:bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: `${m.color}18`, color: m.color }}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{m.label}</span>
+                </div>
+                <div className="num-display mt-2 text-2xl font-bold">{m.value}</div>
+                <div className="mt-0.5 text-[10px] text-muted-foreground">{m.sub}</div>
+              </div>
+            );
+          })}
+        </div>
+      </GlassCard>
+    </div>
+  );
+}
+
 function CustomersTab() {
   const { data, loading, reload } = useApi<Customer[]>("/api/customers");
   const [open, setOpen] = React.useState(false);
@@ -3582,6 +3705,7 @@ function ClientUsersTab() {
 }
 
 const TABS: TabDef[] = [
+  { id: "overview", label: "Overview", icon: Briefcase },
   { id: "customers", label: "Customers", icon: Users },
   { id: "clientUsers", label: "Client Users", icon: CircleUserRound },
   { id: "keys", label: "Serial Keys", icon: KeyRound },
@@ -3596,7 +3720,7 @@ const TABS: TabDef[] = [
 ];
 
 export function OwnerView() {
-  const [tab, setTab] = React.useState("customers");
+  const [tab, setTab] = React.useState("overview");
   const { data: customers } = useApi<Customer[]>("/api/customers");
   const customerList = customers ?? [];
 
@@ -3638,6 +3762,7 @@ export function OwnerView() {
 
       <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
 
+      {tab === "overview" && <OverviewTab />}
       {tab === "customers" && <CustomersTab />}
       {tab === "clientUsers" && <ClientUsersTab />}
       {tab === "keys" && <SerialKeysTab customers={customerList} />}
