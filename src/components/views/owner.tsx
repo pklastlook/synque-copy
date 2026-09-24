@@ -55,6 +55,7 @@ import {
   Server,
   DollarSign,
   AlertTriangle,
+  Database,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
@@ -112,6 +113,7 @@ interface Customer {
   } | null;
   invoicesCount: number;
   quotationsCount: number;
+  database: { name: string; status: string; createdAt: string } | null;
   createdAt: string;
 }
 
@@ -473,6 +475,7 @@ interface CustomerForm {
   city: string;
   country: string;
   plan: (typeof PLANS)[number];
+  createDatabase: boolean;
 }
 
 const EMPTY_CUSTOMER: CustomerForm = {
@@ -484,6 +487,7 @@ const EMPTY_CUSTOMER: CustomerForm = {
   city: "",
   country: "",
   plan: "starter",
+  createDatabase: true, // default ON — owner usually wants a DB for each client
 };
 
 // ============ Overview Tab — enterprise cockpit ============
@@ -643,6 +647,7 @@ function CustomersTab() {
       city: c.city ?? "",
       country: c.country ?? "",
       plan: c.plan,
+      createDatabase: false, // don't create DB when editing
     });
     setEditId(c.id);
     setOpen(true);
@@ -659,8 +664,21 @@ function CustomersTab() {
         await api("PATCH", `/api/customers/${editId}`, form);
         toast.success("Customer updated");
       } else {
-        await api("POST", "/api/customers", form);
-        toast.success("Customer created");
+        const res = await api("POST", "/api/customers", form);
+        const json = res as { ok?: boolean; databaseCreated?: boolean; dbName?: string; dbError?: string };
+        if (json.databaseCreated) {
+          toast.success("Client registered + database created!", {
+            description: `Database "${json.dbName}" is active. Users created for this client will log into their own database.`,
+            duration: 6000,
+          });
+        } else if (json.dbError) {
+          toast.success("Client created (database failed)", {
+            description: json.dbError,
+            duration: 6000,
+          });
+        } else {
+          toast.success("Customer created");
+        }
       }
       setOpen(false);
       reload();
@@ -937,6 +955,22 @@ function CustomersTab() {
                     </div>
                   </div>
                 </div>
+
+                {/* Database status badge */}
+                {c.database ? (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-[10px]">
+                    <Database className="h-3 w-3 text-emerald-500" />
+                    <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{c.database.name}</span>
+                    <span className="ml-auto rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                      {c.database.status}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-dashed border-border/40 px-2 py-1 text-[10px] text-muted-foreground/60">
+                    <Database className="h-3 w-3" />
+                    No dedicated database
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -947,12 +981,12 @@ function CustomersTab() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editId ? "Edit customer" : "Add customer"}
+              {editId ? "Edit customer" : "Register new client"}
             </DialogTitle>
             <DialogDescription>
               {editId
                 ? "Update customer profile & plan."
-                : "Create a new CRM record."}
+                : "Create a new client record. A dedicated database can be provisioned automatically."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-2">
@@ -1041,13 +1075,46 @@ function CustomersTab() {
                 </Select>
               </Field>
             </div>
+
+            {/* Database creation toggle — only on new customer, not edit */}
+            {!editId && (
+              <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, createDatabase: !f.createDatabase }))}
+                  className={cn(
+                    "mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition",
+                    form.createDatabase ? "bg-primary" : "bg-muted-foreground/30"
+                  )}
+                >
+                  <span className={cn(
+                    "h-4 w-4 rounded-full bg-white shadow transition-transform",
+                    form.createDatabase ? "translate-x-4" : "translate-x-0.5"
+                  )} />
+                </button>
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 text-sm font-semibold">
+                    <Database className="h-3.5 w-3.5 text-primary" />
+                    Create dedicated database
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">
+                    Creates a separate Neon database for this client. Users created for this client will log into their own isolated database.
+                    {form.company && (
+                      <span className="mt-1 block font-mono text-[10px] text-primary">
+                        DB name: {form.company.toLowerCase().replace(/[^a-z0-9]/g, "_")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button onClick={submit} disabled={busy} className="liquid-pill">
-              {busy ? "Saving…" : editId ? "Save changes" : "Create customer"}
+              {busy ? "Saving…" : editId ? "Save changes" : "Register client"}
             </Button>
           </DialogFooter>
         </DialogContent>
