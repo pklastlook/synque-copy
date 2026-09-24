@@ -1629,7 +1629,9 @@ function SecuritySection() {
           desc="Restrict API access to known IP ranges. One per line."
           action={
             <button
-              onClick={() => toast.success("IP allowlist saved")}
+              onClick={() => toast.info("IP allowlist requires backend enforcement", {
+                description: "This setting is not yet enforced server-side. It will be saved when the API middleware is implemented.",
+              })}
               className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
             >
               <Save className="h-3.5 w-3.5" /> Save
@@ -1821,56 +1823,53 @@ function PlatformsSection() {
 
 // ===== 8. Integrations =====
 function IntegrationsSection() {
+  // These integrations are NOT yet implemented — no /api/integrations route
+  // exists. We show them honestly as "Not configured" so users know the
+  // current state. When an integration is actually built, its status will
+  // be fetched from a real API.
   const integrations = [
-    { id: "mail", name: "Mail Server", desc: "Send digests & alerts from your own SMTP.", icon: Mail, status: "Connected" },
-    { id: "zapier", name: "Zapier", desc: "Trigger SocialFlow actions from 6,000+ apps.", icon: Zap, status: "Connected" },
-    { id: "slack", name: "Slack", desc: "Pipe alerts and notifications into your channels.", icon: MessageSquare, status: "Disconnected" },
-    { id: "ga", name: "Google Analytics", desc: "Pull GA4 traffic data into analytics reports.", icon: BarChart3, status: "Connected" },
-    { id: "canva", name: "Canva", desc: "Import Canva designs straight into your media library.", icon: ImageIcon, status: "Disconnected" },
-    { id: "unsplash", name: "Unsplash", desc: "Free stock photography for your next post.", icon: ImageIcon, status: "Connected" },
+    { id: "mail", name: "Mail Server", desc: "Send digests & alerts from your own SMTP.", icon: Mail },
+    { id: "slack", name: "Slack", desc: "Pipe alerts and notifications into your channels.", icon: MessageSquare },
+    { id: "zapier", name: "Zapier", desc: "Trigger SocialFlow actions from 6,000+ apps.", icon: Zap },
+    { id: "ga", name: "Google Analytics", desc: "Pull GA4 traffic data into analytics reports.", icon: BarChart3 },
+    { id: "canva", name: "Canva", desc: "Import Canva designs straight into your media library.", icon: ImageIcon },
+    { id: "unsplash", name: "Unsplash", desc: "Free stock photography for your next post.", icon: ImageIcon },
+    { id: "stripe", name: "Stripe", desc: "Accept card payments for subscriptions & invoices.", icon: CreditCard },
   ] as const;
-
-  const [state, setState] = React.useState<Record<string, boolean>>(() =>
-    Object.fromEntries(integrations.map((i) => [i.id, i.status === "Connected"]))
-  );
 
   return (
     <GlassCard className="crystal-in p-5">
       <SectionTitle title="Integrations" desc="Connect SocialFlow with the tools your team already uses." />
+      <div className="mb-3 rounded-xl bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400">
+        <strong>Note:</strong> Integrations are not yet configured. Each integration requires
+        its own API credentials. Click "Configure" to learn what's needed.
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {integrations.map((it) => {
           const Icon = it.icon;
-          const on = state[it.id];
           return (
             <div key={it.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 transition hover:bg-muted/40">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
                 <Icon className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-semibold">{it.name}</span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                      on ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {on ? "Connected" : "Off"}
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    Not configured
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground">{it.desc}</div>
               </div>
               <button
-                onClick={() => {
-                  setState((prev) => ({ ...prev, [it.id]: !prev[it.id] }));
-                  toast.success(`${it.name} ${on ? "disconnected" : "connected"}`);
-                }}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-                  on ? "border border-border bg-background text-foreground hover:bg-muted/60" : "liquid-gold"
-                )}
+                onClick={() =>
+                  toast.info(`${it.name} integration requires API credentials`, {
+                    description: "This integration is not yet implemented. Contact your admin to set it up.",
+                  })
+                }
+                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted/60"
               >
-                {on ? "Disconnect" : "Connect"}
+                Configure
               </button>
             </div>
           );
