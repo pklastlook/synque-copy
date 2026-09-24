@@ -83,6 +83,7 @@ const MEMBER_COLOR = "oklch(0.74 0.18 165)";
 
 export function TeamView() {
   const { data, loading, reload } = useApi<TeamMember[]>("/api/team");
+  const { data: customers } = useApi<{ id: string; name: string; company: string | null }[]>("/api/customers");
   const { user } = useAuth();
   const currentUserId = user?.id;
   // Invite dialog (email-only invitation)
@@ -100,6 +101,7 @@ export function TeamView() {
   const [mGender, setMGender] = React.useState("");
   const [mBirthDate, setMBirthDate] = React.useState("");
   const [mPhone, setMPhone] = React.useState("");
+  const [mCustomerId, setMCustomerId] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   // Success dialog — shows the created credentials so admin can share them
@@ -202,6 +204,7 @@ export function TeamView() {
           gender: mGender || undefined,
           birthDate: mBirthDate || undefined,
           phone: mPhone.trim() || undefined,
+          customerId: mCustomerId || undefined,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -213,7 +216,7 @@ export function TeamView() {
       setSuccessOpen(true);
       // Reset add form
       setMName(""); setMEmail(""); setMPassword(""); setMTitle(""); setMDepartment("");
-      setMGender(""); setMBirthDate(""); setMPhone("");
+      setMGender(""); setMBirthDate(""); setMPhone(""); setMCustomerId("");
       setMRole("member"); setShowPassword(false);
       setAddOpen(false);
       reload();
@@ -436,6 +439,25 @@ export function TeamView() {
                 onChange={(e) => setMBirthDate(e.target.value)}
               />
             </div>
+
+            {/* Customer / Company selector — links user to a tenant database */}
+            {customers && customers.length > 0 && (
+              <div className="space-y-1.5">
+                <Label htmlFor="m-customer">Customer / Company</Label>
+                <Select value={mCustomerId || "__none__"} onValueChange={(v) => setMCustomerId(v === "__none__" ? "" : v)}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select customer" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No customer (super-admin)</SelectItem>
+                    {customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.company ?? c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  Links the user to the selected customer's tenant database. They will only see that customer's data.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="m-role">Role</Label>

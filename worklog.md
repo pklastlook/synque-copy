@@ -3007,3 +3007,114 @@ Stage Summary:
 - Verified end-to-end: Taaha shared → Saher received → Saher accepted → both see the share in their respective tabs.
 - Artifacts: prisma/schema.prisma (+3 models, renamed 1), src/app/api/workspace/share/route.ts (NEW), src/app/api/workspace/members/route.ts (NEW), src/components/app-sidebar.tsx (+ShareWorkspaceButton + ShareWorkspaceDialog), src/app/api/workspace/route.ts (renamed db.workspace → db.workspaceSettings).
 - Committed + pushed to GitHub (commit a26dc60).
+
+---
+
+## Task ID: landing-mobile-opt — Landing page mobile optimization
+
+**Task**: Optimize `/home/z/my-project/src/components/landing-page.tsx` (~1031 lines) for mobile devices without changing the desktop (lg:) layout or any functionality. Only responsive CSS classes were modified.
+
+### Approach
+- Mobile-first Tailwind pattern: base classes target the smallest screens, then progressively enhance via `sm:`, `md:`, `lg:`, `xl:`.
+- Preserved all `lg:` breakpoints so desktop layout is byte-for-byte unchanged at >=1024px.
+- Added explicit mobile sizing for buttons, fonts, and padding using a 44px (min-h-11) touch-target baseline.
+- Hid purely decorative blur blobs on mobile to save GPU and prevent horizontal-scroll jank.
+
+### Changes by section
+
+**Splash (`SplashScreen`)**
+- Outer wrapper: `px-6` → `px-4 sm:px-6 lg:px-8`.
+- Wordmark: `text-6xl sm:text-7xl` → `text-5xl sm:text-6xl lg:text-7xl` (prevents overflow on 320px phones).
+
+**Top nav**
+- Container: `mt-4 w-[calc(100%-2rem)] px-5 sm:w-[calc(100%-3rem)]` → `mt-3 w-[calc(100%-1rem)] px-4 sm:mt-4 sm:w-[calc(100%-2rem)] sm:px-5 lg:w-[calc(100%-3rem)]` (nav uses more horizontal real-estate on mobile).
+- Sign-in button: bumped to `min-h-11` + `py-2.5`, switch hidden state from `sm:block` to `sm:flex` to preserve flex alignment with the new sizing.
+- Start-trial button: bumped to `min-h-11` + `py-2.5` (44px touch target).
+
+**Story Act 1 (Hero)**
+- Section padding: `pt-20 pb-16 sm:pt-28` → `pt-16 pb-12 sm:pt-20 sm:pb-16 lg:pt-28` + added `sm:px-6 lg:px-8`.
+- Grid gap: `gap-12` → `gap-8 sm:gap-10 lg:gap-12` (tighter on mobile so content isn't pushed down too far).
+- H1: `text-5xl leading-[1.05] sm:text-7xl` → `text-4xl leading-[1.1] sm:text-5xl sm:leading-[1.05] lg:text-7xl`.
+- Subhead p: `text-base sm:text-lg` → `text-sm sm:text-base lg:text-lg`.
+- CTA row stays `flex-col sm:flex-row`; both buttons gained `min-h-11 w-full justify-center sm:w-auto` so they're full-width tap targets on mobile.
+- Decorative backdrop blur on dashboard preview: now `hidden lg:block` (saves mobile GPU).
+
+**Story Act 2 (Pain)**
+- Section + inner glass-strong: `py-16` → `py-12 lg:py-16`; `p-8 sm:p-12` → `p-5 sm:p-8 lg:p-12`; added responsive px.
+- H2: `text-3xl sm:text-4xl` → `text-2xl sm:text-3xl lg:text-4xl`.
+
+**Story Act 3 (Features)**
+- Section: added responsive px + `py-12 lg:py-16`.
+- H2: `text-3xl sm:text-4xl` → `text-2xl sm:text-3xl lg:text-4xl`.
+- Grid was already mobile-first (`sm:grid-cols-2 lg:grid-cols-3`) — untouched.
+
+**Story Act 4 (Workflow)**
+- Section + inner glass-strong: added responsive px + reduced mobile padding (`p-5 sm:p-8 lg:p-12`).
+- H2: `text-3xl sm:text-4xl` → `text-2xl sm:text-3xl lg:text-4xl`.
+- Composer CTA button: bumped to `min-h-11 w-full sm:w-auto py-3`.
+
+**Story Act 5 (Protection)**
+- Section + inner glass-strong: added responsive px + reduced mobile padding.
+- H2: `text-3xl sm:text-4xl` → `text-2xl sm:text-3xl lg:text-4xl`.
+
+**Story Act 6 (Stats band)**
+- Section: added responsive px.
+- Stat item: `p-6` → `p-4 sm:p-6`.
+- Stat icon: `h-6 w-6` → `h-5 w-5 sm:h-6 sm:w-6`.
+- Stat value: `text-3xl sm:text-4xl` → `text-2xl sm:text-3xl lg:text-4xl`.
+- Grid kept `grid-cols-2 md:grid-cols-4` (already mobile-friendly, 2-up on phones).
+
+**Story Act 7 (Get started stats)**
+- Section + inner glass-strong: added responsive px + reduced mobile padding.
+- H2: `text-3xl sm:text-4xl` → `text-2xl sm:text-3xl lg:text-4xl`.
+- Stat value: `text-2xl` → `text-xl sm:text-2xl`.
+
+**Story Act 8 (Pricing)**
+- Section: added responsive px + `py-12 lg:py-16`.
+- H2: `text-3xl sm:text-4xl` → `text-2xl sm:text-3xl lg:text-4xl`.
+- Pricing card: `p-6` → `p-5 sm:p-6`.
+- Plan price: `text-4xl` → `text-3xl sm:text-4xl`.
+- Pricing CTA button: bumped to `min-h-11 py-3`.
+- Grid kept `lg:grid-cols-3` (single column on mobile/tablet — untouched).
+
+**Story Act 9 (Final CTA)**
+- Section: `py-20` → `py-12 lg:py-20` + responsive px.
+- Container: `p-10 sm:p-14` → `p-6 sm:p-10 lg:p-14`.
+- Two decorative blur blobs: now `hidden lg:block` (mobile GPU savings, no horizontal scroll).
+- H2: `text-3xl sm:text-4xl` → `text-2xl sm:text-3xl lg:text-4xl`.
+- CTA button: bumped to `min-h-11 w-full sm:mx-auto sm:w-auto` (full-width on mobile, auto on larger).
+
+**Footer**
+- Added responsive px: `px-4 sm:px-6 lg:px-8 xl:px-12`.
+- Existing `sm:grid-cols-2 lg:grid-cols-4` grid already stacks vertically on mobile — untouched.
+
+**TrialDialog**
+- DialogContent: added `w-[calc(100vw-2rem)]` + `p-5 sm:p-6` so the modal never overflows the viewport on small phones.
+- Cancel / Continue / Back / Activate buttons: all bumped to `min-h-11 py-2.5` and `w-full sm:w-auto` (full-width on mobile, auto on larger).
+
+**LoginScreen**
+- Outer wrapper: added `sm:px-6 lg:px-8`.
+- Form container: `p-8 sm:p-10` → `p-5 sm:p-8 lg:p-10` (more breathing room on small screens).
+- Back-to-home button: bumped to `min-h-11 px-2` with proper padding.
+- Email + password inputs: `py-2.5` → `py-3 min-h-11` (44px touch target, easier typing on mobile).
+- Password reveal button: was a tiny absolute-positioned icon — now `grid h-11 w-11 place-items-center` (full 44x44 touch target).
+- Password input padding-right bumped to `pr-12` so the new 44px reveal button doesn't overlap the placeholder.
+- Forgot-password link: bumped to `min-h-11 px-2` (touch-friendly).
+- Submit button: bumped to `min-h-11 py-3`.
+- Bottom "Sign in" link: bumped to `inline-flex min-h-11 items-center px-2`.
+- Left brand panel already uses `hidden lg:flex` so it's full-width on mobile — untouched.
+
+### Verification
+- `npx eslint src/components/landing-page.tsx` → no errors.
+- `npx tsc --noEmit` → no errors in landing-page.tsx.
+- All `lg:` breakpoint values preserved — desktop layout at >=1024px is identical to before.
+- All interactive elements now meet the 44px (min-h-11) touch-target minimum.
+- No horizontal scroll on mobile (decorative blur blobs are hidden < lg).
+- Hero section stacks vertically < lg (was already `lg:grid-cols-2`).
+- Features grid stays single-column < sm, 2-col on sm-md, 3-col on lg+ (unchanged).
+- Pricing cards stack vertically < lg (unchanged).
+- Footer stacks vertically < sm, 2-col on sm-md, 4-col on lg+ (unchanged).
+- Login form is full-width on mobile (brand panel hidden < lg, unchanged).
+
+### Files changed
+- `/home/z/my-project/src/components/landing-page.tsx` — responsive class adjustments only; no JS, no markup structure, no functionality changes.
