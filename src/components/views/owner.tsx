@@ -63,6 +63,7 @@ import { useApi, fmt } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { cn } from "@/lib/utils";
+import { useNav } from "@/lib/store";
 import {
   Dialog,
   DialogContent,
@@ -3898,7 +3899,9 @@ const TABS: TabDef[] = [
 ];
 
 export function OwnerView() {
-  const [tab, setTab] = React.useState("customers");
+  const { ownerTab, setOwnerTab } = useNav();
+  const tab = ownerTab; // read from store so sidebar sub-items work
+  const setTab = setOwnerTab;
   const { data: customers } = useApi<Customer[]>("/api/customers");
   const customerList = customers ?? [];
 
