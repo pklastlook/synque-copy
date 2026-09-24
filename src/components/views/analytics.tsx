@@ -27,6 +27,7 @@ import {
   ImageIcon,
   Loader2,
   Wand2,
+  RefreshCw,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
@@ -110,6 +111,7 @@ const TOOLTIP_STYLE = {
 export function AnalyticsView() {
   const [days, setDays] = React.useState<DayOption>(30);
   const [accountId, setAccountId] = React.useState<string>("all");
+  const [syncing, setSyncing] = React.useState(false);
 
   // Fetch the list of accounts for the filter dropdown
   const { data: accounts } = useApi<AccountOption[]>("/api/accounts");
@@ -118,7 +120,49 @@ export function AnalyticsView() {
     () => `/api/analytics?days=${days}&accountId=${accountId}`,
     [days, accountId]
   );
-  const { data, loading } = useApi<AnalyticsResponse>(analyticsUrl);
+  const { data, loading, reload } = useApi<AnalyticsResponse>(analyticsUrl);
+
+  async function syncFromTwitter() {
+    const targetAccountId = accountId === "all"
+      ? accounts?.find(a => (a.platform as string) === "x" || (a.platform as string) === "twitter")?.id
+      : accountId;
+
+    if (!targetAccountId) {
+      toast.error("No X/Twitter account selected — select one from the dropdown");
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const token = typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
+        : null;
+      const res = await fetch("/api/sync/twitter", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ accountId: targetAccountId }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success("Sync complete!", {
+          description: json.message ?? `Synced ${json.syncedPosts ?? 0} new + updated ${json.updatedPosts ?? 0} existing`,
+        });
+        reload();
+      } else {
+        toast.error("Sync failed", {
+          description: json.error ?? "Unknown error",
+          duration: 8000,
+        });
+      }
+    } catch {
+      toast.error("Network error during sync");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   if (loading || !data) return <AnalyticsSkeleton />;
 
@@ -227,6 +271,17 @@ export function AnalyticsView() {
                 </button>
               ))}
             </div>
+
+            {/* Sync from Twitter */}
+            <button
+              onClick={syncFromTwitter}
+              disabled={syncing}
+              className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-50"
+              title="Import tweets published directly on Twitter"
+            >
+              {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              {syncing ? "Syncing…" : "Sync Twitter"}
+            </button>
           </div>
         </div>
       </GlassCard>
