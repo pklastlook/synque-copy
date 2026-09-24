@@ -2601,3 +2601,46 @@ Work Log:
 Stage Summary:
 - The dashboard's empty space is now filled with a dedicated **Failed Posts** card that sits beside the Recent Posts card in a 2-column grid. It shows real failed posts from the database (2 found), uses a rose/red theme to signal errors, and each item is clickable to open the composer for retry. When there are no failed posts, it shows a green "All publishes succeeded" empty state.
 - Artifacts changed: src/app/api/dashboard/route.ts (+18 lines: failedPosts array + response field), src/components/views/dashboard.tsx (+89 lines: type + 2-col grid + Failed Posts card).
+
+---
+Task ID: reports-team-user-pages
+Agent: general-purpose (reports module enhancement)
+Task: Integrate Team/User/Pages/Profile reports showing posts & comments by each user on each account, user work comparison, leaderboard; enhance print layout.
+
+Work Log:
+- Read /home/z/my-project/worklog.md to understand prior reports work (reports-enhance: 8 templates + interactive viewer).
+- Built a new `/api/reports/data` API route that returns rich cross-tabulated data the existing `/api/analytics` + `/api/team-performance` routes don't provide:
+  • `userAccountMatrix`: for each user, per-account breakdown (posts, published, comments, commentsReplied) + totals
+  • `userComparison`: side-by-side member work stats (postsCreated/Published/Scheduled/Draft/Failed, commentsReceived/Replied, replyRate, accountsOwned, postsLast7d, avgPostsPerAccount)
+  • `accountUserMatrix`: for each account, who posted & how much (per-user posts/published)
+  • `leaderboard`: 5 ranked lists (mostPostsCreated, mostPublished, mostCommentsReplied, bestReplyRate, mostActive)
+  • `perUserPlatform`: each user's posts broken down by platform
+- Added 4 new report templates (TEMPLATES array now has 12 total):
+  • **User × Account** — KPIs + horizontal bar chart (posts per user, click to drill into per-account breakdown) + full matrix table (users × accounts, posts + comments in each cell)
+  • **User Compare** — KPIs + metric-tabbed comparison chart + 2 side-by-side charts (Posts Created vs Published, Comments Received vs Replied) + sortable 9-column comparison table
+  • **Pages Report** — KPIs + horizontal bar (posts & comments per page) + expandable per-account breakdown showing which users posted on each account
+  • **Leaderboard** — KPIs + 6 podium cards (Most Posts Created, Most Published, Most Comments Replied, Best Reply Rate, Most Active 7d, Most Accounts Managed) with ranked members + medals + platform distribution stacked bar chart
+- Enhanced the existing **Team Activity** template: now includes the User × Account matrix table at the bottom (in addition to the member breakdown table).
+- Enhanced the **PrintLayout** significantly:
+  • Template-specific executive summary text (different wording for team/user-account/account-user/leaderboard/engagement vs default)
+  • KPI summary grid: 4 cards with accent borders (Members/Posts/Published/Comments for team templates; Followers/Impressions/Reach/Engagement for others)
+  • Team member work comparison table (9 columns: Posts, Published, Drafts, Failed, Comments, Replied, Reply%, 7-day) — shown for team/user-comparison/leaderboard templates
+  • User × Account matrix table — shown for team/user-account/user-comparison templates
+  • Pages Report: per-account breakdown table + "Who Posted on Each Account" with per-account sub-tables
+  • Leaderboard: top-10 ranking table
+  • Better print CSS: colored accent bar under header (template color), purple (#5856D6) table headers with white text, KPI cards with left-accent borders, "Page X of Y" footer, dashed footer note border, "Confidential" notice
+- Wired reportData through ReportsView → ReportViewer → TemplateContent → PrintLayout.
+- Ran `bunx eslint` + `bunx tsc --noEmit` — both clean (0 errors). Fixed one lint error (PodiumCard component defined inside render → extracted to LeaderboardPodiumCard).
+- Browser-verified with Agent Browser + VLM:
+  • API returns real data: 3 users, 1 account, leaderboard with 5 categories. Top user M. Ashraf (8 posts, 5 published).
+  • All 4 new template buttons visible in the generator strip.
+  • User × Account template: KPIs (3 Users, 9 Total Posts, 5 Published) + "Posts per User" bar chart (M. Ashraf, Test Client, Test Member) + matrix table (users × lastlook account with totals 8/1/0).
+  • Leaderboard template: 6 podium cards each with ranked members + medals, platform distribution stacked chart.
+  • VLM rated the design 9/10 — "excellent contrast, clean typography, professional spacing, modern Crystal UI dark mode."
+- Committed + pushed to GitHub (commit d003ec7).
+
+Stage Summary:
+- **Reports module now has 12 templates** (was 8): Performance, Audience, Engagement, Team Activity, Content, Growth, Platforms, Reach + 4 new (User × Account, User Compare, Pages Report, Leaderboard).
+- The new templates directly answer the user's request: "integrate team, user, pages, profile report that show how many post, comments are posted on each account by user" — the User × Account matrix table shows exactly that (posts + comments per user per account), the User Compare report shows team members' work side-by-side, the Pages Report shows per-account who-posted-what, and the Leaderboard ranks top contributors.
+- Enhanced print layout is template-aware (different sections per template) with professional styling (purple headers, KPI cards, accent bars, page X of Y).
+- Artifacts changed: src/app/api/reports/data/route.ts (NEW, 155 lines), src/components/views/reports.tsx (+1018 lines: new types, 4 templates, matrix table, comparison table, podium cards, enhanced PrintLayout).
