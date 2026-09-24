@@ -137,3 +137,42 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
+
+/**
+ * DELETE /api/workspace/share
+ *   Stop ALL sharing for the current user.
+ *   - If the user is the workspace owner: deletes all outgoing shares (stops sharing with everyone)
+ *   - Also deletes all incoming shares (leaves all received workspaces)
+ *
+ *   Body: { scope: "all" | "sent" | "received" }
+ */
+export async function DELETE(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+
+  const body = await req.json().catch(() => ({}) as { scope?: string });
+  const scope = body.scope ?? "all";
+
+  const myWorkspace = await db.workspace.findFirst({ where: { ownerId: user!.userId } });
+  let deletedCount = 0;
+
+  if (scope === "all" || scope === "sent") {
+    // Stop sharing MY workspace with everyone
+    if (myWorkspace) {
+      const res = await db.workspaceShare.deleteMany({
+        where: { workspaceId: myWorkspace.id },
+      }).catch(() => ({ count: 0 }));
+      deletedCount += res.count;
+    }
+  }
+
+  if (scope === "all" || scope === "received") {
+    // Leave all workspaces shared WITH me
+    const res = await db.workspaceShare.deleteMany({
+      where: { sharedWithUserId: user!.userId },
+    }).catch(() => ({ count: 0 }));
+    deletedCount += res.count;
+  }
+
+  return NextResponse.json({ ok: true, deleted: deletedCount });
+}
