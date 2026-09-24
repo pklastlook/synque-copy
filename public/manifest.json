@@ -6,9 +6,15 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0a0f",
-  "theme_color": "#0a0a0f",
+  "theme_color": "#5856D6",
   "categories": ["productivity", "business", "social"],
   "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
@@ -24,16 +30,10 @@
   ],
   "screenshots": [
     {
-      "src": "/screenshot-mobile.png",
-      "sizes": "390x844",
+      "src": "/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow"
-    },
-    {
-      "src": "/screenshot-desktop.png",
-      "sizes": "1440x900",
-      "type": "image/png",
-      "form_factor": "wide"
     }
   ],
   "edge_side_panel": {

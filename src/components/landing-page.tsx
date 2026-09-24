@@ -920,13 +920,23 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
           </div>
 
           {/* Right — login form (no role buttons) */}
-          <div className="glass crystal-in flex flex-col justify-center p-8 sm:p-10" style={{ animationDelay: "0.15s" }}>
-            <button onClick={onBack} className="mb-6 flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
+          <div className="glass crystal-in login-form-container flex flex-col justify-center p-8 sm:p-10">
+            {/* Splash logo with ripple */}
+            <div className="mb-6 flex justify-center">
+              <div className="relative">
+                <div className="login-splash-ripple" />
+                <div className="login-splash-logo grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[oklch(0.55_0.2_280)] text-2xl font-extrabold text-white shadow-lg">
+                  SF
+                </div>
+              </div>
+            </div>
+
+            <button onClick={onBack} className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
               <ArrowRight className="h-3 w-3 rotate-180" /> Back to home
             </button>
 
-            <h1 className="text-2xl font-bold tracking-tight">Sign in to SocialFlow</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Enter your credentials to continue</p>
+            <h1 className="text-2xl font-bold tracking-tight text-center">Sign in to SocialFlow</h1>
+            <p className="mt-1 text-center text-sm text-muted-foreground">Enter your credentials to continue</p>
 
             <form className="mt-6 space-y-4" onSubmit={submit}>
               <div>
