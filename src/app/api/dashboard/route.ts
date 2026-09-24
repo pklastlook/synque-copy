@@ -117,6 +117,27 @@ export async function GET() {
     ).length;
     const publishedDelta = delta(publishedLast7d, publishedPrev7d);
 
+    // === Today's activity (posts, comments, pages, profiles active today) ===
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const postsToday = posts.filter((p) => new Date(p.createdAt) >= todayStart).length;
+    const commentsToday = comments.filter((c) => new Date(c.createdAt) >= todayStart).length;
+    const publishedToday = variants.filter(
+      (v) => v.publishedAt && new Date(v.publishedAt) >= todayStart
+    ).length;
+    const activeAccountsToday = new Set(
+      variants
+        .filter((v) => v.publishedAt && new Date(v.publishedAt) >= todayStart)
+        .map((v) => v.accountId)
+    ).size;
+    const activeMembersToday = new Set(
+      posts.filter((p) => new Date(p.createdAt) >= todayStart).map((p) => p.authorId)
+    ).size;
+    // Daily targets for progress bars
+    const dailyPostTarget = 3;
+    const dailyCommentTarget = 5;
+    const dailyPublishTarget = 3;
+
     // === Combined trend series (14 days): followers, reach, postsCreated, comments ===
     const series: {
       date: string;
@@ -487,6 +508,19 @@ export async function GET() {
         accounts: accounts.length,
         variantsPublished: variants.filter((v) => v.status === "published").length,
         totalEngagement,
+        // Today's activity
+        today: {
+          posts: postsToday,
+          comments: commentsToday,
+          published: publishedToday,
+          activeAccounts: activeAccountsToday,
+          activeMembers: activeMembersToday,
+          targets: {
+            posts: dailyPostTarget,
+            comments: dailyCommentTarget,
+            published: dailyPublishTarget,
+          },
+        },
       },
       pipeline,
       pipelineTotal,
