@@ -2474,3 +2474,43 @@ Stage Summary:
   5. ✅ 8 template-specific layouts with diverse interactive charts (area, bar, line, composed, pie/donut, horizontal bar) + metric tabs + sortable tables + sparklines
 - Artifacts changed: src/components/views/reports.tsx (complete rewrite).
 - All data is real (DB-backed via /api/analytics + /api/team-performance). Lint + TS clean. Dev server healthy.
+
+---
+Task ID: add-team-member
+Agent: general-purpose (team module enhancement)
+Task: The Team view only had an "Invite" option. Add an "Add Member" feature so admin can create members with credentials and share login details for them to sign in.
+
+Work Log:
+- Read /home/z/my-project/worklog.md to understand prior work (reports-enhance, profile-settings-fix, messenger-fix, reports-rebuild, audit tasks).
+- Read src/components/views/team.tsx and src/app/api/team/route.ts to understand the current flow:
+  • The Team view header had ONE "Invite member" button that opened a dialog collecting only email + role (admin/member).
+  • The POST /api/team route ALREADY supported name, email, role, title, department, AND password — but the frontend never sent name/password/title/department. Without a password, the backend generated a random one (useless for sharing login details).
+- Enhanced src/components/views/team.tsx:
+  • Added new lucide imports: KeyRound, Copy, Check, EyeOff, UserCheck, Mail, Briefcase (Eye was already imported).
+  • Added state for the Add Member dialog: mName, mEmail, mPassword, mRole (now full 5-level role: viewer/member/editor/manager/admin), mTitle, mDepartment, showPassword, adding.
+  • Added a success dialog state: successOpen + createdCreds (captures name/email/password/role after creation) + copied (for per-field copy feedback).
+  • Added getToken() helper (reads Bearer token from localStorage) and wired it into both onInvite and onAddMember fetch calls (previously missing — the invite fetch sent no Authorization header).
+  • onAddMember(): validates name+email+password (≥6 chars), POSTs to /api/team with {name, email, password, role, title, department}, on success opens the success dialog with the created credentials, resets the form, reloads the team list.
+  • generatePassword(): creates a memorable-ish password like "abcd-efgh-247" so admins can share it without picking one manually.
+  • copyToClipboard() + copyAllCreds(): per-field and bulk copy (bulk formats a ready-to-share text block with name/email/password/role/sign-in URL).
+  • Header now has TWO buttons: "Invite member" (secondary, email-only) + "Add member" (primary, full credentials). Both responsive (labels collapse to "Invite"/"Add" on mobile).
+  • New Add Member dialog: 6 fields (Full name*, Email*, Title/designation, Department, Role dropdown with 5 roles, Password* with show/hide toggle + Generate button). Validation + loading state.
+  • New Success dialog ("Member created"): shows a LOGIN CREDENTIALS card with 5 copyable rows (Name, Email, Password, Role, Sign-in URL), each with its own copy button. A "Copy all login details" button copies a formatted text block. Includes a security note: "For security, ask the member to change their password after first sign-in."
+  • Extracted a reusable CredRow helper component (label + value + copy button) to avoid creating components during render (lint rule).
+- The backend /api/team POST already supported the full payload — no API changes were needed. It hashes the password with bcrypt (12 rounds), checks for duplicate email (409), and creates the user with status "active".
+- Ran `bunx eslint src/components/views/team.tsx` → 0 errors. `bunx tsc --noEmit` → 0 errors in src/.
+- Browser-verified end-to-end with Agent Browser + VLM:
+  • Logged in as admin (it.ashraf@outlook.com), navigated to Team → saw both "Invite member" and "Add member" buttons in the header.
+  • Clicked "Add member" → dialog opened with all 6 fields (VLM rated 9/10).
+  • Filled the form (Bilal Ahmed, bilal.ahmed@example.com, Paid Social Specialist, Paid Social, role=Editor, password=BilalPass-2026) and clicked "Create member".
+  • The "Member created" success dialog appeared showing LOGIN CREDENTIALS (Name, Email, Password, Role, Sign-in URL) each with a copy button + a "Copy all login details" button + the security note. VLM rated it 9/10.
+  • Verified via API that Bilal can log in with the created credentials: login ok=True, user=Bilal Ahmed, role=editor, title=Paid Social Specialist, department=Paid Social.
+  • Also verified the API directly creates real users: POST /api/team with full credentials → id returned; the new user immediately appears in GET /api/team; the new user can authenticate via /api/auth/login.
+  • Cleaned up the two test members (Sarah Khan, Bilal Ahmed) so the DB is back to its original 3 members.
+
+Stage Summary:
+- **Both team-management options now available** in the Team view header:
+  1. **Invite member** (secondary button) — email-only invitation (existing flow, now sends Authorization header).
+  2. **Add member** (primary button) — admin creates a member with full credentials (name, email, password, role, title, department). The admin sees a "Member created" success dialog with copyable login details (Name, Email, Password, Role, Sign-in URL) to share with the member, plus per-field + bulk copy buttons and a security reminder to have the member change their password after first sign-in.
+- Artifacts changed: src/components/views/team.tsx only (backend already supported the full payload).
+- All data is real (DB-backed via /api/team + bcrypt password hashing). Lint + TS clean. Dev server healthy (next-server v16.1.3, HTTP 200).
