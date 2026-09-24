@@ -883,3 +883,160 @@ html { scroll-behavior: smooth; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ================================================================
+   PWA Splash Screen — iOS/Android native app launch animation
+   ================================================================ */
+
+@keyframes splashFadeIn {
+  0% { opacity: 0; transform: scale(0.8); }
+  30% { opacity: 1; transform: scale(1); }
+  70% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1.1); }
+}
+
+@keyframes splashLogoDraw {
+  0% { stroke-dashoffset: 300; opacity: 0; }
+  30% { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@keyframes splashPulse {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.15); opacity: 0.6; }
+}
+
+@keyframes splashRipple {
+  0% { transform: scale(0.5); opacity: 0.6; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes splashTextFade {
+  0% { opacity: 0; transform: translateY(10px); }
+  50% { opacity: 0; transform: translateY(10px); }
+  70% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-5px); }
+}
+
+@keyframes splashBarFill {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.pwa-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
+  animation: splashFadeIn 2s ease-in-out forwards;
+}
+
+.pwa-splash-logo {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pwa-splash-logo-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #5856D6, #7B68EE);
+  animation: splashPulse 1.5s ease-in-out infinite;
+}
+
+.pwa-splash-logo-text {
+  position: relative;
+  font-size: 48px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -2px;
+  animation: splashTextFade 2s ease-in-out forwards;
+}
+
+.pwa-splash-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 28px;
+  border: 2px solid rgba(88, 86, 214, 0.4);
+  animation: splashRipple 1.5s ease-out infinite;
+}
+
+.pwa-splash-ripple:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.pwa-splash-title {
+  margin-top: 24px;
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: -0.5px;
+  animation: splashTextFade 2s ease-in-out forwards;
+  animation-delay: 0.3s;
+  opacity: 0;
+}
+
+.pwa-splash-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  animation: splashTextFade 2s ease-in-out forwards;
+  animation-delay: 0.5s;
+  opacity: 0;
+}
+
+.pwa-splash-bar {
+  margin-top: 32px;
+  width: 180px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.pwa-splash-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #5856D6, #7B68EE);
+  animation: splashBarFill 2s ease-in-out forwards;
+}
+
+/* === Login splash (shorter, appears on login form) === */
+@keyframes loginSplashIn {
+  0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+  60% { opacity: 1; transform: scale(1.05) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.login-splash-logo {
+  animation: loginSplashIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.login-splash-ripple {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid rgba(88, 86, 214, 0.3);
+  animation: splashRipple 2s ease-out infinite;
+}
+
+@keyframes loginFormSlideUp {
+  0% { opacity: 0; transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.login-form-container {
+  animation: loginFormSlideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.2s;
+}
