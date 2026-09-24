@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 
-const SECRET = process.env.JWT_SECRET || "dev-only-ephemeral-secret-do-not-use-in-prod";
+const SECRET = process.env.JWT_SECRET || "REDACTED";
 
 export type Role = "admin" | "manager" | "editor" | "member" | "viewer";
 

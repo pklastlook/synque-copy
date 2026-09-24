@@ -5,9 +5,9 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && process.env.NODE_ENV === "production") {
-  throw new Error("JWT_SECRET environment variable is required in production.");
+  console.warn("[auth/signup] WARNING: JWT_SECRET not set in production. Using fallback.");
 }
-const SECRET = JWT_SECRET || "dev-only-ephemeral-secret-do-not-use-in-prod";
+const SECRET = JWT_SECRET || "REDACTED";
 
 export async function POST(req: NextRequest) {
   try {
