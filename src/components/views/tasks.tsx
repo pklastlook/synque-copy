@@ -5,7 +5,7 @@ import {
   CheckCircle2, Clock, Plus, Trash2, Send, Loader2, Filter,
   AlertCircle, ListTodo, Eye, MessageSquare, BarChart3, Megaphone,
   Wand2, Image as ImageIcon, ChevronDown, Calendar, Flag, User,
-  TrendingUp, Check, X, RotateCcw, type LucideIcon,
+  TrendingUp, Check, X, RotateCcw, LayoutGrid, Rows3, ArrowUpDown, type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
@@ -97,6 +97,7 @@ export function TasksView() {
   const [filter, setFilter] = React.useState<"all" | "mine" | "created">("all");
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<"kanban" | "list">("kanban");
 
   // Build the API URL based on the filter
   const apiUrl = React.useMemo(() => {
@@ -228,12 +229,34 @@ export function TasksView() {
                 </button>
               ))}
             </div>
+            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-xl bg-muted/40 p-1">
+              <button
+                onClick={() => setViewMode("kanban")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                  viewMode === "kanban" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" /> Board
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                  viewMode === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Rows3 className="h-3.5 w-3.5" /> List
+              </button>
+            </div>
             <button
               onClick={() => setCreateOpen(true)}
               className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
             >
               <Plus className="h-4 w-4" /> New task
             </button>
+            </div>
           </div>
         </div>
       </GlassCard>
@@ -246,7 +269,8 @@ export function TasksView() {
         <KpiCard label="Assigned to me" value={stats.myTasks} icon={<User className="h-5 w-5" />} accent="oklch(0.66 0.22 305)" hint={`${stats.myDone} done by me`} />
       </div>
 
-      {/* Kanban board */}
+      {/* Kanban board OR List view */}
+      {viewMode === "kanban" ? (
       <div className="grid gap-3 lg:grid-cols-5">
         {STATUSES.map((col) => {
           const colTasks = byStatus[col.id];
@@ -285,6 +309,16 @@ export function TasksView() {
           );
         })}
       </div>
+      ) : (
+        <TaskListView
+          tasks={allTasks}
+          onEdit={(t) => setEditingTask(t)}
+          onDelete={(id) => deleteTask(id)}
+          onMove={(id, s) => updateTaskStatus(id, s)}
+          onSendComposer={(t) => sendToComposer(t)}
+          canEdit={(t) => user?.id === t.creatorId || user?.id === t.assigneeId}
+        />
+      )}
 
       {/* Create dialog */}
       <TaskDialog
@@ -451,6 +485,138 @@ function TaskCard({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ============ Task list view (table with full details) ============
+function TaskListView({
+  tasks, onEdit, onDelete, onMove, onSendComposer, canEdit,
+}: {
+  tasks: Task[];
+  onEdit: (t: Task) => void;
+  onDelete: (id: string) => void;
+  onMove: (id: string, s: TaskStatus) => void;
+  onSendComposer: (t: Task) => void;
+  canEdit: (t: Task) => boolean;
+}) {
+  const [sortKey, setSortKey] = React.useState<string>("createdAt");
+  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
+
+  const sorted = [...tasks].sort((a, b) => {
+    let av: string | number = (a as any)[sortKey] ?? "";
+    let bv: string | number = (b as any)[sortKey] ?? "";
+    if (sortKey === "dueAt" || sortKey === "createdAt") {
+      av = av ? new Date(av as string).getTime() : 0;
+      bv = bv ? new Date(bv as string).getTime() : 0;
+    }
+    if (typeof av === "string") av = av.toLowerCase();
+    if (typeof bv === "string") bv = bv.toLowerCase();
+    return sortDir === "desc" ? (bv > av ? 1 : bv < av ? -1 : 0) : (av > bv ? 1 : av < bv ? -1 : 0);
+  });
+
+  function toggle(k: string) {
+    if (sortKey === k) setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    else { setSortKey(k); setSortDir("desc"); }
+  }
+
+  const statusMeta = (s: string) => STATUSES.find((st) => st.id === s) ?? STATUSES[0];
+  const priorityMeta = (p: string) => PRIORITIES.find((pr) => pr.id === p) ?? PRIORITIES[1];
+
+  return (
+    <div className="crystal-in overflow-x-auto rounded-2xl border border-border/30">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-border/40 bg-muted/20">
+            <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">
+              <button onClick={() => toggle("title")} className="flex items-center gap-1 hover:text-foreground">Task <ArrowUpDown className="h-2.5 w-2.5 opacity-30" /></button>
+            </th>
+            <th className="px-2 py-2.5 text-left font-semibold">
+              <button onClick={() => toggle("status")} className="flex items-center gap-1 hover:text-foreground">Status <ArrowUpDown className="h-2.5 w-2.5 opacity-30" /></button>
+            </th>
+            <th className="px-2 py-2.5 text-left font-semibold">
+              <button onClick={() => toggle("priority")} className="flex items-center gap-1 hover:text-foreground">Priority <ArrowUpDown className="h-2.5 w-2.5 opacity-30" /></button>
+            </th>
+            <th className="px-2 py-2.5 text-left font-semibold text-muted-foreground">Assignee</th>
+            <th className="px-2 py-2.5 text-left font-semibold text-muted-foreground">
+              <button onClick={() => toggle("dueAt")} className="flex items-center gap-1 hover:text-foreground">Due <ArrowUpDown className="h-2.5 w-2.5 opacity-30" /></button>
+            </th>
+            <th className="px-2 py-2.5 text-left font-semibold text-muted-foreground">Platforms</th>
+            <th className="px-2 py-2.5 text-right font-semibold text-muted-foreground">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.length === 0 ? (
+            <tr><td colSpan={7} className="py-8 text-center text-muted-foreground">No tasks yet</td></tr>
+          ) : sorted.map((task) => {
+            const sm = statusMeta(task.status);
+            const pm = priorityMeta(task.priority);
+            const isOverdue = task.dueAt && new Date(task.dueAt) < new Date() && task.status !== "done";
+            return (
+              <tr key={task.id} className="border-b border-border/20 transition hover:bg-muted/20">
+                {/* Title + content preview */}
+                <td className="px-3 py-2">
+                  <div className={cn("font-medium", task.status === "done" && "line-through opacity-60")}>{task.title}</div>
+                  {task.content && <div className="mt-0.5 truncate text-[10px] text-muted-foreground max-w-[200px]">{task.content}</div>}
+                  {task.mediaUrl && <div className="mt-0.5 flex items-center gap-0.5 text-[9px] text-primary"><ImageIcon className="h-2.5 w-2.5" /> has media</div>}
+                </td>
+                {/* Status */}
+                <td className="px-2 py-2">
+                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `${sm.color}15`, color: sm.color }}>{sm.label}</span>
+                </td>
+                {/* Priority */}
+                <td className="px-2 py-2">
+                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold" style={{ background: `${pm.color}15`, color: pm.color }}>{pm.label}</span>
+                </td>
+                {/* Assignee */}
+                <td className="px-2 py-2">
+                  {task.assigneeName ? (
+                    <div className="flex items-center gap-1.5">
+                      <NameAvatar name={task.assigneeName} color={(task.assigneeColor as any) ?? "blue"} className="h-5 w-5 text-[9px]" />
+                      <span className="text-[10px]">{task.assigneeName}</span>
+                    </div>
+                  ) : <span className="text-muted-foreground/50">—</span>}
+                </td>
+                {/* Due date */}
+                <td className="px-2 py-2">
+                  {task.dueAt ? (
+                    <span className={cn("text-[10px]", isOverdue ? "font-bold text-rose-500" : "text-muted-foreground")}>
+                      <Calendar className="mr-0.5 inline h-2.5 w-2.5" />
+                      {new Date(task.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </span>
+                  ) : <span className="text-muted-foreground/50">—</span>}
+                </td>
+                {/* Platforms */}
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-1">
+                    {task.platforms.slice(0, 3).map((pl, i) => <PlatformBadge key={i} platform={pl as PlatformId} size={12} />)}
+                    {task.platforms.length > 3 && <span className="text-[9px] text-muted-foreground">+{task.platforms.length - 3}</span>}
+                    {task.platforms.length === 0 && <span className="text-muted-foreground/50">—</span>}
+                  </div>
+                </td>
+                {/* Actions */}
+                <td className="px-2 py-2">
+                  <div className="flex items-center justify-end gap-1">
+                    <button onClick={() => onSendComposer(task)} title="Send to composer" className="rounded-md bg-primary/10 px-1.5 py-1 text-[9px] font-bold text-primary transition hover:bg-primary/20">
+                      <Wand2 className="h-3 w-3" />
+                    </button>
+                    {canEdit(task) && (
+                      <>
+                        <button onClick={() => onEdit(task)} title="Edit" className="grid h-6 w-6 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:bg-muted/40">
+                          <Eye className="h-3 w-3" />
+                        </button>
+                        <button onClick={() => onDelete(task.id)} title="Delete" className="grid h-6 w-6 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
