@@ -11,7 +11,7 @@ import {
   ChevronRight, ChevronUp, ChevronDown, FileEdit, XCircle, Layers, Inbox,
   PenLine, Hash, Activity, Crown, Award, Trophy, Globe,
   Lightbulb, Bell, Target, Zap, Calendar, BarChart3, AlertCircle,
-  AtSign, RotateCcw,
+  AtSign, RotateCcw, ListTodo, Check,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -92,6 +92,14 @@ interface DashboardData {
     platforms: PlatformId[]; variantCount: number;
     engagement: number; reach: number;
   }[];
+  taskSummary: {
+    total: number; done: number; inProgress: number; blocked: number;
+    overdue: number; myTasks: number; myDone: number;
+    recent: {
+      id: string; title: string; status: string; priority: string;
+      dueAt: string | null;
+    }[];
+  };
   commentInbox: {
     id: string; author: string; text: string; type: string; sentiment: string;
     platform: PlatformId; handle: string; accountName: string; createdAt: string;
@@ -472,6 +480,46 @@ export function DashboardView() {
           }
         />
         <PipelineFlow pipeline={data.pipeline} total={data.pipelineTotal} />
+      </GlassCard>
+
+      {/* === 5b. TASK SUMMARY — quick workflow overview === */}
+      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.46s" }}>
+        <SectionTitle
+          title="Task summary"
+          desc={data.taskSummary.total > 0 ? `${data.taskSummary.done}/${data.taskSummary.total} completed · ${data.taskSummary.overdue} overdue` : "No tasks yet — assign work in the Tasks module"}
+          action={
+            <button onClick={() => setView("tasks")} className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              All tasks <ArrowUpRight className="h-3 w-3" />
+            </button>
+          }
+        />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <TaskStat label="Total" value={data.taskSummary.total} icon={<ListTodo className="h-4 w-4" />} color="oklch(0.62 0.2 255)" />
+          <TaskStat label="Completed" value={data.taskSummary.done} icon={<CheckCircle2 className="h-4 w-4" />} color="oklch(0.7 0.2 145)" />
+          <TaskStat label="In progress" value={data.taskSummary.inProgress} icon={<Clock className="h-4 w-4" />} color="oklch(0.7 0.15 75)" />
+          <TaskStat label="Overdue" value={data.taskSummary.overdue} icon={<AlertCircle className="h-4 w-4" />} color="oklch(0.55 0.22 25)" />
+        </div>
+        {data.taskSummary.recent.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {data.taskSummary.recent.slice(0, 4).map((t) => {
+              const isOverdue = t.dueAt && new Date(t.dueAt) < new Date() && t.status !== "done";
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setView("tasks")}
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-border/40 bg-muted/20 p-2 text-left transition hover:bg-muted/40"
+                >
+                  <span className={cn("grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white",
+                    t.status === "done" ? "bg-emerald-500" : t.status === "blocked" ? "bg-rose-500" : t.status === "in_progress" ? "bg-amber-500" : "bg-muted-foreground")}>
+                    {t.status === "done" ? <Check className="h-2.5 w-2.5" /> : t.status === "blocked" ? <AlertCircle className="h-2.5 w-2.5" /> : <Clock className="h-2.5 w-2.5" />}
+                  </span>
+                  <span className={cn("min-w-0 flex-1 truncate text-xs font-medium", t.status === "done" && "line-through opacity-60")}>{t.title}</span>
+                  {isOverdue && <span className="text-[9px] font-bold text-rose-500">Overdue</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </GlassCard>
 
       {/* === 6. RECENT POSTS + FAILED POSTS (side-by-side) === */}
@@ -963,6 +1011,19 @@ function TodayActivityCard({
           }}
         />
       </div>
+    </div>
+  );
+}
+
+// ============ Task stat mini-card (dashboard) ============
+function TaskStat({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
+  return (
+    <div className="crystal-in rounded-xl border border-border/30 bg-muted/10 p-3">
+      <div className="flex items-center gap-2" style={{ color }}>
+        {icon}
+        <span className="text-[10px] font-semibold uppercase tracking-wide">{label}</span>
+      </div>
+      <div className="num-display mt-1 text-xl font-bold">{value}</div>
     </div>
   );
 }

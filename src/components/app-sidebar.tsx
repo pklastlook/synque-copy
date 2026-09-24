@@ -35,6 +35,7 @@ import {
   Landmark,
   DollarSign,
   MessageCircle,
+  ListTodo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
@@ -51,6 +52,7 @@ const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; 
   { id: "inbox", label: "Inbox", icon: Inbox, group: "Overview", accent: "oklch(0.66 0.18 200)" },
   { id: "whatsapp", label: "WhatsApp", icon: MessageCircle, group: "Overview", accent: "oklch(0.78 0.18 145)" },
   { id: "chat", label: "Team Chat", icon: MessageCircle, group: "Overview", accent: "oklch(0.66 0.22 305)" },
+  { id: "tasks", label: "Tasks", icon: ListTodo, group: "Overview", accent: "oklch(0.7 0.18 165)" },
   { id: "team-performance", label: "Performance", icon: BarChart3, group: "Overview", accent: "oklch(0.55 0.2 255)" },
   { id: "campaigns", label: "Campaigns", icon: Megaphone, group: "Content", accent: "oklch(0.7 0.2 25)" },
   { id: "hashtags", label: "Hashtags", icon: Hash, group: "Content", accent: "oklch(0.66 0.18 200)" },
