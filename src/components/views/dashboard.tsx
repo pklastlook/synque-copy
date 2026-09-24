@@ -42,6 +42,14 @@ interface DashboardData {
     accounts: number;
     variantsPublished: number;
     totalEngagement: number;
+    today: {
+      posts: number;
+      comments: number;
+      published: number;
+      activeAccounts: number;
+      activeMembers: number;
+      targets: { posts: number; comments: number; published: number };
+    };
   };
   pipeline: { draft: number; scheduled: number; published: number; failed: number };
   pipelineTotal: number;
@@ -243,47 +251,43 @@ export function DashboardView() {
         </div>
       </GlassCard>
 
-      {/* === 2. KPI GRID — 4 essential metrics === */}
+      {/* === 2. TODAY'S ACTIVITY — what the team is sharing right now === */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Total Followers"
-          value={k.totalFollowers.value}
-          delta={k.totalFollowers.delta}
-          icon={<Users className="h-5 w-5" />}
-          accent="oklch(0.55 0.2 255)"
-          hint={`across ${k.accounts} accounts`}
-          delay={50}
-          series={data.series.map((s) => s.followers)}
-        />
-        <KpiCard
-          label="Posts Created"
-          value={k.postsCreated.value}
-          delta={k.postsCreated.delta}
+        <TodayActivityCard
+          label="Posts Today"
           icon={<FileText className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          hint={`${k.drafts} drafts · ${k.scheduled} scheduled`}
+          color="oklch(0.62 0.22 255)"
+          current={k.today.posts}
+          target={k.today.targets.posts}
+          hint={`${k.today.activeMembers} member${k.today.activeMembers !== 1 ? "s" : ""} active`}
+          delay={50}
+        />
+        <TodayActivityCard
+          label="Published Today"
+          icon={<Send className="h-5 w-5" />}
+          color="oklch(0.74 0.18 165)"
+          current={k.today.published}
+          target={k.today.targets.published}
+          hint={`${k.today.activeAccounts} account${k.today.activeAccounts !== 1 ? "s" : ""} live`}
           delay={120}
-          series={data.series.map((s) => s.postsCreated)}
         />
-        <KpiCard
-          label="Comments"
-          value={k.comments.value}
-          delta={k.comments.delta}
+        <TodayActivityCard
+          label="Comments Today"
           icon={<MessageCircle className="h-5 w-5" />}
-          accent="oklch(0.7 0.2 25)"
-          hint={`${k.replyRate.display} reply rate`}
+          color="oklch(0.7 0.2 25)"
+          current={k.today.comments}
+          target={k.today.targets.comments}
+          hint={`${k.pendingInbox} unread total`}
           delay={190}
-          series={data.series.map((s) => s.comments)}
         />
-        <KpiCard
-          label="Total Reach"
-          value={k.totalReach.value}
-          delta={k.totalReach.delta}
-          icon={<Eye className="h-5 w-5" />}
-          accent="oklch(0.62 0.22 300)"
-          hint={`${fmt(k.totalEngagement)} engagement`}
+        <TodayActivityCard
+          label="Active Profiles"
+          icon={<Users className="h-5 w-5" />}
+          color="oklch(0.66 0.22 305)"
+          current={k.today.activeAccounts}
+          target={k.accounts}
+          hint={`${k.accounts} connected total`}
           delay={260}
-          series={data.series.map((s) => s.reach)}
         />
       </div>
 
@@ -699,6 +703,74 @@ function PagesRankingTable({
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ Today's Activity Card — big number + progress bar ============
+function TodayActivityCard({
+  label, icon, color, current, target, hint, delay,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  current: number;
+  target: number;
+  hint: string;
+  delay: number;
+}) {
+  const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+  const achieved = current >= target && target > 0;
+
+  return (
+    <div
+      className="crystal-in glass group relative overflow-hidden rounded-2xl p-5 transition hover:lift-hover"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      {/* Top row: icon tile + achievement badge */}
+      <div className="relative flex items-center justify-between gap-2">
+        <div
+          className="grid h-9 w-9 place-items-center rounded-lg"
+          style={{ background: `${color}14` }}
+        >
+          <span style={{ color }}>{icon}</span>
+        </div>
+        {achieved ? (
+          <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold text-emerald-500">
+            <CheckCircle2 className="h-2.5 w-2.5" /> Done
+          </span>
+        ) : pct > 0 ? (
+          <span
+            className="rounded-full px-2 py-0.5 text-[9px] font-bold"
+            style={{ background: `${color}14`, color }}
+          >
+            {pct}%
+          </span>
+        ) : null}
+      </div>
+
+      {/* Big number */}
+      <div className="mt-3 flex items-end gap-2">
+        <span className="num-display text-[40px] font-bold leading-none">{current}</span>
+        <span className="mb-1 text-[10px] text-muted-foreground">/ {target}</span>
+      </div>
+
+      {/* Label */}
+      <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+
+      {/* Hint */}
+      <div className="mt-0.5 text-[10px] text-muted-foreground/80">{hint}</div>
+
+      {/* Progress bar */}
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+        <div
+          className="h-full rounded-full transition-all duration-700 ease-out"
+          style={{
+            width: `${Math.max(pct, 2)}%`,
+            background: achieved ? "oklch(0.74 0.18 165)" : color,
+          }}
+        />
       </div>
     </div>
   );
