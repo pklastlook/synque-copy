@@ -67,8 +67,15 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; ic
 export function WhatsAppView() {
   const { data, loading, reload } = useApi<WhatsAppMessage[]>("/api/whatsapp");
   const { openComposer } = useNav();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const ownerId = user?.id ?? "";
+
+  // Helper: build auth headers (Bearer token from auth store)
+  const authHeaders = React.useMemo(() => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  }, [token]);
 
   const [showPasteForm, setShowPasteForm] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
@@ -87,13 +94,14 @@ export function WhatsAppView() {
 
     async function poll() {
       try {
-        const token = typeof window !== "undefined"
-          ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
-          : null;
-        const res = await fetch(`/api/whatsapp/connection?ownerId=${ownerId}`, {
-          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        const res = await fetch(`/api/whatsapp/connection`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        const json = await res.json();
+        if (!res.ok) {
+          if (!cancelled) setConnection({ connected: false, qr: null, phone: null, serviceOffline: true });
+          return;
+        }
+        const json: ConnectionStatus = await res.json();
         if (!cancelled) {
           setConnection(json);
           // Auto-close QR modal when connected
@@ -111,13 +119,16 @@ export function WhatsAppView() {
     }
 
     poll();
-    // Poll every 2s while modal open OR not connected
-    const interval = setInterval(poll, showQR || !connection?.connected ? 2000 : 10000);
+    // Poll every 2s while modal open OR not connected, else every 10s
+    const interval = setInterval(
+      poll,
+      showQR || !connection?.connected ? 2000 : 10000
+    );
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [ownerId, showQR, connection?.connected]);
+  }, [ownerId, showQR, connection?.connected, token, reload]);
 
   async function handleStartConnection() {
     if (!ownerId) {
@@ -126,14 +137,10 @@ export function WhatsAppView() {
     }
     setConnecting(true);
     try {
-      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
       const res = await fetch("/api/whatsapp/connection", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ action: "start", ownerId }),
+        headers: authHeaders,
+        body: JSON.stringify({ action: "start" }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -157,14 +164,10 @@ export function WhatsAppView() {
   async function handleLogout() {
     if (!ownerId) return;
     try {
-      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
       await fetch("/api/whatsapp/connection", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ action: "logout", ownerId }),
+        headers: authHeaders,
+        body: JSON.stringify({ action: "logout" }),
       });
       toast.success("WhatsApp disconnected");
       setConnection({ connected: false, qr: null, phone: null });
@@ -219,7 +222,7 @@ export function WhatsAppView() {
     // Mark as used
     fetch(`/api/whatsapp/${msg.id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders,
       body: JSON.stringify({ status: "used" }),
     }).then(() => reload());
     toast.success("Sent to Composer", {
@@ -230,7 +233,7 @@ export function WhatsAppView() {
   async function handleArchive(msg: WhatsAppMessage) {
     await fetch(`/api/whatsapp/${msg.id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders,
       body: JSON.stringify({ status: "archived" }),
     });
     reload();
@@ -238,7 +241,10 @@ export function WhatsAppView() {
   }
 
   async function handleDelete(msg: WhatsAppMessage) {
-    await fetch(`/api/whatsapp/${msg.id}`, { method: "DELETE" });
+    await fetch(`/api/whatsapp/${msg.id}`, {
+      method: "DELETE",
+      headers: authHeaders,
+    });
     reload();
     toast.success("Deleted");
   }
@@ -333,6 +339,7 @@ export function WhatsAppView() {
         {showPasteForm && (
           <PasteForm
             userId={user?.id ?? null}
+            authHeaders={authHeaders}
             onSaved={() => {
               setShowPasteForm(false);
               reload();
@@ -431,7 +438,15 @@ export function WhatsAppView() {
 }
 
 // ============ Paste Form ============
-function PasteForm({ userId, onSaved }: { userId: string | null; onSaved: () => void }) {
+function PasteForm({
+  userId,
+  authHeaders,
+  onSaved,
+}: {
+  userId: string | null;
+  authHeaders: Record<string, string>;
+  onSaved: () => void;
+}) {
   const [source, setSource] = React.useState("group");
   const [senderName, setSenderName] = React.useState("");
   const [groupName, setGroupName] = React.useState("");
@@ -452,7 +467,7 @@ function PasteForm({ userId, onSaved }: { userId: string | null; onSaved: () => 
     try {
       const res = await fetch("/api/whatsapp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({
           source,
           senderName: senderName.trim(),
@@ -470,7 +485,8 @@ function PasteForm({ userId, onSaved }: { userId: string | null; onSaved: () => 
         setMediaUrl("");
         onSaved();
       } else {
-        toast.error("Failed to save");
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error ?? "Failed to save");
       }
     } catch {
       toast.error("Network error");

@@ -1,0 +1,921 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import * as React from "react";
+     4→     4→import {
+     5→     5→  MessageCircle, Send, Trash2, Archive, Check, Inbox as InboxIcon,
+     6→     6→  Users, Clock, Plus, Search, Filter, Copy, CheckCheck,
+     7→     7→  Phone, MessageSquare, Radio, Sparkles, ChevronRight, X, Wifi, WifiOff,
+     8→     8→  QrCode, Loader2, Smartphone, RefreshCw,
+     9→     9→  type LucideIcon,
+    10→    10→} from "lucide-react";
+    11→    11→import { useApi, fmt, timeAgo } from "@/lib/hooks";
+    12→    12→import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+    13→    13→import { NameAvatar } from "@/components/glass/name-avatar";
+    14→    14→import { HelpText } from "@/components/glass/help-text";
+    15→    15→import { useNav } from "@/lib/store";
+    16→    16→import { useAuth } from "@/lib/auth-store";
+    17→    17→import { cn } from "@/lib/utils";
+    18→    18→import { toast } from "sonner";
+    19→    19→import {
+    20→    20→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose,
+    21→    21→} from "@/components/ui/dialog";
+    22→    22→
+    23→    23→// ============ Types ============
+    24→    24→
+    25→    25→interface WhatsAppMessage {
+    26→    26→  id: string;
+    27→    27→  source: string;
+    28→    28→  senderName: string;
+    29→    29→  senderPhone: string | null;
+    30→    30→  groupName: string | null;
+    31→    31→  content: string;
+    32→    32→  mediaUrl: string | null;
+    33→    33→  mediaType: string | null;
+    34→    34→  status: string;
+    35→    35→  postId: string | null;
+    36→    36→  savedByName: string | null;
+    37→    37→  savedByColor: string | null;
+    38→    38→  isLive: boolean;
+    39→    39→  createdAt: string;
+    40→    40→}
+    41→    41→
+    42→    42→interface ConnectionStatus {
+    43→    43→  connected: boolean;
+    44→    44→  qr: string | null;
+    45→    45→  phone: string | null;
+    46→    46→  serviceOffline?: boolean;
+    47→    47→  dbStatus?: string;
+    48→    48→}
+    49→    49→
+    50→    50→type StatusFilter = "all" | "new" | "used" | "archived";
+    51→    51→
+    52→    52→const SOURCE_META: Record<string, { label: string; icon: LucideIcon; color: string; bg: string }> = {
+    53→    53→  group: { label: "Group", icon: Users, color: "text-blue-500", bg: "bg-blue-500/15" },
+    54→    54→  chat: { label: "Chat", icon: MessageSquare, color: "text-emerald-500", bg: "bg-emerald-500/15" },
+    55→    55→  broadcast: { label: "Broadcast", icon: Radio, color: "text-amber-500", bg: "bg-amber-500/15" },
+    56→    56→  channel: { label: "Channel", icon: MessageCircle, color: "text-purple-500", bg: "bg-purple-500/15" },
+    57→    57→};
+    58→    58→
+    59→    59→const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: LucideIcon }> = {
+    60→    60→  new: { label: "New", color: "text-emerald-500", bg: "bg-emerald-500/15", icon: InboxIcon },
+    61→    61→  used: { label: "Used", color: "text-blue-500", bg: "bg-blue-500/15", icon: CheckCheck },
+    62→    62→  archived: { label: "Archived", color: "text-muted-foreground", bg: "bg-muted", icon: Archive },
+    63→    63→};
+    64→    64→
+    65→    65→// ============ Main view ============
+    66→    66→
+    67→    67→export function WhatsAppView() {
+    68→    68→  const { data, loading, reload } = useApi<WhatsAppMessage[]>("/api/whatsapp");
+    69→    69→  const { openComposer } = useNav();
+    70→    70→  const { user } = useAuth();
+    71→    71→  const ownerId = user?.id ?? "";
+    72→    72→
+    73→    73→  const [showPasteForm, setShowPasteForm] = React.useState(false);
+    74→    74→  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
+    75→    75→  const [search, setSearch] = React.useState("");
+    76→    76→  const [copiedId, setCopiedId] = React.useState<string | null>(null);
+    77→    77→
+    78→    78→  // === WhatsApp live connection state ===
+    79→    79→  const [connection, setConnection] = React.useState<ConnectionStatus | null>(null);
+    80→    80→  const [showQR, setShowQR] = React.useState(false);
+    81→    81→  const [connecting, setConnecting] = React.useState(false);
+    82→    82→
+    83→    83→  // Poll connection status every 2s when modal is open OR when not connected
+    84→    84→  React.useEffect(() => {
+    85→    85→    if (!ownerId) return;
+    86→    86→    let cancelled = false;
+    87→    87→
+    88→    88→    async function poll() {
+    89→    89→      try {
+    90→    90→        const token = typeof window !== "undefined"
+    91→    91→          ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
+    92→    92→          : null;
+    93→    93→        const res = await fetch(`/api/whatsapp/connection?ownerId=${ownerId}`, {
+    94→    94→          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    95→    95→        });
+    96→    96→        const json = await res.json();
+    97→    97→        if (!cancelled) {
+    98→    98→          setConnection(json);
+    99→    99→          // Auto-close QR modal when connected
+   100→   100→          if (json.connected && showQR) {
+   101→   101→            setShowQR(false);
+   102→   102→            toast.success("WhatsApp connected!", {
+   103→   103→              description: `Now receiving live messages from ${json.phone ?? "your phone"}.`,
+   104→   104→            });
+   105→   105→            reload();
+   106→   106→          }
+   107→   107→        }
+   108→   108→      } catch {
+   109→   109→        if (!cancelled) setConnection({ connected: false, qr: null, phone: null, serviceOffline: true });
+   110→   110→      }
+   111→   111→    }
+   112→   112→
+   113→   113→    poll();
+   114→   114→    // Poll every 2s while modal open OR not connected
+   115→   115→    const interval = setInterval(poll, showQR || !connection?.connected ? 2000 : 10000);
+   116→   116→    return () => {
+   117→   117→      cancelled = true;
+   118→   118→      clearInterval(interval);
+   119→   119→    };
+   120→   120→  }, [ownerId, showQR, connection?.connected]);
+   121→   121→
+   122→   122→  async function handleStartConnection() {
+   123→   123→    if (!ownerId) {
+   124→   124→      toast.error("Sign in to connect WhatsApp");
+   125→   125→      return;
+   126→   126→    }
+   127→   127→    setConnecting(true);
+   128→   128→    try {
+   129→   129→      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+   130→   130→      const res = await fetch("/api/whatsapp/connection", {
+   131→   131→        method: "POST",
+   132→   132→        headers: {
+   133→   133→          "Content-Type": "application/json",
+   134→   134→          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+   135→   135→        },
+   136→   136→        body: JSON.stringify({ action: "start", ownerId }),
+   137→   137→      });
+   138→   138→      const json = await res.json();
+   139→   139→      if (!res.ok) {
+   140→   140→        toast.error("WhatsApp service unavailable", {
+   141→   141→          description: json.error ?? "Ask the admin to start the WhatsApp mini-service.",
+   142→   142→          duration: 8000,
+   143→   143→        });
+   144→   144→      } else {
+   145→   145→        setShowQR(true);
+   146→   146→        toast.info("Generating QR code...", {
+   147→   147→          description: "Open WhatsApp on your phone → Settings → Linked Devices → Link a Device → scan the QR.",
+   148→   148→        });
+   149→   149→      }
+   150→   150→    } catch {
+   151→   151→      toast.error("Network error");
+   152→   152→    } finally {
+   153→   153→      setConnecting(false);
+   154→   154→    }
+   155→   155→  }
+   156→   156→
+   157→   157→  async function handleLogout() {
+   158→   158→    if (!ownerId) return;
+   159→   159→    try {
+   160→   160→      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+   161→   161→      await fetch("/api/whatsapp/connection", {
+   162→   162→        method: "POST",
+   163→   163→        headers: {
+   164→   164→          "Content-Type": "application/json",
+   165→   165→          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+   166→   166→        },
+   167→   167→        body: JSON.stringify({ action: "logout", ownerId }),
+   168→   168→      });
+   169→   169→      toast.success("WhatsApp disconnected");
+   170→   170→      setConnection({ connected: false, qr: null, phone: null });
+   171→   171→      reload();
+   172→   172→    } catch {
+   173→   173→      toast.error("Failed to disconnect");
+   174→   174→    }
+   175→   175→  }
+   176→   176→
+   177→   177→  const allMessages = data ?? [];
+   178→   178→
+   179→   179→  const filtered = React.useMemo(() => {
+   180→   180→    let list = allMessages;
+   181→   181→    if (statusFilter !== "all") {
+   182→   182→      list = list.filter((m) => m.status === statusFilter);
+   183→   183→    }
+   184→   184→    if (search.trim()) {
+   185→   185→      const q = search.toLowerCase();
+   186→   186→      list = list.filter(
+   187→   187→        (m) =>
+   188→   188→          m.content.toLowerCase().includes(q) ||
+   189→   189→          m.senderName.toLowerCase().includes(q) ||
+   190→   190→          (m.groupName ?? "").toLowerCase().includes(q)
+   191→   191→      );
+   192→   192→    }
+   193→   193→    return list;
+   194→   194→  }, [allMessages, statusFilter, search]);
+   195→   195→
+   196→   196→  const stats = React.useMemo(() => {
+   197→   197→    return {
+   198→   198→      total: allMessages.length,
+   199→   199→      new: allMessages.filter((m) => m.status === "new").length,
+   200→   200→      used: allMessages.filter((m) => m.status === "used").length,
+   201→   201→      archived: allMessages.filter((m) => m.status === "archived").length,
+   202→   202→    };
+   203→   203→  }, [allMessages]);
+   204→   204→
+   205→   205→  async function handleCopy(msg: WhatsAppMessage) {
+   206→   206→    try {
+   207→   207→      await navigator.clipboard.writeText(msg.content);
+   208→   208→      setCopiedId(msg.id);
+   209→   209→      setTimeout(() => setCopiedId(null), 2000);
+   210→   210→      toast.success("Copied to clipboard");
+   211→   211→    } catch {
+   212→   212→      toast.error("Failed to copy");
+   213→   213→    }
+   214→   214→  }
+   215→   215→
+   216→   216→  function handleSendToComposer(msg: WhatsAppMessage) {
+   217→   217→    // Pre-fill the composer with the WhatsApp message content
+   218→   218→    openComposer(msg.content);
+   219→   219→    // Mark as used
+   220→   220→    fetch(`/api/whatsapp/${msg.id}`, {
+   221→   221→      method: "PATCH",
+   222→   222→      headers: { "Content-Type": "application/json" },
+   223→   223→      body: JSON.stringify({ status: "used" }),
+   224→   224→    }).then(() => reload());
+   225→   225→    toast.success("Sent to Composer", {
+   226→   226→      description: "The message is now in your composer — generate AI variants & publish.",
+   227→   227→    });
+   228→   228→  }
+   229→   229→
+   230→   230→  async function handleArchive(msg: WhatsAppMessage) {
+   231→   231→    await fetch(`/api/whatsapp/${msg.id}`, {
+   232→   232→      method: "PATCH",
+   233→   233→      headers: { "Content-Type": "application/json" },
+   234→   234→      body: JSON.stringify({ status: "archived" }),
+   235→   235→    });
+   236→   236→    reload();
+   237→   237→    toast.success("Archived");
+   238→   238→  }
+   239→   239→
+   240→   240→  async function handleDelete(msg: WhatsAppMessage) {
+   241→   241→    await fetch(`/api/whatsapp/${msg.id}`, { method: "DELETE" });
+   242→   242→    reload();
+   243→   243→    toast.success("Deleted");
+   244→   244→  }
+   245→   245→
+   246→   246→  if (loading) return <WhatsAppSkeleton />;
+   247→   247→
+   248→   248→  return (
+   249→   249→    <div className="space-y-5">
+   250→   250→      <HelpText module="whatsapp">
+   251→   251→        <strong className="text-foreground">WhatsApp Inbox</strong> — connect your WhatsApp (scan QR, just like WhatsApp Web)
+   252→   252→        to auto-receive messages from groups & chats. Or paste manually. Then send any message to the AI Composer.
+   253→   253→      </HelpText>
+   254→   254→
+   255→   255→      {/* === CONNECTION BANNER (NEW) — live WhatsApp connection === */}
+   256→   256→      <ConnectionBanner
+   257→   257→        connection={connection}
+   258→   258→        connecting={connecting}
+   259→   259→        onConnect={handleStartConnection}
+   260→   260→        onDisconnect={handleLogout}
+   261→   261→        onShowQR={() => setShowQR(true)}
+   262→   262→      />
+   263→   263→
+   264→   264→      {/* === QR MODAL === */}
+   265→   265→      <Dialog open={showQR} onOpenChange={setShowQR}>
+   266→   266→        <DialogContent className="max-w-md">
+   267→   267→          <DialogHeader>
+   268→   268→            <DialogTitle className="flex items-center gap-2">
+   269→   269→              <QrCode className="h-5 w-5 text-primary" />
+   270→   270→              Scan WhatsApp QR
+   271→   271→            </DialogTitle>
+   272→   272→            <DialogClose asChild>
+   273→   273→              <button className="absolute right-4 top-4 rounded-lg p-1 text-muted-foreground transition hover:bg-muted">
+   274→   274→                <X className="h-4 w-4" />
+   275→   275→              </button>
+   276→   276→            </DialogClose>
+   277→   277→          </DialogHeader>
+   278→   278→          <QRCodeDisplay connection={connection} />
+   279→   279→        </DialogContent>
+   280→   280→      </Dialog>
+   281→   281→
+   282→   282→      {/* === KPI strip === */}
+   283→   283→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   284→   284→        <KpiCard
+   285→   285→          label="Total Messages"
+   286→   286→          value={stats.total}
+   287→   287→          icon={<MessageCircle className="h-5 w-5" />}
+   288→   288→          accent="oklch(0.78 0.18 145)"
+   289→   289→          hint="pasted from WhatsApp"
+   290→   290→          delay={50}
+   291→   291→        />
+   292→   292→        <KpiCard
+   293→   293→          label="New"
+   294→   294→          value={stats.new}
+   295→   295→          icon={<InboxIcon className="h-5 w-5" />}
+   296→   296→          accent="oklch(0.74 0.18 165)"
+   297→   297→          hint="waiting to be published"
+   298→   298→          delay={120}
+   299→   299→        />
+   300→   300→        <KpiCard
+   301→   301→          label="Used"
+   302→   302→          value={stats.used}
+   303→   303→          icon={<CheckCheck className="h-5 w-5" />}
+   304→   304→          accent="oklch(0.62 0.22 255)"
+   305→   305→          hint="sent to composer"
+   306→   306→          delay={190}
+   307→   307→        />
+   308→   308→        <KpiCard
+   309→   309→          label="Archived"
+   310→   310→          value={stats.archived}
+   311→   311→          icon={<Archive className="h-5 w-5" />}
+   312→   312→          accent="oklch(0.66 0.22 305)"
+   313→   313→          hint="no longer needed"
+   314→   314→          delay={260}
+   315→   315→        />
+   316→   316→      </div>
+   317→   317→
+   318→   318→      {/* === Paste form === */}
+   319→   319→      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.30s" }}>
+   320→   320→        <SectionTitle
+   321→   321→          title="Paste from WhatsApp"
+   322→   322→          desc="Copy a message from WhatsApp, then paste it here to publish on social media"
+   323→   323→          action={
+   324→   324→            <button
+   325→   325→              onClick={() => setShowPasteForm(!showPasteForm)}
+   326→   326→              className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold"
+   327→   327→            >
+   328→   328→              {showPasteForm ? <Archive className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+   329→   329→              {showPasteForm ? "Close" : "Paste message"}
+   330→   330→            </button>
+   331→   331→          }
+   332→   332→        />
+   333→   333→        {showPasteForm && (
+   334→   334→          <PasteForm
+   335→   335→            userId={user?.id ?? null}
+   336→   336→            onSaved={() => {
+   337→   337→              setShowPasteForm(false);
+   338→   338→              reload();
+   339→   339→            }}
+   340→   340→          />
+   341→   341→        )}
+   342→   342→      </GlassCard>
+   343→   343→
+   344→   344→      {/* === Messages list === */}
+   345→   345→      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.38s" }}>
+   346→   346→        <SectionTitle
+   347→   347→          title="Saved messages"
+   348→   348→          desc={`${filtered.length} of ${stats.total} messages`}
+   349→   349→          action={
+   350→   350→            <div className="flex items-center gap-1.5">
+   351→   351→              {/* Search */}
+   352→   352→              <div className="relative">
+   353→   353→                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+   354→   354→                <input
+   355→   355→                  type="text"
+   356→   356→                  placeholder="Search..."
+   357→   357→                  value={search}
+   358→   358→                  onChange={(e) => setSearch(e.target.value)}
+   359→   359→                  className="w-32 rounded-lg border border-border/50 bg-background/60 py-1.5 pl-7 pr-2 text-xs outline-none transition focus:border-primary/50 sm:w-48"
+   360→   360→                />
+   361→   361→              </div>
+   362→   362→            </div>
+   363→   363→          }
+   364→   364→        />
+   365→   365→
+   366→   366→        {/* Status filter pills */}
+   367→   367→        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+   368→   368→          {(["all", "new", "used", "archived"] as StatusFilter[]).map((f) => (
+   369→   369→            <button
+   370→   370→              key={f}
+   371→   371→              onClick={() => setStatusFilter(f)}
+   372→   372→              className={cn(
+   373→   373→                "rounded-full px-3 py-1.5 text-xs font-medium transition",
+   374→   374→                statusFilter === f
+   375→   375→                  ? "bg-primary text-primary-foreground shadow-sm"
+   376→   376→                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+   377→   377→              )}
+   378→   378→            >
+   379→   379→              {f === "all" ? "All" : STATUS_META[f]?.label ?? f}
+   380→   380→              {f !== "all" && stats[f] > 0 && (
+   381→   381→                <span className="ml-1.5 text-[10px] opacity-70">({stats[f]})</span>
+   382→   382→              )}
+   383→   383→            </button>
+   384→   384→          ))}
+   385→   385→        </div>
+   386→   386→
+   387→   387→        {/* Messages */}
+   388→   388→        <div className="scroll-liquid max-h-[600px] space-y-2 overflow-y-auto pr-1">
+   389→   389→          {filtered.length === 0 ? (
+   390→   390→            <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+   391→   391→              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+   392→   392→                <MessageCircle className="h-6 w-6" />
+   393→   393→              </div>
+   394→   394→              <div>
+   395→   395→                <p className="text-sm font-semibold">
+   396→   396→                  {stats.total === 0 ? "No messages yet" : "No messages match your filter"}
+   397→   397→                </p>
+   398→   398→                <p className="mt-0.5 text-[11px] text-muted-foreground">
+   399→   399→                  {stats.total === 0
+   400→   400→                    ? "Paste a message from WhatsApp to get started"
+   401→   401→                    : "Try a different filter or search term"}
+   402→   402→                </p>
+   403→   403→              </div>
+   404→   404→              {stats.total === 0 && (
+   405→   405→                <button
+   406→   406→                  onClick={() => setShowPasteForm(true)}
+   407→   407→                  className="rounded-lg bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
+   408→   408→                >
+   409→   409→                  Paste message
+   410→   410→                </button>
+   411→   411→              )}
+   412→   412→            </div>
+   413→   413→          ) : (
+   414→   414→            filtered.map((msg, i) => (
+   415→   415→              <MessageCard
+   416→   416→                key={msg.id}
+   417→   417→                msg={msg}
+   418→   418→                copied={copiedId === msg.id}
+   419→   419→                onCopy={() => handleCopy(msg)}
+   420→   420→                onSendToComposer={() => handleSendToComposer(msg)}
+   421→   421→                onArchive={() => handleArchive(msg)}
+   422→   422→                onDelete={() => handleDelete(msg)}
+   423→   423→                delay={i * 0.03}
+   424→   424→              />
+   425→   425→            ))
+   426→   426→          )}
+   427→   427→        </div>
+   428→   428→      </GlassCard>
+   429→   429→    </div>
+   430→   430→  );
+   431→   431→}
+   432→   432→
+   433→   433→// ============ Paste Form ============
+   434→   434→function PasteForm({ userId, onSaved }: { userId: string | null; onSaved: () => void }) {
+   435→   435→  const [source, setSource] = React.useState("group");
+   436→   436→  const [senderName, setSenderName] = React.useState("");
+   437→   437→  const [groupName, setGroupName] = React.useState("");
+   438→   438→  const [content, setContent] = React.useState("");
+   439→   439→  const [mediaUrl, setMediaUrl] = React.useState("");
+   440→   440→  const [saving, setSaving] = React.useState(false);
+   441→   441→
+   442→   442→  async function handleSubmit() {
+   443→   443→    if (!content.trim()) {
+   444→   444→      toast.error("Paste some content first");
+   445→   445→      return;
+   446→   446→    }
+   447→   447→    if (!senderName.trim()) {
+   448→   448→      toast.error("Enter the sender's name");
+   449→   449→      return;
+   450→   450→    }
+   451→   451→    setSaving(true);
+   452→   452→    try {
+   453→   453→      const res = await fetch("/api/whatsapp", {
+   454→   454→        method: "POST",
+   455→   455→        headers: { "Content-Type": "application/json" },
+   456→   456→        body: JSON.stringify({
+   457→   457→          source,
+   458→   458→          senderName: senderName.trim(),
+   459→   459→          groupName: groupName.trim() || null,
+   460→   460→          content: content.trim(),
+   461→   461→          mediaUrl: mediaUrl.trim() || null,
+   462→   462→          savedById: userId,
+   463→   463→        }),
+   464→   464→      });
+   465→   465→      if (res.ok) {
+   466→   466→        toast.success("Message saved");
+   467→   467→        setSenderName("");
+   468→   468→        setGroupName("");
+   469→   469→        setContent("");
+   470→   470→        setMediaUrl("");
+   471→   471→        onSaved();
+   472→   472→      } else {
+   473→   473→        toast.error("Failed to save");
+   474→   474→      }
+   475→   475→    } catch {
+   476→   476→      toast.error("Network error");
+   477→   477→    } finally {
+   478→   478→      setSaving(false);
+   479→   479→    }
+   480→   480→  }
+   481→   481→
+   482→   482→  async function handlePasteFromClipboard() {
+   483→   483→    try {
+   484→   484→      const text = await navigator.clipboard.readText();
+   485→   485→      if (text) {
+   486→   486→        setContent(text);
+   487→   487→        toast.success("Pasted from clipboard");
+   488→   488→      } else {
+   489→   489→        toast.info("Clipboard is empty");
+   490→   490→      }
+   491→   491→    } catch {
+   492→   492→      toast.error("Couldn't access clipboard — paste manually with Ctrl+V");
+   493→   493→    }
+   494→   494→  }
+   495→   495→
+   496→   496→  return (
+   497→   497→    <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-4">
+   498→   498→      {/* Source + sender */}
+   499→   499→      <div className="grid gap-3 sm:grid-cols-2">
+   500→   500→        <div>
+   501→   501→          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+   502→   502→            Source type
+   503→   503→          </label>
+   504→   504→          <div className="flex flex-wrap gap-1.5">
+   505→   505→            {Object.entries(SOURCE_META).map(([key, meta]) => (
+   506→   506→              <button
+   507→   507→                key={key}
+   508→   508→                onClick={() => setSource(key)}
+   509→   509→                className={cn(
+   510→   510→                  "flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition",
+   511→   511→                  source === key ? cn(meta.bg, meta.color) : "bg-muted/60 text-muted-foreground hover:bg-muted"
+   512→   512→                )}
+   513→   513→              >
+   514→   514→                <meta.icon className="h-3 w-3" />
+   515→   515→                {meta.label}
+   516→   516→              </button>
+   517→   517→            ))}
+   518→   518→          </div>
+   519→   519→        </div>
+   520→   520→        <div>
+   521→   521→          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+   522→   522→            Sender name *
+   523→   523→          </label>
+   524→   524→          <input
+   525→   525→            type="text"
+   526→   526→            value={senderName}
+   527→   527→            onChange={(e) => setSenderName(e.target.value)}
+   528→   528→            placeholder="e.g. Sarah Khan"
+   529→   529→            className="w-full rounded-lg border border-border/50 bg-background/60 px-3 py-1.5 text-sm outline-none transition focus:border-primary/50"
+   530→   530→          />
+   531→   531→        </div>
+   532→   532→      </div>
+   533→   533→
+   534→   534→      {/* Group name */}
+   535→   535→      <div>
+   536→   536→        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+   537→   537→          {source === "group" ? "Group name" : source === "channel" ? "Channel name" : "Chat name (optional)"}
+   538→   538→        </label>
+   539→   539→        <input
+   540→   540→          type="text"
+   541→   541→          value={groupName}
+   542→   542→          onChange={(e) => setGroupName(e.target.value)}
+   543→   543→          placeholder={source === "group" ? "e.g. Marketing Team" : source === "channel" ? "e.g. Company Updates" : "e.g. John Doe"}
+   544→   544→          className="w-full rounded-lg border border-border/50 bg-background/60 px-3 py-1.5 text-sm outline-none transition focus:border-primary/50"
+   545→   545→        />
+   546→   546→      </div>
+   547→   547→
+   548→   548→      {/* Content */}
+   549→   549→      <div>
+   550→   550→        <div className="mb-1 flex items-center justify-between">
+   551→   551→          <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+   552→   552→            Message content *
+   553→   553→          </label>
+   554→   554→          <button
+   555→   555→            onClick={handlePasteFromClipboard}
+   556→   556→            className="flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline"
+   557→   557→          >
+   558→   558→            <Copy className="h-3 w-3" /> Paste from clipboard
+   559→   559→          </button>
+   560→   560→        </div>
+   561→   561→        <textarea
+   562→   562→          value={content}
+   563→   563→          onChange={(e) => setContent(e.target.value)}
+   564→   564→          placeholder="Paste the WhatsApp message here... (Ctrl+V or click 'Paste from clipboard' above)"
+   565→   565→          rows={5}
+   566→   566→          className="w-full resize-y rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-sm outline-none transition focus:border-primary/50"
+   567→   567→        />
+   568→   568→        {content && (
+   569→   569→          <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+   570→   570→            <span>{content.length} characters</span>
+   571→   571→            {content.length > 280 && (
+   572→   572→              <span className="text-amber-500">
+   573→   573→                {Math.ceil(content.length / 280)} tweets worth of content
+   574→   574→              </span>
+   575→   575→            )}
+   576→   576→          </div>
+   577→   577→        )}
+   578→   578→      </div>
+   579→   579→
+   580→   580→      {/* Media URL (optional) */}
+   581→   581→      <div>
+   582→   582→        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+   583→   583→          Media URL (optional)
+   584→   584→        </label>
+   585→   585→        <input
+   586→   586→          type="url"
+   587→   587→          value={mediaUrl}
+   588→   588→          onChange={(e) => setMediaUrl(e.target.value)}
+   589→   589→          placeholder="https://example.com/image.jpg"
+   590→   590→          className="w-full rounded-lg border border-border/50 bg-background/60 px-3 py-1.5 text-sm outline-none transition focus:border-primary/50"
+   591→   591→        />
+   592→   592→      </div>
+   593→   593→
+   594→   594→      {/* Actions */}
+   595→   595→      <div className="flex items-center justify-end gap-2">
+   596→   596→        <button
+   597→   597→          onClick={() => {
+   598→   598→            setSenderName("");
+   599→   599→            setGroupName("");
+   600→   600→            setContent("");
+   601→   601→            setMediaUrl("");
+   602→   602→          }}
+   603→   603→          className="rounded-lg border border-border/50 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted"
+   604→   604→        >
+   605→   605→          Clear
+   606→   606→        </button>
+   607→   607→        <button
+   608→   608→          onClick={handleSubmit}
+   609→   609→          disabled={saving || !content.trim() || !senderName.trim()}
+   610→   610→          className="liquid-pill flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold disabled:opacity-50"
+   611→   611→        >
+   612→   612→          {saving ? <Clock className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+   613→   613→          {saving ? "Saving..." : "Save message"}
+   614→   614→        </button>
+   615→   615→      </div>
+   616→   616→    </div>
+   617→   617→  );
+   618→   618→}
+   619→   619→
+   620→   620→// ============ Message Card ============
+   621→   621→function MessageCard({
+   622→   622→  msg,
+   623→   623→  copied,
+   624→   624→  onCopy,
+   625→   625→  onSendToComposer,
+   626→   626→  onArchive,
+   627→   627→  onDelete,
+   628→   628→  delay,
+   629→   629→}: {
+   630→   630→  msg: WhatsAppMessage;
+   631→   631→  copied: boolean;
+   632→   632→  onCopy: () => void;
+   633→   633→  onSendToComposer: () => void;
+   634→   634→  onArchive: () => void;
+   635→   635→  onDelete: () => void;
+   636→   636→  delay: number;
+   637→   637→}) {
+   638→   638→  const [expanded, setExpanded] = React.useState(false);
+   639→   639→  const sourceMeta = SOURCE_META[msg.source] ?? SOURCE_META.group;
+   640→   640→  const statusMeta = STATUS_META[msg.status] ?? STATUS_META.new;
+   641→   641→  const SourceIcon = sourceMeta.icon;
+   642→   642→  const StatusIcon = statusMeta.icon;
+   643→   643→
+   644→   644→  return (
+   645→   645→    <div
+   646→   646→      className="crystal-in glass rounded-2xl border border-border/40 p-3 transition hover:lift-hover"
+   647→   647→      style={{ animationDelay: `${delay}s` }}
+   648→   648→    >
+   649→   649→      {/* Header */}
+   650→   650→      <div className="flex items-center gap-2">
+   651→   651→        <span className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-lg", sourceMeta.bg, sourceMeta.color)}>
+   652→   652→          <SourceIcon className="h-3.5 w-3.5" />
+   653→   653→        </span>
+   654→   654→        <div className="min-w-0 flex-1">
+   655→   655→          <div className="flex items-center gap-1.5">
+   656→   656→            <span className="truncate text-sm font-bold">{msg.senderName}</span>
+   657→   657→            <span className={cn("rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase", statusMeta.bg, statusMeta.color)}>
+   658→   658→              {statusMeta.label}
+   659→   659→            </span>
+   660→   660→            {msg.isLive && (
+   661→   661→              <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-500">
+   662→   662→                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+   663→   663→                Live
+   664→   664→              </span>
+   665→   665→            )}
+   666→   666→          </div>
+   667→   667→          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+   668→   668→            {msg.groupName && <span className="truncate">{msg.groupName}</span>}
+   669→   669→            {msg.groupName && <span>·</span>}
+   670→   670→            <span>{timeAgo(msg.createdAt)}</span>
+   671→   671→            {msg.savedByName && (
+   672→   672→              <>
+   673→   673→                <span>·</span>
+   674→   674→                <span>by {msg.savedByName}</span>
+   675→   675→              </>
+   676→   676→            )}
+   677→   677→          </div>
+   678→   678→        </div>
+   679→   679→        <span className={cn("flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-semibold", sourceMeta.bg, sourceMeta.color)}>
+   680→   680→          <SourceIcon className="h-2.5 w-2.5" />
+   681→   681→          {sourceMeta.label}
+   682→   682→        </span>
+   683→   683→      </div>
+   684→   684→
+   685→   685→      {/* Content */}
+   686→   686→      <button
+   687→   687→        onClick={() => setExpanded(!expanded)}
+   688→   688→        className="mt-2 w-full text-left"
+   689→   689→      >
+   690→   690→        <div className={cn("text-sm text-foreground/90", !expanded && "line-clamp-3")}>
+   691→   691→          {msg.content}
+   692→   692→        </div>
+   693→   693→      </button>
+   694→   694→      {expanded && (
+   695→   695→        <div className="mt-1 text-[10px] text-muted-foreground">
+   696→   696→          {msg.content.length} characters · {msg.content.split("\n").length} lines
+   697→   697→        </div>
+   698→   698→      )}
+   699→   699→
+   700→   700→      {/* Media preview */}
+   701→   701→      {msg.mediaUrl && (
+   702→   702→        <div className="mt-2 overflow-hidden rounded-xl border border-border/40">
+   703→   703→          <img src={msg.mediaUrl} alt="" className="max-h-48 w-full object-cover" />
+   704→   704→        </div>
+   705→   705→      )}
+   706→   706→
+   707→   707→      {/* Actions */}
+   708→   708→      <div className="mt-2 flex items-center gap-1.5">
+   709→   709→        {/* Primary: Send to Composer */}
+   710→   710→        <button
+   711→   711→          onClick={onSendToComposer}
+   712→   712→          className="liquid-pill flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold"
+   713→   713→        >
+   714→   714→          <Sparkles className="h-3.5 w-3.5" />
+   715→   715→          Send to Composer
+   716→   716→          <ChevronRight className="h-3 w-3" />
+   717→   717→        </button>
+   718→   718→
+   719→   719→        {/* Copy */}
+   720→   720→        <button
+   721→   721→          onClick={onCopy}
+   722→   722→          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+   723→   723→          title="Copy content"
+   724→   724→        >
+   725→   725→          {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+   726→   726→        </button>
+   727→   727→
+   728→   728→        {/* Archive */}
+   729→   729→        <button
+   730→   730→          onClick={onArchive}
+   731→   731→          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+   732→   732→          title="Archive"
+   733→   733→        >
+   734→   734→          <Archive className="h-3.5 w-3.5" />
+   735→   735→        </button>
+   736→   736→
+   737→   737→        {/* Delete */}
+   738→   738→        <button
+   739→   739→          onClick={onDelete}
+   740→   740→          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
+   741→   741→          title="Delete"
+   742→   742→        >
+   743→   743→          <Trash2 className="h-3.5 w-3.5" />
+   744→   744→        </button>
+   745→   745→      </div>
+   746→   746→    </div>
+   747→   747→  );
+   748→   748→}
+   749→   749→
+   750→   750→// ============ Connection Banner — live WhatsApp status ============
+   751→   751→function ConnectionBanner({
+   752→   752→  connection,
+   753→   753→  connecting,
+   754→   754→  onConnect,
+   755→   755→  onDisconnect,
+   756→   756→  onShowQR,
+   757→   757→}: {
+   758→   758→  connection: ConnectionStatus | null;
+   759→   759→  connecting: boolean;
+   760→   760→  onConnect: () => void;
+   761→   761→  onDisconnect: () => void;
+   762→   762→  onShowQR: () => void;
+   763→   763→}) {
+   764→   764→  const isOffline = connection?.serviceOffline;
+   765→   765→  const isConnected = connection?.connected;
+   766→   766→  const hasQR = connection?.qr;
+   767→   767→
+   768→   768→  // Service offline — show error state
+   769→   769→  if (isOffline) {
+   770→   770→    return (
+   771→   771→      <GlassCard className="crystal-in border-rose-500/30 p-4" style={{ animationDelay: "0.15s" }}>
+   772→   772→        <div className="flex flex-wrap items-center gap-3">
+   773→   773→          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-500/15 text-rose-500">
+   774→   774→            <WifiOff className="h-5 w-5" />
+   775→   775→          </div>
+   776→   776→          <div className="min-w-0 flex-1">
+   777→   777→            <div className="text-sm font-bold">WhatsApp service is not running</div>
+   778→   778→            <div className="text-[11px] text-muted-foreground">
+   779→   779→              The admin needs to start the WhatsApp mini-service:
+   780→   780→              <code className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px]">cd mini-services/whatsapp-service && bun run dev</code>
+   781→   781→            </div>
+   782→   782→          </div>
+   783→   783→          <button
+   784→   784→            onClick={() => window.location.reload()}
+   785→   785→            className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-1.5 text-xs font-semibold transition hover:bg-muted"
+   786→   786→          >
+   787→   787→            <RefreshCw className="h-3.5 w-3.5" /> Retry
+   788→   788→          </button>
+   789→   789→        </div>
+   790→   790→      </GlassCard>
+   791→   791→    );
+   792→   792→  }
+   793→   793→
+   794→   794→  // Connected — show success state
+   795→   795→  if (isConnected) {
+   796→   796→    return (
+   797→   797→      <GlassCard className="crystal-in border-emerald-500/30 bg-emerald-500/5 p-4" style={{ animationDelay: "0.15s" }}>
+   798→   798→        <div className="flex flex-wrap items-center gap-3">
+   799→   799→          <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-500">
+   800→   800→            <Wifi className="h-5 w-5" />
+   801→   801→            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background">
+   802→   802→              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500 opacity-75" />
+   803→   803→            </span>
+   804→   804→          </div>
+   805→   805→          <div className="min-w-0 flex-1">
+   806→   806→            <div className="flex items-center gap-1.5 text-sm font-bold text-emerald-600 dark:text-emerald-400">
+   807→   807→              WhatsApp Connected
+   808→   808→              <Check className="h-3.5 w-3.5" />
+   809→   809→            </div>
+   810→   810→            <div className="text-[11px] text-muted-foreground">
+   811→   811→              {connection?.phone ? `+${connection.phone}` : "Live"} — auto-receiving messages from groups & chats
+   812→   812→            </div>
+   813→   813→          </div>
+   814→   814→          <button
+   815→   815→            onClick={onDisconnect}
+   816→   816→            className="flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/20 dark:text-rose-400"
+   817→   817→          >
+   818→   818→            <X className="h-3.5 w-3.5" /> Disconnect
+   819→   819→          </button>
+   820→   820→        </div>
+   821→   821→      </GlassCard>
+   822→   822→    );
+   823→   823→  }
+   824→   824→
+   825→   825→  // Disconnected — show connect button
+   826→   826→  return (
+   827→   827→    <GlassCard className="crystal-in border-amber-500/30 bg-amber-500/5 p-4" style={{ animationDelay: "0.15s" }}>
+   828→   828→      <div className="flex flex-wrap items-center gap-3">
+   829→   829→        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-500">
+   830→   830→          <Smartphone className="h-5 w-5" />
+   831→   831→        </div>
+   832→   832→        <div className="min-w-0 flex-1">
+   833→   833→          <div className="text-sm font-bold">Connect your WhatsApp</div>
+   834→   834→          <div className="text-[11px] text-muted-foreground">
+   835→   835→            Scan a QR code with your phone — just like WhatsApp Web. Messages from groups & chats will appear here automatically.
+   836→   836→          </div>
+   837→   837→        </div>
+   838→   838→        <button
+   839→   839→          onClick={onConnect}
+   840→   840→          disabled={connecting}
+   841→   841→          className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-50"
+   842→   842→        >
+   843→   843→          {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
+   844→   844→          {connecting ? "Starting..." : "Scan QR Code"}
+   845→   845→        </button>
+   846→   846→        {hasQR && (
+   847→   847→          <button
+   848→   848→            onClick={onShowQR}
+   849→   849→            className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-2 text-xs font-semibold transition hover:bg-muted"
+   850→   850→          >
+   851→   851→            <QrCode className="h-3.5 w-3.5" /> Show QR
+   852→   852→          </button>
+   853→   853→        )}
+   854→   854→      </div>
+   855→   855→    </GlassCard>
+   856→   856→  );
+   857→   857→}
+   858→   858→
+   859→   859→// ============ QR Code Display — scan to connect ============
+   860→   860→function QRCodeDisplay({ connection }: { connection: ConnectionStatus | null }) {
+   861→   861→  const qr = connection?.qr;
+   862→   862→  const isConnected = connection?.connected;
+   863→   863→
+   864→   864→  if (isConnected) {
+   865→   865→    return (
+   866→   866→      <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+   867→   867→        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-500">
+   868→   868→          <Check className="h-8 w-8" />
+   869→   869→        </div>
+   870→   870→        <div className="text-sm font-bold text-emerald-500">Connected!</div>
+   871→   871→        <div className="text-[11px] text-muted-foreground">You can close this window.</div>
+   872→   872→      </div>
+   873→   873→    );
+   874→   874→  }
+   875→   875→
+   876→   876→  if (!qr) {
+   877→   877→    return (
+   878→   878→      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+   879→   879→        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+   880→   880→        <div className="text-sm font-semibold">Generating QR code...</div>
+   881→   881→        <div className="text-[11px] text-muted-foreground">
+   882→   882→          If this takes more than 10 seconds, the WhatsApp service may be starting up.
+   883→   883→        </div>
+   884→   884→      </div>
+   885→   885→    );
+   886→   886→  }
+   887→   887→
+   888→   888→  return (
+   889→   889→    <div className="flex flex-col items-center gap-4 py-2">
+   890→   890→      <div className="rounded-2xl border-2 border-primary/20 bg-white p-3">
+   891→   891→        <img src={qr} alt="WhatsApp QR Code" className="h-56 w-56" />
+   892→   892→      </div>
+   893→   893→      <div className="max-w-xs space-y-1 text-center">
+   894→   894→        <div className="text-sm font-bold">Scan with your phone</div>
+   895→   895→        <div className="text-[11px] text-muted-foreground">
+   896→   896→          Open WhatsApp → tap the 3-dot menu (Android) or Settings (iOS) →
+   897→   897→          <strong className="text-foreground"> Linked Devices</strong> →{" "}
+   898→   898→          <strong className="text-foreground">Link a Device</strong> → scan this QR code.
+   899→   899→        </div>
+   900→   900→      </div>
+   901→   901→      <div className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2 text-[10px] text-muted-foreground">
+   902→   902→        <Loader2 className="h-3 w-3 animate-spin" />
+   903→   903→        Waiting for scan...
+   904→   904→      </div>
+   905→   905→    </div>
+   906→   906→  );
+   907→   907→}
+   908→   908→
+   909→   909→// ============ Skeleton ============
+   910→   910→function WhatsAppSkeleton() {
+   911→   911→  return (
+   912→   912→    <div className="space-y-5">
+   913→   913→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   914→   914→        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimmer h-32 rounded-3xl" />)}
+   915→   915→      </div>
+   916→   916→      <div className="shimmer h-48 rounded-3xl" />
+   917→   917→      <div className="shimmer h-96 rounded-3xl" />
+   918→   918→    </div>
+   919→   919→  );
+   920→   920→}
+   921→   921→

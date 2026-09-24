@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,9 @@ const WHATSAPP_SERVICE_URL = "http://localhost:3002";
  *   - logout: disconnects the WhatsApp session
  */
 export async function GET(req: NextRequest) {
-  const ownerId = req.nextUrl.searchParams.get("ownerId");
-  if (!ownerId) {
-    return NextResponse.json({ error: "ownerId required" }, { status: 400 });
-  }
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const ownerId = user!.userId;
 
   // Upsert a connection row for this owner
   const conn = await db.whatsAppConnection.upsert({
@@ -75,11 +75,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { action, ownerId } = (await req.json()) as { action: "start" | "logout"; ownerId?: string };
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const ownerId = user!.userId;
 
-  if (!ownerId) {
-    return NextResponse.json({ error: "ownerId required" }, { status: 400 });
-  }
+  const { action } = (await req.json()) as { action: "start" | "logout" };
 
   if (action === "logout") {
     try {
@@ -110,6 +110,14 @@ export async function POST(req: NextRequest) {
         error: "WhatsApp service is not running. Ask the admin to start it (bun run dev in mini-services/whatsapp-service).",
       }, { status: 503 });
     }
+
+    // Force a restart so a fresh QR is generated even if there's a stale session
+    try {
+      await fetch(`${WHATSAPP_SERVICE_URL}/restart`, {
+        method: "POST",
+        signal: AbortSignal.timeout(3000),
+      });
+    } catch {}
 
     await db.whatsAppConnection.upsert({
       where: { ownerId },
