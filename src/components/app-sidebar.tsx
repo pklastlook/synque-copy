@@ -825,7 +825,8 @@ function SettingsGroup({
 
 const OWNER_SUBITEMS = [
   { id: "customers", label: "Customers", icon: Users, accent: "oklch(0.55 0.2 255)" },
-  { id: "clientUsers", label: "Client Users", icon: CircleUserRound, accent: "oklch(0.62 0.22 300)" },
+  { id: "users", label: "Users", icon: CircleUserRound, accent: "oklch(0.62 0.22 300)" },
+  { id: "overview", label: "Overview", icon: Briefcase, accent: "oklch(0.72 0.18 75)" },
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard, accent: "oklch(0.68 0.22 145)" },
   { id: "invoices", label: "Invoices", icon: FileText, accent: "oklch(0.72 0.18 75)" },
   { id: "quotations", label: "Quotations", icon: FileSignature, accent: "oklch(0.7 0.2 25)" },
