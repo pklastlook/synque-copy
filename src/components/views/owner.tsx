@@ -276,9 +276,17 @@ async function api(
   url: string,
   body?: unknown,
 ) {
+  // Read the auth token from localStorage so the Bearer header is sent
+  const token = (() => {
+    try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
+    catch { return null; }
+  })();
   const res = await fetch(url, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = (await res.json().catch(() => ({}))) as {
@@ -3571,43 +3579,24 @@ function ClientUsersTab() {
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(), password: form.password }),
+      // Use the team API (which supports name/email/password/role/gender/etc + auth)
+      await api("POST", "/api/team", {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        role: form.role,
+        title: form.role === "admin" ? "Administrator" : form.role === "manager" ? "Manager" : "Team Member",
+        department: form.company || undefined,
+        gender: form.gender || undefined,
+        birthDate: form.birthDate || undefined,
+        phone: form.phone || undefined,
       });
-      const data = await res.json();
-      if (res.ok && data.token) {
-        // Set role + extra fields
-        await fetch("/api/users", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: data.user.id,
-            role: form.role,
-            title: form.role === "admin" ? "Administrator" : form.role === "manager" ? "Manager" : "Team Member",
-            department: form.company || null,
-            gender: form.gender || null,
-            birthDate: form.birthDate || null,
-            phone: form.phone || null,
-          }),
-        }).catch(() => {});
-        if (form.company.trim()) {
-          await fetch("/api/customers", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(), company: form.company.trim(), plan: "growth" }),
-          }).catch(() => {});
-        }
-        toast.success("User created!", { description: `${form.name} can sign in at /login` });
-        setForm({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "" });
-        setLoginOpen(false);
-        reload();
-      } else {
-        toast.error(data.error || "Failed to create user — email may already exist");
-      }
-    } catch {
-      toast.error("Network error");
+      toast.success("User created!", { description: `${form.name} can sign in at /login` });
+      setForm({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "" });
+      setLoginOpen(false);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to create user — email may already exist");
     } finally {
       setBusy(false);
     }

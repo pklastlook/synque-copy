@@ -53,13 +53,16 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { name, email, role, title, department, password } = body as {
+  const { name, email, role, title, department, password, gender, birthDate, phone } = body as {
     name: string;
     email: string;
     role?: string;
     title?: string;
     department?: string;
     password?: string;
+    gender?: string;
+    birthDate?: string;
+    phone?: string;
   };
 
   if (!name || !email) {
@@ -91,7 +94,10 @@ export async function POST(req: NextRequest) {
       title: title ?? null,
       department: department ?? null,
       status: "active",
-      customerId: finalCustomerId, // tenant-scoped
+      customerId: finalCustomerId,
+      gender: gender ?? null,
+      birthDate: birthDate ? new Date(birthDate) : null,
+      phone: phone ?? null,
     },
   });
 
