@@ -29,23 +29,34 @@ import { TasksView } from "@/components/views/tasks";
 import { AdminPanelView } from "@/components/views/admin-panel";
 import { OwnerView } from "@/components/views/owner";
 import { TeamPerformanceView } from "@/components/views/team-performance";
+import {
+  LayoutDashboard, PenSquare, Inbox, BarChart3, Settings,
+  Users, MoreHorizontal, type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// === Mobile bottom tab bar items ===
+const MOBILE_TABS: { id: string; label: string; icon: LucideIcon }[] = [
+  { id: "dashboard", label: "Home", icon: LayoutDashboard },
+  { id: "inbox", label: "Inbox", icon: Inbox },
+  { id: "composer", label: "Compose", icon: PenSquare },
+  { id: "analytics", label: "Stats", icon: BarChart3 },
+  { id: "settings", label: "More", icon: MoreHorizontal },
+];
 
 export function AppShell() {
   const { view, setView } = useNav();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [showMoreSheet, setShowMoreSheet] = React.useState(false);
   const { isAuthenticated, fetchUser, user } = useAuth();
 
-  // On mount: if we have a token in localStorage, validate it by fetching
-  // the current user. If the token is expired/invalid, fetchUser will clear
-  // the session so the landing/login page shows instead of a broken shell.
   React.useEffect(() => {
     if (isAuthenticated) {
       fetchUser();
     }
   }, []);
 
-  // Role-based access guard — redirect non-managers away from restricted views.
-  // This is a client-side guard; the API also enforces auth on the server side.
+  // Role-based access guard
   React.useEffect(() => {
     if (!user) return;
     const isManager = user.role === "admin" || user.role === "manager";
@@ -59,18 +70,30 @@ export function AppShell() {
     }
   }, [user, view, setView]);
 
+  // Determine if bottom tab bar should show on mobile
+  const showMobileTabs = !["owner", "settings"].includes(view);
+
+  // Map "settings" tab to the More sheet on mobile
+  function handleMobileTab(tabId: string) {
+    if (tabId === "settings") {
+      setShowMoreSheet(true);
+    } else {
+      setView(tabId as any);
+    }
+  }
+
   return (
     <div className="relative flex min-h-screen flex-col">
       <RetinaBg />
       <div className="flex flex-1">
-        {/* Desktop sidebar — FIXED, darker than page content */}
-        <aside className="glass-sidebar fixed top-0 left-0 z-40 hidden h-screen w-[272px] shrink-0 lg:block">
+        {/* Desktop sidebar */}
+        <aside className="glass-sidebar fixed top-0 left-0 z-40 hidden h-screen w-[272px] shrink-0 lg:block desktop-only">
           <AppSidebar />
         </aside>
 
-        {/* Mobile sidebar (sheet) */}
+        {/* Mobile sidebar (sheet) — opened via hamburger or More tab */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="glass-strong w-[280px] p-0">
+          <SheetContent side="left" className="glass-strong w-[300px] p-0">
             <SheetHeader className="px-4 pt-4">
               <SheetTitle className="sr-only">Navigation</SheetTitle>
             </SheetHeader>
@@ -78,11 +101,14 @@ export function AppShell() {
           </SheetContent>
         </Sheet>
 
-        {/* Main content area — offset by sidebar width on desktop */}
+        {/* Main content area */}
         <div className="flex min-w-0 flex-1 flex-col lg:ml-[272px]">
           <AppHeader onMenu={() => setMobileOpen(true)} />
           <main className="scroll-liquid flex-1 overflow-y-auto">
-            <div key={view} className="animate-rise mx-auto w-full max-w-[1400px] px-4 pt-4 sm:px-6 lg:px-8">
+            <div
+              key={view}
+              className="animate-ios-fade-scale mx-auto w-full max-w-[1400px] px-4 pt-4 pb-24 sm:px-6 lg:px-8 lg:pb-8 mobile-content"
+            >
               {view === "dashboard" && <DashboardView />}
               {view === "composer" && <ComposerView />}
               {view === "calendar" && <CalendarView />}
@@ -110,6 +136,76 @@ export function AppShell() {
           <AppFooter />
         </div>
       </div>
+
+      {/* Mobile bottom tab bar — iOS-style */}
+      {showMobileTabs && (
+        <div className="mobile-tab-bar mobile-only">
+          {MOBILE_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = view === tab.id || (tab.id === "settings" && showMoreSheet);
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleMobileTab(tab.id)}
+                className={cn("mobile-tab-item touch-button", isActive && "active")}
+              >
+                <Icon className="tab-icon h-5 w-5" />
+                <span className="tab-label">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Mobile "More" bottom sheet — shows additional navigation */}
+      {showMoreSheet && (
+        <div className="mobile-sheet mobile-only" onClick={() => setShowMoreSheet(false)}>
+          <div className="grid grid-cols-4 gap-3 p-4">
+            {[
+              { id: "calendar", label: "Calendar", icon: "📅" },
+              { id: "whatsapp", label: "WhatsApp", icon: "💬" },
+              { id: "chat", label: "Chat", icon: "💭" },
+              { id: "tasks", label: "Tasks", icon: "✅" },
+              { id: "accounts", label: "Accounts", icon: "🔗" },
+              { id: "media", label: "Media", icon: "🖼️" },
+              { id: "reports", label: "Reports", icon: "📊" },
+              { id: "campaigns", label: "Campaigns", icon: "📣" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
+                className="touch-button flex flex-col items-center gap-1.5 rounded-2xl bg-muted/30 p-3 transition hover:bg-muted/50"
+              >
+                <span className="text-2xl">{item.icon}</span>
+                <span className="text-[10px] font-medium text-muted-foreground">{item.label}</span>
+              </button>
+            ))}
+          </div>
+          {/* Admin/Manager items */}
+          {user && (user.role === "admin" || user.role === "manager") && (
+            <div className="border-t border-border/30 p-4">
+              <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Admin</div>
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { id: "settings", label: "Settings", icon: "⚙️" },
+                  { id: "team", label: "Team", icon: "👥" },
+                  { id: "team-performance", label: "Performance", icon: "📈" },
+                  ...(user.role === "admin" ? [{ id: "owner", label: "Owner", icon: "💼" }] : []),
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
+                    className="touch-button flex flex-col items-center gap-1.5 rounded-2xl bg-muted/30 p-3 transition hover:bg-muted/50"
+                  >
+                    <span className="text-2xl">{item.icon}</span>
+                    <span className="text-[10px] font-medium text-muted-foreground">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -123,7 +219,7 @@ function AppFooter() {
       .catch(() => {});
   }, []);
   return (
-    <footer className="px-4 pb-4 pt-2 sm:px-6 lg:px-8">
+    <footer className="px-4 pb-4 pt-2 sm:px-6 lg:px-8 safe-bottom">
       <div className="glass-topbar mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 rounded-2xl px-4 py-2.5 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
