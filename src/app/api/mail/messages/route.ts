@@ -47,6 +47,13 @@ export async function POST(req: NextRequest) {
   const mailbox = await db.mailbox.findUnique({ where: { id: mailboxId } });
   if (!mailbox) return NextResponse.json({ error: "Mailbox not found" }, { status: 404 });
 
+  // Get the mail server config for SMTP credentials
+  const server = await db.mailServer.findUnique({ where: { id: mailbox.serverId } });
+  if (!server) {
+    return NextResponse.json({ error: "Mail server not found" }, { status: 404 });
+  }
+
+  // Store the message in the DB first (so we have a record even if SMTP fails)
   const msg = await db.mailMessage.create({
     data: {
       mailboxId,
@@ -61,13 +68,55 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // NOTE: Real SMTP sending is not implemented in this SocialFlow app — the
-  // message is stored in the "sent" folder so the team has a record. To
-  // actually deliver mail, wire up nodemailer with the MailServer's SMTP
-  // credentials here. Incoming replies arrive naturally via the IMAP
-  // polling loop (not a fake setTimeout).
+  // Real SMTP sending via nodemailer
+  try {
+    const nodemailer = await import("nodemailer");
 
-  return NextResponse.json({ id: msg.id, ok: true });
+    // Decrypt the mailbox password (stored as base64 — not real encryption,
+    // but we need to decode it to use for SMTP auth)
+    const decodedPassword = Buffer.from(
+      mailbox.passwordEnc.replace("enc:", ""),
+      "base64"
+    ).toString("utf-8");
+
+    const transporter = nodemailer.createTransport({
+      host: server.smtpHost,
+      port: server.smtpPort,
+      secure: server.smtpSecure,
+      auth: {
+        user: server.username,
+        pass: decodedPassword,
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: `"${server.fromName}" <${server.fromEmail}>`,
+      to: toAddr,
+      subject,
+      text: body ?? "",
+    });
+
+    console.log(`[mail/messages] ✓ Email sent: ${info.messageId}`);
+
+    return NextResponse.json({
+      id: msg.id,
+      ok: true,
+      messageId: info.messageId,
+      sent: true,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "SMTP error";
+    console.error("[mail/messages] SMTP failed:", message);
+
+    // The message is already saved in the "sent" folder — mark it so
+    // the user knows it wasn't actually delivered
+    return NextResponse.json({
+      id: msg.id,
+      ok: true,
+      sent: false,
+      error: `Email saved but not delivered — SMTP error: ${message}`,
+    }, { status: 201 });
+  }
 }
 
 export async function PATCH(req: NextRequest) {

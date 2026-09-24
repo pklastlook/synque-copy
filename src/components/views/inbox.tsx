@@ -107,19 +107,27 @@ export function InboxView() {
       return;
     }
     try {
-      const res = await fetch("/api/inbox", {
-        method: "PATCH",
+      const res = await fetch(`/api/inbox/${selected.id}/reply`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selected.id, replied: true, replyText: replyText.trim() }),
+        body: JSON.stringify({ replyText: replyText.trim() }),
       });
-      if (!res.ok) throw new Error("patch failed");
-      toast.success("Reply saved", {
-        description: "The reply text has been stored. To actually post it on the platform, open the conversation in the native app.",
-      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to reply");
+
+      if (json.postedToPlatform) {
+        toast.success("Reply posted to platform!", {
+          description: `Your reply was published on ${selected.platform}.`,
+        });
+      } else {
+        toast.success("Reply saved", {
+          description: json.error ?? "Reply stored locally — platform API not configured.",
+        });
+      }
       setReplyText("");
       reload();
-    } catch {
-      toast.error("Could not send — try again");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not send — try again");
     }
   };
 

@@ -1,9 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireRole } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { user, error } = requireRole(req, "admin");
+  if (error) return error;
+
   const [users, accounts, posts, variants, tasks, comments, activities, health] = await Promise.all([
     db.user.findMany(),
     db.account.findMany({ include: { health: true } }),
