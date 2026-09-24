@@ -1040,3 +1040,19 @@ html { scroll-behavior: smooth; }
   animation: loginFormSlideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: 0.2s;
 }
+
+/* === PWA Splash — logo icon container === */
+.pwa-splash-logo-icon {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 4px 20px rgba(255, 255, 255, 0.2));
+  animation: splashPulse 1.5s ease-in-out infinite;
+}
+
+.pwa-splash-logo-icon svg {
+  width: 72px;
+  height: 72px;
+}
