@@ -331,6 +331,24 @@ export async function GET(req: NextRequest) {
         variantCount: p.variants.length,
       }));
 
+    // === Failed posts (posts with status "failed" — need republishing) ===
+    const failedPosts = posts
+      .filter((p) => p.status === "failed")
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 6)
+      .map((p) => ({
+        id: p.id,
+        title: p.title,
+        caption: p.caption,
+        mediaUrl: p.mediaUrl,
+        tone: p.tone,
+        authorName: p.author.name,
+        authorColor: p.author.color,
+        createdAt: p.createdAt.toISOString(),
+        platforms: p.variants.map((v) => v.account.platform),
+        variantCount: p.variants.length,
+      }));
+
     // === Comment inbox preview ===
     const commentInbox = comments
       .filter((c) => !c.replied)
@@ -581,6 +599,7 @@ export async function GET(req: NextRequest) {
       pagesRanking,
       topContributors,
       recentPosts,
+      failedPosts,
       commentInbox,
       upcoming,
       topPosts,
