@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
   const accounts = await db.bankAccount.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json(accounts.map((a) => ({
     id: a.id, accountName: a.accountName, bankName: a.bankName,
@@ -13,6 +16,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
   const body = await req.json();
   const { accountName, bankName, accountNumber, iban, swift, currency, isDefault } = body;
   if (!accountName || !bankName || !accountNumber) return NextResponse.json({ error: "accountName, bankName, accountNumber required" }, { status: 400 });

@@ -9,6 +9,7 @@ export interface AuthUser {
   email: string;
   role: string;
   title: string | null;
+  avatar?: string | null;
 }
 
 interface AuthState {

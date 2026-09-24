@@ -57,6 +57,13 @@ import {
   EyeOff,
   MoreHorizontal,
   Send,
+  Loader2,
+  MapPin,
+  Globe,
+  Phone,
+  Landmark,
+  Banknote,
+  Plus,
   ShieldAlert,
   CheckCircle2,
 } from "lucide-react";
@@ -102,6 +109,7 @@ import {
 
 export type SettingsTab =
   | "profile"
+  | "company"
   | "workspace"
   | "appearance"
   | "team-roles"
@@ -111,6 +119,7 @@ export type SettingsTab =
   | "platform-api"
   | "integrations"
   | "billing"
+  | "bank"
   | "data"
   | "danger";
 
@@ -127,7 +136,8 @@ export interface SettingsTabDef {
  */
 export const SETTINGS_TABS: SettingsTabDef[] = [
   { id: "profile", label: "Profile", icon: User },
-  { id: "workspace", label: "Workspace", icon: Building2 },
+  { id: "company", label: "Company", icon: Building2 },
+  { id: "workspace", label: "Workspace", icon: Settings },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "team-roles", label: "Team Roles", icon: Users },
   { id: "notifications", label: "Notifications", icon: Bell },
@@ -136,12 +146,14 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
   { id: "platform-api", label: "Platform API Keys", icon: KeyRound },
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "billing", label: "Billing", icon: CreditCard },
+  { id: "bank", label: "Bank Details", icon: Landmark },
   { id: "data", label: "Data & Privacy", icon: Database },
   { id: "danger", label: "Danger Zone", icon: AlertTriangle },
 ];
 
 const SECTION_DESC: Record<SettingsTab, string> = {
   profile: "Your personal information visible to your team.",
+  company: "Company profile — logo, address, contact details.",
   workspace: "Defaults applied across compose, schedule, and AI generation.",
   appearance: "Personalize how SocialFlow looks on this device.",
   "team-roles": "Manage who can access what. Changes are staged locally — save to sync.",
@@ -151,6 +163,7 @@ const SECTION_DESC: Record<SettingsTab, string> = {
   "platform-api": "Connect real platform APIs for live posting and automatic data sync.",
   integrations: "Connect SocialFlow with the tools your team already uses.",
   billing: "Plan, usage, payment method, and invoices.",
+  bank: "Bank account details for subscription payments.",
   data: "Control how your data is stored, shared, and exported.",
   danger: "Irreversible and destructive actions. Proceed with caution.",
 };
@@ -275,6 +288,7 @@ export function SettingsView() {
       {/* Full-width content panel — active tab driven by useNav().settingsTab */}
       <div className="min-w-0 space-y-4">
         {tab === "profile" && <ProfileSection />}
+        {tab === "company" && <CompanySection />}
         {tab === "workspace" && <WorkspaceSection />}
         {tab === "appearance" && <AppearanceSection />}
         {tab === "team-roles" && <TeamRolesSection />}
@@ -284,6 +298,7 @@ export function SettingsView() {
         {tab === "platform-api" && <PlatformApiSection />}
         {tab === "integrations" && <IntegrationsSection />}
         {tab === "billing" && <BillingSection />}
+        {tab === "bank" && <BankSection />}
         {tab === "data" && <DataSection />}
         {tab === "danger" && <DangerSection />}
       </div>
@@ -299,38 +314,133 @@ function ProfileSection() {
   const [email, setEmail] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [department, setDepartment] = React.useState<Department>("Leadership");
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
   const [bio, setBio] = React.useState("");
   const [timezone, setTimezone] = React.useState("America/Los_Angeles");
   const [language, setLanguage] = React.useState("en-US");
   const [saving, setSaving] = React.useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Load real user data — prefer department from /api/users (the auth-store's
-  // AuthUser shape doesn't carry department).
+  // Load real user data
   React.useEffect(() => {
     if (!user) return;
     setName(user.name);
     setEmail(user.email);
     setTitle(user.title ?? "");
+    setAvatarUrl(user.avatar ?? null);
     const dbUser = (data ?? []).find((u) => u.id === user.id);
     const dept = dbUser?.department as Department | undefined;
     if (dept && (DEPARTMENTS as string[]).includes(dept)) {
       setDepartment(dept);
-    } else {
-      setDepartment("Leadership");
     }
+    if (dbUser?.avatar) setAvatarUrl(dbUser.avatar);
   }, [user, data]);
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 1.5 * 1024 * 1024) {
+      toast.error("Image too large — max 1.5MB");
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const token = typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
+        : null;
+      const res = await fetch("/api/media/upload", {
+        method: "POST",
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const json = await res.json();
+      if (res.ok && json.url) {
+        // Update user's avatar in the DB
+        const patchRes = await fetch("/api/users", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ id: user.id, avatar: json.url }),
+        });
+        if (patchRes.ok) {
+          setAvatarUrl(json.url);
+          toast.success("Avatar updated");
+          reload();
+        }
+      } else {
+        toast.error(json.error ?? "Upload failed");
+      }
+    } catch {
+      toast.error("Network error during upload");
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function removeAvatar() {
+    if (!user) return;
+    const token = typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
+      : null;
+    try {
+      await fetch("/api/users", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id: user.id, avatar: null }),
+      });
+      setAvatarUrl(null);
+      toast.success("Avatar removed");
+      reload();
+    } catch {
+      toast.error("Failed to remove avatar");
+    }
+  }
 
   const save = async () => {
     if (!user) return;
     setSaving(true);
     try {
-      await fetch("/api/users", {
+      const token = typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
+        : null;
+      const res = await fetch("/api/users", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ id: user.id, name, email, title, department }),
       });
-      toast.success("Profile saved", { description: "Your changes have been synced." });
-      reload();
+      const json = await res.json();
+      if (res.ok) {
+        toast.success("Profile saved", { description: "Your changes have been synced." });
+        // Update auth store with new user data if returned
+        if (json.user) {
+          // The auth store is persisted in localStorage — update it
+          try {
+            const raw = localStorage.getItem("socialflow-auth");
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed?.state?.user) {
+                parsed.state.user = { ...parsed.state.user, ...json.user };
+                localStorage.setItem("socialflow-auth", JSON.stringify(parsed));
+              }
+            }
+          } catch {}
+        }
+        reload();
+      } else {
+        toast.error(json.error ?? "Failed to save");
+      }
     } catch {
       toast.error("Failed to save profile");
     } finally {
@@ -356,23 +466,38 @@ function ProfileSection() {
 
       {/* Avatar */}
       <div className="mb-5 flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
-        <NameAvatar name={name} color="rose" className="h-20 w-20 text-lg" />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={name} className="h-20 w-20 rounded-full object-cover" />
+        ) : (
+          <NameAvatar name={name || "User"} color="blue" className="h-20 w-20 text-lg" />
+        )}
         <div className="flex flex-col gap-2">
           <div className="text-sm font-semibold">{name}</div>
-          <div className="text-xs text-muted-foreground">PNG / JPG up to 4MB · square recommended</div>
+          <div className="text-xs text-muted-foreground">PNG / JPG up to 1.5MB · square recommended</div>
           <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
             <button
-              onClick={() => toast.info("Avatar upload — configure a storage provider in Integrations")}
-              className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50"
             >
-              <Camera className="h-3.5 w-3.5" /> Change
+              {uploadingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+              {uploadingAvatar ? "Uploading…" : "Change"}
             </button>
-            <button
-              onClick={() => toast("Remove current avatar?")}
-              className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
-            >
-              Remove
-            </button>
+            {avatarUrl && (
+              <button
+                onClick={removeAvatar}
+                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
+              >
+                Remove
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -460,6 +585,327 @@ interface WorkspaceData {
   colors: string[];
   ownerId: string;
 }
+
+// ===== 1b. Company Profile =====
+function CompanySection() {
+  const { data: ws, reload } = useApi<{ name: string; brandVoice?: string | null; tone?: string } | null>("/api/workspace");
+  const { user } = useAuth();
+  const [companyName, setCompanyName] = React.useState("");
+  const [companyLogo, setCompanyLogo] = React.useState<string | null>(null);
+  const [address, setAddress] = React.useState("");
+  const [city, setCity] = React.useState("");
+  const [country, setCountry] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [website, setWebsite] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+  const [uploadingLogo, setUploadingLogo] = React.useState(false);
+  const logoInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (ws?.name) setCompanyName(ws.name);
+  }, [ws]);
+
+  // Load company info from localStorage (persisted locally since we don't have a Company model)
+  React.useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("socialflow-company") ?? "{}");
+      if (stored.companyName) setCompanyName(stored.companyName);
+      if (stored.companyLogo) setCompanyLogo(stored.companyLogo);
+      if (stored.address) setAddress(stored.address);
+      if (stored.city) setCity(stored.city);
+      if (stored.country) setCountry(stored.country);
+      if (stored.phone) setPhone(stored.phone);
+      if (stored.website) setWebsite(stored.website);
+    } catch {}
+  }, []);
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1.5 * 1024 * 1024) { toast.error("Logo too large — max 1.5MB"); return; }
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+      const res = await fetch("/api/media/upload", {
+        method: "POST",
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const json = await res.json();
+      if (res.ok && json.url) {
+        setCompanyLogo(json.url);
+        // Persist immediately
+        const stored = JSON.parse(localStorage.getItem("socialflow-company") ?? "{}");
+        stored.companyLogo = json.url;
+        localStorage.setItem("socialflow-company", JSON.stringify(stored));
+        toast.success("Logo uploaded");
+      } else {
+        toast.error("Upload failed");
+      }
+    } catch { toast.error("Network error"); }
+    finally { setUploadingLogo(false); if (logoInputRef.current) logoInputRef.current.value = ""; }
+  }
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      // Save company info to localStorage (no Company model in schema yet)
+      const companyData = { companyName, companyLogo, address, city, country, phone, website };
+      localStorage.setItem("socialflow-company", JSON.stringify(companyData));
+
+      // Also update workspace name if changed
+      if (companyName && companyName !== ws?.name) {
+        const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+        await fetch("/api/workspace", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ name: companyName }),
+        });
+      }
+
+      toast.success("Company profile saved");
+      reload();
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <GlassCard className="crystal-in p-5">
+      <SectionTitle
+        title="Company profile"
+        desc="Your company information used in reports, invoices, and branding."
+        action={
+          <button onClick={save} disabled={saving} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60">
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} {saving ? "Saving…" : "Save"}
+          </button>
+        }
+      />
+
+      {/* Logo */}
+      <div className="mb-5 flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
+        {companyLogo ? (
+          <img src={companyLogo} alt="Company logo" className="h-16 w-16 rounded-xl object-cover" />
+        ) : (
+          <div className="grid h-16 w-16 place-items-center rounded-xl bg-muted text-muted-foreground">
+            <Building2 className="h-7 w-7" />
+          </div>
+        )}
+        <div>
+          <div className="text-sm font-semibold">Company logo</div>
+          <div className="text-xs text-muted-foreground">PNG / JPG up to 1.5MB</div>
+        </div>
+        <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+        <button onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo} className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50">
+          {uploadingLogo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />} Upload
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Company name">
+          <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Inc." className="settings-input" />
+        </Field>
+        <Field label="Website">
+          <input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://acme.com" className="settings-input" />
+        </Field>
+        <Field label="Address">
+          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" className="settings-input" />
+        </Field>
+        <Field label="City">
+          <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="San Francisco" className="settings-input" />
+        </Field>
+        <Field label="Country">
+          <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="United States" className="settings-input" />
+        </Field>
+        <Field label="Phone">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 0100" className="settings-input" />
+        </Field>
+      </div>
+    </GlassCard>
+  );
+}
+
+// ===== Bank Details =====
+function BankSection() {
+  const { data: banks, reload } = useApi<{ id: string; accountName: string; bankName: string; accountNumber: string; iban: string | null; swift: string | null; currency: string; isDefault: boolean }[]>("/api/bank-accounts");
+  const [showForm, setShowForm] = React.useState(false);
+  const [accountName, setAccountName] = React.useState("");
+  const [bankName, setBankName] = React.useState("");
+  const [accountNumber, setAccountNumber] = React.useState("");
+  const [iban, setIban] = React.useState("");
+  const [swift, setSwift] = React.useState("");
+  const [currency, setCurrency] = React.useState("USD");
+  const [saving, setSaving] = React.useState(false);
+
+  const bankList = banks ?? [];
+
+  async function addBank() {
+    if (!accountName.trim() || !bankName.trim() || !accountNumber.trim()) {
+      toast.error("Account name, bank name, and account number are required");
+      return;
+    }
+    setSaving(true);
+    try {
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+      const res = await fetch("/api/bank-accounts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ accountName, bankName, accountNumber, iban: iban || null, swift: swift || null, currency }),
+      });
+      if (res.ok) {
+        toast.success("Bank account added");
+        setAccountName(""); setBankName(""); setAccountNumber(""); setIban(""); setSwift("");
+        setShowForm(false);
+        reload();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error ?? "Failed to add bank account");
+      }
+    } catch { toast.error("Network error"); }
+    finally { setSaving(false); }
+  }
+
+  async function setDefault(id: string) {
+    const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+    await fetch(`/api/bank-accounts/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ isDefault: true }),
+    });
+    toast.success("Default bank account updated");
+    reload();
+  }
+
+  async function deleteBank(id: string) {
+    if (!confirm("Delete this bank account?")) return;
+    const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+    await fetch(`/api/bank-accounts/${id}`, {
+      method: "DELETE",
+      headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    });
+    toast.success("Bank account deleted");
+    reload();
+  }
+
+  return (
+    <GlassCard className="crystal-in p-5">
+      <SectionTitle
+        title="Bank details"
+        desc="Bank accounts for subscription payments and invoice settlements."
+        action={
+          <button onClick={() => setShowForm(!showForm)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold">
+            <Plus className="h-3.5 w-3.5" /> {showForm ? "Close" : "Add account"}
+          </button>
+        }
+      />
+
+      {/* Add bank form */}
+      {showForm && (
+        <div className="mb-4 space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Account holder name">
+              <input value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="John Smith" className="settings-input" />
+            </Field>
+            <Field label="Bank name">
+              <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="HSBC" className="settings-input" />
+            </Field>
+            <Field label="Account number">
+              <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="01234567890" className="settings-input" />
+            </Field>
+            <Field label="Currency">
+              <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="settings-input">
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="PKR">PKR</option>
+                <option value="AED">AED</option>
+              </select>
+            </Field>
+            <Field label="IBAN (optional)">
+              <input value={iban} onChange={(e) => setIban(e.target.value)} placeholder="GB29 NWBK 6016..." className="settings-input" />
+            </Field>
+            <Field label="SWIFT/BIC (optional)">
+              <input value={swift} onChange={(e) => setSwift(e.target.value)} placeholder="NWBKGB2L" className="settings-input" />
+            </Field>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowForm(false)} className="rounded-lg border border-border/50 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted">Cancel</button>
+            <button onClick={addBank} disabled={saving} className="liquid-pill rounded-lg px-4 py-1.5 text-xs font-semibold disabled:opacity-50">
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {saving ? "Saving…" : "Save account"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bank accounts list */}
+      {bankList.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+            <Landmark className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">No bank accounts</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Add a bank account for subscription payments</p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {bankList.map((b) => (
+            <div key={b.id} className="flex items-center gap-3 rounded-2xl border border-border/40 bg-muted/20 p-3 transition hover:bg-muted/40">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                <Landmark className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-bold">{b.accountName}</span>
+                  {b.isDefault && (
+                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold text-emerald-500">DEFAULT</span>
+                  )}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {b.bankName} · ••••{b.accountNumber.slice(-4)} · {b.currency}
+                </div>
+                {b.iban && <div className="text-[10px] text-muted-foreground">IBAN: {b.iban}</div>}
+              </div>
+              <div className="flex items-center gap-1">
+                {!b.isDefault && (
+                  <button onClick={() => setDefault(b.id)} className="rounded-lg border border-border/50 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                    Set default
+                  </button>
+                )}
+                <button onClick={() => deleteBank(b.id)} className="grid h-7 w-7 place-items-center rounded-lg border border-border/50 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Payment workflow note */}
+      <div className="mt-4 rounded-xl bg-blue-500/5 border border-blue-500/20 p-3 text-[11px] text-muted-foreground">
+        <strong className="text-blue-500">Payment workflow:</strong> When your subscription is due, an invoice
+        is generated in the Owner Panel. You can pay via bank transfer using the details above, or via card
+        (once Stripe is connected in Integrations). Invoices are marked as "paid" manually by the admin after
+        the bank transfer is confirmed.
+      </div>
+    </GlassCard>
+  );
+}
+
 function WorkspaceSection() {
   const { user } = useAuth();
   const { data: ws, reload } = useApi<WorkspaceData>(user?.id ? `/api/workspace?ownerId=${user.id}` : null);
@@ -821,6 +1267,7 @@ interface ApiUser {
   title: string | null;
   department: string | null;
   color: string | null;
+  avatar: string | null;
   permissions: string[];
   status: MemberStatus;
   lastActive: string | null;
@@ -1174,39 +1621,40 @@ function TeamRolesSection() {
 
 // ===== 5. Notifications =====
 function NotificationsSection() {
-  const [engagement, setEngagement] = React.useState<Record<string, boolean>>({
-    newComment: true,
-    mention: true,
-    newFollower: true,
-    postLiked: false,
+  // Load from localStorage
+  const loadPrefs = () => {
+    try { return JSON.parse(localStorage.getItem("socialflow-notif-prefs") ?? "{}"); } catch { return {}; }
+  };
+  const stored = loadPrefs();
+
+  const [engagement, setEngagement] = React.useState<Record<string, boolean>>(stored.engagement ?? {
+    newComment: true, mention: true, newFollower: true, postLiked: false,
   });
-  const [workflow, setWorkflow] = React.useState<Record<string, boolean>>({
-    taskAssigned: true,
-    taskOverdue: true,
+  const [workflow, setWorkflow] = React.useState<Record<string, boolean>>(stored.workflow ?? {
+    taskAssigned: true, taskOverdue: true,
   });
-  const [reports, setReports] = React.useState<Record<string, boolean>>({
-    weeklyDigest: true,
-    monthlySummary: false,
-    competitorAlert: true,
+  const [reports, setReports] = React.useState<Record<string, boolean>>(stored.reports ?? {
+    weeklyDigest: true, monthlySummary: false, competitorAlert: true,
   });
-  const [system, setSystem] = React.useState<Record<string, boolean>>({
-    accountWarning: true,
-    mailQuota: true,
-    security: true,
+  const [system, setSystem] = React.useState<Record<string, boolean>>(stored.system ?? {
+    accountWarning: true, mailQuota: true, security: true,
   });
-  const [quietStart, setQuietStart] = React.useState("22:00");
-  const [quietEnd, setQuietEnd] = React.useState("07:00");
-  const [digest, setDigest] = React.useState("instant");
+  const [quietStart, setQuietStart] = React.useState(stored.quietStart ?? "22:00");
+  const [quietEnd, setQuietEnd] = React.useState(stored.quietEnd ?? "07:00");
+  const [digest, setDigest] = React.useState(stored.digest ?? "instant");
 
   const flip = (
     setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
     key: string
   ) => (v: boolean) => {
     setter((prev) => ({ ...prev, [key]: v }));
-    toast.success("Notifications updated");
   };
 
-  const save = () => toast.success("Notification preferences saved");
+  const save = () => {
+    const prefs = { engagement, workflow, reports, system, quietStart, quietEnd, digest };
+    localStorage.setItem("socialflow-notif-prefs", JSON.stringify(prefs));
+    toast.success("Notification preferences saved");
+  };
 
   return (
     <GlassCard className="crystal-in p-5">
@@ -2096,7 +2544,7 @@ function DataSection() {
       {/* Export / Import */}
       <div className="grid gap-3 sm:grid-cols-2">
         <button
-          onClick={() => toast.success("Exporting data…", { description: "We'll email you when the ZIP is ready." })}
+          onClick={() => toast.info("Data export", { description: "Contact your admin to export workspace data. This feature requires a server-side export script." })}
           className="flex items-center gap-3 rounded-2xl border border-border bg-background p-4 text-left transition hover:bg-muted/40"
         >
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -2118,7 +2566,7 @@ function DataSection() {
           <input
             type="file"
             className="hidden"
-            onChange={() => toast.success("File received — parsing…")}
+            onChange={() => toast.info("File selected", { description: "Import requires a server-side parser. Contact your admin." })}
           />
         </label>
       </div>
@@ -2342,7 +2790,29 @@ function DangerSection() {
             placeholder="DELETE"
             confirmText="DELETE"
             buttonLabel="Delete my account"
-            onConfirm={() => toast.info("Contact support to schedule account deletion")}
+            onConfirm={async () => {
+              const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+              const userId = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.user?.id;
+              if (!userId) { toast.error("Session expired — log in again"); return; }
+              try {
+                const res = await fetch("/api/users", {
+                  method: "DELETE",
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+                  },
+                  body: JSON.stringify({ id: userId }),
+                });
+                if (res.ok) {
+                  toast.success("Account deleted");
+                  localStorage.removeItem("socialflow-auth");
+                  setTimeout(() => window.location.href = "/", 1000);
+                } else {
+                  const err = await res.json().catch(() => ({}));
+                  toast.error(err.error ?? "Failed to delete account");
+                }
+              } catch { toast.error("Network error"); }
+            }}
           />
         </div>
       </div>
