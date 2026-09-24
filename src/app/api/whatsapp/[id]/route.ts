@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,9 @@ export const dynamic = "force-dynamic";
  *   Removes a pasted message.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = requireAuth(req);
+  if (error) return error;
+
   const { id } = await params;
   const body = await req.json();
   const data: Record<string, unknown> = {};
@@ -31,7 +35,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { error } = requireAuth(req);
+  if (error) return error;
+
   const { id } = await params;
   await db.whatsAppMessage.delete({ where: { id } });
   return NextResponse.json({ ok: true });

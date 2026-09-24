@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export const dynamic = "force-dynamic";
  *   Saves a new pasted message.
  */
 export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+
   const status = req.nextUrl.searchParams.get("status") ?? "all";
   const where = status === "all" ? {} : { status };
 
@@ -36,12 +40,16 @@ export async function GET(req: NextRequest) {
       postId: m.postId,
       savedByName: m.savedBy?.name ?? null,
       savedByColor: m.savedBy?.color ?? null,
+      isLive: m.isLive,
       createdAt: m.createdAt.toISOString(),
     }))
   );
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+
   const body = await req.json();
   const {
     source,
@@ -79,7 +87,7 @@ export async function POST(req: NextRequest) {
       content: content.trim(),
       mediaUrl: mediaUrl?.trim() || null,
       mediaType: mediaType ?? null,
-      savedById: savedById || null,
+      savedById: savedById || user!.userId,
     },
   });
 

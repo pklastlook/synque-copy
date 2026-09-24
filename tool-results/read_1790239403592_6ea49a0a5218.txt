@@ -1,0 +1,811 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  FileText, Download, Plus, Trash2, Play, Clock,
+     6→  Calendar, BarChart3, Users, TrendingUp, Eye, Heart, Share2,
+     7→  Printer, ChevronRight, FileBarChart, User, RefreshCw, Loader2,
+     8→  type LucideIcon,
+     9→} from "lucide-react";
+    10→import { useApi, fmt, timeAgo } from "@/lib/hooks";
+    11→import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+    12→import { PlatformBadge } from "@/components/glass/platform-badge";
+    13→import { NameAvatar } from "@/components/glass/name-avatar";
+    14→import { HelpText } from "@/components/glass/help-text";
+    15→import { cn } from "@/lib/utils";
+    16→import { toast } from "sonner";
+    17→import {
+    18→  Dialog, DialogContent, DialogHeader, DialogTitle,
+    19→} from "@/components/ui/dialog";
+    20→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    21→
+    22→// ============ Types ============
+    23→
+    24→interface ReportData {
+    25→  id: string;
+    26→  name: string;
+    27→  type: string;
+    28→  description: string | null;
+    29→  config: string;
+    30→  schedule: string | null;
+    31→  createdBy: string | null;
+    32→  lastGenerated: string | null;
+    33→  createdAt: string;
+    34→}
+    35→
+    36→interface AnalyticsData {
+    37→  series: { date: string; followers: number; reach: number; impressions: number; engagement: number; posts: number }[];
+    38→  perAccount: {
+    39→    id: string; platform: string; handle: string; displayName: string;
+    40→    followers: number; impressions: number; reach: number; engagement: number;
+    41→    likes: number; comments: number; shares: number; saves: number; posts: number;
+    42→    ownerName: string;
+    43→  }[];
+    44→  topContent: {
+    45→    id: string; title: string; mediaUrl: string | null; platform: string;
+    46→    handle: string; engagement: number; reach: number; impressions: number;
+    47→    authorName: string;
+    48→  }[];
+    49→}
+    50→
+    51→interface Account {
+    52→  id: string; platform: string; handle: string; displayName: string; followers: number;
+    53→}
+    54→
+    55→interface TeamMember {
+    56→  id: string; name: string; email: string; role: string; title: string | null;
+    57→}
+    58→
+    59→type ReportPeriod = "daily" | "weekly" | "monthly" | "custom";
+    60→type ReportScope = "team" | "individual" | "account";
+    61→
+    62→const PERIOD_META: Record<ReportPeriod, { label: string; days: number; icon: LucideIcon }> = {
+    63→  daily: { label: "Daily", days: 1, icon: Calendar },
+    64→  weekly: { label: "Weekly", days: 7, icon: Calendar },
+    65→  monthly: { label: "Monthly", days: 30, icon: Calendar },
+    66→  custom: { label: "Custom", days: 90, icon: Calendar },
+    67→};
+    68→
+    69→const SCOPE_META: Record<ReportScope, { label: string; icon: LucideIcon }> = {
+    70→  team: { label: "Entire Team", icon: Users },
+    71→  individual: { label: "Team Member", icon: User },
+    72→  account: { label: "Specific Account", icon: BarChart3 },
+    73→};
+    74→
+    75→const REPORT_TEMPLATES = [
+    76→  { id: "performance", name: "Performance Report", icon: TrendingUp, desc: "Followers, reach, engagement, top content" },
+    77→  { id: "audience", name: "Audience Report", icon: Users, desc: "Follower growth, demographics, platform breakdown" },
+    78→  { id: "content", name: "Content Report", icon: FileText, desc: "Posts published, drafts, scheduling pipeline" },
+    79→  { id: "engagement", name: "Engagement Report", icon: Heart, desc: "Likes, comments, shares, sentiment analysis" },
+    80→  { id: "team", name: "Team Activity Report", icon: Users, desc: "Member contributions, posting cadence, tasks" },
+    81→];
+    82→
+    83→// ============ Main view ============
+    84→
+    85→export function ReportsView() {
+    86→  const { data: reports, loading, reload } = useApi<ReportData[]>("/api/reports");
+    87→  const { data: accounts } = useApi<Account[]>("/api/accounts");
+    88→  const { data: teamMembers } = useApi<TeamMember[]>("/api/team");
+    89→
+    90→  const [showGenerator, setShowGenerator] = React.useState(false);
+    91→  const [previewReport, setPreviewReport] = React.useState<ReportData | null>(null);
+    92→  const [previewData, setPreviewData] = React.useState<AnalyticsData | null>(null);
+    93→  const [generating, setGenerating] = React.useState(false);
+    94→
+    95→  // Generator state
+    96→  const [reportName, setReportName] = React.useState("");
+    97→  const [reportType, setReportType] = React.useState("performance");
+    98→  const [period, setPeriod] = React.useState<ReportPeriod>("weekly");
+    99→  const [scope, setScope] = React.useState<ReportScope>("team");
+   100→  const [selectedMemberId, setSelectedMemberId] = React.useState<string>("all");
+   101→  const [selectedAccountId, setSelectedAccountId] = React.useState<string>("all");
+   102→  const [customDays, setCustomDays] = React.useState(14);
+   103→
+   104→  const allReports = reports ?? [];
+   105→
+   106→  function getToken(): string | null {
+   107→    try {
+   108→      return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null;
+   109→    } catch { return null; }
+   110→  }
+   111→
+   112→  async function generateReport() {
+   113→    if (!reportName.trim()) {
+   114→      toast.error("Enter a report name");
+   115→      return;
+   116→    }
+   117→    setGenerating(true);
+   118→    try {
+   119→      const token = getToken();
+   120→      const days = period === "custom" ? customDays : PERIOD_META[period].days;
+   121→      const config = JSON.stringify({
+   122→        period, scope, days,
+   123→        memberId: scope === "individual" ? selectedMemberId : null,
+   124→        accountId: scope === "account" ? selectedAccountId : null,
+   125→      });
+   126→
+   127→      const res = await fetch("/api/reports", {
+   128→        method: "POST",
+   129→        headers: {
+   130→          "Content-Type": "application/json",
+   131→          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+   132→        },
+   133→        body: JSON.stringify({
+   134→          name: reportName.trim(),
+   135→          type: reportType,
+   136→          description: `${PERIOD_META[period].label} · ${SCOPE_META[scope].label} · Last ${days} days`,
+   137→          config,
+   138→          createdBy: null,
+   139→        }),
+   140→      });
+   141→
+   142→      if (res.ok) {
+   143→        const json = await res.json();
+   144→        toast.success("Report generated");
+   145→
+   146→        // Fetch analytics data for preview
+   147→        const analyticsRes = await fetch(`/api/analytics?days=${days}&accountId=all`, {
+   148→          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+   149→        });
+   150→        const analyticsJson = await analyticsRes.json();
+   151→        setPreviewData(analyticsJson);
+   152→        setPreviewReport({
+   153→          id: json.id,
+   154→          name: reportName.trim(),
+   155→          type: reportType,
+   156→          description: `${PERIOD_META[period].label} · ${SCOPE_META[scope].label} · Last ${days} days`,
+   157→          config, schedule: null, createdBy: null,
+   158→          lastGenerated: new Date().toISOString(), createdAt: new Date().toISOString(),
+   159→        });
+   160→        setShowGenerator(false);
+   161→        setReportName("");
+   162→        reload();
+   163→      } else {
+   164→        toast.error("Failed to generate report");
+   165→      }
+   166→    } catch {
+   167→      toast.error("Network error");
+   168→    } finally {
+   169→      setGenerating(false);
+   170→    }
+   171→  }
+   172→
+   173→  async function viewReport(r: ReportData) {
+   174→    setPreviewReport(r);
+   175→    try {
+   176→      const token = getToken();
+   177→      const config = JSON.parse(r.config);
+   178→      const days = config.days ?? 30;
+   179→      const res = await fetch(`/api/analytics?days=${days}&accountId=all`, {
+   180→        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+   181→      });
+   182→      const json = await res.json();
+   183→      setPreviewData(json);
+   184→    } catch {
+   185→      toast.error("Failed to load report data");
+   186→    }
+   187→  }
+   188→
+   189→  async function deleteReport(id: string) {
+   190→    if (!confirm("Delete this report?")) return;
+   191→    const token = getToken();
+   192→    await fetch(`/api/reports/${id}`, {
+   193→      method: "DELETE",
+   194→      headers: token ? { "Authorization": `Bearer ${token}` } : {},
+   195→    });
+   196→    toast.success("Report deleted");
+   197→    if (previewReport?.id === id) setPreviewReport(null);
+   198→    reload();
+   199→  }
+   200→
+   201→  async function downloadPDF(r: ReportData) {
+   202→    try {
+   203→      const token = getToken();
+   204→      const res = await fetch(`/api/reports/${r.id}/pdf`, {
+   205→        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+   206→      });
+   207→      if (!res.ok) throw new Error("PDF generation failed");
+   208→      const blob = await res.blob();
+   209→      const url = URL.createObjectURL(blob);
+   210→      const a = document.createElement("a");
+   211→      a.href = url;
+   212→      a.download = `${r.name.replace(/[^a-z0-9]/gi, "_")}.pdf`;
+   213→      a.click();
+   214→      URL.revokeObjectURL(url);
+   215→      toast.success("PDF downloaded");
+   216→    } catch {
+   217→      toast.error("Failed to generate PDF");
+   218→    }
+   219→  }
+   220→
+   221→  function printReport() {
+   222→    setTimeout(() => window.print(), 300);
+   223→  }
+   224→
+   225→  if (loading) {
+   226→    return (
+   227→      <div className="space-y-5">
+   228→        <div className="shimmer h-20 rounded-3xl" />
+   229→        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+   230→          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="shimmer h-40 rounded-3xl" />)}
+   231→        </div>
+   232→      </div>
+   233→    );
+   234→  }
+   235→
+   236→  return (
+   237→    <div className="space-y-5">
+   238→      <HelpText module="reports">
+   239→        <strong className="text-foreground">Reports</strong> — generate professional reports by selecting a period,
+   240→        scope, and template. View, print, or download as PDF with letter-size formatting.
+   241→      </HelpText>
+   242→
+   243→      {/* === Header === */}
+   244→      <div className="flex flex-wrap items-center justify-between gap-3">
+   245→        <div>
+   246→          <h2 className="text-xl font-bold tracking-tight">Reports</h2>
+   247→          <p className="text-[12px] text-muted-foreground">{allReports.length} generated reports</p>
+   248→        </div>
+   249→        <button
+   250→          onClick={() => setShowGenerator(true)}
+   251→          className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+   252→        >
+   253→          <Plus className="h-4 w-4" /> Generate Report
+   254→        </button>
+   255→      </div>
+   256→
+   257→      {/* === Saved reports list === */}
+   258→      {allReports.length === 0 ? (
+   259→        <GlassCard className="p-10">
+   260→          <div className="flex flex-col items-center justify-center gap-3 text-center">
+   261→            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+   262→              <FileBarChart className="h-6 w-6" />
+   263→            </div>
+   264→            <div>
+   265→              <p className="text-sm font-semibold">No reports yet</p>
+   266→              <p className="mt-0.5 text-[11px] text-muted-foreground">Generate your first report by selecting a period, scope, and template</p>
+   267→            </div>
+   268→            <button onClick={() => setShowGenerator(true)} className="liquid-pill rounded-lg px-4 py-2 text-xs font-semibold">
+   269→              Generate Report
+   270→            </button>
+   271→          </div>
+   272→        </GlassCard>
+   273→      ) : (
+   274→        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+   275→          {allReports.map((r, i) => {
+   276→            const config = JSON.parse(r.config);
+   277→            const template = REPORT_TEMPLATES.find(t => t.id === r.type);
+   278→            const TemplateIcon = template?.icon ?? FileText;
+   279→            return (
+   280→              <div
+   281→                key={r.id}
+   282→                className="crystal-in glass group flex flex-col rounded-2xl border border-border/40 p-4 transition hover:lift-hover"
+   283→                style={{ animationDelay: `${i * 0.04}s` }}
+   284→              >
+   285→                {/* Header */}
+   286→                <div className="flex items-start gap-3">
+   287→                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+   288→                    <TemplateIcon className="h-5 w-5" />
+   289→                  </div>
+   290→                  <div className="min-w-0 flex-1">
+   291→                    <div className="truncate text-sm font-bold">{r.name}</div>
+   292→                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{r.type}</div>
+   293→                  </div>
+   294→                </div>
+   295→
+   296→                {/* Meta */}
+   297→                {r.description && (
+   298→                  <p className="mt-2 text-[11px] text-muted-foreground">{r.description}</p>
+   299→                )}
+   300→                <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+   301→                  <Calendar className="h-3 w-3" />
+   302→                  {r.lastGenerated ? `Generated ${timeAgo(r.lastGenerated)}` : "Never generated"}
+   303→                </div>
+   304→
+   305→                {/* Actions */}
+   306→                <div className="mt-3 flex items-center gap-1.5">
+   307→                  <button onClick={() => viewReport(r)} className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[10px] font-semibold text-primary transition hover:bg-primary/20">
+   308→                    <Eye className="h-3 w-3" /> View
+   309→                  </button>
+   310→                  <button onClick={() => downloadPDF(r)} className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[10px] font-semibold text-primary transition hover:bg-primary/20">
+   311→                    <Download className="h-3 w-3" /> PDF
+   312→                  </button>
+   313→                  <button onClick={printReport} className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[10px] font-semibold text-primary transition hover:bg-primary/20">
+   314→                    <Printer className="h-3 w-3" /> Print
+   315→                  </button>
+   316→                  <div className="ml-auto flex items-center gap-1">
+   317→                    <button onClick={() => deleteReport(r.id)} className="grid h-7 w-7 place-items-center rounded-lg border border-border/50 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500" title="Delete">
+   318→                      <Trash2 className="h-3 w-3" />
+   319→                    </button>
+   320→                  </div>
+   321→                </div>
+   322→              </div>
+   323→            );
+   324→          })}
+   325→        </div>
+   326→      )}
+   327→
+   328→      {/* === Report Generator Dialog === */}
+   329→      <Dialog open={showGenerator} onOpenChange={setShowGenerator}>
+   330→        <DialogContent className="max-w-2xl">
+   331→          <DialogHeader>
+   332→            <DialogTitle>Generate Report</DialogTitle>
+   333→          </DialogHeader>
+   334→
+   335→          <div className="space-y-5 py-2 max-h-[70vh] overflow-y-auto scroll-liquid pr-2">
+   336→            {/* Step 1: Report name */}
+   337→            <div>
+   338→              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+   339→                Report name
+   340→              </label>
+   341→              <input
+   342→                type="text"
+   343→                value={reportName}
+   344→                onChange={(e) => setReportName(e.target.value)}
+   345→                placeholder="e.g. Weekly Performance — Sep 2026"
+   346→                className="w-full rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-sm outline-none focus:border-primary/50"
+   347→                autoFocus
+   348→              />
+   349→            </div>
+   350→
+   351→            {/* Step 2: Template */}
+   352→            <div>
+   353→              <label className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+   354→                Report template
+   355→              </label>
+   356→              <div className="grid gap-2 sm:grid-cols-2">
+   357→                {REPORT_TEMPLATES.map((t) => (
+   358→                  <button
+   359→                    key={t.id}
+   360→                    onClick={() => setReportType(t.id)}
+   361→                    className={cn(
+   362→                      "flex items-start gap-2.5 rounded-xl border p-3 text-left transition",
+   363→                      reportType === t.id ? "border-primary/50 bg-primary/5" : "border-border/40 hover:bg-muted/40"
+   364→                    )}
+   365→                  >
+   366→                    <div className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg", reportType === t.id ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
+   367→                      <t.icon className="h-4 w-4" />
+   368→                    </div>
+   369→                    <div className="min-w-0 flex-1">
+   370→                      <div className="text-xs font-bold">{t.name}</div>
+   371→                      <div className="text-[10px] text-muted-foreground">{t.desc}</div>
+   372→                    </div>
+   373→                  </button>
+   374→                ))}
+   375→              </div>
+   376→            </div>
+   377→
+   378→            {/* Step 3: Period */}
+   379→            <div>
+   380→              <label className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+   381→                Period
+   382→              </label>
+   383→              <div className="flex flex-wrap gap-2">
+   384→                {(Object.keys(PERIOD_META) as ReportPeriod[]).map((p) => {
+   385→                  const PeriodIcon = PERIOD_META[p].icon;
+   386→                  return (
+   387→                  <button
+   388→                    key={p}
+   389→                    onClick={() => setPeriod(p)}
+   390→                    className={cn(
+   391→                      "flex items-center gap-1.5 rounded-xl border px-4 py-2 text-xs font-semibold transition",
+   392→                      period === p ? "border-primary/50 bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:bg-muted/40"
+   393→                    )}
+   394→                  >
+   395→                    <PeriodIcon className="h-3.5 w-3.5" />
+   396→                    {PERIOD_META[p].label}
+   397→                  </button>
+   398→                  );
+   399→                })}
+   400→              </div>
+   401→              {period === "custom" && (
+   402→                <div className="mt-2 flex items-center gap-2">
+   403→                  <span className="text-[11px] text-muted-foreground">Last</span>
+   404→                  <input
+   405→                    type="number"
+   406→                    min={1}
+   407→                    max={365}
+   408→                    value={customDays}
+   409→                    onChange={(e) => setCustomDays(parseInt(e.target.value) || 14)}
+   410→                    className="w-16 rounded-lg border border-border/50 bg-background/60 px-2 py-1 text-xs text-center outline-none focus:border-primary/50"
+   411→                  />
+   412→                  <span className="text-[11px] text-muted-foreground">days</span>
+   413→                </div>
+   414→              )}
+   415→            </div>
+   416→
+   417→            {/* Step 4: Scope */}
+   418→            <div>
+   419→              <label className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+   420→                Scope
+   421→              </label>
+   422→              <div className="flex flex-wrap gap-2">
+   423→                {(Object.keys(SCOPE_META) as ReportScope[]).map((s) => {
+   424→                  const ScopeIcon = SCOPE_META[s].icon;
+   425→                  return (
+   426→                  <button
+   427→                    key={s}
+   428→                    onClick={() => setScope(s)}
+   429→                    className={cn(
+   430→                      "flex items-center gap-1.5 rounded-xl border px-4 py-2 text-xs font-semibold transition",
+   431→                      scope === s ? "border-primary/50 bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:bg-muted/40"
+   432→                    )}
+   433→                  >
+   434→                    <ScopeIcon className="h-3.5 w-3.5" />
+   435→                    {SCOPE_META[s].label}
+   436→                  </button>
+   437→                  );
+   438→                })}
+   439→              </div>
+   440→
+   441→              {/* Conditional selectors */}
+   442→              {scope === "individual" && teamMembers && (
+   443→                <div className="mt-2">
+   444→                  <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+   445→                    <SelectTrigger className="w-full rounded-lg bg-background/60 text-sm">
+   446→                      <SelectValue placeholder="Select team member" />
+   447→                    </SelectTrigger>
+   448→                    <SelectContent>
+   449→                      <SelectItem value="all">All members</SelectItem>
+   450→                      {teamMembers.map((m) => (
+   451→                        <SelectItem key={m.id} value={m.id}>{m.name} — {m.title ?? m.role}</SelectItem>
+   452→                      ))}
+   453→                    </SelectContent>
+   454→                  </Select>
+   455→                </div>
+   456→              )}
+   457→
+   458→              {scope === "account" && accounts && (
+   459→                <div className="mt-2">
+   460→                  <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+   461→                    <SelectTrigger className="w-full rounded-lg bg-background/60 text-sm">
+   462→                      <SelectValue placeholder="Select account" />
+   463→                    </SelectTrigger>
+   464→                    <SelectContent>
+   465→                      <SelectItem value="all">All accounts</SelectItem>
+   466→                      {accounts.map((a) => (
+   467→                        <SelectItem key={a.id} value={a.id}>{a.displayName} · {a.handle}</SelectItem>
+   468→                      ))}
+   469→                    </SelectContent>
+   470→                  </Select>
+   471→                </div>
+   472→              )}
+   473→            </div>
+   474→
+   475→            {/* Summary preview */}
+   476→            <div className="rounded-xl bg-muted/30 p-3 text-[11px] text-muted-foreground">
+   477→              <strong className="text-foreground">Summary:</strong> {reportType} report · {PERIOD_META[period].label} period
+   478→              {period === "custom" ? ` (${customDays} days)` : ""}
+   479→              {" · "} {SCOPE_META[scope].label}
+   480→              {scope === "individual" && selectedMemberId !== "all" ? ` (${teamMembers?.find(m => m.id === selectedMemberId)?.name ?? ""})` : ""}
+   481→              {scope === "account" && selectedAccountId !== "all" ? ` (${accounts?.find(a => a.id === selectedAccountId)?.displayName ?? ""})` : ""}
+   482→            </div>
+   483→
+   484→            {/* Generate */}
+   485→            <div className="flex justify-end gap-2 pt-2">
+   486→              <button onClick={() => setShowGenerator(false)} className="rounded-lg border border-border/50 px-4 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted">
+   487→                Cancel
+   488→              </button>
+   489→              <button onClick={generateReport} disabled={generating || !reportName.trim()} className="liquid-pill flex items-center gap-2 rounded-lg px-5 py-2 text-xs font-semibold disabled:opacity-50">
+   490→                {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+   491→                {generating ? "Generating…" : "Generate Report"}
+   492→              </button>
+   493→            </div>
+   494→          </div>
+   495→        </DialogContent>
+   496→      </Dialog>
+   497→
+   498→      {/* === Report Preview Dialog === */}
+   499→      {previewReport && previewData && (
+   500→        <ReportPreview
+   501→          report={previewReport}
+   502→          analytics={previewData}
+   503→          onClose={() => { setPreviewReport(null); setPreviewData(null); }}
+   504→          onPrint={printReport}
+   505→          onPDF={() => downloadPDF(previewReport)}
+   506→        />
+   507→      )}
+   508→
+   509→      {/* === Print layout (hidden on screen, visible on print) === */}
+   510→      {previewReport && previewData && (
+   511→        <PrintLayout report={previewReport} analytics={previewData} />
+   512→      )}
+   513→    </div>
+   514→  );
+   515→}
+   516→
+   517→// ============ Report Preview Dialog ============
+   518→function ReportPreview({
+   519→  report, analytics, onClose, onPrint, onPDF,
+   520→}: {
+   521→  report: ReportData;
+   522→  analytics: AnalyticsData;
+   523→  onClose: () => void;
+   524→  onPrint: () => void;
+   525→  onPDF: () => void;
+   526→}) {
+   527→  const totals = analytics.perAccount.reduce(
+   528→    (acc, a) => {
+   529→      acc.followers += a.followers;
+   530→      acc.impressions += a.impressions;
+   531→      acc.reach += a.reach;
+   532→      acc.engagement += a.engagement;
+   533→      acc.posts += a.posts;
+   534→      acc.likes += a.likes;
+   535→      acc.comments += a.comments;
+   536→      acc.shares += a.shares;
+   537→      return acc;
+   538→    },
+   539→    { followers: 0, impressions: 0, reach: 0, engagement: 0, posts: 0, likes: 0, comments: 0, shares: 0 }
+   540→  );
+   541→
+   542→  return (
+   543→    <Dialog open onOpenChange={onClose}>
+   544→      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+   545→        <DialogHeader>
+   546→          <DialogTitle className="flex items-center gap-2">
+   547→            <FileBarChart className="h-5 w-5 text-primary" />
+   548→            {report.name}
+   549→          </DialogTitle>
+   550→        </DialogHeader>
+   551→
+   552→        {/* Toolbar */}
+   553→        <div className="flex items-center gap-2 border-b border-border/40 pb-3">
+   554→          <button onClick={onPDF} className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20">
+   555→            <Download className="h-3.5 w-3.5" /> Download PDF
+   556→          </button>
+   557→          <button onClick={onPrint} className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20">
+   558→            <Printer className="h-3.5 w-3.5" /> Print
+   559→          </button>
+   560→        </div>
+   561→
+   562→        {/* Content */}
+   563→        <div className="overflow-y-auto scroll-liquid space-y-4 pr-2">
+   564→          {/* KPIs */}
+   565→          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+   566→            <PreviewKPI label="Followers" value={fmt(totals.followers)} icon={<Users className="h-4 w-4" />} />
+   567→            <PreviewKPI label="Impressions" value={fmt(totals.impressions)} icon={<Eye className="h-4 w-4" />} />
+   568→            <PreviewKPI label="Engagement" value={fmt(totals.engagement)} icon={<Heart className="h-4 w-4" />} />
+   569→            <PreviewKPI label="Posts" value={totals.posts.toString()} icon={<FileText className="h-4 w-4" />} />
+   570→          </div>
+   571→
+   572→          {/* Account breakdown */}
+   573→          <div>
+   574→            <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Account breakdown</div>
+   575→            <div className="overflow-x-auto">
+   576→              <table className="w-full text-xs">
+   577→                <thead>
+   578→                  <tr className="border-b border-border/40">
+   579→                    <th className="py-2 pr-3 text-left font-semibold text-muted-foreground">Account</th>
+   580→                    <th className="px-3 text-right font-semibold text-muted-foreground">Followers</th>
+   581→                    <th className="px-3 text-right font-semibold text-muted-foreground">Impressions</th>
+   582→                    <th className="px-3 text-right font-semibold text-muted-foreground">Engagement</th>
+   583→                    <th className="px-3 text-right font-semibold text-muted-foreground">Posts</th>
+   584→                  </tr>
+   585→                </thead>
+   586→                <tbody>
+   587→                  {analytics.perAccount.map((a) => (
+   588→                    <tr key={a.id} className="border-b border-border/20">
+   589→                      <td className="py-2 pr-3">
+   590→                        <div className="flex items-center gap-2">
+   591→                          <PlatformBadge platform={a.platform as any} size={16} />
+   592→                          <span className="font-medium">{a.displayName}</span>
+   593→                        </div>
+   594→                      </td>
+   595→                      <td className="px-3 text-right tabular-nums">{a.followers.toLocaleString()}</td>
+   596→                      <td className="px-3 text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+   597→                      <td className="px-3 text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+   598→                      <td className="px-3 text-right tabular-nums">{a.posts}</td>
+   599→                    </tr>
+   600→                  ))}
+   601→                </tbody>
+   602→              </table>
+   603→            </div>
+   604→          </div>
+   605→
+   606→          {/* Top content */}
+   607→          {analytics.topContent.length > 0 && (
+   608→            <div>
+   609→              <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Top performing content</div>
+   610→              <div className="space-y-2">
+   611→                {analytics.topContent.slice(0, 5).map((c, i) => (
+   612→                  <div key={c.id} className="flex items-center gap-3 rounded-xl border border-border/30 bg-muted/20 p-2.5">
+   613→                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold">{i + 1}</span>
+   614→                    <div className="min-w-0 flex-1">
+   615→                      <div className="truncate text-xs font-medium">{c.title}</div>
+   616→                      <div className="text-[10px] text-muted-foreground">{c.handle} · {c.authorName}</div>
+   617→                    </div>
+   618→                    <div className="flex gap-3 text-[10px]">
+   619→                      <span className="text-right"><span className="font-bold">{fmt(c.engagement)}</span> eng</span>
+   620→                      <span className="text-right"><span className="font-bold">{fmt(c.reach)}</span> reach</span>
+   621→                    </div>
+   622→                  </div>
+   623→                ))}
+   624→              </div>
+   625→            </div>
+   626→          )}
+   627→
+   628→          {/* Report info */}
+   629→          <div className="rounded-xl bg-muted/30 p-3 text-[11px] text-muted-foreground">
+   630→            <strong className="text-foreground">{report.name}</strong>
+   631→            {report.description && <div className="mt-1">{report.description}</div>}
+   632→            <div className="mt-1">Generated: {report.lastGenerated ? new Date(report.lastGenerated).toLocaleString() : "N/A"}</div>
+   633→          </div>
+   634→        </div>
+   635→      </DialogContent>
+   636→    </Dialog>
+   637→  );
+   638→}
+   639→
+   640→function PreviewKPI({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+   641→  return (
+   642→    <div className="rounded-xl border border-border/30 bg-muted/20 p-3">
+   643→      <div className="flex items-center gap-2 text-muted-foreground">
+   644→        {icon}
+   645→        <span className="text-[10px] font-semibold uppercase tracking-wide">{label}</span>
+   646→      </div>
+   647→      <div className="num-display mt-1 text-xl font-bold">{value}</div>
+   648→    </div>
+   649→  );
+   650→}
+   651→
+   652→// ============ Print Layout — letter-size, hidden on screen ============
+   653→function PrintLayout({ report, analytics }: { report: ReportData; analytics: AnalyticsData }) {
+   654→  const totals = analytics.perAccount.reduce(
+   655→    (acc, a) => {
+   656→      acc.followers += a.followers;
+   657→      acc.impressions += a.impressions;
+   658→      acc.reach += a.reach;
+   659→      acc.engagement += a.engagement;
+   660→      acc.posts += a.posts;
+   661→      acc.likes += a.likes;
+   662→      acc.comments += a.comments;
+   663→      acc.shares += a.shares;
+   664→      return acc;
+   665→    },
+   666→    { followers: 0, impressions: 0, reach: 0, engagement: 0, posts: 0, likes: 0, comments: 0, shares: 0 }
+   667→  );
+   668→
+   669→  const now = new Date();
+   670→  const dateStr = now.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+   671→
+   672→  return (
+   673→    <div className="report-print-root hidden print:block">
+   674→      <table className="w-full">
+   675→        <thead>
+   676→          <tr>
+   677→            <td className="report-header-cell">
+   678→              <div className="report-header">
+   679→                <div className="flex items-center justify-between">
+   680→                  <div>
+   681→                    <div className="report-brand">SocialFlow</div>
+   682→                    <div className="report-subtitle">{report.name}</div>
+   683→                  </div>
+   684→                  <div className="text-right">
+   685→                    <div className="report-date">{dateStr}</div>
+   686→                    <div className="report-type">{report.type} Report</div>
+   687→                  </div>
+   688→                </div>
+   689→              </div>
+   690→            </td>
+   691→          </tr>
+   692→        </thead>
+   693→        <tbody>
+   694→          <tr>
+   695→            <td className="report-body-cell">
+   696→              <div className="report-content">
+   697→                {report.description && <p className="report-description">{report.description}</p>}
+   698→
+   699→                <h2 className="report-section-title">Executive Summary</h2>
+   700→                <p className="report-text">
+   701→                  This report covers {analytics.perAccount.length} account(s). Total audience:
+   702→                  {" "}<strong>{fmt(totals.followers)}</strong> followers,
+   703→                  {" "}<strong>{fmt(totals.impressions)}</strong> impressions,
+   704→                  {" "}<strong>{fmt(totals.reach)}</strong> reach, and
+   705→                  {" "}<strong>{fmt(totals.engagement)}</strong> total engagement.
+   706→                </p>
+   707→
+   708→                <h2 className="report-section-title">Key Metrics</h2>
+   709→                <table className="report-table">
+   710→                  <thead><tr><th>Metric</th><th className="text-right">Value</th></tr></thead>
+   711→                  <tbody>
+   712→                    <tr><td>Total Followers</td><td className="text-right tabular-nums">{totals.followers.toLocaleString()}</td></tr>
+   713→                    <tr><td>Total Impressions</td><td className="text-right tabular-nums">{totals.impressions.toLocaleString()}</td></tr>
+   714→                    <tr><td>Total Reach</td><td className="text-right tabular-nums">{totals.reach.toLocaleString()}</td></tr>
+   715→                    <tr><td>Total Engagement</td><td className="text-right tabular-nums">{totals.engagement.toLocaleString()}</td></tr>
+   716→                    <tr><td>Likes</td><td className="text-right tabular-nums">{totals.likes.toLocaleString()}</td></tr>
+   717→                    <tr><td>Comments</td><td className="text-right tabular-nums">{totals.comments.toLocaleString()}</td></tr>
+   718→                    <tr><td>Shares</td><td className="text-right tabular-nums">{totals.shares.toLocaleString()}</td></tr>
+   719→                    <tr><td>Posts Published</td><td className="text-right tabular-nums">{totals.posts.toLocaleString()}</td></tr>
+   720→                  </tbody>
+   721→                </table>
+   722→
+   723→                <h2 className="report-section-title">Account Breakdown</h2>
+   724→                <table className="report-table">
+   725→                  <thead>
+   726→                    <tr><th>Account</th><th>Platform</th><th className="text-right">Followers</th><th className="text-right">Impressions</th><th className="text-right">Engagement</th><th>Owner</th></tr>
+   727→                  </thead>
+   728→                  <tbody>
+   729→                    {analytics.perAccount.map((a) => (
+   730→                      <tr key={a.id}>
+   731→                        <td className="font-medium">{a.displayName}</td>
+   732→                        <td className="capitalize">{a.platform}</td>
+   733→                        <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
+   734→                        <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+   735→                        <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+   736→                        <td>{a.ownerName}</td>
+   737→                      </tr>
+   738→                    ))}
+   739→                  </tbody>
+   740→                </table>
+   741→
+   742→                {analytics.topContent.length > 0 && (
+   743→                  <>
+   744→                    <h2 className="report-section-title">Top Performing Content</h2>
+   745→                    <table className="report-table">
+   746→                      <thead><tr><th>#</th><th>Title</th><th>Platform</th><th className="text-right">Engagement</th><th className="text-right">Reach</th></tr></thead>
+   747→                      <tbody>
+   748→                        {analytics.topContent.slice(0, 8).map((c, i) => (
+   749→                          <tr key={c.id}>
+   750→                            <td>{i + 1}</td>
+   751→                            <td className="max-w-[200px] truncate">{c.title}</td>
+   752→                            <td className="capitalize">{c.platform}</td>
+   753→                            <td className="text-right tabular-nums">{c.engagement.toLocaleString()}</td>
+   754→                            <td className="text-right tabular-nums">{c.reach.toLocaleString()}</td>
+   755→                          </tr>
+   756→                        ))}
+   757→                      </tbody>
+   758→                    </table>
+   759→                  </>
+   760→                )}
+   761→
+   762→                <p className="report-footer-note">
+   763→                  Generated by SocialFlow on {dateStr}. Data sourced from connected social media accounts.
+   764→                </p>
+   765→              </div>
+   766→            </td>
+   767→          </tr>
+   768→        </tbody>
+   769→        <tfoot>
+   770→          <tr>
+   771→            <td className="report-footer-cell">
+   772→              <div className="report-footer">
+   773→                <div className="flex items-center justify-between">
+   774→                  <span>SocialFlow — Social, Simplified.</span>
+   775→                  <span>Page <span className="page-number"></span></span>
+   776→                </div>
+   777→              </div>
+   778→            </td>
+   779→          </tr>
+   780→        </tfoot>
+   781→      </table>
+   782→
+   783→      <style jsx global>{`
+   784→        @media print {
+   785→          @page { size: letter; margin: 0; }
+   786→          body * { visibility: hidden; }
+   787→          .report-print-root, .report-print-root * { visibility: visible; }
+   788→          .report-print-root { position: absolute; top: 0; left: 0; width: 100%; }
+   789→          .report-header { border-bottom: 2px solid #000; padding: 20px 40px 10px; }
+   790→          .report-brand { font-size: 18px; font-weight: 800; color: #5856D6; }
+   791→          .report-subtitle { font-size: 14px; font-weight: 600; color: #333; }
+   792→          .report-date { font-size: 11px; color: #666; }
+   793→          .report-type { font-size: 10px; color: #999; text-transform: uppercase; }
+   794→          .report-body-cell { padding: 20px 40px; }
+   795→          .report-content { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #222; }
+   796→          .report-description { font-size: 12px; color: #555; margin-bottom: 16px; font-style: italic; }
+   797→          .report-section-title { font-size: 14px; font-weight: 700; color: #5856D6; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; }
+   798→          .report-text { font-size: 12px; line-height: 1.6; color: #333; margin-bottom: 12px; }
+   799→          .report-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
+   800→          .report-table th { background: #f5f5f5; font-weight: 600; text-align: left; padding: 6px 10px; border: 1px solid #ddd; }
+   801→          .report-table td { padding: 5px 10px; border: 1px solid #ddd; }
+   802→          .report-table tbody tr:nth-child(even) { background: #fafafa; }
+   803→          .report-footer-note { font-size: 10px; color: #999; margin-top: 24px; font-style: italic; }
+   804→          .report-footer { border-top: 2px solid #000; padding: 10px 40px; font-size: 10px; color: #666; }
+   805→          .page-number:after { content: counter(page); }
+   806→        }
+   807→      `}</style>
+   808→    </div>
+   809→  );
+   810→}
+   811→
