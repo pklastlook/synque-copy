@@ -1,14 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#5856D6"/>
+      <stop offset="50%" stop-color="#6C5CE7"/>
       <stop offset="100%" stop-color="#7B68EE"/>
     </linearGradient>
-    <filter id="shadow">
-      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000" flood-opacity="0.2"/>
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E0E0FF"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="180" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4"/>
-  <text x="256" y="256" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="200" font-weight="800" fill="white" text-anchor="middle" dominant-baseline="central" filter="url(#shadow)">SF</text>
+  <!-- Full background for maskable icon -->
+  <rect width="512" height="512" fill="url(#bgGrad)"/>
+  <!-- Decorative circles -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
+  <!-- SF logo text — centered in safe zone (80% = ~410px area) -->
+  <text x="256" y="256" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+        font-size="200" font-weight="800" fill="url(#logoGrad)"
+        text-anchor="middle" dominant-baseline="central"
+        filter="url(#glow)" letter-spacing="-8">SF</text>
+  <!-- Subtle dot accent -->
+  <circle cx="256" cy="80" r="6" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="256" cy="432" r="4" fill="rgba(255,255,255,0.3)"/>
 </svg>
