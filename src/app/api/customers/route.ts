@@ -1,25 +1,147 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, requireRole } from "@/lib/auth-guard";
+import { Client } from "pg";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const customers = await db.customer.findMany({ include: { serialKey: true, invoices: true, quotations: true }, orderBy: { createdAt: "desc" } });
+/** The Neon connection base — same host as DATABASE_URL but connecting to the 'postgres' maintenance DB */
+const NEON_HOST = process.env.DIRECT_URL
+  ? new URL(process.env.DIRECT_URL).host
+  : new URL(process.env.DATABASE_URL || "").host;
+const NEON_USER = process.env.DIRECT_URL
+  ? new URL(process.env.DIRECT_URL).username
+  : new URL(process.env.DATABASE_URL || "").username;
+const NEON_PASS = process.env.DIRECT_URL
+  ? new URL(process.env.DIRECT_URL).password
+  : new URL(process.env.DATABASE_URL || "").password;
+
+/** Create a dedicated database on Neon for a new client */
+async function createTenantDatabase(dbName: string): Promise<string> {
+  // Sanitize the database name (Neon requires lowercase, alphanumeric + underscore)
+  const safeName = dbName.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "");
+
+  // Connect to the maintenance database
+  const maintUrl = `postgresql://${NEON_USER}:${encodeURIComponent(NEON_PASS)}@${NEON_HOST}/postgres?sslmode=require`;
+  const client = new Client({ connectionString: maintUrl });
+
+  try {
+    await client.connect();
+
+    // Check if database already exists
+    const check = await client.query("SELECT 1 FROM pg_database WHERE datname = $1", [safeName]);
+    if (check.rows.length === 0) {
+      await client.query(`CREATE DATABASE "${safeName}"`);
+      console.log(`[tenant-db] Created database: ${safeName}`);
+    }
+
+    // Build the connection URL for this database
+    const dbUrl = `postgresql://${NEON_USER}:${encodeURIComponent(NEON_PASS)}@${NEON_HOST}/${safeName}?sslmode=require`;
+    return dbUrl;
+  } finally {
+    await client.end();
+  }
+}
+
+/** Push the Prisma schema to the newly created database */
+async function pushSchemaToTenantDb(dbUrl: string): Promise<void> {
+  const { execSync } = await import("node:child_process");
+  // Use prisma db push with the tenant's DATABASE_URL
+  // This is safe because the schema is already defined in prisma/schema.prisma
+  try {
+    execSync(`npx prisma db push --accept-data-loss`, {
+      env: { ...process.env, DATABASE_URL: dbUrl },
+      stdio: "pipe",
+      timeout: 60000,
+    });
+    console.log("[tenant-db] Schema pushed successfully");
+  } catch (e) {
+    console.error("[tenant-db] Schema push failed:", e instanceof Error ? e.message : String(e));
+    // Don't throw — the database is created, schema can be pushed later
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+
+  const customers = await db.customer.findMany({
+    include: { serialKey: true, invoices: true, quotations: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Fetch tenant database statuses
+  const tenantDbs = await db.tenantDatabase.findMany();
+  const dbMap = new Map(tenantDbs.map((t) => [t.customerId, t]));
+
   return NextResponse.json(customers.map((c) => ({
     id: c.id, name: c.name, email: c.email, phone: c.phone, company: c.company,
     address: c.address, city: c.city, country: c.country, status: c.status, plan: c.plan,
     serialKey: c.serialKey ? { id: c.serialKey.id, key: c.serialKey.key, status: c.serialKey.status, activatedAt: c.serialKey.activatedAt?.toISOString() ?? null } : null,
     invoicesCount: c.invoices.length, quotationsCount: c.quotations.length,
+    database: dbMap.get(c.id) ? {
+      name: dbMap.get(c.id)!.dbName,
+      status: dbMap.get(c.id)!.status,
+      createdAt: dbMap.get(c.id)!.createdAt.toISOString(),
+    } : null,
     createdAt: c.createdAt.toISOString(),
   })));
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = requireRole(req, "admin");
+  if (error) return error;
+
   const body = await req.json();
-  const { name, email, phone, company, address, city, country, plan } = body;
+  const { name, email, phone, company, address, city, country, plan, createDatabase } = body;
   if (!name || !email) return NextResponse.json({ error: "name and email required" }, { status: 400 });
   const existing = await db.customer.findUnique({ where: { email } }).catch(() => null);
   if (existing) return NextResponse.json({ error: "Customer with this email exists" }, { status: 409 });
-  const customer = await db.customer.create({ data: { name, email, phone, company, address, city, country, plan: plan ?? "starter" } });
-  return NextResponse.json({ id: customer.id, ok: true });
+
+  const customer = await db.customer.create({
+    data: { name, email, phone, company, address, city, country, plan: plan ?? "starter" },
+  });
+
+  // If the owner chose to create a database for this client
+  if (createDatabase) {
+    try {
+      // Generate a database name from the company or customer name
+      const rawName = (company || name).replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+      const dbName = rawName.length > 3 ? rawName : `client_${customer.id.slice(-8)}`;
+
+      // 1. Create the database on Neon
+      const dbUrl = await createTenantDatabase(dbName);
+
+      // 2. Push the schema to the new database
+      await pushSchemaToTenantDb(dbUrl);
+
+      // 3. Register it in the TenantDatabase table
+      await db.tenantDatabase.create({
+        data: {
+          customerId: customer.id,
+          dbName,
+          dbUrl,
+          status: "active",
+        },
+      });
+
+      return NextResponse.json({
+        id: customer.id,
+        ok: true,
+        databaseCreated: true,
+        dbName,
+      });
+    } catch (e) {
+      console.error("[customer] Database creation failed:", e);
+      // The customer was created, but the database wasn't — return partial success
+      return NextResponse.json({
+        id: customer.id,
+        ok: true,
+        databaseCreated: false,
+        dbError: e instanceof Error ? e.message : "Database creation failed",
+      });
+    }
+  }
+
+  return NextResponse.json({ id: customer.id, ok: true, databaseCreated: false });
 }
