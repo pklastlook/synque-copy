@@ -117,26 +117,43 @@ export async function GET() {
     ).length;
     const publishedDelta = delta(publishedLast7d, publishedPrev7d);
 
-    // === Today's activity (posts, comments, pages, profiles active today) ===
+    // === Today's activity — what's actually being POSTED to social media ===
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    const postsToday = posts.filter((p) => new Date(p.createdAt) >= todayStart).length;
-    const commentsToday = comments.filter((c) => new Date(c.createdAt) >= todayStart).length;
-    const publishedToday = variants.filter(
+
+    // Variants published to platforms today (tweets, IG posts, FB posts, etc.)
+    const publishedVariantsToday = variants.filter(
       (v) => v.publishedAt && new Date(v.publishedAt) >= todayStart
-    ).length;
+    );
+    const publishedToday = publishedVariantsToday.length;
+
+    // Which accounts (pages/profiles) had content posted to them today
     const activeAccountsToday = new Set(
-      variants
-        .filter((v) => v.publishedAt && new Date(v.publishedAt) >= todayStart)
-        .map((v) => v.accountId)
+      publishedVariantsToday.map((v) => v.accountId)
     ).size;
+
+    // Which team members published content today (via the post author)
     const activeMembersToday = new Set(
-      posts.filter((p) => new Date(p.createdAt) >= todayStart).map((p) => p.authorId)
+      publishedVariantsToday.map((v) => {
+        const post = posts.find((p) => p.id === v.postId);
+        return post?.authorId;
+      }).filter(Boolean) as string[]
     ).size;
+
+    // Comments received on social today
+    const commentsToday = comments.filter((c) => new Date(c.createdAt) >= todayStart).length;
+
+    // Per-platform breakdown of what was posted today
+    const platformActivityToday: Record<string, number> = {};
+    for (const v of publishedVariantsToday) {
+      const p = v.account.platform;
+      platformActivityToday[p] = (platformActivityToday[p] ?? 0) + 1;
+    }
+
     // Daily targets for progress bars
-    const dailyPostTarget = 3;
-    const dailyCommentTarget = 5;
-    const dailyPublishTarget = 3;
+    const dailyPublishTarget = 5;
+    const dailyCommentTarget = 10;
+    const dailyActiveAccountTarget = accounts.length; // all accounts should be active
 
     // === Combined trend series (14 days): followers, reach, postsCreated, comments ===
     const series: {
@@ -508,17 +525,17 @@ export async function GET() {
         accounts: accounts.length,
         variantsPublished: variants.filter((v) => v.status === "published").length,
         totalEngagement,
-        // Today's activity
+        // Today's activity — what's actually posted to social media
         today: {
-          posts: postsToday,
-          comments: commentsToday,
           published: publishedToday,
+          comments: commentsToday,
           activeAccounts: activeAccountsToday,
           activeMembers: activeMembersToday,
+          platformBreakdown: platformActivityToday,
           targets: {
-            posts: dailyPostTarget,
-            comments: dailyCommentTarget,
             published: dailyPublishTarget,
+            comments: dailyCommentTarget,
+            activeAccounts: dailyActiveAccountTarget,
           },
         },
       },
