@@ -2789,3 +2789,72 @@ Stage Summary:
 - **Managers see task summaries** on the dashboard (total/completed/remaining/overdue + recent tasks list) and can view all tasks or filter to my/created.
 - **Integrated everywhere**: Tasks appears in the sidebar nav (between Team Chat and Performance), has a header title/subtitle, the dashboard has a Task Summary card, and the "Send to Composer" button wires tasks → composer via the existing openComposerWithPost store action.
 - Artifacts changed: prisma/schema.prisma (+5 fields), src/app/api/tasks/route.ts (rewritten +auth), src/app/api/tasks/[id]/route.ts (rewritten +auth), src/app/api/dashboard/route.ts (+tasks fetch + taskSummary), src/components/views/tasks.tsx (NEW, 720 lines), src/components/views/dashboard.tsx (+taskSummary type + Task Summary card + TaskStat helper), src/lib/types.ts (+tasks ViewId), src/components/app-sidebar.tsx (+nav item), src/components/app-shell.tsx (+render), src/components/app-header.tsx (+title).
+
+---
+Task ID: rbac-data-isolation
+Agent: general-purpose (role-based access control + data isolation)
+Task: Manager and member have same rights; users see other users' accounts. Fix data isolation (each user sees own accounts) + access control (members can't access settings/sensitive modules).
+
+Work Log:
+- Read /home/z/my-project/worklog.md for prior work.
+- Diagnosed root causes:
+  • /api/accounts had NO auth and returned ALL accounts to every caller — no requireAuth, no ownerId filter.
+  • /api/analytics had NO auth — any user could fetch any account's analytics.
+  • The sidebar showed ALL nav items to ALL users — no role-based filtering. Settings, Team, Performance were visible to members.
+  • No client-side access guard — members could navigate to any view via URL.
+
+### Fix 1: Data isolation in /api/accounts (src/app/api/accounts/route.ts)
+- Added `requireAuth` — all requests must be authenticated.
+- Added role-based filtering: `isManager = user.role === "admin" || "manager"`.
+- Non-managers get `where: { ownerId: user.userId }` — they see only accounts they own.
+- Managers/admins get `where: {}` — they see all accounts (team view).
+- Also scoped `analytics` and `variants` queries by the same account IDs so non-managers don't see other users' engagement data.
+
+### Fix 2: Data isolation in /api/analytics (src/app/api/analytics/route.ts)
+- Added `requireAuth`.
+- Non-managers requesting `?accountId=all` now get only their own accounts' analytics (via a `scopeAccountIds` array from their owned accounts).
+- Managers/admins get all analytics (team view).
+- Also scoped `variants` and `accounts` queries by `scopeAccountIds`.
+
+### Fix 3: Role-based sidebar filtering (src/components/app-sidebar.tsx)
+- Added `NavRole` type and `roles?: NavRole[]` field to NAV items.
+- Restricted "Performance" (team-performance) to admin+manager only.
+- Restricted "Team" to admin+manager only (member management is a manager concern).
+- Added `visibleNav = NAV.filter((n) => !n.roles || n.roles.includes(userRole))` so members don't even see these items in the sidebar.
+- Gated the Settings gear icon + SettingsGroup to managers+ only (`{isManager && (...)}`).
+
+### Fix 4: Client-side access guard (src/components/app-shell.tsx)
+- Added a `useEffect` that checks the user's role when the view changes.
+- If a non-manager tries to view "settings", "team", or "team-performance" → redirected to "dashboard".
+- If a non-admin tries to view "owner" → redirected to "dashboard".
+- This prevents direct URL navigation to restricted views.
+
+### Verification (API-level, with real users)
+Created a member user (member@test.com) and a manager user (manager@test.com) via the admin. Tested the /api/accounts endpoint:
+- **Admin** (it.ashraf@outlook.com): sees 1 account (M. Ashraf's) — full visibility ✓
+- **Member** (member@test.com): sees **0 accounts** — only their own (they own none) ✓
+- **Manager** (manager@test.com): sees 1 account (M. Ashraf's) — team view ✓
+
+The member user correctly sees NO accounts because they don't own any. The manager sees all accounts (team view). The admin sees everything. This is exactly the right behavior — each user is separated by their role.
+
+### Existing data isolation (already in place)
+- /api/dashboard already had `isManagerView` logic that filters accounts/posts by ownerId for non-managers.
+- /api/team already had `requireAuth`.
+- /api/chat already had `requireAuth`.
+- /api/whatsapp already had `requireAuth`.
+- /api/tasks already had `requireAuth` (added in the previous tasks-module task).
+- /api/reports/data already had `requireAuth`.
+
+Stage Summary:
+- **Each user now sees only their own data**:
+  - Members see only their own connected accounts, posts, analytics — not other users' accounts.
+  - Managers see all accounts (team view) — they need visibility across the team.
+  - Admins see everything.
+- **Access control is now role-based**:
+  - Members/editors/viewers cannot see Settings, Team, or Performance in the sidebar.
+  - Members cannot access Settings/Team/Performance via URL (redirected to dashboard).
+  - Only admins can access the Owner Panel.
+  - Settings gear icon is hidden from non-managers.
+- Artifacts changed: src/app/api/accounts/route.ts (+auth +isolation), src/app/api/analytics/route.ts (+auth +isolation), src/components/app-sidebar.tsx (+role-based nav filtering + Settings gating), src/components/app-shell.tsx (+access guard redirect).
+- Lint: 0 errors. TypeScript: 0 errors.
+- Committed + pushed to GitHub (commit 5bc1420).
