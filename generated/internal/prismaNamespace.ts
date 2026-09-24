@@ -3168,7 +3168,10 @@ export const UserScalarFieldEnum = {
   permissions: 'permissions',
   status: 'status',
   lastActive: 'lastActive',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  bio: 'bio',
+  timezone: 'timezone',
+  language: 'language'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]

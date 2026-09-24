@@ -2383,3 +2383,41 @@ Stage Summary:
   - `src/components/app-sidebar.tsx` NAV array itself — properly typed against ViewId, no orphan ids.
 
 - No source files were modified (read-only audit per instructions).
+
+---
+Task ID: profile-settings-fix
+Agent: general-purpose (profile sub-module fixer)
+Task: Fix the Settings → Profile sub-module: profile photo upload gave "uploadedById required" error, and profile changes were not saving.
+
+Work Log:
+- Read /home/z/my-project/worklog.md to understand prior work (audit tasks, messenger-fix, reports-rebuild).
+- Diagnosed root causes:
+  1. **Profile photo upload bug**: `handleAvatarUpload` in src/components/views/settings.tsx built a FormData with only `file` but never appended `uploadedById`. The `/api/media/upload` route requires `uploadedById` (returns 400 "uploadedById required" when missing). Same bug existed in `handleLogoUpload` (Company section).
+  2. **"Not saving changes" bug**: The Profile form had `bio`, `timezone`, `language` fields, but (a) the `save()` function never sent them in the PATCH body, (b) the Prisma `User` model had no `bio`/`timezone`/`language` columns, and (c) neither `/api/users` GET nor `/api/auth/me` returned them — so even name/email/title/department saved fine, but bio/timezone/language silently disappeared on reload.
+- Schema change: Added `bio String?`, `timezone String?`, `language String?` columns to the `User` model in prisma/schema.prisma. Pushed to Neon with `npx prisma db push` (the project's `db:push` script uses the broken prisma-pglite wrapper, so used standard prisma CLI against the Neon DATABASE_URL). Regenerated Prisma client.
+- API changes:
+  - `src/app/api/users/route.ts`: GET now returns `bio`/`timezone`/`language`; PATCH now accepts + persists them; added try/catch around the update so DB errors return 500 instead of crashing; the PATCH response now also includes `department` + the three new fields so the client can sync.
+  - `src/app/api/auth/me/route.ts`: `select` now includes `bio`/`timezone`/`language`.
+  - `src/app/api/auth/login/route.ts` + `signup/route.ts`: the returned `user` object now includes `avatar`/`bio`/`timezone`/`language`/`department` (previously only id/name/email/role/title).
+- Auth store change: `src/lib/auth-store.ts` `AuthUser` interface extended with optional `bio`/`timezone`/`language`/`department`.
+- Frontend changes (src/components/views/settings.tsx):
+  - `ApiUser` interface extended with optional `bio`/`timezone`/`language`.
+  - `ProfileSection` useEffect now pre-fills `bio`/`timezone`/`language` from the freshest `/api/users` record (falling back to the auth-store user).
+  - `handleAvatarUpload`: now appends `uploadedById` (+ `name` + `folder`) to the FormData; on success it keeps the persisted auth store in sync (so sidebar/header avatar updates without a reload) and surfaces a clear error toast if the PATCH fails.
+  - `save()`: now sends `bio`/`timezone`/`language` alongside name/email/title/department.
+  - `CompanySection.handleLogoUpload`: now appends `uploadedById` (+ `name` + `folder`) and guards on `user` being present.
+- Verification (API-level e2e): started dev server, logged in, confirmed:
+  - PATCH /api/users with bio/timezone/language → `ok: true`, returned all new fields.
+  - Re-GET /api/users → bio/timezone/language persisted in DB. ✅
+  - POST /api/media/upload WITHOUT uploadedById → `{"error":"uploadedById required"}` (400) — confirms the validation is intact.
+  - POST /api/media/upload WITH uploadedById → `ok: True`, real URL + DB id returned. ✅
+- Verification (browser e2e via Agent Browser + VLM): navigated to Settings → Profile, confirmed all 7 form fields render (Full name, Email, Title, Department, Timezone, Language, Bio); changed the bio and clicked "Save changes" → "Profile saved — Your changes have been synced." toast; reloaded the page → bio value persisted; uploaded a test image via the hidden file input → avatar `img` src updated to the data URL (no error); VLM screenshot analysis confirmed avatar visible, all fields present, Save/Change/Remove buttons present, NO error messages.
+- Cleaned up test data (reset avatar to null, bio to empty) so the user starts fresh.
+- Ran `bunx tsc --noEmit` (0 errors in src/) and `bunx eslint` on all 6 changed files (0 errors). Pre-existing unrelated TS errors remain in examples/, mini-services/, prisma.config.ts, skills/.
+
+Stage Summary:
+- **Both reported bugs fixed and verified end-to-end**:
+  1. Profile photo upload no longer fails with "uploadedById required" — `handleAvatarUpload` (and `handleLogoUpload`) now append `uploadedById` to the upload FormData.
+  2. Profile changes now actually save — added `bio`/`timezone`/`language` columns to the User model, wired them through the API (GET/PATCH on /api/users, /api/auth/me, login, signup), and the `save()` function now sends all fields. Verified that values persist across a full page reload.
+- Artifacts changed: prisma/schema.prisma, src/app/api/users/route.ts, src/app/api/auth/me/route.ts, src/app/api/auth/login/route.ts, src/app/api/auth/signup/route.ts, src/lib/auth-store.ts, src/components/views/settings.tsx.
+- Dev server is running and healthy (next-server v16.1.3 on port 3000, GET / → 200).

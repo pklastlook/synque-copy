@@ -55,6 +55,11 @@ export async function POST(req: NextRequest) {
         email: user.email,
         role: user.role,
         title: user.title,
+        avatar: user.avatar,
+        bio: user.bio,
+        timezone: user.timezone,
+        language: user.language,
+        department: user.department,
       },
     });
 

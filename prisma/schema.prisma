@@ -25,6 +25,9 @@ model User {
   status      String   @default("active") // active | suspended | invited
   lastActive  DateTime?
   createdAt   DateTime @default(now())
+  bio         String?  // short personal bio (max ~280 chars)
+  timezone    String?  // IANA timezone e.g. "America/Los_Angeles"
+  language    String?  // locale code e.g. "en-US"
 
   accounts  Account[]
   posts     Post[]
