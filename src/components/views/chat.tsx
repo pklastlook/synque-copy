@@ -246,7 +246,7 @@ export function ChatView() {
                 )}
               >
                 <div className="relative shrink-0">
-                  <NameAvatar name={m.name} color={m.color ?? "blue"} className="h-9 w-9 text-xs" />
+                  <NameAvatar name={m.name} color={m.color ?? "blue"} src={m.avatar ?? undefined} gender={(m as any)?.gender ?? undefined} className="h-9 w-9 text-xs" />
                   {isActive && (
                     <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
                   )}
@@ -275,7 +275,7 @@ export function ChatView() {
         <div className="flex items-center gap-3 border-b border-border/40 p-4">
           {selectedMember ? (
             <>
-              <NameAvatar name={selectedMember.name} color={selectedMember.color ?? "blue"} className="h-10 w-10 text-sm" />
+              <NameAvatar name={selectedMember.name} color={selectedMember.color ?? "blue"} src={selectedMember.avatar ?? undefined} gender={(selectedMember as any)?.gender ?? undefined} className="h-10 w-10 text-sm" />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold">{selectedMember.name}</div>
                 <div className="text-[11px] text-muted-foreground">

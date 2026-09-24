@@ -32,30 +32,37 @@ export function NameAvatar({
   name,
   color,
   src,
+  gender,
   className,
   ring,
 }: {
   name: string;
   color?: string | null;
   src?: string | null;
+  gender?: string | null;
   className?: string;
   ring?: boolean;
 }) {
   const c = color && GRADIENTS[color] ? color : hashColor(name);
+  // Gender-based gradient override when no photo is available
+  const genderGradient =
+    gender === "female" ? "from-pink-500 to-rose-400" :
+    gender === "male" ? "from-blue-500 to-cyan-400" :
+    null;
+  const gradient = genderGradient ?? GRADIENTS[c];
   return (
     <div
       className={cn(
         "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br font-semibold text-white shadow-inner",
-        GRADIENTS[c],
+        gradient,
         ring && "ring-2 ring-background",
         className
       )}
       aria-label={name}
     >
-      {src ? (
-         
+      {src ?
         <img src={src} alt={name} className="h-full w-full object-cover" />
-      ) : (
+      : (
         <span className="select-none">{initials(name)}</span>
       )}
     </div>

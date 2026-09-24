@@ -251,7 +251,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* User card */}
       <div className="mt-1 flex items-center gap-2.5 rounded-2xl border border-border/30 bg-muted/30 p-2.5">
-        <NameAvatar name={user?.name ?? "User"} color="blue" className="h-9 w-9 text-xs" ring />
+        <NameAvatar name={user?.name ?? "User"} color="blue" src={user?.avatar ?? undefined} gender={(user as any)?.gender ?? undefined} className="h-9 w-9 text-xs" ring />
         <div className="min-w-0 flex-1 leading-tight">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-[13px] font-semibold">{user?.name ?? "User"}</span>
