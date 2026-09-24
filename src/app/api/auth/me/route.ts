@@ -29,6 +29,9 @@ export async function GET(req: NextRequest) {
         department: true,
         color: true,
         avatar: true,
+        bio: true,
+        timezone: true,
+        language: true,
       },
     });
 

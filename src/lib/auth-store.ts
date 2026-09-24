@@ -10,6 +10,10 @@ export interface AuthUser {
   role: string;
   title: string | null;
   avatar?: string | null;
+  bio?: string | null;
+  timezone?: string | null;
+  language?: string | null;
+  department?: string | null;
 }
 
 interface AuthState {

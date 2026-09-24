@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
       department: u.department,
       color: u.color,
       avatar: u.avatar,
+      bio: u.bio,
+      timezone: u.timezone,
+      language: u.language,
       permissions: u.permissions ? JSON.parse(u.permissions) : [],
       status: u.status,
       lastActive: u.lastActive?.toISOString() ?? null,
@@ -33,7 +36,7 @@ export async function PATCH(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { id, name, email, role, title, department, color, avatar, permissions, status, password } = body;
+  const { id, name, email, role, title, department, color, avatar, bio, timezone, language, permissions, status, password } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   // Only admins/managers can change someone else's role/status
@@ -52,6 +55,9 @@ export async function PATCH(req: NextRequest) {
   if (department !== undefined) data.department = department;
   if (color !== undefined) data.color = color;
   if (avatar !== undefined) data.avatar = avatar;
+  if (bio !== undefined) data.bio = bio;
+  if (timezone !== undefined) data.timezone = timezone;
+  if (language !== undefined) data.language = language;
 
   // Role/status changes require manager+ (even for self — can't promote yourself)
   if (role !== undefined && canManageOthers) data.role = role;
@@ -63,7 +69,12 @@ export async function PATCH(req: NextRequest) {
     data.password = await bcrypt.hash(password, 12);
   }
 
-  await db.user.update({ where: { id }, data });
+  try {
+    await db.user.update({ where: { id }, data });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Update failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
   // Return the updated user so the client can refresh state without a re-fetch
   const updated = await db.user.findUnique({ where: { id } });
@@ -77,6 +88,10 @@ export async function PATCH(req: NextRequest) {
       title: updated.title,
       color: updated.color,
       avatar: updated.avatar,
+      bio: updated.bio,
+      timezone: updated.timezone,
+      language: updated.language,
+      department: updated.department,
     } : null,
   });
 }

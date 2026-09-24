@@ -322,19 +322,22 @@ function ProfileSection() {
   const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Load real user data
+  // Load real user data (prefer the freshest DB record from /api/users,
+  // fall back to the auth store user)
   React.useEffect(() => {
     if (!user) return;
-    setName(user.name);
-    setEmail(user.email);
-    setTitle(user.title ?? "");
-    setAvatarUrl(user.avatar ?? null);
     const dbUser = (data ?? []).find((u) => u.id === user.id);
-    const dept = dbUser?.department as Department | undefined;
+    setName(dbUser?.name ?? user.name);
+    setEmail(dbUser?.email ?? user.email);
+    setTitle(dbUser?.title ?? user.title ?? "");
+    setAvatarUrl(dbUser?.avatar ?? user.avatar ?? null);
+    const dept = (dbUser?.department ?? user.department) as Department | undefined;
     if (dept && (DEPARTMENTS as string[]).includes(dept)) {
       setDepartment(dept);
     }
-    if (dbUser?.avatar) setAvatarUrl(dbUser.avatar);
+    if (dbUser?.bio) setBio(dbUser.bio);
+    if (dbUser?.timezone) setTimezone(dbUser.timezone);
+    if (dbUser?.language) setLanguage(dbUser.language);
   }, [user, data]);
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -348,6 +351,9 @@ function ProfileSection() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("uploadedById", user.id);
+      formData.append("name", `${user.name} avatar`);
+      formData.append("folder", "avatars");
       const token = typeof window !== "undefined"
         ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
         : null;
@@ -368,9 +374,37 @@ function ProfileSection() {
           body: JSON.stringify({ id: user.id, avatar: json.url }),
         });
         if (patchRes.ok) {
+          const patchJson = await patchRes.json();
           setAvatarUrl(json.url);
+          // Keep the persisted auth store in sync so the sidebar/header
+          // avatar updates without a full page reload.
+          try {
+            const raw = localStorage.getItem("socialflow-auth");
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed?.state?.user) {
+                parsed.state.user = { ...parsed.state.user, avatar: json.url };
+                localStorage.setItem("socialflow-auth", JSON.stringify(parsed));
+              }
+            }
+          } catch {}
+          if (patchJson?.user && typeof window !== "undefined") {
+            try {
+              const raw = localStorage.getItem("socialflow-auth");
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed?.state?.user) {
+                  parsed.state.user = { ...parsed.state.user, ...patchJson.user };
+                  localStorage.setItem("socialflow-auth", JSON.stringify(parsed));
+                }
+              }
+            } catch {}
+          }
           toast.success("Avatar updated");
           reload();
+        } else {
+          const patchErr = await patchRes.json().catch(() => ({}));
+          toast.error(patchErr.error ?? "Saved upload but failed to update profile");
         }
       } else {
         toast.error(json.error ?? "Upload failed");
@@ -418,7 +452,7 @@ function ProfileSection() {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ id: user.id, name, email, title, department }),
+        body: JSON.stringify({ id: user.id, name, email, title, department, bio, timezone, language }),
       });
       const json = await res.json();
       if (res.ok) {
@@ -622,11 +656,15 @@ function CompanySection() {
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!user) { toast.error("You must be signed in to upload"); return; }
     if (file.size > 1.5 * 1024 * 1024) { toast.error("Logo too large — max 1.5MB"); return; }
     setUploadingLogo(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("uploadedById", user.id);
+      formData.append("name", `${companyName || "Company"} logo`);
+      formData.append("folder", "logos");
       const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
       const res = await fetch("/api/media/upload", {
         method: "POST",
@@ -642,7 +680,7 @@ function CompanySection() {
         localStorage.setItem("socialflow-company", JSON.stringify(stored));
         toast.success("Logo uploaded");
       } else {
-        toast.error("Upload failed");
+        toast.error(json.error ?? "Upload failed");
       }
     } catch { toast.error("Network error"); }
     finally { setUploadingLogo(false); if (logoInputRef.current) logoInputRef.current.value = ""; }
@@ -1268,6 +1306,9 @@ interface ApiUser {
   department: string | null;
   color: string | null;
   avatar: string | null;
+  bio?: string | null;
+  timezone?: string | null;
+  language?: string | null;
   permissions: string[];
   status: MemberStatus;
   lastActive: string | null;
