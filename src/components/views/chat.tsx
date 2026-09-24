@@ -78,9 +78,16 @@ export function ChatView() {
   // Mark messages as read when viewing a conversation
   React.useEffect(() => {
     if (!data) return;
+    // Include auth token for the PATCH request
+    const token = typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
+      : null;
     fetch("/api/chat", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ receiverId: selectedMember?.id ?? null }),
     }).then(() => reload());
   }, [selectedMember?.id]);
@@ -102,9 +109,13 @@ export function ChatView() {
     if (!messageText.trim()) return;
     setSending(true);
     try {
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           receiverId: selectedMember?.id ?? null,
           text: messageText.trim(),
@@ -141,7 +152,12 @@ export function ChatView() {
 
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
+            ? { "Authorization": `Bearer ${JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token}` }
+            : {}),
+        },
         body: JSON.stringify({
           receiverId: selectedMember?.id ?? null,
           text: "",

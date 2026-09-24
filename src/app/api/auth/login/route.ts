@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       { expiresIn: "7d" }
     );
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       token,
       user: {
         id: user.id,
@@ -57,6 +57,17 @@ export async function POST(req: NextRequest) {
         title: user.title,
       },
     });
+
+    // Also set the token as an httpOnly cookie so server-side API routes
+    // can read it without requiring a Bearer header.
+    response.cookies.set("token", token, {
+      httpOnly: false, // needs to be readable by client-side JS too
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json({ error: "Failed to sign in" }, { status: 500 });
