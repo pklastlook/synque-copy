@@ -43,3 +43,16 @@ function createPrismaClient() {
 export const db = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+
+// Warm up the Neon connection on module load (prevents cold-start timeout
+// on the first login attempt). This runs once when the server starts.
+if (!globalForPrisma.prisma) {
+  db.user.count().then((n) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[db] Neon warm-up OK — ${n} users`);
+    }
+  }).catch(() => {
+    // Silent fail — the first real query will retry
+  });
+  globalForPrisma.prisma = db;
+}

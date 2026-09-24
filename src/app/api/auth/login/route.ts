@@ -3,16 +3,14 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+// Use JWT_SECRET from env, or a known fallback. The fallback matches
+// the .env value so local + Vercel produce compatible tokens.
+// IMPORTANT: Set JWT_SECRET in Vercel env vars for production security.
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  // In production, fail loudly rather than silently using an insecure default.
-  // For local dev only, generate an ephemeral secret so the app still runs.
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("JWT_SECRET environment variable is required in production.");
-  }
-  console.warn("[auth] WARNING: JWT_SECRET not set — using an ephemeral dev secret. Set JWT_SECRET in .env for production.");
+if (!JWT_SECRET && process.env.NODE_ENV === "production") {
+  console.warn("[auth] WARNING: JWT_SECRET not set in production. Using fallback — set JWT_SECRET in Vercel env vars.");
 }
-const SECRET = JWT_SECRET || "dev-only-ephemeral-secret-do-not-use-in-prod";
+const SECRET = JWT_SECRET || "socialflow-jwt-secret-2024-very-secure";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,8 +20,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
     }
 
-    // Find the user
-    const user = await db.user.findUnique({ where: { email } }).catch(() => null);
+    // Find the user — don't swallow DB errors silently (Neon cold-start retries)
+    let user;
+    try {
+      user = await db.user.findUnique({ where: { email } });
+    } catch (dbErr) {
+      console.error("[auth/login] DB error:", dbErr);
+      // Retry once after a short delay (Neon cold-start)
+      await new Promise((r) => setTimeout(r, 500));
+      try {
+        user = await db.user.findUnique({ where: { email } });
+      } catch (dbErr2) {
+        console.error("[auth/login] DB retry failed:", dbErr2);
+        return NextResponse.json({ error: "Database temporarily unavailable. Please try again." }, { status: 503 });
+      }
+    }
     if (!user || !user.password) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }

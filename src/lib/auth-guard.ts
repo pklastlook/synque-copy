@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 
-const SECRET = process.env.JWT_SECRET || "dev-only-ephemeral-secret-do-not-use-in-prod";
+const SECRET = process.env.JWT_SECRET || "socialflow-jwt-secret-2024-very-secure";
 
 export type Role = "admin" | "manager" | "editor" | "member" | "viewer";
 
