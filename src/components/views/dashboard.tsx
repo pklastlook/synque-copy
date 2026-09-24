@@ -469,7 +469,7 @@ export function DashboardView() {
       </div>
 
       {/* === 5. CONTENT PIPELINE === */}
-      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.42s" }}>
+      <GlassCard className="crystal-in overflow-hidden p-5" style={{ animationDelay: "0.42s" }}>
         <SectionTitle
           title="Content pipeline"
           desc="Every post by lifecycle stage"
@@ -524,7 +524,7 @@ export function DashboardView() {
 
       {/* === 6. RECENT POSTS + FAILED POSTS (side-by-side) === */}
       <div className="grid gap-4 lg:grid-cols-2">
-      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.48s" }}>
+      <GlassCard className="crystal-in overflow-hidden p-5" style={{ animationDelay: "0.48s" }}>
         <SectionTitle
           title="Recent posts"
           desc="Latest content — click to edit & republish"
@@ -605,7 +605,7 @@ export function DashboardView() {
 
       {/* === 6b. SHARED CONTENT (admin/manager) or FAILED POSTS (user) === */}
       {isManager ? (
-        <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.50s" }}>
+        <GlassCard className="crystal-in overflow-hidden p-5" style={{ animationDelay: "0.50s" }}>
           <SectionTitle
             title="Shared content"
             desc={data.publishedPosts.length > 0 ? `${data.publishedPosts.length} post${data.publishedPosts.length > 1 ? "s" : ""} live on social` : "No posts published yet"}
@@ -689,7 +689,7 @@ export function DashboardView() {
           </div>
         </GlassCard>
       ) : (
-      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.50s" }}>
+      <GlassCard className="crystal-in overflow-hidden p-5" style={{ animationDelay: "0.50s" }}>
         <SectionTitle
           title="Failed posts"
           desc={data.failedPosts.length > 0 ? `${data.failedPosts.length} draft${data.failedPosts.length > 1 ? "s" : ""} need republishing` : "All publishes succeeded"}

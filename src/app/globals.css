@@ -179,10 +179,14 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* iOS / smooth touch scrolling for any scrollable region */
+    -webkit-overflow-scrolling: touch;
   }
   html, body {
     @apply text-foreground;
     background: transparent;
+    /* Prevent horizontal page-level scroll caused by fixed-width children on mobile */
+    overflow-x: hidden;
   }
   body {
     min-height: 100dvh;
@@ -193,10 +197,23 @@
     font-feature-settings: "ss01", "cv01", "cv11";
     letter-spacing: -0.011em;
   }
+  /* Tables must never shrink below container width so columns stay legible —
+     combined with .overflow-x-auto wrappers, tables scroll horizontally
+     on mobile instead of cutting off columns. */
+  table {
+    min-width: 100%;
+  }
   /* Large title style — Sonoma page headers */
   h1, h2 {
     letter-spacing: -0.022em;
   }
+}
+
+/* Smooth momentum touch scrolling on all horizontally scrollable containers.
+   Critical for iOS Safari where the default is janky. */
+.overflow-x-auto,
+.overflow-auto {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ============================================================================

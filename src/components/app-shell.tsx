@@ -102,12 +102,12 @@ export function AppShell() {
         </Sheet>
 
         {/* Main content area */}
-        <div className="flex min-w-0 flex-1 flex-col lg:ml-[272px]">
+        <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden lg:ml-[272px]">
           <AppHeader onMenu={() => setMobileOpen(true)} />
-          <main className="scroll-liquid flex-1 overflow-y-auto">
+          <main className="scroll-liquid flex-1 overflow-y-auto overflow-x-hidden">
             <div
               key={view}
-              className="animate-ios-fade-scale mx-auto w-full max-w-[1400px] px-4 pt-4 pb-24 sm:px-6 lg:px-8 lg:pb-8 mobile-content"
+              className="animate-ios-fade-scale mx-auto w-full max-w-[1400px] px-3 pt-4 pb-24 sm:px-6 lg:px-8 lg:pb-8 mobile-content"
             >
               {view === "dashboard" && <DashboardView />}
               {view === "composer" && <ComposerView />}

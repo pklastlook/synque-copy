@@ -476,7 +476,7 @@ export function AnalyticsView() {
             desc="Side-by-side performance"
             action={<Layers className="h-4 w-4 text-muted-foreground" />}
           />
-          <div className="max-h-96 overflow-y-auto scroll-liquid rounded-2xl">
+          <div className="max-h-96 overflow-auto scroll-liquid rounded-2xl">
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-background/80 backdrop-blur-md">
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">

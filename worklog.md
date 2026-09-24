@@ -3118,3 +3118,49 @@ Stage Summary:
 
 ### Files changed
 - `/home/z/my-project/src/components/landing-page.tsx` — responsive class adjustments only; no JS, no markup structure, no functionality changes.
+
+---
+
+## Task ID: mobile-card-fix — Mobile Card Cutoff Fixes (Across All Views)
+
+**Goal**: Eliminate horizontal cutoff on phones. Fixed-width grids, tables, and card content that overflowed narrow viewports now scroll horizontally inside `overflow-x-auto` wrappers instead of clipping or pushing page-level scroll. No desktop (`lg:`) layouts were modified; only responsive overflow / padding classes were added. No functionality changes.
+
+### Findings
+
+1. **Dashboard (`src/components/views/dashboard.tsx`)** — the 5-stage `PipelineFlow` already uses `flex-1` buttons (responsive, no fixed grid). The `grid-cols-[1fr_repeat(5,80px)_60px]` mentioned in the brief is actually inside `PagesRankingTable`, which was already wrapped in `overflow-x-auto` with `min-w-[680px]`. The three side-by-side GlassCards at lines 527 / 608 / 692 (Recent posts / Shared content / Failed posts) lacked `overflow-hidden`, so any media-thumbnail or platform-badge overflow could bleed outside the card corners. Inner content (`min-w-0 flex-1` + `truncate`) was already in place on text children.
+2. **Reports (`src/components/views/reports.tsx`)** — `AccountBreakdownTable`, `MemberBreakdownTable`, `UserAccountMatrixTable`, the platform-summary table at line 1150, and the per-member sortable table at line 1641 were all already wrapped in `overflow-x-auto`. No changes needed. The accordion sub-table at line 1747 is only 3 columns wide and adapts fine. Print-only tables (`report-print-root`) are intentionally excluded.
+3. **Tasks (`src/components/views/tasks.tsx`)** — `TaskListView` table at line 527 was already wrapped in `overflow-x-auto`. The Kanban board's `lg:grid-cols-5` already collapses to a single column on mobile. `TaskDialog` form uses `sm:grid-cols-2` so it stacks on phones. No changes needed.
+4. **Owner (`src/components/views/owner.tsx`)** — the `grid-cols-[1fr_64px_96px_96px_32px]` quotation line-items editor (header at line 408, rows at line 419) overflowed on screens < 320px wide. The 1fr column meant the description input would collapse to ~0px. Wrapped header + rows together inside `overflow-x-auto` with a `min-w-[460px]` inner wrapper so columns stay legible and scroll horizontally on phones. Kept the "Add line item" button and subtotal outside the scroll region. The customer list (line 855) and serial-key rows (line 1332) were already using responsive `sm:`/`xl:` grids and `flex-wrap` respectively — no change. The invoice print-area table (line 1615) lives inside a `position: fixed; overflow: auto;` print modal that already scrolls both axes.
+5. **Settings (`src/components/views/settings.tsx`)** — theme picker at line 1167 used `grid-cols-3` which forced 3 narrow theme-preview cards even on a 320px phone. Changed to `grid-cols-2 sm:grid-cols-3` so phones show 2 cards per row, larger screens keep 3. Accent picker already uses `flex flex-wrap`. Tables at lines 1569, 2008, 2728 already had `overflow-x-auto no-scrollbar` wrappers.
+6. **App shell (`src/components/app-shell.tsx`)** — content container had `px-4` baseline padding which was too generous on phones. Changed to `px-3 sm:px-6 lg:px-8`. Added `overflow-x-hidden` to both the main content column wrapper and the `<main>` scroll container so any leftover fixed-width children can no longer push a horizontal page-level scrollbar.
+7. **Globals CSS (`src/app/globals.css`)** — added three defensive global rules in `@layer base`:
+   - `* { -webkit-overflow-scrolling: touch; }` — iOS momentum scrolling everywhere.
+   - `html, body { overflow-x: hidden; }` — kills page-level horizontal scroll.
+   - `table { min-width: 100%; }` — tables never shrink below container width, so combined with `overflow-x-auto` wrappers they scroll instead of clipping.
+   - Plus a `.overflow-x-auto, .overflow-auto { -webkit-overflow-scrolling: touch; }` rule for explicit horizontal scroll containers.
+
+### Bonus (outside the brief, same root cause)
+
+While auditing all view files for un-wrapped tables, I found two more mobile cutoffs that fit the same fix:
+
+- **Analytics (`src/components/views/analytics.tsx` line 479)** — per-account comparison table had `min-w-[640px]` but its wrapper was only `overflow-y-auto`, so on phones the table was being clipped at the right edge. Changed to `overflow-auto` so both axes scroll.
+- **Competitors (`src/components/views/competitors.tsx` lines 366-367)** — the 7-column competitor table had no `min-w` and no horizontal scroll, so columns were getting squished to ~30px on phones. Added `overflow-auto` (instead of `overflow-y-auto`) and `min-w-[560px]` on the table so it scrolls horizontally with legible column widths.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `src/components/views/dashboard.tsx` | Added `overflow-hidden` to 4 GlassCards (PipelineFlow, Recent posts, Shared content, Failed posts) |
+| `src/components/views/owner.tsx` | Wrapped `QuotationItemsEditor` header + rows in `overflow-x-auto` with `min-w-[460px]` inner wrapper |
+| `src/components/views/settings.tsx` | Theme picker: `grid-cols-3` → `grid-cols-2 sm:grid-cols-3` |
+| `src/components/views/analytics.tsx` | Per-account table wrapper: `overflow-y-auto` → `overflow-auto` |
+| `src/components/views/competitors.tsx` | Competitor table wrapper: `overflow-y-auto` → `overflow-auto`, added `min-w-[560px]` to table |
+| `src/components/app-shell.tsx` | Content padding `px-4` → `px-3 sm:px-6`; added `overflow-x-hidden` to main column + main element |
+| `src/app/globals.css` | Added iOS touch scrolling, `table { min-width: 100% }`, `html/body { overflow-x: hidden }`, and `.overflow-x-auto` touch scrolling rule |
+
+### Verification
+
+- `npx tsc --noEmit` reports zero new errors in any of the edited files. (Pre-existing unrelated TS errors in `examples/`, `mini-services/`, `skills/`, and one in `settings.tsx:2433` from earlier work remain — none were introduced by this task.)
+- No desktop (`lg:`) layouts were changed.
+- No JS logic, state, event handlers, or component APIs were modified.
+- All `overflow-x-auto` wrappers preserve the existing vertical `max-h-*` + `overflow-y-auto` scroll behaviour where present.

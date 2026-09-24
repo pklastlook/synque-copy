@@ -405,58 +405,62 @@ function LineItemsEditor({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-[1fr_64px_96px_96px_32px] gap-2 text-[11px] font-medium text-muted-foreground">
-        <span>Description</span>
-        <span className="text-right">Qty</span>
-        <span className="text-right">Unit price</span>
-        <span className="text-right">Amount</span>
-        <span />
-      </div>
-      <div className="max-h-52 space-y-2 overflow-y-auto scroll-liquid pr-1">
-        {items.map((it, i) => (
-          <div
-            key={i}
-            className="grid grid-cols-[1fr_64px_96px_96px_32px] items-center gap-2"
-          >
-            <Input
-              value={it.description}
-              placeholder="Service / product"
-              onChange={(e) => update(i, { description: e.target.value })}
-              className="h-9"
-            />
-            <Input
-              type="number"
-              min={0}
-              value={it.qty}
-              onChange={(e) => update(i, { qty: Number(e.target.value) || 0 })}
-              className="h-9 text-right"
-            />
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={it.price}
-              onChange={(e) => update(i, { price: Number(e.target.value) || 0 })}
-              className="h-9 text-right"
-            />
-            <div className="text-right text-sm font-medium tabular-nums">
-              {money(it.amount)}
-            </div>
-            <button
-              type="button"
-              onClick={() => removeRow(i)}
-              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500"
-              aria-label="Remove line"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+      <div className="overflow-x-auto scroll-liquid -mx-1 px-1 pb-1">
+        <div className="min-w-[460px] space-y-2">
+          <div className="grid grid-cols-[1fr_64px_96px_96px_32px] gap-2 text-[11px] font-medium text-muted-foreground">
+            <span>Description</span>
+            <span className="text-right">Qty</span>
+            <span className="text-right">Unit price</span>
+            <span className="text-right">Amount</span>
+            <span />
           </div>
-        ))}
-        {items.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border/60 p-4 text-center text-xs text-muted-foreground">
-            No line items yet — add the first one below.
+          <div className="max-h-52 space-y-2 overflow-y-auto scroll-liquid pr-1">
+            {items.map((it, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-[1fr_64px_96px_96px_32px] items-center gap-2"
+              >
+                <Input
+                  value={it.description}
+                  placeholder="Service / product"
+                  onChange={(e) => update(i, { description: e.target.value })}
+                  className="h-9"
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  value={it.qty}
+                  onChange={(e) => update(i, { qty: Number(e.target.value) || 0 })}
+                  className="h-9 text-right"
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={it.price}
+                  onChange={(e) => update(i, { price: Number(e.target.value) || 0 })}
+                  className="h-9 text-right"
+                />
+                <div className="text-right text-sm font-medium tabular-nums">
+                  {money(it.amount)}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500"
+                  aria-label="Remove line"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            {items.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border/60 p-4 text-center text-xs text-muted-foreground">
+                No line items yet — add the first one below.
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
       <button
         type="button"
