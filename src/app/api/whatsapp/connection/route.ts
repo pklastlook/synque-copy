@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-const WHATSAPP_SERVICE_URL = "http://localhost:3002";
+const WHATSAPP_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || "http://127.0.0.1:3002";
 
 /**
  * GET /api/whatsapp/connection

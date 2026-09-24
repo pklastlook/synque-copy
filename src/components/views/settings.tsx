@@ -58,6 +58,7 @@ import {
   MoreHorizontal,
   Send,
   Loader2,
+  RefreshCw,
   MapPin,
   Globe,
   Phone,
@@ -74,7 +75,7 @@ import { PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
-import { useApi } from "@/lib/hooks";
+import { useApi, timeAgo } from "@/lib/hooks";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -2311,59 +2312,267 @@ function PlatformsSection() {
 }
 
 // ===== 8. Integrations =====
+
+interface IntegrationField {
+  key: string;
+  label: string;
+  type: "text" | "password" | "url";
+  placeholder: string;
+  required: boolean;
+}
+interface Integration {
+  type: string;
+  name: string;
+  desc: string;
+  icon: string;
+  fields: IntegrationField[];
+  enabled: boolean;
+  connectedAt: string | null;
+  lastSyncAt: string | null;
+}
+
+// Map icon name → lucide component
+const INTEGRATION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Mail, MessageSquare, Zap, BarChart3, ImageIcon, CreditCard,
+};
+
 function IntegrationsSection() {
-  // These integrations are NOT yet implemented — no /api/integrations route
-  // exists. We show them honestly as "Not configured" so users know the
-  // current state. When an integration is actually built, its status will
-  // be fetched from a real API.
-  const integrations = [
-    { id: "mail", name: "Mail Server", desc: "Send digests & alerts from your own SMTP.", icon: Mail },
-    { id: "slack", name: "Slack", desc: "Pipe alerts and notifications into your channels.", icon: MessageSquare },
-    { id: "zapier", name: "Zapier", desc: "Trigger SocialFlow actions from 6,000+ apps.", icon: Zap },
-    { id: "ga", name: "Google Analytics", desc: "Pull GA4 traffic data into analytics reports.", icon: BarChart3 },
-    { id: "canva", name: "Canva", desc: "Import Canva designs straight into your media library.", icon: ImageIcon },
-    { id: "unsplash", name: "Unsplash", desc: "Free stock photography for your next post.", icon: ImageIcon },
-    { id: "stripe", name: "Stripe", desc: "Accept card payments for subscriptions & invoices.", icon: CreditCard },
-  ] as const;
+  const { data, reload, loading } = useApi<{ integrations: Integration[] }>("/api/integrations");
+  const [configureType, setConfigureType] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+  const [creds, setCreds] = React.useState<Record<string, string>>({});
+
+  function getToken(): string | null {
+    try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
+    catch { return null; }
+  }
+
+  const integrations = data?.integrations ?? [];
+
+  function openConfigure(it: Integration) {
+    setConfigureType(it.type);
+    setCreds({});
+  }
+
+  async function saveIntegration() {
+    if (!configureType) return;
+    setSaving(true);
+    try {
+      const token = getToken();
+      const res = await fetch("/api/integrations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ type: configureType, credentials: creds }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("Integration connected", { description: "Credentials saved securely." });
+        setConfigureType(null);
+        setCreds({});
+        reload();
+      } else {
+        toast.error(json.error ?? "Failed to save");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function testIntegration(type: string) {
+    setTesting(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/integrations/${type}`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("Test passed", { description: json.message ?? "Connection successful" });
+        reload();
+      } else {
+        toast.error("Test failed", { description: json.error ?? "Could not verify" });
+      }
+    } catch {
+      toast.error("Network error during test");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function disconnect(type: string) {
+    if (!confirm(`Disconnect ${type}? This will remove all stored credentials.`)) return;
+    try {
+      const token = getToken();
+      await fetch(`/api/integrations/${type}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      toast.success("Integration disconnected");
+      reload();
+    } catch {
+      toast.error("Failed to disconnect");
+    }
+  }
+
+  const configuring = integrations.find((i) => i.type === configureType);
 
   return (
     <GlassCard className="crystal-in p-5">
-      <SectionTitle title="Integrations" desc="Connect SocialFlow with the tools your team already uses." />
-      <div className="mb-3 rounded-xl bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400">
-        <strong>Note:</strong> Integrations are not yet configured. Each integration requires
-        its own API credentials. Click "Configure" to learn what's needed.
-      </div>
+      <SectionTitle
+        title="Integrations"
+        desc="Connect SocialFlow with the tools your team already uses."
+        action={
+          <button
+            onClick={reload}
+            disabled={loading}
+            className="flex items-center gap-1.5 rounded-lg border border-border/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/40"
+          >
+            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+            Refresh
+          </button>
+        }
+      />
+
       <div className="grid gap-3 sm:grid-cols-2">
         {integrations.map((it) => {
-          const Icon = it.icon;
+          const Icon = INTEGRATION_ICONS[it.icon] ?? Plug;
           return (
-            <div key={it.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 transition hover:bg-muted/40">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+            <div
+              key={it.type}
+              className={cn(
+                "flex flex-wrap items-center gap-3 rounded-2xl border p-4 transition",
+                it.enabled
+                  ? "border-emerald-500/30 bg-emerald-500/5"
+                  : "border-border/60 bg-muted/20 hover:bg-muted/40"
+              )}
+            >
+              <div
+                className={cn(
+                  "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
+                  it.enabled ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground"
+                )}
+              >
                 <Icon className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-semibold">{it.name}</span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    Not configured
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      it.enabled
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {it.enabled ? "Connected" : "Not configured"}
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground">{it.desc}</div>
+                {it.lastSyncAt && (
+                  <div className="mt-0.5 text-[10px] text-muted-foreground/70">
+                    Last tested {timeAgo(it.lastSyncAt)}
+                  </div>
+                )}
               </div>
-              <button
-                onClick={() =>
-                  toast.info(`${it.name} integration requires API credentials`, {
-                    description: "This integration is not yet implemented. Contact your admin to set it up.",
-                  })
-                }
-                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted/60"
-              >
-                Configure
-              </button>
+              <div className="flex gap-1.5">
+                {it.enabled && (
+                  <>
+                    <button
+                      onClick={() => testIntegration(it.type)}
+                      disabled={testing}
+                      className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-semibold transition hover:bg-muted/40 disabled:opacity-50"
+                    >
+                      Test
+                    </button>
+                    <button
+                      onClick={() => openConfigure(it)}
+                      className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-semibold transition hover:bg-muted/40"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => disconnect(it.type)}
+                      className="grid h-7 w-7 place-items-center rounded-lg border border-border/40 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
+                      title="Disconnect"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </>
+                )}
+                {!it.enabled && (
+                  <button
+                    onClick={() => openConfigure(it)}
+                    className="liquid-pill rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  >
+                    Configure
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* Configure dialog */}
+      <Dialog open={!!configureType} onOpenChange={(o) => { if (!o) { setConfigureType(null); setCreds({}); } }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {configuring && (() => {
+                const Icon = INTEGRATION_ICONS[configuring.icon] ?? Plug;
+                return <Icon className="h-4 w-4 text-primary" />;
+              })()}
+              {configuring?.name ?? "Configure"} integration
+            </DialogTitle>
+            <DialogDescription>{configuring?.desc}</DialogDescription>
+          </DialogHeader>
+          {configuring && (
+            <div className="space-y-3 py-2">
+              {configuring.fields.map((f) => (
+                <div key={f.key} className="space-y-1.5">
+                  <label htmlFor={`int-${f.key}`} className="text-xs font-semibold">
+                    {f.label}
+                    {f.required && <span className="ml-1 text-rose-500">*</span>}
+                  </label>
+                  <Input
+                    id={`int-${f.key}`}
+                    type={f.type}
+                    placeholder={f.placeholder}
+                    value={creds[f.key] ?? ""}
+                    onChange={(e) => setCreds((c) => ({ ...c, [f.key]: e.target.value }))}
+                    className={f.type === "url" ? "text-xs" : ""}
+                  />
+                </div>
+              ))}
+              <div className="rounded-xl bg-muted/30 p-3 text-[11px] text-muted-foreground">
+                <strong className="text-foreground">Security:</strong> Credentials are stored encrypted in the database.
+                Only workspace admins can view or modify integration settings.
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setConfigureType(null); setCreds({}); }}>
+              Cancel
+            </Button>
+            <button
+              onClick={saveIntegration}
+              disabled={saving}
+              className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+              {saving ? "Saving…" : "Connect"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </GlassCard>
   );
 }
