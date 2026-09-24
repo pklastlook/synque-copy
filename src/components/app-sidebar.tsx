@@ -50,7 +50,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { NameAvatar as NA } from "@/components/glass/name-avatar";
-import { Loader2, Check, UserCheck } from "lucide-react";
+import { Loader2, Check, UserCheck, Ban, ShieldOff } from "lucide-react";
 
 type NavRole = "admin" | "manager" | "editor" | "member" | "viewer";
 const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; badge?: string; accent: string; roles?: NavRole[] }[] = [
@@ -378,8 +378,29 @@ function ShareWorkspaceDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ shareId, action: "revoke" }),
     });
-    toast.success("Share revoked");
+    toast.success("Sharing stopped");
     loadData();
+  }
+
+  async function stopAllSharing() {
+    if (!confirm("Stop sharing your workspace with everyone? They will lose access to your content immediately.")) return;
+    const token = getToken();
+    try {
+      const res = await fetch("/api/workspace/share", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ scope: "sent" }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success("Stopped all sharing", { description: `${json.deleted} share(s) removed` });
+        loadData();
+      } else {
+        toast.error("Failed to stop sharing");
+      }
+    } catch {
+      toast.error("Network error");
+    }
   }
 
   return (
@@ -460,17 +481,36 @@ function ShareWorkspaceDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 
             {/* Already shared */}
             {shares.sent.length > 0 && (
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Already shared</div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Currently shared with</div>
+                  <button
+                    onClick={stopAllSharing}
+                    className="flex items-center gap-1 rounded-lg bg-rose-500/10 px-2 py-1 text-[9px] font-bold text-rose-600 transition hover:bg-rose-500/20 dark:text-rose-400"
+                  >
+                    <ShieldOff className="h-2.5 w-2.5" />
+                    Stop all
+                  </button>
+                </div>
                 {shares.sent.map((s: any) => (
-                  <div key={s.id} className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/10 p-2">
-                    <NA name={s.sharedWith.name} color={(s.sharedWith.color as any) ?? "blue"} className="h-6 w-6 text-[9px]" />
+                  <div key={s.id} className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/10 p-2.5">
+                    <NA name={s.sharedWith.name} color={(s.sharedWith.color as any) ?? "blue"} className="h-7 w-7 text-[10px]" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-xs font-medium">{s.sharedWith.name}</div>
-                      <div className="text-[10px] text-muted-foreground">{s.permission} · {s.status}</div>
+                      <div className="truncate text-xs font-semibold">{s.sharedWith.name}</div>
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <span className={cn("rounded px-1 py-0.5 font-medium", s.status === "accepted" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400")}>
+                          {s.status}
+                        </span>
+                        <span>·</span>
+                        <span>{s.permission}</span>
+                      </div>
                     </div>
-                    <button onClick={() => revokeShare(s.id)} className="rounded-md border border-border/40 px-2 py-1 text-[9px] font-semibold text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500">
-                      Revoke
+                    <button
+                      onClick={() => revokeShare(s.id)}
+                      className="flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/5 px-2.5 py-1.5 text-[9px] font-bold text-rose-600 transition hover:bg-rose-500/15 dark:text-rose-400"
+                    >
+                      <Ban className="h-2.5 w-2.5" />
+                      Stop
                     </button>
                   </div>
                 ))}
@@ -488,19 +528,30 @@ function ShareWorkspaceDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               </div>
             ) : (
               shares.received.map((s: any) => (
-                <div key={s.id} className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/10 p-2">
-                  <NA name={s.sharedBy.name} color={(s.sharedBy.color as any) ?? "blue"} className="h-6 w-6 text-[9px]" />
+                <div key={s.id} className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/10 p-2.5">
+                  <NA name={s.sharedBy.name} color={(s.sharedBy.color as any) ?? "blue"} className="h-7 w-7 text-[10px]" />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-medium">{s.sharedBy.name}'s workspace</div>
-                    <div className="text-[10px] text-muted-foreground">{s.permission} · {s.status}</div>
+                    <div className="truncate text-xs font-semibold">{s.sharedBy.name}'s workspace</div>
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <span className={cn("rounded px-1 py-0.5 font-medium", s.status === "accepted" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400")}>
+                        {s.status}
+                      </span>
+                      <span>·</span>
+                      <span>{s.permission}</span>
+                    </div>
                   </div>
                   {s.status === "pending" ? (
-                    <button onClick={() => acceptShare(s.id)} className="rounded-md bg-emerald-500/10 px-2 py-1 text-[9px] font-semibold text-emerald-600 transition hover:bg-emerald-500/20">
+                    <button onClick={() => acceptShare(s.id)} className="rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-[9px] font-bold text-emerald-600 transition hover:bg-emerald-500/20 dark:text-emerald-400">
                       Accept
                     </button>
                   ) : null}
-                  <button onClick={() => revokeShare(s.id)} className="rounded-md border border-border/40 px-2 py-1 text-[9px] font-semibold text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500">
-                    Remove
+                  <button
+                    onClick={() => revokeShare(s.id)}
+                    className="flex items-center gap-1 rounded-lg border border-border/40 px-2.5 py-1.5 text-[9px] font-bold text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
+                    title="Leave this shared workspace"
+                  >
+                    <Ban className="h-2.5 w-2.5" />
+                    Leave
                   </button>
                 </div>
               ))
