@@ -31,9 +31,9 @@ import { OwnerView } from "@/components/views/owner";
 import { TeamPerformanceView } from "@/components/views/team-performance";
 
 export function AppShell() {
-  const { view } = useNav();
+  const { view, setView } = useNav();
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const { isAuthenticated, fetchUser } = useAuth();
+  const { isAuthenticated, fetchUser, user } = useAuth();
 
   // On mount: if we have a token in localStorage, validate it by fetching
   // the current user. If the token is expired/invalid, fetchUser will clear
@@ -43,6 +43,21 @@ export function AppShell() {
       fetchUser();
     }
   }, []);
+
+  // Role-based access guard — redirect non-managers away from restricted views.
+  // This is a client-side guard; the API also enforces auth on the server side.
+  React.useEffect(() => {
+    if (!user) return;
+    const isManager = user.role === "admin" || user.role === "manager";
+    const isAdmin = user.role === "admin";
+    const restrictedForMembers = ["settings", "team", "team-performance"];
+    const restrictedForManagers = ["owner"];
+    if (!isManager && restrictedForMembers.includes(view)) {
+      setView("dashboard");
+    } else if (!isAdmin && restrictedForManagers.includes(view)) {
+      setView("dashboard");
+    }
+  }, [user, view, setView]);
 
   return (
     <div className="relative flex min-h-screen flex-col">

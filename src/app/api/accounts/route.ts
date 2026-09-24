@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+
+  const isManager = user!.role === "admin" || user!.role === "manager";
+  // Managers/admins see all accounts (team view). Members/editors/viewers
+  // see only accounts they own — this is the data-isolation boundary.
+  const where = isManager ? {} : { ownerId: user!.userId };
+
   const accounts = await db.account.findMany({
+    where,
     include: { owner: true, health: true, protection: true },
     orderBy: { followers: "desc" },
   });
 
-  const analytics = await db.analyticsDaily.findMany();
-  const variants = await db.postVariant.findMany();
+  const accountIds = new Set(accounts.map((a) => a.id));
+  const analytics = await db.analyticsDaily.findMany({
+    where: isManager ? {} : { accountId: { in: [...accountIds] } },
+  });
+  const variants = await db.postVariant.findMany({
+    where: isManager ? {} : { accountId: { in: [...accountIds] } },
+  });
 
   return NextResponse.json(
     accounts.map((a) => {
