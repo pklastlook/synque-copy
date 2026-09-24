@@ -11,7 +11,7 @@ import {
   ChevronRight, ChevronUp, ChevronDown, FileEdit, XCircle, Layers, Inbox,
   PenLine, Hash, Activity, Crown, Award, Trophy, Globe,
   Lightbulb, Bell, Target, Zap, Calendar, BarChart3, AlertCircle,
-  AtSign,
+  AtSign, RotateCcw,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -77,6 +77,12 @@ interface DashboardData {
     id: string; title: string; caption: string; mediaUrl: string | null;
     status: string; tone: string; authorName: string; authorColor: string | null;
     createdAt: string; publishedAt: string | null;
+    platforms: PlatformId[]; variantCount: number;
+  }[];
+  failedPosts: {
+    id: string; title: string; caption: string; mediaUrl: string | null;
+    tone: string; authorName: string; authorColor: string | null;
+    createdAt: string;
     platforms: PlatformId[]; variantCount: number;
   }[];
   commentInbox: {
@@ -461,7 +467,8 @@ export function DashboardView() {
         <PipelineFlow pipeline={data.pipeline} total={data.pipelineTotal} />
       </GlassCard>
 
-      {/* === 6. RECENT POSTS — actionable (click to republish) === */}
+      {/* === 6. RECENT POSTS + FAILED POSTS (side-by-side) === */}
+      <div className="grid gap-4 lg:grid-cols-2">
       <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.48s" }}>
         <SectionTitle
           title="Recent posts"
@@ -540,6 +547,85 @@ export function DashboardView() {
           )}
         </div>
       </GlassCard>
+
+      {/* === 6b. FAILED POSTS — needs attention (mirrors Recent posts card) === */}
+      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.50s" }}>
+        <SectionTitle
+          title="Failed posts"
+          desc={data.failedPosts.length > 0 ? `${data.failedPosts.length} draft${data.failedPosts.length > 1 ? "s" : ""} need republishing` : "All publishes succeeded"}
+          action={
+            <div className="flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-rose-500">
+              <XCircle className="h-3 w-3" />
+              {data.failedPosts.length}
+            </div>
+          }
+        />
+        <div className="scroll-liquid max-h-[360px] space-y-2 overflow-y-auto pr-1">
+          {data.failedPosts.length > 0 ? (
+            data.failedPosts.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  openComposerWithPost({
+                    id: p.id,
+                    title: p.title,
+                    caption: p.caption,
+                    mediaUrl: p.mediaUrl,
+                    mediaType: "image",
+                    tone: p.tone,
+                    status: "failed",
+                    scheduledAt: null,
+                    authorId: "",
+                    authorName: p.authorName,
+                    variants: [],
+                    createdAt: p.createdAt,
+                  });
+                }}
+                className="group flex w-full items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/5 p-3 text-left transition hover:border-rose-500/40 hover:bg-rose-500/10"
+              >
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
+                  {p.mediaUrl ? <img src={p.mediaUrl} alt="" className="h-full w-full object-cover" /> : (
+                    <div className="grid h-full w-full place-items-center text-rose-500"><XCircle className="h-5 w-5" /></div>
+                  )}
+                  <span className="absolute bottom-0.5 left-0.5 rounded bg-rose-500/20 px-1 text-[9px] font-bold uppercase text-rose-500">
+                    Fail
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{p.title || "Untitled post"}</div>
+                  <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <NameAvatar name={p.authorName} color={p.authorColor ?? "blue"} className="h-4 w-4 text-[7px]" />
+                    <span>{p.authorName}</span>
+                    <span>·</span>
+                    <span>{timeAgo(p.createdAt)}</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-1">
+                    {p.platforms.slice(0, 4).map((pl, i) => <PlatformBadge key={i} platform={pl} size={14} />)}
+                    {p.platforms.length > 4 && <span className="text-[9px] text-muted-foreground">+{p.platforms.length - 4}</span>}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-rose-500 opacity-0 transition group-hover:opacity-100">
+                  <RotateCcw className="h-3 w-3" /> Retry <ChevronRight className="h-3 w-3" />
+                </div>
+              </button>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">No failed posts</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">All your publishes succeeded</p>
+              </div>
+              <button onClick={() => setView("composer")} className="rounded-lg bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20">
+                Open composer
+              </button>
+            </div>
+          )}
+        </div>
+      </GlassCard>
+      </div>
 
       {/* === 7. TEAM ACTIVITY — condensed feed === */}
       <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.54s" }}>
