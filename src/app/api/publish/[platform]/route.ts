@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { TwitterApi } from "twitter-api-v2";
+import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,9 @@ export const dynamic = "force-dynamic";
  * added following the same pattern once API credentials are configured.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+
   const { platform: rawPlatform } = await params;
   const { userId, accountId, content } = (await req.json()) as {
     userId: string;
@@ -44,9 +48,101 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
   }
 
   // Get the account
-  const account = await db.account.findUnique({ where: { id: accountId } });
+  const account = await db.account.findUnique({
+    where: { id: accountId },
+    include: { protection: true },
+  });
   if (!account) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
+  }
+
+  // === Account Protection enforcement ===
+  // Check posting limits before publishing to prevent suspension.
+  if (account.protection?.enabled) {
+    const prot = account.protection;
+
+    // Check daily post limit
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const postsToday = await db.postVariant.count({
+      where: {
+        accountId,
+        status: "published",
+        publishedAt: { gte: today },
+      },
+    });
+    if (postsToday >= prot.dailyPostLimit) {
+      return NextResponse.json({
+        error: `Daily post limit reached (${prot.dailyPostLimit}/day). Account protection is active — wait until tomorrow or increase the limit in Settings.`,
+      }, { status: 429 });
+    }
+
+    // Check hourly post limit
+    const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const postsLastHour = await db.postVariant.count({
+      where: {
+        accountId,
+        status: "published",
+        publishedAt: { gte: hourAgo },
+      },
+    });
+    if (postsLastHour >= prot.hourlyPostLimit) {
+      return NextResponse.json({
+        error: `Hourly post limit reached (${prot.hourlyPostLimit}/hour). Account protection is active — wait a bit before posting again.`,
+      }, { status: 429 });
+    }
+
+    // Check min minutes between posts
+    if (prot.minMinutesBetweenPosts > 0) {
+      const lastPost = await db.postVariant.findFirst({
+        where: { accountId, status: "published" },
+        orderBy: { publishedAt: "desc" },
+      });
+      if (lastPost?.publishedAt) {
+        const minutesSince = (Date.now() - lastPost.publishedAt.getTime()) / (1000 * 60);
+        if (minutesSince < prot.minMinutesBetweenPosts) {
+          const waitMin = Math.ceil(prot.minMinutesBetweenPosts - minutesSince);
+          return NextResponse.json({
+            error: `Account protection requires ${prot.minMinutesBetweenPosts} min between posts. Wait ${waitMin} more minute${waitMin > 1 ? "s" : ""}.`,
+          }, { status: 429 });
+        }
+      }
+
+    // Check for duplicate content
+    if (prot.blockDuplicateContent) {
+      const duplicate = await db.postVariant.findFirst({
+        where: { accountId, content },
+        orderBy: { createdAt: "desc" },
+      });
+      if (duplicate) {
+        return NextResponse.json({
+          error: "Duplicate content blocked — this exact text was already posted to this account. Account protection is active.",
+        }, { status: 409 });
+      }
+    }
+
+    // Check banned hashtags
+    if (prot.blockBannedHashtags && prot.bannedHashtags) {
+      const bannedTags = prot.bannedHashtags.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+      const contentTags = content.toLowerCase().match(/#\w+/g) ?? [];
+      const foundBanned = contentTags.filter(tag => bannedTags.includes(tag));
+      if (foundBanned.length > 0) {
+        return NextResponse.json({
+          error: `Banned hashtags detected: ${foundBanned.join(", ")}. Remove them or disable the ban in Settings.`,
+        }, { status: 409 });
+      }
+    }
+
+    // Pause posting if account is in warning state
+    if (prot.pausePostingOnWarning && account.protection) {
+      const health = await db.accountHealth.findUnique({ where: { accountId } });
+      if (health && (health.status === "warning" || health.status === "restricted")) {
+        return NextResponse.json({
+          error: `Posting paused — account health is "${health.status}". Cooldown: ${prot.cooldownHoursOnFlag}h. Resume from Settings when ready.`,
+        }, { status: 429 });
+      }
+    }
+    }
   }
 
   // Get the post (for mediaUrl) — the caller passes accountId + content,

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { requireAuth, requireRole } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
   const users = await db.user.findMany({ orderBy: { createdAt: "asc" } });
   const accounts = await db.account.findMany();
   const posts = await db.post.findMany();
@@ -42,6 +45,9 @@ export async function GET() {
 
 /** POST /api/team — invite/create a new team member */
 export async function POST(req: NextRequest) {
+  const { user: authUser, error } = requireRole(req, "manager");
+  if (error) return error;
+
   const body = await req.json();
   const { name, email, role, title, department, password } = body as {
     name: string;

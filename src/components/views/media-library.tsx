@@ -301,7 +301,17 @@ export function MediaLibraryView() {
                 Folders
               </span>
               <button
-                onClick={() => toast.info("New folder coming soon")}
+                onClick={() => {
+                  const name = window.prompt("Enter folder name:");
+                  if (!name?.trim()) return;
+                  // Create a folder by adding a placeholder asset to it
+                  // (folders are virtual — they exist when assets reference them)
+                  // For now, just switch to the new folder so the user can upload to it
+                  setFolder(name.trim());
+                  toast.success(`Folder "${name.trim()}" created`, {
+                    description: "Upload media to this folder to populate it.",
+                  });
+                }}
                 className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
                 aria-label="New folder"
               >
@@ -344,7 +354,12 @@ export function MediaLibraryView() {
                 );
               })}
               <button
-                onClick={() => toast.info("New folder coming soon")}
+                onClick={() => {
+                  const name = window.prompt("Enter folder name:");
+                  if (!name?.trim()) return;
+                  setFolder(name.trim());
+                  toast.success(`Folder "${name.trim()}" created`);
+                }}
                 className="flex shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted/40 hover:text-foreground lg:hidden"
               >
                 <FolderPlus className="h-3.5 w-3.5" /> New

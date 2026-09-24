@@ -248,14 +248,52 @@ async function startWhatsApp() {
         } else if (message?.imageMessage) {
           content = message.imageMessage.caption ?? "";
           mediaType = "image";
+          // Download the image via baileys' downloadMediaMessage
+          try {
+            const stream = await (sock as any)?.downloadMediaMessage(msg);
+            if (stream) {
+              const mimeType = message.imageMessage.mimetype ?? "image/jpeg";
+              mediaUrl = `data:${mimeType};base64,${Buffer.from(stream).toString("base64")}`;
+            }
+          } catch (e) {
+            console.error("[whatsapp-service] Failed to download image:", e);
+          }
         } else if (message?.videoMessage) {
           content = message.videoMessage.caption ?? "";
           mediaType = "video";
+          // Download the video (note: videos can be large — consider storing on disk)
+          try {
+            const stream = await (sock as any)?.downloadMediaMessage(msg);
+            if (stream) {
+              const mimeType = message.videoMessage.mimetype ?? "video/mp4";
+              mediaUrl = `data:${mimeType};base64,${Buffer.from(stream).toString("base64")}`;
+            }
+          } catch (e) {
+            console.error("[whatsapp-service] Failed to download video:", e);
+          }
         } else if (message?.audioMessage) {
           mediaType = "audio";
+          try {
+            const stream = await (sock as any)?.downloadMediaMessage(msg);
+            if (stream) {
+              const mimeType = message.audioMessage.mimetype ?? "audio/mpeg";
+              mediaUrl = `data:${mimeType};base64,${Buffer.from(stream).toString("base64")}`;
+            }
+          } catch (e) {
+            console.error("[whatsapp-service] Failed to download audio:", e);
+          }
         } else if (message?.documentMessage) {
           content = message.documentMessage.caption ?? "";
           mediaType = "document";
+          try {
+            const stream = await (sock as any)?.downloadMediaMessage(msg);
+            if (stream) {
+              const mimeType = message.documentMessage.mimetype ?? "application/octet-stream";
+              mediaUrl = `data:${mimeType};base64,${Buffer.from(stream).toString("base64")}`;
+            }
+          } catch (e) {
+            console.error("[whatsapp-service] Failed to download document:", e);
+          }
         }
 
         if (!content && !mediaType) continue;
@@ -342,6 +380,41 @@ const server = createServer(async (req, res) => {
     state.qr = null;
     setTimeout(() => startWhatsApp(), 1500);
     sendJSON(res, 200, { ok: true });
+    return;
+  }
+
+  // POST /send — send a text message to a WhatsApp number or group
+  if (req.method === "POST" && url.pathname === "/send") {
+    if (!state.connected || !sock) {
+      sendJSON(res, 503, { error: "WhatsApp not connected. Scan QR first." });
+      return;
+    }
+    const body = await readBody(req);
+    const { to, text } = body as { to: string; text: string };
+
+    if (!to || !text) {
+      sendJSON(res, 400, { error: "to and text are required" });
+      return;
+    }
+
+    // Format the JID: phone number → xxx@s.whatsapp.net, or group → xxx@g.us
+    let jid = to.trim();
+    if (!jid.includes("@")) {
+      // Assume it's a phone number — strip non-digits
+      jid = jid.replace(/\D/g, "") + "@s.whatsapp.net";
+    }
+
+    try {
+      const result = await sock.sendMessage(jid, { text });
+      sendJSON(res, 200, {
+        ok: true,
+        messageId: result?.key?.id ?? null,
+        to: jid,
+      });
+    } catch (e: any) {
+      console.error("[whatsapp-service] Send failed:", e);
+      sendJSON(res, 500, { error: e?.message ?? "Failed to send message" });
+    }
     return;
   }
 

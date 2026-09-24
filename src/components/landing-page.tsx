@@ -219,6 +219,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
                 <span className="ml-2 text-[10px] text-muted-foreground">socialflow.app/dashboard</span>
+                <span className="ml-2 rounded-full bg-muted/60 px-1.5 py-0.5 text-[8px] text-muted-foreground">illustrative</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
