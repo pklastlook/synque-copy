@@ -2858,3 +2858,73 @@ Stage Summary:
 - Artifacts changed: src/app/api/accounts/route.ts (+auth +isolation), src/app/api/analytics/route.ts (+auth +isolation), src/components/app-sidebar.tsx (+role-based nav filtering + Settings gating), src/components/app-shell.tsx (+access guard redirect).
 - Lint: 0 errors. TypeScript: 0 errors.
 - Committed + pushed to GitHub (commit 5bc1420).
+
+---
+Task ID: multi-tenant-database
+Agent: general-purpose (multi-tenant architecture)
+Task: Make the database tenant-ready so each client's users see only their own data. Ashraf is a different client's user, so Taaha/Saher or any user from a different client will not have access to see other clients' data.
+
+Work Log:
+- Read /home/z/my-project/worklog.md for prior work.
+- Designed multi-tenant architecture:
+  • Each Customer record is a "tenant" (a client organization).
+  • Each User has a `customerId` field — links them to their client's tenant.
+  • `customerId = null` means super-admin (Ashraf) — sees ALL tenants (cross-tenant).
+  • `customerId = "xxx"` means tenant-scoped — sees only their client's data.
+  • Within a tenant: managers see all tenant data, members see only their own.
+
+### Schema changes (prisma/schema.prisma)
+- Added `customerId String?` to 6 models: User, Account, Post, Task, Activity, Campaign.
+  (nullable so existing data isn't broken; null = no tenant / super-admin)
+- Pushed to Neon DB + regenerated Prisma client.
+
+### Data migration
+- Created the "Social Media Cell" customer record (already existed from prior task).
+- Assigned Taaha Mayo + Saher Butt → customerId = Social Media Cell customer ID.
+- Migrated existing accounts/posts/tasks/activities/campaigns owned by Taaha/Saher (0 each — they're new users).
+- Ashraf stays null (super-admin, sees all tenants).
+
+### Auth changes (src/lib/auth-guard.ts)
+- `getUserFromRequest` now returns `{ userId, email, role, customerId }`.
+- JWT payload now includes `customerId` (set at login time).
+- New `getTenantScope(user)`: returns `{ customerId: null, isSuperAdmin: true }` for admins without a customerId, or `{ customerId: "xxx", isSuperAdmin: false }` for tenant users.
+- New `tenantWhere(scope, extraWhere)`: builds a Prisma `where` clause with `customerId` filtering for tenant users, no filter for super-admins. Merges with any extra filters.
+
+### API changes (all tenant-scoped)
+- `/api/accounts`: `tenantWhere(scope, ...)` filters accounts by customerId. Super-admins see all; tenant users see only their client's accounts. Within a tenant, managers see all tenant accounts, members see only their own.
+- `/api/analytics`: scope account IDs by tenant. Non-managers restricted to owned accounts within their tenant. Tenant managers restricted to their client's accounts.
+- `/api/tasks`: `tenantWhere(scope, ...)` filters tasks + users list. New tasks inherit the creator's `customerId`.
+- `/api/team`: `tenantWhere(scope, ...)` filters users + accounts + posts. New users created via POST inherit the creator's `customerId` (or a passed-in customerId for super-admins creating cross-tenant users).
+- `/api/chat`: `tenantWhere(scope, ...)` filters chat members — users see only members of their own tenant in the sidebar.
+- `/api/dashboard`: all queries (accounts, posts, comments, activities, analytics, tasks) scoped by `tenantWhere(scope, ...)`. Split accounts query out of Promise.all so account IDs can be used to scope variants/comments/analytics.
+- `/api/auth/login`: JWT includes customerId; user object returns customerId.
+- `/api/auth/me`: select includes customerId.
+
+### Frontend changes
+- `src/lib/auth-store.ts`: AuthUser interface includes `customerId?: string | null`.
+
+### Verification (API-level, with real users)
+Reset Taaha password to "taha123" and Saher password to "saher123" for testing. Logged in as each:
+
+| User | Role | customerId | Team members visible | Chat members visible |
+|------|------|-----------|---------------------|---------------------|
+| Admin (Ashraf) | admin | null | 7 (ALL) | all |
+| Taaha | manager | SMC | 2 (Taaha + Saher) | 1 (Saher) |
+| Saher | member | SMC | — | 1 (Taaha) |
+
+Key results:
+- Admin sees ALL 7 users across all tenants ✓
+- Taaha sees ONLY 2 users (himself + Saher — both in Social Media Cell) ✓
+- Taaha sees ONLY 1 chat member (Saher — same tenant) ✓
+- Saher sees ONLY 1 chat member (Taaha — same tenant) ✓
+- Both have customerId = Social Media Cell customer ID in their JWT ✓
+- Ashraf has customerId = null (super-admin, sees all tenants) ✓
+- Lint: 0 errors. TypeScript: 0 errors.
+
+Stage Summary:
+- **The database is now multi-tenant ready.** Each client (Customer) is a tenant. Users are linked to their tenant via `customerId`. All data-fetching APIs filter by `customerId` automatically — tenant users see only their client's data, super-admins see everything.
+- **Taaha and Saher (Social Media Cell)** see only each other + their own tenant's data. They cannot see Ashraf's accounts, posts, tasks, or other users.
+- **Ashraf (super-admin)** sees all tenants' data (cross-tenant visibility).
+- New users created by a manager inherit the creator's `customerId`, so they're automatically placed in the same tenant.
+- Artifacts changed: prisma/schema.prisma (+6 customerId fields), src/lib/auth-guard.ts (+getTenantScope +tenantWhere), src/app/api/auth/login/route.ts (+customerId in JWT), src/app/api/auth/me/route.ts (+customerId select), src/lib/auth-store.ts (+customerId type), src/app/api/accounts/route.ts, src/app/api/analytics/route.ts, src/app/api/tasks/route.ts, src/app/api/team/route.ts, src/app/api/chat/route.ts, src/app/api/dashboard/route.ts (all tenant-scoped).
+- Committed + pushed to GitHub (commit 66c47e4).
