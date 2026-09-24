@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
         bio: true,
         timezone: true,
         language: true,
+        customerId: true,
       },
     });
 

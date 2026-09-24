@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getUserFromRequest, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
-import { getUserFromRequest } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -46,51 +46,56 @@ export async function GET(req: NextRequest) {
   const authUser = getUserFromRequest(req);
   const userRole = authUser?.role ?? "member";
   const userId = authUser?.userId ?? null;
+  const scope = getTenantScope(authUser ?? { userId: "", role: "member", customerId: null });
   // Members/editors/viewers see only their own accounts + posts; admins/managers see everything
+  // Within their tenant. Super-admins (no customerId) see ALL tenants.
   const isManagerView = userRole === "admin" || userRole === "manager";
   try {
-    // For members: filter to only their own accounts + posts
-    // For managers/admins: fetch everything (overall dashboard)
+    // For members: filter to only their own accounts + posts (within their tenant)
+    // For managers/admins: fetch everything in their tenant (or all for super-admins)
     const memberAccountIds = isManagerView || !userId
       ? null
       : await db.account.findMany({
-          where: { ownerId: userId },
+          where: tenantWhere(scope, { ownerId: userId }),
           select: { id: true },
         }).then((rows) => rows.map((r) => r.id));
 
-    const [accounts, posts, variants, comments, activities, analytics, tasks] = await Promise.all([
-      db.account.findMany({
-        include: { owner: true, health: true },
-        ...(isManagerView ? {} : userId ? { where: { ownerId: userId } } : {}),
-      }),
+    // First fetch accounts (needed to scope variants/comments/analytics by account IDs)
+    const accounts = await db.account.findMany({
+      include: { owner: true, health: true },
+      where: tenantWhere(scope, isManagerView ? {} : userId ? { ownerId: userId } : {}),
+    });
+    const accountIds = accounts.map((a) => a.id);
+
+    const [posts, variants, comments, activities, analytics, tasks] = await Promise.all([
       db.post.findMany({
         include: {
           author: true,
           variants: { include: { account: true } },
         },
-        ...(isManagerView ? {} : userId ? { where: { authorId: userId } } : {}),
+        where: tenantWhere(scope, isManagerView ? {} : userId ? { authorId: userId } : {}),
       }),
       db.postVariant.findMany({
         include: { account: true },
-        ...(isManagerView || !memberAccountIds ? {} : { where: { accountId: { in: memberAccountIds } } }),
+        where: { accountId: { in: accountIds } },
       }),
       db.comment.findMany({
         include: { account: { include: { owner: true } } },
-        ...(isManagerView || !memberAccountIds ? {} : { where: { accountId: { in: memberAccountIds } } }),
+        where: { accountId: { in: accountIds } },
       }),
       db.activity.findMany({
         include: { user: true },
+        where: tenantWhere(scope, isManagerView ? {} : userId ? { userId } : {}),
         orderBy: { createdAt: "desc" },
         take: isManagerView ? 12 : 8,
-        ...(isManagerView ? {} : userId ? { where: { userId } } : {}),
       }),
       db.analyticsDaily.findMany({
+        where: { accountId: { in: accountIds } },
         orderBy: { date: "asc" },
-        ...(isManagerView || !memberAccountIds ? {} : { where: { accountId: { in: memberAccountIds } } }),
       }),
       db.task.findMany({
+        where: tenantWhere(scope, isManagerView ? {} : userId ? { OR: [{ assigneeId: userId }, { creatorId: userId }] } : {}),
         orderBy: { createdAt: "desc" },
-        ...(isManagerView ? {} : userId ? { where: { OR: [{ assigneeId: userId }, { creatorId: userId }] } } : {}),
       }),
     ]);
 

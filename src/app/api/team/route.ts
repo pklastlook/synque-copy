@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { requireAuth, requireRole } from "@/lib/auth-guard";
+import { requireAuth, requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
-  const users = await db.user.findMany({ orderBy: { createdAt: "asc" } });
-  const accounts = await db.account.findMany();
-  const posts = await db.post.findMany();
-  const variants = await db.postVariant.findMany();
+  const scope = getTenantScope(user!);
+  // Users see only members of their own tenant. Super-admins see all.
+  const users = await db.user.findMany({ where: tenantWhere(scope), orderBy: { createdAt: "asc" } });
+  const accounts = await db.account.findMany({ where: tenantWhere(scope) });
+  const posts = await db.post.findMany({ where: tenantWhere(scope) });
+  const variants = await db.postVariant.findMany({
+    where: { accountId: { in: accounts.map((a) => a.id) } },
+  });
 
   return NextResponse.json(
     users.map((u) => {
@@ -73,6 +77,11 @@ export async function POST(req: NextRequest) {
     ? await bcrypt.hash(password, 12)
     : await bcrypt.hash(Math.random().toString(36).slice(2), 12);
 
+  // Inherit the creator's customerId (tenant) — so new users belong to the same client.
+  // Super-admins can optionally pass a customerId to create a user in a different tenant.
+  const scope = getTenantScope(authUser!);
+  const finalCustomerId = (body as { customerId?: string }).customerId ?? scope.customerId;
+
   const user = await db.user.create({
     data: {
       name,
@@ -82,6 +91,7 @@ export async function POST(req: NextRequest) {
       title: title ?? null,
       department: department ?? null,
       status: "active",
+      customerId: finalCustomerId, // tenant-scoped
     },
   });
 

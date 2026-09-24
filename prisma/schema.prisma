@@ -28,6 +28,10 @@ model User {
   bio         String?  // short personal bio (max ~280 chars)
   timezone    String?  // IANA timezone e.g. "America/Los_Angeles"
   language    String?  // locale code e.g. "en-US"
+  // Multi-tenant: links this user to a Customer (tenant).
+  // null = super-admin (sees all tenants). Set when a user is created
+  // by a manager/admin who belongs to a specific client.
+  customerId  String?
 
   accounts  Account[]
   posts     Post[]
@@ -51,6 +55,8 @@ model Account {
   postsCount  Int      @default(0)
   verified    Boolean  @default(false)
   ownerId     String
+  // Multi-tenant: accounts are scoped to a customer (tenant)
+  customerId  String?
   owner       User     @relation(fields: [ownerId], references: [id])
   createdAt   DateTime @default(now())
 
@@ -125,6 +131,8 @@ model Post {
   status     String    @default("draft") // draft | scheduled | published | failed
   scheduledAt DateTime?
   authorId   String
+  // Multi-tenant: posts are scoped to a customer (tenant)
+  customerId String?
   author     User      @relation(fields: [authorId], references: [id])
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -184,6 +192,8 @@ model Activity {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
+  // Multi-tenant: activities are scoped to a customer (tenant)
+  customerId  String?
   type        String   // post_published | post_scheduled | comment_replied | account_connected | ai_generated | team_joined
   description String
   meta        String?  // JSON string for extra context
@@ -202,6 +212,8 @@ model Campaign {
   startDate   DateTime?
   endDate     DateTime?
   ownerId     String
+  // Multi-tenant: campaigns are scoped to a customer (tenant)
+  customerId  String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -279,6 +291,8 @@ model Task {
   tags        String?  // comma-separated tags/hashtags
   assigneeId  String?
   creatorId   String
+  // Multi-tenant: tasks are scoped to a customer (tenant)
+  customerId  String?
   status      String    @default("todo") // todo | in_progress | review | done | blocked
   priority    String    @default("normal") // low | normal | high | urgent
   type        String    @default("content") // content | review | engagement | analytics | campaign

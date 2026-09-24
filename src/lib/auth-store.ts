@@ -14,6 +14,7 @@ export interface AuthUser {
   timezone?: string | null;
   language?: string | null;
   department?: string | null;
+  customerId?: string | null;
 }
 
 interface AuthState {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +10,13 @@ export const dynamic = "force-dynamic";
  *   (no param) → group chat (receiverId = null)
  *
  * Returns messages + team members list for the sidebar.
+ * Tenant-scoped: members see only users in their own tenant.
  */
 export async function GET(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
 
+  const scope = getTenantScope(user!);
   const receiverId = req.nextUrl.searchParams.get("receiverId");
 
   // Fetch messages: either DM with a specific user, or group chat (null receiver)
@@ -31,9 +33,9 @@ export async function GET(req: NextRequest) {
     take: 100,
   });
 
-  // Fetch team members for the sidebar
+  // Fetch team members for the sidebar — tenant-scoped (same client only)
   const members = await db.user.findMany({
-    where: { status: "active", id: { not: user!.userId } },
+    where: tenantWhere(scope, { status: "active", id: { not: user!.userId } }),
     select: {
       id: true,
       name: true,

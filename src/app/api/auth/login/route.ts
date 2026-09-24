@@ -40,9 +40,9 @@ export async function POST(req: NextRequest) {
       data: { lastActive: new Date() },
     }).catch(() => null);
 
-    // Generate JWT
+    // Generate JWT — includes customerId for multi-tenant data isolation
     const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
+      { userId: user.id, email: user.email, role: user.role, customerId: user.customerId },
       SECRET,
       { expiresIn: "7d" }
     );
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
         timezone: user.timezone,
         language: user.language,
         department: user.department,
+        customerId: user.customerId,
       },
     });
 
