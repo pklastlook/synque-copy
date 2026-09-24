@@ -1,0 +1,2002 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import * as React from "react";
+     4→     4→import { useTheme } from "next-themes";
+     5→     5→import { toast } from "sonner";
+     6→     6→import {
+     7→     7→  // Tabs (shared with app-sidebar via SETTINGS_TABS export)
+     8→     8→  User,
+     9→     9→  Building2,
+    10→    10→  Palette,
+    11→    11→  Bell,
+    12→    12→  Shield,
+    13→    13→  AtSign,
+    14→    14→  ShieldCheck,
+    15→    15→  Plug,
+    16→    16→  Zap,
+    17→    17→  CreditCard,
+    18→    18→  Database,
+    19→    19→  AlertTriangle,
+    20→    20→  Users,
+    21→    21→  Settings,
+    22→    22→  ChevronRight,
+    23→    23→  // Profile / Workspace
+    24→    24→  Camera,
+    25→    25→  // Appearance
+    26→    26→  Sun,
+    27→    27→  Moon,
+    28→    28→  Monitor,
+    29→    29→  Check,
+    30→    30→  // Team
+    31→    31→  UserPlus,
+    32→    32→  Crown,
+    33→    33→  // Security
+    34→    34→  KeyRound,
+    35→    35→  Smartphone,
+    36→    36→  MonitorSmartphone,
+    37→    37→  LogOut,
+    38→    38→  Copy,
+    39→    39→  QrCode,
+    40→    40→  // Integrations
+    41→    41→  BarChart3,
+    42→    42→  Image as ImageIcon,
+    43→    43→  MessageSquare,
+    44→    44→  Mail,
+    45→    45→  // Data
+    46→    46→  Download,
+    47→    47→  Upload,
+    48→    48→  Trash2,
+    49→    49→  FileWarning,
+    50→    50→  // Danger
+    51→    51→  UserX,
+    52→    52→  ArrowLeftRight,
+    53→    53→  Ban,
+    54→    54→  // Generic
+    55→    55→  Save,
+    56→    56→  Eye,
+    57→    57→  EyeOff,
+    58→    58→  MoreHorizontal,
+    59→    59→  Send,
+    60→    60→  ShieldAlert,
+    61→    61→  CheckCircle2,
+    62→    62→} from "lucide-react";
+    63→    63→import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
+    64→    64→import { NameAvatar } from "@/components/glass/name-avatar";
+    65→    65→import { PlatformBadge } from "@/components/glass/platform-badge";
+    66→    66→import { PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
+    67→    67→import { cn } from "@/lib/utils";
+    68→    68→import { useNav } from "@/lib/store";
+    69→    69→import { useAuth } from "@/lib/auth-store";
+    70→    70→import { useApi } from "@/lib/hooks";
+    71→    71→import { Input } from "@/components/ui/input";
+    72→    72→import { Label } from "@/components/ui/label";
+    73→    73→import { Textarea } from "@/components/ui/textarea";
+    74→    74→import { Switch } from "@/components/ui/switch";
+    75→    75→import { Button } from "@/components/ui/button";
+    76→    76→import { Badge } from "@/components/ui/badge";
+    77→    77→import { Separator } from "@/components/ui/separator";
+    78→    78→import { Slider } from "@/components/ui/slider";
+    79→    79→import { PlatformApiSection } from "@/components/views/platform-settings/platform-api-section";
+    80→    80→import {
+    81→    81→  Dialog,
+    82→    82→  DialogContent,
+    83→    83→  DialogDescription,
+    84→    84→  DialogFooter,
+    85→    85→  DialogHeader,
+    86→    86→  DialogTitle,
+    87→    87→} from "@/components/ui/dialog";
+    88→    88→import {
+    89→    89→  Select,
+    90→    90→  SelectContent,
+    91→    91→  SelectItem,
+    92→    92→  SelectTrigger,
+    93→    93→  SelectValue,
+    94→    94→} from "@/components/ui/select";
+    95→    95→import {
+    96→    96→  DropdownMenu,
+    97→    97→  DropdownMenuContent,
+    98→    98→  DropdownMenuItem,
+    99→    99→  DropdownMenuSeparator,
+   100→   100→  DropdownMenuTrigger,
+   101→   101→} from "@/components/ui/dropdown-menu";
+   102→   102→
+   103→   103→export type SettingsTab =
+   104→   104→  | "profile"
+   105→   105→  | "workspace"
+   106→   106→  | "appearance"
+   107→   107→  | "team-roles"
+   108→   108→  | "notifications"
+   109→   109→  | "security"
+   110→   110→  | "platforms"
+   111→   111→  | "platform-api"
+   112→   112→  | "integrations"
+   113→   113→  | "billing"
+   114→   114→  | "data"
+   115→   115→  | "danger";
+   116→   116→
+   117→   117→export interface SettingsTabDef {
+   118→   118→  id: SettingsTab;
+   119→   119→  label: string;
+   120→   120→  icon: React.ElementType;
+   121→   121→}
+   122→   122→
+   123→   123→/**
+   124→   124→ * Settings sub-sections. Shared between the main app sidebar (so the
+   125→   125→ * Settings group expands to show these as children) and the SettingsView
+   126→   126→ * (which renders the matching section based on `useNav().settingsTab`).
+   127→   127→ */
+   128→   128→export const SETTINGS_TABS: SettingsTabDef[] = [
+   129→   129→  { id: "profile", label: "Profile", icon: User },
+   130→   130→  { id: "workspace", label: "Workspace", icon: Building2 },
+   131→   131→  { id: "appearance", label: "Appearance", icon: Palette },
+   132→   132→  { id: "team-roles", label: "Team Roles", icon: Users },
+   133→   133→  { id: "notifications", label: "Notifications", icon: Bell },
+   134→   134→  { id: "security", label: "Security", icon: Shield },
+   135→   135→  { id: "platforms", label: "Platforms", icon: AtSign },
+   136→   136→  { id: "platform-api", label: "Platform API Keys", icon: KeyRound },
+   137→   137→  { id: "integrations", label: "Integrations", icon: Plug },
+   138→   138→  { id: "billing", label: "Billing", icon: CreditCard },
+   139→   139→  { id: "data", label: "Data & Privacy", icon: Database },
+   140→   140→  { id: "danger", label: "Danger Zone", icon: AlertTriangle },
+   141→   141→];
+   142→   142→
+   143→   143→const SECTION_DESC: Record<SettingsTab, string> = {
+   144→   144→  profile: "Your personal information visible to your team.",
+   145→   145→  workspace: "Defaults applied across compose, schedule, and AI generation.",
+   146→   146→  appearance: "Personalize how SocialFlow looks on this device.",
+   147→   147→  "team-roles": "Manage who can access what. Changes are staged locally — save to sync.",
+   148→   148→  notifications: "Choose what reaches your inbox and how often.",
+   149→   149→  security: "Password, 2FA, sessions, API keys, and IP allowlist.",
+   150→   150→  platforms: "Manage which social accounts are connected to SocialFlow.",
+   151→   151→  "platform-api": "Connect real platform APIs for live posting and automatic data sync.",
+   152→   152→  integrations: "Connect SocialFlow with the tools your team already uses.",
+   153→   153→  billing: "Plan, usage, payment method, and invoices.",
+   154→   154→  data: "Control how your data is stored, shared, and exported.",
+   155→   155→  danger: "Irreversible and destructive actions. Proceed with caution.",
+   156→   156→};
+   157→   157→
+   158→   158→// ===== Shared types & lookups =====
+   159→   159→type Role = "admin" | "manager" | "editor" | "member" | "viewer";
+   160→   160→type MemberStatus = "active" | "invited" | "suspended";
+   161→   161→type Department = "Leadership" | "Content" | "Community" | "Paid Social" | "Design";
+   162→   162→
+   163→   163→interface TeamMember {
+   164→   164→  id: string;
+   165→   165→  name: string;
+   166→   166→  email: string;
+   167→   167→  color: string | null;
+   168→   168→  role: Role;
+   169→   169→  title: string;
+   170→   170→  department: Department;
+   171→   171→  status: MemberStatus;
+   172→   172→  permissions: string[];
+   173→   173→}
+   174→   174→
+   175→   175→const CAPABILITIES = [
+   176→   176→  "Posts/Create",
+   177→   177→  "Posts/Publish",
+   178→   178→  "Analytics/View",
+   179→   179→  "Team/Manage",
+   180→   180→  "Accounts/Connect",
+   181→   181→] as const;
+   182→   182→
+   183→   183→const PERMISSION_MATRIX: Record<Role, Record<string, boolean>> = {
+   184→   184→  admin: { "Posts/Create": true, "Posts/Publish": true, "Analytics/View": true, "Team/Manage": true, "Accounts/Connect": true },
+   185→   185→  manager: { "Posts/Create": true, "Posts/Publish": true, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": true },
+   186→   186→  editor: { "Posts/Create": true, "Posts/Publish": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
+   187→   187→  member: { "Posts/Create": true, "Posts/Publish": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
+   188→   188→  viewer: { "Posts/Create": false, "Posts/Publish": false, "Analytics/View": true, "Team/Manage": false, "Accounts/Connect": false },
+   189→   189→};
+   190→   190→
+   191→   191→const ROLE_LABEL: Record<Role, string> = {
+   192→   192→  admin: "Admin",
+   193→   193→  manager: "Manager",
+   194→   194→  editor: "Editor",
+   195→   195→  member: "Member",
+   196→   196→  viewer: "Viewer",
+   197→   197→};
+   198→   198→
+   199→   199→const ROLE_BADGE_CLASS: Record<Role, string> = {
+   200→   200→  admin: "bg-primary/15 text-primary",
+   201→   201→  manager: "bg-[oklch(0.82_0.14_85)]/20 text-[oklch(0.6_0.14_85)]",
+   202→   202→  editor: "bg-[oklch(0.74_0.18_165)]/20 text-[oklch(0.55_0.18_165)]",
+   203→   203→  member: "bg-muted text-muted-foreground",
+   204→   204→  viewer: "bg-muted text-muted-foreground",
+   205→   205→};
+   206→   206→
+   207→   207→const STATUS_BADGE: Record<MemberStatus, { label: string; class: string; dot: string }> = {
+   208→   208→  active: { label: "Active", class: "bg-emerald-500/15 text-emerald-500", dot: "bg-emerald-500" },
+   209→   209→  invited: { label: "Invited", class: "bg-amber-500/15 text-amber-500", dot: "bg-amber-500" },
+   210→   210→  suspended: { label: "Suspended", class: "bg-rose-500/15 text-rose-500", dot: "bg-rose-500" },
+   211→   211→};
+   212→   212→
+   213→   213→const DEPARTMENTS: Department[] = ["Leadership", "Content", "Community", "Paid Social", "Design"];
+   214→   214→
+   215→   215→const TIMEZONES = [
+   216→   216→  "America/Los_Angeles", "America/New_York", "America/Chicago", "America/Denver",
+   217→   217→  "Europe/London", "Europe/Paris", "Europe/Berlin",
+   218→   218→  "Asia/Tokyo", "Asia/Singapore", "Asia/Kolkata", "Asia/Dubai",
+   219→   219→  "Australia/Sydney", "Pacific/Auckland",
+   220→   220→];
+   221→   221→
+   222→   222→const LANGUAGES = [
+   223→   223→  { code: "en-US", label: "English (US)" },
+   224→   224→  { code: "en-GB", label: "English (UK)" },
+   225→   225→  { code: "es-ES", label: "Spanish (Spain)" },
+   226→   226→  { code: "fr-FR", label: "French" },
+   227→   227→  { code: "de-DE", label: "German" },
+   228→   228→  { code: "pt-BR", label: "Portuguese (Brazil)" },
+   229→   229→  { code: "ja-JP", label: "Japanese" },
+   230→   230→  { code: "zh-CN", label: "Chinese (Simplified)" },
+   231→   231→];
+   232→   232→
+   233→   233→const ACCENTS: { name: string; value: string }[] = [
+   234→   234→  { name: "Navy", value: "oklch(0.48 0.17 258)" },
+   235→   235→  { name: "Gold", value: "oklch(0.82 0.14 85)" },
+   236→   236→  { name: "Sky", value: "oklch(0.72 0.16 200)" },
+   237→   237→  { name: "Teal", value: "oklch(0.7 0.15 165)" },
+   238→   238→  { name: "Indigo", value: "oklch(0.6 0.16 230)" },
+   239→   239→  { name: "Emerald", value: "oklch(0.76 0.18 145)" },
+   240→   240→];
+   241→   241→
+   242→   242→const DEFAULT_ACCENT = ACCENTS[0].value;
+   243→   243→
+   244→   244→// ===== Main component =====
+   245→   245→export function SettingsView() {
+   246→   246→  const { settingsTab } = useNav();
+   247→   247→  const tab: SettingsTab = (settingsTab as SettingsTab) || "team-roles";
+   248→   248→  const activeDef = SETTINGS_TABS.find((t) => t.id === tab) ?? SETTINGS_TABS[0];
+   249→   249→  const ActiveIcon = activeDef.icon;
+   250→   250→
+   251→   251→  return (
+   252→   252→    <div className="animate-rise space-y-4">
+   253→   253→      {/* Breadcrumb header — section is driven by the main sidebar */}
+   254→   254→      <GlassCard strong className="glass-sheen relative overflow-hidden p-5">
+   255→   255→        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/25 blur-3xl" />
+   256→   256→        <div className="relative flex flex-wrap items-center justify-between gap-3">
+   257→   257→          <div className="min-w-0">
+   258→   258→            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted-foreground">
+   259→   259→              <Settings className="h-3.5 w-3.5" />
+   260→   260→              <span>Settings</span>
+   261→   261→              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+   262→   262→              <span className="flex items-center gap-1.5 font-semibold text-primary">
+   263→   263→                <ActiveIcon className="h-3.5 w-3.5" />
+   264→   264→                {activeDef.label}
+   265→   265→              </span>
+   266→   266→            </div>
+   267→   267→            <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">{activeDef.label}</h2>
+   268→   268→            <p className="mt-0.5 text-sm text-muted-foreground">
+   269→   269→              {SECTION_DESC[tab] ?? "Manage your workspace."}
+   270→   270→            </p>
+   271→   271→          </div>
+   272→   272→        </div>
+   273→   273→      </GlassCard>
+   274→   274→
+   275→   275→      {/* Full-width content panel — active tab driven by useNav().settingsTab */}
+   276→   276→      <div className="min-w-0 space-y-4">
+   277→   277→        {tab === "profile" && <ProfileSection />}
+   278→   278→        {tab === "workspace" && <WorkspaceSection />}
+   279→   279→        {tab === "appearance" && <AppearanceSection />}
+   280→   280→        {tab === "team-roles" && <TeamRolesSection />}
+   281→   281→        {tab === "notifications" && <NotificationsSection />}
+   282→   282→        {tab === "security" && <SecuritySection />}
+   283→   283→        {tab === "platforms" && <PlatformsSection />}
+   284→   284→        {tab === "platform-api" && <PlatformApiSection />}
+   285→   285→        {tab === "integrations" && <IntegrationsSection />}
+   286→   286→        {tab === "billing" && <BillingSection />}
+   287→   287→        {tab === "data" && <DataSection />}
+   288→   288→        {tab === "danger" && <DangerSection />}
+   289→   289→      </div>
+   290→   290→    </div>
+   291→   291→  );
+   292→   292→}
+   293→   293→
+   294→   294→// ===== 1. Profile =====
+   295→   295→function ProfileSection() {
+   296→   296→  const { user } = useAuth();
+   297→   297→  const { data, reload } = useApi<ApiUser[]>("/api/users");
+   298→   298→  const [name, setName] = React.useState("");
+   299→   299→  const [email, setEmail] = React.useState("");
+   300→   300→  const [title, setTitle] = React.useState("");
+   301→   301→  const [department, setDepartment] = React.useState<Department>("Leadership");
+   302→   302→  const [bio, setBio] = React.useState("");
+   303→   303→  const [timezone, setTimezone] = React.useState("America/Los_Angeles");
+   304→   304→  const [language, setLanguage] = React.useState("en-US");
+   305→   305→  const [saving, setSaving] = React.useState(false);
+   306→   306→
+   307→   307→  // Load real user data — prefer department from /api/users (the auth-store's
+   308→   308→  // AuthUser shape doesn't carry department).
+   309→   309→  React.useEffect(() => {
+   310→   310→    if (!user) return;
+   311→   311→    setName(user.name);
+   312→   312→    setEmail(user.email);
+   313→   313→    setTitle(user.title ?? "");
+   314→   314→    const dbUser = (data ?? []).find((u) => u.id === user.id);
+   315→   315→    const dept = dbUser?.department as Department | undefined;
+   316→   316→    if (dept && (DEPARTMENTS as string[]).includes(dept)) {
+   317→   317→      setDepartment(dept);
+   318→   318→    } else {
+   319→   319→      setDepartment("Leadership");
+   320→   320→    }
+   321→   321→  }, [user, data]);
+   322→   322→
+   323→   323→  const save = async () => {
+   324→   324→    if (!user) return;
+   325→   325→    setSaving(true);
+   326→   326→    try {
+   327→   327→      await fetch("/api/users", {
+   328→   328→        method: "PATCH",
+   329→   329→        headers: { "Content-Type": "application/json" },
+   330→   330→        body: JSON.stringify({ id: user.id, name, email, title, department }),
+   331→   331→      });
+   332→   332→      toast.success("Profile saved", { description: "Your changes have been synced." });
+   333→   333→      reload();
+   334→   334→    } catch {
+   335→   335→      toast.error("Failed to save profile");
+   336→   336→    } finally {
+   337→   337→      setSaving(false);
+   338→   338→    }
+   339→   339→  };
+   340→   340→
+   341→   341→  return (
+   342→   342→    <GlassCard className="crystal-in p-5">
+   343→   343→      <SectionTitle
+   344→   344→        title="Profile"
+   345→   345→        desc="Your personal information visible to your team."
+   346→   346→        action={
+   347→   347→          <button
+   348→   348→            onClick={save}
+   349→   349→            disabled={saving}
+   350→   350→            className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60"
+   351→   351→          >
+   352→   352→            <Save className="h-3.5 w-3.5" /> {saving ? "Saving…" : "Save changes"}
+   353→   353→          </button>
+   354→   354→        }
+   355→   355→      />
+   356→   356→
+   357→   357→      {/* Avatar */}
+   358→   358→      <div className="mb-5 flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
+   359→   359→        <NameAvatar name={name} color="rose" className="h-20 w-20 text-lg" />
+   360→   360→        <div className="flex flex-col gap-2">
+   361→   361→          <div className="text-sm font-semibold">{name}</div>
+   362→   362→          <div className="text-xs text-muted-foreground">PNG / JPG up to 4MB · square recommended</div>
+   363→   363→          <div className="flex gap-2">
+   364→   364→            <button
+   365→   365→              onClick={() => toast.info("Avatar upload — configure a storage provider in Integrations")}
+   366→   366→              className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
+   367→   367→            >
+   368→   368→              <Camera className="h-3.5 w-3.5" /> Change
+   369→   369→            </button>
+   370→   370→            <button
+   371→   371→              onClick={() => toast("Remove current avatar?")}
+   372→   372→              className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
+   373→   373→            >
+   374→   374→              Remove
+   375→   375→            </button>
+   376→   376→          </div>
+   377→   377→        </div>
+   378→   378→      </div>
+   379→   379→
+   380→   380→      {/* Fields */}
+   381→   381→      <div className="grid gap-4 sm:grid-cols-2">
+   382→   382→        <Field label="Full name">
+   383→   383→          <Input value={name} onChange={(e) => setName(e.target.value)} />
+   384→   384→        </Field>
+   385→   385→        <Field label="Email">
+   386→   386→          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+   387→   387→        </Field>
+   388→   388→        <Field label="Title / Designation">
+   389→   389→          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+   390→   390→        </Field>
+   391→   391→        <Field label="Department">
+   392→   392→          <Select value={department} onValueChange={(v) => setDepartment(v as Department)}>
+   393→   393→            <SelectTrigger className="w-full">
+   394→   394→              <SelectValue />
+   395→   395→            </SelectTrigger>
+   396→   396→            <SelectContent>
+   397→   397→              {DEPARTMENTS.map((d) => (
+   398→   398→                <SelectItem key={d} value={d}>
+   399→   399→                  {d}
+   400→   400→                </SelectItem>
+   401→   401→              ))}
+   402→   402→            </SelectContent>
+   403→   403→          </Select>
+   404→   404→        </Field>
+   405→   405→        <Field label="Timezone" hint="Used for scheduling & digests">
+   406→   406→          <Select value={timezone} onValueChange={setTimezone}>
+   407→   407→            <SelectTrigger className="w-full">
+   408→   408→              <SelectValue />
+   409→   409→            </SelectTrigger>
+   410→   410→            <SelectContent className="max-h-72">
+   411→   411→              {TIMEZONES.map((t) => (
+   412→   412→                <SelectItem key={t} value={t}>
+   413→   413→                  {t.replace(/_/g, " ")}
+   414→   414→                </SelectItem>
+   415→   415→              ))}
+   416→   416→            </SelectContent>
+   417→   417→          </Select>
+   418→   418→        </Field>
+   419→   419→        <Field label="Language">
+   420→   420→          <Select value={language} onValueChange={setLanguage}>
+   421→   421→            <SelectTrigger className="w-full">
+   422→   422→              <SelectValue />
+   423→   423→            </SelectTrigger>
+   424→   424→            <SelectContent>
+   425→   425→              {LANGUAGES.map((l) => (
+   426→   426→                <SelectItem key={l.code} value={l.code}>
+   427→   427→                  {l.label}
+   428→   428→                </SelectItem>
+   429→   429→              ))}
+   430→   430→            </SelectContent>
+   431→   431→          </Select>
+   432→   432→        </Field>
+   433→   433→      </div>
+   434→   434→
+   435→   435→      <Field label="Bio" className="mt-4">
+   436→   436→        <Textarea
+   437→   437→          value={bio}
+   438→   438→          onChange={(e) => setBio(e.target.value)}
+   439→   439→          rows={4}
+   440→   440→          maxLength={280}
+   441→   441→          className="resize-none"
+   442→   442→        />
+   443→   443→        <div className="mt-1 text-right text-[11px] text-muted-foreground">{bio.length} / 280</div>
+   444→   444→      </Field>
+   445→   445→    </GlassCard>
+   446→   446→  );
+   447→   447→}
+   448→   448→
+   449→   449→// ===== 2. Workspace =====
+   450→   450→interface WorkspaceData {
+   451→   451→  id: string;
+   452→   452→  name: string;
+   453→   453→  timezone: string;
+   454→   454→  cadence: string;
+   455→   455→  startTime: string;
+   456→   456→  endTime: string;
+   457→   457→  autoVariants: boolean;
+   458→   458→  tone: string;
+   459→   459→  brandVoice: string;
+   460→   460→  colors: string[];
+   461→   461→  ownerId: string;
+   462→   462→}
+   463→   463→function WorkspaceSection() {
+   464→   464→  const { user } = useAuth();
+   465→   465→  const { data: ws, reload } = useApi<WorkspaceData>(user?.id ? `/api/workspace?ownerId=${user.id}` : null);
+   466→   466→
+   467→   467→  const [name, setName] = React.useState("My Workspace");
+   468→   468→  const [tz, setTz] = React.useState("America/Los_Angeles");
+   469→   469→  const [cadence, setCadence] = React.useState("3/day");
+   470→   470→  const [start, setStart] = React.useState("09:00");
+   471→   471→  const [end, setEnd] = React.useState("18:00");
+   472→   472→  const [autoVariants, setAutoVariants] = React.useState(true);
+   473→   473→  const [tone, setTone] = React.useState("Confident");
+   474→   474→  const [brandVoice, setBrandVoice] = React.useState("");
+   475→   475→  const [colors, setColors] = React.useState<string[]>(["#1B2A57", "#D4A24E", "#5BC0BE"]);
+   476→   476→  const [saving, setSaving] = React.useState(false);
+   477→   477→
+   478→   478→  // Load real workspace data from the database
+   479→   479→  React.useEffect(() => {
+   480→   480→    if (!ws) return;
+   481→   481→    setName(ws.name);
+   482→   482→    setTz(ws.timezone);
+   483→   483→    setCadence(ws.cadence);
+   484→   484→    setStart(ws.startTime);
+   485→   485→    setEnd(ws.endTime);
+   486→   486→    setAutoVariants(ws.autoVariants);
+   487→   487→    setTone(ws.tone);
+   488→   488→    setBrandVoice(ws.brandVoice ?? "");
+   489→   489→    if (ws.colors && Array.isArray(ws.colors) && ws.colors.length > 0) setColors(ws.colors);
+   490→   490→  }, [ws]);
+   491→   491→
+   492→   492→  const updateColor = (i: number, v: string) =>
+   493→   493→    setColors((prev) => prev.map((c, idx) => (idx === i ? v : c)));
+   494→   494→
+   495→   495→  const save = async () => {
+   496→   496→    if (!user?.id) {
+   497→   497→      toast.error("Sign in to save workspace settings");
+   498→   498→      return;
+   499→   499→    }
+   500→   500→    setSaving(true);
+   501→   501→    try {
+   502→   502→      const res = await fetch("/api/workspace", {
+   503→   503→        method: "PUT",
+   504→   504→        headers: { "Content-Type": "application/json" },
+   505→   505→        body: JSON.stringify({
+   506→   506→          ownerId: user.id,
+   507→   507→          name,
+   508→   508→          timezone: tz,
+   509→   509→          cadence,
+   510→   510→          startTime: start,
+   511→   511→          endTime: end,
+   512→   512→          autoVariants,
+   513→   513→          tone,
+   514→   514→          brandVoice,
+   515→   515→          colors,
+   516→   516→        }),
+   517→   517→      });
+   518→   518→      if (res.ok) {
+   519→   519→        toast.success("Workspace saved", { description: "Defaults updated for all team members." });
+   520→   520→        reload();
+   521→   521→      } else {
+   522→   522→        toast.error("Failed to save workspace");
+   523→   523→      }
+   524→   524→    } catch {
+   525→   525→      toast.error("Network error");
+   526→   526→    } finally {
+   527→   527→      setSaving(false);
+   528→   528→    }
+   529→   529→  };
+   530→   530→
+   531→   531→  return (
+   532→   532→    <GlassCard className="crystal-in p-5">
+   533→   533→      <SectionTitle
+   534→   534→        title="Workspace"
+   535→   535→        desc="Defaults applied across compose, schedule, and AI generation."
+   536→   536→        action={
+   537→   537→          <button onClick={save} disabled={saving} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold disabled:opacity-50">
+   538→   538→            <Save className="h-3.5 w-3.5" /> {saving ? "Saving…" : "Save changes"}
+   539→   539→          </button>
+   540→   540→        }
+   541→   541→      />
+   542→   542→
+   543→   543→      {/* Identity */}
+   544→   544→      <div className="mb-4 flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
+   545→   545→        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-xl font-bold text-white shadow-lg">
+   546→   546→          P
+   547→   547→        </div>
+   548→   548→        <div>
+   549→   549→          <div className="text-sm font-semibold">{name}</div>
+   550→   550→          <div className="text-xs text-muted-foreground">SVG / PNG · square recommended</div>
+   551→   551→          <button
+   552→   552→            onClick={() => toast.info("Logo upload — configure in Integrations")}
+   553→   553→            className="mt-2 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
+   554→   554→          >
+   555→   555→            Upload logo
+   556→   556→          </button>
+   557→   557→        </div>
+   558→   558→      </div>
+   559→   559→
+   560→   560→      <div className="grid gap-4 sm:grid-cols-2">
+   561→   561→        <Field label="Workspace name">
+   562→   562→          <Input value={name} onChange={(e) => setName(e.target.value)} />
+   563→   563→        </Field>
+   564→   564→        <Field label="Default timezone">
+   565→   565→          <Select value={tz} onValueChange={setTz}>
+   566→   566→            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+   567→   567→            <SelectContent className="max-h-72">
+   568→   568→              {TIMEZONES.map((t) => (
+   569→   569→                <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
+   570→   570→              ))}
+   571→   571→            </SelectContent>
+   572→   572→          </Select>
+   573→   573→        </Field>
+   574→   574→        <Field label="Default posting cadence">
+   575→   575→          <Select value={cadence} onValueChange={setCadence}>
+   576→   576→            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+   577→   577→            <SelectContent>
+   578→   578→              <SelectItem value="1/day">1 post / day</SelectItem>
+   579→   579→              <SelectItem value="3/day">3 posts / day</SelectItem>
+   580→   580→              <SelectItem value="1/week">1 post / week</SelectItem>
+   581→   581→              <SelectItem value="custom">Custom</SelectItem>
+   582→   582→            </SelectContent>
+   583→   583→          </Select>
+   584→   584→        </Field>
+   585→   585→        <Field label="Default tone">
+   586→   586→          <Select value={tone} onValueChange={setTone}>
+   587→   587→            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+   588→   588→            <SelectContent>
+   589→   589→              {["Confident", "Warm", "Playful", "Authoritative", "Minimal", "Bold"].map((t) => (
+   590→   590→                <SelectItem key={t} value={t}>{t}</SelectItem>
+   591→   591→              ))}
+   592→   592→            </SelectContent>
+   593→   593→          </Select>
+   594→   594→        </Field>
+   595→   595→        <Field label="Working hours — start">
+   596→   596→          <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+   597→   597→        </Field>
+   598→   598→        <Field label="Working hours — end">
+   599→   599→          <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+   600→   600→        </Field>
+   601→   601→      </div>
+   602→   602→
+   603→   603→      <ToggleRow
+   604→   604→        className="mt-4"
+   605→   605→        label="Auto-generate AI variants on compose"
+   606→   606→        desc="Each connected account gets a tailored caption suggestion automatically."
+   607→   607→        checked={autoVariants}
+   608→   608→        onChange={(v) => {
+   609→   609→          setAutoVariants(v);
+   610→   610→          toast.success(`AI auto-variants ${v ? "enabled" : "disabled"}`);
+   611→   611→        }}
+   612→   612→      />
+   613→   613→
+   614→   614→      <Field label="Brand voice" className="mt-4">
+   615→   615→        <Textarea
+   616→   616→          value={brandVoice}
+   617→   617→          onChange={(e) => setBrandVoice(e.target.value)}
+   618→   618→          rows={3}
+   619→   619→          className="resize-none"
+   620→   620→        />
+   621→   621→      </Field>
+   622→   622→
+   623→   623→      <Field label="Brand colors" className="mt-4">
+   624→   624→        <div className="flex flex-wrap items-center gap-3">
+   625→   625→          {colors.map((c, i) => (
+   626→   626→            <div key={i} className="flex items-center gap-2 rounded-xl border border-border bg-background px-2 py-1.5">
+   627→   627→              <label className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-md ring-1 ring-border" style={{ background: c }}>
+   628→   628→                <input
+   629→   629→                  type="color"
+   630→   630→                  value={c}
+   631→   631→                  onChange={(e) => updateColor(i, e.target.value)}
+   632→   632→                  className="absolute inset-0 cursor-pointer opacity-0"
+   633→   633→                />
+   634→   634→              </label>
+   635→   635→              <Input
+   636→   636→                value={c}
+   637→   637→                onChange={(e) => updateColor(i, e.target.value)}
+   638→   638→                className="h-7 w-24 font-mono text-xs"
+   639→   639→              />
+   640→   640→            </div>
+   641→   641→          ))}
+   642→   642→          <button
+   643→   643→            onClick={() => setColors((prev) => [...prev, "#FFFFFF"])}
+   644→   644→            className="rounded-xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground transition hover:bg-muted/40"
+   645→   645→          >
+   646→   646→            + Add
+   647→   647→          </button>
+   648→   648→        </div>
+   649→   649→      </Field>
+   650→   650→    </GlassCard>
+   651→   651→  );
+   652→   652→}
+   653→   653→
+   654→   654→// ===== 3. Appearance =====
+   655→   655→function AppearanceSection() {
+   656→   656→  const { theme, setTheme } = useTheme();
+   657→   657→  const [accent, setAccent] = React.useState(DEFAULT_ACCENT);
+   658→   658→  const [reduceMotion, setReduceMotion] = React.useState(false);
+   659→   659→  const [glassEffects, setGlassEffects] = React.useState(true);
+   660→   660→  const [compact, setCompact] = React.useState(false);
+   661→   661→  const [fontSize, setFontSize] = React.useState(14);
+   662→   662→
+   663→   663→  const themeOptions = [
+   664→   664→    { id: "light" as const, label: "Light", icon: Sun },
+   665→   665→    { id: "dark" as const, label: "Dark", icon: Moon },
+   666→   666→    { id: "system" as const, label: "System", icon: Monitor },
+   667→   667→  ];
+   668→   668→
+   669→   669→  const applyAccent = (value: string, name: string) => {
+   670→   670→    setAccent(value);
+   671→   671→    if (typeof document !== "undefined") {
+   672→   672→      document.documentElement.style.setProperty("--primary", value);
+   673→   673→    }
+   674→   674→    toast.success(`Accent set to ${name}`);
+   675→   675→  };
+   676→   676→
+   677→   677→  return (
+   678→   678→    <GlassCard className="crystal-in p-5">
+   679→   679→      <SectionTitle title="Appearance" desc="Personalize how SocialFlow looks on this device." />
+   680→   680→
+   681→   681→      {/* Theme cards */}
+   682→   682→      <div className="grid grid-cols-3 gap-3">
+   683→   683→        {themeOptions.map((opt) => {
+   684→   684→          const Icon = opt.icon;
+   685→   685→          const active = theme === opt.id;
+   686→   686→          const previewBg =
+   687→   687→            opt.id === "light"
+   688→   688→              ? "bg-[oklch(0.97_0.008_250)]"
+   689→   689→              : opt.id === "dark"
+   690→   690→                ? "bg-[oklch(0.16_0.025_258)]"
+   691→   691→                : "bg-gradient-to-br from-[oklch(0.97_0.008_250)] to-[oklch(0.16_0.025_258)]";
+   692→   692→          return (
+   693→   693→            <button
+   694→   694→              key={opt.id}
+   695→   695→              onClick={() => {
+   696→   696→                setTheme(opt.id);
+   697→   697→                toast.success(`Theme: ${opt.label}`);
+   698→   698→              }}
+   699→   699→              className={cn(
+   700→   700→                "rounded-2xl border-2 p-3 text-left transition",
+   701→   701→                active ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/40"
+   702→   702→              )}
+   703→   703→            >
+   704→   704→              <div className={cn("mb-2 flex h-16 items-end gap-1 overflow-hidden rounded-xl p-2", previewBg)}>
+   705→   705→                <div className={cn("h-full w-1/3 rounded-md", opt.id === "dark" ? "bg-white/15" : "bg-primary/80")} />
+   706→   706→                <div className="flex-1 space-y-1">
+   707→   707→                  <div className={cn("h-2 w-full rounded", opt.id === "dark" ? "bg-white/20" : "bg-primary/30")} />
+   708→   708→                  <div className={cn("h-2 w-2/3 rounded", opt.id === "dark" ? "bg-white/10" : "bg-primary/20")} />
+   709→   709→                </div>
+   710→   710→              </div>
+   711→   711→              <div className="flex items-center justify-between">
+   712→   712→                <span className="text-sm font-medium">{opt.label}</span>
+   713→   713→                {active && <Check className="h-4 w-4 text-primary" />}
+   714→   714→              </div>
+   715→   715→              <Icon className="mt-1 h-3.5 w-3.5 text-muted-foreground" />
+   716→   716→            </button>
+   717→   717→          );
+   718→   718→        })}
+   719→   719→      </div>
+   720→   720→
+   721→   721→      <Separator className="my-5" />
+   722→   722→
+   723→   723→      {/* Accent picker */}
+   724→   724→      <div>
+   725→   725→        <div className="text-sm font-medium">Accent color</div>
+   726→   726→        <div className="text-xs text-muted-foreground">Updates the primary brand color across the app.</div>
+   727→   727→        <div className="mt-3 flex flex-wrap gap-3">
+   728→   728→          {ACCENTS.map((a) => {
+   729→   729→            const active = accent === a.value;
+   730→   730→            return (
+   731→   731→              <button
+   732→   732→                key={a.name}
+   733→   733→                onClick={() => applyAccent(a.value, a.name)}
+   734→   734→                className={cn(
+   735→   735→                  "group relative flex items-center gap-2 rounded-xl border px-3 py-2 transition",
+   736→   736→                  active ? "border-primary ring-2 ring-primary/30" : "border-border hover:bg-muted/40"
+   737→   737→                )}
+   738→   738→                title={a.name}
+   739→   739→              >
+   740→   740→                <span className="h-6 w-6 rounded-full ring-1 ring-border" style={{ background: a.value }} />
+   741→   741→                <span className="text-xs font-medium">{a.name}</span>
+   742→   742→                {active && <Check className="h-3.5 w-3.5 text-primary" />}
+   743→   743→              </button>
+   744→   744→            );
+   745→   745→          })}
+   746→   746→        </div>
+   747→   747→      </div>
+   748→   748→
+   749→   749→      <Separator className="my-5" />
+   750→   750→
+   751→   751→      {/* Toggles */}
+   752→   752→      <div className="space-y-1">
+   753→   753→        <ToggleRow
+   754→   754→          label="Reduce motion"
+   755→   755→          desc="Disable entrance animations and crystal shimmer."
+   756→   756→          checked={reduceMotion}
+   757→   757→          onChange={(v) => {
+   758→   758→            setReduceMotion(v);
+   759→   759→            toast.success(`Reduce motion ${v ? "on" : "off"}`);
+   760→   760→          }}
+   761→   761→        />
+   762→   762→        <ToggleRow
+   763→   763→          label="Liquid glass effects"
+   764→   764→          desc="Translucent layers, blur, and sheen across the app."
+   765→   765→          checked={glassEffects}
+   766→   766→          onChange={(v) => {
+   767→   767→            setGlassEffects(v);
+   768→   768→            toast.success(`Glass effects ${v ? "on" : "off"}`);
+   769→   769→          }}
+   770→   770→        />
+   771→   771→        <ToggleRow
+   772→   772→          label="Compact mode"
+   773→   773→          desc="Tighten spacing to see more content per screen."
+   774→   774→          checked={compact}
+   775→   775→          onChange={(v) => {
+   776→   776→            setCompact(v);
+   777→   777→            toast.success(`Compact mode ${v ? "on" : "off"}`);
+   778→   778→          }}
+   779→   779→        />
+   780→   780→      </div>
+   781→   781→
+   782→   782→      <Separator className="my-5" />
+   783→   783→
+   784→   784→      {/* Font size */}
+   785→   785→      <div>
+   786→   786→        <div className="flex items-center justify-between">
+   787→   787→          <div>
+   788→   788→            <div className="text-sm font-medium">Font size</div>
+   789→   789→            <div className="text-xs text-muted-foreground">Default base font size for the interface.</div>
+   790→   790→          </div>
+   791→   791→          <span className="num-display text-lg font-semibold tabular-nums">{fontSize}px</span>
+   792→   792→        </div>
+   793→   793→        <div className="mt-3 px-1">
+   794→   794→          <Slider
+   795→   795→            value={[fontSize]}
+   796→   796→            min={12}
+   797→   797→            max={18}
+   798→   798→            step={1}
+   799→   799→            onValueChange={(v) => {
+   800→   800→              setFontSize(v[0]);
+   801→   801→              if (typeof document !== "undefined") {
+   802→   802→                document.documentElement.style.fontSize = `${v[0]}px`;
+   803→   803→              }
+   804→   804→            }}
+   805→   805→          />
+   806→   806→        </div>
+   807→   807→        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+   808→   808→          <span>A</span><span>Default</span><span>A</span>
+   809→   809→        </div>
+   810→   810→      </div>
+   811→   811→    </GlassCard>
+   812→   812→  );
+   813→   813→}
+   814→   814→
+   815→   815→// ===== 4. Team Roles & Permissions =====
+   816→   816→interface ApiUser {
+   817→   817→  id: string;
+   818→   818→  name: string;
+   819→   819→  email: string;
+   820→   820→  role: Role;
+   821→   821→  title: string | null;
+   822→   822→  department: string | null;
+   823→   823→  color: string | null;
+   824→   824→  permissions: string[];
+   825→   825→  status: MemberStatus;
+   826→   826→  lastActive: string | null;
+   827→   827→}
+   828→   828→
+   829→   829→function TeamRolesSection() {
+   830→   830→  const { data, loading } = useApi<ApiUser[]>("/api/users");
+   831→   831→  const [members, setMembers] = React.useState<TeamMember[]>([]);
+   832→   832→  const [inviteOpen, setInviteOpen] = React.useState(false);
+   833→   833→  const [inviteName, setInviteName] = React.useState("");
+   834→   834→  const [inviteEmail, setInviteEmail] = React.useState("");
+   835→   835→  const [inviteRole, setInviteRole] = React.useState<Role>("member");
+   836→   836→  const [invitePassword, setInvitePassword] = React.useState("");
+   837→   837→  const [inviteLoading, setInviteLoading] = React.useState(false);
+   838→   838→  const [saving, setSaving] = React.useState(false);
+   839→   839→
+   840→   840→  // Load real users from database
+   841→   841→  React.useEffect(() => {
+   842→   842→    if (!data) return;
+   843→   843→    const next: TeamMember[] = data.map((u) => ({
+   844→   844→      id: u.id,
+   845→   845→      name: u.name,
+   846→   846→      email: u.email,
+   847→   847→      color: (u.color as TeamMember["color"]) ?? "blue",
+   848→   848→      role: u.role,
+   849→   849→      title: u.title ?? "",
+   850→   850→      department: (u.department as Department) ?? "General",
+   851→   851→      status: u.status,
+   852→   852→      permissions: u.permissions ?? [],
+   853→   853→    }));
+   854→   854→    setMembers(next);
+   855→   855→  }, [data]);
+   856→   856→
+   857→   857→  const update = (id: string, patch: Partial<TeamMember>) =>
+   858→   858→    setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+   859→   859→
+   860→   860→  const removeMember = async (id: string, name: string) => {
+   861→   861→    try {
+   862→   862→      const res = await fetch("/api/users", {
+   863→   863→        method: "DELETE",
+   864→   864→        headers: { "Content-Type": "application/json" },
+   865→   865→        body: JSON.stringify({ id }),
+   866→   866→      });
+   867→   867→      if (res.ok) {
+   868→   868→        setMembers((prev) => prev.filter((m) => m.id !== id));
+   869→   869→        toast.success(`Removed ${name}`);
+   870→   870→      } else {
+   871→   871→        toast.error("Failed to remove member");
+   872→   872→      }
+   873→   873→    } catch {
+   874→   874→      toast.error("Network error");
+   875→   875→    }
+   876→   876→  };
+   877→   877→
+   878→   878→  const save = async () => {
+   879→   879→    setSaving(true);
+   880→   880→    try {
+   881→   881→      await Promise.all(
+   882→   882→        members.map((m) =>
+   883→   883→          fetch("/api/users", {
+   884→   884→            method: "PATCH",
+   885→   885→            headers: { "Content-Type": "application/json" },
+   886→   886→            body: JSON.stringify({
+   887→   887→              id: m.id,
+   888→   888→              role: m.role,
+   889→   889→              title: m.title,
+   890→   890→              department: m.department,
+   891→   891→              status: m.status,
+   892→   892→            }),
+   893→   893→          })
+   894→   894→        )
+   895→   895→      );
+   896→   896→      toast.success("Team saved", { description: `${members.length} members updated.` });
+   897→   897→    } catch {
+   898→   898→      toast.error("Failed to save team changes");
+   899→   899→    } finally {
+   900→   900→      setSaving(false);
+   901→   901→    }
+   902→   902→  };
+   903→   903→
+   904→   904→  const invite = async () => {
+   905→   905→    if (!inviteName.trim() || !inviteEmail.includes("@")) {
+   906→   906→      toast.error("Enter a valid name and email");
+   907→   907→      return;
+   908→   908→    }
+   909→   909→    if (invitePassword.length < 6) {
+   910→   910→      toast.error("Password must be at least 6 characters");
+   911→   911→      return;
+   912→   912→    }
+   913→   913→    setInviteLoading(true);
+   914→   914→    try {
+   915→   915→      const res = await fetch("/api/auth/signup", {
+   916→   916→        method: "POST",
+   917→   917→        headers: { "Content-Type": "application/json" },
+   918→   918→        body: JSON.stringify({ name: inviteName.trim(), email: inviteEmail.trim(), password: invitePassword }),
+   919→   919→      });
+   920→   920→      const data = await res.json();
+   921→   921→      if (res.ok && data.token) {
+   922→   922→        // Set the new user's role via PATCH
+   923→   923→        if (inviteRole !== "member") {
+   924→   924→          await fetch("/api/users", {
+   925→   925→            method: "PATCH",
+   926→   926→            headers: { "Content-Type": "application/json" },
+   927→   927→            body: JSON.stringify({ id: data.user.id, role: inviteRole, title: inviteRole === "admin" ? "Administrator" : "Team Member" }),
+   928→   928→          }).catch(() => {});
+   929→   929→        }
+   930→   930→        toast.success("User created", { description: `${inviteName} → ${ROLE_LABEL[inviteRole]}` });
+   931→   931→        setInviteName(""); setInviteEmail(""); setInviteRole("member"); setInvitePassword("");
+   932→   932→        setInviteOpen(false);
+   933→   933→        // Reload members
+   934→   934→        window.location.reload();
+   935→   935→      } else {
+   936→   936→        toast.error(data.error || "Failed to create user");
+   937→   937→      }
+   938→   938→    } catch {
+   939→   939→      toast.error("Network error");
+   940→   940→    } finally {
+   941→   941→      setInviteLoading(false);
+   942→   942→    }
+   943→   943→  };
+   944→   944→
+   945→   945→  if (loading) return <TeamSkeleton />;
+   946→   946→
+   947→   947→  return (
+   948→   948→    <div className="space-y-4">
+   949→   949→      <GlassCard className="crystal-in p-5">
+   950→   950→        <SectionTitle
+   951→   951→          title="Team Roles & Permissions"
+   952→   952→          desc="Manage who can access what. Changes are staged locally — save to sync."
+   953→   953→          action={
+   954→   954→            <div className="flex gap-2">
+   955→   955→              <button
+   956→   956→                onClick={() => setInviteOpen(true)}
+   957→   957→                className="liquid-gold flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+   958→   958→              >
+   959→   959→                <UserPlus className="h-3.5 w-3.5" /> Invite member
+   960→   960→              </button>
+   961→   961→              <button
+   962→   962→                onClick={save}
+   963→   963→                disabled={saving}
+   964→   964→                className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60"
+   965→   965→              >
+   966→   966→                <Save className="h-3.5 w-3.5" /> {saving ? "Saving…" : "Save changes"}
+   967→   967→              </button>
+   968→   968→            </div>
+   969→   969→          }
+   970→   970→        />
+   971→   971→
+   972→   972→        {/* Member grid */}
+   973→   973→        <div className="grid gap-3 lg:grid-cols-2">
+   974→   974→          {members.map((m) => {
+   975→   975→            const status = STATUS_BADGE[m.status];
+   976→   976→            return (
+   977→   977→              <div
+   978→   978→                key={m.id}
+   979→   979→                className="rounded-2xl border border-border/60 bg-muted/20 p-4 transition hover:bg-muted/40"
+   980→   980→              >
+   981→   981→                <div className="flex items-start gap-3">
+   982→   982→                  <NameAvatar name={m.name} color={m.color} className="h-11 w-11 text-xs" />
+   983→   983→                  <div className="min-w-0 flex-1">
+   984→   984→                    <div className="flex flex-wrap items-center gap-2">
+   985→   985→                      <span className="truncate text-sm font-semibold">{m.name}</span>
+   986→   986→                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", ROLE_BADGE_CLASS[m.role])}>
+   987→   987→                        {ROLE_LABEL[m.role]}
+   988→   988→                      </span>
+   989→   989→                      <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium", status.class)}>
+   990→   990→                        <span className={cn("h-1.5 w-1.5 rounded-full", status.dot)} />
+   991→   991→                        {status.label}
+   992→   992→                      </span>
+   993→   993→                    </div>
+   994→   994→                    <div className="mt-0.5 truncate text-xs text-muted-foreground">{m.email}</div>
+   995→   995→                  </div>
+   996→   996→                  <DropdownMenu>
+   997→   997→                    <DropdownMenuTrigger asChild>
+   998→   998→                      <button className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">
+   999→   999→                        <MoreHorizontal className="h-4 w-4" />
+  1000→  1000→                      </button>
+  1001→  1001→                    </DropdownMenuTrigger>
+  1002→  1002→                    <DropdownMenuContent align="end" className="w-40">
+  1003→  1003→                      <DropdownMenuItem onClick={() => toast(`Resend invite to ${m.email}`)}>
+  1004→  1004→                        <Send className="mr-2 h-3.5 w-3.5" /> Resend invite
+  1005→  1005→                      </DropdownMenuItem>
+  1006→  1006→                      <DropdownMenuItem onClick={() => update(m.id, { status: m.status === "suspended" ? "active" : "suspended" })}>
+  1007→  1007→                        <Ban className="mr-2 h-3.5 w-3.5" /> {m.status === "suspended" ? "Reactivate" : "Suspend"}
+  1008→  1008→                      </DropdownMenuItem>
+  1009→  1009→                      <DropdownMenuSeparator />
+  1010→  1010→                      <DropdownMenuItem
+  1011→  1011→                        className="text-rose-500 focus:text-rose-500"
+  1012→  1012→                        onClick={() => removeMember(m.id, m.name)}
+  1013→  1013→                      >
+  1014→  1014→                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove
+  1015→  1015→                      </DropdownMenuItem>
+  1016→  1016→                    </DropdownMenuContent>
+  1017→  1017→                  </DropdownMenu>
+  1018→  1018→                </div>
+  1019→  1019→
+  1020→  1020→                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+  1021→  1021→                  <Field label="Role" compact>
+  1022→  1022→                    <Select value={m.role} onValueChange={(v) => update(m.id, { role: v as Role })}>
+  1023→  1023→                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+  1024→  1024→                      <SelectContent>
+  1025→  1025→                        {Object.entries(ROLE_LABEL).map(([k, v]) => (
+  1026→  1026→                          <SelectItem key={k} value={k}>{v}</SelectItem>
+  1027→  1027→                        ))}
+  1028→  1028→                      </SelectContent>
+  1029→  1029→                    </Select>
+  1030→  1030→                  </Field>
+  1031→  1031→                  <Field label="Designation" compact>
+  1032→  1032→                    <Input
+  1033→  1033→                      value={m.title}
+  1034→  1034→                      onChange={(e) => update(m.id, { title: e.target.value })}
+  1035→  1035→                      className="h-8 text-xs"
+  1036→  1036→                    />
+  1037→  1037→                  </Field>
+  1038→  1038→                  <Field label="Department" compact>
+  1039→  1039→                    <Select value={m.department} onValueChange={(v) => update(m.id, { department: v as Department })}>
+  1040→  1040→                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+  1041→  1041→                      <SelectContent>
+  1042→  1042→                        {DEPARTMENTS.map((d) => (
+  1043→  1043→                          <SelectItem key={d} value={d}>{d}</SelectItem>
+  1044→  1044→                        ))}
+  1045→  1045→                      </SelectContent>
+  1046→  1046→                    </Select>
+  1047→  1047→                  </Field>
+  1048→  1048→                </div>
+  1049→  1049→
+  1050→  1050→                <div className="mt-3 flex flex-wrap gap-1.5">
+  1051→  1051→                  {CAPABILITIES.map((cap) => {
+  1052→  1052→                    const allowed = PERMISSION_MATRIX[m.role][cap];
+  1053→  1053→                    return (
+  1054→  1054→                      <span
+  1055→  1055→                        key={cap}
+  1056→  1056→                        className={cn(
+  1057→  1057→                          "rounded-full px-2 py-0.5 text-[10px] font-medium",
+  1058→  1058→                          allowed
+  1059→  1059→                            ? "bg-primary/10 text-primary"
+  1060→  1060→                            : "bg-muted/60 text-muted-foreground/60 line-through"
+  1061→  1061→                        )}
+  1062→  1062→                      >
+  1063→  1063→                        {cap}
+  1064→  1064→                      </span>
+  1065→  1065→                    );
+  1066→  1066→                  })}
+  1067→  1067→                </div>
+  1068→  1068→              </div>
+  1069→  1069→            );
+  1070→  1070→          })}
+  1071→  1071→        </div>
+  1072→  1072→      </GlassCard>
+  1073→  1073→
+  1074→  1074→      {/* Permissions matrix */}
+  1075→  1075→      <GlassCard className="crystal-in p-5">
+  1076→  1076→        <SectionTitle
+  1077→  1077→          title="Permissions matrix"
+  1078→  1078→          desc="What each role can do across the platform."
+  1079→  1079→        />
+  1080→  1080→        <div className="overflow-x-auto no-scrollbar">
+  1081→  1081→          <table className="w-full min-w-[560px] border-collapse text-sm">
+  1082→  1082→            <thead>
+  1083→  1083→              <tr className="text-left">
+  1084→  1084→                <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Capability</th>
+  1085→  1085→                {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
+  1086→  1086→                  <th key={r} className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">
+  1087→  1087→                    {ROLE_LABEL[r]}
+  1088→  1088→                  </th>
+  1089→  1089→                ))}
+  1090→  1090→              </tr>
+  1091→  1091→            </thead>
+  1092→  1092→            <tbody>
+  1093→  1093→              {CAPABILITIES.map((cap, i) => (
+  1094→  1094→                <tr key={cap} className={cn(i % 2 === 0 ? "bg-muted/20" : "")}>
+  1095→  1095→                  <td className="rounded-l-lg px-3 py-2.5 text-xs font-medium">{cap}</td>
+  1096→  1096→                  {(Object.keys(ROLE_LABEL) as Role[]).map((r) => {
+  1097→  1097→                    const allowed = PERMISSION_MATRIX[r][cap];
+  1098→  1098→                    return (
+  1099→  1099→                      <td key={r} className="rounded-r-lg px-3 py-2.5 text-center">
+  1100→  1100→                        {allowed ? (
+  1101→  1101→                          <Check className="mx-auto h-4 w-4 text-emerald-500" />
+  1102→  1102→                        ) : (
+  1103→  1103→                          <span className="text-muted-foreground/40">—</span>
+  1104→  1104→                        )}
+  1105→  1105→                      </td>
+  1106→  1106→                    );
+  1107→  1107→                  })}
+  1108→  1108→                </tr>
+  1109→  1109→              ))}
+  1110→  1110→            </tbody>
+  1111→  1111→          </table>
+  1112→  1112→        </div>
+  1113→  1113→      </GlassCard>
+  1114→  1114→
+  1115→  1115→      {/* Invite dialog */}
+  1116→  1116→      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+  1117→  1117→        <DialogContent className="sm:max-w-md">
+  1118→  1118→          <DialogHeader>
+  1119→  1119→            <DialogTitle>Invite a team member</DialogTitle>
+  1120→  1120→            <DialogDescription>
+  1121→  1121→              They'll receive an email invitation to join your workspace.
+  1122→  1122→            </DialogDescription>
+  1123→  1123→          </DialogHeader>
+  1124→  1124→          <div className="space-y-3 py-2">
+  1125→  1125→            <Field label="Full name">
+  1126→  1126→              <Input
+  1127→  1127→                placeholder="John Smith"
+  1128→  1128→                value={inviteName}
+  1129→  1129→                onChange={(e) => setInviteName(e.target.value)}
+  1130→  1130→              />
+  1131→  1131→            </Field>
+  1132→  1132→            <Field label="Email">
+  1133→  1133→              <Input
+  1134→  1134→                type="email"
+  1135→  1135→                placeholder="teammate@socialflow.app"
+  1136→  1136→                value={inviteEmail}
+  1137→  1137→                onChange={(e) => setInviteEmail(e.target.value)}
+  1138→  1138→              />
+  1139→  1139→            </Field>
+  1140→  1140→            <Field label="Password">
+  1141→  1141→              <Input
+  1142→  1142→                type="password"
+  1143→  1143→                placeholder="Min 6 characters"
+  1144→  1144→                value={invitePassword}
+  1145→  1145→                onChange={(e) => setInvitePassword(e.target.value)}
+  1146→  1146→              />
+  1147→  1147→            </Field>
+  1148→  1148→            <Field label="Role">
+  1149→  1149→              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as Role)}>
+  1150→  1150→                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+  1151→  1151→                <SelectContent>
+  1152→  1152→                  {Object.entries(ROLE_LABEL).map(([k, v]) => (
+  1153→  1153→                    <SelectItem key={k} value={k}>{v}</SelectItem>
+  1154→  1154→                  ))}
+  1155→  1155→                </SelectContent>
+  1156→  1156→              </Select>
+  1157→  1157→            </Field>
+  1158→  1158→          </div>
+  1159→  1159→          <DialogFooter>
+  1160→  1160→            <Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button>
+  1161→  1161→            <button
+  1162→  1162→              onClick={invite}
+  1163→  1163→              disabled={inviteLoading}
+  1164→  1164→              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+  1165→  1165→            >
+  1166→  1166→              <UserPlus className="h-4 w-4" /> {inviteLoading ? "Creating…" : "Create user"}
+  1167→  1167→            </button>
+  1168→  1168→          </DialogFooter>
+  1169→  1169→        </DialogContent>
+  1170→  1170→      </Dialog>
+  1171→  1171→    </div>
+  1172→  1172→  );
+  1173→  1173→}
+  1174→  1174→
+  1175→  1175→// ===== 5. Notifications =====
+  1176→  1176→function NotificationsSection() {
+  1177→  1177→  const [engagement, setEngagement] = React.useState<Record<string, boolean>>({
+  1178→  1178→    newComment: true,
+  1179→  1179→    mention: true,
+  1180→  1180→    newFollower: true,
+  1181→  1181→    postLiked: false,
+  1182→  1182→  });
+  1183→  1183→  const [workflow, setWorkflow] = React.useState<Record<string, boolean>>({
+  1184→  1184→    taskAssigned: true,
+  1185→  1185→    taskOverdue: true,
+  1186→  1186→  });
+  1187→  1187→  const [reports, setReports] = React.useState<Record<string, boolean>>({
+  1188→  1188→    weeklyDigest: true,
+  1189→  1189→    monthlySummary: false,
+  1190→  1190→    competitorAlert: true,
+  1191→  1191→  });
+  1192→  1192→  const [system, setSystem] = React.useState<Record<string, boolean>>({
+  1193→  1193→    accountWarning: true,
+  1194→  1194→    mailQuota: true,
+  1195→  1195→    security: true,
+  1196→  1196→  });
+  1197→  1197→  const [quietStart, setQuietStart] = React.useState("22:00");
+  1198→  1198→  const [quietEnd, setQuietEnd] = React.useState("07:00");
+  1199→  1199→  const [digest, setDigest] = React.useState("instant");
+  1200→  1200→
+  1201→  1201→  const flip = (
+  1202→  1202→    setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
+  1203→  1203→    key: string
+  1204→  1204→  ) => (v: boolean) => {
+  1205→  1205→    setter((prev) => ({ ...prev, [key]: v }));
+  1206→  1206→    toast.success("Notifications updated");
+  1207→  1207→  };
+  1208→  1208→
+  1209→  1209→  const save = () => toast.success("Notification preferences saved");
+  1210→  1210→
+  1211→  1211→  return (
+  1212→  1212→    <GlassCard className="crystal-in p-5">
+  1213→  1213→      <SectionTitle
+  1214→  1214→        title="Notifications"
+  1215→  1215→        desc="Choose what reaches your inbox and how often."
+  1216→  1216→        action={
+  1217→  1217→          <button onClick={save} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold">
+  1218→  1218→            <Save className="h-3.5 w-3.5" /> Save preferences
+  1219→  1219→          </button>
+  1220→  1220→        }
+  1221→  1221→      />
+  1222→  1222→
+  1223→  1223→      <div className="grid gap-5 lg:grid-cols-2">
+  1224→  1224→        <NotificationGroup title="Engagement" desc="Audience interactions">
+  1225→  1225→          <ToggleRow label="New comment" desc="Someone comments on your post." checked={engagement.newComment} onChange={flip(setEngagement, "newComment")} />
+  1226→  1226→          <ToggleRow label="Mentions" desc="You're tagged in a comment or post." checked={engagement.mention} onChange={flip(setEngagement, "mention")} />
+  1227→  1227→          <ToggleRow label="New follower" desc="Your account gains a follower." checked={engagement.newFollower} onChange={flip(setEngagement, "newFollower")} />
+  1228→  1228→          <ToggleRow label="Post liked" desc="High-velocity likes spike on a post." checked={engagement.postLiked} onChange={flip(setEngagement, "postLiked")} />
+  1229→  1229→        </NotificationGroup>
+  1230→  1230→
+  1231→  1231→        <NotificationGroup title="Workflow" desc="Task events">
+  1232→  1232→          <ToggleRow label="Task assigned" desc="You're assigned a new task." checked={workflow.taskAssigned} onChange={flip(setWorkflow, "taskAssigned")} />
+  1233→  1233→          <ToggleRow label="Task overdue" desc="A task passes its due date." checked={workflow.taskOverdue} onChange={flip(setWorkflow, "taskOverdue")} />
+  1234→  1234→        </NotificationGroup>
+  1235→  1235→
+  1236→  1236→        <NotificationGroup title="Reports" desc="Periodic summaries and alerts">
+  1237→  1237→          <ToggleRow label="Weekly digest" desc="Every Monday at 9am local time." checked={reports.weeklyDigest} onChange={flip(setReports, "weeklyDigest")} />
+  1238→  1238→          <ToggleRow label="Monthly summary" desc="First of the month recap." checked={reports.monthlySummary} onChange={flip(setReports, "monthlySummary")} />
+  1239→  1239→          <ToggleRow label="Competitor alert" desc="A tracked competitor posts something notable." checked={reports.competitorAlert} onChange={flip(setReports, "competitorAlert")} />
+  1240→  1240→        </NotificationGroup>
+  1241→  1241→
+  1242→  1242→        <NotificationGroup title="System" desc="Account and platform health">
+  1243→  1243→          <ToggleRow label="Account warning" desc="A connected account has token issues." checked={system.accountWarning} onChange={flip(setSystem, "accountWarning")} />
+  1244→  1244→          <ToggleRow label="Mail quota" desc="Approaching monthly send limit." checked={system.mailQuota} onChange={flip(setSystem, "mailQuota")} />
+  1245→  1245→          <ToggleRow label="Security" desc="New device sign-in or password change." checked={system.security} onChange={flip(setSystem, "security")} />
+  1246→  1246→        </NotificationGroup>
+  1247→  1247→      </div>
+  1248→  1248→
+  1249→  1249→      <Separator className="my-5" />
+  1250→  1250→
+  1251→  1251→      {/* Quiet hours + digest */}
+  1252→  1252→      <div className="grid gap-4 sm:grid-cols-3">
+  1253→  1253→        <Field label="Quiet hours — start">
+  1254→  1254→          <Input type="time" value={quietStart} onChange={(e) => setQuietStart(e.target.value)} />
+  1255→  1255→        </Field>
+  1256→  1256→        <Field label="Quiet hours — end">
+  1257→  1257→          <Input type="time" value={quietEnd} onChange={(e) => setQuietEnd(e.target.value)} />
+  1258→  1258→        </Field>
+  1259→  1259→        <Field label="Digest frequency">
+  1260→  1260→          <Select value={digest} onValueChange={setDigest}>
+  1261→  1261→            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+  1262→  1262→            <SelectContent>
+  1263→  1263→              <SelectItem value="instant">Instant</SelectItem>
+  1264→  1264→              <SelectItem value="hourly">Hourly</SelectItem>
+  1265→  1265→              <SelectItem value="daily">Daily</SelectItem>
+  1266→  1266→            </SelectContent>
+  1267→  1267→          </Select>
+  1268→  1268→        </Field>
+  1269→  1269→      </div>
+  1270→  1270→    </GlassCard>
+  1271→  1271→  );
+  1272→  1272→}
+  1273→  1273→
+  1274→  1274→// ===== 6. Security =====
+  1275→  1275→interface SettingsApiKey {
+  1276→  1276→  id: string;
+  1277→  1277→  name: string;
+  1278→  1278→  key: string;
+  1279→  1279→  status: string;
+  1280→  1280→  lastUsed: string | null;
+  1281→  1281→  createdAt: string;
+  1282→  1282→}
+  1283→  1283→
+  1284→  1284→function SecuritySection() {
+  1285→  1285→  const { user } = useAuth();
+  1286→  1286→  const [current, setCurrent] = React.useState("");
+  1287→  1287→  const [next, setNext] = React.useState("");
+  1288→  1288→  const [confirm, setConfirm] = React.useState("");
+  1289→  1289→  const [showPwd, setShowPwd] = React.useState(false);
+  1290→  1290→  const [twoFA, setTwoFA] = React.useState(false);
+  1291→  1291→  const [setup2FA, setSetup2FA] = React.useState(false);
+  1292→  1292→  const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
+  1293→  1293→  const [ipAllow, setIpAllow] = React.useState("");
+  1294→  1294→  const [genName, setGenName] = React.useState("");
+  1295→  1295→  const [genOpen, setGenOpen] = React.useState(false);
+  1296→  1296→  const [genBusy, setGenBusy] = React.useState(false);
+  1297→  1297→  const [newKey, setNewKey] = React.useState<string | null>(null);
+  1298→  1298→
+  1299→  1299→  const { data: apiKeys, loading: apiKeysLoading, reload: reloadKeys } =
+  1300→  1300→    useApi<SettingsApiKey[]>("/api/api-keys");
+  1301→  1301→  const keys = apiKeys ?? [];
+  1302→  1302→
+  1303→  1303→  const changePwd = async () => {
+  1304→  1304→    if (!user) return;
+  1305→  1305→    if (!current || !next) return toast.error("Fill in current and new password");
+  1306→  1306→    if (next !== confirm) return toast.error("Passwords do not match");
+  1307→  1307→    if (next.length < 8) return toast.error("Password must be at least 8 characters");
+  1308→  1308→    try {
+  1309→  1309→      // 1. Verify the current password by attempting a login.
+  1310→  1310→      const verifyRes = await fetch("/api/auth/login", {
+  1311→  1311→        method: "POST",
+  1312→  1312→        headers: { "Content-Type": "application/json" },
+  1313→  1313→        body: JSON.stringify({ email: user.email, password: current }),
+  1314→  1314→      });
+  1315→  1315→      if (!verifyRes.ok) {
+  1316→  1316→        throw new Error("Current password is incorrect");
+  1317→  1317→      }
+  1318→  1318→      // 2. Patch the new (already-validated) password via /api/users.
+  1319→  1319→      const patchRes = await fetch("/api/users", {
+  1320→  1320→        method: "PATCH",
+  1321→  1321→        headers: { "Content-Type": "application/json" },
+  1322→  1322→        body: JSON.stringify({ id: user.id, password: next }),
+  1323→  1323→      });
+  1324→  1324→      if (!patchRes.ok) {
+  1325→  1325→        const j = (await patchRes.json().catch(() => ({}))) as { error?: string };
+  1326→  1326→        throw new Error(j.error ?? "Failed to update password");
+  1327→  1327→      }
+  1328→  1328→      toast.success("Password updated");
+  1329→  1329→      setCurrent(""); setNext(""); setConfirm("");
+  1330→  1330→    } catch (e) {
+  1331→  1331→      toast.error(e instanceof Error ? e.message : "Failed to update password");
+  1332→  1332→    }
+  1333→  1333→  };
+  1334→  1334→
+  1335→  1335→  // Sessions and login history are not yet tracked in the database.
+  1336→  1336→  // Honest empty states instead of fabricated device rows.
+  1337→  1337→  const sessions: { id: string; device: string; location: string; ip: string; last: string; current: boolean }[] = [];
+  1338→  1338→  const history: { id: string; device: string; location: string; time: string; status: string }[] = [];
+  1339→  1339→
+  1340→  1340→  const generateKey = async () => {
+  1341→  1341→    if (!genName.trim()) return toast.error("Enter a name for the key");
+  1342→  1342→    setGenBusy(true);
+  1343→  1343→    try {
+  1344→  1344→      const res = await fetch("/api/api-keys", {
+  1345→  1345→        method: "POST",
+  1346→  1346→        headers: { "Content-Type": "application/json" },
+  1347→  1347→        body: JSON.stringify({ name: genName.trim(), permissions: ["*"] }),
+  1348→  1348→      });
+  1349→  1349→      const data = (await res.json()) as { key?: string; error?: string };
+  1350→  1350→      if (!res.ok || !data.key) throw new Error(data.error ?? "Failed");
+  1351→  1351→      setNewKey(data.key);
+  1352→  1352→      setGenName("");
+  1353→  1353→      setGenOpen(false);
+  1354→  1354→      reloadKeys();
+  1355→  1355→    } catch (e) {
+  1356→  1356→      toast.error(e instanceof Error ? e.message : "Failed to generate key");
+  1357→  1357→    } finally {
+  1358→  1358→      setGenBusy(false);
+  1359→  1359→    }
+  1360→  1360→  };
+  1361→  1361→
+  1362→  1362→  const revokeKey = async (id: string) => {
+  1363→  1363→    try {
+  1364→  1364→      const res = await fetch(`/api/api-keys/${id}`, {
+  1365→  1365→        method: "PATCH",
+  1366→  1366→        headers: { "Content-Type": "application/json" },
+  1367→  1367→        body: JSON.stringify({ status: "revoked" }),
+  1368→  1368→      });
+  1369→  1369→      if (!res.ok) throw new Error("Failed");
+  1370→  1370→      toast.success("API key revoked");
+  1371→  1371→      reloadKeys();
+  1372→  1372→    } catch (e) {
+  1373→  1373→      toast.error(e instanceof Error ? e.message : "Failed");
+  1374→  1374→    }
+  1375→  1375→  };
+  1376→  1376→
+  1377→  1377→  const deleteKey = async (id: string) => {
+  1378→  1378→    if (!window.confirm("Delete this API key permanently?")) return;
+  1379→  1379→    try {
+  1380→  1380→      const res = await fetch(`/api/api-keys/${id}`, { method: "DELETE" });
+  1381→  1381→      if (!res.ok) throw new Error("Failed");
+  1382→  1382→      toast.success("API key deleted");
+  1383→  1383→      reloadKeys();
+  1384→  1384→    } catch (e) {
+  1385→  1385→      toast.error(e instanceof Error ? e.message : "Failed");
+  1386→  1386→    }
+  1387→  1387→  };
+  1388→  1388→
+  1389→  1389→  const copyKey = (key: string) => {
+  1390→  1390→    navigator.clipboard?.writeText(key).catch(() => {});
+  1391→  1391→    setCopiedKey(key);
+  1392→  1392→    toast.success("API key copied");
+  1393→  1393→    setTimeout(() => setCopiedKey(null), 1500);
+  1394→  1394→  };
+  1395→  1395→
+  1396→  1396→  return (
+  1397→  1397→    <div className="space-y-4">
+  1398→  1398→      {/* Password */}
+  1399→  1399→      <GlassCard className="crystal-in p-5">
+  1400→  1400→        <SectionTitle title="Password" desc="Update your password regularly to keep your account secure." />
+  1401→  1401→        <div className="grid gap-3 sm:max-w-md">
+  1402→  1402→          <Field label="Current password">
+  1403→  1403→            <div className="relative">
+  1404→  1404→              <Input
+  1405→  1405→                type={showPwd ? "text" : "password"}
+  1406→  1406→                value={current}
+  1407→  1407→                onChange={(e) => setCurrent(e.target.value)}
+  1408→  1408→                placeholder="••••••••"
+  1409→  1409→              />
+  1410→  1410→              <button
+  1411→  1411→                type="button"
+  1412→  1412→                onClick={() => setShowPwd((v) => !v)}
+  1413→  1413→                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+  1414→  1414→              >
+  1415→  1415→                {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+  1416→  1416→              </button>
+  1417→  1417→            </div>
+  1418→  1418→          </Field>
+  1419→  1419→          <Field label="New password">
+  1420→  1420→            <Input type={showPwd ? "text" : "password"} value={next} onChange={(e) => setNext(e.target.value)} />
+  1421→  1421→          </Field>
+  1422→  1422→          <Field label="Confirm new password">
+  1423→  1423→            <Input type={showPwd ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+  1424→  1424→          </Field>
+  1425→  1425→          <button
+  1426→  1426→            onClick={changePwd}
+  1427→  1427→            className="liquid-pill mt-1 flex items-center gap-1.5 self-start rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+  1428→  1428→          >
+  1429→  1429→            <KeyRound className="h-3.5 w-3.5" /> Update password
+  1430→  1430→          </button>
+  1431→  1431→        </div>
+  1432→  1432→      </GlassCard>
+  1433→  1433→
+  1434→  1434→      {/* 2FA */}
+  1435→  1435→      <GlassCard className="crystal-in p-5">
+  1436→  1436→        <SectionTitle title="Two-factor authentication" desc="Add an extra layer of security to your account." />
+  1437→  1437→        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted/30 p-4">
+  1438→  1438→          <div className="flex items-center gap-3">
+  1439→  1439→            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+  1440→  1440→              <ShieldCheck className="h-5 w-5" />
+  1441→  1441→            </div>
+  1442→  1442→            <div>
+  1443→  1443→              <div className="text-sm font-medium">{twoFA ? "Authenticator app enabled" : "Two-factor authentication"}</div>
+  1444→  1444→              <div className="text-xs text-muted-foreground">
+  1445→  1445→                {twoFA ? "Your account is protected with TOTP." : "Protect your account with an authenticator app."}
+  1446→  1446→              </div>
+  1447→  1447→            </div>
+  1448→  1448→          </div>
+  1449→  1449→          <div className="flex items-center gap-3">
+  1450→  1450→            <button
+  1451→  1451→              onClick={() => {
+  1452→  1452→                if (!twoFA) setSetup2FA(true);
+  1453→  1453→                else toast.success("2FA disabled");
+  1454→  1454→                setTwoFA(!twoFA);
+  1455→  1455→              }}
+  1456→  1456→              className={cn(
+  1457→  1457→                "rounded-xl px-3.5 py-1.5 text-xs font-semibold",
+  1458→  1458→                twoFA ? "border border-border bg-background text-foreground" : "liquid-gold"
+  1459→  1459→              )}
+  1460→  1460→            >
+  1461→  1461→              {twoFA ? "Disable" : "Set up"}
+  1462→  1462→            </button>
+  1463→  1463→            <Switch checked={twoFA} onCheckedChange={(v) => { setTwoFA(v); if (v) setSetup2FA(true); }} />
+  1464→  1464→          </div>
+  1465→  1465→        </div>
+  1466→  1466→      </GlassCard>
+  1467→  1467→
+  1468→  1468→      {/* Active sessions */}
+  1469→  1469→      <GlassCard className="crystal-in p-5">
+  1470→  1470→        <SectionTitle title="Active sessions" desc="Devices currently signed in to your account." />
+  1471→  1471→        {sessions.length === 0 ? (
+  1472→  1472→          <div className="py-6 text-center text-xs text-muted-foreground">
+  1473→  1473→            No session tracking yet. Active sessions will appear here once device
+  1474→  1474→            tracking is enabled.
+  1475→  1475→          </div>
+  1476→  1476→        ) : (
+  1477→  1477→          <div className="space-y-2">
+  1478→  1478→            {sessions.map((s) => (
+  1479→  1479→              <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-muted/20 p-3">
+  1480→  1480→                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+  1481→  1481→                  {s.device.includes("iPhone") || s.device.includes("iPad") || s.device.includes("Pixel") ? (
+  1482→  1482→                    <Smartphone className="h-4 w-4" />
+  1483→  1483→                  ) : (
+  1484→  1484→                    <MonitorSmartphone className="h-4 w-4" />
+  1485→  1485→                  )}
+  1486→  1486→                </div>
+  1487→  1487→                <div className="min-w-0 flex-1">
+  1488→  1488→                  <div className="flex flex-wrap items-center gap-2">
+  1489→  1489→                    <span className="truncate text-sm font-medium">{s.device}</span>
+  1490→  1490→                    {s.current && <Badge className="bg-emerald-500/15 text-emerald-500">This device</Badge>}
+  1491→  1491→                  </div>
+  1492→  1492→                  <div className="truncate text-xs text-muted-foreground">
+  1493→  1493→                    {s.location} · {s.ip} · {s.last}
+  1494→  1494→                  </div>
+  1495→  1495→                </div>
+  1496→  1496→                {!s.current && (
+  1497→  1497→                  <button
+  1498→  1498→                    onClick={() => toast.success(`Session revoked (${s.device})`)}
+  1499→  1499→                    className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
+  1500→  1500→                  >
+  1501→  1501→                    <LogOut className="h-3 w-3" /> Revoke
+  1502→  1502→                  </button>
+  1503→  1503→                )}
+  1504→  1504→              </div>
+  1505→  1505→            ))}
+  1506→  1506→          </div>
+  1507→  1507→        )}
+  1508→  1508→      </GlassCard>
+  1509→  1509→
+  1510→  1510→      {/* Login history */}
+  1511→  1511→      <GlassCard className="crystal-in p-5">
+  1512→  1512→        <SectionTitle title="Login history" desc="Recent sign-in attempts on your account." />
+  1513→  1513→        {history.length === 0 ? (
+  1514→  1514→          <div className="py-6 text-center text-xs text-muted-foreground">
+  1515→  1515→            No login history yet. Recent sign-ins will be logged here.
+  1516→  1516→          </div>
+  1517→  1517→        ) : (
+  1518→  1518→          <div className="overflow-x-auto no-scrollbar">
+  1519→  1519→            <table className="w-full min-w-[480px] text-sm">
+  1520→  1520→              <thead>
+  1521→  1521→                <tr className="text-left text-xs text-muted-foreground">
+  1522→  1522→                  <th className="px-2 py-2 font-medium">Device</th>
+  1523→  1523→                  <th className="px-2 py-2 font-medium">Location</th>
+  1524→  1524→                  <th className="px-2 py-2 font-medium">Time</th>
+  1525→  1525→                  <th className="px-2 py-2 text-right font-medium">Status</th>
+  1526→  1526→                </tr>
+  1527→  1527→              </thead>
+  1528→  1528→              <tbody>
+  1529→  1529→                {history.map((h) => (
+  1530→  1530→                  <tr key={h.id} className="border-t border-border/50">
+  1531→  1531→                    <td className="px-2 py-2.5 text-xs">{h.device}</td>
+  1532→  1532→                    <td className="px-2 py-2.5 text-xs text-muted-foreground">{h.location}</td>
+  1533→  1533→                    <td className="px-2 py-2.5 text-xs text-muted-foreground">{h.time}</td>
+  1534→  1534→                    <td className="px-2 py-2.5 text-right">
+  1535→  1535→                      <span className={cn(
+  1536→  1536→                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+  1537→  1537→                        h.status === "Success" ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"
+  1538→  1538→                      )}>
+  1539→  1539→                        {h.status}
+  1540→  1540→                      </span>
+  1541→  1541→                    </td>
+  1542→  1542→                  </tr>
+  1543→  1543→                ))}
+  1544→  1544→              </tbody>
+  1545→  1545→            </table>
+  1546→  1546→          </div>
+  1547→  1547→        )}
+  1548→  1548→      </GlassCard>
+  1549→  1549→
+  1550→  1550→      {/* API keys */}
+  1551→  1551→      <GlassCard className="crystal-in p-5">
+  1552→  1552→        <SectionTitle
+  1553→  1553→          title="API keys"
+  1554→  1554→          desc="Use these to authenticate with the SocialFlow API."
+  1555→  1555→          action={
+  1556→  1556→            <button
+  1557→  1557→              onClick={() => { setNewKey(null); setGenOpen(true); }}
+  1558→  1558→              className="liquid-gold flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+  1559→  1559→            >
+  1560→  1560→              <KeyRound className="h-3.5 w-3.5" /> Generate key
+  1561→  1561→            </button>
+  1562→  1562→          }
+  1563→  1563→        />
+  1564→  1564→        {apiKeysLoading ? (
+  1565→  1565→          <div className="space-y-2">
+  1566→  1566→            <div className="shimmer h-12 rounded-2xl" />
+  1567→  1567→            <div className="shimmer h-12 rounded-2xl" />
+  1568→  1568→          </div>
+  1569→  1569→        ) : keys.length === 0 ? (
+  1570→  1570→          <div className="py-6 text-center text-xs text-muted-foreground">
+  1571→  1571→            No API keys yet. Generate one to authenticate external integrations.
+  1572→  1572→          </div>
+  1573→  1573→        ) : (
+  1574→  1574→          <div className="space-y-2">
+  1575→  1575→            {keys.map((k) => (
+  1576→  1576→              <div key={k.id} className="rounded-2xl bg-muted/30 p-4">
+  1577→  1577→                <div className="flex flex-wrap items-center gap-3">
+  1578→  1578→                  <div className="min-w-0 flex-1">
+  1579→  1579→                    <div className="flex items-center gap-2">
+  1580→  1580→                      <span className="truncate text-sm font-semibold">{k.name}</span>
+  1581→  1581→                      <span className={cn(
+  1582→  1582→                        "rounded-full px-2 py-0.5 text-[10px] font-medium capitalize",
+  1583→  1583→                        k.status === "active" ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500"
+  1584→  1584→                      )}>
+  1585→  1585→                        {k.status}
+  1586→  1586→                      </span>
+  1587→  1587→                    </div>
+  1588→  1588→                    <div className="mt-1 font-mono text-xs text-muted-foreground">
+  1589→  1589→                      {k.key.slice(0, 14)}{"•".repeat(18)}{k.key.slice(-4)}
+  1590→  1590→                    </div>
+  1591→  1591→                  </div>
+  1592→  1592→                  <div className="flex gap-2">
+  1593→  1593→                    <button
+  1594→  1594→                      onClick={() => copyKey(k.key)}
+  1595→  1595→                      className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium transition hover:bg-muted/60"
+  1596→  1596→                    >
+  1597→  1597→                      {copiedKey === k.key ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />} Copy
+  1598→  1598→                    </button>
+  1599→  1599→                    {k.status === "active" && (
+  1600→  1600→                      <button
+  1601→  1601→                        onClick={() => revokeKey(k.id)}
+  1602→  1602→                        className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 px-2.5 py-1 text-xs font-medium text-amber-500 transition hover:bg-amber-500/10"
+  1603→  1603→                      >
+  1604→  1604→                        <Ban className="h-3 w-3" /> Revoke
+  1605→  1605→                      </button>
+  1606→  1606→                    )}
+  1607→  1607→                    <button
+  1608→  1608→                      onClick={() => deleteKey(k.id)}
+  1609→  1609→                      className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
+  1610→  1610→                    >
+  1611→  1611→                      <Trash2 className="h-3 w-3" /> Delete
+  1612→  1612→                    </button>
+  1613→  1613→                  </div>
+  1614→  1614→                </div>
+  1615→  1615→                <div className="mt-2 text-[11px] text-muted-foreground">
+  1616→  1616→                  Created {new Date(k.createdAt).toLocaleDateString()}
+  1617→  1617→                  {k.lastUsed && ` · Last used ${new Date(k.lastUsed).toLocaleDateString()}`}
+  1618→  1618→                </div>
+  1619→  1619→              </div>
+  1620→  1620→            ))}
+  1621→  1621→          </div>
+  1622→  1622→        )}
+  1623→  1623→      </GlassCard>
+  1624→  1624→
+  1625→  1625→      {/* IP allowlist */}
+  1626→  1626→      <GlassCard className="crystal-in p-5">
+  1627→  1627→        <SectionTitle
+  1628→  1628→          title="IP allowlist"
+  1629→  1629→          desc="Restrict API access to known IP ranges. One per line."
+  1630→  1630→          action={
+  1631→  1631→            <button
+  1632→  1632→              onClick={() => toast.info("IP allowlist requires backend enforcement", {
+  1633→  1633→                description: "This setting is not yet enforced server-side. It will be saved when the API middleware is implemented.",
+  1634→  1634→              })}
+  1635→  1635→              className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+  1636→  1636→            >
+  1637→  1637→              <Save className="h-3.5 w-3.5" /> Save
+  1638→  1638→            </button>
+  1639→  1639→          }
+  1640→  1640→        />
+  1641→  1641→        <Textarea
+  1642→  1642→          value={ipAllow}
+  1643→  1643→          onChange={(e) => setIpAllow(e.target.value)}
+  1644→  1644→          rows={4}
+  1645→  1645→          className="resize-none font-mono text-xs"
+  1646→  1646→          placeholder="0.0.0.0/0"
+  1647→  1647→        />
+  1648→  1648→      </GlassCard>
+  1649→  1649→
+  1650→  1650→      {/* 2FA setup dialog */}
+  1651→  1651→      <Dialog open={setup2FA} onOpenChange={setSetup2FA}>
+  1652→  1652→        <DialogContent className="sm:max-w-md">
+  1653→  1653→          <DialogHeader>
+  1654→  1654→            <DialogTitle>Set up two-factor authentication</DialogTitle>
+  1655→  1655→            <DialogDescription>
+  1656→  1656→              Two-factor authentication requires server-side TOTP setup. This is a placeholder — wire up a real OTP library (e.g. otpauth) + a /api/auth/2fa route to generate + verify secrets.
+  1657→  1657→            </DialogDescription>
+  1658→  1658→          </DialogHeader>
+  1659→  1659→          <div className="flex flex-col items-center gap-4 py-2">
+  1660→  1660→            <div className="grid h-44 w-44 place-items-center rounded-2xl border border-dashed border-border bg-muted/30 p-3 text-center">
+  1661→  1661→              <div className="space-y-2">
+  1662→  1662→                <QrCode className="mx-auto h-8 w-8 text-muted-foreground" />
+  1663→  1663→                <div className="text-[10px] text-muted-foreground">
+  1664→  1664→                  TOTP secret generation<br />requires a backend route
+  1665→  1665→                </div>
+  1666→  1666→              </div>
+  1667→  1667→            </div>
+  1668→  1668→            <Input placeholder="Enter 6-digit code" maxLength={6} className="text-center font-mono tracking-[0.4em]" disabled />
+  1669→  1669→          </div>
+  1670→  1670→          <DialogFooter>
+  1671→  1671→            <Button variant="ghost" onClick={() => setSetup2FA(false)}>Cancel</Button>
+  1672→  1672→            <button
+  1673→  1673→              onClick={() => { toast.info("2FA requires backend TOTP setup — wire up /api/auth/2fa to enable"); setSetup2FA(false); }}
+  1674→  1674→              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+  1675→  1675→            >
+  1676→  1676→              <ShieldCheck className="h-4 w-4" /> Verify & enable
+  1677→  1677→            </button>
+  1678→  1678→          </DialogFooter>
+  1679→  1679→        </DialogContent>
+  1680→  1680→      </Dialog>
+  1681→  1681→
+  1682→  1682→      {/* Generate API key dialog */}
+  1683→  1683→      <Dialog
+  1684→  1684→        open={genOpen || !!newKey}
+  1685→  1685→        onOpenChange={(v) => { setGenOpen(v); if (!v) setNewKey(null); }}
+  1686→  1686→      >
+  1687→  1687→        <DialogContent className="sm:max-w-md">
+  1688→  1688→          {newKey ? (
+  1689→  1689→            <>
+  1690→  1690→              <DialogHeader>
+  1691→  1691→                <DialogTitle className="flex items-center gap-2">
+  1692→  1692→                  <CheckCircle2 className="h-5 w-5 text-emerald-500" /> Key generated
+  1693→  1693→                </DialogTitle>
+  1694→  1694→                <DialogDescription>
+  1695→  1695→                  Copy this key now — it won&apos;t be shown in full again.
+  1696→  1696→                </DialogDescription>
+  1697→  1697→              </DialogHeader>
+  1698→  1698→              <div className="rounded-2xl border border-border bg-muted/30 p-4">
+  1699→  1699→                <code className="break-all font-mono text-xs">{newKey}</code>
+  1700→  1700→              </div>
+  1701→  1701→              <DialogFooter>
+  1702→  1702→                <button
+  1703→  1703→                  onClick={() => copyKey(newKey)}
+  1704→  1704→                  className="liquid-pill flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+  1705→  1705→                >
+  1706→  1706→                  <Copy className="h-4 w-4" /> Copy key
+  1707→  1707→                </button>
+  1708→  1708→              </DialogFooter>
+  1709→  1709→            </>
+  1710→  1710→          ) : (
+  1711→  1711→            <>
+  1712→  1712→              <DialogHeader>
+  1713→  1713→                <DialogTitle>Generate API key</DialogTitle>
+  1714→  1714→                <DialogDescription>
+  1715→  1715→                  Create a new key for external integrations.
+  1716→  1716→                </DialogDescription>
+  1717→  1717→              </DialogHeader>
+  1718→  1718→              <Field label="Key name">
+  1719→  1719→                <Input
+  1720→  1720→                  value={genName}
+  1721→  1721→                  onChange={(e) => setGenName(e.target.value)}
+  1722→  1722→                  placeholder="Production API"
+  1723→  1723→                />
+  1724→  1724→              </Field>
+  1725→  1725→              <DialogFooter>
+  1726→  1726→                <Button variant="ghost" onClick={() => setGenOpen(false)}>Cancel</Button>
+  1727→  1727→                <button
+  1728→  1728→                  onClick={generateKey}
+  1729→  1729→                  disabled={genBusy || !genName.trim()}
+  1730→  1730→                  className="liquid-pill flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+  1731→  1731→                >
+  1732→  1732→                  <KeyRound className="h-4 w-4" /> {genBusy ? "Generating…" : "Generate"}
+  1733→  1733→                </button>
+  1734→  1734→              </DialogFooter>
+  1735→  1735→            </>
+  1736→  1736→          )}
+  1737→  1737→        </DialogContent>
+  1738→  1738→      </Dialog>
+  1739→  1739→    </div>
+  1740→  1740→  );
+  1741→  1741→}
+  1742→  1742→
+  1743→  1743→// ===== 7. Connected Platforms =====
+  1744→  1744→function PlatformsSection() {
+  1745→  1745→  // Fetch REAL connected accounts from /api/accounts
+  1746→  1746→  const { data: accounts, reload } = useApi<{ id: string; platform: PlatformId; handle: string; displayName: string }[]>("/api/accounts");
+  1747→  1747→  const { setView } = useNav();
+  1748→  1748→
+  1749→  1749→  // Build a real map: platform → account count
+  1750→  1750→  const connectedMap = React.useMemo(() => {
+  1751→  1751→    const map: Record<string, { connected: boolean; accounts: number; handles: string[] }> = {};
+  1752→  1752→    for (const a of accounts ?? []) {
+  1753→  1753→      if (!map[a.platform]) map[a.platform] = { connected: true, accounts: 0, handles: [] };
+  1754→  1754→      map[a.platform].accounts++;
+  1755→  1755→      map[a.platform].handles.push(a.handle);
+  1756→  1756→    }
+  1757→  1757→    return map;
+  1758→  1758→  }, [accounts]);
+  1759→  1759→
+  1760→  1760→  return (
+  1761→  1761→    <GlassCard className="crystal-in p-5">
+  1762→  1762→      <SectionTitle
+  1763→  1763→        title="Connected platforms"
+  1764→  1764→        desc="Manage which social accounts are connected to SocialFlow."
+  1765→  1765→        action={
+  1766→  1766→          <button
+  1767→  1767→            onClick={() => setView("accounts")}
+  1768→  1768→            className="liquid-gold flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+  1769→  1769→          >
+  1770→  1770→            <Plug className="h-3.5 w-3.5" /> Connect new
+  1771→  1771→          </button>
+  1772→  1772→        }
+  1773→  1773→      />
+  1774→  1774→      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+  1775→  1775→        {PLATFORM_LIST.map((p) => {
+  1776→  1776→          const s = connectedMap[p.id] ?? { connected: false, accounts: 0, handles: [] };
+  1777→  1777→          return (
+  1778→  1778→            <div
+  1779→  1779→              key={p.id}
+  1780→  1780→              className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 transition hover:bg-muted/40"
+  1781→  1781→            >
+  1782→  1782→              <div className="flex items-center gap-3">
+  1783→  1783→                <PlatformBadge platform={p.id} size={40} />
+  1784→  1784→                <div className="min-w-0 flex-1">
+  1785→  1785→                  <div className="truncate text-sm font-semibold">{p.name}</div>
+  1786→  1786→                  <div className="text-xs text-muted-foreground">
+  1787→  1787→                    {s.connected ? `${s.accounts} account${s.accounts === 1 ? "" : "s"}` : "Not connected"}
+  1788→  1788→                  </div>
+  1789→  1789→                  {s.connected && s.handles.length > 0 && (
+  1790→  1790→                    <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+  1791→  1791→                      {s.handles.slice(0, 2).join(", ")}{s.handles.length > 2 && ` +${s.handles.length - 2}`}
+  1792→  1792→                    </div>
+  1793→  1793→                  )}
+  1794→  1794→                </div>
+  1795→  1795→                <span
+  1796→  1796→                  className={cn(
+  1797→  1797→                    "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+  1798→  1798→                    s.connected ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground"
+  1799→  1799→                  )}
+  1800→  1800→                >
+  1801→  1801→                  <span className={cn("h-1.5 w-1.5 rounded-full", s.connected ? "bg-emerald-500" : "bg-muted-foreground/50")} />
+  1802→  1802→                  {s.connected ? "Connected" : "Off"}
+  1803→  1803→                </span>
+  1804→  1804→              </div>
+  1805→  1805→              <button
+  1806→  1806→                onClick={() => setView("accounts")}
+  1807→  1807→                className={cn(
+  1808→  1808→                  "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
+  1809→  1809→                  s.connected
+  1810→  1810→                    ? "border border-border bg-background text-foreground hover:bg-muted/60"
+  1811→  1811→                    : "liquid-pill"
+  1812→  1812→                )}
+  1813→  1813→              >
+  1814→  1814→                {s.connected ? "Manage" : "Connect"}
+  1815→  1815→              </button>
+  1816→  1816→            </div>
+  1817→  1817→          );
+  1818→  1818→        })}
+  1819→  1819→      </div>
+  1820→  1820→    </GlassCard>
+  1821→  1821→  );
+  1822→  1822→}
+  1823→  1823→
+  1824→  1824→// ===== 8. Integrations =====
+  1825→  1825→function IntegrationsSection() {
+  1826→  1826→  // These integrations are NOT yet implemented — no /api/integrations route
+  1827→  1827→  // exists. We show them honestly as "Not configured" so users know the
+  1828→  1828→  // current state. When an integration is actually built, its status will
+  1829→  1829→  // be fetched from a real API.
+  1830→  1830→  const integrations = [
+  1831→  1831→    { id: "mail", name: "Mail Server", desc: "Send digests & alerts from your own SMTP.", icon: Mail },
+  1832→  1832→    { id: "slack", name: "Slack", desc: "Pipe alerts and notifications into your channels.", icon: MessageSquare },
+  1833→  1833→    { id: "zapier", name: "Zapier", desc: "Trigger SocialFlow actions from 6,000+ apps.", icon: Zap },
+  1834→  1834→    { id: "ga", name: "Google Analytics", desc: "Pull GA4 traffic data into analytics reports.", icon: BarChart3 },
+  1835→  1835→    { id: "canva", name: "Canva", desc: "Import Canva designs straight into your media library.", icon: ImageIcon },
+  1836→  1836→    { id: "unsplash", name: "Unsplash", desc: "Free stock photography for your next post.", icon: ImageIcon },
+  1837→  1837→    { id: "stripe", name: "Stripe", desc: "Accept card payments for subscriptions & invoices.", icon: CreditCard },
+  1838→  1838→  ] as const;
+  1839→  1839→
+  1840→  1840→  return (
+  1841→  1841→    <GlassCard className="crystal-in p-5">
+  1842→  1842→      <SectionTitle title="Integrations" desc="Connect SocialFlow with the tools your team already uses." />
+  1843→  1843→      <div className="mb-3 rounded-xl bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400">
+  1844→  1844→        <strong>Note:</strong> Integrations are not yet configured. Each integration requires
+  1845→  1845→        its own API credentials. Click "Configure" to learn what's needed.
+  1846→  1846→      </div>
+  1847→  1847→      <div className="grid gap-3 sm:grid-cols-2">
+  1848→  1848→        {integrations.map((it) => {
+  1849→  1849→          const Icon = it.icon;
+  1850→  1850→          return (
+  1851→  1851→            <div key={it.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 transition hover:bg-muted/40">
+  1852→  1852→              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+  1853→  1853→                <Icon className="h-5 w-5" />
+  1854→  1854→              </div>
+  1855→  1855→              <div className="min-w-0 flex-1">
+  1856→  1856→                <div className="flex items-center gap-2">
+  1857→  1857→                  <span className="truncate text-sm font-semibold">{it.name}</span>
+  1858→  1858→                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+  1859→  1859→                    Not configured
+  1860→  1860→                  </span>
+  1861→  1861→                </div>
+  1862→  1862→                <div className="text-xs text-muted-foreground">{it.desc}</div>
+  1863→  1863→              </div>
+  1864→  1864→              <button
+  1865→  1865→                onClick={() =>
+  1866→  1866→                  toast.info(`${it.name} integration requires API credentials`, {
+  1867→  1867→                    description: "This integration is not yet implemented. Contact your admin to set it up.",
+  1868→  1868→                  })
+  1869→  1869→                }
+  1870→  1870→                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted/60"
+  1871→  1871→              >
+  1872→  1872→                Configure
+  1873→  1873→              </button>
+  1874→  1874→            </div>
+  1875→  1875→          );
+  1876→  1876→        })}
+  1877→  1877→      </div>
+  1878→  1878→    </GlassCard>
+  1879→  1879→  );
+  1880→  1880→}
+  1881→  1881→
+  1882→  1882→// ===== 9. Billing =====
+  1883→  1883→interface BillingInvoice {
+  1884→  1884→  id: string;
+  1885→  1885→  number: string;
+  1886→  1886→  status: string;
+  1887→  1887→  issueDate: string;
+  1888→  1888→  total: number;
+  1889→  1889→}
+  1890→  1890→
+  1891→  1891→function BillingSection() {
+  1892→  1892→  // Real invoices from the database (POST /api/invoices is managed by the
+  1893→  1893→  // Owner Panel — here we only read them).
+  1894→  1894→  const { data: invoicesData, loading: invoicesLoading } =
+  1895→  1895→    useApi<BillingInvoice[]>("/api/invoices");
+  1896→  1896→  const invoices = invoicesData ?? [];
+  1897→  1897→  const { setView } = useNav();
+  1898→  1898→
+  1899→  1899→  // Real subscription from the DB (if any)
+  1900→  1900→  const { data: subscription } = useApi<{
+  1901→  1901→    plan: string; status: string; amount: number; currency: string; trialEnds: string | null;
+  1902→  1902→  } | null>("/api/subscriptions?limit=1");
+  1903→  1903→  const sub = Array.isArray(subscription) ? subscription[0] : subscription;
+  1904→  1904→
+  1905→  1905→  // Local-only usage snapshot — no DB backing yet, so we keep these as
+  1906→  1906→  // honestly-zero defaults rather than fabricated "184/500" numbers.
+  1907→  1907→  const usage = [
+  1908→  1908→    { label: "Posts this month", used: 0, limit: 500, unit: "" },
+  1909→  1909→    { label: "Connected accounts", used: 0, limit: 25, unit: "" },
+  1910→  1910→    { label: "AI generations", used: 0, limit: 2000, unit: "" },
+  1911→  1911→    { label: "Media storage", used: 0, limit: 50, unit: "GB" },
+  1912→  1912→    { label: "Team seats", used: 0, limit: 15, unit: "" },
+  1913→  1913→  ];
+  1914→  1914→
+  1915→  1915→  return (
+  1916→  1916→    <div className="space-y-4">
+  1917→  1917→      {/* Plan card */}
+  1918→  1918→      <GlassCard className="crystal-in glass-sheen relative overflow-hidden p-5">
+  1919→  1919→        <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[var(--gold)]/30 blur-3xl" />
+  1920→  1920→        <div className="relative flex flex-wrap items-start justify-between gap-4">
+  1921→  1921→          <div>
+  1922→  1922→            <div className="flex items-center gap-2 text-xs font-medium text-primary">
+  1923→  1923→              <Crown className="h-3.5 w-3.5 text-[var(--gold)]" />
+  1924→  1924→              Current plan
+  1925→  1925→            </div>
+  1926→  1926→            <h3 className="mt-1 bg-gradient-to-r from-[var(--primary)] to-[var(--gold)] bg-clip-text text-2xl font-bold tracking-tight text-transparent">
+  1927→  1927→              {sub?.plan ? sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1) : "Free trial"}
+  1928→  1928→            </h3>
+  1929→  1929→            <p className="mt-1 text-sm text-muted-foreground">
+  1930→  1930→              {sub?.status === "trial"
+  1931→  1931→                ? `Trial${sub.trialEnds ? ` ends ${new Date(sub.trialEnds).toLocaleDateString()}` : ""}`
+  1932→  1932→                : sub?.status === "active"
+  1933→  1933→                  ? "Active subscription"
+  1934→  1934→                  : "No active subscription — billing is not configured."}
+  1935→  1935→            </p>
+  1936→  1936→            {sub?.amount ? (
+  1937→  1937→              <div className="mt-3 flex items-baseline gap-1">
+  1938→  1938→                <span className="text-2xl font-bold">${sub.amount}</span>
+  1939→  1939→                <span className="text-sm text-muted-foreground">/{sub.currency?.toLowerCase() ?? "usd"}</span>
+  1940→  1940→              </div>
+  1941→  1941→            ) : (
+  1942→  1942→              <div className="mt-3 text-xs text-muted-foreground">
+  1943→  1943→                Billing integration (Stripe) is not connected. Subscriptions are tracked in the Owner Panel.
+  1944→  1944→              </div>
+  1945→  1945→            )}
+  1946→  1946→          </div>
+  1947→  1947→          <div className="flex flex-col gap-2">
+  1948→  1948→            <button
+  1949→  1949→              onClick={() => toast.info("Stripe integration required — add Stripe API keys in Integrations to enable billing")}
+  1950→  1950→              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+  1951→  1951→            >
+  1952→  1952→              <Crown className="h-4 w-4" /> Upgrade plan
+  1953→  1953→            </button>
+  1954→  1954→            <button
+  1955→  1955→              onClick={() => setView("owner")}
+  1956→  1956→              className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted/60"
+  1957→  1957→            >
+  1958→  1958→              Manage in Owner Panel
+  1959→  1959→            </button>
+  1960→  1960→          </div>
+  1961→  1961→        </div>
+  1962→  1962→      </GlassCard>
+  1963→  1963→
+  1964→  1964→      {/* Usage */}
+  1965→  1965→      <GlassCard className="crystal-in p-5">
+  1966→  1966→        <SectionTitle title="Usage this cycle" desc="Real usage from your workspace data" />
+  1967→  1967→        <div className="grid gap-4 sm:grid-cols-2">
+  1968→  1968→          {usage.map((u) => {
+  1969→  1969→            const pct = Math.min(100, Math.round((u.used / u.limit) * 100));
+  1970→  1970→            const tone = pct > 85 ? "bg-rose-500" : pct > 60 ? "bg-amber-500" : "bg-primary";
+  1971→  1971→            return (
+  1972→  1972→              <div key={u.label} className="rounded-2xl bg-muted/20 p-4">
+  1973→  1973→                <div className="flex items-center justify-between">
+  1974→  1974→                  <span className="text-xs font-medium text-muted-foreground">{u.label}</span>
+  1975→  1975→                  <span className="text-xs font-semibold tabular-nums">
+  1976→  1976→                    {u.used}{u.unit} <span className="text-muted-foreground">/ {u.limit}{u.unit}</span>
+  1977→  1977→                  </span>
+  1978→  1978→                </div>
+  1979→  1979→                <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+  1980→  1980→                  <div className={cn("h-full rounded-full transition-all", tone)} style={{ width: `${pct}%` }} />
+  1981→  1981→                </div>
+  1982→  1982→                <div className="mt-1 text-right text-[10px] text-muted-foreground">{pct}% used</div>
+  1983→  1983→              </div>
+  1984→  1984→            );
+  1985→  1985→          })}
+  1986→  1986→        </div>
+  1987→  1987→      </GlassCard>
+  1988→  1988→
+  1989→  1989→      {/* Payment method */}
+  1990→  1990→      <GlassCard className="crystal-in p-5">
+  1991→  1991→        <SectionTitle
+  1992→  1992→          title="Payment method"
+  1993→  1993→          desc="Card used for subscription renewals."
+  1994→  1994→          action={
+  1995→  1995→            <button
+  1996→  1996→              onClick={() => toast.info("Stripe integration required — add Stripe API keys to enable card management")}
+  1997→  1997→              className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
+  1998→  1998→            >
+  1999→  1999→              Update
+  2000→  2000→            </button>
+
+[showing lines 1-2000 of 2002; use offset=2001 with limit to continue reading]
