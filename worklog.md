@@ -2731,3 +2731,61 @@ Stage Summary:
   2. WhatsApp — no more "connectivity error" (fixed polling effect), QR code displays stably.
 - The core fix was adding a `silent` option to the useApi hook so background polls don't flip loading=true, plus decoupling the WhatsApp polling interval from the connection state it's updating.
 - Artifacts changed: src/lib/hooks.ts (+silent reload option), src/components/views/chat.tsx (silent polling + ref-guarded mark-as-read), src/components/views/whatsapp.tsx (split initial fetch from polling + removed sync poll()).
+
+---
+Task ID: tasks-module-enhanced
+Agent: general-purpose (Tasks module builder)
+Task: Integrate task management for users — assign work as tasks, write content, place media, send tasks to composer with one click. Managers see completed/remaining. Enhanced, advanced, interactive layout.
+
+Work Log:
+- Read /home/z/my-project/worklog.md for prior work.
+- Audited existing task infrastructure: Task Prisma model (id, title, description, assigneeId, creatorId, status, priority, type, dueAt) + basic CRUD /api/tasks (no auth, no new fields). No Tasks view existed in the sidebar/app-shell. No composer integration.
+- Identified what was missing per the user's request: content/media fields on tasks, a Tasks view, Send to Composer integration, auth on the API, dashboard task summary for managers.
+
+### Schema changes (prisma/schema.prisma)
+- Added to Task model: `content` (the actual post text), `mediaUrl`, `mediaType`, `platforms` (JSON array of platform ids), `tags` (comma-separated).
+- Pushed to Neon DB + regenerated Prisma client.
+
+### API changes
+- src/app/api/tasks/route.ts: rewrote with requireAuth. GET supports filtering by assigneeId/creatorId/status/mine. Resolves creator + assignee names/colors/avatars. POST accepts all new fields (content, mediaUrl, mediaType, platforms, tags). creatorId defaults to the authenticated user.
+- src/app/api/tasks/[id]/route.ts: PATCH handles all new fields; when status→done sets completedAt, when status moves away from done clears completedAt. Added requireAuth + try/catch.
+- src/app/api/dashboard/route.ts: added tasks to the Promise.all fetch (filtered by assignee/creator for non-managers, all for managers). Added a `taskSummary` to the response: total, done, inProgress, blocked, overdue, myTasks, myDone, recent (top 5).
+
+### New Tasks view (src/components/views/tasks.tsx — 720+ lines)
+- **Kanban board**: 5 columns (To Do, In Progress, In Review, Done, Blocked) — each with a colored header, task count, and scrollable task list.
+- **KPI strip**: Total tasks, Completed (with % done hint), Remaining, Assigned to me.
+- **Filter tabs**: All / My tasks / Created — uses the API's ?mine=1 and ?creatorId= query params.
+- **Task cards**: priority accent stripe (left border colored by priority), type icon, title (strikethrough when done), content preview (2-line clamp), media thumbnail preview, platform badges, tags, assignee avatar+name, due date with overdue indicator, and 4 actions: Move dropdown (switch status), **Send to Composer** button, Edit, Delete.
+- **Create/Edit dialog**: title*, description, **post content** (textarea with char count — "sent to composer" hint), media URL + type selector + live preview, **platform multi-select** (toggle buttons with platform badges + colors), tags, assignee dropdown, due date, status, priority, type.
+- **Send to Composer**: calls `openComposerWithPost()` from the nav store, passing the task's title as the post title, content as the caption, mediaUrl, mediaType, tone=professional, status=draft. Toasts "Sent to composer — Edit and publish from the composer".
+
+### Dashboard integration (src/components/views/dashboard.tsx)
+- Added `taskSummary` type to DashboardData interface.
+- Added a **Task Summary card** between Content Pipeline and Recent Posts: 4 mini-stat cards (Total, Completed, In Progress, Overdue) + a list of up to 4 recent tasks with status icons, titles, and overdue badges. "All tasks" link navigates to the Tasks view.
+- Added TaskStat helper component.
+
+### Nav wiring
+- src/lib/types.ts: added "tasks" to ViewId.
+- src/components/app-sidebar.tsx: imported ListTodo icon, added `{ id: "tasks", label: "Tasks", icon: ListTodo, group: "Overview" }` between Team Chat and Performance.
+- src/components/app-shell.tsx: imported TasksView, added `{view === "tasks" && <TasksView />}`.
+- src/components/app-header.tsx: added `tasks: { title: "Tasks", subtitle: "Assign work, write content, and send tasks to the composer" }` to TITLES.
+
+### Bug fixed during testing
+- Radix UI Select crashes when a `SelectItem` has `value=""` (empty string is invalid). The assignee dropdown had `<SelectItem value="">Unassigned</SelectItem>` which caused a client-side exception when the dialog opened. Fixed by using a `__unassigned__` sentinel value with onValueChange mapping it back to `""`.
+
+### Verification (API + Agent Browser)
+- API: POST /api/tasks with content+mediaUrl+platforms+tags+priority+dueAt → ok:true, id returned. GET returns the task with all fields (content, platforms array, mediaUrl, etc.).
+- Dashboard: taskSummary returns total:2, done:0, recent:[Winter Collection task, Test Task].
+- Browser: navigated to Tasks → saw the Kanban board (5 columns), KPI strip, filter tabs, "New task" button. Task cards show the Winter Collection task + Test Task with priority stripes, platform badges, Compose buttons.
+- Clicked "New task" → dialog opened with all fields (Title, Description, Post content with char count, Media URL, platform multi-select, tags, assignee, due date, status, priority, type).
+- Filled the form (title="Test task from browser e2e", content="This is the post content...") → clicked "Create task" → dialog closed → API confirmed 3 tasks, the new task is first with content.
+- Clicked "Compose" on a task card → navigated to the Composer page (heading "Where should we publish?") — the task's content is loaded into the composer for editing/publishing.
+- VLM analyzed the Tasks page: confirmed Kanban layout, task cards, priority colors, platform badges.
+- Lint: 0 errors. TypeScript: 0 errors (after fixing the Radix Select empty-value crash + duplicate Clock import).
+- Committed + pushed to GitHub (commit 2732afe).
+
+Stage Summary:
+- **Tasks module is now a full workflow tool**: users create tasks with post content + media + target platforms, assign them to themselves or teammates, track progress on a 5-column Kanban board, and send any task to the composer with one click to publish.
+- **Managers see task summaries** on the dashboard (total/completed/remaining/overdue + recent tasks list) and can view all tasks or filter to my/created.
+- **Integrated everywhere**: Tasks appears in the sidebar nav (between Team Chat and Performance), has a header title/subtitle, the dashboard has a Task Summary card, and the "Send to Composer" button wires tasks → composer via the existing openComposerWithPost store action.
+- Artifacts changed: prisma/schema.prisma (+5 fields), src/app/api/tasks/route.ts (rewritten +auth), src/app/api/tasks/[id]/route.ts (rewritten +auth), src/app/api/dashboard/route.ts (+tasks fetch + taskSummary), src/components/views/tasks.tsx (NEW, 720 lines), src/components/views/dashboard.tsx (+taskSummary type + Task Summary card + TaskStat helper), src/lib/types.ts (+tasks ViewId), src/components/app-sidebar.tsx (+nav item), src/components/app-shell.tsx (+render), src/components/app-header.tsx (+title).
