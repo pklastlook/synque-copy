@@ -11,6 +11,7 @@ import {
   ChevronRight, ChevronUp, ChevronDown, FileEdit, XCircle, Layers, Inbox,
   PenLine, Hash, Activity, Crown, Award, Trophy, Globe,
   Lightbulb, Bell, Target, Zap, Calendar, BarChart3, AlertCircle,
+  AtSign,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -43,12 +44,12 @@ interface DashboardData {
     variantsPublished: number;
     totalEngagement: number;
     today: {
-      posts: number;
-      comments: number;
       published: number;
+      comments: number;
       activeAccounts: number;
       activeMembers: number;
-      targets: { posts: number; comments: number; published: number };
+      platformBreakdown: Record<string, number>;
+      targets: { published: number; comments: number; activeAccounts: number };
     };
   };
   pipeline: { draft: number; scheduled: number; published: number; failed: number };
@@ -251,42 +252,46 @@ export function DashboardView() {
         </div>
       </GlassCard>
 
-      {/* === 2. TODAY'S ACTIVITY — what the team is sharing right now === */}
+      {/* === 2. TODAY'S SOCIAL ACTIVITY — what's being posted on social right now === */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <TodayActivityCard
-          label="Posts Today"
-          icon={<FileText className="h-5 w-5" />}
-          color="oklch(0.62 0.22 255)"
-          current={k.today.posts}
-          target={k.today.targets.posts}
-          hint={`${k.today.activeMembers} member${k.today.activeMembers !== 1 ? "s" : ""} active`}
-          delay={50}
-        />
-        <TodayActivityCard
-          label="Published Today"
+          label="Posted to Social"
           icon={<Send className="h-5 w-5" />}
           color="oklch(0.74 0.18 165)"
           current={k.today.published}
           target={k.today.targets.published}
-          hint={`${k.today.activeAccounts} account${k.today.activeAccounts !== 1 ? "s" : ""} live`}
+          hint={`${k.today.activeMembers} member${k.today.activeMembers !== 1 ? "s" : ""} publishing`}
+          delay={50}
+        />
+        <TodayActivityCard
+          label="Active Pages"
+          icon={<AtSign className="h-5 w-5" />}
+          color="oklch(0.62 0.22 255)"
+          current={k.today.activeAccounts}
+          target={k.today.targets.activeAccounts}
+          hint={`of ${k.accounts} connected profiles`}
           delay={120}
         />
         <TodayActivityCard
-          label="Comments Today"
+          label="Comments Received"
           icon={<MessageCircle className="h-5 w-5" />}
           color="oklch(0.7 0.2 25)"
           current={k.today.comments}
           target={k.today.targets.comments}
-          hint={`${k.pendingInbox} unread total`}
+          hint={`${k.pendingInbox} unread to reply`}
           delay={190}
         />
         <TodayActivityCard
-          label="Active Profiles"
-          icon={<Users className="h-5 w-5" />}
+          label="Platforms Active"
+          icon={<Globe className="h-5 w-5" />}
           color="oklch(0.66 0.22 305)"
-          current={k.today.activeAccounts}
-          target={k.accounts}
-          hint={`${k.accounts} connected total`}
+          current={Object.keys(k.today.platformBreakdown).length}
+          target={7}
+          hint={
+            Object.keys(k.today.platformBreakdown).length > 0
+              ? Object.entries(k.today.platformBreakdown).map(([p, n]) => `${p}: ${n}`).join(" · ")
+              : "No posts today yet"
+          }
           delay={260}
         />
       </div>
