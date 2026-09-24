@@ -28,6 +28,9 @@ model User {
   bio         String?  // short personal bio (max ~280 chars)
   timezone    String?  // IANA timezone e.g. "America/Los_Angeles"
   language    String?  // locale code e.g. "en-US"
+  gender      String?  // male | female | other — for avatar fallback + birthday greetings
+  birthDate   DateTime? // for birthday notifications + calendar
+  phone       String?  // contact number
   // Multi-tenant: links this user to a Customer (tenant).
   // null = super-admin (sees all tenants). Set when a user is created
   // by a manager/admin who belongs to a specific client.

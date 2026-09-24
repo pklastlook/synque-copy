@@ -126,6 +126,9 @@ export const UserScalarFieldEnum = {
   bio: 'bio',
   timezone: 'timezone',
   language: 'language',
+  gender: 'gender',
+  birthDate: 'birthDate',
+  phone: 'phone',
   customerId: 'customerId'
 } as const
 
