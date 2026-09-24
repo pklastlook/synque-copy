@@ -34,6 +34,7 @@ export type PostMinAggregateOutputType = {
   status: string | null
   scheduledAt: Date | null
   authorId: string | null
+  customerId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -48,6 +49,7 @@ export type PostMaxAggregateOutputType = {
   status: string | null
   scheduledAt: Date | null
   authorId: string | null
+  customerId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -62,6 +64,7 @@ export type PostCountAggregateOutputType = {
   status: number
   scheduledAt: number
   authorId: number
+  customerId: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -78,6 +81,7 @@ export type PostMinAggregateInputType = {
   status?: true
   scheduledAt?: true
   authorId?: true
+  customerId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -92,6 +96,7 @@ export type PostMaxAggregateInputType = {
   status?: true
   scheduledAt?: true
   authorId?: true
+  customerId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -106,6 +111,7 @@ export type PostCountAggregateInputType = {
   status?: true
   scheduledAt?: true
   authorId?: true
+  customerId?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -193,6 +199,7 @@ export type PostGroupByOutputType = {
   status: string
   scheduledAt: Date | null
   authorId: string
+  customerId: string | null
   createdAt: Date
   updatedAt: Date
   _count: PostCountAggregateOutputType | null
@@ -228,6 +235,7 @@ export type PostWhereInput = {
   status?: Prisma.StringFilter<"Post"> | string
   scheduledAt?: Prisma.DateTimeNullableFilter<"Post"> | Date | string | null
   authorId?: Prisma.StringFilter<"Post"> | string
+  customerId?: Prisma.StringNullableFilter<"Post"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Post"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Post"> | Date | string
   author?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -244,6 +252,7 @@ export type PostOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   scheduledAt?: Prisma.SortOrderInput | Prisma.SortOrder
   authorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   author?: Prisma.UserOrderByWithRelationInput
@@ -263,6 +272,7 @@ export type PostWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.StringFilter<"Post"> | string
   scheduledAt?: Prisma.DateTimeNullableFilter<"Post"> | Date | string | null
   authorId?: Prisma.StringFilter<"Post"> | string
+  customerId?: Prisma.StringNullableFilter<"Post"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Post"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Post"> | Date | string
   author?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -279,6 +289,7 @@ export type PostOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   scheduledAt?: Prisma.SortOrderInput | Prisma.SortOrder
   authorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.PostCountOrderByAggregateInput
@@ -299,6 +310,7 @@ export type PostScalarWhereWithAggregatesInput = {
   status?: Prisma.StringWithAggregatesFilter<"Post"> | string
   scheduledAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Post"> | Date | string | null
   authorId?: Prisma.StringWithAggregatesFilter<"Post"> | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Post"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Post"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Post"> | Date | string
 }
@@ -312,6 +324,7 @@ export type PostCreateInput = {
   tone?: string
   status?: string
   scheduledAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   author: Prisma.UserCreateNestedOneWithoutPostsInput
@@ -328,6 +341,7 @@ export type PostUncheckedCreateInput = {
   status?: string
   scheduledAt?: Date | string | null
   authorId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   variants?: Prisma.PostVariantUncheckedCreateNestedManyWithoutPostInput
@@ -342,6 +356,7 @@ export type PostUpdateInput = {
   tone?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   author?: Prisma.UserUpdateOneRequiredWithoutPostsNestedInput
@@ -358,6 +373,7 @@ export type PostUncheckedUpdateInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   authorId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUncheckedUpdateManyWithoutPostNestedInput
@@ -373,6 +389,7 @@ export type PostCreateManyInput = {
   status?: string
   scheduledAt?: Date | string | null
   authorId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -386,6 +403,7 @@ export type PostUpdateManyMutationInput = {
   tone?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -400,6 +418,7 @@ export type PostUncheckedUpdateManyInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   authorId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -424,6 +443,7 @@ export type PostCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   scheduledAt?: Prisma.SortOrder
   authorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -438,6 +458,7 @@ export type PostMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   scheduledAt?: Prisma.SortOrder
   authorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -452,6 +473,7 @@ export type PostMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   scheduledAt?: Prisma.SortOrder
   authorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -526,6 +548,7 @@ export type PostCreateWithoutAuthorInput = {
   tone?: string
   status?: string
   scheduledAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   variants?: Prisma.PostVariantCreateNestedManyWithoutPostInput
@@ -540,6 +563,7 @@ export type PostUncheckedCreateWithoutAuthorInput = {
   tone?: string
   status?: string
   scheduledAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   variants?: Prisma.PostVariantUncheckedCreateNestedManyWithoutPostInput
@@ -584,6 +608,7 @@ export type PostScalarWhereInput = {
   status?: Prisma.StringFilter<"Post"> | string
   scheduledAt?: Prisma.DateTimeNullableFilter<"Post"> | Date | string | null
   authorId?: Prisma.StringFilter<"Post"> | string
+  customerId?: Prisma.StringNullableFilter<"Post"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Post"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Post"> | Date | string
 }
@@ -597,6 +622,7 @@ export type PostCreateWithoutVariantsInput = {
   tone?: string
   status?: string
   scheduledAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   author: Prisma.UserCreateNestedOneWithoutPostsInput
@@ -612,6 +638,7 @@ export type PostUncheckedCreateWithoutVariantsInput = {
   status?: string
   scheduledAt?: Date | string | null
   authorId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -641,6 +668,7 @@ export type PostUpdateWithoutVariantsInput = {
   tone?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   author?: Prisma.UserUpdateOneRequiredWithoutPostsNestedInput
@@ -656,6 +684,7 @@ export type PostUncheckedUpdateWithoutVariantsInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   authorId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -669,6 +698,7 @@ export type PostCreateManyAuthorInput = {
   tone?: string
   status?: string
   scheduledAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -682,6 +712,7 @@ export type PostUpdateWithoutAuthorInput = {
   tone?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUpdateManyWithoutPostNestedInput
@@ -696,6 +727,7 @@ export type PostUncheckedUpdateWithoutAuthorInput = {
   tone?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUncheckedUpdateManyWithoutPostNestedInput
@@ -710,6 +742,7 @@ export type PostUncheckedUpdateManyWithoutAuthorInput = {
   tone?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -755,6 +788,7 @@ export type PostSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   status?: boolean
   scheduledAt?: boolean
   authorId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   author?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -772,6 +806,7 @@ export type PostSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   status?: boolean
   scheduledAt?: boolean
   authorId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   author?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -787,6 +822,7 @@ export type PostSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   status?: boolean
   scheduledAt?: boolean
   authorId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   author?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -802,11 +838,12 @@ export type PostSelectScalar = {
   status?: boolean
   scheduledAt?: boolean
   authorId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type PostOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "caption" | "mediaUrl" | "mediaType" | "tone" | "status" | "scheduledAt" | "authorId" | "createdAt" | "updatedAt", ExtArgs["result"]["post"]>
+export type PostOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "caption" | "mediaUrl" | "mediaType" | "tone" | "status" | "scheduledAt" | "authorId" | "customerId" | "createdAt" | "updatedAt", ExtArgs["result"]["post"]>
 export type PostInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   author?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   variants?: boolean | Prisma.Post$variantsArgs<ExtArgs>
@@ -835,6 +872,7 @@ export type $PostPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     status: string
     scheduledAt: Date | null
     authorId: string
+    customerId: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["post"]>
@@ -1271,6 +1309,7 @@ export interface PostFieldRefs {
   readonly status: Prisma.FieldRef<"Post", 'String'>
   readonly scheduledAt: Prisma.FieldRef<"Post", 'DateTime'>
   readonly authorId: Prisma.FieldRef<"Post", 'String'>
+  readonly customerId: Prisma.FieldRef<"Post", 'String'>
   readonly createdAt: Prisma.FieldRef<"Post", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Post", 'DateTime'>
 }

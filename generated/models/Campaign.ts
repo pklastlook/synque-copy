@@ -45,6 +45,7 @@ export type CampaignMinAggregateOutputType = {
   startDate: Date | null
   endDate: Date | null
   ownerId: string | null
+  customerId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -60,6 +61,7 @@ export type CampaignMaxAggregateOutputType = {
   startDate: Date | null
   endDate: Date | null
   ownerId: string | null
+  customerId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -75,6 +77,7 @@ export type CampaignCountAggregateOutputType = {
   startDate: number
   endDate: number
   ownerId: number
+  customerId: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -100,6 +103,7 @@ export type CampaignMinAggregateInputType = {
   startDate?: true
   endDate?: true
   ownerId?: true
+  customerId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -115,6 +119,7 @@ export type CampaignMaxAggregateInputType = {
   startDate?: true
   endDate?: true
   ownerId?: true
+  customerId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -130,6 +135,7 @@ export type CampaignCountAggregateInputType = {
   startDate?: true
   endDate?: true
   ownerId?: true
+  customerId?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -232,6 +238,7 @@ export type CampaignGroupByOutputType = {
   startDate: Date | null
   endDate: Date | null
   ownerId: string
+  customerId: string | null
   createdAt: Date
   updatedAt: Date
   _count: CampaignCountAggregateOutputType | null
@@ -270,6 +277,7 @@ export type CampaignWhereInput = {
   startDate?: Prisma.DateTimeNullableFilter<"Campaign"> | Date | string | null
   endDate?: Prisma.DateTimeNullableFilter<"Campaign"> | Date | string | null
   ownerId?: Prisma.StringFilter<"Campaign"> | string
+  customerId?: Prisma.StringNullableFilter<"Campaign"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Campaign"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Campaign"> | Date | string
 }
@@ -285,6 +293,7 @@ export type CampaignOrderByWithRelationInput = {
   startDate?: Prisma.SortOrderInput | Prisma.SortOrder
   endDate?: Prisma.SortOrderInput | Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -303,6 +312,7 @@ export type CampaignWhereUniqueInput = Prisma.AtLeast<{
   startDate?: Prisma.DateTimeNullableFilter<"Campaign"> | Date | string | null
   endDate?: Prisma.DateTimeNullableFilter<"Campaign"> | Date | string | null
   ownerId?: Prisma.StringFilter<"Campaign"> | string
+  customerId?: Prisma.StringNullableFilter<"Campaign"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Campaign"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Campaign"> | Date | string
 }, "id">
@@ -318,6 +328,7 @@ export type CampaignOrderByWithAggregationInput = {
   startDate?: Prisma.SortOrderInput | Prisma.SortOrder
   endDate?: Prisma.SortOrderInput | Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.CampaignCountOrderByAggregateInput
@@ -341,6 +352,7 @@ export type CampaignScalarWhereWithAggregatesInput = {
   startDate?: Prisma.DateTimeNullableWithAggregatesFilter<"Campaign"> | Date | string | null
   endDate?: Prisma.DateTimeNullableWithAggregatesFilter<"Campaign"> | Date | string | null
   ownerId?: Prisma.StringWithAggregatesFilter<"Campaign"> | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Campaign"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Campaign"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Campaign"> | Date | string
 }
@@ -356,6 +368,7 @@ export type CampaignCreateInput = {
   startDate?: Date | string | null
   endDate?: Date | string | null
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -371,6 +384,7 @@ export type CampaignUncheckedCreateInput = {
   startDate?: Date | string | null
   endDate?: Date | string | null
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -386,6 +400,7 @@ export type CampaignUpdateInput = {
   startDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   endDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -401,6 +416,7 @@ export type CampaignUncheckedUpdateInput = {
   startDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   endDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -416,6 +432,7 @@ export type CampaignCreateManyInput = {
   startDate?: Date | string | null
   endDate?: Date | string | null
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -431,6 +448,7 @@ export type CampaignUpdateManyMutationInput = {
   startDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   endDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -446,6 +464,7 @@ export type CampaignUncheckedUpdateManyInput = {
   startDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   endDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -461,6 +480,7 @@ export type CampaignCountOrderByAggregateInput = {
   startDate?: Prisma.SortOrder
   endDate?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -480,6 +500,7 @@ export type CampaignMaxOrderByAggregateInput = {
   startDate?: Prisma.SortOrder
   endDate?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -495,6 +516,7 @@ export type CampaignMinOrderByAggregateInput = {
   startDate?: Prisma.SortOrder
   endDate?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -524,6 +546,7 @@ export type CampaignSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   startDate?: boolean
   endDate?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["campaign"]>
@@ -539,6 +562,7 @@ export type CampaignSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   startDate?: boolean
   endDate?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["campaign"]>
@@ -554,6 +578,7 @@ export type CampaignSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   startDate?: boolean
   endDate?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["campaign"]>
@@ -569,11 +594,12 @@ export type CampaignSelectScalar = {
   startDate?: boolean
   endDate?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CampaignOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "color" | "status" | "objective" | "budget" | "startDate" | "endDate" | "ownerId" | "createdAt" | "updatedAt", ExtArgs["result"]["campaign"]>
+export type CampaignOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "color" | "status" | "objective" | "budget" | "startDate" | "endDate" | "ownerId" | "customerId" | "createdAt" | "updatedAt", ExtArgs["result"]["campaign"]>
 
 export type $CampaignPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Campaign"
@@ -589,6 +615,7 @@ export type $CampaignPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     startDate: Date | null
     endDate: Date | null
     ownerId: string
+    customerId: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["campaign"]>
@@ -1024,6 +1051,7 @@ export interface CampaignFieldRefs {
   readonly startDate: Prisma.FieldRef<"Campaign", 'DateTime'>
   readonly endDate: Prisma.FieldRef<"Campaign", 'DateTime'>
   readonly ownerId: Prisma.FieldRef<"Campaign", 'String'>
+  readonly customerId: Prisma.FieldRef<"Campaign", 'String'>
   readonly createdAt: Prisma.FieldRef<"Campaign", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Campaign", 'DateTime'>
 }

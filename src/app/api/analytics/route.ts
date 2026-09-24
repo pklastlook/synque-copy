@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -8,17 +8,27 @@ export async function GET(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
 
+  const scope = getTenantScope(user!);
   const isManager = user!.role === "admin" || user!.role === "manager";
   const accountId = req.nextUrl.searchParams.get("accountId");
   const days = parseInt(req.nextUrl.searchParams.get("days") ?? "30", 10);
   const isAll = !accountId || accountId === "all";
 
   // For non-managers requesting "all", restrict to accounts they own
-  // so they can't see other users' analytics.
   let scopeAccountIds: string[] | null = null;
   if (!isManager && isAll) {
-    const owned = await db.account.findMany({ where: { ownerId: user!.userId }, select: { id: true } });
+    const owned = await db.account.findMany({
+      where: tenantWhere(scope, { ownerId: user!.userId }),
+      select: { id: true },
+    });
     scopeAccountIds = owned.map((a) => a.id);
+  } else if (isManager && !scope.isSuperAdmin && isAll) {
+    // Tenant managers: restrict to their client's accounts
+    const tenantAccounts = await db.account.findMany({
+      where: tenantWhere(scope),
+      select: { id: true },
+    });
+    scopeAccountIds = tenantAccounts.map((a) => a.id);
   }
 
   const now = Date.now();

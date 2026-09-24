@@ -41,6 +41,7 @@ export type UserMinAggregateOutputType = {
   bio: string | null
   timezone: string | null
   language: string | null
+  customerId: string | null
 }
 
 export type UserMaxAggregateOutputType = {
@@ -60,6 +61,7 @@ export type UserMaxAggregateOutputType = {
   bio: string | null
   timezone: string | null
   language: string | null
+  customerId: string | null
 }
 
 export type UserCountAggregateOutputType = {
@@ -79,6 +81,7 @@ export type UserCountAggregateOutputType = {
   bio: number
   timezone: number
   language: number
+  customerId: number
   _all: number
 }
 
@@ -100,6 +103,7 @@ export type UserMinAggregateInputType = {
   bio?: true
   timezone?: true
   language?: true
+  customerId?: true
 }
 
 export type UserMaxAggregateInputType = {
@@ -119,6 +123,7 @@ export type UserMaxAggregateInputType = {
   bio?: true
   timezone?: true
   language?: true
+  customerId?: true
 }
 
 export type UserCountAggregateInputType = {
@@ -138,6 +143,7 @@ export type UserCountAggregateInputType = {
   bio?: true
   timezone?: true
   language?: true
+  customerId?: true
   _all?: true
 }
 
@@ -230,6 +236,7 @@ export type UserGroupByOutputType = {
   bio: string | null
   timezone: string | null
   language: string | null
+  customerId: string | null
   _count: UserCountAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
@@ -270,6 +277,7 @@ export type UserWhereInput = {
   bio?: Prisma.StringNullableFilter<"User"> | string | null
   timezone?: Prisma.StringNullableFilter<"User"> | string | null
   language?: Prisma.StringNullableFilter<"User"> | string | null
+  customerId?: Prisma.StringNullableFilter<"User"> | string | null
   accounts?: Prisma.AccountListRelationFilter
   posts?: Prisma.PostListRelationFilter
   activities?: Prisma.ActivityListRelationFilter
@@ -299,6 +307,7 @@ export type UserOrderByWithRelationInput = {
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
   timezone?: Prisma.SortOrderInput | Prisma.SortOrder
   language?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   accounts?: Prisma.AccountOrderByRelationAggregateInput
   posts?: Prisma.PostOrderByRelationAggregateInput
   activities?: Prisma.ActivityOrderByRelationAggregateInput
@@ -331,6 +340,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   bio?: Prisma.StringNullableFilter<"User"> | string | null
   timezone?: Prisma.StringNullableFilter<"User"> | string | null
   language?: Prisma.StringNullableFilter<"User"> | string | null
+  customerId?: Prisma.StringNullableFilter<"User"> | string | null
   accounts?: Prisma.AccountListRelationFilter
   posts?: Prisma.PostListRelationFilter
   activities?: Prisma.ActivityListRelationFilter
@@ -360,6 +370,7 @@ export type UserOrderByWithAggregationInput = {
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
   timezone?: Prisma.SortOrderInput | Prisma.SortOrder
   language?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
@@ -385,6 +396,7 @@ export type UserScalarWhereWithAggregatesInput = {
   bio?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   timezone?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   language?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
 }
 
 export type UserCreateInput = {
@@ -404,6 +416,7 @@ export type UserCreateInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -433,6 +446,7 @@ export type UserUncheckedCreateInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -462,6 +476,7 @@ export type UserUpdateInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -491,6 +506,7 @@ export type UserUncheckedUpdateInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -520,6 +536,7 @@ export type UserCreateManyInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
 }
 
 export type UserUpdateManyMutationInput = {
@@ -539,6 +556,7 @@ export type UserUpdateManyMutationInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type UserUncheckedUpdateManyInput = {
@@ -558,6 +576,7 @@ export type UserUncheckedUpdateManyInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type UserCountOrderByAggregateInput = {
@@ -577,6 +596,7 @@ export type UserCountOrderByAggregateInput = {
   bio?: Prisma.SortOrder
   timezone?: Prisma.SortOrder
   language?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
@@ -596,6 +616,7 @@ export type UserMaxOrderByAggregateInput = {
   bio?: Prisma.SortOrder
   timezone?: Prisma.SortOrder
   language?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type UserMinOrderByAggregateInput = {
@@ -615,6 +636,7 @@ export type UserMinOrderByAggregateInput = {
   bio?: Prisma.SortOrder
   timezone?: Prisma.SortOrder
   language?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type UserScalarRelationFilter = {
@@ -808,6 +830,7 @@ export type UserCreateWithoutAccountsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
@@ -836,6 +859,7 @@ export type UserUncheckedCreateWithoutAccountsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
@@ -880,6 +904,7 @@ export type UserUpdateWithoutAccountsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
@@ -908,6 +933,7 @@ export type UserUncheckedUpdateWithoutAccountsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
@@ -936,6 +962,7 @@ export type UserCreateWithoutPostsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
@@ -964,6 +991,7 @@ export type UserUncheckedCreateWithoutPostsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
@@ -1008,6 +1036,7 @@ export type UserUpdateWithoutPostsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
@@ -1036,6 +1065,7 @@ export type UserUncheckedUpdateWithoutPostsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
@@ -1064,6 +1094,7 @@ export type UserCreateWithoutAssignedCommentsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -1092,6 +1123,7 @@ export type UserUncheckedCreateWithoutAssignedCommentsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -1136,6 +1168,7 @@ export type UserUpdateWithoutAssignedCommentsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -1164,6 +1197,7 @@ export type UserUncheckedUpdateWithoutAssignedCommentsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -1192,6 +1226,7 @@ export type UserCreateWithoutActivitiesInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
@@ -1220,6 +1255,7 @@ export type UserUncheckedCreateWithoutActivitiesInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
@@ -1264,6 +1300,7 @@ export type UserUpdateWithoutActivitiesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
@@ -1292,6 +1329,7 @@ export type UserUncheckedUpdateWithoutActivitiesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
@@ -1320,6 +1358,7 @@ export type UserCreateWithoutSavedWhatsAppMsgsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -1348,6 +1387,7 @@ export type UserUncheckedCreateWithoutSavedWhatsAppMsgsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -1392,6 +1432,7 @@ export type UserUpdateWithoutSavedWhatsAppMsgsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -1420,6 +1461,7 @@ export type UserUncheckedUpdateWithoutSavedWhatsAppMsgsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -1448,6 +1490,7 @@ export type UserCreateWithoutSentMessagesInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -1476,6 +1519,7 @@ export type UserUncheckedCreateWithoutSentMessagesInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -1509,6 +1553,7 @@ export type UserCreateWithoutReceivedMessagesInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -1537,6 +1582,7 @@ export type UserUncheckedCreateWithoutReceivedMessagesInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -1581,6 +1627,7 @@ export type UserUpdateWithoutSentMessagesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -1609,6 +1656,7 @@ export type UserUncheckedUpdateWithoutSentMessagesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -1648,6 +1696,7 @@ export type UserUpdateWithoutReceivedMessagesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -1676,6 +1725,7 @@ export type UserUncheckedUpdateWithoutReceivedMessagesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -1704,6 +1754,7 @@ export type UserCreateWithoutMailboxesInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -1732,6 +1783,7 @@ export type UserUncheckedCreateWithoutMailboxesInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -1776,6 +1828,7 @@ export type UserUpdateWithoutMailboxesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -1804,6 +1857,7 @@ export type UserUncheckedUpdateWithoutMailboxesInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -1832,6 +1886,7 @@ export type UserCreateWithoutWorkspaceInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -1860,6 +1915,7 @@ export type UserUncheckedCreateWithoutWorkspaceInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -1904,6 +1960,7 @@ export type UserUpdateWithoutWorkspaceInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -1932,6 +1989,7 @@ export type UserUncheckedUpdateWithoutWorkspaceInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -1960,6 +2018,7 @@ export type UserCreateWithoutPlatformCredentialsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -1988,6 +2047,7 @@ export type UserUncheckedCreateWithoutPlatformCredentialsInput = {
   bio?: string | null
   timezone?: string | null
   language?: string | null
+  customerId?: string | null
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -2032,6 +2092,7 @@ export type UserUpdateWithoutPlatformCredentialsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -2060,6 +2121,7 @@ export type UserUncheckedUpdateWithoutPlatformCredentialsInput = {
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -2191,6 +2253,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   bio?: boolean
   timezone?: boolean
   language?: boolean
+  customerId?: boolean
   accounts?: boolean | Prisma.User$accountsArgs<ExtArgs>
   posts?: boolean | Prisma.User$postsArgs<ExtArgs>
   activities?: boolean | Prisma.User$activitiesArgs<ExtArgs>
@@ -2221,6 +2284,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   bio?: boolean
   timezone?: boolean
   language?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -2240,6 +2304,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   bio?: boolean
   timezone?: boolean
   language?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectScalar = {
@@ -2259,9 +2324,10 @@ export type UserSelectScalar = {
   bio?: boolean
   timezone?: boolean
   language?: boolean
+  customerId?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "password" | "avatar" | "role" | "title" | "department" | "color" | "permissions" | "status" | "lastActive" | "createdAt" | "bio" | "timezone" | "language", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "password" | "avatar" | "role" | "title" | "department" | "color" | "permissions" | "status" | "lastActive" | "createdAt" | "bio" | "timezone" | "language" | "customerId", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   accounts?: boolean | Prisma.User$accountsArgs<ExtArgs>
   posts?: boolean | Prisma.User$postsArgs<ExtArgs>
@@ -2309,6 +2375,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     bio: string | null
     timezone: string | null
     language: string | null
+    customerId: string | null
   }, ExtArgs["result"]["user"]>
   composites: {}
 }
@@ -2758,6 +2825,7 @@ export interface UserFieldRefs {
   readonly bio: Prisma.FieldRef<"User", 'String'>
   readonly timezone: Prisma.FieldRef<"User", 'String'>
   readonly language: Prisma.FieldRef<"User", 'String'>
+  readonly customerId: Prisma.FieldRef<"User", 'String'>
 }
     
 

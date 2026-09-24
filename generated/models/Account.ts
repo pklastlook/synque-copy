@@ -46,6 +46,7 @@ export type AccountMinAggregateOutputType = {
   postsCount: number | null
   verified: boolean | null
   ownerId: string | null
+  customerId: string | null
   createdAt: Date | null
 }
 
@@ -59,6 +60,7 @@ export type AccountMaxAggregateOutputType = {
   postsCount: number | null
   verified: boolean | null
   ownerId: string | null
+  customerId: string | null
   createdAt: Date | null
 }
 
@@ -72,6 +74,7 @@ export type AccountCountAggregateOutputType = {
   postsCount: number
   verified: number
   ownerId: number
+  customerId: number
   createdAt: number
   _all: number
 }
@@ -97,6 +100,7 @@ export type AccountMinAggregateInputType = {
   postsCount?: true
   verified?: true
   ownerId?: true
+  customerId?: true
   createdAt?: true
 }
 
@@ -110,6 +114,7 @@ export type AccountMaxAggregateInputType = {
   postsCount?: true
   verified?: true
   ownerId?: true
+  customerId?: true
   createdAt?: true
 }
 
@@ -123,6 +128,7 @@ export type AccountCountAggregateInputType = {
   postsCount?: true
   verified?: true
   ownerId?: true
+  customerId?: true
   createdAt?: true
   _all?: true
 }
@@ -223,6 +229,7 @@ export type AccountGroupByOutputType = {
   postsCount: number
   verified: boolean
   ownerId: string
+  customerId: string | null
   createdAt: Date
   _count: AccountCountAggregateOutputType | null
   _avg: AccountAvgAggregateOutputType | null
@@ -259,6 +266,7 @@ export type AccountWhereInput = {
   postsCount?: Prisma.IntFilter<"Account"> | number
   verified?: Prisma.BoolFilter<"Account"> | boolean
   ownerId?: Prisma.StringFilter<"Account"> | string
+  customerId?: Prisma.StringNullableFilter<"Account"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Account"> | Date | string
   owner?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   variants?: Prisma.PostVariantListRelationFilter
@@ -278,6 +286,7 @@ export type AccountOrderByWithRelationInput = {
   postsCount?: Prisma.SortOrder
   verified?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   owner?: Prisma.UserOrderByWithRelationInput
   variants?: Prisma.PostVariantOrderByRelationAggregateInput
@@ -300,6 +309,7 @@ export type AccountWhereUniqueInput = Prisma.AtLeast<{
   postsCount?: Prisma.IntFilter<"Account"> | number
   verified?: Prisma.BoolFilter<"Account"> | boolean
   ownerId?: Prisma.StringFilter<"Account"> | string
+  customerId?: Prisma.StringNullableFilter<"Account"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Account"> | Date | string
   owner?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   variants?: Prisma.PostVariantListRelationFilter
@@ -319,6 +329,7 @@ export type AccountOrderByWithAggregationInput = {
   postsCount?: Prisma.SortOrder
   verified?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.AccountCountOrderByAggregateInput
   _avg?: Prisma.AccountAvgOrderByAggregateInput
@@ -340,6 +351,7 @@ export type AccountScalarWhereWithAggregatesInput = {
   postsCount?: Prisma.IntWithAggregatesFilter<"Account"> | number
   verified?: Prisma.BoolWithAggregatesFilter<"Account"> | boolean
   ownerId?: Prisma.StringWithAggregatesFilter<"Account"> | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Account"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Account"> | Date | string
 }
 
@@ -352,6 +364,7 @@ export type AccountCreateInput = {
   followers?: number
   postsCount?: number
   verified?: boolean
+  customerId?: string | null
   createdAt?: Date | string
   owner: Prisma.UserCreateNestedOneWithoutAccountsInput
   variants?: Prisma.PostVariantCreateNestedManyWithoutAccountInput
@@ -371,6 +384,7 @@ export type AccountUncheckedCreateInput = {
   postsCount?: number
   verified?: boolean
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   variants?: Prisma.PostVariantUncheckedCreateNestedManyWithoutAccountInput
   analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
@@ -388,6 +402,7 @@ export type AccountUpdateInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   owner?: Prisma.UserUpdateOneRequiredWithoutAccountsNestedInput
   variants?: Prisma.PostVariantUpdateManyWithoutAccountNestedInput
@@ -407,6 +422,7 @@ export type AccountUncheckedUpdateInput = {
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUncheckedUpdateManyWithoutAccountNestedInput
   analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
@@ -425,6 +441,7 @@ export type AccountCreateManyInput = {
   postsCount?: number
   verified?: boolean
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -437,6 +454,7 @@ export type AccountUpdateManyMutationInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -450,6 +468,7 @@ export type AccountUncheckedUpdateManyInput = {
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -473,6 +492,7 @@ export type AccountCountOrderByAggregateInput = {
   postsCount?: Prisma.SortOrder
   verified?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -491,6 +511,7 @@ export type AccountMaxOrderByAggregateInput = {
   postsCount?: Prisma.SortOrder
   verified?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -504,6 +525,7 @@ export type AccountMinOrderByAggregateInput = {
   postsCount?: Prisma.SortOrder
   verified?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -650,6 +672,7 @@ export type AccountCreateWithoutOwnerInput = {
   followers?: number
   postsCount?: number
   verified?: boolean
+  customerId?: string | null
   createdAt?: Date | string
   variants?: Prisma.PostVariantCreateNestedManyWithoutAccountInput
   analytics?: Prisma.AnalyticsDailyCreateNestedManyWithoutAccountInput
@@ -667,6 +690,7 @@ export type AccountUncheckedCreateWithoutOwnerInput = {
   followers?: number
   postsCount?: number
   verified?: boolean
+  customerId?: string | null
   createdAt?: Date | string
   variants?: Prisma.PostVariantUncheckedCreateNestedManyWithoutAccountInput
   analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
@@ -714,6 +738,7 @@ export type AccountScalarWhereInput = {
   postsCount?: Prisma.IntFilter<"Account"> | number
   verified?: Prisma.BoolFilter<"Account"> | boolean
   ownerId?: Prisma.StringFilter<"Account"> | string
+  customerId?: Prisma.StringNullableFilter<"Account"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Account"> | Date | string
 }
 
@@ -726,6 +751,7 @@ export type AccountCreateWithoutHealthInput = {
   followers?: number
   postsCount?: number
   verified?: boolean
+  customerId?: string | null
   createdAt?: Date | string
   owner: Prisma.UserCreateNestedOneWithoutAccountsInput
   variants?: Prisma.PostVariantCreateNestedManyWithoutAccountInput
@@ -744,6 +770,7 @@ export type AccountUncheckedCreateWithoutHealthInput = {
   postsCount?: number
   verified?: boolean
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   variants?: Prisma.PostVariantUncheckedCreateNestedManyWithoutAccountInput
   analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
@@ -776,6 +803,7 @@ export type AccountUpdateWithoutHealthInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   owner?: Prisma.UserUpdateOneRequiredWithoutAccountsNestedInput
   variants?: Prisma.PostVariantUpdateManyWithoutAccountNestedInput
@@ -794,6 +822,7 @@ export type AccountUncheckedUpdateWithoutHealthInput = {
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUncheckedUpdateManyWithoutAccountNestedInput
   analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
@@ -810,6 +839,7 @@ export type AccountCreateWithoutProtectionInput = {
   followers?: number
   postsCount?: number
   verified?: boolean
+  customerId?: string | null
   createdAt?: Date | string
   owner: Prisma.UserCreateNestedOneWithoutAccountsInput
   variants?: Prisma.PostVariantCreateNestedManyWithoutAccountInput
@@ -828,6 +858,7 @@ export type AccountUncheckedCreateWithoutProtectionInput = {
   postsCount?: number
   verified?: boolean
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   variants?: Prisma.PostVariantUncheckedCreateNestedManyWithoutAccountInput
   analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
@@ -860,6 +891,7 @@ export type AccountUpdateWithoutProtectionInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   owner?: Prisma.UserUpdateOneRequiredWithoutAccountsNestedInput
   variants?: Prisma.PostVariantUpdateManyWithoutAccountNestedInput
@@ -878,6 +910,7 @@ export type AccountUncheckedUpdateWithoutProtectionInput = {
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUncheckedUpdateManyWithoutAccountNestedInput
   analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
@@ -894,6 +927,7 @@ export type AccountCreateWithoutVariantsInput = {
   followers?: number
   postsCount?: number
   verified?: boolean
+  customerId?: string | null
   createdAt?: Date | string
   owner: Prisma.UserCreateNestedOneWithoutAccountsInput
   analytics?: Prisma.AnalyticsDailyCreateNestedManyWithoutAccountInput
@@ -912,6 +946,7 @@ export type AccountUncheckedCreateWithoutVariantsInput = {
   postsCount?: number
   verified?: boolean
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
   comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAccountInput
@@ -944,6 +979,7 @@ export type AccountUpdateWithoutVariantsInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   owner?: Prisma.UserUpdateOneRequiredWithoutAccountsNestedInput
   analytics?: Prisma.AnalyticsDailyUpdateManyWithoutAccountNestedInput
@@ -962,6 +998,7 @@ export type AccountUncheckedUpdateWithoutVariantsInput = {
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
   comments?: Prisma.CommentUncheckedUpdateManyWithoutAccountNestedInput
@@ -978,6 +1015,7 @@ export type AccountCreateWithoutCommentsInput = {
   followers?: number
   postsCount?: number
   verified?: boolean
+  customerId?: string | null
   createdAt?: Date | string
   owner: Prisma.UserCreateNestedOneWithoutAccountsInput
   variants?: Prisma.PostVariantCreateNestedManyWithoutAccountInput
@@ -996,6 +1034,7 @@ export type AccountUncheckedCreateWithoutCommentsInput = {
   postsCount?: number
   verified?: boolean
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   variants?: Prisma.PostVariantUncheckedCreateNestedManyWithoutAccountInput
   analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
@@ -1028,6 +1067,7 @@ export type AccountUpdateWithoutCommentsInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   owner?: Prisma.UserUpdateOneRequiredWithoutAccountsNestedInput
   variants?: Prisma.PostVariantUpdateManyWithoutAccountNestedInput
@@ -1046,6 +1086,7 @@ export type AccountUncheckedUpdateWithoutCommentsInput = {
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUncheckedUpdateManyWithoutAccountNestedInput
   analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
@@ -1062,6 +1103,7 @@ export type AccountCreateWithoutAnalyticsInput = {
   followers?: number
   postsCount?: number
   verified?: boolean
+  customerId?: string | null
   createdAt?: Date | string
   owner: Prisma.UserCreateNestedOneWithoutAccountsInput
   variants?: Prisma.PostVariantCreateNestedManyWithoutAccountInput
@@ -1080,6 +1122,7 @@ export type AccountUncheckedCreateWithoutAnalyticsInput = {
   postsCount?: number
   verified?: boolean
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   variants?: Prisma.PostVariantUncheckedCreateNestedManyWithoutAccountInput
   comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAccountInput
@@ -1112,6 +1155,7 @@ export type AccountUpdateWithoutAnalyticsInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   owner?: Prisma.UserUpdateOneRequiredWithoutAccountsNestedInput
   variants?: Prisma.PostVariantUpdateManyWithoutAccountNestedInput
@@ -1130,6 +1174,7 @@ export type AccountUncheckedUpdateWithoutAnalyticsInput = {
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUncheckedUpdateManyWithoutAccountNestedInput
   comments?: Prisma.CommentUncheckedUpdateManyWithoutAccountNestedInput
@@ -1146,6 +1191,7 @@ export type AccountCreateManyOwnerInput = {
   followers?: number
   postsCount?: number
   verified?: boolean
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -1158,6 +1204,7 @@ export type AccountUpdateWithoutOwnerInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUpdateManyWithoutAccountNestedInput
   analytics?: Prisma.AnalyticsDailyUpdateManyWithoutAccountNestedInput
@@ -1175,6 +1222,7 @@ export type AccountUncheckedUpdateWithoutOwnerInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUncheckedUpdateManyWithoutAccountNestedInput
   analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
@@ -1192,6 +1240,7 @@ export type AccountUncheckedUpdateManyWithoutOwnerInput = {
   followers?: Prisma.IntFieldUpdateOperationsInput | number
   postsCount?: Prisma.IntFieldUpdateOperationsInput | number
   verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1254,6 +1303,7 @@ export type AccountSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   postsCount?: boolean
   verified?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   variants?: boolean | Prisma.Account$variantsArgs<ExtArgs>
@@ -1274,6 +1324,7 @@ export type AccountSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   postsCount?: boolean
   verified?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["account"]>
@@ -1288,6 +1339,7 @@ export type AccountSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   postsCount?: boolean
   verified?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["account"]>
@@ -1302,10 +1354,11 @@ export type AccountSelectScalar = {
   postsCount?: boolean
   verified?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
 }
 
-export type AccountOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "platform" | "handle" | "displayName" | "avatar" | "followers" | "postsCount" | "verified" | "ownerId" | "createdAt", ExtArgs["result"]["account"]>
+export type AccountOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "platform" | "handle" | "displayName" | "avatar" | "followers" | "postsCount" | "verified" | "ownerId" | "customerId" | "createdAt", ExtArgs["result"]["account"]>
 export type AccountInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   variants?: boolean | Prisma.Account$variantsArgs<ExtArgs>
@@ -1342,6 +1395,7 @@ export type $AccountPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     postsCount: number
     verified: boolean
     ownerId: string
+    customerId: string | null
     createdAt: Date
   }, ExtArgs["result"]["account"]>
   composites: {}
@@ -1781,6 +1835,7 @@ export interface AccountFieldRefs {
   readonly postsCount: Prisma.FieldRef<"Account", 'Int'>
   readonly verified: Prisma.FieldRef<"Account", 'Boolean'>
   readonly ownerId: Prisma.FieldRef<"Account", 'String'>
+  readonly customerId: Prisma.FieldRef<"Account", 'String'>
   readonly createdAt: Prisma.FieldRef<"Account", 'DateTime'>
 }
     

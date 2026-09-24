@@ -35,6 +35,7 @@ export type TaskMinAggregateOutputType = {
   tags: string | null
   assigneeId: string | null
   creatorId: string | null
+  customerId: string | null
   status: string | null
   priority: string | null
   type: string | null
@@ -56,6 +57,7 @@ export type TaskMaxAggregateOutputType = {
   tags: string | null
   assigneeId: string | null
   creatorId: string | null
+  customerId: string | null
   status: string | null
   priority: string | null
   type: string | null
@@ -77,6 +79,7 @@ export type TaskCountAggregateOutputType = {
   tags: number
   assigneeId: number
   creatorId: number
+  customerId: number
   status: number
   priority: number
   type: number
@@ -100,6 +103,7 @@ export type TaskMinAggregateInputType = {
   tags?: true
   assigneeId?: true
   creatorId?: true
+  customerId?: true
   status?: true
   priority?: true
   type?: true
@@ -121,6 +125,7 @@ export type TaskMaxAggregateInputType = {
   tags?: true
   assigneeId?: true
   creatorId?: true
+  customerId?: true
   status?: true
   priority?: true
   type?: true
@@ -142,6 +147,7 @@ export type TaskCountAggregateInputType = {
   tags?: true
   assigneeId?: true
   creatorId?: true
+  customerId?: true
   status?: true
   priority?: true
   type?: true
@@ -236,6 +242,7 @@ export type TaskGroupByOutputType = {
   tags: string | null
   assigneeId: string | null
   creatorId: string
+  customerId: string | null
   status: string
   priority: string
   type: string
@@ -278,6 +285,7 @@ export type TaskWhereInput = {
   tags?: Prisma.StringNullableFilter<"Task"> | string | null
   assigneeId?: Prisma.StringNullableFilter<"Task"> | string | null
   creatorId?: Prisma.StringFilter<"Task"> | string
+  customerId?: Prisma.StringNullableFilter<"Task"> | string | null
   status?: Prisma.StringFilter<"Task"> | string
   priority?: Prisma.StringFilter<"Task"> | string
   type?: Prisma.StringFilter<"Task"> | string
@@ -299,6 +307,7 @@ export type TaskOrderByWithRelationInput = {
   tags?: Prisma.SortOrderInput | Prisma.SortOrder
   assigneeId?: Prisma.SortOrderInput | Prisma.SortOrder
   creatorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   type?: Prisma.SortOrder
@@ -323,6 +332,7 @@ export type TaskWhereUniqueInput = Prisma.AtLeast<{
   tags?: Prisma.StringNullableFilter<"Task"> | string | null
   assigneeId?: Prisma.StringNullableFilter<"Task"> | string | null
   creatorId?: Prisma.StringFilter<"Task"> | string
+  customerId?: Prisma.StringNullableFilter<"Task"> | string | null
   status?: Prisma.StringFilter<"Task"> | string
   priority?: Prisma.StringFilter<"Task"> | string
   type?: Prisma.StringFilter<"Task"> | string
@@ -344,6 +354,7 @@ export type TaskOrderByWithAggregationInput = {
   tags?: Prisma.SortOrderInput | Prisma.SortOrder
   assigneeId?: Prisma.SortOrderInput | Prisma.SortOrder
   creatorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   type?: Prisma.SortOrder
@@ -371,6 +382,7 @@ export type TaskScalarWhereWithAggregatesInput = {
   tags?: Prisma.StringNullableWithAggregatesFilter<"Task"> | string | null
   assigneeId?: Prisma.StringNullableWithAggregatesFilter<"Task"> | string | null
   creatorId?: Prisma.StringWithAggregatesFilter<"Task"> | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Task"> | string | null
   status?: Prisma.StringWithAggregatesFilter<"Task"> | string
   priority?: Prisma.StringWithAggregatesFilter<"Task"> | string
   type?: Prisma.StringWithAggregatesFilter<"Task"> | string
@@ -392,6 +404,7 @@ export type TaskCreateInput = {
   tags?: string | null
   assigneeId?: string | null
   creatorId: string
+  customerId?: string | null
   status?: string
   priority?: string
   type?: string
@@ -413,6 +426,7 @@ export type TaskUncheckedCreateInput = {
   tags?: string | null
   assigneeId?: string | null
   creatorId: string
+  customerId?: string | null
   status?: string
   priority?: string
   type?: string
@@ -434,6 +448,7 @@ export type TaskUpdateInput = {
   tags?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   assigneeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   creatorId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
@@ -455,6 +470,7 @@ export type TaskUncheckedUpdateInput = {
   tags?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   assigneeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   creatorId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
@@ -476,6 +492,7 @@ export type TaskCreateManyInput = {
   tags?: string | null
   assigneeId?: string | null
   creatorId: string
+  customerId?: string | null
   status?: string
   priority?: string
   type?: string
@@ -497,6 +514,7 @@ export type TaskUpdateManyMutationInput = {
   tags?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   assigneeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   creatorId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
@@ -518,6 +536,7 @@ export type TaskUncheckedUpdateManyInput = {
   tags?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   assigneeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   creatorId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
@@ -539,6 +558,7 @@ export type TaskCountOrderByAggregateInput = {
   tags?: Prisma.SortOrder
   assigneeId?: Prisma.SortOrder
   creatorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   type?: Prisma.SortOrder
@@ -560,6 +580,7 @@ export type TaskMaxOrderByAggregateInput = {
   tags?: Prisma.SortOrder
   assigneeId?: Prisma.SortOrder
   creatorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   type?: Prisma.SortOrder
@@ -581,6 +602,7 @@ export type TaskMinOrderByAggregateInput = {
   tags?: Prisma.SortOrder
   assigneeId?: Prisma.SortOrder
   creatorId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   type?: Prisma.SortOrder
@@ -604,6 +626,7 @@ export type TaskSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   tags?: boolean
   assigneeId?: boolean
   creatorId?: boolean
+  customerId?: boolean
   status?: boolean
   priority?: boolean
   type?: boolean
@@ -625,6 +648,7 @@ export type TaskSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   tags?: boolean
   assigneeId?: boolean
   creatorId?: boolean
+  customerId?: boolean
   status?: boolean
   priority?: boolean
   type?: boolean
@@ -646,6 +670,7 @@ export type TaskSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   tags?: boolean
   assigneeId?: boolean
   creatorId?: boolean
+  customerId?: boolean
   status?: boolean
   priority?: boolean
   type?: boolean
@@ -667,6 +692,7 @@ export type TaskSelectScalar = {
   tags?: boolean
   assigneeId?: boolean
   creatorId?: boolean
+  customerId?: boolean
   status?: boolean
   priority?: boolean
   type?: boolean
@@ -677,7 +703,7 @@ export type TaskSelectScalar = {
   completedAt?: boolean
 }
 
-export type TaskOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "description" | "content" | "mediaUrl" | "mediaType" | "platforms" | "tags" | "assigneeId" | "creatorId" | "status" | "priority" | "type" | "relatedPostId" | "dueAt" | "createdAt" | "updatedAt" | "completedAt", ExtArgs["result"]["task"]>
+export type TaskOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "description" | "content" | "mediaUrl" | "mediaType" | "platforms" | "tags" | "assigneeId" | "creatorId" | "customerId" | "status" | "priority" | "type" | "relatedPostId" | "dueAt" | "createdAt" | "updatedAt" | "completedAt", ExtArgs["result"]["task"]>
 
 export type $TaskPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Task"
@@ -693,6 +719,7 @@ export type $TaskPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     tags: string | null
     assigneeId: string | null
     creatorId: string
+    customerId: string | null
     status: string
     priority: string
     type: string
@@ -1134,6 +1161,7 @@ export interface TaskFieldRefs {
   readonly tags: Prisma.FieldRef<"Task", 'String'>
   readonly assigneeId: Prisma.FieldRef<"Task", 'String'>
   readonly creatorId: Prisma.FieldRef<"Task", 'String'>
+  readonly customerId: Prisma.FieldRef<"Task", 'String'>
   readonly status: Prisma.FieldRef<"Task", 'String'>
   readonly priority: Prisma.FieldRef<"Task", 'String'>
   readonly type: Prisma.FieldRef<"Task", 'String'>

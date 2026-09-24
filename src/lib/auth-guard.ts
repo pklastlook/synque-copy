@@ -10,14 +10,17 @@ export type Role = "admin" | "manager" | "editor" | "member" | "viewer";
  * Returns the decoded payload or null.
  *
  * Supports both Bearer token (Authorization header) and cookie-based auth.
+ * The payload includes: { userId, email, role, customerId }
+ * customerId is null for super-admins (see all tenants).
  */
-export function getUserFromRequest(req: NextRequest): { userId: string; email: string; role: string } | null {
+export function getUserFromRequest(req: NextRequest): { userId: string; email: string; role: string; customerId: string | null } | null {
   // Try Bearer token first
   const authHeader = req.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     try {
       const token = authHeader.replace("Bearer ", "");
-      return jwt.verify(token, SECRET) as { userId: string; email: string; role: string };
+      const decoded = jwt.verify(token, SECRET) as { userId: string; email: string; role: string; customerId?: string | null };
+      return { userId: decoded.userId, email: decoded.email, role: decoded.role, customerId: decoded.customerId ?? null };
     } catch {
       // Fall through to cookie
     }
@@ -29,7 +32,8 @@ export function getUserFromRequest(req: NextRequest): { userId: string; email: s
     const tokenMatch = cookie.match(/(?:^|;\s*)token=([^;]+)/);
     if (tokenMatch) {
       try {
-        return jwt.verify(tokenMatch[1], SECRET) as { userId: string; email: string; role: string };
+        const decoded = jwt.verify(tokenMatch[1], SECRET) as { userId: string; email: string; role: string; customerId?: string | null };
+        return { userId: decoded.userId, email: decoded.email, role: decoded.role, customerId: decoded.customerId ?? null };
       } catch {
         return null;
       }
@@ -90,4 +94,43 @@ export function requireRole(req: NextRequest, role: Role) {
   }
 
   return { user: authResult.user, error: null };
+}
+
+/**
+ * Resolve the tenant scope for the authenticated user.
+ *
+ * Returns:
+ *   - { customerId: null, isSuperAdmin: true }  → super-admin (sees ALL tenants)
+ *   - { customerId: "xxx", isSuperAdmin: false } → tenant-scoped (sees only their client's data)
+ *
+ * Usage in API routes:
+ *   const { user, error } = requireAuth(req);
+ *   if (error) return error;
+ *   const scope = getTenantScope(user);
+ *   const where = scope.isSuperAdmin ? {} : { customerId: scope.customerId };
+ */
+export function getTenantScope(user: { userId: string; role: string; customerId: string | null }) {
+  const isSuperAdmin = user.role === "admin" && !user.customerId;
+  if (isSuperAdmin) {
+    return { customerId: null, isSuperAdmin: true };
+  }
+  return { customerId: user.customerId, isSuperAdmin: false };
+}
+
+/**
+ * Build a Prisma `where` clause for tenant-scoped models.
+ * Super-admins get no filter. Everyone else gets filtered by customerId.
+ *
+ * Usage:
+ *   const where = tenantWhere(scope, extraWhere);
+ *   db.account.findMany({ where });
+ */
+export function tenantWhere(
+  scope: { customerId: string | null; isSuperAdmin: boolean },
+  extra?: Record<string, unknown>
+): Record<string, unknown> {
+  if (scope.isSuperAdmin) {
+    return extra ?? {};
+  }
+  return { customerId: scope.customerId, ...(extra ?? {}) };
 }

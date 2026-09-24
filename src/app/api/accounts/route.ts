@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -8,10 +8,14 @@ export async function GET(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
 
+  const scope = getTenantScope(user!);
+  // Super-admins see all accounts. Tenant users see only their client's accounts.
+  // Within a tenant, managers see all tenant accounts; members see only their own.
   const isManager = user!.role === "admin" || user!.role === "manager";
-  // Managers/admins see all accounts (team view). Members/editors/viewers
-  // see only accounts they own — this is the data-isolation boundary.
-  const where = isManager ? {} : { ownerId: user!.userId };
+  const extraWhere = scope.isSuperAdmin
+    ? (isManager ? {} : { ownerId: user!.userId })
+    : (isManager ? {} : { ownerId: user!.userId });
+  const where = tenantWhere(scope, extraWhere);
 
   const accounts = await db.account.findMany({
     where,
@@ -21,10 +25,10 @@ export async function GET(req: NextRequest) {
 
   const accountIds = new Set(accounts.map((a) => a.id));
   const analytics = await db.analyticsDaily.findMany({
-    where: isManager ? {} : { accountId: { in: [...accountIds] } },
+    where: { accountId: { in: [...accountIds] } },
   });
   const variants = await db.postVariant.findMany({
-    where: isManager ? {} : { accountId: { in: [...accountIds] } },
+    where: { accountId: { in: [...accountIds] } },
   });
 
   return NextResponse.json(

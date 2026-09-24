@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,28 +12,35 @@ export const dynamic = "force-dynamic";
  *   ?mine=1          → tasks where I'm the assignee OR the creator
  *
  * Returns tasks with creator + assignee names resolved.
+ * Tenant-scoped: users see only tasks within their customer (tenant).
+ * Super-admins see all tasks.
  */
 export async function GET(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
 
+  const scope = getTenantScope(user!);
   const sp = req.nextUrl.searchParams;
   const assigneeId = sp.get("assigneeId");
   const creatorId = sp.get("creatorId");
   const status = sp.get("status");
   const mine = sp.get("mine");
 
-  const where: Record<string, unknown> = {};
-  if (assigneeId) where.assigneeId = assigneeId;
-  if (creatorId) where.creatorId = creatorId;
-  if (status) where.status = status;
+  const extraWhere: Record<string, unknown> = {};
+  if (assigneeId) extraWhere.assigneeId = assigneeId;
+  if (creatorId) extraWhere.creatorId = creatorId;
+  if (status) extraWhere.status = status;
   if (mine) {
-    where.OR = [{ assigneeId: user!.userId }, { creatorId: user!.userId }];
+    extraWhere.OR = [{ assigneeId: user!.userId }, { creatorId: user!.userId }];
   }
+  const where = tenantWhere(scope, extraWhere);
 
   const [tasks, users] = await Promise.all([
     db.task.findMany({ where, orderBy: { createdAt: "desc" } }),
-    db.user.findMany({ select: { id: true, name: true, color: true, avatar: true } }),
+    db.user.findMany({
+      where: tenantWhere(scope),
+      select: { id: true, name: true, color: true, avatar: true },
+    }),
   ]);
   const userMap = new Map(users.map((u) => [u.id, u]));
 
@@ -88,6 +95,7 @@ export async function POST(req: NextRequest) {
 
   // creatorId defaults to the authenticated user
   const finalCreatorId = creatorId || user!.userId;
+  const scope = getTenantScope(user!);
 
   const task = await db.task.create({
     data: {
@@ -100,6 +108,7 @@ export async function POST(req: NextRequest) {
       tags: tags ?? null,
       assigneeId: assigneeId ?? null,
       creatorId: finalCreatorId,
+      customerId: scope.customerId, // tenant-scoped
       status: status ?? "todo",
       priority: priority ?? "normal",
       type: type ?? "content",

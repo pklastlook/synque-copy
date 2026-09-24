@@ -3246,7 +3246,8 @@ export const UserScalarFieldEnum = {
   createdAt: 'createdAt',
   bio: 'bio',
   timezone: 'timezone',
-  language: 'language'
+  language: 'language',
+  customerId: 'customerId'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -3262,6 +3263,7 @@ export const AccountScalarFieldEnum = {
   postsCount: 'postsCount',
   verified: 'verified',
   ownerId: 'ownerId',
+  customerId: 'customerId',
   createdAt: 'createdAt'
 } as const
 
@@ -3323,6 +3325,7 @@ export const PostScalarFieldEnum = {
   status: 'status',
   scheduledAt: 'scheduledAt',
   authorId: 'authorId',
+  customerId: 'customerId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -3385,6 +3388,7 @@ export type AnalyticsDailyScalarFieldEnum = (typeof AnalyticsDailyScalarFieldEnu
 export const ActivityScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
+  customerId: 'customerId',
   type: 'type',
   description: 'description',
   meta: 'meta',
@@ -3405,6 +3409,7 @@ export const CampaignScalarFieldEnum = {
   startDate: 'startDate',
   endDate: 'endDate',
   ownerId: 'ownerId',
+  customerId: 'customerId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -3489,6 +3494,7 @@ export const TaskScalarFieldEnum = {
   tags: 'tags',
   assigneeId: 'assigneeId',
   creatorId: 'creatorId',
+  customerId: 'customerId',
   status: 'status',
   priority: 'priority',
   type: 'type',
