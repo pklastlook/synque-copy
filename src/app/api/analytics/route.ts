@@ -1,26 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+
+  const isManager = user!.role === "admin" || user!.role === "manager";
   const accountId = req.nextUrl.searchParams.get("accountId");
   const days = parseInt(req.nextUrl.searchParams.get("days") ?? "30", 10);
   const isAll = !accountId || accountId === "all";
+
+  // For non-managers requesting "all", restrict to accounts they own
+  // so they can't see other users' analytics.
+  let scopeAccountIds: string[] | null = null;
+  if (!isManager && isAll) {
+    const owned = await db.account.findMany({ where: { ownerId: user!.userId }, select: { id: true } });
+    scopeAccountIds = owned.map((a) => a.id);
+  }
 
   const now = Date.now();
   const since = new Date(now - days * 86400000);
 
   const analytics = await db.analyticsDaily.findMany({
     where: {
-      ...(isAll ? {} : { accountId }),
+      ...(isAll
+        ? (scopeAccountIds ? { accountId: { in: scopeAccountIds } } : {})
+        : { accountId }),
       date: { gte: since },
     },
     orderBy: { date: "asc" },
   });
 
   const variants = await db.postVariant.findMany({
-    where: isAll ? {} : { accountId },
+    where: isAll
+      ? (scopeAccountIds ? { accountId: { in: scopeAccountIds } } : {})
+      : { accountId },
     include: { account: { include: { owner: true } }, post: { include: { author: true } } },
   });
 
@@ -39,7 +56,12 @@ export async function GET(req: NextRequest) {
   const series = Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date));
 
   // per-account summary
-  const accounts = await db.account.findMany({ include: { owner: true } });
+  const accounts = await db.account.findMany({
+    where: isAll
+      ? (scopeAccountIds ? { id: { in: scopeAccountIds } } : {})
+      : { id: accountId },
+    include: { owner: true },
+  });
   const perAccount = accounts
     .filter((a) => (isAll ? true : a.id === accountId))
     .map((a) => {

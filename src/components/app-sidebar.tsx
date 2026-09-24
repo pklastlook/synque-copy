@@ -45,7 +45,8 @@ import { SETTINGS_TABS, type SettingsTab } from "@/components/views/settings";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { LogoWordmark } from "@/components/glass/logo";
 
-const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; badge?: string; accent: string }[] = [
+type NavRole = "admin" | "manager" | "editor" | "member" | "viewer";
+const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; badge?: string; accent: string; roles?: NavRole[] }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Overview", accent: "oklch(0.55 0.2 255)" },
   { id: "composer", label: "Composer", icon: PenSquare, group: "Overview", accent: "oklch(0.7 0.2 25)" },
   { id: "calendar", label: "Calendar", icon: CalendarDays, group: "Overview", accent: "oklch(0.68 0.2 145)" },
@@ -53,7 +54,8 @@ const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; 
   { id: "whatsapp", label: "WhatsApp", icon: MessageCircle, group: "Overview", accent: "oklch(0.78 0.18 145)" },
   { id: "chat", label: "Team Chat", icon: MessageCircle, group: "Overview", accent: "oklch(0.66 0.22 305)" },
   { id: "tasks", label: "Tasks", icon: ListTodo, group: "Overview", accent: "oklch(0.7 0.18 165)" },
-  { id: "team-performance", label: "Performance", icon: BarChart3, group: "Overview", accent: "oklch(0.55 0.2 255)" },
+  // Performance (team-wide metrics) — managers+ only
+  { id: "team-performance", label: "Performance", icon: BarChart3, group: "Overview", accent: "oklch(0.55 0.2 255)", roles: ["admin", "manager"] },
   { id: "campaigns", label: "Campaigns", icon: Megaphone, group: "Content", accent: "oklch(0.7 0.2 25)" },
   { id: "hashtags", label: "Hashtags", icon: Hash, group: "Content", accent: "oklch(0.66 0.18 200)" },
   { id: "linkbio", label: "Link in Bio", icon: Link2, group: "Content", accent: "oklch(0.68 0.2 145)" },
@@ -62,7 +64,8 @@ const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; 
   { id: "analytics", label: "Analytics", icon: BarChart3, group: "Insights", accent: "oklch(0.55 0.2 255)" },
   { id: "reports", label: "Reports", icon: FileBarChart, group: "Insights", accent: "oklch(0.72 0.18 75)" },
   { id: "accounts", label: "Accounts", icon: AtSign, group: "Workspace", accent: "oklch(0.68 0.2 145)" },
-  { id: "team", label: "Team", icon: Users, group: "Workspace", accent: "oklch(0.62 0.22 300)" },
+  // Team (member management) — managers+ only
+  { id: "team", label: "Team", icon: Users, group: "Workspace", accent: "oklch(0.62 0.22 300)", roles: ["admin", "manager"] },
   { id: "mail", label: "Mail Server", icon: Mail, group: "Workspace", accent: "oklch(0.66 0.18 200)" },
   // Owner Panel + Settings are rendered as expandable parent groups below
   // (see <MediaGroup /> inside the Content group render) — it is no
@@ -106,7 +109,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   // Owner Panel is gated by role === "admin" (admins are the workspace owner).
   // This is real role-based access control — no hardcoded email check.
   const isOwner = user?.role === "admin" || user?.role === "owner";
-  const groups = Array.from(new Set(NAV.map((n) => n.group)));
+  const isManager = user?.role === "admin" || user?.role === "manager";
+  // Filter nav items by role — items without `roles` are visible to everyone.
+  // Items with `roles` are only shown to users with a matching role.
+  const userRole = (user?.role ?? "member") as NavRole;
+  const visibleNav = NAV.filter((n) => !n.roles || n.roles.includes(userRole));
+  const groups = Array.from(new Set(visibleNav.map((n) => n.group)));
   const settingsActive = view === "settings";
   const mediaActive = view === "media";
   const ownerActive = view === "owner";
@@ -154,7 +162,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               {g}
             </div>
             <div className="space-y-0.5">
-              {NAV.filter((n) => n.group === g).map((n) => {
+              {visibleNav.filter((n) => n.group === g).map((n) => {
                 const Icon = n.icon;
                 const active = view === n.id;
                 return (
@@ -217,8 +225,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 />
               )}
 
-              {/* Expandable Settings parent — rendered at the end of the Workspace group */}
-              {g === "Workspace" && (
+              {/* Expandable Settings parent — managers+ only */}
+              {g === "Workspace" && isManager && (
                 <SettingsGroup
                   active={settingsActive}
                   expanded={settingsExpanded}
@@ -248,6 +256,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
           <div className="truncate text-[11px] text-muted-foreground">{user?.title ?? "Team Member"}</div>
         </div>
+        {/* Settings gear — managers+ only */}
+        {isManager && (
         <button
           onClick={() => {
             setView("settings");
@@ -260,6 +270,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         >
           <Settings className={cn("h-4 w-4", settingsActive && "text-primary")} />
         </button>
+        )}
       </div>
     </div>
   );
