@@ -30,7 +30,7 @@ export async function GET() {
     campaigns,
   ] = await Promise.all([
     db.user.findMany({ orderBy: { createdAt: "asc" } }),
-    db.account.findMany({ include: { owner: true } }),
+    db.account.findMany({ include: { owner: true, health: true, protection: true } }),
     db.post.findMany({ include: { author: true, variants: { include: { account: true } } } }),
     db.postVariant.findMany({ include: { account: true } }),
     db.comment.findMany(),
@@ -277,6 +277,211 @@ export async function GET() {
     createdAt: a.createdAt.toISOString(),
   }));
 
+  // === ACCOUNT HEALTH — comprehensive safety dashboard ===
+  const accountHealth = accounts.map((acc) => {
+    const health = acc.health;
+    const protection = acc.protection;
+    const accVariants = variants.filter((v) => v.accountId === acc.id);
+    const accComments = comments.filter((c) => c.accountId === acc.id);
+
+    // Today's post count for limit tracking
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const postsToday = accVariants.filter(
+      (v) => v.publishedAt && new Date(v.publishedAt) >= todayStart
+    ).length;
+
+    // Last 7 days posts (for cadence)
+    const sevenDaysAgo = new Date(now - 7 * day);
+    const postsLast7d = accVariants.filter(
+      (v) => v.publishedAt && new Date(v.publishedAt) >= sevenDaysAgo
+    ).length;
+
+    // Hourly posts
+    const hourAgo = new Date(now - 60 * 60 * 1000);
+    const postsLastHour = accVariants.filter(
+      (v) => v.publishedAt && new Date(v.publishedAt) >= hourAgo
+    ).length;
+
+    // Sentiment breakdown
+    const positive = accComments.filter((c) => c.sentiment === "positive").length;
+    const neutral = accComments.filter((c) => c.sentiment === "neutral").length;
+    const negative = accComments.filter((c) => c.sentiment === "negative").length;
+    const totalComments = positive + neutral + negative;
+    const positiveRatio = totalComments > 0 ? Math.round((positive / totalComments) * 100) : 0;
+    const negativeRatio = totalComments > 0 ? Math.round((negative / totalComments) * 100) : 0;
+
+    // Risk assessment
+    const riskScore = health?.riskScore ?? 0;
+    const riskLevel = health?.riskLevel ?? "safe";
+    const healthStatus = health?.status ?? "healthy";
+    const reportCount = health?.reportCount ?? 0;
+    const reportTrend = health?.reportTrend ?? 0;
+    const riskReasons = health?.riskReasons ? JSON.parse(health.riskReasons) : [];
+
+    // Posting limits from protection settings
+    const dailyLimit = protection?.dailyPostLimit ?? 4;
+    const hourlyLimit = protection?.hourlyPostLimit ?? 2;
+    const minMinutesBetween = protection?.minMinutesBetweenPosts ?? 30;
+
+    // Limit usage percentages
+    const dailyPostUsage = dailyLimit > 0 ? Math.round((postsToday / dailyLimit) * 100) : 0;
+    const hourlyPostUsage = hourlyLimit > 0 ? Math.round((postsLastHour / hourlyLimit) * 100) : 0;
+
+    // Generate advisory based on real data
+    const advisories: { type: "danger" | "warning" | "info" | "success"; title: string; desc: string }[] = [];
+
+    if (healthStatus === "suspended") {
+      advisories.push({
+        type: "danger",
+        title: "Account suspended",
+        desc: "This account is currently suspended. Stop all posting immediately and contact platform support to appeal.",
+      });
+    }
+    if (healthStatus === "restricted") {
+      advisories.push({
+        type: "danger",
+        title: "Account restricted",
+        desc: "Platform has restricted this account. Posting may fail or reach will be severely limited. Pause posting for 48-72 hours.",
+      });
+    }
+    if (healthStatus === "warning") {
+      advisories.push({
+        type: "warning",
+        title: "Account health warning",
+        desc: "This account is showing warning signs. Reduce posting frequency and monitor closely for the next 48 hours.",
+      });
+    }
+    if (dailyPostUsage >= 100) {
+      advisories.push({
+        type: "warning",
+        title: "Daily post limit reached",
+        desc: `You've hit your daily limit of ${dailyLimit} posts. Posting more may trigger platform rate limits. Wait until tomorrow.`,
+      });
+    } else if (dailyPostUsage >= 75) {
+      advisories.push({
+        type: "warning",
+        title: "Approaching daily post limit",
+        desc: `${postsToday}/${dailyLimit} posts today (${dailyPostUsage}%). Be cautious — posting more than the recommended limit increases suspension risk.`,
+      });
+    }
+    if (hourlyPostUsage >= 100) {
+      advisories.push({
+        type: "warning",
+        title: "Hourly post limit reached",
+        desc: `You've posted ${postsLastHour} times in the last hour (limit: ${hourlyLimit}). Stop posting for at least ${minMinutesBetween} minutes.`,
+      });
+    }
+    if (negativeRatio > 40 && totalComments >= 5) {
+      advisories.push({
+        type: "warning",
+        title: "High negative comment ratio",
+        desc: `${negativeRatio}% of comments are negative (${negative}/${totalComments}). Consider reviewing your content strategy — high negativity can trigger platform review.`,
+      });
+    }
+    if (reportCount > 0 && reportTrend > 0) {
+      advisories.push({
+        type: "danger",
+        title: `${reportCount} reports (+${reportTrend} trend)`,
+        desc: "This account has been reported by users. Reports are a leading indicator of suspension. Review content for policy violations.",
+      });
+    }
+    if (riskScore >= 70) {
+      advisories.push({
+        type: "danger",
+        title: `Critical risk score: ${riskScore}/100`,
+        desc: "This account is at high risk of suspension. Pause all automated posting and conduct a full content audit.",
+      });
+    } else if (riskScore >= 40) {
+      advisories.push({
+        type: "warning",
+        title: `Elevated risk score: ${riskScore}/100`,
+        desc: "This account is showing moderate risk. Reduce posting frequency and avoid controversial content.",
+      });
+    }
+    if (riskReasons.length > 0) {
+      for (const reason of riskReasons.slice(0, 3)) {
+        advisories.push({
+          type: "warning",
+          title: `Risk factor: ${reason}`,
+          desc: `Detected risk factor: ${reason}. Review account protection settings.`,
+        });
+      }
+    }
+    if (healthStatus === "healthy" && riskScore < 30 && dailyPostUsage < 75) {
+      advisories.push({
+        type: "success",
+        title: "Account is healthy",
+        desc: `Risk score: ${riskScore}/100. Posting within safe limits. Keep up the good cadence of ${postsLast7d} posts/week.`,
+      });
+    }
+    if (advisories.length === 0) {
+      advisories.push({
+        type: "info",
+        title: "No active alerts",
+        desc: "This account has no warnings or risk factors. Continue normal activity.",
+      });
+    }
+
+    return {
+      id: acc.id,
+      platform: acc.platform,
+      handle: acc.handle,
+      displayName: acc.displayName,
+      avatar: acc.avatar,
+      verified: acc.verified,
+      followers: acc.followers,
+      ownerName: acc.owner?.name ?? "Unassigned",
+      ownerColor: acc.owner?.color ?? null,
+      // Health status
+      healthStatus,
+      riskScore,
+      riskLevel,
+      reportCount,
+      reportTrend,
+      riskReasons,
+      lastUpdated: health?.lastUpdated?.toISOString() ?? null,
+      // Posting limits
+      postsToday,
+      postsLast7d,
+      postsLastHour,
+      dailyLimit,
+      hourlyLimit,
+      minMinutesBetween,
+      dailyPostUsage,
+      hourlyPostUsage,
+      // Sentiment
+      positiveComments: positive,
+      neutralComments: neutral,
+      negativeComments: negative,
+      totalComments,
+      positiveRatio,
+      negativeRatio,
+      // Protection settings
+      protectionEnabled: protection?.enabled ?? false,
+      blockDuplicateContent: protection?.blockDuplicateContent ?? false,
+      blockBannedHashtags: protection?.blockBannedHashtags ?? false,
+      pausePostingOnWarning: protection?.pausePostingOnWarning ?? false,
+      // Advisory
+      advisories,
+    };
+  }).sort((a, b) => b.riskScore - a.riskScore); // highest risk first
+
+  // Team-wide health summary
+  const healthSummary = {
+    total: accountHealth.length,
+    healthy: accountHealth.filter((a) => a.healthStatus === "healthy").length,
+    warning: accountHealth.filter((a) => a.healthStatus === "warning").length,
+    restricted: accountHealth.filter((a) => a.healthStatus === "restricted").length,
+    suspended: accountHealth.filter((a) => a.healthStatus === "suspended").length,
+    atRisk: accountHealth.filter((a) => a.riskScore >= 40).length,
+    critical: accountHealth.filter((a) => a.riskScore >= 70).length,
+    totalReports: accountHealth.reduce((s, a) => s + a.reportCount, 0),
+    avgRiskScore: accountHealth.length > 0
+      ? Math.round(accountHealth.reduce((s, a) => s + a.riskScore, 0) / accountHealth.length)
+      : 0,
+  };
+
   return NextResponse.json({
     members,
     teamTotals,
@@ -289,5 +494,8 @@ export async function GET() {
     trend,
     activityHeatmap: heatmap,
     recentActivities,
+    // NEW: Account Health section
+    accountHealth,
+    healthSummary,
   });
 }

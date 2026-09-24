@@ -11,6 +11,8 @@ import {
   Sparkles, Trophy, Crown, Award, Activity, Layers,
   PenLine, Reply, Inbox, TrendingUp,
   Hash, FileEdit, XCircle, Zap, Flame,
+  ShieldCheck, ShieldAlert, AlertTriangle, Heart, ThumbsDown, ThumbsUp,
+  Gauge, Ban, Eye, AlertCircle, Info, ChevronDown, ChevronUp,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -67,6 +69,27 @@ interface TeamPerformanceData {
     id: string; userId: string; userName: string; userAvatar: string | null;
     userColor: string | null; type: string; description: string; createdAt: string;
   }[];
+  accountHealth: {
+    id: string; platform: PlatformId; handle: string; displayName: string;
+    avatar: string | null; verified: boolean; followers: number;
+    ownerName: string; ownerColor: string | null;
+    healthStatus: string; riskScore: number; riskLevel: string;
+    reportCount: number; reportTrend: number; riskReasons: string[];
+    lastUpdated: string | null;
+    postsToday: number; postsLast7d: number; postsLastHour: number;
+    dailyLimit: number; hourlyLimit: number; minMinutesBetween: number;
+    dailyPostUsage: number; hourlyPostUsage: number;
+    positiveComments: number; neutralComments: number; negativeComments: number;
+    totalComments: number; positiveRatio: number; negativeRatio: number;
+    protectionEnabled: boolean; blockDuplicateContent: boolean;
+    blockBannedHashtags: boolean; pausePostingOnWarning: boolean;
+    advisories: { type: "danger" | "warning" | "info" | "success"; title: string; desc: string }[];
+  }[];
+  healthSummary: {
+    total: number; healthy: number; warning: number; restricted: number;
+    suspended: number; atRisk: number; critical: number;
+    totalReports: number; avgRiskScore: number;
+  };
 }
 
 const TOOLTIP_STYLE = {
@@ -518,6 +541,12 @@ export function TeamPerformanceView() {
         </div>
       </GlassCard>
 
+      {/* === ACCOUNT HEALTH — comprehensive safety dashboard === */}
+      <AccountHealthSection
+        accountHealth={data.accountHealth ?? []}
+        healthSummary={data.healthSummary ?? { total: 0, healthy: 0, warning: 0, restricted: 0, suspended: 0, atRisk: 0, critical: 0, totalReports: 0, avgRiskScore: 0 }}
+      />
+
       {/* === RECENT ACTIVITY === */}
       <GlassCard className="crystal-in p-5" style={{ animationDelay: "1.18s" }}>
         <SectionTitle title="Recent activity" desc="Latest content actions across the team" action={<Activity className="h-4 w-4 text-primary" />} />
@@ -830,6 +859,244 @@ function MemberCard({ member, delay }: { member: Member; delay: number }) {
   );
 }
 
+// ============ Account Health Section — comprehensive safety dashboard ============
+const ADVISORY_META: Record<string, { icon: LucideIcon; color: string; bg: string; border: string }> = {
+  danger: { icon: Ban, color: "text-rose-500", bg: "bg-rose-500/15", border: "border-rose-500/30" },
+  warning: { icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/15", border: "border-amber-500/30" },
+  info: { icon: Info, color: "text-blue-500", bg: "bg-blue-500/15", border: "border-blue-500/30" },
+  success: { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/15", border: "border-emerald-500/30" },
+};
+
+const HEALTH_STATUS_META: Record<string, { label: string; color: string; bg: string; icon: LucideIcon }> = {
+  healthy: { label: "Healthy", color: "text-emerald-500", bg: "bg-emerald-500/15", icon: ShieldCheck },
+  warning: { label: "Warning", color: "text-amber-500", bg: "bg-amber-500/15", icon: AlertTriangle },
+  restricted: { label: "Restricted", color: "text-orange-500", bg: "bg-orange-500/15", icon: ShieldAlert },
+  suspended: { label: "Suspended", color: "text-rose-500", bg: "bg-rose-500/15", icon: Ban },
+};
+
+function AccountHealthSection({
+  accountHealth,
+  healthSummary,
+}: {
+  accountHealth: TeamPerformanceData["accountHealth"];
+  healthSummary: TeamPerformanceData["healthSummary"];
+}) {
+  const [expanded, setExpanded] = React.useState<string | null>(null);
+
+  if (accountHealth.length === 0) return null;
+  const hs = healthSummary;
+
+  return (
+    <GlassCard className="crystal-in p-5" style={{ animationDelay: "1.10s" }}>
+      <SectionTitle
+        title="Account health & safety"
+        desc="Monitor posting limits, comment sentiment, reports, and risk — keep your accounts safe from suspension"
+        action={<ShieldCheck className="h-4 w-4 text-primary" />}
+      />
+
+      {/* Summary KPIs */}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+        <HealthStat label="Healthy" value={hs.healthy} icon={<ShieldCheck className="h-3.5 w-3.5" />} color="text-emerald-500" bg="bg-emerald-500/15" />
+        <HealthStat label="Warning" value={hs.warning} icon={<AlertTriangle className="h-3.5 w-3.5" />} color="text-amber-500" bg="bg-amber-500/15" />
+        <HealthStat label="Restricted" value={hs.restricted} icon={<ShieldAlert className="h-3.5 w-3.5" />} color="text-orange-500" bg="bg-orange-500/15" />
+        <HealthStat label="Suspended" value={hs.suspended} icon={<Ban className="h-3.5 w-3.5" />} color="text-rose-500" bg="bg-rose-500/15" />
+        <HealthStat label="At Risk" value={hs.atRisk} icon={<AlertCircle className="h-3.5 w-3.5" />} color="text-orange-500" bg="bg-orange-500/15" />
+        <HealthStat label="Reports" value={hs.totalReports} icon={<Eye className="h-3.5 w-3.5" />} color="text-rose-500" bg="bg-rose-500/15" />
+      </div>
+
+      {/* Per-account health cards */}
+      <div className="space-y-2">
+        {accountHealth.map((acc, i) => {
+          const isOpen = expanded === acc.id;
+          const statusMeta = HEALTH_STATUS_META[acc.healthStatus] ?? HEALTH_STATUS_META.healthy;
+          const StatusIcon = statusMeta.icon;
+          const riskColor =
+            acc.riskScore >= 70 ? "oklch(0.65 0.22 25)" :
+            acc.riskScore >= 40 ? "oklch(0.78 0.18 75)" :
+            "oklch(0.74 0.18 165)";
+
+          return (
+            <div
+              key={acc.id}
+              className="crystal-in glass rounded-2xl border border-border/40 overflow-hidden transition hover:lift-hover"
+              style={{ animationDelay: `${0.03 * i}s` }}
+            >
+              {/* Collapsed header */}
+              <button
+                onClick={() => setExpanded(isOpen ? null : acc.id)}
+                className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-muted/40"
+              >
+                <PlatformBadge platform={acc.platform} size={24} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold">{acc.displayName}</div>
+                  <div className="text-[10px] text-muted-foreground">{acc.handle} · {acc.ownerName}</div>
+                </div>
+
+                {/* Risk score gauge */}
+                <div className="flex items-center gap-2">
+                  <div className="relative h-8 w-8">
+                    <svg className="h-full w-full -rotate-90" viewBox="0 0 32 32">
+                      <circle cx="16" cy="16" r="12" fill="none" stroke="var(--muted)" strokeWidth="3" opacity={0.3} />
+                      <circle
+                        cx="16" cy="16" r="12" fill="none" stroke={riskColor} strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 12}
+                        strokeDashoffset={2 * Math.PI * 12 - (acc.riskScore / 100) * 2 * Math.PI * 12}
+                        style={{ transition: "stroke-dashoffset 1s ease-out" }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-[10px] font-bold" style={{ color: riskColor }}>{acc.riskScore}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status badge */}
+                <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", statusMeta.bg, statusMeta.color)}>
+                  <StatusIcon className="h-2.5 w-2.5" />
+                  {statusMeta.label}
+                </span>
+
+                {/* Expand chevron */}
+                {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </button>
+
+              {/* Expanded details */}
+              {isOpen && (
+                <div className="border-t border-border/40 p-4 space-y-4">
+                  {/* Posting limits */}
+                  <div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Posting limits</div>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <LimitBar label="Today" current={acc.postsToday} max={acc.dailyLimit} usage={acc.dailyPostUsage} />
+                      <LimitBar label="Last hour" current={acc.postsLastHour} max={acc.hourlyLimit} usage={acc.hourlyPostUsage} />
+                      <LimitBar label="This week" current={acc.postsLast7d} max={acc.dailyLimit * 7} usage={Math.round((acc.postsLast7d / (acc.dailyLimit * 7)) * 100)} />
+                    </div>
+                  </div>
+
+                  {/* Sentiment breakdown */}
+                  <div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Comment sentiment</div>
+                    <div className="space-y-2">
+                      <SentimentBar label="Positive" count={acc.positiveComments} total={acc.totalComments} ratio={acc.positiveRatio} color="oklch(0.74 0.18 165)" icon={<ThumbsUp className="h-3 w-3" />} />
+                      <SentimentBar label="Neutral" count={acc.neutralComments} total={acc.totalComments} ratio={Math.round(((acc.totalComments - acc.positiveComments - acc.negativeComments) / Math.max(acc.totalComments, 1)) * 100)} color="oklch(0.7 0.04 250)" icon={<MessageCircle className="h-3 w-3" />} />
+                      <SentimentBar label="Negative" count={acc.negativeComments} total={acc.totalComments} ratio={acc.negativeRatio} color="oklch(0.65 0.22 25)" icon={<ThumbsDown className="h-3 w-3" />} />
+                    </div>
+                  </div>
+
+                  {/* Reports */}
+                  {acc.reportCount > 0 && (
+                    <div className={cn("flex items-center gap-2 rounded-xl border p-3", "border-rose-500/30 bg-rose-500/5")}>
+                      <Eye className="h-4 w-4 text-rose-500" />
+                      <div className="flex-1">
+                        <div className="text-xs font-bold text-rose-500">{acc.reportCount} reports</div>
+                        <div className="text-[10px] text-muted-foreground">Trend: {acc.reportTrend > 0 ? `+${acc.reportTrend}` : acc.reportTrend} — reports are a leading indicator of suspension</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Protection settings */}
+                  <div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Protection settings</div>
+                    <div className="flex flex-wrap gap-2">
+                      <ProtectionBadge label="Protection" active={acc.protectionEnabled} />
+                      <ProtectionBadge label="Block duplicates" active={acc.blockDuplicateContent} />
+                      <ProtectionBadge label="Block banned hashtags" active={acc.blockBannedHashtags} />
+                      <ProtectionBadge label="Pause on warning" active={acc.pausePostingOnWarning} />
+                    </div>
+                  </div>
+
+                  {/* Advisory */}
+                  <div>
+                    <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Advisory</div>
+                    <div className="space-y-2">
+                      {acc.advisories.map((adv, ai) => {
+                        const meta = ADVISORY_META[adv.type];
+                        const AdvIcon = meta.icon;
+                        return (
+                          <div
+                            key={ai}
+                            className={cn("flex items-start gap-2 rounded-xl border p-3", meta.border, meta.bg)}
+                          >
+                            <div className={cn("grid h-6 w-6 shrink-0 place-items-center rounded-lg", meta.bg, meta.color)}>
+                              <AdvIcon className="h-3 w-3" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className={cn("text-xs font-bold", meta.color)}>{adv.title}</div>
+                              <div className="mt-0.5 text-[11px] text-muted-foreground">{adv.desc}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </GlassCard>
+  );
+}
+
+function HealthStat({ label, value, icon, color, bg }: { label: string; value: number; icon: React.ReactNode; color: string; bg: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-muted/20 p-2.5">
+      <div className={cn("grid h-7 w-7 place-items-center rounded-lg", bg, color)}>
+        {icon}
+      </div>
+      <div>
+        <div className="num-display text-base font-bold">{value}</div>
+        <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function LimitBar({ label, current, max, usage }: { label: string; current: number; max: number; usage: number }) {
+  const tone = usage >= 100 ? "bg-rose-500" : usage >= 75 ? "bg-amber-500" : "bg-primary";
+  return (
+    <div className="rounded-xl bg-muted/20 p-2.5">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+        <span className="text-[10px] font-bold tabular-nums">{current}/{max}</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+        <div className={cn("h-full rounded-full transition-all duration-700", tone)} style={{ width: `${Math.min(usage, 100)}%` }} />
+      </div>
+      <div className="mt-0.5 text-right text-[8px] text-muted-foreground">{usage}% used</div>
+    </div>
+  );
+}
+
+function SentimentBar({ label, count, total, ratio, color, icon }: { label: string; count: number; total: number; ratio: number; color: string; icon: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-[11px]">
+        <span className="flex items-center gap-1 text-muted-foreground" style={{ color }}>{icon} {label}</span>
+        <span className="font-medium">{count} · {ratio}%</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(ratio, 1)}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function ProtectionBadge({ label, active }: { label: string; active: boolean }) {
+  return (
+    <span className={cn(
+      "flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold",
+      active ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground"
+    )}>
+      {active ? <CheckCircle2 className="h-2.5 w-2.5" /> : <XCircle className="h-2.5 w-2.5" />}
+      {label}
+    </span>
+  );
+}
+
+// ============ StatRow + Skeleton ============
 function StatRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-1.5">
