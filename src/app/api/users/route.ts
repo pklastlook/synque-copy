@@ -20,9 +20,13 @@ export async function GET(req: NextRequest) {
       department: u.department,
       color: u.color,
       avatar: u.avatar,
+      gender: u.gender,
+      birthDate: u.birthDate?.toISOString() ?? null,
+      phone: u.phone,
       bio: u.bio,
       timezone: u.timezone,
       language: u.language,
+      customerId: u.customerId,
       permissions: u.permissions ? JSON.parse(u.permissions) : [],
       status: u.status,
       lastActive: u.lastActive?.toISOString() ?? null,
@@ -36,7 +40,7 @@ export async function PATCH(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { id, name, email, role, title, department, color, avatar, bio, timezone, language, permissions, status, password } = body;
+  const { id, name, email, role, title, department, color, avatar, gender, birthDate, phone, bio, timezone, language, permissions, status, password } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   // Only admins/managers can change someone else's role/status
@@ -55,6 +59,9 @@ export async function PATCH(req: NextRequest) {
   if (department !== undefined) data.department = department;
   if (color !== undefined) data.color = color;
   if (avatar !== undefined) data.avatar = avatar;
+  if (gender !== undefined) data.gender = gender;
+  if (birthDate !== undefined) data.birthDate = birthDate ? new Date(birthDate) : null;
+  if (phone !== undefined) data.phone = phone;
   if (bio !== undefined) data.bio = bio;
   if (timezone !== undefined) data.timezone = timezone;
   if (language !== undefined) data.language = language;
@@ -88,6 +95,9 @@ export async function PATCH(req: NextRequest) {
       title: updated.title,
       color: updated.color,
       avatar: updated.avatar,
+      gender: updated.gender,
+      birthDate: updated.birthDate?.toISOString() ?? null,
+      phone: updated.phone,
       bio: updated.bio,
       timezone: updated.timezone,
       language: updated.language,

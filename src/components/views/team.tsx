@@ -682,6 +682,7 @@ function MemberCard({
           name={member.name}
           src={member.avatar}
           color={member.color}
+          gender={(member as any)?.gender ?? undefined}
           className="h-16 w-16 text-base"
           ring
         />
