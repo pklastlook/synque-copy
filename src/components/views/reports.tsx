@@ -11,7 +11,8 @@ import {
   FileText, Download, Trash2, Eye, Printer,
   Calendar, BarChart3, Users, TrendingUp, Heart, FileBarChart,
   Clock, RefreshCw, Loader2, Activity, Globe, Target, Sparkles,
-  ChevronDown, Save, ArrowUpDown, type LucideIcon,
+  ChevronDown, Save, ArrowUpDown, Award, Trophy, UserCheck, Grid3x3, Zap,
+  type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
@@ -66,6 +67,46 @@ interface TeamData {
   commentsBySentiment: { positive: number; neutral: number; negative: number };
   trend: { date: string; postsCreated: number; published: number; comments: number }[];
 }
+// Rich cross-tabulated data from /api/reports/data
+interface ReportDataRoot {
+  userAccountMatrix: {
+    userId: string; userName: string; userEmail: string; avatar: string | null;
+    role: string; title: string | null; department: string | null; color: string | null;
+    totals: {
+      postsCreated: number; published: number; scheduled: number; drafts: number; failed: number;
+      commentsReceived: number; commentsReplied: number; accountsOwned: number;
+    };
+    perAccount: {
+      accountId: string; platform: string; handle: string; displayName: string;
+      posts: number; published: number; comments: number; commentsReplied: number;
+    }[];
+  }[];
+  userComparison: {
+    id: string; name: string; email: string; avatar: string | null;
+    role: string; title: string | null; department: string | null; color: string | null;
+    postsCreated: number; postsPublished: number; postsScheduled: number;
+    postsDraft: number; postsFailed: number; variantsPublished: number;
+    commentsReceived: number; commentsReplied: number; replyRate: number;
+    accountsOwned: number; postsLast7d: number; avgPostsPerAccount: number;
+  }[];
+  accountUserMatrix: {
+    accountId: string; platform: string; handle: string; displayName: string;
+    ownerName: string; ownerColor: string | null; followers: number;
+    totalPosts: number; totalPublished: number; totalComments: number; repliedComments: number;
+    perUser: { userId: string; userName: string; color: string | null; posts: number; published: number }[];
+  }[];
+  leaderboard: {
+    mostPostsCreated: ReportDataRoot["userComparison"];
+    mostPublished: ReportDataRoot["userComparison"];
+    mostCommentsReplied: ReportDataRoot["userComparison"];
+    bestReplyRate: ReportDataRoot["userComparison"];
+    mostActive: ReportDataRoot["userComparison"];
+  };
+  perUserPlatform: {
+    userId: string; userName: string; color: string | null;
+    platforms: { platform: string; posts: number; published: number }[];
+  }[];
+}
 interface ReportData {
   id: string; name: string; type: string; description: string | null;
   config: string; schedule: string | null; createdByName: string;
@@ -86,8 +127,8 @@ const DATE_RANGES: { key: DateRange; label: string; days: number }[] = [
   { key: "90d", label: "90D", days: 90 },
 ];
 
-// 8 compact report templates — each renders a tailored viewer
-type TemplateId = "performance" | "audience" | "engagement" | "team" | "content" | "growth" | "platform" | "reach";
+// 12 compact report templates — each renders a tailored viewer
+type TemplateId = "performance" | "audience" | "engagement" | "team" | "content" | "growth" | "platform" | "reach" | "user-account" | "user-comparison" | "account-user" | "leaderboard";
 interface Template {
   id: TemplateId; name: string; icon: LucideIcon; color: string; desc: string;
 }
@@ -100,6 +141,10 @@ const TEMPLATES: Template[] = [
   { id: "growth", name: "Growth", icon: Activity, color: "oklch(0.7 0.2 145)", desc: "Follower & reach trends over time" },
   { id: "platform", name: "Platforms", icon: Globe, color: "oklch(0.6 0.2 220)", desc: "Per-platform performance comparison" },
   { id: "reach", name: "Reach", icon: Target, color: "oklch(0.65 0.22 15)", desc: "Impressions & reach breakdown" },
+  { id: "user-account", name: "User × Account", icon: Grid3x3, color: "oklch(0.6 0.2 200)", desc: "Posts & comments by each user on each account" },
+  { id: "user-comparison", name: "User Compare", icon: UserCheck, color: "oklch(0.7 0.18 180)", desc: "Side-by-side team member work comparison" },
+  { id: "account-user", name: "Pages Report", icon: FileBarChart, color: "oklch(0.62 0.2 35)", desc: "Per-account: who posted & how much" },
+  { id: "leaderboard", name: "Leaderboard", icon: Trophy, color: "oklch(0.72 0.2 75)", desc: "Top contributors ranked by metrics" },
 ];
 
 // ============ Main view ============
@@ -114,6 +159,7 @@ export function ReportsView() {
   const analyticsUrl = `/api/analytics?days=${days}&accountId=all`;
   const { data: analytics, loading: analyticsLoading } = useApi<AnalyticsData>(analyticsUrl);
   const { data: teamData, loading: teamLoading } = useApi<TeamData>("/api/team-performance");
+  const { data: reportData, loading: reportDataLoading } = useApi<ReportDataRoot>(`/api/reports/data?days=${days}`);
 
   function getToken(): string | null {
     try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
@@ -126,6 +172,8 @@ export function ReportsView() {
       performance: "followers", audience: "followers", engagement: "engagement",
       team: "postsCreated", content: "posts", growth: "followers",
       platform: "followers", reach: "impressions",
+      "user-account": "postsCreated", "user-comparison": "postsCreated",
+      "account-user": "totalPosts", leaderboard: "postsCreated",
     };
     setChartMetric(defaults[activeTemplate] ?? "followers");
   }, [activeTemplate]);
@@ -288,8 +336,9 @@ export function ReportsView() {
         template={template}
         analytics={analytics}
         teamData={teamData}
+        reportData={reportData}
         totals={totals}
-        loading={analyticsLoading || teamLoading}
+        loading={analyticsLoading || teamLoading || reportDataLoading}
         dateRangeLabel={DATE_RANGES.find(d => d.key === dateRange)?.label ?? "30 Days"}
         chartMetric={chartMetric}
         setChartMetric={setChartMetric}
@@ -315,6 +364,7 @@ export function ReportsView() {
         dateRangeLabel={DATE_RANGES.find(d => d.key === dateRange)?.label ?? "30 Days"}
         analytics={analytics}
         teamData={teamData}
+        reportData={reportData}
         totals={totals}
       />
     </div>
@@ -323,12 +373,13 @@ export function ReportsView() {
 
 // ============ Report Viewer ============
 function ReportViewer({
-  template, analytics, teamData, totals, loading, dateRangeLabel,
+  template, analytics, teamData, reportData, totals, loading, dateRangeLabel,
   chartMetric, setChartMetric, onSave, onPrint, savingReport,
 }: {
   template: Template;
   analytics: AnalyticsData | null;
   teamData: TeamData | null;
+  reportData: ReportDataRoot | null;
   totals: { followers: number; impressions: number; reach: number; engagement: number; posts: number; likes: number; comments: number; shares: number; saves: number };
   loading: boolean;
   dateRangeLabel: string;
@@ -398,6 +449,7 @@ function ReportViewer({
             template={template}
             analytics={analytics}
             teamData={teamData}
+            reportData={reportData}
             totals={totals}
             chartMetric={chartMetric}
             setChartMetric={setChartMetric}
@@ -410,11 +462,12 @@ function ReportViewer({
 
 // ============ Template-specific content ============
 function TemplateContent({
-  template, analytics, teamData, totals, chartMetric, setChartMetric,
+  template, analytics, teamData, reportData, totals, chartMetric, setChartMetric,
 }: {
   template: Template;
   analytics: AnalyticsData | null;
   teamData: TeamData | null;
+  reportData: ReportDataRoot | null;
   totals: { followers: number; impressions: number; reach: number; engagement: number; posts: number; likes: number; comments: number; shares: number; saves: number };
   chartMetric: string;
   setChartMetric: (m: string) => void;
@@ -427,7 +480,7 @@ function TemplateContent({
     case "engagement":
       return <EngagementContent analytics={analytics} totals={totals} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
     case "team":
-      return <TeamContent teamData={teamData} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
+      return <TeamContent teamData={teamData} reportData={reportData} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
     case "content":
       return <ContentContent analytics={analytics} teamData={teamData} totals={totals} />;
     case "growth":
@@ -436,6 +489,14 @@ function TemplateContent({
       return <PlatformContent analytics={analytics} totals={totals} />;
     case "reach":
       return <ReachContent analytics={analytics} totals={totals} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
+    case "user-account":
+      return <UserAccountContent reportData={reportData} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
+    case "user-comparison":
+      return <UserComparisonContent reportData={reportData} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
+    case "account-user":
+      return <AccountUserContent reportData={reportData} />;
+    case "leaderboard":
+      return <LeaderboardContent reportData={reportData} />;
     default:
       return null;
   }
@@ -800,8 +861,9 @@ function EngagementContent({ analytics, totals, chartMetric, setChartMetric }: {
 }
 
 // ============ Team template ============
-function TeamContent({ teamData, chartMetric, setChartMetric }: {
+function TeamContent({ teamData, reportData, chartMetric, setChartMetric }: {
   teamData: TeamData | null;
+  reportData: ReportDataRoot | null;
   chartMetric: string; setChartMetric: (m: string) => void;
 }) {
   if (!teamData) return <EmptyState />;
@@ -891,6 +953,11 @@ function TeamContent({ teamData, chartMetric, setChartMetric }: {
       </div>
 
       <MemberBreakdownTable teamData={teamData} />
+
+      {/* Per-user × per-account matrix — posts & comments each user made on each account */}
+      {reportData && reportData.userAccountMatrix.length > 0 && (
+        <UserAccountMatrixTable matrix={reportData.userAccountMatrix} />
+      )}
     </div>
   );
 }
@@ -1303,6 +1370,501 @@ function MemberBreakdownTable({ teamData }: { teamData: TeamData }) {
   );
 }
 
+// ============ User × Account matrix table (used by Team template) ============
+function UserAccountMatrixTable({ matrix }: { matrix: ReportDataRoot["userAccountMatrix"] }) {
+  // Get all unique accounts across all users
+  const allAccounts: { id: string; platform: string; displayName: string }[] = [];
+  const seen = new Set<string>();
+  for (const u of matrix) {
+    for (const a of u.perAccount) {
+      if (!seen.has(a.accountId)) {
+        seen.add(a.accountId);
+        allAccounts.push({ id: a.accountId, platform: a.platform, displayName: a.displayName });
+      }
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+        Posts & comments by user on each account
+      </div>
+      <div className="crystal-in overflow-x-auto rounded-2xl border border-border/30">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border/40 bg-muted/20">
+              <th className="sticky left-0 z-10 bg-muted/20 py-2.5 px-3 text-left font-semibold text-muted-foreground">User</th>
+              {allAccounts.map(a => (
+                <th key={a.id} className="px-2 py-2.5 text-center font-semibold text-muted-foreground" title={a.displayName}>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <PlatformBadge platform={a.platform as PlatformId} size={14} />
+                    <span className="text-[9px]">{a.displayName.slice(0, 12)}</span>
+                  </div>
+                </th>
+              ))}
+              <th className="px-3 py-2.5 text-right font-semibold text-muted-foreground">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.map(u => {
+              const total = u.totals.postsCreated;
+              return (
+                <tr key={u.userId} className="border-b border-border/20 transition hover:bg-muted/20">
+                  <td className="sticky left-0 z-10 bg-background/80 py-2 px-3">
+                    <div className="flex items-center gap-2">
+                      <NameAvatar name={u.userName} color={(u.color as any) ?? "blue"} className="h-5 w-5 text-[9px]" />
+                      <div className="font-medium truncate">{u.userName}</div>
+                    </div>
+                  </td>
+                  {allAccounts.map(a => {
+                    const cell = u.perAccount.find(p => p.accountId === a.id);
+                    const posts = cell?.posts ?? 0;
+                    const comments = cell?.comments ?? 0;
+                    return (
+                      <td key={a.id} className="px-2 py-2 text-center">
+                        {posts > 0 || comments > 0 ? (
+                          <div className="flex flex-col items-center">
+                            <span className="font-bold tabular-nums">{posts}</span>
+                            {comments > 0 && <span className="text-[9px] text-muted-foreground">{comments}c</span>}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground/30">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="px-3 py-2 text-right font-bold tabular-nums text-primary">{total}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-1.5 text-[10px] text-muted-foreground">Each cell shows posts (top) and comments (bottom, "c") by that user on that account.</p>
+    </div>
+  );
+}
+
+// ============ User × Account template (full report) ============
+function UserAccountContent({ reportData, chartMetric, setChartMetric }: {
+  reportData: ReportDataRoot | null;
+  chartMetric: string; setChartMetric: (m: string) => void;
+}) {
+  const [selectedUser, setSelectedUser] = React.useState<string | null>(null);
+  if (!reportData) return <EmptyState />;
+  const matrix = reportData.userAccountMatrix;
+  const totalPosts = matrix.reduce((s, u) => s + u.totals.postsCreated, 0);
+  const totalComments = matrix.reduce((s, u) => s + u.totals.commentsReceived, 0);
+  const totalPublished = matrix.reduce((s, u) => s + u.totals.published, 0);
+
+  const metrics = [
+    { key: "postsCreated", label: "Posts" },
+    { key: "published", label: "Published" },
+    { key: "commentsReceived", label: "Comments" },
+  ];
+
+  const selected = matrix.find(u => u.userId === selectedUser);
+
+  return (
+    <div className="space-y-4">
+      <KpiRow items={[
+        { label: "Users", value: matrix.length.toString(), icon: <Users className="h-3.5 w-3.5" />, color: "oklch(0.6 0.2 200)" },
+        { label: "Total Posts", value: totalPosts.toString(), icon: <FileText className="h-3.5 w-3.5" />, color: "oklch(0.74 0.18 165)" },
+        { label: "Published", value: totalPublished.toString(), icon: <TrendingUp className="h-3.5 w-3.5" />, color: "oklch(0.7 0.2 145)" },
+        { label: "Comments", value: totalComments.toString(), icon: <Heart className="h-3.5 w-3.5" />, color: "oklch(0.7 0.2 25)" },
+      ]} />
+
+      <ChartCard
+        title="Posts per User"
+        desc="Click a bar to drill into that user's per-account breakdown"
+      >
+        <div className="h-[260px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={matrix.map(u => ({ name: u.userName, posts: u.totals.postsCreated, published: u.totals.published }))} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={80} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Bar dataKey="posts" name="Posts Created" fill="oklch(0.74 0.18 165)" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={600} onClick={(d: any) => setSelectedUser(matrix.find(u => u.userName === d.name)?.userId ?? null)} cursor="pointer" />
+              <Bar dataKey="published" name="Published" fill="oklch(0.7 0.2 145)" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={600} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartCard>
+
+      {/* Drill-down: selected user's per-account breakdown */}
+      {selected && (
+        <ChartCard
+          title={`${selected.userName} — per account breakdown`}
+          desc="Posts & comments this user made on each account"
+          action={<button onClick={() => setSelectedUser(null)} className="text-[10px] font-semibold text-muted-foreground hover:text-foreground">Clear</button>}
+        >
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={selected.perAccount.filter(a => a.posts > 0 || a.comments > 0)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} />
+                <XAxis dataKey="displayName" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
+                <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Bar dataKey="posts" name="Posts" fill="oklch(0.74 0.18 165)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={600} />
+                <Bar dataKey="comments" name="Comments" fill="oklch(0.7 0.2 25)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={600} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      )}
+
+      <UserAccountMatrixTable matrix={matrix} />
+    </div>
+  );
+}
+
+// ============ User Comparison template ============
+function UserComparisonContent({ reportData, chartMetric, setChartMetric }: {
+  reportData: ReportDataRoot | null;
+  chartMetric: string; setChartMetric: (m: string) => void;
+}) {
+  if (!reportData) return <EmptyState />;
+  const users = reportData.userComparison;
+  const totalPosts = users.reduce((s, u) => s + u.postsCreated, 0);
+  const totalPublished = users.reduce((s, u) => s + u.postsPublished, 0);
+  const totalComments = users.reduce((s, u) => s + u.commentsReceived, 0);
+  const avgReplyRate = users.length > 0 ? Math.round(users.reduce((s, u) => s + u.replyRate, 0) / users.length) : 0;
+
+  const metrics = [
+    { key: "postsCreated", label: "Posts" },
+    { key: "postsPublished", label: "Published" },
+    { key: "commentsReplied", label: "Replies" },
+    { key: "postsLast7d", label: "Last 7d" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <KpiRow items={[
+        { label: "Team Members", value: users.length.toString(), icon: <Users className="h-3.5 w-3.5" />, color: "oklch(0.7 0.18 180)" },
+        { label: "Total Posts", value: totalPosts.toString(), icon: <FileText className="h-3.5 w-3.5" />, color: "oklch(0.74 0.18 165)" },
+        { label: "Published", value: totalPublished.toString(), icon: <TrendingUp className="h-3.5 w-3.5" />, color: "oklch(0.7 0.2 145)" },
+        { label: "Avg Reply Rate", value: `${avgReplyRate}%`, icon: <Activity className="h-3.5 w-3.5" />, color: "oklch(0.7 0.2 25)" },
+      ]} />
+
+      <ChartCard
+        title="Work Comparison"
+        desc="Toggle metrics to compare team members side-by-side"
+        action={<MetricTabs metrics={metrics} value={chartMetric} onChange={setChartMetric} />}
+      >
+        <div className="h-[260px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={users.map(u => ({ name: u.name.split(" ")[0], value: (u as any)[chartMetric] ?? 0 }))}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={32} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+              <Bar dataKey="value" radius={[6, 6, 0, 0]} isAnimationActive animationDuration={600}>
+                {users.map((u, i) => (
+                  <Cell key={i} fill={PLATFORMS[(u as any).platforms?.[0] as PlatformId]?.color ?? "var(--primary)"} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartCard>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <ChartCard title="Posts Created vs Published" desc="Per member">
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={users}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} />
+                <XAxis dataKey="name" tickFormatter={n => n.split(" ")[0]} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Bar dataKey="postsCreated" name="Created" fill="oklch(0.6 0.02 250)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={500} />
+                <Bar dataKey="postsPublished" name="Published" fill="oklch(0.7 0.2 145)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={500} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Comments: Received vs Replied" desc="Per member">
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={users}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} />
+                <XAxis dataKey="name" tickFormatter={n => n.split(" ")[0]} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Bar dataKey="commentsReceived" name="Received" fill="oklch(0.7 0.2 25)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={500} />
+                <Bar dataKey="commentsReplied" name="Replied" fill="oklch(0.74 0.18 165)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={500} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      </div>
+
+      <UserComparisonTable users={users} />
+    </div>
+  );
+}
+
+// ============ User comparison table (sortable) ============
+function UserComparisonTable({ users }: { users: ReportDataRoot["userComparison"] }) {
+  const [sortKey, setSortKey] = React.useState<string>("postsCreated");
+  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
+
+  const sorted = [...users].sort((a, b) => {
+    const av = (a as any)[sortKey] ?? 0;
+    const bv = (b as any)[sortKey] ?? 0;
+    return sortDir === "desc" ? bv - av : av - bv;
+  });
+  function toggle(k: string) {
+    if (sortKey === k) setSortDir(d => d === "desc" ? "asc" : "desc");
+    else { setSortKey(k); setSortDir("desc"); }
+  }
+
+  const cols: { key: string; label: string }[] = [
+    { key: "postsCreated", label: "Posts" },
+    { key: "postsPublished", label: "Published" },
+    { key: "postsScheduled", label: "Scheduled" },
+    { key: "postsDraft", label: "Drafts" },
+    { key: "postsFailed", label: "Failed" },
+    { key: "commentsReceived", label: "Comments" },
+    { key: "commentsReplied", label: "Replied" },
+    { key: "replyRate", label: "Reply%" },
+    { key: "postsLast7d", label: "7d" },
+  ];
+
+  return (
+    <div className="crystal-in overflow-x-auto rounded-2xl border border-border/30">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-border/40 bg-muted/20">
+            <th className="sticky left-0 z-10 bg-muted/20 py-2.5 px-3 text-left font-semibold text-muted-foreground">Member</th>
+            {cols.map(c => (
+              <th key={c.key} className="px-2 py-2.5 text-right font-semibold">
+                <button onClick={() => toggle(c.key)} className="flex items-center gap-1 hover:text-foreground">
+                  {c.label}
+                  <ArrowUpDown className={cn("h-2.5 w-2.5", sortKey === c.key ? "opacity-100" : "opacity-30")} />
+                </button>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map(u => (
+            <tr key={u.id} className="border-b border-border/20 transition hover:bg-muted/20">
+              <td className="sticky left-0 z-10 bg-background/80 py-2 px-3">
+                <div className="flex items-center gap-2">
+                  <NameAvatar name={u.name} color={(u.color as any) ?? "blue"} className="h-6 w-6 text-[10px]" />
+                  <div>
+                    <div className="font-medium">{u.name}</div>
+                    <div className="text-[10px] text-muted-foreground">{u.title ?? u.role}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="px-2 text-right tabular-nums">{u.postsCreated}</td>
+              <td className="px-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{u.postsPublished}</td>
+              <td className="px-2 text-right tabular-nums text-amber-500">{u.postsScheduled}</td>
+              <td className="px-2 text-right tabular-nums">{u.postsDraft}</td>
+              <td className="px-2 text-right tabular-nums text-rose-500">{u.postsFailed}</td>
+              <td className="px-2 text-right tabular-nums">{u.commentsReceived}</td>
+              <td className="px-2 text-right tabular-nums">{u.commentsReplied}</td>
+              <td className="px-2 text-right tabular-nums">{u.replyRate}%</td>
+              <td className="px-2 text-right tabular-nums">{u.postsLast7d}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ============ Account × User (Pages Report) template ============
+function AccountUserContent({ reportData }: { reportData: ReportDataRoot | null }) {
+  const [expanded, setExpanded] = React.useState<string | null>(null);
+  if (!reportData) return <EmptyState />;
+  const accounts = reportData.accountUserMatrix;
+  const totalFollowers = accounts.reduce((s, a) => s + a.followers, 0);
+  const totalPosts = accounts.reduce((s, a) => s + a.totalPosts, 0);
+  const totalComments = accounts.reduce((s, a) => s + a.totalComments, 0);
+  const totalReplied = accounts.reduce((s, a) => s + a.repliedComments, 0);
+
+  return (
+    <div className="space-y-4">
+      <KpiRow items={[
+        { label: "Pages", value: accounts.length.toString(), icon: <Globe className="h-3.5 w-3.5" />, color: "oklch(0.62 0.2 35)" },
+        { label: "Followers", value: fmt(totalFollowers), icon: <Users className="h-3.5 w-3.5" />, color: "oklch(0.62 0.2 255)" },
+        { label: "Total Posts", value: totalPosts.toString(), icon: <FileText className="h-3.5 w-3.5" />, color: "oklch(0.74 0.18 165)" },
+        { label: "Reply Rate", value: totalComments > 0 ? `${Math.round((totalReplied / totalComments) * 100)}%` : "—", icon: <Heart className="h-3.5 w-3.5" />, color: "oklch(0.7 0.2 25)" },
+      ]} />
+
+      <ChartCard title="Posts & Comments per Page" desc="Click a bar to see who posted">
+        <div className="h-[260px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={accounts} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="displayName" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={90} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Bar dataKey="totalPosts" name="Posts" fill="oklch(0.74 0.18 165)" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={600} />
+              <Bar dataKey="totalComments" name="Comments" fill="oklch(0.7 0.2 25)" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={600} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartCard>
+
+      {/* Per-page expandable breakdown */}
+      <div className="crystal-in overflow-hidden rounded-2xl border border-border/30">
+        <div className="border-b border-border/40 bg-muted/20 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          Pages × Users — who posted on each account
+        </div>
+        <div className="divide-y divide-border/20">
+          {accounts.map(a => (
+            <div key={a.accountId}>
+              <button
+                onClick={() => setExpanded(expanded === a.accountId ? null : a.accountId)}
+                className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-muted/30"
+              >
+                <PlatformBadge platform={a.platform as PlatformId} size={18} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-semibold">{a.displayName}</div>
+                  <div className="text-[10px] text-muted-foreground">@{a.handle} · owned by {a.ownerName}</div>
+                </div>
+                <div className="flex gap-3 text-[10px]">
+                  <span className="text-right"><div className="font-bold">{a.totalPosts}</div><div className="text-muted-foreground">posts</div></span>
+                  <span className="text-right"><div className="font-bold">{a.totalPublished}</div><div className="text-muted-foreground">pub</div></span>
+                  <span className="text-right"><div className="font-bold">{a.totalComments}</div><div className="text-muted-foreground">cmts</div></span>
+                </div>
+                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded === a.accountId && "rotate-180")} />
+              </button>
+              {expanded === a.accountId && (
+                <div className="border-t border-border/20 bg-muted/10 p-3">
+                  {a.perUser.length > 0 ? (
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border/30">
+                          <th className="py-1.5 text-left font-semibold text-muted-foreground">User</th>
+                          <th className="py-1.5 text-right font-semibold text-muted-foreground">Posts</th>
+                          <th className="py-1.5 text-right font-semibold text-muted-foreground">Published</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {a.perUser.map(u => (
+                          <tr key={u.userId} className="border-b border-border/10">
+                            <td className="py-1.5">
+                              <div className="flex items-center gap-2">
+                                <NameAvatar name={u.userName} color={(u.color as any) ?? "blue"} className="h-5 w-5 text-[9px]" />
+                                <span>{u.userName}</span>
+                              </div>
+                            </td>
+                            <td className="py-1.5 text-right tabular-nums">{u.posts}</td>
+                            <td className="py-1.5 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{u.published}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="py-2 text-center text-[11px] text-muted-foreground">No users have posted on this account yet.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ Leaderboard template ============
+function LeaderboardPodiumCard({ users, title, icon, color }: {
+  users: ReportDataRoot["userComparison"]; title: string; icon: LucideIcon; color: string;
+}) {
+  const Icon = icon;
+  return (
+    <div className="crystal-in rounded-2xl border border-border/30 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: `${color}18`, color }}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{title}</div>
+      </div>
+      <div className="space-y-2">
+        {users.length === 0 ? (
+          <p className="py-3 text-center text-[11px] text-muted-foreground">No data yet</p>
+        ) : users.map((u, i) => (
+          <div key={u.id} className="flex items-center gap-2.5">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"
+              style={{ background: i === 0 ? "oklch(0.78 0.18 85)" : i === 1 ? "oklch(0.6 0.02 250)" : i === 2 ? "oklch(0.6 0.15 50)" : "var(--muted-foreground)" }}>
+              {i + 1}
+            </span>
+            <NameAvatar name={u.name} color={(u.color as any) ?? "blue"} className="h-6 w-6 text-[9px]" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-semibold">{u.name}</div>
+              <div className="text-[10px] text-muted-foreground">{u.title ?? u.role}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs font-bold tabular-nums" style={{ color }}>{u.postsCreated}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LeaderboardContent({ reportData }: { reportData: ReportDataRoot | null }) {
+  if (!reportData) return <EmptyState />;
+  const lb = reportData.leaderboard;
+
+  return (
+    <div className="space-y-4">
+      <KpiRow items={[
+        { label: "Members", value: reportData.userComparison.length.toString(), icon: <Users className="h-3.5 w-3.5" />, color: "oklch(0.72 0.2 75)" },
+        { label: "Total Posts", value: reportData.userComparison.reduce((s, u) => s + u.postsCreated, 0).toString(), icon: <FileText className="h-3.5 w-3.5" />, color: "oklch(0.74 0.18 165)" },
+        { label: "Total Published", value: reportData.userComparison.reduce((s, u) => s + u.postsPublished, 0).toString(), icon: <TrendingUp className="h-3.5 w-3.5" />, color: "oklch(0.7 0.2 145)" },
+        { label: "Most Active", value: reportData.userComparison[0]?.postsLast7d.toString() ?? "0", icon: <Activity className="h-3.5 w-3.5" />, color: "oklch(0.7 0.2 25)" },
+      ]} />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <LeaderboardPodiumCard users={lb.mostPostsCreated} title="Most Posts Created" icon={FileText} color="oklch(0.74 0.18 165)" />
+        <LeaderboardPodiumCard users={lb.mostPublished} title="Most Published" icon={TrendingUp} color="oklch(0.7 0.2 145)" />
+        <LeaderboardPodiumCard users={lb.mostCommentsReplied} title="Most Comments Replied" icon={Heart} color="oklch(0.7 0.2 25)" />
+        <LeaderboardPodiumCard users={lb.bestReplyRate} title="Best Reply Rate" icon={Activity} color="oklch(0.62 0.22 300)" />
+        <LeaderboardPodiumCard users={lb.mostActive} title="Most Active (7d)" icon={Zap} color="oklch(0.72 0.2 75)" />
+        <LeaderboardPodiumCard users={[...reportData.userComparison].sort((a, b) => b.accountsOwned - a.accountsOwned).slice(0, 5)} title="Most Accounts Managed" icon={Globe} color="oklch(0.6 0.2 220)" />
+      </div>
+
+      {/* Per-user platform breakdown — stacked bar chart */}
+      <ChartCard title="Platform Distribution by User" desc="Which platforms each member posts to">
+        <div className="h-[260px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={reportData.perUserPlatform.map(u => {
+              const row: Record<string, string | number> = { name: u.userName.split(" ")[0] };
+              for (const p of u.platforms) row[p.platform] = p.posts;
+              return row;
+            })}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={28} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              {Object.keys(PLATFORMS).map((p) => {
+                const pm = PLATFORMS[p as PlatformId];
+                return <Bar key={p} dataKey={p} stackId="a" fill={pm?.color ?? "var(--primary)"} isAnimationActive animationDuration={500} />;
+              })}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartCard>
+    </div>
+  );
+}
+
 // ============ Top content list ============
 function TopContentList({ analytics, title }: { analytics: AnalyticsData; title?: string }) {
   if (analytics.topContent.length === 0) return null;
@@ -1434,44 +1996,94 @@ function EmptyState() {
 
 // ============ Print Layout (hidden on screen) ============
 function PrintLayout({
-  template, dateRangeLabel, analytics, teamData, totals,
+  template, dateRangeLabel, analytics, teamData, reportData, totals,
 }: {
   template: Template; dateRangeLabel: string; analytics: AnalyticsData | null;
   teamData: TeamData | null;
+  reportData: ReportDataRoot | null;
   totals: { followers: number; impressions: number; reach: number; engagement: number; posts: number; likes: number; comments: number; shares: number; saves: number };
 }) {
   if (!analytics) return null;
   const now = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
   const title = `${template.name} Report`;
+  const templateColor = template.color;
+
+  // Template-specific executive summary text
+  const summaryText = (() => {
+    switch (template.id) {
+      case "user-account":
+      case "user-comparison":
+        return `This ${dateRangeLabel.toLowerCase()} report compares team member activity. ${reportData?.userComparison.length ?? 0} member(s) created ${reportData?.userComparison.reduce((s, u) => s + u.postsCreated, 0) ?? 0} posts total, of which ${reportData?.userComparison.reduce((s, u) => s + u.postsPublished, 0) ?? 0} were published across ${analytics.perAccount.length} account(s).`;
+      case "account-user":
+        return `This ${dateRangeLabel.toLowerCase()} pages report details per-account activity. ${analytics.perAccount.length} account(s) received ${reportData?.accountUserMatrix.reduce((s, a) => s + a.totalPosts, 0) ?? 0} posts from ${reportData?.userComparison.length ?? 0} team member(s), with ${reportData?.accountUserMatrix.reduce((s, a) => s + a.totalComments, 0) ?? 0} total comments.`;
+      case "leaderboard":
+        return `This ${dateRangeLabel.toLowerCase()} leaderboard ranks ${reportData?.userComparison.length ?? 0} team member(s) by posts created, published, comment replies, reply rate, and 7-day activity.`;
+      case "team":
+        return `This ${dateRangeLabel.toLowerCase()} team activity report covers ${teamData?.teamTotals.members ?? 0} member(s) managing ${analytics.perAccount.length} account(s). The team created ${teamData?.teamTotals.postsCreated ?? 0} posts, published ${teamData?.teamTotals.publishedPosts ?? 0}, and replied to ${teamData?.teamTotals.commentsReplied ?? 0} of ${teamData?.teamTotals.commentsReceived ?? 0} comments (${teamData?.teamTotals.replyRate ?? 0}% reply rate).`;
+      case "engagement":
+        return `This ${dateRangeLabel.toLowerCase()} engagement report covers ${analytics.perAccount.length} account(s). Total engagement: ${fmt(totals.engagement)} (${fmt(totals.likes)} likes, ${fmt(totals.comments)} comments, ${fmt(totals.shares)} shares, ${fmt(totals.saves)} saves).`;
+      default:
+        return `This ${dateRangeLabel.toLowerCase()} ${template.name.toLowerCase()} report covers ${analytics.perAccount.length} account(s)${teamData ? ` and ${teamData.teamTotals.members} team member(s)` : ""}. Total audience: ${fmt(totals.followers)} followers, ${fmt(totals.impressions)} impressions, ${fmt(totals.reach)} reach, and ${fmt(totals.engagement)} total engagement.`;
+    }
+  })();
+
+  // Whether to show the user×account matrix table
+  const showUserMatrix = ["user-account", "team", "user-comparison"].includes(template.id) && reportData && reportData.userAccountMatrix.length > 0;
+  const showAccountUser = ["account-user"].includes(template.id) && reportData && reportData.accountUserMatrix.length > 0;
+  const showLeaderboard = ["leaderboard"].includes(template.id) && reportData;
 
   return (
     <div className="report-print-root hidden print:block">
       <table className="w-full">
         <thead><tr><td className="report-header-cell">
           <div className="report-header">
-            <div className="flex items-center justify-between">
+            <div className="report-header-row">
               <div>
                 <div className="report-brand">SocialFlow</div>
                 <div className="report-subtitle">{title}</div>
+                <div className="report-template-desc">{template.desc}</div>
               </div>
               <div className="text-right">
                 <div className="report-date">{now}</div>
                 <div className="report-type">{dateRangeLabel} Report</div>
+                <div className="report-range">Last {dateRangeLabel === "Today" ? "1 day" : dateRangeLabel === "7D" ? "7 days" : dateRangeLabel === "30D" ? "30 days" : "90 days"}</div>
               </div>
             </div>
+            <div className="report-accent-bar" style={{ background: templateColor }} />
           </div>
         </td></tr></thead>
         <tbody><tr><td className="report-body-cell">
           <div className="report-content">
             <h2 className="report-section-title">Executive Summary</h2>
-            <p className="report-text">
-              This {dateRangeLabel.toLowerCase()} {template.name.toLowerCase()} report covers {analytics.perAccount.length} account(s)
-              {teamData ? ` and ${teamData.teamTotals.members} team member(s)` : ""}. Total audience:
-              {" "}<strong>{fmt(totals.followers)}</strong> followers,
-              {" "}<strong>{fmt(totals.impressions)}</strong> impressions,
-              {" "}<strong>{fmt(totals.reach)}</strong> reach, and
-              {" "}<strong>{fmt(totals.engagement)}</strong> total engagement.
-            </p>
+            <p className="report-text">{summaryText}</p>
+
+            {/* KPI summary grid — 4 cards */}
+            <div className="report-kpi-grid">
+              {(() => {
+                const kpis: { label: string; value: string }[] = [];
+                if (["user-account", "user-comparison", "leaderboard", "team"].includes(template.id) && reportData) {
+                  kpis.push(
+                    { label: "Members", value: (reportData.userComparison.length).toString() },
+                    { label: "Posts Created", value: reportData.userComparison.reduce((s, u) => s + u.postsCreated, 0).toString() },
+                    { label: "Published", value: reportData.userComparison.reduce((s, u) => s + u.postsPublished, 0).toString() },
+                    { label: "Comments Replied", value: reportData.userComparison.reduce((s, u) => s + u.commentsReplied, 0).toString() },
+                  );
+                } else {
+                  kpis.push(
+                    { label: "Followers", value: fmt(totals.followers) },
+                    { label: "Impressions", value: fmt(totals.impressions) },
+                    { label: "Reach", value: fmt(totals.reach) },
+                    { label: "Engagement", value: fmt(totals.engagement) },
+                  );
+                }
+                return kpis.map((k, i) => (
+                  <div key={i} className="report-kpi-card">
+                    <div className="report-kpi-value">{k.value}</div>
+                    <div className="report-kpi-label">{k.label}</div>
+                  </div>
+                ));
+              })()}
+            </div>
 
             <h2 className="report-section-title">Key Metrics</h2>
             <table className="report-table">
@@ -1489,18 +2101,34 @@ function PrintLayout({
               </tbody>
             </table>
 
-            {teamData && (
+            {/* Team member comparison — full table */}
+            {reportData && ["team", "user-comparison", "leaderboard"].includes(template.id) && (
               <>
-                <h2 className="report-section-title">Team Activity</h2>
+                <h2 className="report-section-title">Team Member Work Comparison</h2>
                 <table className="report-table">
-                  <thead><tr><th>Member</th><th className="text-right">Posts</th><th className="text-right">Published</th><th className="text-right">Reply Rate</th></tr></thead>
+                  <thead><tr>
+                    <th>Member</th>
+                    <th className="text-right">Posts</th>
+                    <th className="text-right">Published</th>
+                    <th className="text-right">Drafts</th>
+                    <th className="text-right">Failed</th>
+                    <th className="text-right">Comments</th>
+                    <th className="text-right">Replied</th>
+                    <th className="text-right">Reply %</th>
+                    <th className="text-right">7-day</th>
+                  </tr></thead>
                   <tbody>
-                    {teamData.members.map(m => (
-                      <tr key={m.id}>
-                        <td className="font-medium">{m.name}</td>
-                        <td className="text-right tabular-nums">{m.metrics.postsCreated}</td>
-                        <td className="text-right tabular-nums">{m.metrics.publishedPosts}</td>
-                        <td className="text-right tabular-nums">{m.metrics.replyRate}%</td>
+                    {reportData.userComparison.map(u => (
+                      <tr key={u.id}>
+                        <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
+                        <td className="text-right tabular-nums">{u.postsCreated}</td>
+                        <td className="text-right tabular-nums">{u.postsPublished}</td>
+                        <td className="text-right tabular-nums">{u.postsDraft}</td>
+                        <td className="text-right tabular-nums">{u.postsFailed}</td>
+                        <td className="text-right tabular-nums">{u.commentsReceived}</td>
+                        <td className="text-right tabular-nums">{u.commentsReplied}</td>
+                        <td className="text-right tabular-nums">{u.replyRate}%</td>
+                        <td className="text-right tabular-nums">{u.postsLast7d}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1508,22 +2136,125 @@ function PrintLayout({
               </>
             )}
 
-            <h2 className="report-section-title">Account Breakdown</h2>
-            <table className="report-table">
-              <thead><tr><th>Account</th><th>Platform</th><th className="text-right">Followers</th><th className="text-right">Impressions</th><th className="text-right">Engagement</th><th>Owner</th></tr></thead>
-              <tbody>
-                {analytics.perAccount.map(a => (
-                  <tr key={a.id}>
-                    <td className="font-medium">{a.displayName}</td>
-                    <td className="capitalize">{a.platform}</td>
-                    <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
-                    <td>{a.ownerName}</td>
-                  </tr>
+            {/* User × Account matrix table */}
+            {showUserMatrix && (() => {
+              const matrix = reportData!.userAccountMatrix;
+              const allAccounts: { id: string; displayName: string; platform: string }[] = [];
+              const seen = new Set<string>();
+              for (const u of matrix) for (const a of u.perAccount) if (!seen.has(a.accountId)) { seen.add(a.accountId); allAccounts.push({ id: a.accountId, displayName: a.displayName, platform: a.platform }); }
+              return (
+                <>
+                  <h2 className="report-section-title">Posts & Comments by User on Each Account</h2>
+                  <table className="report-table report-matrix">
+                    <thead><tr>
+                      <th>User</th>
+                      {allAccounts.map(a => <th key={a.id} className="text-center">{a.displayName}</th>)}
+                      <th className="text-right">Total</th>
+                    </tr></thead>
+                    <tbody>
+                      {matrix.map(u => (
+                        <tr key={u.userId}>
+                          <td className="font-medium">{u.userName}</td>
+                          {allAccounts.map(a => {
+                            const cell = u.perAccount.find(p => p.accountId === a.id);
+                            return <td key={a.id} className="text-center tabular-nums">{cell?.posts ?? "—"}</td>;
+                          })}
+                          <td className="text-right tabular-nums font-bold">{u.totals.postsCreated}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              );
+            })()}
+
+            {/* Account × User (Pages Report) — per account who posted */}
+            {showAccountUser && (
+              <>
+                <h2 className="report-section-title">Pages Report — Per Account Breakdown</h2>
+                <table className="report-table">
+                  <thead><tr><th>Account</th><th>Platform</th><th>Owner</th><th className="text-right">Followers</th><th className="text-right">Posts</th><th className="text-right">Published</th><th className="text-right">Comments</th><th className="text-right">Replied</th></tr></thead>
+                  <tbody>
+                    {reportData!.accountUserMatrix.map(a => (
+                      <tr key={a.accountId}>
+                        <td className="font-medium">{a.displayName}</td>
+                        <td className="capitalize">{a.platform}</td>
+                        <td>{a.ownerName}</td>
+                        <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                        <td className="text-right tabular-nums">{a.totalPosts}</td>
+                        <td className="text-right tabular-nums">{a.totalPublished}</td>
+                        <td className="text-right tabular-nums">{a.totalComments}</td>
+                        <td className="text-right tabular-nums">{a.repliedComments}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {/* Per-account user breakdown */}
+                <h2 className="report-section-title">Who Posted on Each Account</h2>
+                {reportData!.accountUserMatrix.map(a => a.perUser.length > 0 && (
+                  <div key={a.accountId} className="report-subsection">
+                    <div className="report-subhead">{a.displayName} <span className="report-subtle">(@{a.handle})</span></div>
+                    <table className="report-table report-sub-table">
+                      <thead><tr><th>User</th><th className="text-right">Posts</th><th className="text-right">Published</th></tr></thead>
+                      <tbody>
+                        {a.perUser.map(u => (
+                          <tr key={u.userId}>
+                            <td>{u.userName}</td>
+                            <td className="text-right tabular-nums">{u.posts}</td>
+                            <td className="text-right tabular-nums">{u.published}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </>
+            )}
+
+            {/* Leaderboard */}
+            {showLeaderboard && reportData && (
+              <>
+                <h2 className="report-section-title">Leaderboard — Top Contributors</h2>
+                <table className="report-table">
+                  <thead><tr><th>Rank</th><th>Member</th><th>Posts Created</th><th>Published</th><th>Comments Replied</th><th>Reply Rate</th><th>7-day Activity</th></tr></thead>
+                  <tbody>
+                    {[...reportData.userComparison].sort((a, b) => b.postsCreated - a.postsCreated).slice(0, 10).map((u, i) => (
+                      <tr key={u.id}>
+                        <td className="tabular-nums">{i + 1}</td>
+                        <td className="font-medium">{u.name}</td>
+                        <td className="text-right tabular-nums">{u.postsCreated}</td>
+                        <td className="text-right tabular-nums">{u.postsPublished}</td>
+                        <td className="text-right tabular-nums">{u.commentsReplied}</td>
+                        <td className="text-right tabular-nums">{u.replyRate}%</td>
+                        <td className="text-right tabular-nums">{u.postsLast7d}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {/* Standard account breakdown (for non-pages templates) */}
+            {!showAccountUser && (
+              <>
+                <h2 className="report-section-title">Account Breakdown</h2>
+                <table className="report-table">
+                  <thead><tr><th>Account</th><th>Platform</th><th className="text-right">Followers</th><th className="text-right">Impressions</th><th className="text-right">Engagement</th><th>Owner</th></tr></thead>
+                  <tbody>
+                    {analytics.perAccount.map(a => (
+                      <tr key={a.id}>
+                        <td className="font-medium">{a.displayName}</td>
+                        <td className="capitalize">{a.platform}</td>
+                        <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                        <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+                        <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+                        <td>{a.ownerName}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
 
             {analytics.topContent.length > 0 && (
               <>
@@ -1545,14 +2276,14 @@ function PrintLayout({
               </>
             )}
 
-            <p className="report-footer-note">Generated by SocialFlow on {now}. Data sourced from connected social media accounts.</p>
+            <p className="report-footer-note">Generated by SocialFlow on {now} · {title} · Confidential — for internal use only.</p>
           </div>
         </td></tr></tbody>
         <tfoot><tr><td className="report-footer-cell">
           <div className="report-footer">
-            <div className="flex items-center justify-between">
-              <span>SocialFlow — Social, Simplified.</span>
-              <span>Page <span className="page-number"></span></span>
+            <div className="report-footer-row">
+              <span><strong>SocialFlow</strong> — Social, Simplified.</span>
+              <span>Page <span className="page-number"></span> of <span className="page-count"></span></span>
             </div>
           </div>
         </td></tr></tfoot>
@@ -1564,22 +2295,38 @@ function PrintLayout({
           body * { visibility: hidden; }
           .report-print-root, .report-print-root * { visibility: visible; }
           .report-print-root { position: absolute; top: 0; left: 0; width: 100%; }
-          .report-header { border-bottom: 2px solid #000; padding: 20px 40px 10px; }
-          .report-brand { font-size: 18px; font-weight: 800; color: #5856D6; }
-          .report-subtitle { font-size: 14px; font-weight: 600; color: #333; }
-          .report-date { font-size: 11px; color: #666; }
-          .report-type { font-size: 10px; color: #999; text-transform: uppercase; }
-          .report-body-cell { padding: 20px 40px; }
-          .report-content { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #222; }
-          .report-section-title { font-size: 14px; font-weight: 700; color: #5856D6; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; }
-          .report-text { font-size: 12px; line-height: 1.6; color: #333; margin-bottom: 12px; }
-          .report-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
-          .report-table th { background: #f5f5f5; font-weight: 600; text-align: left; padding: 6px 10px; border: 1px solid #ddd; }
-          .report-table td { padding: 5px 10px; border: 1px solid #ddd; }
-          .report-table tbody tr:nth-child(even) { background: #fafafa; }
-          .report-footer-note { font-size: 10px; color: #999; margin-top: 24px; font-style: italic; }
-          .report-footer { border-top: 2px solid #000; padding: 10px 40px; font-size: 10px; color: #666; }
+          .report-header { border-bottom: 1px solid #e0e0e0; }
+          .report-header-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 24px 48px 12px; }
+          .report-accent-bar { height: 3px; width: 100%; }
+          .report-brand { font-size: 22px; font-weight: 800; color: #5856D6; letter-spacing: -0.5px; }
+          .report-subtitle { font-size: 15px; font-weight: 600; color: #1a1a1a; margin-top: 2px; }
+          .report-template-desc { font-size: 10px; color: #777; margin-top: 2px; }
+          .report-date { font-size: 11px; color: #555; }
+          .report-type { font-size: 10px; color: #888; text-transform: uppercase; font-weight: 600; }
+          .report-range { font-size: 9px; color: #aaa; margin-top: 2px; }
+          .report-body-cell { padding: 20px 48px 32px; }
+          .report-content { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; }
+          .report-section-title { font-size: 13px; font-weight: 700; color: #5856D6; margin-top: 22px; margin-bottom: 8px; border-bottom: 2px solid #5856D6; padding-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .report-text { font-size: 11.5px; line-height: 1.65; color: #333; margin-bottom: 12px; }
+          .report-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 16px; }
+          .report-kpi-card { border: 1px solid #e0e0e0; border-left: 3px solid #5856D6; border-radius: 4px; padding: 10px 12px; background: #fafafa; }
+          .report-kpi-value { font-size: 20px; font-weight: 700; color: #1a1a1a; line-height: 1; }
+          .report-kpi-label { font-size: 9px; font-weight: 600; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+          .report-table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 14px; }
+          .report-table th { background: #5856D6; color: #fff; font-weight: 600; text-align: left; padding: 7px 10px; border: 1px solid #5856D6; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+          .report-table td { padding: 5px 10px; border: 1px solid #e0e0e0; }
+          .report-table tbody tr:nth-child(even) { background: #f9f9fb; }
+          .report-table tbody tr:hover { background: #f0f0ff; }
+          .report-matrix th, .report-matrix td { font-size: 9.5px; padding: 4px 6px; }
+          .report-subsection { margin-top: 12px; page-break-inside: avoid; }
+          .report-subhead { font-size: 11px; font-weight: 700; color: #333; margin-bottom: 4px; }
+          .report-sub-table th { background: #f0f0f5; color: #333; font-size: 9px; }
+          .report-subtle { color: #888; font-weight: 400; font-size: 9px; }
+          .report-footer-note { font-size: 9.5px; color: #888; margin-top: 28px; font-style: italic; border-top: 1px dashed #ccc; padding-top: 8px; }
+          .report-footer { border-top: 2px solid #5856D6; padding: 10px 48px; }
+          .report-footer-row { display: flex; justify-content: space-between; font-size: 9.5px; color: #666; }
           .page-number:after { content: counter(page); }
+          .page-count:after { content: counter(pages); }
         }
       `}</style>
     </div>
