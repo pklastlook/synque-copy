@@ -97,6 +97,9 @@ export function TeamView() {
   const [mRole, setMRole] = React.useState<"admin" | "manager" | "editor" | "member" | "viewer">("member");
   const [mTitle, setMTitle] = React.useState("");
   const [mDepartment, setMDepartment] = React.useState("");
+  const [mGender, setMGender] = React.useState("");
+  const [mBirthDate, setMBirthDate] = React.useState("");
+  const [mPhone, setMPhone] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   // Success dialog — shows the created credentials so admin can share them
@@ -196,6 +199,9 @@ export function TeamView() {
           role: mRole,
           title: mTitle.trim() || undefined,
           department: mDepartment.trim() || undefined,
+          gender: mGender || undefined,
+          birthDate: mBirthDate || undefined,
+          phone: mPhone.trim() || undefined,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -207,6 +213,7 @@ export function TeamView() {
       setSuccessOpen(true);
       // Reset add form
       setMName(""); setMEmail(""); setMPassword(""); setMTitle(""); setMDepartment("");
+      setMGender(""); setMBirthDate(""); setMPhone("");
       setMRole("member"); setShowPassword(false);
       setAddOpen(false);
       reload();
@@ -394,6 +401,40 @@ export function TeamView() {
                   onChange={(e) => setMDepartment(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="m-phone">Phone</Label>
+                <Input
+                  id="m-phone"
+                  placeholder="+1 555 0100"
+                  value={mPhone}
+                  onChange={(e) => setMPhone(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="m-gender">Gender</Label>
+                <Select value={mGender || "__none__"} onValueChange={(v) => setMGender(v === "__none__" ? "" : v)}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Not specified</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="m-birthdate">Birth date</Label>
+              <Input
+                id="m-birthdate"
+                type="date"
+                value={mBirthDate}
+                onChange={(e) => setMBirthDate(e.target.value)}
+              />
             </div>
 
             <div className="space-y-1.5">
