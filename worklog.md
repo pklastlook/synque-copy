@@ -2571,3 +2571,33 @@ Stage Summary:
   2. Integrations — was a hardcoded stub ("not yet implemented"). Built a complete system: Prisma Integration model, /api/integrations (GET/POST) + /api/integrations/[type] (GET/DELETE/test), rebuilt the UI with real data, dynamic configure dialogs, test buttons that actually verify Slack/Unsplash/Stripe connections.
   3. Team Chat — was already working (API returns members + messages). Verified in browser: members show, messages send.
 - Artifacts changed: prisma/schema.prisma (+Integration model), mini-services/whatsapp-service/index.js (patched), src/app/api/whatsapp/connection/route.ts (127.0.0.1), src/app/api/whatsapp/send/route.ts (127.0.0.1), src/app/api/integrations/route.ts (NEW), src/app/api/integrations/[type]/route.ts (NEW), src/components/views/settings.tsx (IntegrationsSection rebuilt + imports).
+
+---
+Task ID: failed-posts-card
+Agent: general-purpose (dashboard empty-space fix)
+Task: Fill empty space on the dashboard with a Failed Posts card similar to the existing Recent Posts card.
+
+Work Log:
+- Read /home/z/my-project/worklog.md to understand prior work.
+- User reported empty space on the dashboard and asked to fill it with a "failed posts" card similar to existing cards.
+- Used VLM to analyze the current dashboard screenshot — found that the "Recent posts" card was full-width and there was a "2 posts failed to publish" alert banner, but no dedicated card showing the actual failed posts. The empty space was beside the Recent Posts card (which was full-width, leaving the right side underused on wide screens).
+- API change (src/app/api/dashboard/route.ts): Added a `failedPosts` array — filters posts by `status === "failed"`, sorts by createdAt desc, slices top 6, maps to the same shape as recentPosts (id, title, caption, mediaUrl, tone, authorName, authorColor, createdAt, platforms, variantCount). Added `failedPosts` to the response object.
+- View change (src/components/views/dashboard.tsx):
+  • Added `failedPosts` to the DashboardData interface.
+  • Imported `RotateCcw` icon (for the Retry action).
+  • Wrapped the existing "Recent posts" GlassCard + a new "Failed posts" GlassCard in a `grid gap-4 lg:grid-cols-2` so they sit side-by-side on large screens.
+  • The Failed Posts card mirrors the Recent Posts card structure exactly (thumbnail, status badge, title, author avatar+name, time, platform badges, hover action) but uses a rose/red theme: border-rose-500/20, bg-rose-500/5, hover:border-rose-500/40, "FAIL" badge in rose, Retry action (RotateCcw icon) instead of Edit.
+  • Clicking a failed post opens the composer with status="failed" for republishing.
+  • Header shows a rose pill with the failed count + XCircle icon.
+  • Empty state: emerald checkmark + "No failed posts — All your publishes succeeded".
+- Ran `bunx eslint` + `bunx tsc --noEmit` — both clean (0 errors).
+- Browser-verified with Agent Browser + VLM:
+  • Reloaded dashboard, scrolled to the posts section.
+  • Confirmed two cards side-by-side: "Recent posts" (4 items visible) + "Failed posts" (2 items: "Winter collection 2026 is launching soon..." and "Winter collection 2026 is on t...").
+  • Failed posts card shows: rose "2" badge, FAIL status badges, author (M. Ashraf), platform icons, timestamps (22h ago, 23h ago), Retry action on hover.
+  • VLM: "No more empty space. Visual quality 9/10. Clean, modern, professional SaaS look with intuitive red color coding for errors."
+- Committed + pushed to GitHub (commit f70bdc5).
+
+Stage Summary:
+- The dashboard's empty space is now filled with a dedicated **Failed Posts** card that sits beside the Recent Posts card in a 2-column grid. It shows real failed posts from the database (2 found), uses a rose/red theme to signal errors, and each item is clickable to open the composer for retry. When there are no failed posts, it shows a green "All publishes succeeded" empty state.
+- Artifacts changed: src/app/api/dashboard/route.ts (+18 lines: failedPosts array + response field), src/components/views/dashboard.tsx (+89 lines: type + 2-col grid + Failed Posts card).
