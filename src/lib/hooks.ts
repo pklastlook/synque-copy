@@ -18,24 +18,31 @@ export function useApi<T>(url: string | null) {
   const [loading, setLoading] = React.useState(!!url);
   const [error, setError] = React.useState<string | null>(null);
 
-  const reload = React.useCallback(() => {
-    if (!url) return;
-    setLoading(true);
-    const token = getAuthToken();
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    fetch(url, { headers })
-      .then(async (r) => {
-        if (!r.ok) throw new Error("Request failed");
-        return r.json();
-      })
-      .then((d) => {
-        setData(d);
-        setError(null);
-      })
-      .catch((e) => setError(e.message ?? "Error"))
-      .finally(() => setLoading(false));
-  }, [url]);
+  const reload = React.useCallback(
+    (opts?: { silent?: boolean }) => {
+      if (!url) return;
+      // "silent" reloads (background polling) don't flip loading=true,
+      // so the UI doesn't flash a skeleton every few seconds.
+      if (!opts?.silent) setLoading(true);
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      fetch(url, { headers })
+        .then(async (r) => {
+          if (!r.ok) throw new Error("Request failed");
+          return r.json();
+        })
+        .then((d) => {
+          setData(d);
+          setError(null);
+        })
+        .catch((e) => setError(e.message ?? "Error"))
+        .finally(() => {
+          if (!opts?.silent) setLoading(false);
+        });
+    },
+    [url]
+  );
 
   React.useEffect(() => {
     reload();

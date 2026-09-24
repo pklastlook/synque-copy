@@ -87,15 +87,33 @@ export function WhatsAppView() {
   const [showQR, setShowQR] = React.useState(false);
   const [connecting, setConnecting] = React.useState(false);
 
-  // Poll connection status every 2s when modal is open OR when not connected
+  // Initial connection fetch (mount-only) — so the status shows immediately
+  // instead of waiting for the first poll interval.
   React.useEffect(() => {
-    if (!ownerId) return;
+    if (!ownerId || !token) return;
+    let cancelled = false;
+    fetch(`/api/whatsapp/connection`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((json: ConnectionStatus) => { if (!cancelled) setConnection(json); })
+      .catch(() => { if (!cancelled) setConnection({ connected: false, qr: null, phone: null, serviceOffline: true }); });
+    return () => { cancelled = true; };
+  }, [ownerId, token]);
+
+  // Poll connection status every 2s when modal is open OR when not connected.
+  // Uses refs for showQR/connected so the interval isn't torn down on every
+  // state change (which caused an infinite re-poll loop → transient
+  // serviceOffline flashes).
+  const showQRRef = React.useRef(showQR);
+  React.useEffect(() => { showQRRef.current = showQR; }, [showQR]);
+
+  React.useEffect(() => {
+    if (!ownerId || !token) return;
     let cancelled = false;
 
     async function poll() {
       try {
         const res = await fetch(`/api/whatsapp/connection`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) {
           if (!cancelled) setConnection({ connected: false, qr: null, phone: null, serviceOffline: true });
@@ -105,12 +123,12 @@ export function WhatsAppView() {
         if (!cancelled) {
           setConnection(json);
           // Auto-close QR modal when connected
-          if (json.connected && showQR) {
+          if (json.connected && showQRRef.current) {
             setShowQR(false);
             toast.success("WhatsApp connected!", {
               description: `Now receiving live messages from ${json.phone ?? "your phone"}.`,
             });
-            reload();
+            reload({ silent: true });
           }
         }
       } catch {
@@ -118,17 +136,16 @@ export function WhatsAppView() {
       }
     }
 
-    poll();
-    // Poll every 2s while modal open OR not connected, else every 10s
-    const interval = setInterval(
-      poll,
-      showQR || !connection?.connected ? 2000 : 10000
-    );
+    // Don't call poll() synchronously here — the interval handles it.
+    // Calling it inline caused a re-render → effect cleanup → re-run loop.
+    // Poll every 2s while modal open OR not connected, else every 10s.
+    const fast = showQR || !connection?.connected;
+    const interval = setInterval(poll, fast ? 2000 : 10000);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [ownerId, showQR, connection?.connected, token, reload]);
+  }, [ownerId, token, showQR, connection?.connected]);
 
   async function handleStartConnection() {
     if (!ownerId) {

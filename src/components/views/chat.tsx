@@ -75,10 +75,15 @@ export function ChatView() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversationMessages.length]);
 
-  // Mark messages as read when viewing a conversation
+  // Mark messages as read when viewing a conversation.
+  // Uses a ref so it only runs when the selection actually changes — NOT on
+  // every data refresh from polling (which would cause a reload loop).
+  const prevMarkedRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!data) return;
-    // Include auth token for the PATCH request
+    const key = selectedMember?.id ?? "group";
+    if (prevMarkedRef.current === key) return;
+    prevMarkedRef.current = key;
     const token = typeof window !== "undefined"
       ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
       : null;
@@ -89,12 +94,12 @@ export function ChatView() {
         ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ receiverId: selectedMember?.id ?? null }),
-    }).then(() => reload());
-  }, [selectedMember?.id]);
+    }).then(() => reload({ silent: true }));
+  }, [selectedMember?.id, data, reload]);
 
-  // Poll for new messages every 5s
+  // Poll for new messages every 5s — silent so the UI doesn't flash a skeleton
   React.useEffect(() => {
-    const interval = setInterval(reload, 5000);
+    const interval = setInterval(() => reload({ silent: true }), 5000);
     return () => clearInterval(interval);
   }, [reload]);
 
@@ -123,7 +128,7 @@ export function ChatView() {
       });
       if (res.ok) {
         setMessageText("");
-        reload();
+        reload({ silent: true });
       }
     } catch {
       toast.error("Failed to send");
@@ -169,7 +174,7 @@ export function ChatView() {
       if (res.ok) {
         setUrlInput("");
         setShowFileForm(false);
-        reload();
+        reload({ silent: true });
         toast.success("File sent");
       }
     } catch {
