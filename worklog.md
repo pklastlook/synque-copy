@@ -2421,3 +2421,56 @@ Stage Summary:
   2. Profile changes now actually save — added `bio`/`timezone`/`language` columns to the User model, wired them through the API (GET/PATCH on /api/users, /api/auth/me, login, signup), and the `save()` function now sends all fields. Verified that values persist across a full page reload.
 - Artifacts changed: prisma/schema.prisma, src/app/api/users/route.ts, src/app/api/auth/me/route.ts, src/app/api/auth/login/route.ts, src/app/api/auth/signup/route.ts, src/lib/auth-store.ts, src/components/views/settings.tsx.
 - Dev server is running and healthy (next-server v16.1.3 on port 3000, GET / → 200).
+
+---
+Task ID: reports-enhance
+Agent: general-purpose (reports module redesigner)
+Task: Enhance the Reports module — make it more professional, compact generators, large interactive viewer, no cards under the viewer, data flows directly from generator into viewer, beautiful interactive charts.
+
+Work Log:
+- Read /home/z/my-project/worklog.md to understand prior work (reports-rebuild, profile-settings-fix, audit tasks).
+- Read the current reports.tsx (548 lines), /api/reports, /api/reports/[id], /api/reports/[id]/pdf, /api/analytics, /api/team-performance to understand available data.
+- Used Agent Browser + VLM to screenshot & analyze the current Reports page: confirmed only 4 large template cards, viewer only appears after clicking, saved reports appear as big cards below, charts are basic (area + bar only), generic content regardless of template.
+- Completely rewrote src/components/views/reports.tsx (~1100 lines) with a new architecture:
+  • **8 compact template generators** (was 4 large cards): Performance, Audience, Engagement, Team Activity, Content, Growth, Platforms, Reach — each a small icon+label button in an 8-column grid, much smaller than before.
+  • **Large interactive Report Viewer** is now the main focus: header (template icon + name + LIVE badge + date range + generated time + Save/Print actions), then template-specific KPIs, charts, tables.
+  • **No cards generated under the viewer** — clicking a template loads data directly into the viewer (no auto-save to DB on preview). A "Save" button explicitly persists the current view.
+  • **8 template-specific content components**, each with tailored KPIs/charts/tables:
+    - Performance: 4 KPIs + area trend (metric tabs) + engagement bar + platform pie + sortable account table + top content
+    - Audience: 4 KPIs + growth area (metric tabs) + platform pie + horizontal bar (per-account followers) + account table
+    - Engagement: 4 KPIs (incl. engagement rate) + composed bar+line trend + engagement donut + top-engaged bar + top content
+    - Team: 4 KPIs + composed chart (created/published bars + comments line) + pipeline bar + sentiment pie + member table
+    - Content: 4 KPIs (pipeline stats) + vertical pipeline bar + posts-by-platform grouped bar + top content
+    - Growth: 4 KPIs + single-metric line chart (metric tabs) + multi-metric overlay line chart
+    - Platform: 4 KPIs + followers-by-platform bar + engagement horizontal bar + platform summary table
+    - Reach: 4 KPIs (incl. reach rate) + reach area chart (metric tabs) + reach-vs-impressions grouped bar + per-account reach horizontal bar + account table
+  • **Interactive metric tabs** on the main chart (MetricTabs component using shadcn Tabs) — users click Followers/Reach/Impressions/Engagement to switch the series.
+  • **Sortable account table** (click column headers to sort asc/desc).
+  • **KPI sparklines** — each KPI card has a mini bar chart of the last 14 days.
+  • **Saved reports as a slim collapsible strip** (NOT big cards): horizontal list rows with icon + name + type/time + View/PDF/Delete buttons, collapsible via a chevron.
+  • **Enhanced print layout** with team activity table added.
+- Fixed bugs from the previous version:
+  • The old `downloadPDF` in the preview used `allReports[0]?.id` (wrong report ID) — now the viewer's Save button creates a real report and the strip's PDF button uses the correct `r.id`.
+  • The old flow auto-saved to DB on every template click (cluttering the saved list) — now preview is live and Save is explicit.
+  • The old viewer showed the SAME charts regardless of template — now each template has tailored content.
+- Charts use diverse Recharts types: AreaChart, BarChart, LineChart, ComposedChart (bars+line), PieChart (donut with labels), horizontal/vertical bar layouts, with gradients, animations, custom tooltips, and platform-color-coded cells.
+- All data is REAL from /api/analytics + /api/team-performance (no mocks). Verified: analytics returns 1 account + series; team-performance returns 3 members, 9 posts, 5 published.
+- Ran `bunx eslint src/components/views/reports.tsx` → 0 errors (after fixing one "component created during render" lint error by extracting SortHeader outside the AccountBreakdownTable function).
+- Ran `bunx tsc --noEmit` → 0 errors in src/ (only pre-existing errors in examples/, mini-services/, skills/).
+- Browser-verified with Agent Browser + VLM:
+  • Navigated to Reports → saw all 8 compact templates in a horizontal strip.
+  • Performance template loaded into viewer with 4 KPI cards + metric-tabbed trend chart.
+  • Switched to Team Activity → viewer showed real data: "3 members, 9 posts created, 5 published, 0% reply rate" + Content Activity Trend composed chart (bars + line over Sep 11-24) + Content Pipeline chart.
+  • Scrolled down → "SAVED REPORTS · 8" collapsible slim list (NOT big cards) with View/PDF/Delete actions per row.
+  • VLM rated the design 9/10, calling it "enterprise-grade SaaS dashboard" comparable to Stripe/Vercel/Linear.
+- Dev server is running and healthy (next-server v16.1.3 on port 3000, GET / → 200).
+
+Stage Summary:
+- **Reports module completely redesigned** per user requirements:
+  1. ✅ 8 compact template generators (was 4 large cards) — "integrate more reports generator by decreasing their size"
+  2. ✅ Large interactive viewer is the main focus — "make report viewer more enhanced, interactive and beautiful chart layout"
+  3. ✅ No cards generated under the viewer — data flows directly from generator into viewer — "dont generate cards under report viewer, fetch data from report generator above and show directly in viewer"
+  4. ✅ Saved reports now a slim collapsible strip (not big cards below the viewer)
+  5. ✅ 8 template-specific layouts with diverse interactive charts (area, bar, line, composed, pie/donut, horizontal bar) + metric tabs + sortable tables + sparklines
+- Artifacts changed: src/components/views/reports.tsx (complete rewrite).
+- All data is real (DB-backed via /api/analytics + /api/team-performance). Lint + TS clean. Dev server healthy.
