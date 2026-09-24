@@ -2,6 +2,17 @@
 
 import * as React from "react";
 
+function getAuthToken(): string | null {
+  try {
+    const raw = localStorage.getItem("socialflow-auth");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.state?.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function useApi<T>(url: string | null) {
   const [data, setData] = React.useState<T | null>(null);
   const [loading, setLoading] = React.useState(!!url);
@@ -10,7 +21,10 @@ export function useApi<T>(url: string | null) {
   const reload = React.useCallback(() => {
     if (!url) return;
     setLoading(true);
-    fetch(url)
+    const token = getAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    fetch(url, { headers })
       .then(async (r) => {
         if (!r.ok) throw new Error("Request failed");
         return r.json();

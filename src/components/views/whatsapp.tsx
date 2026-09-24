@@ -87,7 +87,12 @@ export function WhatsAppView() {
 
     async function poll() {
       try {
-        const res = await fetch(`/api/whatsapp/connection?ownerId=${ownerId}`);
+        const token = typeof window !== "undefined"
+          ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
+          : null;
+        const res = await fetch(`/api/whatsapp/connection?ownerId=${ownerId}`, {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        });
         const json = await res.json();
         if (!cancelled) {
           setConnection(json);
@@ -121,9 +126,13 @@ export function WhatsAppView() {
     }
     setConnecting(true);
     try {
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
       const res = await fetch("/api/whatsapp/connection", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ action: "start", ownerId }),
       });
       const json = await res.json();
@@ -148,9 +157,13 @@ export function WhatsAppView() {
   async function handleLogout() {
     if (!ownerId) return;
     try {
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
       await fetch("/api/whatsapp/connection", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ action: "logout", ownerId }),
       });
       toast.success("WhatsApp disconnected");
