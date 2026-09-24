@@ -27,6 +27,7 @@ import {
   MoreVertical,
   Trash2,
   Pencil,
+  Save,
   Copy,
   Ban,
   CheckCircle2,
@@ -3529,7 +3530,7 @@ function FinanceTab() {
 }
 
 // ============================================================================
-// Client Users Tab — shows all users created via subscription/owner panel
+// Users Tab — shows all users with full details + create/edit/delete
 // ============================================================================
 interface ClientUser {
   id: string;
@@ -3539,6 +3540,10 @@ interface ClientUser {
   title: string | null;
   department: string | null;
   status: string;
+  avatar: string | null;
+  gender: string | null;
+  birthDate: string | null;
+  phone: string | null;
   lastActive: string | null;
   createdAt: string;
 }
@@ -3546,7 +3551,9 @@ interface ClientUser {
 function ClientUsersTab() {
   const { data, loading, reload } = useApi<ClientUser[]>("/api/users");
   const [loginOpen, setLoginOpen] = React.useState(false);
-  const [form, setForm] = React.useState({ name: "", email: "", password: "", role: "member", company: "" });
+  const [editUser, setEditUser] = React.useState<ClientUser | null>(null);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [form, setForm] = React.useState({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "" });
   const [busy, setBusy] = React.useState(false);
 
   if (loading) return <div className="shimmer h-64 rounded-3xl" />;
@@ -3563,7 +3570,6 @@ function ClientUsersTab() {
     }
     setBusy(true);
     try {
-      // 1. Create user account
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3571,36 +3577,29 @@ function ClientUsersTab() {
       });
       const data = await res.json();
       if (res.ok && data.token) {
-        // 2. Set role + department
-        if (form.role !== "member" || form.company) {
-          await fetch("/api/users", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: data.user.id,
-              role: form.role,
-              title: form.role === "admin" ? "Administrator" : form.role === "manager" ? "Manager" : "Team Member",
-              department: form.company || null,
-            }),
-          }).catch(() => {});
-        }
-        // 3. Create customer record if company provided
+        // Set role + extra fields
+        await fetch("/api/users", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: data.user.id,
+            role: form.role,
+            title: form.role === "admin" ? "Administrator" : form.role === "manager" ? "Manager" : "Team Member",
+            department: form.company || null,
+            gender: form.gender || null,
+            birthDate: form.birthDate || null,
+            phone: form.phone || null,
+          }),
+        }).catch(() => {});
         if (form.company.trim()) {
           await fetch("/api/customers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: form.name.trim(),
-              email: form.email.trim(),
-              company: form.company.trim(),
-              plan: "growth",
-            }),
+            body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(), company: form.company.trim(), plan: "growth" }),
           }).catch(() => {});
         }
-        toast.success("User created!", {
-          description: `${form.name} can sign in at /login`,
-        });
-        setForm({ name: "", email: "", password: "", role: "member", company: "" });
+        toast.success("User created!", { description: `${form.name} can sign in at /login` });
+        setForm({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "" });
         setLoginOpen(false);
         reload();
       } else {
@@ -3608,6 +3607,32 @@ function ClientUsersTab() {
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveEdit = async () => {
+    if (!editUser) return;
+    setBusy(true);
+    try {
+      await api("PATCH", "/api/users", {
+        id: editUser.id,
+        name: editUser.name,
+        email: editUser.email,
+        role: editUser.role,
+        title: editUser.title,
+        department: editUser.department,
+        gender: editUser.gender,
+        birthDate: editUser.birthDate,
+        phone: editUser.phone,
+      });
+      toast.success("User updated");
+      setEditOpen(false);
+      setEditUser(null);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update");
     } finally {
       setBusy(false);
     }
@@ -3661,11 +3686,11 @@ function ClientUsersTab() {
   return (
     <GlassCard className="crystal-in p-5">
       <SectionTitle
-        title="Client Users"
-        desc="All users with login access — created via subscriptions or owner panel"
+        title="Users"
+        desc="All users with login access — manage accounts, roles, profiles & birthdays"
         action={
           <button onClick={() => setLoginOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold">
-            <UserPlus className="h-3.5 w-3.5" /> Create user
+            <UserPlus className="h-3.5 w-3.5" /> Add user
           </button>
         }
       />
@@ -3680,12 +3705,22 @@ function ClientUsersTab() {
         </div>
       ) : (
         <div className="scroll-liquid max-h-[560px] space-y-2 overflow-y-auto">
-          {users.map((u) => (
+          {users.map((u) => {
+            const isBirthdayToday = u.birthDate && new Date(u.birthDate).getMonth() === new Date().getMonth() && new Date(u.birthDate).getDate() === new Date().getDate();
+            return (
             <div key={u.id} className="crystal-in flex items-center gap-3 rounded-2xl border border-border/40 bg-muted/20 p-4 transition hover:bg-muted/30">
-              <NameAvatar name={u.name} className="h-10 w-10 text-xs shrink-0" />
+              {/* Avatar — shows uploaded photo or gender-based avatar */}
+              {u.avatar ? (
+                <img src={u.avatar} alt={u.name} className="h-10 w-10 shrink-0 rounded-full object-cover" />
+              ) : (
+                <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-bold text-white", u.gender === "female" ? "bg-pink-500" : u.gender === "male" ? "bg-blue-500" : "bg-primary")}>
+                  {u.name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-semibold">{u.name}</span>
+                  {isBirthdayToday && <span title="Birthday today!" className="text-base">🎂</span>}
                   <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", roleBadge[u.role] ?? roleBadge.member)}>{u.role}</span>
                   <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusBadge[u.status] ?? statusBadge.active)}>
                     <span className={cn("h-1.5 w-1.5 rounded-full", u.status === "active" ? "bg-emerald-500" : u.status === "suspended" ? "bg-rose-500" : "bg-amber-500")} />
@@ -3693,11 +3728,13 @@ function ClientUsersTab() {
                   </span>
                 </div>
                 <div className="truncate text-[11px] text-muted-foreground">
-                  {u.email}{u.department ? ` · ${u.department}` : ""}{u.title ? ` · ${u.title}` : ""}
+                  {u.email}{u.phone ? ` · ${u.phone}` : ""}{u.department ? ` · ${u.department}` : ""}{u.title ? ` · ${u.title}` : ""}
                 </div>
-                {u.lastActive && (
-                  <div className="text-[10px] text-muted-foreground/60">Last active: {new Date(u.lastActive).toLocaleString()}</div>
-                )}
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
+                  {u.gender && <span className="capitalize">{u.gender}</span>}
+                  {u.birthDate && <span>{new Date(u.birthDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
+                  {u.lastActive && <span>Active: {new Date(u.lastActive).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
+                </div>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -3706,6 +3743,9 @@ function ClientUsersTab() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => { setEditUser({ ...u }); setEditOpen(true); }}>
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </DropdownMenuItem>
                   {u.status === "active" ? (
                     <DropdownMenuItem onClick={() => suspendUser(u.id, u.name)}>
                       <Ban className="h-3.5 w-3.5" /> Suspend
@@ -3722,7 +3762,8 @@ function ClientUsersTab() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -3731,17 +3772,33 @@ function ClientUsersTab() {
         <DialogContent className="glass-strong max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-[var(--gold)]" /> Create Client User
+              <UserPlus className="h-5 w-5 text-[var(--gold)]" /> Add User
             </DialogTitle>
             <DialogDescription>
               Create a user account with login access. They sign in at /login.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">Full name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Smith" className="mt-1.5" /></div>
-            <div><Label className="text-xs">Email (login)</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@company.com" className="mt-1.5" /></div>
-            <div><Label className="text-xs">Password</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Min 6 characters" className="mt-1.5" /></div>
-            <div><Label className="text-xs">Company (optional)</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Acme Inc." className="mt-1.5" /></div>
+            <div><Label className="text-xs">Full name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Smith" className="mt-1.5" /></div>
+            <div><Label className="text-xs">Email (login) *</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@company.com" className="mt-1.5" /></div>
+            <div><Label className="text-xs">Password *</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Min 6 characters" className="mt-1.5" /></div>
+            <div><Label className="text-xs">Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 555 0100" className="mt-1.5" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Gender</Label>
+                <Select value={form.gender || "__none__"} onValueChange={(v) => setForm({ ...form, gender: v === "__none__" ? "" : v })}>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Not specified</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label className="text-xs">Birth date</Label><Input type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} className="mt-1.5" /></div>
+            </div>
+            <div><Label className="text-xs">Department / Company</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Acme Inc." className="mt-1.5" /></div>
             <div>
               <Label className="text-xs">Role</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
@@ -3755,7 +3812,7 @@ function ClientUsersTab() {
             </div>
             <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
-              <span>User can sign in at <code className="font-mono text-foreground">/login</code> with these credentials. If company is provided, a customer record is also created.</span>
+              <span>User can sign in at <code className="font-mono text-foreground">/login</code> with these credentials. Gender determines the avatar color. Birth date triggers birthday notifications.</span>
             </div>
           </div>
           <DialogFooter>
@@ -3767,14 +3824,68 @@ function ClientUsersTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editOpen} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditUser(null); } }}>
+        <DialogContent className="glass-strong max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Edit User
+            </DialogTitle>
+            <DialogDescription>Update user details, role, and profile information.</DialogDescription>
+          </DialogHeader>
+          {editUser && (
+            <div className="space-y-3">
+              <div><Label className="text-xs">Full name</Label><Input value={editUser.name} onChange={(e) => setEditUser({ ...editUser, name: e.target.value })} className="mt-1.5" /></div>
+              <div><Label className="text-xs">Email</Label><Input type="email" value={editUser.email} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} className="mt-1.5" /></div>
+              <div><Label className="text-xs">Phone</Label><Input value={editUser.phone ?? ""} onChange={(e) => setEditUser({ ...editUser, phone: e.target.value })} className="mt-1.5" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Gender</Label>
+                  <Select value={editUser.gender || "__none__"} onValueChange={(v) => setEditUser({ ...editUser, gender: v === "__none__" ? null : v })}>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Not specified</SelectItem>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label className="text-xs">Birth date</Label><Input type="date" value={editUser.birthDate ? editUser.birthDate.slice(0, 10) : ""} onChange={(e) => setEditUser({ ...editUser, birthDate: e.target.value })} className="mt-1.5" /></div>
+              </div>
+              <div><Label className="text-xs">Title</Label><Input value={editUser.title ?? ""} onChange={(e) => setEditUser({ ...editUser, title: e.target.value })} className="mt-1.5" /></div>
+              <div><Label className="text-xs">Department</Label><Input value={editUser.department ?? ""} onChange={(e) => setEditUser({ ...editUser, department: e.target.value })} className="mt-1.5" /></div>
+              <div>
+                <Label className="text-xs">Role</Label>
+                <Select value={editUser.role} onValueChange={(v) => setEditUser({ ...editUser, role: v })}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setEditOpen(false); setEditUser(null); }}>Cancel</Button>
+            <button onClick={saveEdit} disabled={busy} className="liquid-pill flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {busy ? "Saving…" : "Save changes"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </GlassCard>
   );
 }
 
 const TABS: TabDef[] = [
-  { id: "overview", label: "Overview", icon: Briefcase },
   { id: "customers", label: "Customers", icon: Users },
-  { id: "clientUsers", label: "Client Users", icon: CircleUserRound },
+  { id: "users", label: "Users", icon: CircleUserRound },
+  { id: "overview", label: "Overview", icon: Briefcase },
   { id: "keys", label: "Serial Keys", icon: KeyRound },
   { id: "devices", label: "Devices", icon: Smartphone },
   { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
@@ -3787,7 +3898,7 @@ const TABS: TabDef[] = [
 ];
 
 export function OwnerView() {
-  const [tab, setTab] = React.useState("overview");
+  const [tab, setTab] = React.useState("customers");
   const { data: customers } = useApi<Customer[]>("/api/customers");
   const customerList = customers ?? [];
 
@@ -3830,8 +3941,8 @@ export function OwnerView() {
       <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
 
       {tab === "overview" && <OverviewTab />}
+      {tab === "users" && <ClientUsersTab />}
       {tab === "customers" && <CustomersTab />}
-      {tab === "clientUsers" && <ClientUsersTab />}
       {tab === "keys" && <SerialKeysTab customers={customerList} />}
       {tab === "devices" && <DevicesTab />}
       {tab === "subscriptions" && <SubscriptionsTab customers={customerList} />}
