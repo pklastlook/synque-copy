@@ -85,9 +85,12 @@ export const ModelName = {
   ApiKey: 'ApiKey',
   Device: 'Device',
   Subscription: 'Subscription',
-  Workspace: 'Workspace',
+  WorkspaceSettings: 'WorkspaceSettings',
   PlatformCredential: 'PlatformCredential',
-  Integration: 'Integration'
+  Integration: 'Integration',
+  TenantDatabase: 'TenantDatabase',
+  Workspace: 'Workspace',
+  WorkspaceShare: 'WorkspaceShare'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -699,7 +702,7 @@ export const SubscriptionScalarFieldEnum = {
 export type SubscriptionScalarFieldEnum = (typeof SubscriptionScalarFieldEnum)[keyof typeof SubscriptionScalarFieldEnum]
 
 
-export const WorkspaceScalarFieldEnum = {
+export const WorkspaceSettingsScalarFieldEnum = {
   id: 'id',
   name: 'name',
   timezone: 'timezone',
@@ -715,7 +718,7 @@ export const WorkspaceScalarFieldEnum = {
   updatedAt: 'updatedAt'
 } as const
 
-export type WorkspaceScalarFieldEnum = (typeof WorkspaceScalarFieldEnum)[keyof typeof WorkspaceScalarFieldEnum]
+export type WorkspaceSettingsScalarFieldEnum = (typeof WorkspaceSettingsScalarFieldEnum)[keyof typeof WorkspaceSettingsScalarFieldEnum]
 
 
 export const PlatformCredentialScalarFieldEnum = {
@@ -754,6 +757,44 @@ export const IntegrationScalarFieldEnum = {
 } as const
 
 export type IntegrationScalarFieldEnum = (typeof IntegrationScalarFieldEnum)[keyof typeof IntegrationScalarFieldEnum]
+
+
+export const TenantDatabaseScalarFieldEnum = {
+  id: 'id',
+  customerId: 'customerId',
+  dbName: 'dbName',
+  dbUrl: 'dbUrl',
+  status: 'status',
+  createdAt: 'createdAt'
+} as const
+
+export type TenantDatabaseScalarFieldEnum = (typeof TenantDatabaseScalarFieldEnum)[keyof typeof TenantDatabaseScalarFieldEnum]
+
+
+export const WorkspaceScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  ownerId: 'ownerId',
+  customerId: 'customerId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WorkspaceScalarFieldEnum = (typeof WorkspaceScalarFieldEnum)[keyof typeof WorkspaceScalarFieldEnum]
+
+
+export const WorkspaceShareScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  sharedWithUserId: 'sharedWithUserId',
+  sharedByUserId: 'sharedByUserId',
+  permission: 'permission',
+  status: 'status',
+  createdAt: 'createdAt',
+  acceptedAt: 'acceptedAt'
+} as const
+
+export type WorkspaceShareScalarFieldEnum = (typeof WorkspaceShareScalarFieldEnum)[keyof typeof WorkspaceShareScalarFieldEnum]
 
 
 export const SortOrder = {

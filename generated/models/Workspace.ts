@@ -27,15 +27,8 @@ export type AggregateWorkspace = {
 export type WorkspaceMinAggregateOutputType = {
   id: string | null
   name: string | null
-  timezone: string | null
-  cadence: string | null
-  startTime: string | null
-  endTime: string | null
-  autoVariants: boolean | null
-  tone: string | null
-  brandVoice: string | null
-  colors: string | null
   ownerId: string | null
+  customerId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -43,15 +36,8 @@ export type WorkspaceMinAggregateOutputType = {
 export type WorkspaceMaxAggregateOutputType = {
   id: string | null
   name: string | null
-  timezone: string | null
-  cadence: string | null
-  startTime: string | null
-  endTime: string | null
-  autoVariants: boolean | null
-  tone: string | null
-  brandVoice: string | null
-  colors: string | null
   ownerId: string | null
+  customerId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -59,15 +45,8 @@ export type WorkspaceMaxAggregateOutputType = {
 export type WorkspaceCountAggregateOutputType = {
   id: number
   name: number
-  timezone: number
-  cadence: number
-  startTime: number
-  endTime: number
-  autoVariants: number
-  tone: number
-  brandVoice: number
-  colors: number
   ownerId: number
+  customerId: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -77,15 +56,8 @@ export type WorkspaceCountAggregateOutputType = {
 export type WorkspaceMinAggregateInputType = {
   id?: true
   name?: true
-  timezone?: true
-  cadence?: true
-  startTime?: true
-  endTime?: true
-  autoVariants?: true
-  tone?: true
-  brandVoice?: true
-  colors?: true
   ownerId?: true
+  customerId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -93,15 +65,8 @@ export type WorkspaceMinAggregateInputType = {
 export type WorkspaceMaxAggregateInputType = {
   id?: true
   name?: true
-  timezone?: true
-  cadence?: true
-  startTime?: true
-  endTime?: true
-  autoVariants?: true
-  tone?: true
-  brandVoice?: true
-  colors?: true
   ownerId?: true
+  customerId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -109,15 +74,8 @@ export type WorkspaceMaxAggregateInputType = {
 export type WorkspaceCountAggregateInputType = {
   id?: true
   name?: true
-  timezone?: true
-  cadence?: true
-  startTime?: true
-  endTime?: true
-  autoVariants?: true
-  tone?: true
-  brandVoice?: true
-  colors?: true
   ownerId?: true
+  customerId?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -198,15 +156,8 @@ export type WorkspaceGroupByArgs<ExtArgs extends runtime.Types.Extensions.Intern
 export type WorkspaceGroupByOutputType = {
   id: string
   name: string
-  timezone: string
-  cadence: string
-  startTime: string
-  endTime: string
-  autoVariants: boolean
-  tone: string
-  brandVoice: string | null
-  colors: string | null
   ownerId: string
+  customerId: string | null
   createdAt: Date
   updatedAt: Date
   _count: WorkspaceCountAggregateOutputType | null
@@ -235,69 +186,41 @@ export type WorkspaceWhereInput = {
   NOT?: Prisma.WorkspaceWhereInput | Prisma.WorkspaceWhereInput[]
   id?: Prisma.StringFilter<"Workspace"> | string
   name?: Prisma.StringFilter<"Workspace"> | string
-  timezone?: Prisma.StringFilter<"Workspace"> | string
-  cadence?: Prisma.StringFilter<"Workspace"> | string
-  startTime?: Prisma.StringFilter<"Workspace"> | string
-  endTime?: Prisma.StringFilter<"Workspace"> | string
-  autoVariants?: Prisma.BoolFilter<"Workspace"> | boolean
-  tone?: Prisma.StringFilter<"Workspace"> | string
-  brandVoice?: Prisma.StringNullableFilter<"Workspace"> | string | null
-  colors?: Prisma.StringNullableFilter<"Workspace"> | string | null
   ownerId?: Prisma.StringFilter<"Workspace"> | string
+  customerId?: Prisma.StringNullableFilter<"Workspace"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Workspace"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Workspace"> | Date | string
-  owner?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  shares?: Prisma.WorkspaceShareListRelationFilter
 }
 
 export type WorkspaceOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  timezone?: Prisma.SortOrder
-  cadence?: Prisma.SortOrder
-  startTime?: Prisma.SortOrder
-  endTime?: Prisma.SortOrder
-  autoVariants?: Prisma.SortOrder
-  tone?: Prisma.SortOrder
-  brandVoice?: Prisma.SortOrderInput | Prisma.SortOrder
-  colors?: Prisma.SortOrderInput | Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
-  owner?: Prisma.UserOrderByWithRelationInput
+  shares?: Prisma.WorkspaceShareOrderByRelationAggregateInput
 }
 
 export type WorkspaceWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  ownerId?: string
   AND?: Prisma.WorkspaceWhereInput | Prisma.WorkspaceWhereInput[]
   OR?: Prisma.WorkspaceWhereInput[]
   NOT?: Prisma.WorkspaceWhereInput | Prisma.WorkspaceWhereInput[]
   name?: Prisma.StringFilter<"Workspace"> | string
-  timezone?: Prisma.StringFilter<"Workspace"> | string
-  cadence?: Prisma.StringFilter<"Workspace"> | string
-  startTime?: Prisma.StringFilter<"Workspace"> | string
-  endTime?: Prisma.StringFilter<"Workspace"> | string
-  autoVariants?: Prisma.BoolFilter<"Workspace"> | boolean
-  tone?: Prisma.StringFilter<"Workspace"> | string
-  brandVoice?: Prisma.StringNullableFilter<"Workspace"> | string | null
-  colors?: Prisma.StringNullableFilter<"Workspace"> | string | null
+  ownerId?: Prisma.StringFilter<"Workspace"> | string
+  customerId?: Prisma.StringNullableFilter<"Workspace"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Workspace"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Workspace"> | Date | string
-  owner?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
-}, "id" | "ownerId">
+  shares?: Prisma.WorkspaceShareListRelationFilter
+}, "id">
 
 export type WorkspaceOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  timezone?: Prisma.SortOrder
-  cadence?: Prisma.SortOrder
-  startTime?: Prisma.SortOrder
-  endTime?: Prisma.SortOrder
-  autoVariants?: Prisma.SortOrder
-  tone?: Prisma.SortOrder
-  brandVoice?: Prisma.SortOrderInput | Prisma.SortOrder
-  colors?: Prisma.SortOrderInput | Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.WorkspaceCountOrderByAggregateInput
@@ -311,95 +234,57 @@ export type WorkspaceScalarWhereWithAggregatesInput = {
   NOT?: Prisma.WorkspaceScalarWhereWithAggregatesInput | Prisma.WorkspaceScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
   name?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
-  timezone?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
-  cadence?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
-  startTime?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
-  endTime?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
-  autoVariants?: Prisma.BoolWithAggregatesFilter<"Workspace"> | boolean
-  tone?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
-  brandVoice?: Prisma.StringNullableWithAggregatesFilter<"Workspace"> | string | null
-  colors?: Prisma.StringNullableWithAggregatesFilter<"Workspace"> | string | null
   ownerId?: Prisma.StringWithAggregatesFilter<"Workspace"> | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Workspace"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Workspace"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Workspace"> | Date | string
 }
 
 export type WorkspaceCreateInput = {
   id?: string
-  name?: string
-  timezone?: string
-  cadence?: string
-  startTime?: string
-  endTime?: string
-  autoVariants?: boolean
-  tone?: string
-  brandVoice?: string | null
-  colors?: string | null
+  name: string
+  ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  owner: Prisma.UserCreateNestedOneWithoutWorkspaceInput
+  shares?: Prisma.WorkspaceShareCreateNestedManyWithoutWorkspaceInput
 }
 
 export type WorkspaceUncheckedCreateInput = {
   id?: string
-  name?: string
-  timezone?: string
-  cadence?: string
-  startTime?: string
-  endTime?: string
-  autoVariants?: boolean
-  tone?: string
-  brandVoice?: string | null
-  colors?: string | null
+  name: string
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  shares?: Prisma.WorkspaceShareUncheckedCreateNestedManyWithoutWorkspaceInput
 }
 
 export type WorkspaceUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  cadence?: Prisma.StringFieldUpdateOperationsInput | string
-  startTime?: Prisma.StringFieldUpdateOperationsInput | string
-  endTime?: Prisma.StringFieldUpdateOperationsInput | string
-  autoVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  tone?: Prisma.StringFieldUpdateOperationsInput | string
-  brandVoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  colors?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  owner?: Prisma.UserUpdateOneRequiredWithoutWorkspaceNestedInput
+  shares?: Prisma.WorkspaceShareUpdateManyWithoutWorkspaceNestedInput
 }
 
 export type WorkspaceUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  cadence?: Prisma.StringFieldUpdateOperationsInput | string
-  startTime?: Prisma.StringFieldUpdateOperationsInput | string
-  endTime?: Prisma.StringFieldUpdateOperationsInput | string
-  autoVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  tone?: Prisma.StringFieldUpdateOperationsInput | string
-  brandVoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  colors?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  shares?: Prisma.WorkspaceShareUncheckedUpdateManyWithoutWorkspaceNestedInput
 }
 
 export type WorkspaceCreateManyInput = {
   id?: string
-  name?: string
-  timezone?: string
-  cadence?: string
-  startTime?: string
-  endTime?: string
-  autoVariants?: boolean
-  tone?: string
-  brandVoice?: string | null
-  colors?: string | null
+  name: string
   ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -407,14 +292,8 @@ export type WorkspaceCreateManyInput = {
 export type WorkspaceUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  cadence?: Prisma.StringFieldUpdateOperationsInput | string
-  startTime?: Prisma.StringFieldUpdateOperationsInput | string
-  endTime?: Prisma.StringFieldUpdateOperationsInput | string
-  autoVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  tone?: Prisma.StringFieldUpdateOperationsInput | string
-  brandVoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  colors?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -422,36 +301,17 @@ export type WorkspaceUpdateManyMutationInput = {
 export type WorkspaceUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  cadence?: Prisma.StringFieldUpdateOperationsInput | string
-  startTime?: Prisma.StringFieldUpdateOperationsInput | string
-  endTime?: Prisma.StringFieldUpdateOperationsInput | string
-  autoVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  tone?: Prisma.StringFieldUpdateOperationsInput | string
-  brandVoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  colors?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-}
-
-export type WorkspaceNullableScalarRelationFilter = {
-  is?: Prisma.WorkspaceWhereInput | null
-  isNot?: Prisma.WorkspaceWhereInput | null
 }
 
 export type WorkspaceCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  timezone?: Prisma.SortOrder
-  cadence?: Prisma.SortOrder
-  startTime?: Prisma.SortOrder
-  endTime?: Prisma.SortOrder
-  autoVariants?: Prisma.SortOrder
-  tone?: Prisma.SortOrder
-  brandVoice?: Prisma.SortOrder
-  colors?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -459,15 +319,8 @@ export type WorkspaceCountOrderByAggregateInput = {
 export type WorkspaceMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  timezone?: Prisma.SortOrder
-  cadence?: Prisma.SortOrder
-  startTime?: Prisma.SortOrder
-  endTime?: Prisma.SortOrder
-  autoVariants?: Prisma.SortOrder
-  tone?: Prisma.SortOrder
-  brandVoice?: Prisma.SortOrder
-  colors?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -475,224 +328,170 @@ export type WorkspaceMaxOrderByAggregateInput = {
 export type WorkspaceMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  timezone?: Prisma.SortOrder
-  cadence?: Prisma.SortOrder
-  startTime?: Prisma.SortOrder
-  endTime?: Prisma.SortOrder
-  autoVariants?: Prisma.SortOrder
-  tone?: Prisma.SortOrder
-  brandVoice?: Prisma.SortOrder
-  colors?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
-export type WorkspaceCreateNestedOneWithoutOwnerInput = {
-  create?: Prisma.XOR<Prisma.WorkspaceCreateWithoutOwnerInput, Prisma.WorkspaceUncheckedCreateWithoutOwnerInput>
-  connectOrCreate?: Prisma.WorkspaceCreateOrConnectWithoutOwnerInput
+export type WorkspaceScalarRelationFilter = {
+  is?: Prisma.WorkspaceWhereInput
+  isNot?: Prisma.WorkspaceWhereInput
+}
+
+export type WorkspaceCreateNestedOneWithoutSharesInput = {
+  create?: Prisma.XOR<Prisma.WorkspaceCreateWithoutSharesInput, Prisma.WorkspaceUncheckedCreateWithoutSharesInput>
+  connectOrCreate?: Prisma.WorkspaceCreateOrConnectWithoutSharesInput
   connect?: Prisma.WorkspaceWhereUniqueInput
 }
 
-export type WorkspaceUncheckedCreateNestedOneWithoutOwnerInput = {
-  create?: Prisma.XOR<Prisma.WorkspaceCreateWithoutOwnerInput, Prisma.WorkspaceUncheckedCreateWithoutOwnerInput>
-  connectOrCreate?: Prisma.WorkspaceCreateOrConnectWithoutOwnerInput
+export type WorkspaceUpdateOneRequiredWithoutSharesNestedInput = {
+  create?: Prisma.XOR<Prisma.WorkspaceCreateWithoutSharesInput, Prisma.WorkspaceUncheckedCreateWithoutSharesInput>
+  connectOrCreate?: Prisma.WorkspaceCreateOrConnectWithoutSharesInput
+  upsert?: Prisma.WorkspaceUpsertWithoutSharesInput
   connect?: Prisma.WorkspaceWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.WorkspaceUpdateToOneWithWhereWithoutSharesInput, Prisma.WorkspaceUpdateWithoutSharesInput>, Prisma.WorkspaceUncheckedUpdateWithoutSharesInput>
 }
 
-export type WorkspaceUpdateOneWithoutOwnerNestedInput = {
-  create?: Prisma.XOR<Prisma.WorkspaceCreateWithoutOwnerInput, Prisma.WorkspaceUncheckedCreateWithoutOwnerInput>
-  connectOrCreate?: Prisma.WorkspaceCreateOrConnectWithoutOwnerInput
-  upsert?: Prisma.WorkspaceUpsertWithoutOwnerInput
-  disconnect?: Prisma.WorkspaceWhereInput | boolean
-  delete?: Prisma.WorkspaceWhereInput | boolean
-  connect?: Prisma.WorkspaceWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.WorkspaceUpdateToOneWithWhereWithoutOwnerInput, Prisma.WorkspaceUpdateWithoutOwnerInput>, Prisma.WorkspaceUncheckedUpdateWithoutOwnerInput>
-}
-
-export type WorkspaceUncheckedUpdateOneWithoutOwnerNestedInput = {
-  create?: Prisma.XOR<Prisma.WorkspaceCreateWithoutOwnerInput, Prisma.WorkspaceUncheckedCreateWithoutOwnerInput>
-  connectOrCreate?: Prisma.WorkspaceCreateOrConnectWithoutOwnerInput
-  upsert?: Prisma.WorkspaceUpsertWithoutOwnerInput
-  disconnect?: Prisma.WorkspaceWhereInput | boolean
-  delete?: Prisma.WorkspaceWhereInput | boolean
-  connect?: Prisma.WorkspaceWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.WorkspaceUpdateToOneWithWhereWithoutOwnerInput, Prisma.WorkspaceUpdateWithoutOwnerInput>, Prisma.WorkspaceUncheckedUpdateWithoutOwnerInput>
-}
-
-export type WorkspaceCreateWithoutOwnerInput = {
+export type WorkspaceCreateWithoutSharesInput = {
   id?: string
-  name?: string
-  timezone?: string
-  cadence?: string
-  startTime?: string
-  endTime?: string
-  autoVariants?: boolean
-  tone?: string
-  brandVoice?: string | null
-  colors?: string | null
+  name: string
+  ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
-export type WorkspaceUncheckedCreateWithoutOwnerInput = {
+export type WorkspaceUncheckedCreateWithoutSharesInput = {
   id?: string
-  name?: string
-  timezone?: string
-  cadence?: string
-  startTime?: string
-  endTime?: string
-  autoVariants?: boolean
-  tone?: string
-  brandVoice?: string | null
-  colors?: string | null
+  name: string
+  ownerId: string
+  customerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
-export type WorkspaceCreateOrConnectWithoutOwnerInput = {
+export type WorkspaceCreateOrConnectWithoutSharesInput = {
   where: Prisma.WorkspaceWhereUniqueInput
-  create: Prisma.XOR<Prisma.WorkspaceCreateWithoutOwnerInput, Prisma.WorkspaceUncheckedCreateWithoutOwnerInput>
+  create: Prisma.XOR<Prisma.WorkspaceCreateWithoutSharesInput, Prisma.WorkspaceUncheckedCreateWithoutSharesInput>
 }
 
-export type WorkspaceUpsertWithoutOwnerInput = {
-  update: Prisma.XOR<Prisma.WorkspaceUpdateWithoutOwnerInput, Prisma.WorkspaceUncheckedUpdateWithoutOwnerInput>
-  create: Prisma.XOR<Prisma.WorkspaceCreateWithoutOwnerInput, Prisma.WorkspaceUncheckedCreateWithoutOwnerInput>
+export type WorkspaceUpsertWithoutSharesInput = {
+  update: Prisma.XOR<Prisma.WorkspaceUpdateWithoutSharesInput, Prisma.WorkspaceUncheckedUpdateWithoutSharesInput>
+  create: Prisma.XOR<Prisma.WorkspaceCreateWithoutSharesInput, Prisma.WorkspaceUncheckedCreateWithoutSharesInput>
   where?: Prisma.WorkspaceWhereInput
 }
 
-export type WorkspaceUpdateToOneWithWhereWithoutOwnerInput = {
+export type WorkspaceUpdateToOneWithWhereWithoutSharesInput = {
   where?: Prisma.WorkspaceWhereInput
-  data: Prisma.XOR<Prisma.WorkspaceUpdateWithoutOwnerInput, Prisma.WorkspaceUncheckedUpdateWithoutOwnerInput>
+  data: Prisma.XOR<Prisma.WorkspaceUpdateWithoutSharesInput, Prisma.WorkspaceUncheckedUpdateWithoutSharesInput>
 }
 
-export type WorkspaceUpdateWithoutOwnerInput = {
+export type WorkspaceUpdateWithoutSharesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  cadence?: Prisma.StringFieldUpdateOperationsInput | string
-  startTime?: Prisma.StringFieldUpdateOperationsInput | string
-  endTime?: Prisma.StringFieldUpdateOperationsInput | string
-  autoVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  tone?: Prisma.StringFieldUpdateOperationsInput | string
-  brandVoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  colors?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
-export type WorkspaceUncheckedUpdateWithoutOwnerInput = {
+export type WorkspaceUncheckedUpdateWithoutSharesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  timezone?: Prisma.StringFieldUpdateOperationsInput | string
-  cadence?: Prisma.StringFieldUpdateOperationsInput | string
-  startTime?: Prisma.StringFieldUpdateOperationsInput | string
-  endTime?: Prisma.StringFieldUpdateOperationsInput | string
-  autoVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  tone?: Prisma.StringFieldUpdateOperationsInput | string
-  brandVoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  colors?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
+
+/**
+ * Count Type WorkspaceCountOutputType
+ */
+
+export type WorkspaceCountOutputType = {
+  shares: number
+}
+
+export type WorkspaceCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  shares?: boolean | WorkspaceCountOutputTypeCountSharesArgs
+}
+
+/**
+ * WorkspaceCountOutputType without action
+ */
+export type WorkspaceCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WorkspaceCountOutputType
+   */
+  select?: Prisma.WorkspaceCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * WorkspaceCountOutputType without action
+ */
+export type WorkspaceCountOutputTypeCountSharesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WorkspaceShareWhereInput
+}
 
 
 export type WorkspaceSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
-  timezone?: boolean
-  cadence?: boolean
-  startTime?: boolean
-  endTime?: boolean
-  autoVariants?: boolean
-  tone?: boolean
-  brandVoice?: boolean
-  colors?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
-  owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  shares?: boolean | Prisma.Workspace$sharesArgs<ExtArgs>
+  _count?: boolean | Prisma.WorkspaceCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["workspace"]>
 
 export type WorkspaceSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
-  timezone?: boolean
-  cadence?: boolean
-  startTime?: boolean
-  endTime?: boolean
-  autoVariants?: boolean
-  tone?: boolean
-  brandVoice?: boolean
-  colors?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
-  owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["workspace"]>
 
 export type WorkspaceSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
-  timezone?: boolean
-  cadence?: boolean
-  startTime?: boolean
-  endTime?: boolean
-  autoVariants?: boolean
-  tone?: boolean
-  brandVoice?: boolean
-  colors?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
-  owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["workspace"]>
 
 export type WorkspaceSelectScalar = {
   id?: boolean
   name?: boolean
-  timezone?: boolean
-  cadence?: boolean
-  startTime?: boolean
-  endTime?: boolean
-  autoVariants?: boolean
-  tone?: boolean
-  brandVoice?: boolean
-  colors?: boolean
   ownerId?: boolean
+  customerId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type WorkspaceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "timezone" | "cadence" | "startTime" | "endTime" | "autoVariants" | "tone" | "brandVoice" | "colors" | "ownerId" | "createdAt" | "updatedAt", ExtArgs["result"]["workspace"]>
+export type WorkspaceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "ownerId" | "customerId" | "createdAt" | "updatedAt", ExtArgs["result"]["workspace"]>
 export type WorkspaceInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  shares?: boolean | Prisma.Workspace$sharesArgs<ExtArgs>
+  _count?: boolean | Prisma.WorkspaceCountOutputTypeDefaultArgs<ExtArgs>
 }
-export type WorkspaceIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
-}
-export type WorkspaceIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  owner?: boolean | Prisma.UserDefaultArgs<ExtArgs>
-}
+export type WorkspaceIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
+export type WorkspaceIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
 
 export type $WorkspacePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Workspace"
   objects: {
-    owner: Prisma.$UserPayload<ExtArgs>
+    shares: Prisma.$WorkspaceSharePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     name: string
-    timezone: string
-    cadence: string
-    startTime: string
-    endTime: string
-    autoVariants: boolean
-    tone: string
-    brandVoice: string | null
-    colors: string | null
     ownerId: string
+    customerId: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["workspace"]>
@@ -1089,7 +888,7 @@ readonly fields: WorkspaceFieldRefs;
  */
 export interface Prisma__WorkspaceClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  owner<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  shares<T extends Prisma.Workspace$sharesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Workspace$sharesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WorkspaceSharePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1121,15 +920,8 @@ export interface Prisma__WorkspaceClient<T, Null = never, ExtArgs extends runtim
 export interface WorkspaceFieldRefs {
   readonly id: Prisma.FieldRef<"Workspace", 'String'>
   readonly name: Prisma.FieldRef<"Workspace", 'String'>
-  readonly timezone: Prisma.FieldRef<"Workspace", 'String'>
-  readonly cadence: Prisma.FieldRef<"Workspace", 'String'>
-  readonly startTime: Prisma.FieldRef<"Workspace", 'String'>
-  readonly endTime: Prisma.FieldRef<"Workspace", 'String'>
-  readonly autoVariants: Prisma.FieldRef<"Workspace", 'Boolean'>
-  readonly tone: Prisma.FieldRef<"Workspace", 'String'>
-  readonly brandVoice: Prisma.FieldRef<"Workspace", 'String'>
-  readonly colors: Prisma.FieldRef<"Workspace", 'String'>
   readonly ownerId: Prisma.FieldRef<"Workspace", 'String'>
+  readonly customerId: Prisma.FieldRef<"Workspace", 'String'>
   readonly createdAt: Prisma.FieldRef<"Workspace", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Workspace", 'DateTime'>
 }
@@ -1386,10 +1178,6 @@ export type WorkspaceCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Exten
    */
   data: Prisma.WorkspaceCreateManyInput | Prisma.WorkspaceCreateManyInput[]
   skipDuplicates?: boolean
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.WorkspaceIncludeCreateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1460,10 +1248,6 @@ export type WorkspaceUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Exten
    * Limit how many Workspaces to update.
    */
   limit?: number
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.WorkspaceIncludeUpdateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1530,6 +1314,30 @@ export type WorkspaceDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Int
    * Limit how many Workspaces to delete.
    */
   limit?: number
+}
+
+/**
+ * Workspace.shares
+ */
+export type Workspace$sharesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WorkspaceShare
+   */
+  select?: Prisma.WorkspaceShareSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WorkspaceShare
+   */
+  omit?: Prisma.WorkspaceShareOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WorkspaceShareInclude<ExtArgs> | null
+  where?: Prisma.WorkspaceShareWhereInput
+  orderBy?: Prisma.WorkspaceShareOrderByWithRelationInput | Prisma.WorkspaceShareOrderByWithRelationInput[]
+  cursor?: Prisma.WorkspaceShareWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WorkspaceShareScalarFieldEnum | Prisma.WorkspaceShareScalarFieldEnum[]
 }
 
 /**

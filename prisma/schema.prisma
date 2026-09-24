@@ -38,7 +38,7 @@ model User {
   activities Activity[]
   assignedComments Comment[] @relation("CommentAssignee")
   mailboxes Mailbox[] @relation("MailboxOwner")
-  workspace Workspace?
+  workspace WorkspaceSettings?
   platformCredentials PlatformCredential[]
   savedWhatsAppMsgs   WhatsAppMessage[] @relation("WhatsAppSavedBy")
   sentMessages        ChatMessage[]     @relation("ChatSender")
@@ -605,7 +605,7 @@ model Subscription {
 }
 
 // ===== Workspace Settings (one row per workspace, keyed by owner) =====
-model Workspace {
+model WorkspaceSettings {
   id          String   @id @default(cuid())
   name        String   @default("My Workspace")
   timezone    String   @default("America/Los_Angeles")
@@ -665,4 +665,41 @@ model Integration {
   lastSyncAt  DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ===== Per-client database tracking =====
+model TenantDatabase {
+  id          String   @id @default(cuid())
+  customerId  String   @unique
+  dbName      String   @unique
+  dbUrl       String
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+}
+
+// ===== Workspace (per-user personal workspace) =====
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  ownerId     String
+  customerId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shares      WorkspaceShare[]
+}
+
+// ===== Workspace sharing =====
+model WorkspaceShare {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sharedWithUserId String
+  sharedByUserId   String
+  permission      String   @default("view")
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+  acceptedAt      DateTime?
+
+  @@unique([workspaceId, sharedWithUserId])
 }

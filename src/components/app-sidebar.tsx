@@ -36,6 +36,7 @@ import {
   DollarSign,
   MessageCircle,
   ListTodo,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
@@ -44,6 +45,12 @@ import type { ViewId } from "@/lib/types";
 import { SETTINGS_TABS, type SettingsTab } from "@/components/views/settings";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { LogoWordmark } from "@/components/glass/logo";
+import { toast } from "sonner";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { NameAvatar as NA } from "@/components/glass/name-avatar";
+import { Loader2, Check, UserCheck } from "lucide-react";
 
 type NavRole = "admin" | "manager" | "editor" | "member" | "viewer";
 const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; badge?: string; accent: string; roles?: NavRole[] }[] = [
@@ -272,7 +279,236 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         </button>
         )}
       </div>
+      <ShareWorkspaceButton />
     </div>
+  );
+}
+
+// ============ Share Workspace Button + Dialog ============
+function ShareWorkspaceButton() {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="mt-1 flex items-center gap-2 rounded-xl border border-border/40 bg-muted/20 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
+      >
+        <Share2 className="h-3.5 w-3.5" />
+        Share workspace
+      </button>
+      <ShareWorkspaceDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
+function ShareWorkspaceDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { user } = useAuth();
+  const [members, setMembers] = React.useState<{ id: string; name: string; email: string; avatar: string | null; color: string | null; role: string; title: string | null }[]>([]);
+  const [shares, setShares] = React.useState<{ sent: any[]; received: any[]; myWorkspaceName: string | null }>({ sent: [], received: [], myWorkspaceName: null });
+  const [selectedUser, setSelectedUser] = React.useState("");
+  const [permission, setPermission] = React.useState("view");
+  const [loading, setLoading] = React.useState(false);
+  const [tab, setTab] = React.useState<"share" | "received">("share");
+
+  function getToken() {
+    try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
+    catch { return null; }
+  }
+
+  async function loadData() {
+    const token = getToken();
+    const [membersRes, sharesRes] = await Promise.all([
+      fetch("/api/workspace/members", { headers: token ? { Authorization: `Bearer ${token}` } : {} }),
+      fetch("/api/workspace/share", { headers: token ? { Authorization: `Bearer ${token}` } : {} }),
+    ]);
+    if (membersRes.ok) {
+      const data = await membersRes.json();
+      setMembers(data.members ?? []);
+    }
+    if (sharesRes.ok) {
+      const data = await sharesRes.json();
+      setShares(data);
+    }
+  }
+
+  React.useEffect(() => {
+    if (open) loadData();
+  }, [open]);
+
+  async function share() {
+    if (!selectedUser) { toast.error("Select a team member"); return; }
+    setLoading(true);
+    try {
+      const token = getToken();
+      const res = await fetch("/api/workspace/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ sharedWithUserId: selectedUser, permission }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        toast.success("Workspace shared", { description: `Shared with ${json.sharedWith}` });
+        setSelectedUser("");
+        loadData();
+      } else {
+        toast.error(json.error ?? "Failed to share");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function acceptShare(shareId: string) {
+    const token = getToken();
+    await fetch("/api/workspace/share", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ shareId, action: "accept" }),
+    });
+    toast.success("Workspace share accepted");
+    loadData();
+  }
+
+  async function revokeShare(shareId: string) {
+    const token = getToken();
+    await fetch("/api/workspace/share", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ shareId, action: "revoke" }),
+    });
+    toast.success("Share revoked");
+    loadData();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Share2 className="h-4 w-4 text-primary" />
+            Workspace sharing
+          </DialogTitle>
+          <DialogDescription>
+            Share your workspace with teammates or accept shares from others. Shared workspaces merge content into your dashboard.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Tabs */}
+        <div className="flex gap-1 rounded-xl bg-muted/40 p-1">
+          <button
+            onClick={() => setTab("share")}
+            className={cn("flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition", tab === "share" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            Share mine ({shares.sent.length})
+          </button>
+          <button
+            onClick={() => setTab("received")}
+            className={cn("flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition", tab === "received" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            Received ({shares.received.length})
+          </button>
+        </div>
+
+        {tab === "share" && (
+          <div className="space-y-3">
+            {/* Share form */}
+            <div className="space-y-2 rounded-xl border border-border/40 bg-muted/10 p-3">
+              <label className="text-xs font-semibold">Share with</label>
+              {members.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No team members available to share with.</p>
+              ) : (
+                <div className="grid gap-1.5">
+                  {members.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedUser(m.id)}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg border p-2 text-left text-xs transition",
+                        selectedUser === m.id ? "border-primary/40 bg-primary/10" : "border-border/40 hover:bg-muted/30"
+                      )}
+                    >
+                      <NA name={m.name} color={(m.color as any) ?? "blue"} className="h-6 w-6 text-[9px]" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{m.name}</div>
+                        <div className="truncate text-[10px] text-muted-foreground">{m.title ?? m.role}</div>
+                      </div>
+                      {selectedUser === m.id && <Check className="h-3.5 w-3.5 text-primary" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedUser && (
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-semibold text-muted-foreground">Permission:</label>
+                  <select value={permission} onChange={(e) => setPermission(e.target.value)} className="rounded-md border border-border/40 bg-background px-2 py-1 text-[10px]">
+                    <option value="view">View only</option>
+                    <option value="edit">Edit</option>
+                  </select>
+                </div>
+              )}
+              <button
+                onClick={share}
+                disabled={loading || !selectedUser}
+                className="liquid-pill flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                Share workspace
+              </button>
+            </div>
+
+            {/* Already shared */}
+            {shares.sent.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Already shared</div>
+                {shares.sent.map((s: any) => (
+                  <div key={s.id} className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/10 p-2">
+                    <NA name={s.sharedWith.name} color={(s.sharedWith.color as any) ?? "blue"} className="h-6 w-6 text-[9px]" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">{s.sharedWith.name}</div>
+                      <div className="text-[10px] text-muted-foreground">{s.permission} · {s.status}</div>
+                    </div>
+                    <button onClick={() => revokeShare(s.id)} className="rounded-md border border-border/40 px-2 py-1 text-[9px] font-semibold text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500">
+                      Revoke
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "received" && (
+          <div className="space-y-2">
+            {shares.received.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                <UserCheck className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-xs text-muted-foreground">No workspace shares received yet</p>
+              </div>
+            ) : (
+              shares.received.map((s: any) => (
+                <div key={s.id} className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/10 p-2">
+                  <NA name={s.sharedBy.name} color={(s.sharedBy.color as any) ?? "blue"} className="h-6 w-6 text-[9px]" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-medium">{s.sharedBy.name}'s workspace</div>
+                    <div className="text-[10px] text-muted-foreground">{s.permission} · {s.status}</div>
+                  </div>
+                  {s.status === "pending" ? (
+                    <button onClick={() => acceptShare(s.id)} className="rounded-md bg-emerald-500/10 px-2 py-1 text-[9px] font-semibold text-emerald-600 transition hover:bg-emerald-500/20">
+                      Accept
+                    </button>
+                  ) : null}
+                  <button onClick={() => revokeShare(s.id)} className="rounded-md border border-border/40 px-2 py-1 text-[9px] font-semibold text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500">
+                    Remove
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
