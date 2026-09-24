@@ -3559,10 +3559,11 @@ interface ClientUser {
 
 function ClientUsersTab() {
   const { data, loading, reload } = useApi<ClientUser[]>("/api/users");
+  const { data: customerList } = useApi<Customer[]>("/api/customers");
   const [loginOpen, setLoginOpen] = React.useState(false);
   const [editUser, setEditUser] = React.useState<ClientUser | null>(null);
   const [editOpen, setEditOpen] = React.useState(false);
-  const [form, setForm] = React.useState({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "" });
+  const [form, setForm] = React.useState({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "", customerId: "" });
   const [busy, setBusy] = React.useState(false);
 
   if (loading) return <div className="shimmer h-64 rounded-3xl" />;
@@ -3590,9 +3591,10 @@ function ClientUsersTab() {
         gender: form.gender || undefined,
         birthDate: form.birthDate || undefined,
         phone: form.phone || undefined,
+        customerId: form.customerId || undefined,
       });
       toast.success("User created!", { description: `${form.name} can sign in at /login` });
-      setForm({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "" });
+      setForm({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "", customerId: "" });
       setLoginOpen(false);
       reload();
     } catch (e) {
@@ -3789,6 +3791,23 @@ function ClientUsersTab() {
               <div><Label className="text-xs">Birth date</Label><Input type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} className="mt-1.5" /></div>
             </div>
             <div><Label className="text-xs">Department / Company</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Acme Inc." className="mt-1.5" /></div>
+
+            {/* Customer / Tenant selector — links user to a customer's database */}
+            {customerList && customerList.length > 0 && (
+              <div>
+                <Label className="text-xs">Link to Customer (Tenant)</Label>
+                <Select value={form.customerId || "__none__"} onValueChange={(v) => setForm({ ...form, customerId: v === "__none__" ? "" : v })}>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select customer" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No customer (super-admin)</SelectItem>
+                    {customerList.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.company ?? c.name}{c.database ? ` · ${c.database.name}` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[10px] text-muted-foreground">Links the user to the selected customer's tenant database. They will only see that customer's data.</p>
+              </div>
+            )}
             <div>
               <Label className="text-xs">Role</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>

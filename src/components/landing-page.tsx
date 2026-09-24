@@ -102,12 +102,12 @@ function SplashScreen({ onComplete }: { onComplete: () => void }) {
       <div className="retaina-bg" aria-hidden>
         <div className="blob-3" />
       </div>
-      <div className="relative flex min-h-screen flex-col items-center justify-center px-6">
+      <div className="relative flex min-h-screen flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
         {/* Logo mark + SocialFlow text */}
         <div className="crystal-in relative mb-4 flex flex-col items-center" style={{ animationDelay: "0.05s" }}>
           <div className="pointer-events-none absolute inset-0 -z-10 scale-150 rounded-full bg-[var(--primary)]/20 blur-3xl" />
           <Logo size={72} withTile={false} className="mb-4" />
-          <h1 className="text-6xl font-bold tracking-tight sm:text-7xl">
+          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
             Social<span className="retaina-text">Flow</span>
           </h1>
         </div>
@@ -155,7 +155,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       </div>
 
       {/* Nav */}
-      <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-6xl items-center justify-between rounded-2xl px-5 py-3 sm:w-[calc(100%-3rem)]">
+      <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-3 flex w-[calc(100%-1rem)] max-w-6xl items-center justify-between rounded-2xl px-4 py-3 sm:mt-4 sm:w-[calc(100%-2rem)] sm:px-5 lg:w-[calc(100%-3rem)]">
         <LogoWordmark size="text-[17px]" logoSize={26} />
         <div className="hidden items-center gap-6 md:flex">
           <a href="/features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</a>
@@ -164,18 +164,18 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
           <a href="/about" className="text-sm text-muted-foreground transition hover:text-foreground">About</a>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onSignIn} className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:block">
+          <button onClick={onSignIn} className="hidden min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:flex">
             Sign in
           </button>
-          <button onClick={onTrial} className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold">
+          <button onClick={onTrial} className="liquid-gold glow-ring flex min-h-11 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold">
             Start 15-day trial <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </nav>
 
       {/* ===== Story Act 1: The Problem ===== */}
-      <section id="story" className="relative mx-auto max-w-6xl px-4 pt-20 pb-16 sm:pt-28">
-        <div className="grid items-center gap-12 lg:grid-cols-2">
+      <section id="story" className="relative mx-auto max-w-6xl px-4 pt-16 pb-12 sm:px-6 sm:pt-20 sm:pb-16 lg:px-8 lg:pt-28">
+        <div className="grid items-center gap-8 sm:gap-10 lg:grid-cols-2 lg:gap-12">
           <div>
             <div className="crystal-in mb-6 inline-flex items-center gap-2 rounded-full border border-border/40 bg-muted/30 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
               <span className="relative flex h-2 w-2">
@@ -184,24 +184,24 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
               </span>
               The enterprise platform for social media teams
             </div>
-            <h1 className="crystal-in text-5xl font-bold leading-[1.05] tracking-tight sm:text-7xl" style={{ animationDelay: "0.1s" }}>
+            <h1 className="crystal-in text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl sm:leading-[1.05] lg:text-7xl" style={{ animationDelay: "0.1s" }}>
               One flow.
               <br />
               <span className="gold-text">Every platform.</span>
               <br />
               Zero chaos.
             </h1>
-            <p className="crystal-in mt-6 max-w-xl text-base text-muted-foreground sm:text-lg" style={{ animationDelay: "0.2s" }}>
+            <p className="crystal-in mt-6 max-w-xl text-sm text-muted-foreground sm:text-base lg:text-lg" style={{ animationDelay: "0.2s" }}>
               Your team posts to 7+ platforms every day. Switching tabs, copy-pasting captions,
               praying nothing gets suspended. SocialFlow turns that chaos into one calm, AI-powered flow —
               so your dissemination team ships more, faster.
             </p>
             <div className="crystal-in mt-8 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "0.3s" }}>
-              <button onClick={onTrial} className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold">
+              <button onClick={onTrial} className="liquid-pill glow-ring flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold sm:w-auto">
                 <Rocket className="h-4 w-4" />
                 Start 15-day trial
               </button>
-              <button onClick={onSignIn} className="flex items-center gap-2 rounded-2xl border border-border/50 bg-muted/30 px-6 py-3 text-sm font-semibold backdrop-blur transition hover:bg-muted/60">
+              <button onClick={onSignIn} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border/50 bg-muted/30 px-6 py-3 text-sm font-semibold backdrop-blur transition hover:bg-muted/60 sm:w-auto">
                 Sign in
               </button>
             </div>
@@ -258,19 +258,19 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
                 </div>
               </div>
             </div>
-            <div className="pointer-events-none absolute -inset-4 -z-10 rounded-[2rem] bg-[var(--primary)]/10 blur-2xl" />
+            <div className="pointer-events-none absolute -inset-4 -z-10 hidden rounded-[2rem] bg-[var(--primary)]/10 blur-2xl lg:block" />
           </div>
         </div>
       </section>
 
       {/* ===== Story Act 2: The Pain (before/after) ===== */}
-      <section className="mx-auto max-w-6xl px-4 py-16">
-        <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="crystal-in glass-strong rounded-3xl p-5 sm:p-8 lg:p-12">
           <div className="text-center">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-500">
               <ShieldAlert className="h-3 w-3" /> The old way
             </span>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
               Social media management is <span className="text-rose-500">broken</span>
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
@@ -301,12 +301,12 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       </section>
 
       {/* ===== Story Act 3: The Solution (features) ===== */}
-      <section id="features" className="mx-auto max-w-6xl px-4 py-16">
+      <section id="features" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         <div className="mb-10 text-center">
           <span className="crystal-in inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
             <Zap className="h-3 w-3" /> The SocialFlow way
           </span>
-          <h2 className="crystal-in mt-4 text-3xl font-bold tracking-tight sm:text-4xl" style={{ animationDelay: "0.1s" }}>
+          <h2 className="crystal-in mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl" style={{ animationDelay: "0.1s" }}>
             Everything your team needs to <span className="gold-text">win social</span>
           </h2>
           <p className="crystal-in mt-3 text-muted-foreground" style={{ animationDelay: "0.2s" }}>
@@ -340,14 +340,14 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       </section>
 
       {/* ===== Story Act 4: The Workflow ===== */}
-      <section id="workflow" className="mx-auto max-w-6xl px-4 py-16">
-        <div className="crystal-in glass-strong overflow-hidden rounded-3xl p-8 sm:p-12">
+      <section id="workflow" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="crystal-in glass-strong overflow-hidden rounded-3xl p-5 sm:p-8 lg:p-12">
           <div className="grid items-center gap-8 lg:grid-cols-2">
             <div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
                 <Zap className="h-3 w-3" /> The SocialFlow flow
               </div>
-              <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+              <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                 Write once. Publish <span className="gold-text">everywhere.</span>
               </h2>
               <p className="mt-3 text-muted-foreground">
@@ -375,7 +375,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
                   </div>
                 ))}
               </div>
-              <button onClick={onTrial} className="liquid-gold glow-ring mt-8 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold">
+              <button onClick={onTrial} className="liquid-gold glow-ring mt-8 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold sm:w-auto">
                 Try the composer <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -410,8 +410,8 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       </section>
 
       {/* ===== Story Act 5: Protection ===== */}
-      <section className="mx-auto max-w-6xl px-4 py-16">
-        <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="crystal-in glass-strong rounded-3xl p-5 sm:p-8 lg:p-12">
           <div className="grid items-center gap-8 lg:grid-cols-2">
             <div className="order-2 lg:order-1">
               <div className="glass rounded-3xl p-5">
@@ -441,7 +441,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
               <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-500">
                 <ShieldCheck className="h-3 w-3" /> Account protection
               </div>
-              <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+              <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                 Never get <span className="gold-text">suspended</span> again
               </h2>
               <p className="mt-3 text-muted-foreground">
@@ -471,7 +471,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       </section>
 
       {/* ===== Story Act 6: Stats band ===== */}
-      <section id="stats" className="mx-auto max-w-6xl px-4 py-16">
+      <section id="stats" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         <div className="crystal-in glass-strong grid grid-cols-2 gap-px overflow-hidden rounded-3xl md:grid-cols-4">
           {[
             { v: "17", l: "Integrated modules", icon: Layers },
@@ -479,9 +479,9 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
             { v: "Live", l: "Real-time analytics", icon: BarChart3 },
             { v: "24/7", l: "Account protection", icon: ShieldCheck },
           ].map((s, i) => (
-            <div key={s.l} className="crystal-in relative p-6 text-center" style={{ animationDelay: `${0.08 * i + 0.1}s` }}>
-              <s.icon className="mx-auto h-6 w-6 text-[var(--gold)]" />
-              <div className="num-display mt-3 text-3xl font-bold text-[var(--gold)] sm:text-4xl">{s.v}</div>
+            <div key={s.l} className="crystal-in relative p-4 text-center sm:p-6" style={{ animationDelay: `${0.08 * i + 0.1}s` }}>
+              <s.icon className="mx-auto h-5 w-5 text-[var(--gold)] sm:h-6 sm:w-6" />
+              <div className="num-display mt-3 text-2xl font-bold text-[var(--gold)] sm:text-3xl lg:text-4xl">{s.v}</div>
               <div className="label-caps mt-2 text-muted-foreground">{s.l}</div>
             </div>
           ))}
@@ -489,9 +489,9 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       </section>
 
       {/* ===== Story Act 7: Get started ===== */}
-      <section id="testimonials" className="mx-auto max-w-6xl px-4 py-16">
-        <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12 text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+      <section id="testimonials" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="crystal-in glass-strong rounded-3xl p-5 text-center sm:p-8 lg:p-12">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
             Built for teams that <span className="gold-text">move fast</span>
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
@@ -506,7 +506,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
               { v: "24/7", l: "Account protection" },
             ].map((s, i) => (
               <div key={s.l} className="crystal-in" style={{ animationDelay: `${0.1 * i + 0.1}s` }}>
-                <div className="num-display text-2xl font-bold text-[var(--gold)]">{s.v}</div>
+                <div className="num-display text-xl font-bold text-[var(--gold)] sm:text-2xl">{s.v}</div>
                 <div className="label-caps mt-1 text-muted-foreground">{s.l}</div>
               </div>
             ))}
@@ -515,12 +515,12 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       </section>
 
       {/* ===== Story Act 8: Pricing ===== */}
-      <section id="pricing" className="mx-auto max-w-6xl px-4 py-16">
+      <section id="pricing" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         <div className="mb-10 text-center">
           <span className="crystal-in inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
             <CreditCard className="h-3 w-3" /> Simple pricing
           </span>
-          <h2 className="crystal-in mt-4 text-3xl font-bold tracking-tight sm:text-4xl" style={{ animationDelay: "0.1s" }}>
+          <h2 className="crystal-in mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl" style={{ animationDelay: "0.1s" }}>
             Start with a <span className="gold-text">15-day free trial</span>
           </h2>
           <p className="crystal-in mt-3 text-muted-foreground" style={{ animationDelay: "0.2s" }}>
@@ -532,7 +532,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
             <div
               key={p.name}
               className={cn(
-                "crystal-in crystal-card relative overflow-hidden rounded-3xl p-6 lift-hover",
+                "crystal-in crystal-card relative overflow-hidden rounded-3xl p-5 sm:p-6 lift-hover",
                 p.featured ? "glass-strong ring-2 ring-[var(--gold)]" : "glass"
               )}
               style={{ animationDelay: `${0.1 * i + 0.1}s` }}
@@ -544,7 +544,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
               )}
               <h3 className="text-lg font-bold">{p.name}</h3>
               <div className="mt-2 flex items-baseline gap-1">
-                <span className="num-display text-4xl font-bold">{p.price}</span>
+                <span className="num-display text-3xl font-bold sm:text-4xl">{p.price}</span>
                 {p.price !== "Custom" && <span className="text-sm text-muted-foreground">/mo</span>}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">{p.desc}</p>
@@ -561,7 +561,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
               <button
                 onClick={onTrial}
                 className={cn(
-                  "mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition",
+                  "mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition",
                   p.featured ? "liquid-gold glow-ring" : "border border-border/50 bg-muted/40 hover:bg-muted"
                 )}
               >
@@ -573,17 +573,17 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       </section>
 
       {/* ===== Story Act 9: Final CTA ===== */}
-      <section className="mx-auto max-w-4xl px-4 py-20 text-center">
-        <div className="crystal-in glass-strong crystal-card relative overflow-hidden rounded-3xl p-10 sm:p-14">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[var(--gold)]/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-[var(--primary)]/20 blur-3xl" />
-          <h2 className="relative text-3xl font-bold tracking-tight sm:text-4xl">
+      <section className="mx-auto max-w-4xl px-4 py-12 text-center sm:px-6 lg:px-8 lg:py-20">
+        <div className="crystal-in glass-strong crystal-card relative overflow-hidden rounded-3xl p-6 sm:p-10 lg:p-14">
+          <div className="pointer-events-none absolute -right-10 -top-10 hidden h-40 w-40 rounded-full bg-[var(--gold)]/20 blur-3xl lg:block" />
+          <div className="pointer-events-none absolute -bottom-10 -left-10 hidden h-40 w-40 rounded-full bg-[var(--primary)]/20 blur-3xl lg:block" />
+          <h2 className="relative text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
             Ready to <span className="gold-text">simplify</span> your social team?
           </h2>
           <p className="relative mx-auto mt-3 max-w-md text-muted-foreground">
             Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
           </p>
-          <button onClick={onTrial} className="liquid-gold glow-ring relative mt-6 flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold mx-auto">
+          <button onClick={onTrial} className="liquid-gold glow-ring relative mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold sm:mx-auto sm:w-auto">
             <Rocket className="h-4 w-4" /> Start your 15-day trial <ArrowRight className="h-4 w-4" />
           </button>
           <p className="relative mt-3 text-[11px] text-muted-foreground">No card to explore · Cancel anytime · Full access for 15 days</p>
@@ -591,7 +591,7 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/40 px-4 py-10">
+      <footer className="border-t border-border/40 px-4 py-10 sm:px-6 lg:px-8 xl:px-12">
         <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <LogoWordmark size="text-sm" logoSize={22} />
@@ -688,7 +688,7 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-strong max-h-[92vh] max-w-lg overflow-y-auto">
+      <DialogContent className="glass-strong max-h-[92vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto p-5 sm:p-6">
         {/* Step indicator */}
         <div className="mb-2 flex items-center gap-2">
           <StepDot n={1} active={step === "details"} done={step !== "details"} />
@@ -735,8 +735,8 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
               </div>
             </div>
             <DialogFooter>
-              <button onClick={() => onOpenChange(false)} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={() => validateDetails() && setStep("payment")} className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-semibold">
+              <button onClick={() => onOpenChange(false)} className="min-h-11 rounded-xl border border-border/50 px-4 py-2.5 text-sm font-medium hover:bg-muted sm:w-auto w-full">Cancel</button>
+              <button onClick={() => validateDetails() && setStep("payment")} className="liquid-gold glow-ring flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold sm:w-auto">
                 Continue to payment <ArrowRight className="h-4 w-4" />
               </button>
             </DialogFooter>
@@ -800,8 +800,8 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
               </div>
             </div>
             <DialogFooter>
-              <button onClick={() => setStep("details")} className="rounded-xl border border-border/50 px-4 py-2 text-sm font-medium hover:bg-muted">Back</button>
-              <button onClick={activate} className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-semibold">
+              <button onClick={() => setStep("details")} className="min-h-11 w-full rounded-xl border border-border/50 px-4 py-2.5 text-sm font-medium hover:bg-muted sm:w-auto">Back</button>
+              <button onClick={activate} className="liquid-gold glow-ring flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold sm:w-auto">
                 <ShieldCheck className="h-4 w-4" /> Activate trial
               </button>
             </DialogFooter>
@@ -887,7 +887,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
         <div className="blob-3" />
       </div>
 
-      <div className="flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl lg:grid-cols-2">
           {/* Left — brand panel */}
           <div className="glass-strong crystal-in relative hidden flex-col justify-between p-10 lg:flex">
@@ -920,7 +920,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
           </div>
 
           {/* Right — login form (no role buttons) */}
-          <div className="glass crystal-in login-form-container flex flex-col justify-center p-8 sm:p-10">
+          <div className="glass crystal-in login-form-container flex flex-col justify-center p-5 sm:p-8 lg:p-10">
             {/* Splash logo with ripple */}
             <div className="mb-6 flex justify-center">
               <div className="relative">
@@ -931,7 +931,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               </div>
             </div>
 
-            <button onClick={onBack} className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
+            <button onClick={onBack} className="mb-4 -ml-2 flex min-h-11 items-center gap-1.5 px-2 text-xs text-muted-foreground transition hover:text-foreground">
               <ArrowRight className="h-3 w-3 rotate-180" /> Back to home
             </button>
 
@@ -947,7 +947,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-[var(--primary)]/50 focus:bg-background/50"
+                    className="w-full min-h-11 rounded-xl border border-border/50 bg-muted/30 py-3 pl-10 pr-3 text-sm outline-none transition focus:border-[var(--primary)]/50 focus:bg-background/50"
                     placeholder="you@yourcompany.com"
                   />
                 </div>
@@ -961,13 +961,13 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
                     type={showPw ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-[var(--primary)]/50 focus:bg-background/50"
+                    className="w-full min-h-11 rounded-xl border border-border/50 bg-muted/30 py-3 pl-10 pr-12 text-sm outline-none transition focus:border-[var(--primary)]/50 focus:bg-background/50"
                     placeholder="••••••••"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPw(!showPw)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-1 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center text-muted-foreground hover:text-foreground"
                   >
                     {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -978,7 +978,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
                 <label className="flex items-center gap-2 text-muted-foreground">
                   <input type="checkbox" className="accent-[var(--primary)]" defaultChecked /> Remember me
                 </label>
-                <button type="button" className="font-medium text-[var(--primary)] hover:underline">Forgot password?</button>
+                <button type="button" className="min-h-11 px-2 font-medium text-[var(--primary)] hover:underline">Forgot password?</button>
               </div>
 
               {error && (
@@ -990,7 +990,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="liquid-pill glow-ring flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
+                className="liquid-pill glow-ring flex min-h-11 w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold disabled:opacity-60"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
                 {loading ? "Signing in…" : "Sign in"}
@@ -999,7 +999,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
 
             <p className="mt-6 text-center text-xs text-muted-foreground">
               New to SocialFlow?{" "}
-              <button onClick={onBack} className="font-medium text-[var(--primary)] hover:underline">
+              <button onClick={onBack} className="inline-flex min-h-11 items-center px-2 font-medium text-[var(--primary)] hover:underline">
                 Sign in
               </button>
             </p>
