@@ -2684,3 +2684,50 @@ Stage Summary:
   3. The "· X failed" in the hero subtitle is removed for managers
 - Regular users still see their own failed posts (Failed posts card + the alert) because that's their personal concern to fix.
 - Artifacts changed: src/app/api/dashboard/route.ts (+39 lines: gated insights, publishedPosts array), src/components/views/dashboard.tsx (+97 lines: publishedPosts type, Shared content card for managers, conditional rendering).
+
+---
+Task ID: messenger-reload-loop-fix
+Agent: general-purpose (chat + whatsapp frontend loop fixes)
+Task: Team Chat window keeps refreshing, no messages sending. WhatsApp gives connectivity error.
+
+Work Log:
+- Read /home/z/my-project/worklog.md for prior messenger work.
+- Diagnosed via direct API testing — both backends work fine:
+  • /api/whatsapp/connection returns hasQr:True, qr len 6198, serviceOffline:None
+  • /api/chat returns 2 members, 2 messages, currentUserId set
+  So the bugs are purely frontend.
+
+### Root cause 1: Team Chat "keeps refreshing"
+- The useApi hook set loading=true on EVERY reload — including the 5s background poll. Since chat.tsx does `if (loading) return <skeleton>`, the entire chat view flipped to a loading skeleton every 5 seconds, then back. That's the "page keeps refreshing" the user saw.
+- The mark-as-read effect (deps: [selectedMember?.id]) called reload() which set loading=true, but because data changed on every poll, the component re-rendered frequently and the effect could re-fire.
+- sendMessage() called reload() (non-silent) → another skeleton flash → message input lost focus → "no messages sending".
+
+### Root cause 2: WhatsApp "connectivity error"
+- The polling effect (line 91-131) had `connection?.connected` AND `reload` in its dependency array, AND called `poll()` synchronously on effect setup.
+- Each poll() calls setConnection(json) → state changes → effect cleanup runs → new interval created → poll() called immediately again → setConnection → infinite rapid re-poll loop.
+- During the loop, any fetch that was mid-flight when the cleanup cancelled it would hit the catch block → setConnection({serviceOffline:true}) → the "WhatsApp service is not running" error flashed intermittently.
+
+### Fixes
+- src/lib/hooks.ts: reload() now accepts an optional `{ silent?: boolean }` arg. Silent reloads skip setLoading(true)/false so background polls don't flash the skeleton. The default (non-silent) behavior is preserved for explicit reloads.
+- src/components/views/chat.tsx:
+  • 5s poll now calls reload({ silent: true }) — no more skeleton flash.
+  • Mark-as-read effect uses a prevMarkedRef (tracks the last marked conversation key) so it only runs when the selection actually changes, not on every data refresh.
+  • sendMessage and sendFile now use reload({ silent: true }) — sending a message no longer flashes the skeleton or loses input focus.
+- src/components/views/whatsapp.tsx:
+  • Split the initial connection fetch into a separate mount-only effect (deps: [ownerId, token]) so the status shows immediately on mount.
+  • Removed the synchronous poll() call from the polling effect setup — the interval handles the first poll.
+  • Removed reload from the polling effect deps (it was stable but removing it clarifies intent).
+  • Added a showQRRef so the poll closure reads the latest showQR value without needing it in deps.
+
+### Verification (Agent Browser + API)
+- Chat: sent "Test message from e2e verification" → message appears in /api/chat (3 total messages, isMine:true). Page stayed stable through the send and the 5s poll (0 shimmer elements, main still visible). Member list shows Team Group + Test Client + Test Member.
+- WhatsApp: no "service is not running" error (hasOffline:false). "Show QR" button works → displays a 6118-char QR code. After 5s wait, QR still showing (no flash to error). VLM: "Large, clear QR code. No error. 'Waiting for scan...' stable. 9/10."
+- Lint: 0 errors. TypeScript: 0 errors.
+- Committed + pushed to GitHub (commit 26ce27e).
+
+Stage Summary:
+- **Both messengers now work without the refresh/error loops:**
+  1. Team Chat — no more page refreshing (silent polling), messages send successfully (verified end-to-end).
+  2. WhatsApp — no more "connectivity error" (fixed polling effect), QR code displays stably.
+- The core fix was adding a `silent` option to the useApi hook so background polls don't flip loading=true, plus decoupling the WhatsApp polling interval from the connection state it's updating.
+- Artifacts changed: src/lib/hooks.ts (+silent reload option), src/components/views/chat.tsx (silent polling + ref-guarded mark-as-read), src/components/views/whatsapp.tsx (split initial fetch from polling + removed sync poll()).
