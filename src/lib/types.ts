@@ -17,6 +17,7 @@ export type ViewId =
   | "mail"
   | "whatsapp"
   | "chat"
+  | "tasks"
   | "admin"
   | "owner"
   | "team-performance";

@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
           select: { id: true },
         }).then((rows) => rows.map((r) => r.id));
 
-    const [accounts, posts, variants, comments, activities, analytics] = await Promise.all([
+    const [accounts, posts, variants, comments, activities, analytics, tasks] = await Promise.all([
       db.account.findMany({
         include: { owner: true, health: true },
         ...(isManagerView ? {} : userId ? { where: { ownerId: userId } } : {}),
@@ -87,6 +87,10 @@ export async function GET(req: NextRequest) {
       db.analyticsDaily.findMany({
         orderBy: { date: "asc" },
         ...(isManagerView || !memberAccountIds ? {} : { where: { accountId: { in: memberAccountIds } } }),
+      }),
+      db.task.findMany({
+        orderBy: { createdAt: "desc" },
+        ...(isManagerView ? {} : userId ? { where: { OR: [{ assigneeId: userId }, { creatorId: userId }] } } : {}),
       }),
     ]);
 
@@ -637,6 +641,22 @@ export async function GET(req: NextRequest) {
       recentPosts,
       failedPosts,
       publishedPosts,
+      taskSummary: {
+        total: tasks.length,
+        done: tasks.filter((t) => t.status === "done").length,
+        inProgress: tasks.filter((t) => t.status === "in_progress").length,
+        blocked: tasks.filter((t) => t.status === "blocked").length,
+        overdue: tasks.filter((t) => t.dueAt && new Date(t.dueAt) < new Date() && t.status !== "done").length,
+        myTasks: tasks.filter((t) => t.assigneeId === userId).length,
+        myDone: tasks.filter((t) => t.assigneeId === userId && t.status === "done").length,
+        recent: tasks.slice(0, 5).map((t) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+          dueAt: t.dueAt?.toISOString() ?? null,
+        })),
+      },
       commentInbox,
       upcoming,
       topPosts,

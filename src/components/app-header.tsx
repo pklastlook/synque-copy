@@ -47,6 +47,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   mail: { title: "Mail Server", subtitle: "Custom domain mailboxes for your team" },
   whatsapp: { title: "WhatsApp Inbox", subtitle: "Paste content from groups & chats to publish" },
   chat: { title: "Team Chat", subtitle: "Message your team and share files" },
+  tasks: { title: "Tasks", subtitle: "Assign work, write content, and send tasks to the composer" },
   "team-performance": { title: "Performance", subtitle: "Team content activity — posts, tweets, comments & engagement" },
   admin: { title: "Admin Panel", subtitle: "Team performance, workflow & oversight" },
   owner: { title: "Owner Panel", subtitle: "Clients, invoices, serial keys, devices, finance & API keys" },

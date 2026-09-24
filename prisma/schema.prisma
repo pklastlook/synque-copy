@@ -271,6 +271,12 @@ model Task {
   id          String    @id @default(cuid())
   title       String
   description String?
+  // Rich content for sending a task straight to the composer
+  content     String?  // the actual post caption / body text the user wrote
+  mediaUrl    String?  // attached media (image/video URL or data URL)
+  mediaType   String?  // image | video | audio | null
+  platforms   String?  // JSON array of platform ids the task should be published to
+  tags        String?  // comma-separated tags/hashtags
   assigneeId  String?
   creatorId   String
   status      String    @default("todo") // todo | in_progress | review | done | blocked
