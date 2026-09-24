@@ -161,8 +161,9 @@ export function WhatsAppView() {
       });
       const json = await res.json();
       if (!res.ok) {
-        toast.error("WhatsApp service unavailable", {
-          description: json.error ?? "Ask the admin to start the WhatsApp mini-service.",
+        // On Vercel/serverless, the WhatsApp service isn't running — guide the user to manual mode
+        toast.info("Live connection unavailable", {
+          description: "WhatsApp QR scanning needs the WhatsApp service running on the server. You can still paste messages manually below.",
           duration: 8000,
         });
       } else {
@@ -172,7 +173,10 @@ export function WhatsAppView() {
         });
       }
     } catch {
-      toast.error("Network error");
+      toast.info("Live connection unavailable", {
+        description: "You can still paste messages manually below to send them to the composer.",
+        duration: 8000,
+      });
     } finally {
       setConnecting(false);
     }
@@ -798,26 +802,26 @@ function ConnectionBanner({
   const isConnected = connection?.connected;
   const hasQR = connection?.qr;
 
-  // Service offline — show error state
+  // Service offline — show manual-mode banner (NOT blocking — paste still works)
   if (isOffline) {
     return (
-      <GlassCard className="crystal-in border-rose-500/30 p-4" style={{ animationDelay: "0.15s" }}>
+      <GlassCard className="crystal-in border-amber-500/30 bg-amber-500/5 p-4" style={{ animationDelay: "0.15s" }}>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-500/15 text-rose-500">
-            <WifiOff className="h-5 w-5" />
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-500">
+            <Smartphone className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold">WhatsApp service is not running</div>
+            <div className="text-sm font-bold">Manual mode — paste messages below</div>
             <div className="text-[11px] text-muted-foreground">
-              The admin needs to start the WhatsApp mini-service:
-              <code className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px]">cd mini-services/whatsapp-service && bun run dev</code>
+              Live WhatsApp connection (QR scan) needs the WhatsApp service running. You can still
+              paste messages manually from any WhatsApp group or chat to send them to the composer.
             </div>
           </div>
           <button
             onClick={() => window.location.reload()}
             className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-1.5 text-xs font-semibold transition hover:bg-muted"
           >
-            <RefreshCw className="h-3.5 w-3.5" /> Retry
+            <RefreshCw className="h-3.5 w-3.5" /> Retry connection
           </button>
         </div>
       </GlassCard>

@@ -63,11 +63,12 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Also set the token as an httpOnly cookie so server-side API routes
-    // can read it without requiring a Bearer header.
+    // Also set the token as a cookie so server-side API routes + the browser
+    // can authenticate without requiring a Bearer header on every request.
     response.cookies.set("token", token, {
       httpOnly: false, // needs to be readable by client-side JS too
       sameSite: "lax",
+      secure: process.env.NODE_ENV === "production", // required on Vercel HTTPS
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: "/",
     });
