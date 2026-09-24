@@ -1,33 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a0f"/>
+      <stop offset="100%" stop-color="#1a1a2e"/>
+    </linearGradient>
+    <linearGradient id="bar1" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#5856D6"/>
-      <stop offset="50%" stop-color="#6C5CE7"/>
-      <stop offset="100%" stop-color="#7B68EE"/>
+      <stop offset="100%" stop-color="#D4AF37"/>
     </linearGradient>
-    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#E0E0FF"/>
+    <linearGradient id="bar2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#5856D6"/>
     </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
+    <linearGradient id="bar3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5856D6"/>
+      <stop offset="50%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#5856D6"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
-  <!-- Full background for maskable icon -->
-  <rect width="512" height="512" fill="url(#bgGrad)"/>
-  <!-- Decorative circles -->
-  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
-  <circle cx="256" cy="256" r="160" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
-  <!-- SF logo text — centered in safe zone (80% = ~410px area) -->
-  <text x="256" y="256" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-        font-size="200" font-weight="800" fill="url(#logoGrad)"
-        text-anchor="middle" dominant-baseline="central"
-        filter="url(#glow)" letter-spacing="-8">SF</text>
-  <!-- Subtle dot accent -->
-  <circle cx="256" cy="80" r="6" fill="rgba(255,255,255,0.6)"/>
-  <circle cx="256" cy="432" r="4" fill="rgba(255,255,255,0.3)"/>
+  <!-- Dark background for maskable icon -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <!-- Subtle ring -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(88,86,214,0.08)" stroke-width="2"/>
+  <!-- Flow wave logo — 3 bars centered in safe zone (80%) -->
+  <g filter="url(#glow)" transform="translate(96, 156)">
+    <!-- Bar 1 — top, widest -->
+    <rect x="0" y="0" width="320" height="50" rx="25" fill="url(#bar1)"/>
+    <!-- Bar 2 — middle, medium -->
+    <rect x="26" y="80" width="268" height="50" rx="25" fill="url(#bar2)"/>
+    <!-- Bar 3 — bottom, shortest -->
+    <rect x="52" y="160" width="216" height="50" rx="25" fill="url(#bar3)"/>
+  </g>
 </svg>
