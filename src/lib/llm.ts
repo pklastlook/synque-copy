@@ -17,11 +17,13 @@ export interface LLMClient {
 class ClaudeClient implements LLMClient {
   private apiKey: string;
   private model: string;
+  private workspaceId: string | undefined;
   get provider() { return "claude"; }
 
   constructor(creds: Record<string, string>) {
     this.apiKey = creds.apiKey;
     this.model = creds.model || "claude-sonnet-4-20250514";
+    this.workspaceId = creds.workspaceId || undefined;
   }
 
   async chat(messages: LLMMessage[]): Promise<string> {
@@ -49,13 +51,19 @@ class ClaudeClient implements LLMClient {
       body.system = systemParts.join("\n\n");
     }
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-api-key": this.apiKey,
+      "anthropic-version": "2023-06-01",
+    };
+    // If the API key is not workspace-scoped, include the workspace ID header
+    if (this.workspaceId) {
+      headers["anthropic-workspace-id"] = this.workspaceId;
+    }
+
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": this.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
+      headers,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(60000),
     });

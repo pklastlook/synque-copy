@@ -104,6 +104,7 @@ export const INTEGRATION_DEFS: Record<string, {
     fields: [
       { key: "apiKey", label: "API Key", type: "password", placeholder: "sk-ant-api03-...", required: true },
       { key: "model", label: "Model", type: "text", placeholder: "claude-sonnet-4-20250514", required: true },
+      { key: "workspaceId", label: "Workspace ID (optional)", type: "text", placeholder: "e.g. wksp_abc123 — only if your API key is not workspace-scoped", required: false },
     ],
   },
   openai: {

@@ -133,13 +133,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ typ
 
     if (type === "claude") {
       // Test by sending a tiny message to the Anthropic API
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-api-key": creds.apiKey,
+        "anthropic-version": "2023-06-01",
+      };
+      // If workspace ID is provided, include it
+      if (creds.workspaceId) {
+        headers["anthropic-workspace-id"] = creds.workspaceId;
+      }
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": creds.apiKey,
-          "anthropic-version": "2023-06-01",
-        },
+        headers,
         body: JSON.stringify({
           model: creds.model || "claude-sonnet-4-20250514",
           max_tokens: 10,
