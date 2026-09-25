@@ -47,35 +47,54 @@ Time: ${new Date().toISOString()}
 `;
 
   // System prompt describing available tools
-  const systemPrompt = `You are SocialFlow AI, an intelligent assistant inside a social media management platform. You can answer questions about the user's data AND execute commands.
+  const systemPrompt = `You are SocialFlow AI, an advanced AI assistant inside a social media management platform. You can answer questions about the user's data, provide analytics and reports, AND execute commands like scheduling posts, replying to comments, and creating tasks.
 
 ${userContext}
 
-You have access to these tools. When you want to use a tool, respond with ONLY a JSON object (no markdown, no explanation before or after):
+You have access to 18 tools. When you want to use a tool, respond with ONLY a JSON object (no markdown, no explanation before or after):
 {"action": "tool_name", "params": {param1: "value"}}
 
-Available tools:
-- get_dashboard_stats: Get overview stats (total posts, accounts, members, engagement). No params needed.
+**Data & Analytics:**
+- get_dashboard_stats: Get overview stats (posts, accounts, members, tasks). No params.
 - get_posts: List posts. Params: status? ("draft"|"scheduled"|"published"|"failed"), platform? ("instagram"|"facebook"|"x"|"linkedin"|"tiktok"|"youtube"|"threads"), limit? (number, default 10)
-- get_post_details: Get a specific post with variants. Params: postId (string)
-- get_team_members: List all team members. No params needed.
-- get_accounts: List all connected social accounts. No params needed.
+- get_post_details: Get a specific post with all variants. Params: postId (string)
+- get_post_engagement: Get detailed engagement metrics for a post. Params: postId (string)
+- search_posts: Search posts by keyword. Params: query (string), limit? (number, default 10)
 - get_analytics: Get analytics summary. Params: platform?, days? (number, default 30)
+- get_accounts: List all connected social accounts. No params.
+- get_media: Search media library. Params: query?, type? ("image"|"video"|"audio"), limit? (number)
+
+**Team & Activity:**
+- get_team_members: List all team members. No params.
+- get_user_activity: Get user activity report. Params: userId? (defaults to current user), days? (number, default 30)
+- get_team_chat: Get recent team chat messages. Params: limit? (number, default 10)
+
+**Inbox & Comments:**
 - get_inbox: Get unread comments/messages. Params: limit? (number, default 10)
+- reply_to_comment: Reply to a comment. Params: commentId (string), text (string)
+
+**Tasks:**
 - get_tasks: List tasks. Params: status? ("todo"|"in_progress"|"review"|"done"|"blocked")
 - create_task: Create a new task. Params: title (string), description? (string), priority? ("low"|"normal"|"high"|"urgent")
+
+**Posts:**
 - get_calendar: Get upcoming scheduled posts. Params: days? (number, default 7)
-- get_team_chat: Get recent team chat messages. Params: limit? (number, default 10)
+- schedule_post: Schedule or draft a post. Params: caption (string — the full post text), platforms (array of platform names like ["instagram","x"]), scheduledAt (string — ISO date, "tomorrow 3pm", or "next week")
+- delete_post: Delete a post. Params: postId (string)
 
 Rules:
 1. If the user asks a question that needs data, use a tool to fetch it.
-2. If the user asks you to do something (create task, etc.), use the appropriate tool.
-3. If the user just wants to chat or asks a general question, respond conversationally (no tool needed).
-4. Be concise, friendly, and helpful. Use the data from tools to give specific answers.
-5. When you use a tool, ONLY output the JSON action. The system will execute it and send you the result.
-6. After receiving tool results, summarize them in natural language for the user.
-7. Format numbers nicely (e.g., "1,234" not "1234").
-8. If a tool returns no data, say so honestly.`;
+2. If the user asks you to do something (create task, schedule post, reply to comment, etc.), use the appropriate tool. Extract the required params from the user's message.
+3. For schedule_post: the "caption" param should be the post text the user wants to publish. The "platforms" param should be an array like ["instagram"]. The "scheduledAt" should be a time string.
+4. For reply_to_comment: first use get_inbox to find comments, then use reply_to_comment with the commentId and the reply text.
+5. If the user just wants to chat or asks a general question, respond conversationally (no tool needed).
+6. Be concise, friendly, and helpful. Use the data from tools to give specific answers.
+7. When you use a tool, ONLY output the JSON action. The system will execute it and send you the result.
+8. After receiving tool results, summarize them in natural language for the user.
+9. Format numbers nicely (e.g., "1,234" not "1234"). Use bold for key metrics.
+10. If a tool returns no data, say so honestly and suggest an action.
+11. When the user asks to "schedule a post about X for Instagram tomorrow", extract: caption="X", platforms=["instagram"], scheduledAt="tomorrow".
+12. When the user asks to "reply to a comment", first call get_inbox to get the comment list, then ask which one to reply to (or reply to the first one if specified).`;
 
   // Build conversation messages
   const conversationMessages: LLMMessage[] = [
@@ -87,88 +106,99 @@ Rules:
     { role: "user", content: message },
   ];
 
-  // Step 1: Send to AI — does it want to call a tool?
-  let aiResponse = "";
-  try {
-    const result = await chatWithFallback(conversationMessages);
-    aiResponse = result.content;
-  } catch (err) {
-    console.error("[ai/assistant] LLM failed:", err instanceof Error ? err.message : String(err));
-    return NextResponse.json({
-      reply: "I couldn't process your request right now. Please try again.",
-    });
-  }
+  // Multi-step tool execution loop (max 3 rounds for chained actions)
+  // e.g., get_inbox → reply_to_comment, or get_posts → get_post_engagement
+  const MAX_TOOL_ROUNDS = 3;
+  let currentMessages = [...conversationMessages];
+  let lastAction: { tool: string; params: Record<string, unknown>; result?: unknown; error?: string } | null = null;
 
-  // Check if the AI response is a JSON action
-  const actionMatch = aiResponse.match(/\{[\s\S]*"action"[\s\S]*\}/);
-  if (!actionMatch) {
-    // No tool call — return the conversational reply directly
-    return NextResponse.json({ reply: aiResponse.trim() });
-  }
-
-  // Parse the action JSON
-  let action: { action: string; params: Record<string, unknown> };
-  try {
-    // Find the JSON object in the response
-    const jsonStr = aiResponse.match(/\{[\s\S]+\}/)?.[0];
-    if (!jsonStr) throw new Error("No JSON found");
-    action = JSON.parse(jsonStr);
-  } catch {
-    // Not valid JSON — treat as conversational reply
-    return NextResponse.json({ reply: aiResponse.trim() });
-  }
-
-  // Step 2: Execute the tool
-  let toolResult: unknown;
-  try {
-    toolResult = await executeTool(action.action, action.params, {
-      targetDb,
-      scope,
-      userId: user!.userId,
-      userRole: user!.role,
-    });
-  } catch (err) {
-    console.error("[ai/assistant] Tool execution failed:", err instanceof Error ? err.message : String(err));
-    // Send error back to AI for a user-friendly message
-    const errorMessages: LLMMessage[] = [
-      ...conversationMessages,
-      { role: "assistant", content: JSON.stringify(action) },
-      { role: "user", content: `Tool "${action.action}" failed with error: ${err instanceof Error ? err.message : String(err)}. Please inform the user about this error and suggest an alternative.` },
-    ];
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    // Step 1: Ask AI what to do
+    let aiResponse = "";
     try {
-      const result = await chatWithFallback(errorMessages);
+      const result = await chatWithFallback(currentMessages);
+      aiResponse = result.content;
+    } catch (err) {
+      console.error("[ai/assistant] LLM failed:", err instanceof Error ? err.message : String(err));
       return NextResponse.json({
-        reply: result.content,
-        action: { tool: action.action, params: action.params, error: err instanceof Error ? err.message : String(err) },
-      });
-    } catch {
-      return NextResponse.json({
-        reply: `I tried to use ${action.action} but it failed. Please try again or check if the data exists.`,
+        reply: "I couldn't process your request right now. Please try again.",
       });
     }
+
+    // Check if the AI response is a JSON action
+    const actionMatch = aiResponse.match(/\{[\s\S]*"action"[\s\S]*\}/);
+    if (!actionMatch) {
+      // No tool call — return the conversational reply directly
+      return NextResponse.json({
+        reply: aiResponse.trim(),
+        action: lastAction ?? undefined,
+      });
+    }
+
+    // Parse the action JSON
+    let action: { action: string; params: Record<string, unknown> };
+    try {
+      const jsonStr = aiResponse.match(/\{[\s\S]+\}/)?.[0];
+      if (!jsonStr) throw new Error("No JSON found");
+      action = JSON.parse(jsonStr);
+    } catch {
+      // Not valid JSON — treat as conversational reply
+      return NextResponse.json({
+        reply: aiResponse.trim(),
+        action: lastAction ?? undefined,
+      });
+    }
+
+    // Step 2: Execute the tool
+    let toolResult: unknown;
+    try {
+      toolResult = await executeTool(action.action, action.params, {
+        targetDb,
+        scope,
+        userId: user!.userId,
+        userRole: user!.role,
+      });
+      lastAction = { tool: action.action, params: action.params, result: toolResult };
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error("[ai/assistant] Tool execution failed:", errMsg);
+      lastAction = { tool: action.action, params: action.params, error: errMsg };
+
+      // Send error back to AI — it can retry with a different approach
+      currentMessages.push(
+        { role: "assistant", content: JSON.stringify(action) },
+        { role: "user", content: `Tool "${action.action}" failed with error: ${errMsg}. Please inform the user about this error and suggest an alternative.` }
+      );
+      continue; // Let the AI respond with an error message
+    }
+
+    // Step 3: Send tool result back to AI
+    // On the last round, ask for a final summary. On earlier rounds,
+    // let the AI decide if it needs another tool call.
+    const isLastRound = round === MAX_TOOL_ROUNDS - 1;
+    const resultPrompt = isLastRound
+      ? `Tool "${action.action}" returned this data:\n\n${JSON.stringify(toolResult, null, 2).slice(0, 3000)}\n\nPlease summarize this data for the user in a clear, friendly way. Use formatting (bold, lists) if helpful. Be specific with the numbers. This is your final response — do not call another tool.`
+      : `Tool "${action.action}" returned this data:\n\n${JSON.stringify(toolResult, null, 2).slice(0, 3000)}\n\nYou can now either:\n1. Call another tool if needed (respond with JSON action)\n2. Summarize the results for the user in natural language`;
+
+    currentMessages.push(
+      { role: "assistant", content: JSON.stringify(action) },
+      { role: "user", content: resultPrompt }
+    );
   }
 
-  // Step 3: Send tool result back to AI for a natural language summary
-  const summaryMessages: LLMMessage[] = [
-    ...conversationMessages,
-    { role: "assistant", content: JSON.stringify(action) },
-    {
-      role: "user",
-      content: `Tool "${action.action}" returned this data:\n\n${JSON.stringify(toolResult, null, 2).slice(0, 3000)}\n\nPlease summarize this data for the user in a clear, friendly way. Use formatting (bold, lists) if helpful. Be specific with the numbers.`,
-    },
-  ];
-
+  // If we exhausted all rounds, do a final summary
   try {
-    const result = await chatWithFallback(summaryMessages);
+    const result = await chatWithFallback(currentMessages);
     return NextResponse.json({
       reply: result.content,
-      action: { tool: action.action, params: action.params, result: toolResult },
+      action: lastAction ?? undefined,
     });
   } catch {
-    // If the summary fails, return raw tool result
     return NextResponse.json({
-      reply: `I found the data you requested. Here's what I found:\n\n${JSON.stringify(toolResult, null, 2).slice(0, 1000)}`,
-      action: { tool: action.action, params: action.params, result: toolResult },
+      reply: lastAction?.result
+        ? `Here's what I found:\n\n${JSON.stringify(lastAction.result, null, 2).slice(0, 1000)}`
+        : "I couldn't complete your request. Please try again.",
+      action: lastAction ?? undefined,
     });
   }
 }
@@ -499,7 +529,6 @@ async function executeTool(
           variants: {
             create: accounts.map((a) => ({
               accountId: a.id,
-              platform: a.platform,
               content: caption,
               status: scheduleDate ? "scheduled" : "draft",
             })),
