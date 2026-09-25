@@ -11,26 +11,110 @@ export interface LLMClient {
 }
 
 // ============================================================================
-// ZAI Client (legacy — works in local dev)
+// Claude Client (Anthropic API) — primary provider
 // ============================================================================
 
-class ZAIClient implements LLMClient {
-  private zai: any;
-  get provider() { return "zai"; }
+class ClaudeClient implements LLMClient {
+  private apiKey: string;
+  private model: string;
+  get provider() { return "claude"; }
 
-  constructor(zai: any) {
-    this.zai = zai;
+  constructor(creds: Record<string, string>) {
+    this.apiKey = creds.apiKey;
+    this.model = creds.model || "claude-sonnet-4-20250514";
   }
 
   async chat(messages: LLMMessage[]): Promise<string> {
-    const completion = await this.zai.chat.completions.create({
-      messages: messages.map((m) => ({
-        role: m.role === "system" ? "assistant" : m.role,
-        content: m.content,
-      })),
-      thinking: { type: "disabled" },
+    // Anthropic API separates system messages from the conversation
+    const systemParts: string[] = [];
+    const conversationMsgs: { role: "user" | "assistant"; content: string }[] = [];
+
+    for (const m of messages) {
+      if (m.role === "system") {
+        systemParts.push(m.content);
+      } else {
+        conversationMsgs.push({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: m.content,
+        });
+      }
+    }
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      max_tokens: 4096,
+      messages: conversationMsgs,
+    };
+    if (systemParts.length > 0) {
+      body.system = systemParts.join("\n\n");
+    }
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": this.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60000),
     });
-    return completion.choices[0]?.message?.content ?? "";
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+      throw new Error(`Claude API error: ${errBody.error?.message ?? res.status}`);
+    }
+
+    const json = await res.json() as {
+      content?: { type: string; text?: string }[];
+    };
+    // Anthropic returns content as an array of blocks
+    const textBlocks = json.content?.filter((b) => b.type === "text") ?? [];
+    return textBlocks.map((b) => b.text ?? "").join("") ?? "";
+  }
+}
+
+// ============================================================================
+// OpenAI Client
+// ============================================================================
+
+class OpenAIClient implements LLMClient {
+  private apiKey: string;
+  private model: string;
+  private baseUrl: string;
+  get provider() { return "openai"; }
+
+  constructor(creds: Record<string, string>) {
+    this.apiKey = creds.apiKey;
+    this.model = creds.model || "gpt-4o-mini";
+    this.baseUrl = (creds.baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+  }
+
+  async chat(messages: LLMMessage[]): Promise<string> {
+    const res = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages,
+        temperature: 0.8,
+        max_tokens: 4096,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+      throw new Error(`OpenAI API error: ${errBody.error?.message ?? res.status}`);
+    }
+
+    const json = await res.json() as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return json.choices?.[0]?.message?.content ?? "";
   }
 }
 
@@ -89,46 +173,26 @@ class GeminiClient implements LLMClient {
 }
 
 // ============================================================================
-// OpenAI Client (works for OpenAI + any OpenAI-compatible API)
+// ZAI Client (legacy fallback)
 // ============================================================================
 
-class OpenAIClient implements LLMClient {
-  private apiKey: string;
-  private model: string;
-  private baseUrl: string;
-  get provider() { return "openai"; }
+class ZAIClient implements LLMClient {
+  private zai: any;
+  get provider() { return "zai"; }
 
-  constructor(creds: Record<string, string>) {
-    this.apiKey = creds.apiKey;
-    this.model = creds.model || "gpt-4o-mini";
-    this.baseUrl = (creds.baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+  constructor(zai: any) {
+    this.zai = zai;
   }
 
   async chat(messages: LLMMessage[]): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        temperature: 0.8,
-        max_tokens: 1024,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const completion = await this.zai.chat.completions.create({
+      messages: messages.map((m) => ({
+        role: m.role === "system" ? "assistant" : m.role,
+        content: m.content,
+      })),
+      thinking: { type: "disabled" },
     });
-
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
-      throw new Error(`OpenAI API error: ${errBody.error?.message ?? res.status}`);
-    }
-
-    const json = await res.json() as {
-      choices?: { message?: { content?: string } }[];
-    };
-    return json.choices?.[0]?.message?.content ?? "";
+    return completion.choices[0]?.message?.content ?? "";
   }
 }
 
@@ -143,7 +207,21 @@ export async function getLLMClient(): Promise<LLMClient> {
   const bucket = Math.floor(Date.now() / 60000);
   if (_cachedClient && _cachedKey === bucket.toString()) return _cachedClient;
 
-  // 1. Try OpenAI from DB
+  // 1. Try Claude (Anthropic) from DB — highest priority
+  try {
+    const row = await db.integration.findUnique({ where: { type: "claude" } });
+    if (row?.enabled && row.credentials) {
+      const creds = JSON.parse(row.credentials) as Record<string, string>;
+      if (creds.apiKey && creds.model) {
+        _cachedClient = new ClaudeClient(creds);
+        _cachedKey = bucket.toString();
+        console.log("[llm] Using Claude provider from DB (model:", creds.model + ")");
+        return _cachedClient;
+      }
+    }
+  } catch {}
+
+  // 2. Try OpenAI from DB
   try {
     const row = await db.integration.findUnique({ where: { type: "openai" } });
     if (row?.enabled && row.credentials) {
@@ -156,7 +234,7 @@ export async function getLLMClient(): Promise<LLMClient> {
     }
   } catch {}
 
-  // 2. Try Gemini from DB
+  // 3. Try Gemini from DB
   try {
     const row = await db.integration.findUnique({ where: { type: "gemini" } });
     if (row?.enabled && row.credentials) {
@@ -169,7 +247,17 @@ export async function getLLMClient(): Promise<LLMClient> {
     }
   } catch {}
 
-  // 3. Fall back to ZAI SDK
+  // 4. Try ANTHROPIC_API_KEY env var
+  if (process.env.ANTHROPIC_API_KEY) {
+    _cachedClient = new ClaudeClient({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
+    });
+    _cachedKey = bucket.toString();
+    return _cachedClient;
+  }
+
+  // 5. Fall back to ZAI SDK
   try {
     const { createZaiClient } = await import("./zai");
     const zai = await createZaiClient();
@@ -190,7 +278,7 @@ export async function chatWithFallback(messages: LLMMessage[]): Promise<{ conten
     providers.push({ client, name: client.provider });
   } catch {}
 
-  // 2. ZAI fallback
+  // 2. ZAI fallback (if not already the primary)
   const hasZai = providers.some((p) => p.name === "zai");
   if (!hasZai) {
     try {
@@ -207,12 +295,15 @@ export async function chatWithFallback(messages: LLMMessage[]): Promise<{ conten
   let lastError: Error | null = null;
   for (const { client, name } of providers) {
     try {
+      console.log(`[llm] Trying provider: ${name}`);
       const content = await client.chat(messages);
       if (content && content.trim().length > 0) {
+        console.log(`[llm] Success with provider: ${name} (${content.length} chars)`);
         return { content, provider: name };
       }
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`[llm] Provider ${name} failed: ${lastError.message}`);
     }
   }
 
@@ -233,6 +324,24 @@ export interface LLMStatus {
 }
 
 export async function getLLMStatus(): Promise<LLMStatus> {
+  // Check Claude from DB first
+  try {
+    const row = await db.integration.findUnique({ where: { type: "claude" } });
+    if (row?.enabled && row.credentials) {
+      const creds = JSON.parse(row.credentials) as Record<string, string>;
+      if (creds.apiKey && creds.model) {
+        return {
+          configured: true,
+          provider: "claude",
+          model: creds.model,
+          message: `Claude (${creds.model}) configured via Settings — AI assistant is live.`,
+          credentialSource: "db",
+        };
+      }
+    }
+  } catch {}
+
+  // Check OpenAI from DB
   try {
     const row = await db.integration.findUnique({ where: { type: "openai" } });
     if (row?.enabled && row.credentials) {
@@ -243,6 +352,7 @@ export async function getLLMStatus(): Promise<LLMStatus> {
     }
   } catch {}
 
+  // Check Gemini from DB
   try {
     const row = await db.integration.findUnique({ where: { type: "gemini" } });
     if (row?.enabled && row.credentials) {
@@ -253,6 +363,18 @@ export async function getLLMStatus(): Promise<LLMStatus> {
     }
   } catch {}
 
+  // Check ANTHROPIC_API_KEY env var
+  if (process.env.ANTHROPIC_API_KEY) {
+    return {
+      configured: true,
+      provider: "claude",
+      model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
+      message: "Claude configured via .env (ANTHROPIC_API_KEY).",
+      credentialSource: "env",
+    };
+  }
+
+  // Check ZAI SDK env vars
   if (process.env.ZAI_API_KEY && process.env.ZAI_BASE_URL) {
     return { configured: true, provider: "zai", model: "zai-default", message: "ZAI SDK configured via .env.", credentialSource: "env" };
   }

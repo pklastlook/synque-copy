@@ -97,6 +97,15 @@ export const INTEGRATION_DEFS: Record<string, {
       { key: "folder", label: "Top-level Folder (optional)", type: "text", placeholder: "socialflow", required: false },
     ],
   },
+  claude: {
+    name: "Claude (Anthropic)",
+    desc: "Power the AI Assistant with Claude by Anthropic. Most capable model for complex reasoning, data analysis, and natural conversation. Get an API key from console.anthropic.com.",
+    icon: "Sparkles",
+    fields: [
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "sk-ant-api03-...", required: true },
+      { key: "model", label: "Model", type: "text", placeholder: "claude-sonnet-4-20250514", required: true },
+    ],
+  },
   openai: {
     name: "OpenAI (ChatGPT)",
     desc: "Power the AI Content Writer + caption variant generator with GPT models. Get an API key from platform.openai.com.",
@@ -191,7 +200,7 @@ export async function POST(req: NextRequest) {
   }
 
   // If this is an LLM provider (OpenAI / Gemini), invalidate the cached LLM client
-  if (type === "openai" || type === "gemini") {
+  if (type === "claude" || type === "openai" || type === "gemini") {
     invalidateLLMClient();
   }
 

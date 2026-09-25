@@ -53,7 +53,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
   }
 
   // If deleting an LLM provider, invalidate the cached LLM client.
-  if (type === "openai" || type === "gemini") {
+  if (type === "claude" || type === "openai" || type === "gemini") {
     invalidateLLMClient();
   }
 
@@ -129,6 +129,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ typ
       }
       await db.integration.update({ where: { type }, data: { lastSyncAt: new Date() } });
       return NextResponse.json({ ok: true, message: `Cloudinary connected — cloud "${cloudName}" is reachable` });
+    }
+
+    if (type === "claude") {
+      // Test by sending a tiny message to the Anthropic API
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": creds.apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: creds.model || "claude-sonnet-4-20250514",
+          max_tokens: 10,
+          messages: [{ role: "user", content: "Reply with the single word OK." }],
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(errBody.error?.message ?? `Claude returned ${res.status}`);
+      }
+      await db.integration.update({ where: { type }, data: { lastSyncAt: new Date() } });
+      return NextResponse.json({ ok: true, message: `Claude connected — model "${creds.model}" is reachable` });
     }
 
     if (type === "openai") {
