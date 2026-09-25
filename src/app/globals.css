@@ -185,8 +185,6 @@
   html, body {
     @apply text-foreground;
     background: transparent;
-    /* Prevent horizontal page-level scroll caused by fixed-width children on mobile */
-    overflow-x: hidden;
   }
   body {
     min-height: 100dvh;

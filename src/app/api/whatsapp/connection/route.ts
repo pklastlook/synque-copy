@@ -4,6 +4,18 @@ import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * The WhatsApp mini-service URL.
+ *
+ * Priority:
+ *   1. WHATSAPP_SERVICE_URL env var (set in .env or Vercel env vars)
+ *   2. Default to http://127.0.0.1:3002 (local dev)
+ *
+ * On Vercel/production, deploy the WhatsApp mini-service separately
+ * (Railway, Render, Fly.io, or a VPS) and set WHATSAPP_SERVICE_URL to
+ * its public URL. The Baileys library requires a persistent process
+ * (WebSocket to WhatsApp servers), so it can't run in serverless.
+ */
 const WHATSAPP_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || "http://127.0.0.1:3002";
 
 /**

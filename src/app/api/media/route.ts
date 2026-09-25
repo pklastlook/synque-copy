@@ -1,15 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { getDbForUser } from "@/lib/tenant-db";
+import { storage } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const assets = await db.mediaAsset.findMany({ orderBy: { createdAt: "desc" } });
-  const folders = await db.mediaAsset.groupBy({
+/** GET /api/media — list assets for this tenant (from tenant DB if provisioned). */
+export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+  const { db: targetDb, isTenantIsolated } = await getDbForUser(user!);
+  const where = isTenantIsolated ? {} : tenantWhere(scope);
+
+  const assets = await targetDb.mediaAsset.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+  });
+  const folders = await targetDb.mediaAsset.groupBy({
     by: ["folder"],
+    where,
     _count: { id: true },
     _sum: { size: true },
   });
+
   return NextResponse.json({
     assets: assets.map((a) => ({
       id: a.id,
@@ -23,6 +38,7 @@ export async function GET() {
       tags: a.tags,
       folder: a.folder,
       uploadedById: a.uploadedById,
+      customerId: a.customerId,
       createdAt: a.createdAt.toISOString(),
     })),
     folders: folders.map((f) => ({
@@ -33,11 +49,20 @@ export async function GET() {
   });
 }
 
+/** POST /api/media — add a media asset by URL (existing external URL or uploaded elsewhere). */
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+  const { db: targetDb } = await getDbForUser(user!);
+
   const body = await req.json();
   const { name, url, type, tags, folder, uploadedById } = body;
-  if (!name || !url) return NextResponse.json({ error: "name and url required" }, { status: 400 });
-  const a = await db.mediaAsset.create({
+  if (!name || !url) {
+    return NextResponse.json({ error: "name and url required" }, { status: 400 });
+  }
+
+  const a = await targetDb.mediaAsset.create({
     data: {
       name,
       url,
@@ -46,6 +71,7 @@ export async function POST(req: NextRequest) {
       tags: tags ?? null,
       folder: folder ?? "root",
       uploadedById: uploadedById ?? null,
+      customerId: scope.customerId,
     },
   });
   return NextResponse.json({ id: a.id, ok: true });

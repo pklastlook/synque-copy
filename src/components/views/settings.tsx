@@ -67,6 +67,10 @@ import {
   Plus,
   ShieldAlert,
   CheckCircle2,
+  Pencil,
+  X,
+  Bot,
+  Sparkles,
 } from "lucide-react";
 import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
@@ -297,7 +301,13 @@ export function SettingsView() {
         {tab === "security" && <SecuritySection />}
         {tab === "platforms" && <PlatformsSection />}
         {tab === "platform-api" && <PlatformApiSection />}
-        {tab === "integrations" && <IntegrationsSection />}
+        {tab === "integrations" && (
+          <>
+            <IntegrationsSection />
+            <MediaStorageSection />
+            <AIChatModelSection />
+          </>
+        )}
         {tab === "billing" && <BillingSection />}
         {tab === "bank" && <BankSection />}
         {tab === "data" && <DataSection />}
@@ -344,8 +354,8 @@ function ProfileSection() {
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (file.size > 1.5 * 1024 * 1024) {
-      toast.error("Image too large — max 1.5MB");
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Image too large — max 25MB");
       return;
     }
     setUploadingAvatar(true);
@@ -2573,6 +2583,711 @@ function IntegrationsSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </GlassCard>
+  );
+}
+
+// ===== Media Storage panel (Cloudinary / local FS) =====
+function MediaStorageSection() {
+  const { data: status, reload, loading } = useApi<{
+    provider: string;
+    configured: boolean;
+    message: string;
+    cloudName?: string;
+    folder?: string;
+    credentialSource?: "db" | "env" | "none";
+  }>("/api/storage/status");
+
+  // Fetch the Cloudinary integration row so we know if it's already saved to DB
+  const { data: intData, reload: reloadInt } = useApi<{ integrations: Integration[] }>("/api/integrations");
+  const cloudinaryIntegration = intData?.integrations?.find((i) => i.type === "cloudinary");
+
+  const [showConfigForm, setShowConfigForm] = React.useState(false);
+  const [creds, setCreds] = React.useState<Record<string, string>>({});
+  const [saving, setSaving] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+
+  const isCloudinary = status?.provider === "cloudinary";
+  const isLocal = status?.provider === "local";
+  const isConfiguredViaDb = status?.credentialSource === "db";
+  const isConfiguredViaEnv = status?.credentialSource === "env";
+
+  function getToken(): string | null {
+    try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
+    catch { return null; }
+  }
+
+  async function saveCloudinary() {
+    if (!creds.cloudName?.trim() || !creds.apiKey?.trim() || !creds.apiSecret?.trim()) {
+      toast.error("Cloud Name, API Key, and API Secret are required");
+      return;
+    }
+    setSaving(true);
+    try {
+      const token = getToken();
+      const res = await fetch("/api/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          type: "cloudinary",
+          credentials: {
+            cloudName: creds.cloudName.trim(),
+            apiKey: creds.apiKey.trim(),
+            apiSecret: creds.apiSecret.trim(),
+            folder: creds.folder?.trim() || "socialflow",
+          },
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("Cloudinary credentials saved", { description: "Uploads will now go to your Cloudinary CDN." });
+        setCreds({});
+        setShowConfigForm(false);
+        reload();
+        reloadInt();
+      } else {
+        toast.error(json.error ?? "Failed to save");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function testCloudinary() {
+    setTesting(true);
+    try {
+      const token = getToken();
+      const res = await fetch("/api/integrations/cloudinary", {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("Cloudinary connected", { description: json.message ?? "Credentials are valid." });
+        reload();
+        reloadInt();
+      } else {
+        toast.error(json.error ?? "Test failed");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function disconnectCloudinary() {
+    if (!confirm("Disconnect Cloudinary? Uploads will fall back to .env credentials or local storage.")) return;
+    try {
+      const token = getToken();
+      const res = await fetch("/api/integrations/cloudinary", {
+        method: "DELETE",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (res.ok) {
+        toast.success("Cloudinary disconnected");
+        setCreds({});
+        setShowConfigForm(false);
+        reload();
+        reloadInt();
+      } else {
+        toast.error("Failed to disconnect");
+      }
+    } catch {
+      toast.error("Network error");
+    }
+  }
+
+  return (
+    <GlassCard className="p-5">
+      <SectionTitle
+        title="Media storage"
+        desc="Where uploaded media files (images, videos, audio) are stored. Affects the Media Library, Composer, and user avatars."
+      />
+
+      <div className="mt-4 space-y-3">
+        {/* Provider switcher */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className={cn(
+            "rounded-2xl border-2 p-4 transition",
+            isLocal ? "border-primary bg-primary/5" : "border-border/40 hover:border-border/80"
+          )}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-muted-foreground" />
+                <span className="font-semibold">Local filesystem</span>
+              </div>
+              {isLocal && (
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Files stored at <code className="rounded bg-muted/40 px-1">public/uploads/</code>. Suitable for dev only — won&apos;t survive Vercel cold starts in production.
+            </p>
+          </div>
+
+          <div className={cn(
+            "rounded-2xl border-2 p-4 transition",
+            isCloudinary ? "border-primary bg-primary/5" : "border-border/40 hover:border-border/80"
+          )}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4 text-emerald-500" />
+                <span className="font-semibold">Cloudinary</span>
+              </div>
+              {isCloudinary && (
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              CDN-backed. Auto image optimization, on-the-fly resize/crop, video transcoding. Recommended for production.
+            </p>
+          </div>
+        </div>
+
+        {/* Status banner */}
+        {status && (
+          <div className={cn(
+            "rounded-xl border p-3 text-xs",
+            status.configured
+              ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+              : "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-400"
+          )}>
+            <div className="flex items-start gap-2">
+              {status.configured
+                ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                : <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold">{status.configured ? "Configured" : "Not configured"}</p>
+                  {isConfiguredViaDb && (
+                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase">
+                      via Settings UI
+                    </span>
+                  )}
+                  {isConfiguredViaEnv && (
+                    <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[9px] font-bold uppercase">
+                      via .env
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[11px] opacity-90">{status.message}</p>
+                {status.cloudName && (
+                  <p className="mt-1 text-[10px]">
+                    Cloud name: <code className="rounded bg-muted/40 px-1">{status.cloudName}</code>
+                    {" · "}
+                    Folder: <code className="rounded bg-muted/40 px-1">{status.folder ?? "socialflow"}</code>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cloudinary action buttons */}
+        {isCloudinary && (
+          <div className="flex flex-wrap gap-2">
+            {!status?.configured && !showConfigForm && (
+              <Button onClick={() => setShowConfigForm(true)} className="liquid-pill flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Configure Cloudinary
+              </Button>
+            )}
+            {status?.configured && !showConfigForm && (
+              <>
+                <Button variant="outline" size="sm" onClick={testCloudinary} disabled={testing}>
+                  {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plug className="h-3.5 w-3.5" />}
+                  Test connection
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowConfigForm(true)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  Update credentials
+                </Button>
+                {isConfiguredViaDb && (
+                  <Button variant="outline" size="sm" onClick={disconnectCloudinary} className="text-rose-500 hover:text-rose-600">
+                    <Ban className="h-3.5 w-3.5" />
+                    Disconnect
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Inline Cloudinary config form */}
+        {isCloudinary && showConfigForm && (
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                {cloudinaryIntegration?.enabled ? "Update Cloudinary credentials" : "Add Cloudinary credentials"}
+              </p>
+              <button onClick={() => { setShowConfigForm(false); setCreds({}); }} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Cloud Name <span className="text-rose-500">*</span></label>
+                  <Input
+                    placeholder="your-cloud-name"
+                    value={creds.cloudName ?? ""}
+                    onChange={(e) => setCreds((c) => ({ ...c, cloudName: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">API Key <span className="text-rose-500">*</span></label>
+                  <Input
+                    placeholder="123456789012345"
+                    value={creds.apiKey ?? ""}
+                    onChange={(e) => setCreds((c) => ({ ...c, apiKey: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">API Secret <span className="text-rose-500">*</span></label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••••••••••"
+                    value={creds.apiSecret ?? ""}
+                    onChange={(e) => setCreds((c) => ({ ...c, apiSecret: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Top-level Folder (optional)</label>
+                  <Input
+                    placeholder="socialflow"
+                    value={creds.folder ?? ""}
+                    onChange={(e) => setCreds((c) => ({ ...c, folder: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="rounded-xl bg-muted/30 p-3 text-[11px] text-muted-foreground">
+                Get your credentials from the{" "}
+                <a href="https://cloudinary.com/console" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+                  Cloudinary console
+                </a>
+                . Credentials are stored encrypted in the database — only workspace admins can view or modify them.
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={saveCloudinary}
+                  disabled={saving}
+                  className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {saving ? "Saving…" : "Save & connect"}
+                </button>
+                <Button variant="ghost" onClick={() => { setShowConfigForm(false); setCreds({}); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Setup instructions (only when not configured + form not shown) */}
+        {isCloudinary && !status?.configured && !showConfigForm && (
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Don&apos;t have a Cloudinary account?
+            </p>
+            <ol className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+              <li>
+                <strong className="text-foreground">1.</strong> Create a free account at{" "}
+                <a href="https://cloudinary.com/users/register/free" target="_blank" rel="noreferrer"
+                   className="font-medium text-primary hover:underline">
+                  cloudinary.com
+                </a>
+                {" "}(free tier: 25 GB storage + 25 GB bandwidth/month)
+              </li>
+              <li>
+                <strong className="text-foreground">2.</strong> From the{" "}
+                <a href="https://cloudinary.com/console" target="_blank" rel="noreferrer"
+                   className="font-medium text-primary hover:underline">
+                  Cloudinary console
+                </a>
+                , copy your <em>Cloud Name</em>, <em>API Key</em>, and <em>API Secret</em>.
+              </li>
+              <li>
+                <strong className="text-foreground">3.</strong> Click <strong>Configure Cloudinary</strong> above and paste them in.
+              </li>
+            </ol>
+          </div>
+        )}
+
+        {/* Why Cloudinary (only when local mode is active) */}
+        {!isCloudinary && (
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Why switch to Cloudinary?
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+              <li>✓ Works on Vercel/serverless (local FS is read-only there)</li>
+              <li>✓ Global CDN delivery (res.cloudinary.com)</li>
+              <li>✓ Auto WebP/AVIF format negotiation per browser</li>
+              <li>✓ On-the-fly resize/crop/quality transforms via URL params</li>
+              <li>✓ Video transcoding + auto-generated poster frames</li>
+              <li>✓ Free tier: 25 GB storage + 25 GB bandwidth/month</li>
+            </ul>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              To enable, set <code className="rounded bg-muted/40 px-1">STORAGE_PROVIDER=cloudinary</code> in <code className="rounded bg-muted/40 px-1">.env</code>, then configure your credentials here.
+            </p>
+          </div>
+        )}
+
+        <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+          Recheck connection
+        </Button>
+      </div>
+    </GlassCard>
+  );
+}
+
+// ===== AI Chat Model panel (OpenAI / Gemini / ZAI) =====
+function AIChatModelSection() {
+  const { data: status, reload, loading } = useApi<{
+    configured: boolean;
+    provider: string;
+    model?: string;
+    message: string;
+    credentialSource?: "db" | "env" | "none";
+  }>("/api/llm/status");
+
+  // Fetch integrations to know if openai/gemini are saved
+  const { data: intData, reload: reloadInt } = useApi<{ integrations: Integration[] }>("/api/integrations");
+  const openaiIntegration = intData?.integrations?.find((i) => i.type === "openai");
+  const geminiIntegration = intData?.integrations?.find((i) => i.type === "gemini");
+
+  const [showConfigForm, setShowConfigForm] = React.useState<null | "openai" | "gemini">(null);
+  const [creds, setCreds] = React.useState<Record<string, string>>({});
+  const [saving, setSaving] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+
+  function getToken(): string | null {
+    try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
+    catch { return null; }
+  }
+
+  async function saveProvider(provider: "openai" | "gemini") {
+    setSaving(true);
+    try {
+      const token = getToken();
+      const res = await fetch("/api/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ type: provider, credentials: creds }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success(`${provider === "openai" ? "OpenAI" : "Gemini"} credentials saved`, {
+          description: "The AI Content Writer will use this model.",
+        });
+        setCreds({});
+        setShowConfigForm(null);
+        reload();
+        reloadInt();
+      } else {
+        toast.error(json.error ?? "Failed to save");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function testProvider(provider: "openai" | "gemini") {
+    setTesting(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/integrations/${provider}`, {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("Connection test passed", { description: json.message ?? "Credentials are valid." });
+        reload();
+        reloadInt();
+      } else {
+        toast.error(json.error ?? "Test failed");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function disconnectProvider(provider: "openai" | "gemini") {
+    if (!confirm(`Disconnect ${provider === "openai" ? "OpenAI" : "Gemini"}? The AI Content Writer will fall back to other providers.`)) return;
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/integrations/${provider}`, {
+        method: "DELETE",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (res.ok) {
+        toast.success(`${provider === "openai" ? "OpenAI" : "Gemini"} disconnected`);
+        setCreds({});
+        setShowConfigForm(null);
+        reload();
+        reloadInt();
+      } else {
+        toast.error("Failed to disconnect");
+      }
+    } catch {
+      toast.error("Network error");
+    }
+  }
+
+  const activeProvider = status?.provider;
+  const isConfigured = status?.configured;
+
+  return (
+    <GlassCard className="p-5">
+      <SectionTitle
+        title="AI chat model"
+        desc="Powers the AI Content Writer in the Composer. Configure OpenAI (ChatGPT), Google Gemini, or any OpenAI-compatible provider."
+      />
+
+      <div className="mt-4 space-y-3">
+        {/* Status banner */}
+        {status && (
+          <div className={cn(
+            "rounded-xl border p-3 text-xs",
+            isConfigured
+              ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+              : "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-400"
+          )}>
+            <div className="flex items-start gap-2">
+              {isConfigured
+                ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                : <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold">
+                    {isConfigured
+                      ? `Active: ${activeProvider === "openai" ? "OpenAI" : activeProvider === "gemini" ? "Google Gemini" : activeProvider === "zai" ? "ZAI (legacy)" : "None"}`
+                      : "Not configured"}
+                  </p>
+                  {status.model && (
+                    <span className="rounded-full bg-muted/40 px-2 py-0.5 text-[10px] font-mono">
+                      {status.model}
+                    </span>
+                  )}
+                  {status.credentialSource === "db" && (
+                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase">
+                      via Settings UI
+                    </span>
+                  )}
+                  {status.credentialSource === "env" && (
+                    <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[9px] font-bold uppercase">
+                      via .env
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[11px] opacity-90">{status.message}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Provider cards */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {/* OpenAI card */}
+          <div className={cn(
+            "rounded-2xl border-2 p-4 transition",
+            activeProvider === "openai" ? "border-primary bg-primary/5" : "border-border/40 hover:border-border/80"
+          )}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-500">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <span className="font-semibold">OpenAI (ChatGPT)</span>
+              </div>
+              {activeProvider === "openai" && (
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              GPT-4o, GPT-4o-mini, etc. Also works for any OpenAI-compatible API (Together, Groq, Mistral, Azure OpenAI, Ollama, vLLM).
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {!openaiIntegration?.enabled ? (
+                <Button size="sm" onClick={() => { setShowConfigForm("openai"); setCreds({ model: "gpt-4o-mini" }); }}>
+                  <Plus className="h-3.5 w-3.5" /> Configure
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => testProvider("openai")} disabled={testing}>
+                    {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plug className="h-3.5 w-3.5" />} Test
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => { setShowConfigForm("openai"); setCreds({}); }}>
+                    <Pencil className="h-3.5 w-3.5" /> Update
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => disconnectProvider("openai")} className="text-rose-500 hover:text-rose-600">
+                    <Ban className="h-3.5 w-3.5" /> Disconnect
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Gemini card */}
+          <div className={cn(
+            "rounded-2xl border-2 p-4 transition",
+            activeProvider === "gemini" ? "border-primary bg-primary/5" : "border-border/40 hover:border-border/80"
+          )}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-blue-500/15 text-blue-500">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <span className="font-semibold">Google Gemini</span>
+              </div>
+              {activeProvider === "gemini" && (
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Gemini 1.5 Flash / Pro. Get a free API key from Google AI Studio (aistudio.google.com).
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {!geminiIntegration?.enabled ? (
+                <Button size="sm" onClick={() => { setShowConfigForm("gemini"); setCreds({ model: "gemini-1.5-flash" }); }}>
+                  <Plus className="h-3.5 w-3.5" /> Configure
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => testProvider("gemini")} disabled={testing}>
+                    {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plug className="h-3.5 w-3.5" />} Test
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => { setShowConfigForm("gemini"); setCreds({}); }}>
+                    <Pencil className="h-3.5 w-3.5" /> Update
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => disconnectProvider("gemini")} className="text-rose-500 hover:text-rose-600">
+                    <Ban className="h-3.5 w-3.5" /> Disconnect
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Inline config form */}
+        {showConfigForm && (
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                {showConfigForm === "openai" ? "OpenAI (ChatGPT)" : "Google Gemini"} credentials
+              </p>
+              <button onClick={() => { setShowConfigForm(null); setCreds({}); }} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {showConfigForm === "openai" ? (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold">API Key <span className="text-rose-500">*</span></label>
+                      <Input type="password" placeholder="sk-..." value={creds.apiKey ?? ""} onChange={(e) => setCreds((c) => ({ ...c, apiKey: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold">Model <span className="text-rose-500">*</span></label>
+                      <Input placeholder="gpt-4o-mini" value={creds.model ?? ""} onChange={(e) => setCreds((c) => ({ ...c, model: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold">Base URL (optional)</label>
+                      <Input placeholder="https://api.openai.com/v1" value={creds.baseUrl ?? ""} onChange={(e) => setCreds((c) => ({ ...c, baseUrl: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold">Organization ID (optional)</label>
+                      <Input placeholder="org-..." value={creds.organization ?? ""} onChange={(e) => setCreds((c) => ({ ...c, organization: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-muted/30 p-3 text-[11px] text-muted-foreground">
+                    Get your API key from{" "}
+                    <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+                      platform.openai.com/api-keys
+                    </a>
+                    . For OpenAI-compatible providers (Together, Groq, Mistral, Azure OpenAI, Ollama), set the Base URL to their endpoint.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold">API Key <span className="text-rose-500">*</span></label>
+                      <Input type="password" placeholder="AIza..." value={creds.apiKey ?? ""} onChange={(e) => setCreds((c) => ({ ...c, apiKey: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold">Model <span className="text-rose-500">*</span></label>
+                      <Input placeholder="gemini-1.5-flash" value={creds.model ?? ""} onChange={(e) => setCreds((c) => ({ ...c, model: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-muted/30 p-3 text-[11px] text-muted-foreground">
+                    Get your free API key from{" "}
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+                      aistudio.google.com/apikey
+                    </a>
+                    .
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => saveProvider(showConfigForm)}
+                  disabled={saving}
+                  className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {saving ? "Saving…" : "Save & activate"}
+                </button>
+                <Button variant="ghost" onClick={() => { setShowConfigForm(null); setCreds({}); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!isConfigured && !showConfigForm && (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">No AI provider configured</p>
+                <p className="mt-0.5 text-[11px]">
+                  Configure OpenAI or Gemini above to power the AI Content Writer + variant generator. On Vercel, you must use one of these — the legacy ZAI SDK doesn&apos;t work there.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+          Recheck connection
+        </Button>
+      </div>
     </GlassCard>
   );
 }

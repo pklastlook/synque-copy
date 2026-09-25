@@ -82,8 +82,8 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/favicon-32.png" />
       </head>
       <body
-        className={`${inter.variable} antialiased bg-background text-foreground overflow-x-hidden`}
-        style={{ overscrollBehavior: "none", WebkitTapHighlightColor: "transparent" }}
+        className={`${inter.variable} antialiased bg-background text-foreground`}
+        style={{ WebkitTapHighlightColor: "transparent" }}
       >
         <ThemeProvider
           attribute="class"

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth-guard";
 import { INTEGRATION_DEFS } from "../route";
+import { invalidateStorageAdapter } from "@/lib/storage";
+import { invalidateLLMClient } from "@/lib/llm";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
     return NextResponse.json({ error: "Unknown integration type" }, { status: 400 });
   }
   await db.integration.deleteMany({ where: { type } });
+
+  // If deleting Cloudinary, invalidate the cached storage adapter so
+  // subsequent uploads fall back to the local adapter (or env-configured).
+  if (type === "cloudinary") {
+    invalidateStorageAdapter();
+  }
+
+  // If deleting an LLM provider, invalidate the cached LLM client.
+  if (type === "openai" || type === "gemini") {
+    invalidateLLMClient();
+  }
+
   return NextResponse.json({ ok: true });
 }
 
@@ -97,6 +111,62 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ typ
       if (!res.ok) throw new Error(`Stripe returned ${res.status}`);
       await db.integration.update({ where: { type }, data: { lastSyncAt: new Date() } });
       return NextResponse.json({ ok: true, message: "Stripe API key is valid" });
+    }
+
+    if (type === "cloudinary") {
+      // Test by listing resources from the Cloudinary account.
+      // Uses the Admin API: GET /resources/image (max_results=1)
+      const auth = Buffer.from(`${creds.apiKey}:${creds.apiSecret}`).toString("base64");
+      const cloudName = creds.cloudName;
+      const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?max_results=1`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Basic ${auth}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(errBody.error?.message ?? `Cloudinary returned ${res.status}`);
+      }
+      await db.integration.update({ where: { type }, data: { lastSyncAt: new Date() } });
+      return NextResponse.json({ ok: true, message: `Cloudinary connected — cloud "${cloudName}" is reachable` });
+    }
+
+    if (type === "openai") {
+      // Test by sending a tiny "Hello" chat completion request
+      const baseUrl = (creds.baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${creds.apiKey}`,
+      };
+      if (creds.organization) headers["OpenAI-Organization"] = creds.organization;
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: creds.model || "gpt-4o-mini",
+          messages: [{ role: "user", content: "Reply with the single word OK." }],
+          max_tokens: 5,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(errBody.error?.message ?? `OpenAI returned ${res.status}`);
+      }
+      await db.integration.update({ where: { type }, data: { lastSyncAt: new Date() } });
+      return NextResponse.json({ ok: true, message: `OpenAI connected — model "${creds.model}" is reachable` });
+    }
+
+    if (type === "gemini") {
+      // Test by listing models from Google's Generative Language API
+      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${creds.apiKey}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        throw new Error(errBody.error?.message ?? `Gemini returned ${res.status}`);
+      }
+      await db.integration.update({ where: { type }, data: { lastSyncAt: new Date() } });
+      return NextResponse.json({ ok: true, message: `Gemini connected — model "${creds.model}" is reachable` });
     }
 
     // For integrations we can't easily test (mail, ga, canva, zapier), just verify credentials are stored

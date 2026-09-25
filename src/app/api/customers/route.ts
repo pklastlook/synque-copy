@@ -43,16 +43,19 @@ async function createTenantDatabase(dbName: string): Promise<string> {
   }
 }
 
-/** Push the Prisma schema to the newly created database */
+/** Push the Prisma schema to the newly created database.
+ *  This makes sure the tenant DB has the Role, Department, Designation, User,
+ *  Account, Post, etc. tables before any tenant user tries to query them. */
 async function pushSchemaToTenantDb(dbUrl: string): Promise<void> {
   const { execSync } = await import("node:child_process");
-  // Use prisma db push with the tenant's DATABASE_URL
-  // This is safe because the schema is already defined in prisma/schema.prisma
+  // Use prisma db push with the tenant's DATABASE_URL.
+  // We pass through PATH so `node_modules/.bin/prisma` resolves.
   try {
+    const nodeBin = process.cwd() + "/node_modules/.bin";
     execSync(`npx prisma db push --accept-data-loss`, {
-      env: { ...process.env, DATABASE_URL: dbUrl },
+      env: { ...process.env, DATABASE_URL: dbUrl, DIRECT_URL: dbUrl, PATH: `${nodeBin}:${process.env.PATH ?? ""}` },
       stdio: "pipe",
-      timeout: 60000,
+      timeout: 90000,
     });
     console.log("[tenant-db] Schema pushed successfully");
   } catch (e) {
@@ -80,7 +83,8 @@ export async function GET(req: NextRequest) {
     serialKey: c.serialKey ? { id: c.serialKey.id, key: c.serialKey.key, status: c.serialKey.status, activatedAt: c.serialKey.activatedAt?.toISOString() ?? null } : null,
     invoicesCount: c.invoices.length, quotationsCount: c.quotations.length,
     database: dbMap.get(c.id) ? {
-      name: dbMap.get(c.id)!.dbName,
+      dbName: dbMap.get(c.id)!.dbName,
+      dbUrl: dbMap.get(c.id)!.dbUrl,
       status: dbMap.get(c.id)!.status,
       createdAt: dbMap.get(c.id)!.createdAt.toISOString(),
     } : null,

@@ -6,10 +6,21 @@ import { requireAuth } from "@/lib/auth-guard";
 export const dynamic = "force-dynamic";
 
 /**
+ * Internal API key for scheduler → app communication.
+ * The scheduler mini-service includes this header to bypass JWT auth
+ * so it can publish scheduled posts without a user session.
+ * Set SCHEDULER_API_KEY in .env to the same value on both the app + scheduler.
+ */
+const SCHEDULER_API_KEY = process.env.SCHEDULER_API_KEY || "socialflow-scheduler-internal-key-2026";
+
+/**
  * POST /api/publish/[platform]
  *
  * Posts REAL content to the specified platform using stored API credentials.
  * Body: { userId, accountId, content }
+ *
+ * Auth: either a valid JWT (user session) OR the X-Scheduler-Key header
+ * (for the scheduler mini-service to publish scheduled posts automatically).
  *
  * Currently supported:
  *   - twitter: Posts a tweet via Twitter API v2
@@ -19,15 +30,29 @@ export const dynamic = "force-dynamic";
  * added following the same pattern once API credentials are configured.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
-  const { user, error } = requireAuth(req);
-  if (error) return error;
+  // Check for scheduler internal key first
+  const schedulerKey = req.headers.get("x-scheduler-key");
+  const isSchedulerCall = schedulerKey === SCHEDULER_API_KEY;
 
-  const { platform: rawPlatform } = await params;
-  const { userId, accountId, content } = (await req.json()) as {
+  // Read the body ONCE
+  const body = (await req.json()) as {
     userId: string;
     accountId: string;
     content: string;
   };
+
+  // If not a scheduler call, require normal user auth
+  let userId: string;
+  if (isSchedulerCall) {
+    userId = body.userId;
+  } else {
+    const { user, error } = requireAuth(req);
+    if (error) return error;
+    userId = user!.userId;
+  }
+
+  const { platform: rawPlatform } = await params;
+  const { accountId, content } = body;
 
   if (!userId || !accountId || !content) {
     return NextResponse.json({ error: "userId, accountId, and content required" }, { status: 400 });

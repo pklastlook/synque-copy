@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth-guard";
+import { invalidateStorageAdapter } from "@/lib/storage";
+import { invalidateLLMClient } from "@/lib/llm";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +86,37 @@ export const INTEGRATION_DEFS: Record<string, {
       { key: "apiKey", label: "API Key", type: "password", placeholder: "••••••••", required: false },
     ],
   },
+  cloudinary: {
+    name: "Cloudinary",
+    desc: "CDN-backed media storage with auto image optimization, on-the-fly transforms, and video transcoding. Required for production uploads.",
+    icon: "ImageIcon",
+    fields: [
+      { key: "cloudName", label: "Cloud Name", type: "text", placeholder: "your-cloud-name", required: true },
+      { key: "apiKey", label: "API Key", type: "text", placeholder: "123456789012345", required: true },
+      { key: "apiSecret", label: "API Secret", type: "password", placeholder: "••••••••••••••••", required: true },
+      { key: "folder", label: "Top-level Folder (optional)", type: "text", placeholder: "socialflow", required: false },
+    ],
+  },
+  openai: {
+    name: "OpenAI (ChatGPT)",
+    desc: "Power the AI Content Writer + caption variant generator with GPT models. Get an API key from platform.openai.com.",
+    icon: "Bot",
+    fields: [
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "sk-...", required: true },
+      { key: "model", label: "Model", type: "text", placeholder: "gpt-4o-mini", required: true },
+      { key: "baseUrl", label: "Base URL (optional)", type: "url", placeholder: "https://api.openai.com/v1 (leave default) or https://your-azure-endpoint", required: false },
+      { key: "organization", label: "Organization ID (optional)", type: "text", placeholder: "org-...", required: false },
+    ],
+  },
+  gemini: {
+    name: "Google Gemini",
+    desc: "Power the AI Content Writer with Google's Gemini models. Get an API key from aistudio.google.com.",
+    icon: "Sparkles",
+    fields: [
+      { key: "apiKey", label: "API Key", type: "password", placeholder: "AIza...", required: true },
+      { key: "model", label: "Model", type: "text", placeholder: "gemini-1.5-flash", required: true },
+    ],
+  },
 };
 
 /** GET /api/integrations — list all integrations with their current config status */
@@ -150,6 +183,17 @@ export async function POST(req: NextRequest) {
       connectedAt: new Date(),
     },
   });
+
+  // If this is the Cloudinary integration, invalidate the cached storage
+  // adapter so the next upload picks up the new credentials.
+  if (type === "cloudinary") {
+    invalidateStorageAdapter();
+  }
+
+  // If this is an LLM provider (OpenAI / Gemini), invalidate the cached LLM client
+  if (type === "openai" || type === "gemini") {
+    invalidateLLMClient();
+  }
 
   return NextResponse.json({ ok: true, enabled: true });
 }

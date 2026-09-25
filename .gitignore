@@ -53,3 +53,7 @@ server.log
 /skills/generated/
 .not-committed/
 db/custom.db
+
+# Media uploads — user-generated content, not source code
+public/uploads/*
+!public/uploads/.gitkeep

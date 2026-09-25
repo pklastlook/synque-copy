@@ -13,6 +13,7 @@ import {
   Hash, FileEdit, XCircle, Zap, Flame,
   ShieldCheck, ShieldAlert, AlertTriangle, Heart, ThumbsDown, ThumbsUp,
   Gauge, Ban, Eye, AlertCircle, Info, ChevronDown, ChevronUp,
+  ArrowUpDown, Calendar, ListFilter, LayoutGrid, List as ListIcon,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -22,6 +23,10 @@ import { PlatformBadge } from "@/components/glass/platform-badge";
 import { HelpText } from "@/components/glass/help-text";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 
 // ============ Types ============
 
@@ -92,6 +97,30 @@ interface TeamPerformanceData {
   };
 }
 
+// Posts Kanban data from /api/team-performance/posts
+interface PostsKanbanData {
+  kpis: {
+    totalPostsThisMonth: number;
+    publishingRate: number;
+    avgEngagementPerPost: number;
+    mostActivePlatform: string | null;
+    totalPosts: number;
+    publishedCount: number;
+  };
+  posts: {
+    id: string; title: string; caption: string; status: string;
+    scheduledAt: string | null; createdAt: string;
+    authorId: string; authorName: string;
+    authorAvatar: string | null; authorColor: string | null;
+    platforms: string[]; engagement: number;
+    variants: {
+      id: string; platform: string; handle: string;
+      status: string; publishedAt: string | null;
+      likes: number; comments: number; shares: number; engagement: number;
+    }[];
+  }[];
+}
+
 const TOOLTIP_STYLE = {
   background: "var(--popover)", border: "1px solid var(--border)",
   borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px -8px rgba(0,0,0,0.2)",
@@ -116,6 +145,7 @@ const PIPELINE_META = [
 
 export function TeamPerformanceView() {
   const { data, loading } = useApi<TeamPerformanceData>("/api/team-performance");
+  const { data: kanbanData, loading: kanbanLoading } = useApi<PostsKanbanData>("/api/team-performance/posts");
 
   if (loading || !data) return <TeamPerformanceSkeleton />;
 
@@ -220,6 +250,9 @@ export function TeamPerformanceView() {
           })}
         </div>
       </SectionShell>
+
+      {/* === POSTS KANBAN BOARD (NEW) — draft → scheduled → published → failed === */}
+      <PostsKanbanSection data={kanbanData} loading={kanbanLoading} />
 
       {/* === POSTS CREATED TREND + POSTS BY PLATFORM === */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -1103,6 +1136,413 @@ function StatRow({ icon, label, value }: { icon: React.ReactNode; label: string;
       <span className="text-muted-foreground">{icon}</span>
       <span className="text-muted-foreground">{label}</span>
       <span className="ml-auto font-semibold">{value}</span>
+    </div>
+  );
+}
+
+// ============ Posts Kanban Section (NEW) ============
+// 4-column Kanban board (Drafts · Scheduled · Published · Failed) for all posts,
+// with a Kanban / List toggle and 4 KPI cards at the top.
+const KANBAN_COLUMNS = [
+  { key: "draft", label: "Drafts", icon: FileEdit, color: "oklch(0.66 0.22 305)", desc: "Work in progress" },
+  { key: "scheduled", label: "Scheduled", icon: Clock, color: "oklch(0.62 0.22 255)", desc: "Queued for publish" },
+  { key: "published", label: "Published", icon: CheckCircle2, color: "oklch(0.74 0.18 165)", desc: "Live on platforms" },
+  { key: "failed", label: "Failed", icon: XCircle, color: "oklch(0.65 0.22 25)", desc: "Needs attention" },
+] as const;
+
+const KANBAN_STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  published: { label: "Published", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/15" },
+  scheduled: { label: "Scheduled", color: "text-primary", bg: "bg-primary/15" },
+  draft: { label: "Draft", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/15" },
+  failed: { label: "Failed", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/15" },
+};
+
+function PostsKanbanSection({ data, loading }: { data: PostsKanbanData | null; loading: boolean }) {
+  const [view, setView] = React.useState<"kanban" | "list">("kanban");
+  const [sortKey, setSortKey] = React.useState<"date" | "engagement" | "title">("date");
+  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
+  const [expandedRow, setExpandedRow] = React.useState<string | null>(null);
+
+  function toggleSort(key: "date" | "engagement" | "title") {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("desc"); }
+  }
+
+  // Group posts by status for the Kanban columns
+  const grouped = React.useMemo(() => {
+    const g: Record<string, PostsKanbanData["posts"]> = { draft: [], scheduled: [], published: [], failed: [] };
+    if (data) {
+      for (const p of data.posts) {
+        if (g[p.status]) g[p.status].push(p);
+      }
+    }
+    return g;
+  }, [data]);
+
+  // Sorted list for the List view
+  const sortedList = React.useMemo(() => {
+    if (!data) return [];
+    return [...data.posts].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "date") cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      else if (sortKey === "engagement") cmp = a.engagement - b.engagement;
+      else cmp = a.title.localeCompare(b.title);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [data, sortKey, sortDir]);
+
+  if (loading || !data) {
+    return (
+      <SectionShell
+        icon={<Layers className="h-4 w-4" />}
+        title="Posts board"
+        desc="4-column Kanban view of every post your team has touched."
+        delay={300}
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimmer h-64 rounded-2xl" />)}
+        </div>
+      </SectionShell>
+    );
+  }
+
+  const k = data.kpis;
+  const mostActiveConfig = k.mostActivePlatform ? PLATFORMS[k.mostActivePlatform as PlatformId] : null;
+
+  return (
+    <SectionShell
+      icon={<LayoutGrid className="h-4 w-4" />}
+      title="Posts board"
+      desc="Every post across the team, by lifecycle stage — Kanban or List view."
+      delay={300}
+      action={
+        <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")}>
+          <TabsList className="h-8 p-0.5">
+            <TabsTrigger value="kanban" className="gap-1 px-2.5 py-0 text-[11px]">
+              <LayoutGrid className="h-3 w-3" /> Kanban
+            </TabsTrigger>
+            <TabsTrigger value="list" className="gap-1 px-2.5 py-0 text-[11px]">
+              <ListIcon className="h-3 w-3" /> List
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      }
+    >
+      {/* KPI cards */}
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiCard
+          label="Posts this month"
+          value={k.totalPostsThisMonth}
+          icon={<Calendar className="h-5 w-5" />}
+          accent="oklch(0.62 0.22 255)"
+          hint={`${k.totalPosts} all-time`}
+          delay={0}
+        />
+        <KpiCard
+          label="Publishing rate"
+          value={`${k.publishingRate}%`}
+          icon={<TrendingUp className="h-5 w-5" />}
+          accent="oklch(0.74 0.18 165)"
+          hint={`${k.publishedCount} of ${k.totalPosts} published`}
+          delay={80}
+        />
+        <KpiCard
+          label="Avg engagement / post"
+          value={k.avgEngagementPerPost}
+          icon={<Heart className="h-5 w-5" />}
+          accent="oklch(0.7 0.2 25)"
+          hint="Likes + comments + shares"
+          delay={160}
+        />
+        <KpiCard
+          label="Most active platform"
+          value={mostActiveConfig?.short ?? "—"}
+          icon={
+            mostActiveConfig ? (
+              <PlatformBadge platform={k.mostActivePlatform as PlatformId} size={18} />
+            ) : (
+              <Layers className="h-5 w-5" />
+            )
+          }
+          accent={mostActiveConfig?.color ?? "var(--primary)"}
+          hint={mostActiveConfig?.name ?? "No data yet"}
+          delay={240}
+        />
+      </div>
+
+      {view === "kanban" ? (
+        <PostsKanbanBoard grouped={grouped} />
+      ) : (
+        <PostsListView
+          posts={sortedList}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          toggleSort={toggleSort}
+          expandedRow={expandedRow}
+          setExpandedRow={setExpandedRow}
+        />
+      )}
+    </SectionShell>
+  );
+}
+
+// ============ Kanban board (4 columns) ============
+function PostsKanbanBoard({ grouped }: { grouped: Record<string, PostsKanbanData["posts"]> }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {KANBAN_COLUMNS.map((col, ci) => {
+        const posts = grouped[col.key] ?? [];
+        const ColIcon = col.icon;
+        return (
+          <div
+            key={col.key}
+            className="crystal-in glass flex flex-col rounded-2xl p-3"
+            style={{ animationDelay: `${0.04 * ci}s` }}
+          >
+            {/* Column header */}
+            <div className="mb-3 flex items-center justify-between gap-2 border-b border-border/30 pb-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className="grid h-7 w-7 place-items-center rounded-lg"
+                  style={{ background: `${col.color}14`, color: col.color }}
+                >
+                  <ColIcon className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold">{col.label}</div>
+                  <div className="text-[9px] text-muted-foreground">{col.desc}</div>
+                </div>
+              </div>
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums"
+                style={{ background: `${col.color}14`, color: col.color }}
+              >
+                {posts.length}
+              </span>
+            </div>
+            {/* Cards (scrollable) */}
+            <div className="scroll-liquid -mr-1 max-h-[480px] space-y-2 overflow-y-auto pr-1">
+              {posts.length === 0 ? (
+                <div className="grid place-items-center py-8 text-center text-[10px] text-muted-foreground">
+                  <ColIcon className="mb-1 h-5 w-5 opacity-30" />
+                  No {col.label.toLowerCase()}
+                </div>
+              ) : (
+                posts.map((p, i) => <PostsKanbanCard key={p.id} post={p} color={col.color} delay={0.03 * i} />)
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============ Kanban card ============
+function PostsKanbanCard({ post, color, delay }: { post: PostsKanbanData["posts"][0]; color: string; delay: number }) {
+  return (
+    <div
+      className="crystal-in glass rounded-xl border-l-2 p-3 transition hover:lift-hover"
+      style={{ borderLeftColor: color, animationDelay: `${delay}s` }}
+    >
+      {/* Title (truncated) */}
+      <div className="truncate text-xs font-bold">{post.title || "Untitled"}</div>
+      {post.caption && (
+        <div className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">
+          {post.caption}
+        </div>
+      )}
+
+      {/* Author */}
+      <div className="mt-2 flex items-center gap-1.5">
+        <NameAvatar name={post.authorName} color={post.authorColor ?? "blue"} src={post.authorAvatar} className="h-5 w-5 text-[8px]" />
+        <span className="truncate text-[10px] font-medium">{post.authorName}</span>
+      </div>
+
+      {/* Platform badges */}
+      {post.platforms.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {post.platforms.slice(0, 5).map((pl) => (
+            <PlatformBadge key={pl} platform={pl as PlatformId} size={16} />
+          ))}
+          {post.platforms.length > 5 && (
+            <span className="text-[9px] text-muted-foreground">+{post.platforms.length - 5}</span>
+          )}
+        </div>
+      )}
+
+      {/* Footer: engagement (published) / scheduled time / date */}
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/30 pt-2 text-[9px] text-muted-foreground">
+        {post.status === "published" && (
+          <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+            <Heart className="h-2.5 w-2.5" /> {fmt(post.engagement)}
+          </span>
+        )}
+        {post.status === "scheduled" && post.scheduledAt && (
+          <span className="flex items-center gap-1 font-semibold text-primary">
+            <Clock className="h-2.5 w-2.5" />
+            {new Date(post.scheduledAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
+        {post.status === "draft" && (
+          <span className="flex items-center gap-1">
+            <FileEdit className="h-2.5 w-2.5" /> Draft
+          </span>
+        )}
+        {post.status === "failed" && (
+          <span className="flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400">
+            <XCircle className="h-2.5 w-2.5" /> Failed
+          </span>
+        )}
+        <span>{new Date(post.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+      </div>
+    </div>
+  );
+}
+
+// ============ List view (sortable table) ============
+function PostsListView({
+  posts, sortKey, sortDir, toggleSort, expandedRow, setExpandedRow,
+}: {
+  posts: PostsKanbanData["posts"];
+  sortKey: "date" | "engagement" | "title";
+  sortDir: "asc" | "desc";
+  toggleSort: (key: "date" | "engagement" | "title") => void;
+  expandedRow: string | null;
+  setExpandedRow: (id: string | null) => void;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <Table className="min-w-[760px]">
+        <TableHeader>
+          <TableRow className="border-border/40">
+            <TableHead className="h-8 text-[10px] uppercase">
+              <button onClick={() => toggleSort("title")} className="flex items-center gap-1 hover:text-foreground">
+                Post <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
+              </button>
+            </TableHead>
+            <TableHead className="h-8 text-[10px] uppercase">Author</TableHead>
+            <TableHead className="h-8 text-[10px] uppercase">Status</TableHead>
+            <TableHead className="h-8 text-[10px] uppercase">Platforms</TableHead>
+            <TableHead className="h-8 text-right text-[10px] uppercase">
+              <button onClick={() => toggleSort("engagement")} className="flex items-center gap-1 hover:text-foreground">
+                Engagement <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
+              </button>
+            </TableHead>
+            <TableHead className="h-8 text-right text-[10px] uppercase">
+              <button onClick={() => toggleSort("date")} className="flex items-center gap-1 hover:text-foreground">
+                Date <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
+              </button>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {posts.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="py-8 text-center text-xs text-muted-foreground">
+                No posts yet.
+              </TableCell>
+            </TableRow>
+          ) : (
+            posts.map((p) => {
+              const isOpen = expandedRow === p.id;
+              const sm = KANBAN_STATUS_META[p.status] ?? KANBAN_STATUS_META.draft;
+              return (
+                <React.Fragment key={p.id}>
+                  <TableRow
+                    className="cursor-pointer border-border/30 transition hover:bg-muted/30"
+                    onClick={() => setExpandedRow(isOpen ? null : p.id)}
+                  >
+                    <TableCell className="py-2.5">
+                      <div className="flex items-center gap-2">
+                        <ChevronDown className={cn("h-3 w-3 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+                        <div className="min-w-0 max-w-[220px]">
+                          <div className="truncate text-xs font-bold">{p.title || "Untitled"}</div>
+                          {p.caption && <div className="truncate text-[10px] text-muted-foreground">{p.caption}</div>}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2.5">
+                      <div className="flex items-center gap-2">
+                        <NameAvatar name={p.authorName} color={p.authorColor ?? "blue"} src={p.authorAvatar} className="h-6 w-6 text-[9px]" />
+                        <span className="truncate text-[11px] font-medium">{p.authorName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2.5">
+                      <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", sm.bg, sm.color)}>
+                        {sm.label}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2.5">
+                      <div className="flex flex-wrap gap-1">
+                        {p.platforms.slice(0, 4).map((pl) => (
+                          <PlatformBadge key={pl} platform={pl as PlatformId} size={16} />
+                        ))}
+                        {p.platforms.length > 4 && (
+                          <span className="text-[9px] text-muted-foreground">+{p.platforms.length - 4}</span>
+                        )}
+                        {p.platforms.length === 0 && <span className="text-[10px] text-muted-foreground">—</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2.5 text-right text-xs font-bold tabular-nums">{fmt(p.engagement)}</TableCell>
+                    <TableCell className="py-2.5 text-right text-[10px] tabular-nums text-muted-foreground">
+                      {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </TableCell>
+                  </TableRow>
+                  {isOpen && p.variants.length > 0 && (
+                    <TableRow className="border-border/30 bg-muted/20">
+                      <TableCell colSpan={6} className="p-4">
+                        <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                          Platform variants ({p.variants.length})
+                        </div>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {p.variants.map((v) => {
+                            const vsm = KANBAN_STATUS_META[v.status] ?? KANBAN_STATUS_META.draft;
+                            return (
+                              <div key={v.id} className="rounded-xl border border-border/40 bg-background/50 p-3">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <PlatformBadge platform={v.platform as PlatformId} size={20} />
+                                    <span className="truncate text-[11px] font-bold">@{v.handle}</span>
+                                  </div>
+                                  <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold", vsm.bg, vsm.color)}>
+                                    {vsm.label}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1 text-center">
+                                  <div>
+                                    <div className="text-[11px] font-bold tabular-nums">{fmt(v.likes)}</div>
+                                    <div className="text-[8px] uppercase text-muted-foreground">Likes</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[11px] font-bold tabular-nums">{fmt(v.comments)}</div>
+                                    <div className="text-[8px] uppercase text-muted-foreground">Cmts</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[11px] font-bold tabular-nums">{fmt(v.shares)}</div>
+                                    <div className="text-[8px] uppercase text-muted-foreground">Shares</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[11px] font-bold tabular-nums text-primary">{fmt(v.engagement)}</div>
+                                    <div className="text-[8px] uppercase text-muted-foreground">Total</div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+      <div className="mt-3 text-[10px] text-muted-foreground">
+        Showing {posts.length} posts · click a row to expand platform variants
+      </div>
     </div>
   );
 }

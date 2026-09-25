@@ -12,6 +12,7 @@ import {
   Calendar, BarChart3, Users, TrendingUp, Heart, FileBarChart,
   Clock, RefreshCw, Loader2, Activity, Globe, Target, Sparkles,
   ChevronDown, Save, ArrowUpDown, Award, Trophy, UserCheck, Grid3x3, Zap,
+  Layers, CheckCircle2, XCircle, ListFilter,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -26,6 +27,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 
 // ============ Types ============
 interface AnalyticsData {
@@ -113,6 +119,37 @@ interface ReportData {
   lastGenerated: string | null; createdAt: string;
 }
 
+// Posts performance data from /api/reports/posts
+interface PostsPerformanceData {
+  kpis: {
+    totalPosts: number; published: number; scheduled: number;
+    draft: number; failed: number; totalVariantsPublished: number;
+  };
+  platformBreakdown: {
+    platform: string; postsPublished: number; totalVariants: number;
+    totalEngagement: number; avgEngagement: number; shareOfTotal: number;
+  }[];
+  memberBreakdown: {
+    userId: string; name: string; avatar: string | null; color: string | null;
+    role: string; title: string | null;
+    postsAuthored: number; postsPublished: number;
+    platforms: string[]; engagement: number; shareOfTotal: number;
+  }[];
+  posts: {
+    id: string; title: string; caption: string; status: string;
+    scheduledAt: string | null; createdAt: string;
+    authorId: string; authorName: string; authorAvatar: string | null; authorColor: string | null;
+    platforms: string[]; engagement: number;
+    variants: {
+      id: string; platform: string; handle: string; accountName: string;
+      content: string; status: string; publishedAt: string | null;
+      likes: number; comments: number; shares: number;
+      reach: number; impressions: number; saves: number; engagement: number;
+    }[];
+  }[];
+  totals: { totalPlatformPosts: number; totalEngagement: number };
+}
+
 const TOOLTIP_STYLE = {
   background: "var(--popover)", border: "1px solid var(--border)",
   borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px -8px rgba(0,0,0,0.3)",
@@ -128,7 +165,7 @@ const DATE_RANGES: { key: DateRange; label: string; days: number }[] = [
 ];
 
 // 12 compact report templates — each renders a tailored viewer
-type TemplateId = "performance" | "audience" | "engagement" | "team" | "content" | "growth" | "platform" | "reach" | "user-account" | "user-comparison" | "account-user" | "leaderboard";
+type TemplateId = "performance" | "audience" | "engagement" | "team" | "content" | "growth" | "platform" | "reach" | "user-account" | "user-comparison" | "account-user" | "leaderboard" | "posts-performance";
 interface Template {
   id: TemplateId; name: string; icon: LucideIcon; color: string; desc: string;
 }
@@ -145,6 +182,7 @@ const TEMPLATES: Template[] = [
   { id: "user-comparison", name: "User Compare", icon: UserCheck, color: "oklch(0.7 0.18 180)", desc: "Side-by-side team member work comparison" },
   { id: "account-user", name: "Pages Report", icon: FileBarChart, color: "oklch(0.62 0.2 35)", desc: "Per-account: who posted & how much" },
   { id: "leaderboard", name: "Leaderboard", icon: Trophy, color: "oklch(0.72 0.2 75)", desc: "Top contributors ranked by metrics" },
+  { id: "posts-performance", name: "Posts Perf", icon: Layers, color: "oklch(0.66 0.22 305)", desc: "KPIs · platform breakdown · member breakdown · all posts" },
 ];
 
 // ============ Main view ============
@@ -160,6 +198,8 @@ export function ReportsView() {
   const { data: analytics, loading: analyticsLoading } = useApi<AnalyticsData>(analyticsUrl);
   const { data: teamData, loading: teamLoading } = useApi<TeamData>("/api/team-performance");
   const { data: reportData, loading: reportDataLoading } = useApi<ReportDataRoot>(`/api/reports/data?days=${days}`);
+  // Posts performance data — independent of date range (shows full history)
+  const { data: postsPerfData, loading: postsPerfLoading } = useApi<PostsPerformanceData>("/api/reports/posts");
 
   function getToken(): string | null {
     try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
@@ -174,6 +214,7 @@ export function ReportsView() {
       platform: "followers", reach: "impressions",
       "user-account": "postsCreated", "user-comparison": "postsCreated",
       "account-user": "totalPosts", leaderboard: "postsCreated",
+      "posts-performance": "engagement",
     };
     setChartMetric(defaults[activeTemplate] ?? "followers");
   }, [activeTemplate]);
@@ -297,8 +338,8 @@ export function ReportsView() {
         </div>
       </div>
 
-      {/* === Compact generator strip (8 templates, small) === */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+      {/* === Compact generator strip (templates, small) === */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7 xl:grid-cols-[repeat(13,minmax(0,1fr))]">
         {TEMPLATES.map((t) => {
           const Icon = t.icon;
           const active = activeTemplate === t.id;
@@ -337,8 +378,11 @@ export function ReportsView() {
         analytics={analytics}
         teamData={teamData}
         reportData={reportData}
+        postsPerfData={postsPerfData}
         totals={totals}
-        loading={analyticsLoading || teamLoading || reportDataLoading}
+        loading={activeTemplate === "posts-performance"
+          ? postsPerfLoading
+          : analyticsLoading || teamLoading || reportDataLoading}
         dateRangeLabel={DATE_RANGES.find(d => d.key === dateRange)?.label ?? "30 Days"}
         chartMetric={chartMetric}
         setChartMetric={setChartMetric}
@@ -373,13 +417,14 @@ export function ReportsView() {
 
 // ============ Report Viewer ============
 function ReportViewer({
-  template, analytics, teamData, reportData, totals, loading, dateRangeLabel,
+  template, analytics, teamData, reportData, postsPerfData, totals, loading, dateRangeLabel,
   chartMetric, setChartMetric, onSave, onPrint, savingReport,
 }: {
   template: Template;
   analytics: AnalyticsData | null;
   teamData: TeamData | null;
   reportData: ReportDataRoot | null;
+  postsPerfData: PostsPerformanceData | null;
   totals: { followers: number; impressions: number; reach: number; engagement: number; posts: number; likes: number; comments: number; shares: number; saves: number };
   loading: boolean;
   dateRangeLabel: string;
@@ -450,6 +495,7 @@ function ReportViewer({
             analytics={analytics}
             teamData={teamData}
             reportData={reportData}
+            postsPerfData={postsPerfData}
             totals={totals}
             chartMetric={chartMetric}
             setChartMetric={setChartMetric}
@@ -462,12 +508,13 @@ function ReportViewer({
 
 // ============ Template-specific content ============
 function TemplateContent({
-  template, analytics, teamData, reportData, totals, chartMetric, setChartMetric,
+  template, analytics, teamData, reportData, postsPerfData, totals, chartMetric, setChartMetric,
 }: {
   template: Template;
   analytics: AnalyticsData | null;
   teamData: TeamData | null;
   reportData: ReportDataRoot | null;
+  postsPerfData: PostsPerformanceData | null;
   totals: { followers: number; impressions: number; reach: number; engagement: number; posts: number; likes: number; comments: number; shares: number; saves: number };
   chartMetric: string;
   setChartMetric: (m: string) => void;
@@ -497,6 +544,8 @@ function TemplateContent({
       return <AccountUserContent reportData={reportData} />;
     case "leaderboard":
       return <LeaderboardContent reportData={reportData} />;
+    case "posts-performance":
+      return <PostsPerformanceContent data={postsPerfData} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
     default:
       return null;
   }
@@ -1994,6 +2043,435 @@ function EmptyState() {
   );
 }
 
+// ============ Posts Performance template ============
+const POST_STATUS_META: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+  published: { label: "Published", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/15", icon: <CheckCircle2 className="h-2.5 w-2.5" /> },
+  scheduled: { label: "Scheduled", color: "text-primary", bg: "bg-primary/15", icon: <Clock className="h-2.5 w-2.5" /> },
+  draft: { label: "Draft", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/15", icon: <FileText className="h-2.5 w-2.5" /> },
+  failed: { label: "Failed", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/15", icon: <XCircle className="h-2.5 w-2.5" /> },
+};
+
+function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
+  data: PostsPerformanceData | null;
+  chartMetric: string;
+  setChartMetric: (m: string) => void;
+}) {
+  const [statusFilter, setStatusFilter] = React.useState<string>("all");
+  const [platformFilter, setPlatformFilter] = React.useState<string>("all");
+  const [sortKey, setSortKey] = React.useState<"date" | "engagement" | "title">("date");
+  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
+  const [expandedRow, setExpandedRow] = React.useState<string | null>(null);
+
+  // ---- Filtered + sorted posts (memoized; handles null data) ----
+  const filteredPosts = React.useMemo(() => {
+    if (!data) return [];
+    let list = data.posts;
+    if (statusFilter !== "all") list = list.filter((p) => p.status === statusFilter);
+    if (platformFilter !== "all") list = list.filter((p) => p.platforms.includes(platformFilter));
+    const sorted = [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "date") cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      else if (sortKey === "engagement") cmp = a.engagement - b.engagement;
+      else cmp = a.title.localeCompare(b.title);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [data, statusFilter, platformFilter, sortKey, sortDir]);
+
+  if (!data) return <EmptyState />;
+  const k = data.kpis;
+
+  // ---- KPI strip (6 cards) ----
+  const kpiCards = [
+    { label: "Total Posts", value: k.totalPosts, icon: <Layers className="h-3.5 w-3.5" />, color: "oklch(0.62 0.22 255)" },
+    { label: "Published", value: k.published, icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "oklch(0.74 0.18 165)" },
+    { label: "Scheduled", value: k.scheduled, icon: <Clock className="h-3.5 w-3.5" />, color: "oklch(0.66 0.2 200)" },
+    { label: "Drafts", value: k.draft, icon: <FileText className="h-3.5 w-3.5" />, color: "oklch(0.78 0.18 85)" },
+    { label: "Failed", value: k.failed, icon: <XCircle className="h-3.5 w-3.5" />, color: "oklch(0.65 0.22 25)" },
+    { label: "Variants Published", value: k.totalVariantsPublished, icon: <Zap className="h-3.5 w-3.5" />, color: "oklch(0.72 0.2 75)" },
+  ];
+
+  // ---- Engagement chart data (platform breakdown) ----
+  const chartData = data.platformBreakdown.map((p) => ({
+    name: PLATFORMS[p.platform as PlatformId]?.short ?? p.platform,
+    platform: p.platform,
+    engagement: p.totalEngagement,
+    published: p.postsPublished,
+    avg: p.avgEngagement,
+  }));
+
+  function toggleSort(key: "date" | "engagement" | "title") {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+
+  const totalEngagement = data.totals.totalEngagement;
+
+  return (
+    <div className="space-y-4">
+      {/* === KPI strip (6 cards) === */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+        {kpiCards.map((c, i) => (
+          <div key={i} className="crystal-in rounded-xl border border-border/30 bg-muted/10 p-3" style={{ animationDelay: `${i * 0.04}s` }}>
+            <div className="flex items-center gap-2" style={{ color: c.color }}>
+              {c.icon}
+              <span className="text-[10px] font-semibold uppercase tracking-wide">{c.label}</span>
+            </div>
+            <div className="num-display mt-1 text-2xl font-bold">{c.value.toLocaleString()}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* === Engagement-by-platform chart === */}
+      {chartData.length > 0 && (
+        <ChartCard
+          title="Engagement by Platform"
+          desc="Total engagement (likes + comments + shares) per platform"
+          action={
+            <MetricTabs
+              metrics={[
+                { key: "engagement", label: "Total" },
+                { key: "avg", label: "Avg / post" },
+                { key: "published", label: "Published" },
+              ]}
+              value={chartMetric}
+              onChange={setChartMetric}
+            />
+          }
+        >
+          <div className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ left: -12, right: 8, top: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => fmt(v)} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={36} />
+                <Tooltip
+                  contentStyle={TOOLTIP_STYLE}
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  formatter={(v: number) => fmt(v)}
+                />
+                <Bar dataKey={chartMetric} radius={[6, 6, 0, 0]} isAnimationActive animationDuration={600}>
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={PLATFORMS[entry.platform as PlatformId]?.color ?? "var(--primary)"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      )}
+
+      {/* === Platform breakdown table === */}
+      <div className="crystal-in rounded-2xl border border-border/30 bg-muted/10 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Platform Breakdown</div>
+            <div className="text-[10px] text-muted-foreground/70">Posts published, engagement, and share-of-total per platform</div>
+          </div>
+          <Badge variant="outline" className="text-[10px]">{data.platformBreakdown.length} platforms</Badge>
+        </div>
+        {data.platformBreakdown.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">No platform variants published yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table className="min-w-[640px]">
+              <TableHeader>
+                <TableRow className="border-border/40">
+                  <TableHead className="h-8 text-[10px] uppercase">Platform</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Published</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Variants</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Engagement</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Avg / post</TableHead>
+                  <TableHead className="h-8 text-[10px] uppercase">Share</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.platformBreakdown.map((p) => {
+                  const config = PLATFORMS[p.platform as PlatformId];
+                  return (
+                    <TableRow key={p.platform} className="border-border/30">
+                      <TableCell className="py-2.5">
+                        <div className="flex items-center gap-2">
+                          <PlatformBadge platform={p.platform as PlatformId} size={22} />
+                          <span className="text-xs font-bold">{config?.name ?? p.platform}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2.5 text-right text-xs font-bold tabular-nums">{p.postsPublished}</TableCell>
+                      <TableCell className="py-2.5 text-right text-xs tabular-nums text-muted-foreground">{p.totalVariants}</TableCell>
+                      <TableCell className="py-2.5 text-right text-xs font-semibold tabular-nums">{fmt(p.totalEngagement)}</TableCell>
+                      <TableCell className="py-2.5 text-right text-xs tabular-nums text-muted-foreground">{fmt(p.avgEngagement)}</TableCell>
+                      <TableCell className="py-2.5">
+                        <div className="flex items-center gap-2">
+                          <Progress value={p.shareOfTotal} className="h-1.5 w-16" />
+                          <span className="text-[10px] tabular-nums text-muted-foreground">{p.shareOfTotal}%</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
+      {/* === Member breakdown table === */}
+      <div className="crystal-in rounded-2xl border border-border/30 bg-muted/10 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Member Breakdown</div>
+            <div className="text-[10px] text-muted-foreground/70">Posts authored, published, platforms, and engagement per team member</div>
+          </div>
+          <Badge variant="outline" className="text-[10px]">{data.memberBreakdown.length} authors</Badge>
+        </div>
+        {data.memberBreakdown.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">No posts authored yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table className="min-w-[720px]">
+              <TableHeader>
+                <TableRow className="border-border/40">
+                  <TableHead className="h-8 text-[10px] uppercase">Member</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Authored</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Published</TableHead>
+                  <TableHead className="h-8 text-[10px] uppercase">Platforms</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Engagement</TableHead>
+                  <TableHead className="h-8 text-[10px] uppercase">Share</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.memberBreakdown.map((m) => (
+                  <TableRow key={m.userId} className="border-border/30">
+                    <TableCell className="py-2.5">
+                      <div className="flex items-center gap-2">
+                        <NameAvatar name={m.name} color={m.color ?? "blue"} src={m.avatar} className="h-7 w-7 text-[10px]" />
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-bold">{m.name}</div>
+                          {m.title && <div className="truncate text-[10px] text-muted-foreground">{m.title}</div>}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2.5 text-right text-xs font-bold tabular-nums">{m.postsAuthored}</TableCell>
+                    <TableCell className="py-2.5 text-right text-xs tabular-nums text-emerald-600 dark:text-emerald-400">{m.postsPublished}</TableCell>
+                    <TableCell className="py-2.5">
+                      <div className="flex flex-wrap gap-1">
+                        {m.platforms.slice(0, 4).map((pl) => (
+                          <PlatformBadge key={pl} platform={pl as PlatformId} size={16} />
+                        ))}
+                        {m.platforms.length > 4 && (
+                          <span className="text-[9px] text-muted-foreground">+{m.platforms.length - 4}</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2.5 text-right text-xs font-semibold tabular-nums">{fmt(m.engagement)}</TableCell>
+                    <TableCell className="py-2.5">
+                      <div className="flex items-center gap-2">
+                        <Progress value={m.shareOfTotal} className="h-1.5 w-16" />
+                        <span className="text-[10px] tabular-nums text-muted-foreground">{m.shareOfTotal}%</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
+      {/* === Posts list (sortable + filterable + expandable) === */}
+      <div className="crystal-in rounded-2xl border border-border/30 bg-muted/10 p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">All Posts</div>
+            <div className="text-[10px] text-muted-foreground/70">Click a row to expand and see platform variants</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <ListFilter className="h-3 w-3" /> Filters:
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-7 w-[110px] text-[10px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All statuses</SelectItem>
+                <SelectItem value="published" className="text-xs">Published</SelectItem>
+                <SelectItem value="scheduled" className="text-xs">Scheduled</SelectItem>
+                <SelectItem value="draft" className="text-xs">Draft</SelectItem>
+                <SelectItem value="failed" className="text-xs">Failed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={platformFilter} onValueChange={setPlatformFilter}>
+              <SelectTrigger className="h-7 w-[120px] text-[10px]">
+                <SelectValue placeholder="Platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All platforms</SelectItem>
+                {Object.values(PLATFORMS).map((p) => (
+                  <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {filteredPosts.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">No posts match these filters.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table className="min-w-[760px]">
+              <TableHeader>
+                <TableRow className="border-border/40">
+                  <TableHead className="h-8 text-[10px] uppercase">
+                    <button onClick={() => toggleSort("title")} className="flex items-center gap-1 hover:text-foreground">
+                      Post <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="h-8 text-[10px] uppercase">Author</TableHead>
+                  <TableHead className="h-8 text-[10px] uppercase">Status</TableHead>
+                  <TableHead className="h-8 text-[10px] uppercase">Platforms</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">
+                    <button onClick={() => toggleSort("engagement")} className="flex items-center gap-1 hover:text-foreground">
+                      Engagement <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">
+                    <button onClick={() => toggleSort("date")} className="flex items-center gap-1 hover:text-foreground">
+                      Date <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
+                    </button>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPosts.map((p) => {
+                  const isOpen = expandedRow === p.id;
+                  const sm = POST_STATUS_META[p.status] ?? POST_STATUS_META.draft;
+                  return (
+                    <React.Fragment key={p.id}>
+                      <TableRow
+                        className="cursor-pointer border-border/30 transition hover:bg-muted/30"
+                        onClick={() => setExpandedRow(isOpen ? null : p.id)}
+                      >
+                        <TableCell className="py-2.5">
+                          <div className="flex items-center gap-2">
+                            <ChevronDown className={cn("h-3 w-3 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+                            <div className="min-w-0 max-w-[220px]">
+                              <div className="truncate text-xs font-bold">{p.title || "Untitled"}</div>
+                              <div className="truncate text-[10px] text-muted-foreground">{p.caption || "—"}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-2.5">
+                          <div className="flex items-center gap-2">
+                            <NameAvatar name={p.authorName} color={p.authorColor ?? "blue"} src={p.authorAvatar} className="h-6 w-6 text-[9px]" />
+                            <span className="truncate text-[11px] font-medium">{p.authorName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-2.5">
+                          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", sm.bg, sm.color)}>
+                            {sm.icon}
+                            {sm.label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-2.5">
+                          <div className="flex flex-wrap gap-1">
+                            {p.platforms.slice(0, 4).map((pl) => (
+                              <PlatformBadge key={pl} platform={pl as PlatformId} size={16} />
+                            ))}
+                            {p.platforms.length > 4 && (
+                              <span className="text-[9px] text-muted-foreground">+{p.platforms.length - 4}</span>
+                            )}
+                            {p.platforms.length === 0 && <span className="text-[10px] text-muted-foreground">—</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-2.5 text-right text-xs font-bold tabular-nums">{fmt(p.engagement)}</TableCell>
+                        <TableCell className="py-2.5 text-right text-[10px] tabular-nums text-muted-foreground">
+                          {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                        </TableCell>
+                      </TableRow>
+                      {isOpen && (
+                        <TableRow className="border-border/30 bg-muted/20">
+                          <TableCell colSpan={6} className="p-4">
+                            <div className="space-y-2">
+                              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                                Platform variants ({p.variants.length})
+                              </div>
+                              {p.variants.length === 0 ? (
+                                <div className="text-[11px] text-muted-foreground">No variants for this post.</div>
+                              ) : (
+                                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                  {p.variants.map((v) => {
+                                    const vsm = POST_STATUS_META[v.status] ?? POST_STATUS_META.draft;
+                                    return (
+                                      <div key={v.id} className="rounded-xl border border-border/40 bg-background/50 p-3">
+                                        <div className="mb-2 flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-2">
+                                            <PlatformBadge platform={v.platform as PlatformId} size={20} />
+                                            <div className="min-w-0">
+                                              <div className="truncate text-[11px] font-bold">{v.accountName}</div>
+                                              <div className="truncate text-[9px] text-muted-foreground">@{v.handle}</div>
+                                            </div>
+                                          </div>
+                                          <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold", vsm.bg, vsm.color)}>
+                                            {vsm.icon}
+                                            {vsm.label}
+                                          </span>
+                                        </div>
+                                        <div className="line-clamp-3 text-[10px] leading-relaxed text-muted-foreground">
+                                          {v.content || p.caption || "—"}
+                                        </div>
+                                        <div className="mt-2 grid grid-cols-4 gap-1 text-center">
+                                          <div>
+                                            <div className="text-[11px] font-bold tabular-nums">{fmt(v.likes)}</div>
+                                            <div className="text-[8px] uppercase text-muted-foreground">Likes</div>
+                                          </div>
+                                          <div>
+                                            <div className="text-[11px] font-bold tabular-nums">{fmt(v.comments)}</div>
+                                            <div className="text-[8px] uppercase text-muted-foreground">Cmts</div>
+                                          </div>
+                                          <div>
+                                            <div className="text-[11px] font-bold tabular-nums">{fmt(v.shares)}</div>
+                                            <div className="text-[8px] uppercase text-muted-foreground">Shares</div>
+                                          </div>
+                                          <div>
+                                            <div className="text-[11px] font-bold tabular-nums text-primary">{fmt(v.engagement)}</div>
+                                            <div className="text-[8px] uppercase text-muted-foreground">Total</div>
+                                          </div>
+                                        </div>
+                                        {v.publishedAt && (
+                                          <div className="mt-2 text-[9px] text-muted-foreground">
+                                            Published {new Date(v.publishedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+          <span>Showing {filteredPosts.length} of {data.posts.length} posts</span>
+          <span>Total engagement: {fmt(totalEngagement)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============ Print Layout (hidden on screen) ============
 function PrintLayout({
   template, dateRangeLabel, analytics, teamData, reportData, totals,
@@ -2022,6 +2500,8 @@ function PrintLayout({
         return `This ${dateRangeLabel.toLowerCase()} team activity report covers ${teamData?.teamTotals.members ?? 0} member(s) managing ${analytics.perAccount.length} account(s). The team created ${teamData?.teamTotals.postsCreated ?? 0} posts, published ${teamData?.teamTotals.publishedPosts ?? 0}, and replied to ${teamData?.teamTotals.commentsReplied ?? 0} of ${teamData?.teamTotals.commentsReceived ?? 0} comments (${teamData?.teamTotals.replyRate ?? 0}% reply rate).`;
       case "engagement":
         return `This ${dateRangeLabel.toLowerCase()} engagement report covers ${analytics.perAccount.length} account(s). Total engagement: ${fmt(totals.engagement)} (${fmt(totals.likes)} likes, ${fmt(totals.comments)} comments, ${fmt(totals.shares)} shares, ${fmt(totals.saves)} saves).`;
+      case "posts-performance":
+        return `This posts performance report covers all ${teamData?.teamTotals.postsCreated ?? 0} post(s) created by the team — ${teamData?.teamTotals.publishedPosts ?? 0} published, ${teamData?.teamTotals.scheduledPosts ?? 0} scheduled, ${teamData?.teamTotals.draftPosts ?? 0} drafts, ${teamData?.teamTotals.failedPosts ?? 0} failed, and ${teamData?.teamTotals.variantsPublished ?? 0} platform variants published across all platforms.`;
       default:
         return `This ${dateRangeLabel.toLowerCase()} ${template.name.toLowerCase()} report covers ${analytics.perAccount.length} account(s)${teamData ? ` and ${teamData.teamTotals.members} team member(s)` : ""}. Total audience: ${fmt(totals.followers)} followers, ${fmt(totals.impressions)} impressions, ${fmt(totals.reach)} reach, and ${fmt(totals.engagement)} total engagement.`;
     }
