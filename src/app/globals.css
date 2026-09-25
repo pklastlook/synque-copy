@@ -900,6 +900,311 @@ html { scroll-behavior: smooth; }
 }
 
 /* ================================================================
+   Apple Design Tokens — iOS 18 / macOS 27 "Liquid Glass" additions
+   Used by AI Assistant chat widget + mobile tab bar / header.
+   Palette: Apple system colors only (NO indigo/violet).
+   ================================================================ */
+
+:root {
+  /* Apple system color palette */
+  --apple-blue: #007AFF;
+  --apple-blue-soft: #5AC8FA;
+  --apple-gray: #8E8E93;
+  --apple-gray-2: #AEAEB2;
+  --apple-gray-3: #C7C7CC;
+  --apple-gray-4: #D1D1D6;
+  --apple-gray-5: #E5E5EA;
+  --apple-gray-6: #F2F2F7;
+  --apple-green: #34C759;
+  --apple-red: #FF3B30;
+  --apple-orange: #FF9500;
+  --apple-yellow: #FFCC00;
+  --apple-teal: #30B0C7;
+
+  /* SF system font stack — used by .apple-font utility. Does not override
+     the global Inter font; opt-in for chat / mobile chrome only. */
+  --apple-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+
+  /* Apple "Secondary System Grouped Background" — chat canvas */
+  --apple-canvas: #F2F2F7;
+  --apple-elevated: #FFFFFF;
+
+  /* Apple bubble colors */
+  --apple-bubble-out: #007AFF;       /* user (right) — iMessage blue */
+  --apple-bubble-out-fg: #FFFFFF;
+  --apple-bubble-in: #E9E9EB;        /* assistant (left) — light gray */
+  --apple-bubble-in-fg: #1C1C1E;
+
+  /* Apple "Online" green dot */
+  --apple-online: #34C759;
+}
+
+.dark {
+  --apple-canvas: #000000;
+  --apple-elevated: #1C1C1E;
+  --apple-bubble-out: #0A84FF;       /* brighter blue in dark */
+  --apple-bubble-out-fg: #FFFFFF;
+  --apple-bubble-in: #1C1C1E;
+  --apple-bubble-in-fg: #F2F2F7;
+  --apple-online: #30D158;
+}
+
+/* Apply SF system font stack when opted in */
+.apple-font { font-family: var(--apple-font-sans); }
+
+/* ============================================================================
+   Apple "Liquid Glass" — frosted material for chat header / tab bar
+   Distinct from .glass-strong (Sonoma dialogs): higher translucency,
+   stronger saturation boost, signature iOS 18 vibrancy.
+   ============================================================================ */
+.apple-glass {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.dark .apple-glass {
+  background: rgba(28, 28, 30, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Heavier frosted glass — tab bar / bottom sheet */
+.apple-glass-heavy {
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  background: rgba(249, 249, 249, 0.82);
+}
+.dark .apple-glass-heavy {
+  background: rgba(20, 20, 22, 0.82);
+}
+
+/* ============================================================================
+   iMessage-style bubble tails
+   Small ::after triangles that visually "anchor" each bubble to its side.
+   ============================================================================ */
+.bubble-tail-right {
+  position: relative;
+}
+.bubble-tail-right::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  bottom: 6px;
+  width: 12px;
+  height: 12px;
+  background: var(--apple-bubble-out);
+  border-bottom-left-radius: 14px;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+.bubble-tail-left {
+  position: relative;
+}
+.bubble-tail-left::after {
+  content: "";
+  position: absolute;
+  left: -6px;
+  bottom: 6px;
+  width: 12px;
+  height: 12px;
+  background: var(--apple-bubble-in);
+  border-bottom-right-radius: 14px;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+/* ============================================================================
+   Apple-style animations
+   ============================================================================ */
+
+/* Message fade-in — soft slide-up + fade */
+@keyframes message-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-message-in { animation: message-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Date separator pill fade-down */
+@keyframes pill-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-pill-in { animation: pill-in 0.3s ease-out both; }
+
+/* Typing dots — iMessage-style bounce (3 dots, staggered) */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30%           { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot { animation: typing-dot 1.2s ease-in-out infinite; }
+
+/* Floating action button entrance + idle pulse glow */
+@keyframes fab-in {
+  0%   { opacity: 0; transform: scale(0.6) rotate(-12deg); }
+  60%  { opacity: 1; transform: scale(1.08) rotate(4deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+.animate-fab-in { animation: fab-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+@keyframes fab-pulse-glow {
+  0%, 100% { box-shadow: 0 8px 20px -6px rgba(0, 122, 255, 0.55), 0 0 0 0 rgba(52, 199, 89, 0.45); }
+  50%      { box-shadow: 0 12px 28px -6px rgba(0, 122, 255, 0.65), 0 0 0 8px rgba(52, 199, 89, 0); }
+}
+.fab-glow { animation: fab-pulse-glow 2.8s ease-in-out infinite; }
+
+/* Online dot — gentle pulse */
+@keyframes online-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.82); }
+}
+.online-dot { animation: online-pulse 2.4s ease-in-out infinite; }
+
+/* Tab press bounce (bottom tab bar) */
+@keyframes tab-bounce {
+  0%   { transform: translateY(0) scale(1); }
+  40%  { transform: translateY(-3px) scale(1.12); }
+  100% { transform: translateY(0) scale(1); }
+}
+.tab-bounce { animation: tab-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Input focus ring expansion (soft, Apple-style) */
+@keyframes focus-ring {
+  from { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); }
+  to   { box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.18); }
+}
+.focus-ring-anim:focus-within { animation: focus-ring 0.25s ease-out forwards; }
+
+/* ============================================================================
+   Apple bubble + canvas utility classes (compose with Tailwind utilities)
+   ============================================================================ */
+.apple-bubble-out {
+  background: var(--apple-bubble-out);
+  color: var(--apple-bubble-out-fg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.10), 0 2px 8px -2px rgba(0,0,0,0.10);
+}
+.apple-bubble-in {
+  background: var(--apple-bubble-in);
+  color: var(--apple-bubble-in-fg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 2px 8px -2px rgba(0,0,0,0.08);
+}
+
+/* Apple gradient avatar (blue → teal — NO purple/violet) */
+.apple-avatar-gradient {
+  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 60%, #30B0C7 100%);
+  box-shadow: 0 4px 12px -2px rgba(0, 122, 255, 0.45),
+              inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Apple FAB gradient (blue → teal) with depth */
+.apple-fab-gradient {
+  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
+  box-shadow: 0 8px 20px -6px rgba(0, 122, 255, 0.55),
+              inset 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+
+/* Apple quick-prompt pill */
+.apple-pill {
+  background: var(--apple-elevated);
+  border: 1px solid var(--apple-gray-5);
+  color: var(--apple-bubble-in-fg);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.apple-pill:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 122, 255, 0.40);
+  background: rgba(0, 122, 255, 0.06);
+}
+.dark .apple-pill {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+.dark .apple-pill:hover {
+  background: rgba(0, 122, 255, 0.18);
+  border-color: rgba(0, 122, 255, 0.55);
+}
+
+/* Apple send button (circular, blue) */
+.apple-send-btn {
+  background: var(--apple-bubble-out);
+  color: var(--apple-bubble-out-fg);
+  box-shadow: 0 2px 8px -2px rgba(0, 122, 255, 0.55),
+              inset 0 1px 0 rgba(255, 255, 255, 0.30);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.apple-send-btn:hover:not(:disabled) { filter: brightness(1.05); transform: scale(1.04); }
+.apple-send-btn:active:not(:disabled) { transform: scale(0.92); }
+.apple-send-btn:disabled { opacity: 0.40; box-shadow: none; }
+
+/* ============================================================================
+   Mobile tab bar — iOS 18 enhancements (rounded top + frosted heavy glass)
+   ============================================================================ */
+.apple-tab-bar {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -8px 30px -8px rgba(0, 0, 0, 0.18);
+}
+.dark .apple-tab-bar {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 -8px 30px -8px rgba(0, 0, 0, 0.55);
+}
+
+.apple-tab-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 6px 6px;
+  color: var(--apple-gray);
+  transition: color 0.2s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.apple-tab-item:active { transform: scale(0.92); }
+.apple-tab-item.active { color: var(--apple-blue); }
+.dark .apple-tab-item.active { color: #0A84FF; }
+.apple-tab-item.active .tab-icon { transform: scale(1.08); }
+.apple-tab-item .tab-icon {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  stroke-width: 2;
+}
+.apple-tab-item .tab-label {
+  font-family: var(--apple-font-sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+.apple-tab-item.active .tab-label { font-weight: 600; }
+
+/* Active tab "pill" indicator — iOS 18 style */
+.apple-tab-item.active::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--apple-blue);
+  opacity: 0.85;
+}
+.dark .apple-tab-item.active::before { background: #0A84FF; }
+
+/* "Compose" tab — primary action: always-blue tinted icon (iOS Mail pattern) */
+.apple-compose-tab .tab-icon {
+  color: var(--apple-blue);
+}
+.dark .apple-compose-tab .tab-icon { color: #0A84FF; }
+.apple-compose-tab.active .tab-icon {
+  color: var(--apple-blue);
+  filter: brightness(1.1);
+}
+
+/* ================================================================
    PWA Splash Screen — iOS/Android native app launch animation
    ================================================================ */
 
