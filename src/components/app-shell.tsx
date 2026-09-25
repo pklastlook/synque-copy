@@ -32,18 +32,42 @@ import { TeamPerformanceView } from "@/components/views/team-performance";
 import { AIAssistantPanel } from "@/components/ai-assistant";
 import { OrganizationView } from "@/components/views/organization";
 import {
-  LayoutDashboard, PenSquare, Inbox, BarChart3, Settings,
-  Users, MoreHorizontal, type LucideIcon,
+  LayoutDashboard, PenSquare, Inbox as InboxIcon, BarChart3, MoreHorizontal,
+  Calendar, MessageCircle as WhatsAppIcon, MessageSquare, CheckSquare,
+  Link2, Image as ImageIcon, FileBarChart, Megaphone, Settings as SettingsIcon,
+  Building2, TrendingUp, Briefcase, X, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// === Mobile bottom tab bar items ===
+// === Mobile bottom tab bar items — iOS 18 SF Pro style ===
 const MOBILE_TABS: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Home", icon: LayoutDashboard },
-  { id: "inbox", label: "Inbox", icon: Inbox },
+  { id: "inbox", label: "Inbox", icon: InboxIcon },
   { id: "composer", label: "Compose", icon: PenSquare },
   { id: "analytics", label: "Stats", icon: BarChart3 },
   { id: "settings", label: "More", icon: MoreHorizontal },
+];
+
+// === "More" sheet items — categorized, SF Pro style Lucide icons ===
+const MORE_NAV_ITEMS: { id: string; label: string; icon: LucideIcon }[] = [
+  { id: "calendar", label: "Calendar", icon: Calendar },
+  { id: "whatsapp", label: "WhatsApp", icon: WhatsAppIcon },
+  { id: "chat", label: "Chat", icon: MessageSquare },
+  { id: "tasks", label: "Tasks", icon: CheckSquare },
+  { id: "accounts", label: "Accounts", icon: Link2 },
+  { id: "media", label: "Media", icon: ImageIcon },
+  { id: "reports", label: "Reports", icon: FileBarChart },
+  { id: "campaigns", label: "Campaigns", icon: Megaphone },
+];
+
+const MORE_ADMIN_ITEMS_MEMBER: { id: string; label: string; icon: LucideIcon }[] = [
+  { id: "settings", label: "Settings", icon: SettingsIcon },
+  { id: "organization", label: "Org", icon: Building2 },
+  { id: "team-performance", label: "Performance", icon: TrendingUp },
+];
+
+const MORE_ADMIN_ITEMS_OWNER: { id: string; label: string; icon: LucideIcon }[] = [
+  { id: "owner", label: "Owner", icon: Briefcase },
 ];
 
 export function AppShell() {
@@ -140,73 +164,148 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* Mobile bottom tab bar — iOS-style */}
+      {/* Mobile bottom tab bar — iOS 18 frosted glass + rounded top */}
       {showMobileTabs && (
-        <div className="mobile-tab-bar mobile-only">
-          {MOBILE_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = view === tab.id || (tab.id === "settings" && showMoreSheet);
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleMobileTab(tab.id)}
-                className={cn("mobile-tab-item touch-button", isActive && "active")}
-              >
-                <Icon className="tab-icon h-5 w-5" />
-                <span className="tab-label">{tab.label}</span>
-              </button>
-            );
-          })}
+        <div className="mobile-only">
+          <nav
+            className={cn(
+              "apple-tab-bar apple-glass-heavy apple-font",
+              "fixed bottom-0 left-0 right-0 z-50 flex items-stretch",
+              "pb-[env(safe-area-inset-bottom,0px)]",
+            )}
+            style={{ minHeight: "60px" }}
+            aria-label="Primary"
+          >
+            {MOBILE_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = view === tab.id || (tab.id === "settings" && showMoreSheet);
+              const isCompose = tab.id === "composer";
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleMobileTab(tab.id)}
+                  className={cn(
+                    "apple-tab-item touch-button",
+                    isActive && "active",
+                    // Compose gets a subtle elevated pill (iOS primary action)
+                    isCompose && "apple-compose-tab",
+                  )}
+                  aria-label={tab.label}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <Icon className="tab-icon h-[22px] w-[22px]" strokeWidth={isActive ? 2.4 : 2} />
+                  <span className="tab-label">{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
       )}
 
-      {/* Mobile "More" bottom sheet — shows additional navigation */}
+      {/* Mobile "More" bottom sheet — iOS 18 frosted, categorized, SF icons */}
       {showMoreSheet && (
-        <div className="mobile-sheet mobile-only" onClick={() => setShowMoreSheet(false)}>
-          <div className="grid grid-cols-4 gap-3 p-4">
-            {[
-              { id: "calendar", label: "Calendar", icon: "📅" },
-              { id: "whatsapp", label: "WhatsApp", icon: "💬" },
-              { id: "chat", label: "Chat", icon: "💭" },
-              { id: "tasks", label: "Tasks", icon: "✅" },
-              { id: "accounts", label: "Accounts", icon: "🔗" },
-              { id: "media", label: "Media", icon: "🖼️" },
-              { id: "reports", label: "Reports", icon: "📊" },
-              { id: "campaigns", label: "Campaigns", icon: "📣" },
-            ].map((item) => (
+        <div className="mobile-only">
+          {/* Backdrop scrim */}
+          <button
+            onClick={() => setShowMoreSheet(false)}
+            className="premium-scrim fixed inset-0 z-[60] animate-ios-fade-scale"
+            aria-label="Close More menu"
+          />
+          {/* Sheet */}
+          <div
+            className={cn(
+              "apple-glass-heavy apple-font animate-ios-slide-up",
+              "fixed bottom-0 left-0 right-0 z-[70] max-h-[85vh] overflow-y-auto scroll-liquid",
+              "rounded-t-[24px] border-t border-black/8 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] dark:border-white/10",
+              "shadow-[0_-12px_48px_-12px_rgba(0,0,0,0.35)]",
+            )}
+            role="dialog"
+            aria-modal="true"
+            aria-label="More navigation"
+          >
+            {/* Grabber + header */}
+            <div className="flex flex-col items-center pt-2">
+              <span className="h-1.5 w-9 rounded-full bg-black/20 dark:bg-white/20" />
+            </div>
+            <div className="flex items-center justify-between px-5 pb-3 pt-3">
+              <h2 className="text-[20px] font-semibold tracking-tight text-foreground">More</h2>
               <button
-                key={item.id}
-                onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
-                className="touch-button flex flex-col items-center gap-1.5 rounded-2xl bg-muted/30 p-3 transition hover:bg-muted/50"
+                onClick={() => setShowMoreSheet(false)}
+                className="grid h-8 w-8 place-items-center rounded-full bg-black/5 text-muted-foreground transition hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20"
+                aria-label="Close"
               >
-                <span className="text-2xl">{item.icon}</span>
-                <span className="text-[10px] font-medium text-muted-foreground">{item.label}</span>
+                <X className="h-4 w-4" strokeWidth={2.5} />
               </button>
-            ))}
-          </div>
-          {/* Admin/Manager items */}
-          {user && (user.role === "admin" || user.role === "manager") && (
-            <div className="border-t border-border/30 p-4">
-              <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Admin</div>
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  { id: "settings", label: "Settings", icon: "⚙️" },
-                  { id: "organization", label: "Org", icon: "🏢" },
-                  { id: "team-performance", label: "Performance", icon: "📈" },
-                  ...(user.role === "admin" ? [{ id: "owner", label: "Owner", icon: "💼" }] : []),
-                ].map((item) => (
+            </div>
+
+            {/* Primary navigation grid — Lucide icons, SF-styled */}
+            <div className="grid grid-cols-4 gap-2.5 px-4 pb-4">
+              {MORE_NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const active = view === item.id;
+                return (
                   <button
                     key={item.id}
                     onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
-                    className="touch-button flex flex-col items-center gap-1.5 rounded-2xl bg-muted/30 p-3 transition hover:bg-muted/50"
+                    className={cn(
+                      "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-2xl p-3",
+                      active && "!border-blue-500/50",
+                    )}
                   >
-                    <span className="text-2xl">{item.icon}</span>
-                    <span className="text-[10px] font-medium text-muted-foreground">{item.label}</span>
+                    <span
+                      className="grid h-10 w-10 place-items-center rounded-full"
+                      style={{
+                        background: active ? "var(--apple-blue)" : "rgba(0,122,255,0.10)",
+                        color: active ? "#fff" : "var(--apple-blue)",
+                      }}
+                    >
+                      <Icon className="h-5 w-5" strokeWidth={2.2} />
+                    </span>
+                    <span className="text-[11px] font-medium text-foreground/80">{item.label}</span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
+
+            {/* Admin / Manager items */}
+            {user && (user.role === "admin" || user.role === "manager") && (
+              <div className="border-t border-black/5 px-4 pb-4 pt-4 dark:border-white/10">
+                <div className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Admin
+                </div>
+                <div className="grid grid-cols-4 gap-2.5">
+                  {[
+                    ...MORE_ADMIN_ITEMS_MEMBER,
+                    ...(user.role === "admin" ? MORE_ADMIN_ITEMS_OWNER : []),
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const active = view === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
+                        className={cn(
+                          "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-2xl p-3",
+                          active && "!border-blue-500/50",
+                        )}
+                      >
+                        <span
+                          className="grid h-10 w-10 place-items-center rounded-full"
+                          style={{
+                            background: active ? "var(--apple-blue)" : "rgba(0,122,255,0.10)",
+                            color: active ? "#fff" : "var(--apple-blue)",
+                          }}
+                        >
+                          <Icon className="h-5 w-5" strokeWidth={2.2} />
+                        </span>
+                        <span className="text-[11px] font-medium text-foreground/80">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

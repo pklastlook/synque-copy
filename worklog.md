@@ -3164,3 +3164,116 @@ While auditing all view files for un-wrapped tables, I found two more mobile cut
 - No desktop (`lg:`) layouts were changed.
 - No JS logic, state, event handlers, or component APIs were modified.
 - All `overflow-x-auto` wrappers preserve the existing vertical `max-h-*` + `overflow-y-auto` scroll behaviour where present.
+
+---
+
+## Task ID: apple-ui-redesign — AI Assistant (iOS Messenger) + macOS 27 mobile chrome
+
+**Task**: Redesign `src/components/ai-assistant.tsx` as an iOS Messenger / Apple Messages-style chat widget, enhance the mobile app shell (`src/components/app-shell.tsx`) with macOS 27 / iOS 18 frosted tab bar + bottom sheet, and add Apple design tokens to `src/app/globals.css`. Apple palette only (NO indigo / violet). Must work in light + dark mode and be mobile-first responsive.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `src/app/globals.css` | +300 lines: Apple design tokens, `.apple-glass`, `.apple-glass-heavy`, bubble tails, animations (`message-in`, `pill-in`, `typing-dot`, `fab-in`, `fab-pulse-glow`, `online-pulse`, `tab-bounce`, `focus-ring`), bubble / avatar / FAB / send-btn / pill utilities, `.apple-tab-bar` + `.apple-tab-item` + `.apple-compose-tab` iOS 18 tab classes |
+| `src/components/ai-assistant.tsx` | Full rewrite (243 → 508 lines): iOS Messenger-styled chat panel — frosted header w/ gradient avatar + online dot, date separators, bubble tails, typing indicator, Apple-blue send button, quick prompts as pills, floating action button w/ glow pulse |
+| `src/components/app-shell.tsx` | Mobile bottom tab bar: replaced `.mobile-tab-bar/.mobile-tab-item` with `.apple-tab-bar/.apple-tab-item` (rounded top, frosted heavy glass, 60px + safe area, iOS 18 active pill indicator). More sheet: replaced emoji grid with Lucide-icon grid in `.apple-pill` containers, frosted heavy glass, grabber, scrim backdrop, slide-up animation. Compose tab gets always-blue tint (primary action). |
+
+### Design system added (in globals.css)
+
+- **Apple color tokens** (`:root` + `.dark`): `--apple-blue` `#007AFF` (light) / `#0A84FF` (dark), `--apple-gray` `#8E8E93`, `--apple-green` `#34C759` / `#30D158`, `--apple-red` `#FF3B30`, `--apple-teal` `#30B0C7`, plus `--apple-bubble-out`, `--apple-bubble-in`, `--apple-canvas`, `--apple-elevated`. NO indigo / violet introduced.
+- **SF system font stack** `--apple-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", …` exposed via `.apple-font` utility (opt-in — does NOT override the global Inter font).
+- **Frosted materials**: `.apple-glass` (blur 20px + saturate 180%, rgba(255,255,255,0.72) light / rgba(28,28,30,0.72) dark) and `.apple-glass-heavy` (blur 30px + saturate 200%) for tab bar + bottom sheet.
+- **Bubble tails**: `.bubble-tail-right::after` + `.bubble-tail-left::after` use `clip-path: polygon(...)` to render a small triangle anchored to the bottom-right / bottom-left of each bubble.
+- **Animations**: `message-in` (8px translateY + scale 0.98 → 1, 320ms cubic-bezier(0.22,1,0.36,1)), `pill-in` (date separator), `typing-dot` (1.2s staggered bounce, 3 dots), `fab-in` (spring scale + rotate), `fab-pulse-glow` (idle FAB halo + green dot ping), `online-pulse`, `tab-bounce`, `focus-ring` (input focus expands a 4px blue halo).
+- **Utility classes**: `.apple-bubble-out`, `.apple-bubble-in`, `.apple-avatar-gradient` (blue→cyan→teal — NO purple), `.apple-fab-gradient`, `.apple-pill`, `.apple-send-btn`, `.apple-tab-bar`, `.apple-tab-item`, `.apple-compose-tab`.
+
+### AI Assistant redesign (`ai-assistant.tsx`)
+
+**Floating Action Button (closed state):**
+- 56px (h-14 w-14) circular button, `apple-fab-gradient` (blue→cyan), `fab-glow` idle pulse animation, `animate-fab-in` spring entrance.
+- Bot icon (white, strokeWidth 2.2), 14px unread/online dot in top-right with `animate-ping` halo.
+- Lifts to `bottom-24` on mobile so it clears the tab bar.
+- Hover scale 1.05, active scale 0.95.
+
+**Chat panel (open state):**
+- Frosted `apple-glass-heavy` on mobile (full-width sheet, rounded-t-3xl, `h-[calc(100dvh-4rem)]`); floating `apple-glass` rounded-3xl 400×640 panel on desktop.
+- Uses `apple-font` (SF system stack) for the entire panel.
+
+**Header (frosted glass):**
+- 40×40 circular avatar with `apple-avatar-gradient` (blue→cyan→teal).
+- Online dot (green, `online-dot` pulse) anchored bottom-right with white border.
+- "SocialFlow AI" in 15px semibold + Sparkles icon.
+- "Online · typically replies instantly" subtitle with green dot.
+- Eraser (clear) + circular X close button.
+
+**Messages area:**
+- `--apple-canvas` background (`#F2F2F7` light / `#000` dark — iMessage canvas).
+- Messages grouped by day with sticky centered date-separator pills (`animate-pill-in`).
+- Each message: `animate-message-in` (fade + slide-up + scale).
+- User bubbles: `apple-bubble-out` (iMessage blue), right-aligned, `bubble-tail-right`, rounded-3xl with `rounded-br-md` when last in group.
+- AI bubbles: `apple-bubble-in` (light gray `#E9E9EB` / dark `#1C1C1E`), left-aligned, `bubble-tail-left`, with avatar shown only on the last message of a group.
+- Max-width 75% of container; 15px font, leading-relaxed, `px-4 py-2.5`.
+- Action chips (tool name) shown translucent inside the bubble.
+
+**Empty state:**
+- Centered 64px gradient avatar + personalized "Hi, {firstName}! 👋" greeting.
+- Quick prompts as `apple-pill` rounded-full buttons with Lucide icon (blue) + text + chevron.
+
+**Quick prompts row (after first message):**
+- Horizontal scroll (`no-scrollbar`), `apple-pill` chips, dismissible with X button.
+
+**Typing indicator:**
+- 3 bouncing dots (`typing-dot` animation, 180ms stagger) inside an `apple-bubble-in` bubble with avatar.
+
+**Input area (frosted):**
+- Rounded-full input wrapper, `bg-black/5` / `dark:bg-white/8`, blue border on focus-within.
+- `focus-ring-anim` expands a 4px blue halo on focus.
+- 40×40 circular `apple-send-btn` (Apple blue) with Send icon (strokeWidth 2.4); spinner when loading.
+- Helper text "Enter to send · Shift+Enter for newline" / "Thinking…" while loading.
+- Auto-focus on open (320ms delay for transition).
+
+### Mobile app shell enhancements (`app-shell.tsx`)
+
+**Bottom tab bar (iOS 18):**
+- Replaced flat `mobile-tab-bar` with `.apple-tab-bar .apple-glass-heavy .apple-font`.
+- `rounded-t-[22px]` (via CSS class), 60px min-height + `env(safe-area-inset-bottom)`.
+- 5 tabs (Home, Inbox, Compose, Stats, More) using Lucide icons styled SF Pro: `h-[22px] w-[22px]`, strokeWidth 2 inactive / 2.4 active.
+- Active tab: blue tint (`--apple-blue` light / `#0A84FF` dark), icon scale 1.08, bold label, **iOS 18 active pill indicator** (28×3px blue bar at top via `::before`).
+- Compose tab: `apple-compose-tab` class — always-blue icon tint (primary action pattern, like iOS Mail compose).
+- `:active` scale 0.92 for tactile feedback.
+
+**"More" bottom sheet (iOS 18):**
+- `premium-scrim` backdrop button (click to dismiss) with `animate-ios-fade-scale`.
+- `apple-glass-heavy` sheet, `rounded-t-[24px]`, slide-up via `animate-ios-slide-up`.
+- iOS grabber (36×6px pill, muted), "More" 20px semibold heading, circular X close button.
+- Primary nav: 4-col grid of `apple-pill` rounded-2xl buttons, each with a 40×40 circular icon container (filled blue when active, soft blue tint when inactive) + label.
+- Admin section (managers/admins only): separated by a hairline, same grid layout, includes Settings / Org / Performance (+ Owner for admins).
+- Lucide icons throughout (Calendar, WhatsApp, Chat, Tasks, Link2, Image, FileBarChart, Megaphone, Settings, Building2, TrendingUp, Briefcase) — replaces previous emoji grid.
+
+### Design rule compliance
+
+- ✅ Apple palette only: `#007AFF` blue, `#34C759` green, `#8E8E93` gray, `#FF3B30` red. NO indigo / violet anywhere in new code.
+- ✅ System font stack via `.apple-font` (opt-in; doesn't disrupt global Inter).
+- ✅ Generous spacing: `px-4 py-2.5` bubbles, `p-3` sheet items, `gap-2.5` grids.
+- ✅ Rounded corners: `rounded-3xl` (bubbles), `rounded-full` (inputs/buttons/avatars), `rounded-t-3xl` / `rounded-t-[24px]` (sheet/tab bar).
+- ✅ Subtle shadows: `0 1px 2px rgba(0,0,0,0.10), 0 2px 8px -2px rgba(0,0,0,0.10)` on bubbles.
+- ✅ 300ms-ish ease-out transitions everywhere (cubic-bezier(0.22, 1, 0.36, 1)).
+- ✅ Frosted glass: `backdrop-blur-xl` equivalent (20px) on header + input; `backdrop-blur-2xl` equivalent (30px) on tab bar + sheet.
+- ✅ Dark mode: every color token has a `.dark` variant; bubbles use `#0A84FF` / `#1C1C1E`; canvas flips to `#000`.
+- ✅ Responsive: mobile-first — full-screen sheet on mobile, floating panel on desktop; tab bar hidden on `lg+` via `mobile-only`.
+- ✅ No API / Prisma / backend changes.
+- ✅ Used existing shadcn/ui patterns (cn util, lucide-react icons).
+- ✅ No test code written.
+
+### Verification
+
+- `bun run lint` — only pre-existing error in `mini-services/whatsapp-service/index.js` (unrelated, pre-existing). My three edited files: **zero lint errors**.
+- `npx tsc --noEmit` — zero new errors in `ai-assistant.tsx`; one pre-existing error in `app-shell.tsx:159` (the `restrictedForMembers.includes(view)` line — was line 135 before my changes, confirmed pre-existing via `git stash` comparison).
+- Dev server (already running on port 3000) compiled `/`, `/login`, `/pricing` — all returned HTTP 200.
+
+### Notes for next agent
+
+- The header search-on-scroll behavior from the brief ("search bar appears only on scroll") was NOT added because AppHeader lives in `src/components/app-header.tsx` (outside the 3 files I was permitted to edit). The existing AppHeader already has a command palette search trigger (`⌘K`). If you want a sticky search bar that appears on scroll, enhance `app-header.tsx` next.
+- The `apple-compose-tab` class makes Compose always-blue even when inactive — primary-action pattern. If you prefer it to behave like the other tabs (gray when inactive), remove the `apple-compose-tab` class from the button in `app-shell.tsx` or delete the rule from `globals.css`.
+- All Apple tokens are namespaced (`--apple-*`, `.apple-*`) so they coexist cleanly with the existing Sonoma `.glass*` system without conflicts.
