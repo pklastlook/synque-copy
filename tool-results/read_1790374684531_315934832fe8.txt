@@ -1,0 +1,2002 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  ArrowRight,
+     6→  ShieldCheck,
+     7→  Zap,
+     8→  Users,
+     9→  BarChart3,
+    10→  Calendar,
+    11→  Wand2,
+    12→  Check,
+    13→  Mail,
+    14→  Loader2,
+    15→  Lock,
+    16→  Mail as MailIcon,
+    17→  Eye,
+    18→  EyeOff,
+    19→  Sparkles,
+    20→  Rocket,
+    21→  Layers,
+    22→  Globe,
+    23→  TrendingUp,
+    24→  Clock,
+    25→  ShieldAlert,
+    26→  Server,
+    27→  Target,
+    28→  MessageCircle,
+    29→  Star,
+    30→  CreditCard,
+    31→  Building2,
+    32→  PhoneCall,
+    33→  Hash,
+    34→  Play,
+    35→  ChevronDown,
+    36→  Send,
+    37→  Bot,
+    38→  Activity,
+    39→  Eye as EyeIcon,
+    40→  Gauge,
+    41→  KeyRound,
+    42→  CalendarClock,
+    43→  Minus,
+    44→  Edit3,
+    45→  Image as ImageIcon,
+    46→  type LucideIcon,
+    47→} from "lucide-react";
+    48→import { useAuth } from "@/lib/auth-store";
+    49→import { cn } from "@/lib/utils";
+    50→import { Logo, LogoWordmark } from "@/components/glass/logo";
+    51→import {
+    52→  Dialog,
+    53→  DialogContent,
+    54→  DialogDescription,
+    55→  DialogFooter,
+    56→  DialogHeader,
+    57→  DialogTitle,
+    58→} from "@/components/ui/dialog";
+    59→import { Input } from "@/components/ui/input";
+    60→import { Label } from "@/components/ui/label";
+    61→import {
+    62→  Select,
+    63→  SelectContent,
+    64→  SelectItem,
+    65→  SelectTrigger,
+    66→  SelectValue,
+    67→} from "@/components/ui/select";
+    68→import { toast } from "sonner";
+    69→
+    70→type Mode = "landing" | "login" | "trial";
+    71→
+    72→export function LandingPage() {
+    73→  const [mode, setMode] = React.useState<Mode>("landing");
+    74→
+    75→  if (mode === "login") {
+    76→    return <LoginScreen onBack={() => setMode("landing")} />;
+    77→  }
+    78→  return (
+    79→    <>
+    80→      <Landing onTrial={() => setMode("trial")} onSignIn={() => setMode("login")} />
+    81→      <TrialDialog
+    82→        open={mode === "trial"}
+    83→        onOpenChange={(b) => { if (!b) setMode("landing"); }}
+    84→        onActivated={() => { /* auth store handles transition to app */ }}
+    85→      />
+    86→    </>
+    87→  );
+    88→}
+    89→
+    90→/* ============================================================================
+    91→   Cinematic Landing — Story Teller (11 Acts)
+    92→   ----------------------------------------------------------------------------
+    93→   Each act is a full-bleed section with its own deep mystic background colour,
+    94→   separated by short gradient "Transition" bands that blend one act's palette
+    95→   into the next. Scroll-triggered reveals use a tiny IntersectionObserver hook.
+    96→   ============================================================================ */
+    97→
+    98→/* ----------------------------- Hooks & primitives ----------------------- */
+    99→
+   100→function useInView<T extends HTMLElement>(opts?: IntersectionObserverInit) {
+   101→  const ref = React.useRef<T>(null);
+   102→  const [inView, setInView] = React.useState(false);
+   103→  React.useEffect(() => {
+   104→    const el = ref.current;
+   105→    if (!el) return;
+   106→    if (typeof IntersectionObserver === "undefined") { setInView(true); return; }
+   107→    const obs = new IntersectionObserver(
+   108→      ([entry]) => {
+   109→        if (entry.isIntersecting) {
+   110→          setInView(true);
+   111→          obs.unobserve(entry.target);
+   112→        }
+   113→      },
+   114→      { threshold: 0.15, rootMargin: "0px 0px -10% 0px", ...opts },
+   115→    );
+   116→    obs.observe(el);
+   117→    return () => obs.disconnect();
+   118→  }, []);
+   119→  return { ref, inView };
+   120→}
+   121→
+   122→type RevealProps = {
+   123→  children: React.ReactNode;
+   124→  className?: string;
+   125→  delay?: number;
+   126→  y?: number;
+   127→  once?: boolean;
+   128→};
+   129→
+   130→function Reveal({ children, className, delay = 0, y = 24, once = true }: RevealProps) {
+   131→  const { ref, inView } = useInView<HTMLDivElement>();
+   132→  return (
+   133→    <div
+   134→      ref={ref}
+   135→      className={cn("transition-all duration-700 ease-out will-change-transform", className)}
+   136→      style={{
+   137→        transitionDelay: `${delay}ms`,
+   138→        opacity: inView ? 1 : 0,
+   139→        transform: inView ? "translateY(0)" : `translateY(${y}px)`,
+   140→      }}
+   141→    >
+   142→      {children}
+   143→    </div>
+   144→  );
+   145→}
+   146→
+   147→/* CSS particle field — pure CSS animation, JS only generates the dots */
+   148→function ParticleField({
+   149→  count = 28,
+   150→  colors = ["#7DD3FC", "#22D3EE", "#5EEAD4", "#A78BFA"],
+   151→  size = [2, 4],
+   152→}: { count?: number; colors?: string[]; size?: [number, number] }) {
+   153→  const dots = React.useMemo(() => {
+   154→    const seed = 1337;
+   155→    const rand = (i: number) => {
+   156→      const x = Math.sin(seed + i * 12.9898) * 43758.5453;
+   157→      return x - Math.floor(x);
+   158→    };
+   159→    return Array.from({ length: count }).map((_, i) => {
+   160→      const s = size[0] + rand(i) * (size[1] - size[0]);
+   161→      return {
+   162→        left: rand(i * 7 + 1) * 100,
+   163→        top: rand(i * 11 + 3) * 100,
+   164→        size: s,
+   165→        delay: rand(i * 5 + 7) * -20,
+   166→        dur: 14 + rand(i * 3 + 9) * 18,
+   167→        color: colors[i % colors.length],
+   168→        drift: (rand(i * 13 + 2) - 0.5) * 60,
+   169→      };
+   170→    });
+   171→  }, [count, colors, size]);
+   172→  return (
+   173→    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+   174→      {dots.map((d, i) => (
+   175→        <span
+   176→          key={i}
+   177→          className="absolute rounded-full"
+   178→          style={{
+   179→            left: `${d.left}%`,
+   180→            top: `${d.top}%`,
+   181→            width: d.size,
+   182→            height: d.size,
+   183→            background: d.color,
+   184→            boxShadow: `0 0 ${d.size * 3}px ${d.color}`,
+   185→            animation: `sfParticleFloat ${d.dur}s linear ${d.delay}s infinite`,
+   186→            ["--drift" as string]: `${d.drift}px`,
+   187→            opacity: 0.5,
+   188→          }}
+   189→        />
+   190→      ))}
+   191→    </div>
+   192→  );
+   193→}
+   194→
+   195→/* Confetti — falling particles for the final CTA */
+   196→function ConfettiField({ count = 36 }: { count?: number }) {
+   197→  const pieces = React.useMemo(() => {
+   198→    const colors = ["#22D3EE", "#5EEAD4", "#A78BFA", "#FBBF24", "#F472B6", "#34D399"];
+   199→    const seed = 9001;
+   200→    const rand = (i: number) => {
+   201→      const x = Math.sin(seed + i * 7.91) * 43758.5453;
+   202→      return x - Math.floor(x);
+   203→    };
+   204→    return Array.from({ length: count }).map((_, i) => ({
+   205→      left: rand(i + 1) * 100,
+   206→      delay: rand(i + 11) * -8,
+   207→      dur: 5 + rand(i + 21) * 6,
+   208→      size: 6 + rand(i + 31) * 8,
+   209→      color: colors[i % colors.length],
+   210→      rot: rand(i + 41) * 360,
+   211→    }));
+   212→  }, [count]);
+   213→  return (
+   214→    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+   215→      {pieces.map((p, i) => (
+   216→        <span
+   217→          key={i}
+   218→          className="absolute top-0 block"
+   219→          style={{
+   220→            left: `${p.left}%`,
+   221→            width: p.size,
+   222→            height: p.size * 0.5,
+   223→            background: p.color,
+   224→            borderRadius: 2,
+   225→            transform: `rotate(${p.rot}deg)`,
+   226→            animation: `sfConfettiFall ${p.dur}s linear ${p.delay}s infinite`,
+   227→            opacity: 0.85,
+   228→          }}
+   229→        />
+   230→      ))}
+   231→    </div>
+   232→  );
+   233→}
+   234→
+   235→/* Typing chat bubble — pure CSS steps() typing reveal */
+   236→function TypingBubble({
+   237→  text,
+   238→  durationMs = 4500,
+   239→  className,
+   240→}: { text: string; durationMs?: number; className?: string }) {
+   241→  const { ref, inView } = useInView<HTMLDivElement>();
+   242→  const chars = text.length;
+   243→  return (
+   244→    <div ref={ref} className={cn("relative", className)}>
+   245→      <span
+   246→        className="inline-block whitespace-pre-wrap align-top"
+   247→        style={{
+   248→          display: "inline-block",
+   249→          maxWidth: "100%",
+   250→          overflow: "hidden",
+   251→          whiteSpace: "pre-wrap",
+   252→          borderRight: "2px solid rgba(167,139,250,0.9)",
+   253→          animation: inView
+   254→            ? `sfTyping ${durationMs}ms steps(${chars}, end) 0.2s both, sfBlink 0.9s step-end infinite`
+   255→            : "none",
+   256→        }}
+   257→      >
+   258→        {text}
+   259→      </span>
+   260→      <style>{`
+   261→        @keyframes sfTyping { from { width: 0; } to { width: 100%; } }
+   262→        @keyframes sfBlink { 50% { border-color: transparent; } }
+   263→      `}</style>
+   264→    </div>
+   265→  );
+   266→}
+   267→
+   268→/* Growing chart bars — animated height on inView */
+   269→function GrowingBars({
+   270→  values,
+   271→  color = "linear-gradient(to top, #14B8A6, #5EEAD4)",
+   272→  className,
+   273→  barClassName,
+   274→}: {
+   275→  values: number[];
+   276→  color?: string;
+   277→  className?: string;
+   278→  barClassName?: string;
+   279→}) {
+   280→  const { ref, inView } = useInView<HTMLDivElement>();
+   281→  return (
+   282→    <div ref={ref} className={cn("flex h-full items-end gap-1.5", className)}>
+   283→      {values.map((v, i) => (
+   284→        <span
+   285→          key={i}
+   286→          className={cn("flex-1 rounded-t-md", barClassName)}
+   287→          style={{
+   288→            background: color,
+   289→            height: inView ? `${v}%` : "0%",
+   290→            transition: `height 900ms cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 70}ms`,
+   291→          }}
+   292→        />
+   293→      ))}
+   294→    </div>
+   295→  );
+   296→}
+   297→
+   298→/* Animated aurora/nebula hero background — pure CSS drifting blobs */
+   299→function AuroraHero() {
+   300→  return (
+   301→    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+   302→      {/* Deep base */}
+   303→      <div
+   304→        className="absolute inset-0"
+   305→        style={{
+   306→          background:
+   307→            "radial-gradient(ellipse at 50% 0%, #0E2A4F 0%, #0A1A2F 35%, #050B16 75%, #03060C 100%)",
+   308→        }}
+   309→      />
+   310→      {/* Aurora layers — drifting */}
+   311→      <div
+   312→        className="absolute -top-[20%] left-[5%] h-[60vh] w-[60vw] rounded-full opacity-50 blur-3xl"
+   313→        style={{
+   314→          background:
+   315→            "radial-gradient(circle, rgba(45,212,191,0.55), transparent 65%)",
+   316→          animation: "sfAuroraDrift 22s ease-in-out infinite",
+   317→        }}
+   318→      />
+   319→      <div
+   320→        className="absolute top-[10%] right-[0%] h-[55vh] w-[55vw] rounded-full opacity-40 blur-3xl"
+   321→        style={{
+   322→          background:
+   323→            "radial-gradient(circle, rgba(34,211,238,0.55), transparent 65%)",
+   324→          animation: "sfAuroraDrift 28s ease-in-out -4s infinite reverse",
+   325→        }}
+   326→      />
+   327→      <div
+   328→        className="absolute bottom-[-10%] left-[30%] h-[50vh] w-[60vw] rounded-full opacity-35 blur-3xl"
+   329→        style={{
+   330→          background:
+   331→            "radial-gradient(circle, rgba(99,102,241,0.45), transparent 70%)",
+   332→          animation: "sfAuroraDrift 26s ease-in-out -8s infinite",
+   333→        }}
+   334→      />
+   335→      {/* Shimmer sweep */}
+   336→      <div
+   337→        className="absolute inset-0 opacity-20"
+   338→        style={{
+   339→          background:
+   340→            "linear-gradient(115deg, transparent 30%, rgba(94,234,212,0.18) 50%, transparent 70%)",
+   341→          backgroundSize: "200% 200%",
+   342→          animation: "sfShimmerSweep 9s ease-in-out infinite",
+   343→        }}
+   344→      />
+   345→      {/* Subtle starfield */}
+   346→      <ParticleField count={36} colors={["#7DD3FC", "#5EEAD4", "#A78BFA", "#E0F2FE"]} size={[1.5, 3]} />
+   347→    </div>
+   348→  );
+   349→}
+   350→
+   351→/* Gradient transition band between two acts */
+   352→function Transition({ from, to, height = 180 }: { from: string; to: string; height?: number }) {
+   353→  return (
+   354→    <div
+   355→      aria-hidden
+   356→      className="w-full"
+   357→      style={{ height, background: `linear-gradient(to bottom, ${from} 0%, ${from} 20%, ${to} 80%, ${to} 100%)` }}
+   358→    />
+   359→  );
+   360→}
+   361→
+   362→/* Eyebrow pill used at the top of each act */
+   363→function Eyebrow({
+   364→  icon: Icon,
+   365→  label,
+   366→  color,
+   367→}: { icon: LucideIcon; label: string; color: string }) {
+   368→  return (
+   369→    <span
+   370→      className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur-md"
+   371→      style={{
+   372→        background: `${color}1A`,
+   373→        borderColor: `${color}40`,
+   374→        color,
+   375→      }}
+   376→    >
+   377→      <Icon className="h-3.5 w-3.5" /> {label}
+   378→    </span>
+   379→  );
+   380→}
+   381→
+   382→/* A glass card with subtle accent glow + hover lift, themed per act */
+   383→function MysticCard({
+   384→  accent,
+   385→  children,
+   386→  className,
+   387→  glow = false,
+   388→}: {
+   389→  accent: string;
+   390→  children: React.ReactNode;
+   391→  className?: string;
+   392→  glow?: boolean;
+   393→}) {
+   394→  return (
+   395→    <div
+   396→      className={cn(
+   397→        "group relative overflow-hidden rounded-2xl border border-white/15 bg-white/[0.08] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-white/25",
+   398→        className,
+   399→      )}
+   400→      style={{
+   401→        boxShadow: `0 4px 24px -4px rgba(0,0,0,0.3), 0 0 0 1px ${accent}15`,
+   402→      }}
+   403→    >
+   404→      <div
+   405→        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.2] blur-3xl transition-opacity duration-500 group-hover:opacity-40"
+   406→        style={{ background: accent }}
+   407→      />
+   408→      <div className="relative">{children}</div>
+   409→    </div>
+   410→  );
+   411→}
+   412→
+   413→/* Icon tile with colored circle background — BRIGHTER colors for visibility */
+   414→function IconTile({
+   415→  icon: Icon,
+   416→  color,
+   417→  size = "md",
+   418→}: {
+   419→  icon: LucideIcon;
+   420→  color: string;
+   421→  size?: "sm" | "md" | "lg";
+   422→}) {
+   423→  const dims = size === "lg" ? "h-14 w-14" : size === "sm" ? "h-10 w-10" : "h-12 w-12";
+   424→  const ic = size === "lg" ? "h-6 w-6" : size === "sm" ? "h-4 w-4" : "h-5 w-5";
+   425→  return (
+   426→    <div
+   427→      className={cn("relative grid place-items-center rounded-xl", dims)}
+   428→      style={{ background: `${color}30`, border: `1px solid ${color}50`, boxShadow: `0 4px 12px -4px ${color}40` }}
+   429→    >
+   430→      <Icon className={cn("relative", ic)} style={{ color, filter: `brightness(1.3)` }} />
+   431→    </div>
+   432→  );
+   433→}
+   434→
+   435→/* Shared glow CTA button — teal/cyan accent */
+   436→function GlowCTA({
+   437→  children,
+   438→  onClick,
+   439→  className,
+   440→  tone = "teal",
+   441→}: {
+   442→  children: React.ReactNode;
+   443→  onClick?: () => void;
+   444→  className?: string;
+   445→  tone?: "teal" | "violet" | "amber" | "rose" | "emerald" | "indigo";
+   446→}) {
+   447→  const tones: Record<string, { bg: string; glow: string; text: string }> = {
+   448→    teal:    { bg: "linear-gradient(135deg, #14B8A6, #06B6D4)", glow: "rgba(45,212,191,0.65)", text: "#04181A" },
+   449→    violet:  { bg: "linear-gradient(135deg, #8B5CF6, #6366F1)", glow: "rgba(139,92,246,0.65)", text: "#11081F" },
+   450→    amber:   { bg: "linear-gradient(135deg, #F59E0B, #F97316)", glow: "rgba(251,191,36,0.6)",  text: "#1A1003" },
+   451→    rose:    { bg: "linear-gradient(135deg, #F43F5E, #EC4899)", glow: "rgba(244,63,94,0.6)",  text: "#1F0710" },
+   452→    emerald: { bg: "linear-gradient(135deg, #10B981, #059669)", glow: "rgba(16,185,129,0.6)", text: "#04140E" },
+   453→    indigo:  { bg: "linear-gradient(135deg, #6366F1, #818CF8)", glow: "rgba(99,102,241,0.6)", text: "#0A0A1F" },
+   454→  };
+   455→  const t = tones[tone];
+   456→  return (
+   457→    <button
+   458→      onClick={onClick}
+   459→      className={cn(
+   460→        "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl px-7 py-3.5 text-sm font-bold tracking-tight transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.98]",
+   461→        className,
+   462→      )}
+   463→      style={{
+   464→        background: t.bg,
+   465→        color: t.text,
+   466→        boxShadow: `0 1px 0 rgba(255,255,255,0.4) inset, 0 8px 30px -8px ${t.glow}, 0 0 0 1px rgba(255,255,255,0.1)`,
+   467→      }}
+   468→    >
+   469→      {/* Sheen sweep */}
+   470→      <span
+   471→        className="pointer-events-none absolute inset-0 -translate-x-full transition-transform duration-700 group-hover:translate-x-full"
+   472→        style={{ background: "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%)" }}
+   473→      />
+   474→      <span className="relative flex items-center gap-2">{children}</span>
+   475→    </button>
+   476→  );
+   477→}
+   478→
+   479→/* Secondary outline CTA */
+   480→function OutlineCTA({
+   481→  children,
+   482→  onClick,
+   483→  className,
+   484→}: { children: React.ReactNode; onClick?: () => void; className?: string }) {
+   485→  return (
+   486→    <button
+   487→      onClick={onClick}
+   488→      className={cn(
+   489→        "inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all duration-300 hover:border-white/40 hover:bg-white/10 hover:-translate-y-0.5",
+   490→        className,
+   491→      )}
+   492→    >
+   493→      {children}
+   494→    </button>
+   495→  );
+   496→}
+   497→
+   498→/* ============================================================================
+   499→   Landing — 11 Cinematic Acts
+   500→   ============================================================================ */
+   501→
+   502→function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+   503→  return (
+   504→    <div className="relative min-h-screen overflow-x-hidden bg-[#03060C] text-white antialiased selection:bg-cyan-400/30">
+   505→      <style>{LANDING_KEYFRAMES}</style>
+   506→      <CinematicNav onTrial={onTrial} onSignIn={onSignIn} />
+   507→      <Act1Hero onTrial={onTrial} onSignIn={onSignIn} />
+   508→      <Transition from="#03060C" to="#1A0A0A" />
+   509→      <Act2Problem />
+   510→      <Transition from="#1A0A0A" to="#0A1F1A" />
+   511→      <Act3Solution />
+   512→      <Transition from="#0A1F1A" to="#1A1505" />
+   513→      <Act4Workflow onTrial={onTrial} />
+   514→      <Transition from="#1A1505" to="#1F0A15" />
+   515→      <Act5Protection />
+   516→      <Transition from="#1F0A15" to="#150A1F" />
+   517→      <Act6AIAssistant />
+   518→      <Transition from="#150A1F" to="#0A1F1F" />
+   519→      <Act7Analytics onTrial={onTrial} />
+   520→      <Transition from="#0A1F1F" to="#0F1419" />
+   521→      <Act8Comparison />
+   522→      <Transition from="#0F1419" to="#0A0A2F" />
+   523→      <Act9Pricing onTrial={onTrial} />
+   524→      <Transition from="#0A0A2F" to="#03060C" />
+   525→      <Act10FinalCTA onTrial={onTrial} />
+   526→      <Act11Footer />
+   527→    </div>
+   528→  );
+   529→}
+   530→
+   531→/* --------------------------------- Nav ---------------------------------- */
+   532→
+   533→function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+   534→  const [scrolled, setScrolled] = React.useState(false);
+   535→  React.useEffect(() => {
+   536→    const onScroll = () => setScrolled(window.scrollY > 24);
+   537→    onScroll();
+   538→    window.addEventListener("scroll", onScroll, { passive: true });
+   539→    return () => window.removeEventListener("scroll", onScroll);
+   540→  }, []);
+   541→  return (
+   542→    <nav
+   543→      className={cn(
+   544→        "fixed left-1/2 top-3 z-50 w-[calc(100%-1rem)] max-w-6xl -translate-x-1/2 rounded-2xl px-4 py-3 transition-all duration-300 sm:w-[calc(100%-2rem)] sm:px-5",
+   545→        scrolled
+   546→          ? "border border-white/10 bg-[#03060C]/80 backdrop-blur-xl shadow-[0_8px_40px_-8px_rgba(0,0,0,0.6)]"
+   547→          : "border border-transparent bg-transparent",
+   548→      )}
+   549→    >
+   550→      <div className="flex items-center justify-between">
+   551→        <div className="flex items-center gap-2.5">
+   552→          <Logo size={28} withTile={false} />
+   553→          <span className="text-base font-bold tracking-tight">SocialFlow</span>
+   554→        </div>
+   555→        <div className="hidden items-center gap-7 md:flex">
+   556→          <a href="#features"  className="text-sm text-white/70 transition hover:text-white">Features</a>
+   557→          <a href="#workflow"   className="text-sm text-white/70 transition hover:text-white">Workflow</a>
+   558→          <a href="#pricing"    className="text-sm text-white/70 transition hover:text-white">Pricing</a>
+   559→          <a href="#compare"    className="text-sm text-white/70 transition hover:text-white">Compare</a>
+   560→        </div>
+   561→        <div className="flex items-center gap-2">
+   562→          <button
+   563→            onClick={onSignIn}
+   564→            className="hidden min-h-10 items-center rounded-xl px-3 text-sm font-medium text-white/70 transition hover:text-white sm:flex"
+   565→          >
+   566→            Sign in
+   567→          </button>
+   568→          <GlowCTA onClick={onTrial} className="px-5 py-2.5 text-[13px]" tone="teal">
+   569→            <Rocket className="h-4 w-4" /> Start trial
+   570→          </GlowCTA>
+   571→        </div>
+   572→      </div>
+   573→    </nav>
+   574→  );
+   575→}
+   576→
+   577→/* ----------------------------- Act 1: Hero ------------------------------ */
+   578→
+   579→function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+   580→  return (
+   581→    <section className="relative min-h-screen w-full overflow-hidden">
+   582→      <AuroraHero />
+   583→      {/* Subtle bottom fade into Act 2 */}
+   584→      <div
+   585→        className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-40"
+   586→        style={{ background: "linear-gradient(to bottom, transparent, #03060C)" }}
+   587→      />
+   588→
+   589→      <div className="relative z-20 mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 pt-24 pb-32 text-center sm:px-6 lg:px-8">
+   590→        <Reveal>
+   591→          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300 backdrop-blur-md">
+   592→            <Sparkles className="h-3.5 w-3.5" />
+   593→            The enterprise command center for social teams
+   594→          </span>
+   595→        </Reveal>
+   596→
+   597→        <Reveal delay={120}>
+   598→          <h1 className="mt-8 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+   599→            <span className="block text-white">One flow.</span>
+   600→            <span
+   601→              className="mt-2 block bg-clip-text text-transparent"
+   602→              style={{
+   603→                backgroundImage: "linear-gradient(120deg, #5EEAD4, #22D3EE 30%, #A78BFA 60%, #FBBF24 100%)",
+   604→                backgroundSize: "200% 200%",
+   605→                animation: "sfGradientText 8s ease-in-out infinite",
+   606→              }}
+   607→            >
+   608→              Every platform.
+   609→            </span>
+   610→            <span className="mt-2 block text-white/95">Zero chaos.</span>
+   611→          </h1>
+   612→        </Reveal>
+   613→
+   614→        <Reveal delay={240}>
+   615→          <p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">
+   616→            Your team posts to 7+ platforms every day. Switching tabs, copy-pasting captions,
+   617→            praying nothing gets suspended. SocialFlow turns that chaos into one calm, AI-powered flow —
+   618→            so your team ships more, faster.
+   619→          </p>
+   620→        </Reveal>
+   621→
+   622→        <Reveal delay={360}>
+   623→          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+   624→            <GlowCTA onClick={onTrial} tone="teal" className="min-w-[260px]">
+   625→              <Rocket className="h-4 w-4" /> Start 15-day free trial
+   626→            </GlowCTA>
+   627→            <OutlineCTA onClick={() => window.location.href = "/login"} className="min-w-[200px]">
+   628→              <Play className="h-4 w-4" /> Live Demo
+   629→            </OutlineCTA>
+   630→          </div>
+   631→        </Reveal>
+   632→
+   633→        <Reveal delay={480}>
+   634→          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-white/60">
+   635→            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> No credit card required</span>
+   636→            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Cancel anytime</span>
+   637→            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> 25GB free media storage</span>
+   638→          </div>
+   639→        </Reveal>
+   640→
+   641→        {/* Scroll indicator */}
+   642→        <div className="pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2">
+   643→          <ChevronDown
+   644→            className="h-6 w-6 text-white/40"
+   645→            style={{ animation: "sfChevronBounce 1.8s ease-in-out infinite" }}
+   646→          />
+   647→        </div>
+   648→      </div>
+   649→    </section>
+   650→  );
+   651→}
+   652→
+   653→/* --------------------------- Act 2: Problem ----------------------------- */
+   654→
+   655→function Act2Problem() {
+   656→  const problems = [
+   657→    { icon: Layers,       t: "7 tabs open",          d: "Instagram, X, LinkedIn, TikTok… each its own tab. Copy-paste fatigue is real.", accent: "#F87171" },
+   658→    { icon: ShieldAlert,  t: "Accounts suspended",  d: "Your team posts too fast, uses banned hashtags, gets flagged — and gone.",         accent: "#FB7185" },
+   659→    { icon: Clock,        t: "Content stuck",        d: "Drafts live in DMs and spreadsheets. Nobody knows what's ready to publish.",   accent: "#FBBF24" },
+   660→    { icon: MessageCircle,t: "Inbox chaos",          d: "Comments scattered across 10 accounts. Half of them go unanswered.",          accent: "#C084FC" },
+   661→  ];
+   662→  return (
+   663→    <section
+   664→      className="relative w-full overflow-hidden py-24 sm:py-32"
+   665→      style={{ background: "linear-gradient(180deg, #1A0A0A 0%, #2A0A0A 50%, #1A0A0A 100%)" }}
+   666→    >
+   667→      {/* Faint red aurora */}
+   668→      <div
+   669→        className="pointer-events-none absolute inset-0 opacity-50"
+   670→        style={{
+   671→          background:
+   672→            "radial-gradient(ellipse at 30% 20%, rgba(244,63,94,0.18), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(220,38,38,0.18), transparent 60%)",
+   673→        }}
+   674→      />
+   675→      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+   676→        <div className="text-center">
+   677→          <Reveal>
+   678→            <Eyebrow icon={ShieldAlert} label="The old way" color="#F87171" />
+   679→          </Reveal>
+   680→          <Reveal delay={100}>
+   681→            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+   682→              Social media management is <span className="text-rose-400">broken</span>
+   683→            </h2>
+   684→          </Reveal>
+   685→          <Reveal delay={200}>
+   686→            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+   687→              Teams waste hours every day context-switching between tools. Accounts get suspended.
+   688→              Content gets lost. Here&apos;s what your team deals with right now:
+   689→            </p>
+   690→          </Reveal>
+   691→        </div>
+   692→
+   693→        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+   694→          {problems.map((p, i) => (
+   695→            <Reveal key={p.t} delay={i * 120}>
+   696→              <MysticCard accent={p.accent} glow className="h-full p-6">
+   697→                <div
+   698→                  className="absolute inset-0 -z-10 rounded-3xl opacity-50"
+   699→                  style={{
+   700→                    background: `radial-gradient(circle at 50% 0%, ${p.accent}25, transparent 70%)`,
+   701→                    animation: "sfPulseGlow 3s ease-in-out infinite",
+   702→                    ["--glow" as string]: `${p.accent}40`,
+   703→                  }}
+   704→                />
+   705→                <IconTile icon={p.icon} color={p.accent} size="lg" />
+   706→                <h3 className="mt-5 text-lg font-bold text-white">{p.t}</h3>
+   707→                <p className="mt-2 text-sm leading-relaxed text-white/65">{p.d}</p>
+   708→              </MysticCard>
+   709→            </Reveal>
+   710→          ))}
+   711→        </div>
+   712→
+   713→        {/* Pain stat strip */}
+   714→        <Reveal delay={500}>
+   715→          <div className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/5 sm:grid-cols-4">
+   716→            {[
+   717→              { v: "11 hrs",  l: "Lost weekly per teammate to tab-switching" },
+   718→              { v: "1 in 4",  l: "Accounts suspended in their first 90 days" },
+   719→              { v: "$3.2K",   l: "Average cost per missed campaign deadline" },
+   720→              { v: "62%",     l: "Of DMs go unanswered within 24 hours" },
+   721→            ].map((s) => (
+   722→              <div key={s.l} className="bg-black/30 p-6 text-center">
+   723→                <div className="text-3xl font-bold text-rose-400 sm:text-4xl">{s.v}</div>
+   724→                <div className="mt-2 text-[11px] uppercase tracking-wider text-white/55">{s.l}</div>
+   725→              </div>
+   726→            ))}
+   727→          </div>
+   728→        </Reveal>
+   729→      </div>
+   730→    </section>
+   731→  );
+   732→}
+   733→
+   734→/* --------------------------- Act 3: Solution ---------------------------- */
+   735→
+   736→function Act3Solution() {
+   737→  return (
+   738→    <section
+   739→      id="features"
+   740→      className="relative w-full overflow-hidden py-24 sm:py-32"
+   741→      style={{ background: "linear-gradient(180deg, #0A1F1A 0%, #0D2820 50%, #0A1F1A 100%)" }}
+   742→    >
+   743→      <div
+   744→        className="pointer-events-none absolute inset-0 opacity-60"
+   745→        style={{
+   746→          background:
+   747→            "radial-gradient(ellipse at 20% 30%, rgba(16,185,129,0.18), transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(45,212,191,0.18), transparent 60%)",
+   748→        }}
+   749→      />
+   750→      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+   751→        <div className="text-center">
+   752→          <Reveal>
+   753→            <Eyebrow icon={Sparkles} label="The SocialFlow way" color="#34D399" />
+   754→          </Reveal>
+   755→          <Reveal delay={100}>
+   756→            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+   757→              Everything your team needs to <span className="text-emerald-400">win social</span>
+   758→            </h2>
+   759→          </Reveal>
+   760→          <Reveal delay={200}>
+   761→            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+   762→              From ideation to publishing to protection — one premium platform, 9 integrated modules.
+   763→              Each built for teams that ship daily.
+   764→            </p>
+   765→          </Reveal>
+   766→        </div>
+   767→
+   768→        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+   769→          {FEATURES.map((f, i) => (
+   770→            <Reveal key={f.title} delay={(i % 3) * 100}>
+   771→              <MysticCard accent={f.accent} className="h-full p-6">
+   772→                <div className="flex items-start justify-between">
+   773→                  <IconTile icon={f.icon} color={f.accent} />
+   774→                  <span
+   775→                    className="grid h-7 w-7 place-items-center rounded-full border border-white/10 text-white/40 transition group-hover:bg-white/10 group-hover:text-white/80"
+   776→                  >
+   777→                    <ArrowRight className="h-3.5 w-3.5" />
+   778→                  </span>
+   779→                </div>
+   780→                <h3 className="mt-5 text-lg font-bold text-white">{f.title}</h3>
+   781→                <p className="mt-2 text-sm leading-relaxed text-white/65">{f.desc}</p>
+   782→              </MysticCard>
+   783→            </Reveal>
+   784→          ))}
+   785→        </div>
+   786→      </div>
+   787→    </section>
+   788→  );
+   789→}
+   790→
+   791→/* --------------------------- Act 4: Workflow ---------------------------- */
+   792→
+   793→function Act4Workflow({ onTrial }: { onTrial: () => void }) {
+   794→  const steps = [
+   795→    { n: "01", icon: Edit3, t: "Write brief",       d: "One caption, tone, and goal — that's it.",       accent: "#FBBF24" },
+   796→    { n: "02", icon: Wand2, t: "AI generates variants", d: "Distinct, platform-native captions per account.", accent: "#F59E0B" },
+   797→    { n: "03", icon: ImageIcon, t: "Add media",     d: "Drop your image or video once. We adapt it.",    accent: "#F97316" },
+   798→    { n: "04", icon: Eye,   t: "Review",            d: "Phone-style previews per platform before publish.", accent: "#FB923C" },
+   799→    { n: "05", icon: Send,  t: "Publish",           d: "One click sends it everywhere — or queues it.",  accent: "#22D3EE" },
+   800→  ];
+   801→  return (
+   802→    <section
+   803→      id="workflow"
+   804→      className="relative w-full overflow-hidden py-24 sm:py-32"
+   805→      style={{ background: "linear-gradient(180deg, #1A1505 0%, #2A1F0A 50%, #1A1505 100%)" }}
+   806→    >
+   807→      <div
+   808→        className="pointer-events-none absolute inset-0 opacity-50"
+   809→        style={{
+   810→          background:
+   811→            "radial-gradient(ellipse at 25% 30%, rgba(251,191,36,0.18), transparent 60%), radial-gradient(ellipse at 75% 80%, rgba(249,115,22,0.15), transparent 60%)",
+   812→        }}
+   813→      />
+   814→      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+   815→        <div className="text-center">
+   816→          <Reveal>
+   817→            <Eyebrow icon={Zap} label="The SocialFlow flow" color="#FBBF24" />
+   818→          </Reveal>
+   819→          <Reveal delay={100}>
+   820→            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+   821→              Write once. Publish <span className="text-amber-400">everywhere.</span>
+   822→            </h2>
+   823→          </Reveal>
+   824→          <Reveal delay={200}>
+   825→            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+   826→              Compose one brief. Our AI generates distinct, platform-native captions for every account —
+   827→              respecting each platform&apos;s tone, length, and hashtag conventions.
+   828→            </p>
+   829→          </Reveal>
+   830→        </div>
+   831→
+   832→        {/* Horizontal step flow */}
+   833→        <Reveal delay={300}>
+   834→          <div className="mt-16 hidden lg:block">
+   835→            <div className="relative">
+   836→              {/* Connecting line */}
+   837→              <div className="absolute left-0 right-0 top-7 h-px bg-gradient-to-r from-amber-500/10 via-amber-400/50 to-cyan-400/50" />
+   838→              <div className="grid grid-cols-5 gap-3">
+   839→                {steps.map((s, i) => (
+   840→                  <Reveal key={s.n} delay={i * 120}>
+   841→                    <div className="flex flex-col items-center text-center">
+   842→                      <div
+   843→                        className="relative grid h-14 w-14 place-items-center rounded-2xl border backdrop-blur-md"
+   844→                        style={{
+   845→                          background: `${s.accent}1F`,
+   846→                          borderColor: `${s.accent}55`,
+   847→                          boxShadow: `0 0 30px -8px ${s.accent}80`,
+   848→                        }}
+   849→                      >
+   850→                        <s.icon className="h-6 w-6" style={{ color: s.accent }} />
+   851→                      </div>
+   852→                      <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">{s.n}</div>
+   853→                      <div className="mt-1 text-sm font-bold text-white">{s.t}</div>
+   854→                      <div className="mt-1 text-xs text-white/60">{s.d}</div>
+   855→                      {/* Progress bar */}
+   856→                      <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+   857→                        <div
+   858→                          className="h-full rounded-full"
+   859→                          style={{
+   860→                            background: s.accent,
+   861→                            animation: "sfBarGrow 1.2s cubic-bezier(0.34,1.56,0.64,1) both",
+   862→                            animationDelay: `${0.3 + i * 0.15}s`,
+   863→                            ["--target-w" as string]: `${(i + 1) * 20}%`,
+   864→                            width: `${(i + 1) * 20}%`,
+   865→                          }}
+   866→                        />
+   867→                      </div>
+   868→                    </div>
+   869→                  </Reveal>
+   870→                ))}
+   871→              </div>
+   872→            </div>
+   873→          </div>
+   874→        </Reveal>
+   875→
+   876→        {/* Mobile vertical step flow */}
+   877→        <div className="mt-12 lg:hidden">
+   878→          <div className="relative space-y-4 pl-8">
+   879→            <div className="absolute left-[26px] top-2 bottom-2 w-px bg-gradient-to-b from-amber-400/50 via-amber-500/30 to-cyan-400/50" />
+   880→            {steps.map((s, i) => (
+   881→              <Reveal key={s.n} delay={i * 100}>
+   882→                <div className="relative flex items-start gap-4">
+   883→                  <div
+   884→                    className="absolute -left-8 grid h-12 w-12 place-items-center rounded-2xl border backdrop-blur-md"
+   885→                    style={{
+   886→                      background: `${s.accent}1F`,
+   887→                      borderColor: `${s.accent}55`,
+   888→                      boxShadow: `0 0 20px -6px ${s.accent}80`,
+   889→                    }}
+   890→                  >
+   891→                    <s.icon className="h-5 w-5" style={{ color: s.accent }} />
+   892→                  </div>
+   893→                  <div className="ml-4 flex-1 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+   894→                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">{s.n}</div>
+   895→                    <div className="text-sm font-bold text-white">{s.t}</div>
+   896→                    <div className="mt-1 text-xs text-white/60">{s.d}</div>
+   897→                  </div>
+   898→                </div>
+   899→              </Reveal>
+   900→            ))}
+   901→          </div>
+   902→        </div>
+   903→
+   904→        <Reveal delay={500}>
+   905→          <div className="mt-14 flex justify-center">
+   906→            <GlowCTA onClick={onTrial} tone="amber">
+   907→              <Wand2 className="h-4 w-4" /> Try the composer
+   908→            </GlowCTA>
+   909→          </div>
+   910→        </Reveal>
+   911→      </div>
+   912→    </section>
+   913→  );
+   914→}
+   915→
+   916→/* --------------------------- Act 5: Protection -------------------------- */
+   917→
+   918→function Act5Protection() {
+   919→  const features = [
+   920→    { icon: CalendarClock, t: "Daily post limits",     d: "Hard caps per account per platform. Auto-pause when threshold approaches." },
+   921→    { icon: Hash,          t: "Hashtag safety checker", d: "Every caption scanned against shadowbanned tag lists before publish." },
+   922→    { icon: Gauge,         t: "Warm-up mode",           d: "New accounts ramp activity gradually to build trust and avoid flags." },
+   923→    { icon: KeyRound,      t: "2FA enforcement",         d: "Require two-factor auth for every team member. No exceptions." },
+   924→  ];
+   925→  return (
+   926→    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #1F0A15 0%, #2A0F1F 50%, #1F0A15 100%)" }}>
+   927→      <div
+   928→        className="pointer-events-none absolute inset-0 opacity-50"
+   929→        style={{
+   930→          background:
+   931→            "radial-gradient(ellipse at 50% 30%, rgba(244,63,94,0.2), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(236,72,153,0.18), transparent 60%)",
+   932→        }}
+   933→      />
+   934→      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+   935→        <div className="grid items-center gap-12 lg:grid-cols-2">
+   936→          {/* Left — shield animation */}
+   937→          <Reveal>
+   938→            <div className="relative mx-auto flex aspect-square max-w-md items-center justify-center">
+   939→              {/* Pulsing rings */}
+   940→              {[0, 1, 2].map((r) => (
+   941→                <div
+   942→                  key={r}
+   943→                  className="absolute rounded-full border border-rose-400/30"
+   944→                  style={{
+   945→                    width: `${40 + r * 22}%`,
+   946→                    height: `${40 + r * 22}%`,
+   947→                    animation: `sfPulseRing 3s ease-out infinite ${r * 0.6}s`,
+   948→                  }}
+   949→                />
+   950→              ))}
+   951→              {/* Glow */}
+   952→              <div
+   953→                className="absolute h-72 w-72 rounded-full opacity-60 blur-3xl"
+   954→                style={{ background: "radial-gradient(circle, rgba(244,63,94,0.6), transparent 70%)" }}
+   955→              />
+   956→              {/* Shield */}
+   957→              <div
+   958→                className="relative grid h-44 w-44 place-items-center rounded-[2.5rem] border border-rose-400/40 bg-rose-950/40 backdrop-blur-xl"
+   959→                style={{ animation: "sfShieldPulse 3.5s ease-in-out infinite" }}
+   960→              >
+   961→                <ShieldCheck className="h-20 w-20 text-rose-300" strokeWidth={1.5} />
+   962→              </div>
+   963→              {/* Floating tags */}
+   964→              <FloatingTag className="left-2 top-10" icon={Hash} label="No shadowbans" color="#FB7185" delay={0} />
+   965→              <FloatingTag className="right-2 top-24" icon={Gauge} label="Warm-up safe" color="#F472B6" delay={1} />
+   966→              <FloatingTag className="bottom-8 left-6" icon={KeyRound} label="2FA enforced" color="#C084FC" delay={2} />
+   967→              <FloatingTag className="bottom-12 right-4" icon={CalendarClock} label="Cadence cap" color="#F87171" delay={1.5} />
+   968→            </div>
+   969→          </Reveal>
+   970→
+   971→          {/* Right — copy + features */}
+   972→          <div>
+   973→            <Reveal>
+   974→              <Eyebrow icon={ShieldCheck} label="Account protection" color="#F87171" />
+   975→            </Reveal>
+   976→            <Reveal delay={100}>
+   977→              <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
+   978→                Never get <span className="text-rose-400">suspended</span> again
+   979→              </h2>
+   980→            </Reveal>
+   981→            <Reveal delay={200}>
+   982→              <p className="mt-5 text-base text-white/70 sm:text-lg">
+   983→                SocialFlow monitors every account&apos;s health in real time. When risk rises —
+   984→                from spam flags, report spikes, or aggressive engagement — we tell you exactly what
+   985→                to fix and auto-enforce guards so your team can&apos;t accidentally trigger a suspension.
+   986→              </p>
+   987→            </Reveal>
+   988→            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+   989→              {features.map((f, i) => (
+   990→                <Reveal key={f.t} delay={i * 100}>
+   991→                  <div className="group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md transition hover:border-rose-400/30 hover:bg-rose-950/20">
+   992→                    <IconTile icon={f.icon} color="#F87171" size="sm" />
+   993→                    <div>
+   994→                      <div className="text-sm font-bold text-white">{f.t}</div>
+   995→                      <div className="mt-0.5 text-xs text-white/60">{f.d}</div>
+   996→                    </div>
+   997→                  </div>
+   998→                </Reveal>
+   999→              ))}
+  1000→            </div>
+  1001→          </div>
+  1002→        </div>
+  1003→      </div>
+  1004→    </section>
+  1005→  );
+  1006→}
+  1007→
+  1008→function FloatingTag({
+  1009→  className,
+  1010→  icon: Icon,
+  1011→  label,
+  1012→  color,
+  1013→  delay,
+  1014→}: {
+  1015→  className?: string;
+  1016→  icon: LucideIcon;
+  1017→  label: string;
+  1018→  color: string;
+  1019→  delay: number;
+  1020→}) {
+  1021→  return (
+  1022→    <div
+  1023→      className={cn(
+  1024→        "absolute flex items-center gap-1.5 rounded-full border bg-black/40 px-3 py-1.5 text-[11px] font-semibold backdrop-blur-md",
+  1025→        className,
+  1026→      )}
+  1027→      style={{ borderColor: `${color}55`, color, animation: `sfFloat3 4s ease-in-out ${delay}s infinite` }}
+  1028→    >
+  1029→      <Icon className="h-3 w-3" /> {label}
+  1030→    </div>
+  1031→  );
+  1032→}
+  1033→
+  1034→/* ------------------------- Act 6: AI Assistant -------------------------- */
+  1035→
+  1036→function Act6AIAssistant() {
+  1037→  return (
+  1038→    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #150A1F 0%, #1F0A2A 50%, #150A1F 100%)" }}>
+  1039→      <div
+  1040→        className="pointer-events-none absolute inset-0 opacity-60"
+  1041→        style={{
+  1042→          background:
+  1043→            "radial-gradient(ellipse at 30% 30%, rgba(139,92,246,0.2), transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(168,85,247,0.18), transparent 60%)",
+  1044→        }}
+  1045→      />
+  1046→      <ParticleField count={24} colors={["#A78BFA", "#C4B5FD", "#7DD3FC"]} size={[2, 3]} />
+  1047→      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+  1048→        <div className="grid items-center gap-12 lg:grid-cols-2">
+  1049→          {/* Left — copy */}
+  1050→          <div>
+  1051→            <Reveal>
+  1052→              <Eyebrow icon={Bot} label="AI Assistant" color="#A78BFA" />
+  1053→            </Reveal>
+  1054→            <Reveal delay={100}>
+  1055→              <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+  1056→                Your AI-powered <span className="text-violet-400">command center</span>
+  1057→              </h2>
+  1058→            </Reveal>
+  1059→            <Reveal delay={200}>
+  1060→              <p className="mt-5 text-base text-white/70 sm:text-lg">
+  1061→                Ask SocialFlow anything about your accounts. Get instant answers — performance,
+  1062→                scheduling, recommendations. Your AI co-pilot lives right inside the dashboard.
+  1063→              </p>
+  1064→            </Reveal>
+  1065→            <div className="mt-8 space-y-3">
+  1066→              {[
+  1067→                { q: "What should I post next?", a: "Based on your top content this week — try a behind-the-scenes Reel." },
+  1068→                { q: "When does my audience engage most?", a: "Tuesday & Thursday 7–9pm in your audience's timezone." },
+  1069→                { q: "Which account is at risk?", a: "@prismhq has elevated risk. Slow posting for 48h advised." },
+  1070→              ].map((c, i) => (
+  1071→                <Reveal key={c.q} delay={i * 120}>
+  1072→                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md transition hover:border-violet-400/30">
+  1073→                    <div className="flex items-center gap-2 text-xs font-semibold text-violet-300">
+  1074→                      <Bot className="h-3.5 w-3.5" /> You asked
+  1075→                      <span className="text-white/70">— “{c.q}”</span>
+  1076→                    </div>
+  1077→                    <div className="mt-2 flex items-start gap-2 text-sm text-white/80">
+  1078→                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-400" />
+  1079→                      <span>{c.a}</span>
+  1080→                    </div>
+  1081→                  </div>
+  1082→                </Reveal>
+  1083→              ))}
+  1084→            </div>
+  1085→          </div>
+  1086→
+  1087→          {/* Right — chat mockup */}
+  1088→          <Reveal delay={300}>
+  1089→            <div className="relative">
+  1090→              {/* Floating AI badge */}
+  1091→              <div className="absolute -right-4 -top-4 z-10 flex items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-950/60 px-3 py-1.5 text-[11px] font-bold text-violet-300 backdrop-blur-md">
+  1092→                <span className="relative flex h-2 w-2">
+  1093→                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-60" />
+  1094→                  <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-400" />
+  1095→                </span>
+  1096→                AI Online
+  1097→              </div>
+  1098→
+  1099→              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#1B0F2E]/80 backdrop-blur-2xl shadow-[0_30px_80px_-20px_rgba(139,92,246,0.5)]">
+  1100→                {/* Header */}
+  1101→                <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
+  1102→                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white">
+  1103→                    <Bot className="h-5 w-5" />
+  1104→                  </div>
+  1105→                  <div>
+  1106→                    <div className="text-sm font-bold text-white">SocialFlow AI</div>
+  1107→                    <div className="text-[11px] text-white/50">Workspace · Prism Studio</div>
+  1108→                  </div>
+  1109→                  <div className="ml-auto flex gap-1.5">
+  1110→                    <span className="h-2 w-2 rounded-full bg-rose-400/70" />
+  1111→                    <span className="h-2 w-2 rounded-full bg-amber-400/70" />
+  1112→                    <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
+  1113→                  </div>
+  1114→                </div>
+  1115→
+  1116→                {/* Messages */}
+  1117→                <div className="space-y-4 p-5">
+  1118→                  {/* User message */}
+  1119→                  <div className="flex justify-end">
+  1120→                    <div className="max-w-[80%] rounded-2xl rounded-tr-sm border border-white/10 bg-white/10 px-4 py-2.5 text-sm text-white/90">
+  1121→                      How many posts did we publish this week?
+  1122→                    </div>
+  1123→                  </div>
+  1124→                  {/* AI typing message */}
+  1125→                  <div className="flex items-start gap-3">
+  1126→                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white">
+  1127→                      <Sparkles className="h-4 w-4" />
+  1128→                    </div>
+  1129→                    <div className="max-w-[85%] rounded-2xl rounded-tl-sm border border-violet-400/20 bg-violet-950/40 px-4 py-3 text-sm text-violet-100">
+  1130→                      <TypingBubble
+  1131→                        text="You published 12 posts across 3 platforms this week — 7 on Instagram, 3 on X, 2 on LinkedIn. Engagement is up 18% vs. last week. Top performer: your Tuesday Reel."
+  1132→                        durationMs={5200}
+  1133→                      />
+  1134→                    </div>
+  1135→                  </div>
+  1136→
+  1137→                  {/* Suggested chips */}
+  1138→                  <div className="flex flex-wrap gap-2 pt-1">
+  1139→                    {["Show me chart", "Draft next week", "Flag risky account"].map((s) => (
+  1140→                      <span key={s} className="rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-[11px] font-medium text-violet-200">
+  1141→                        {s}
+  1142→                      </span>
+  1143→                    ))}
+  1144→                  </div>
+  1145→                </div>
+  1146→
+  1147→                {/* Input */}
+  1148→                <div className="flex items-center gap-2 border-t border-white/10 p-3">
+  1149→                  <div className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/40">
+  1150→                    Ask anything about your social presence…
+  1151→                  </div>
+  1152→                  <button
+  1153→                    className="grid h-10 w-10 place-items-center rounded-xl text-white"
+  1154→                    style={{ background: "linear-gradient(135deg, #8B5CF6, #6366F1)" }}
+  1155→                  >
+  1156→                    <Send className="h-4 w-4" />
+  1157→                  </button>
+  1158→                </div>
+  1159→              </div>
+  1160→
+  1161→              {/* Floating KPI chips */}
+  1162→              <div className="mt-4 grid grid-cols-3 gap-3">
+  1163→                {[
+  1164→                  { l: "Posts", v: "12", c: "#A78BFA" },
+  1165→                  { l: "Reach", v: "2.4M", c: "#22D3EE" },
+  1166→                  { l: "Engagement", v: "+18%", c: "#34D399" },
+  1167→                ].map((k) => (
+  1168→                  <div key={k.l} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center backdrop-blur-md">
+  1169→                    <div className="text-lg font-bold" style={{ color: k.c }}>{k.v}</div>
+  1170→                    <div className="text-[10px] uppercase tracking-wider text-white/50">{k.l}</div>
+  1171→                  </div>
+  1172→                ))}
+  1173→              </div>
+  1174→            </div>
+  1175→          </Reveal>
+  1176→        </div>
+  1177→      </div>
+  1178→    </section>
+  1179→  );
+  1180→}
+  1181→
+  1182→/* ------------------------- Act 7: Analytics ----------------------------- */
+  1183→
+  1184→function Act7Analytics({ onTrial }: { onTrial: () => void }) {
+  1185→  return (
+  1186→    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #0A1F1F 0%, #0D2525 50%, #0A1F1F 100%)" }}>
+  1187→      <div
+  1188→        className="pointer-events-none absolute inset-0 opacity-60"
+  1189→        style={{
+  1190→          background:
+  1191→            "radial-gradient(ellipse at 20% 30%, rgba(45,212,191,0.18), transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(34,211,238,0.16), transparent 60%)",
+  1192→        }}
+  1193→      />
+  1194→      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+  1195→        <div className="text-center">
+  1196→          <Reveal>
+  1197→            <Eyebrow icon={Activity} label="Analytics" color="#2DD4BF" />
+  1198→          </Reveal>
+  1199→          <Reveal delay={100}>
+  1200→            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+  1201→              See your growth in <span className="text-teal-400">real-time</span>
+  1202→            </h2>
+  1203→          </Reveal>
+  1204→          <Reveal delay={200}>
+  1205→            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+  1206→              Track followers, reach, and engagement across every platform — unified, beautiful, alive.
+  1207→            </p>
+  1208→          </Reveal>
+  1209→        </div>
+  1210→
+  1211→        {/* KPI cards */}
+  1212→        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  1213→          {[
+  1214→            { l: "Followers",   v: "1.62M", d: "+1.2%",  icon: Users,      color: "#2DD4BF" },
+  1215→            { l: "Reach",       v: "2.41M", d: "+18%",   icon: EyeIcon,    color: "#22D3EE" },
+  1216→            { l: "Engagement",  v: "191K",  d: "+4.5%",  icon: TrendingUp, color: "#34D399" },
+  1217→            { l: "Posts",       v: "342",   d: "+12",    icon: Layers,     color: "#5EEAD4" },
+  1218→          ].map((k, i) => (
+  1219→            <Reveal key={k.l} delay={i * 100}>
+  1220→              <MysticCard accent={k.color} className="h-full p-5">
+  1221→                <div className="flex items-center justify-between">
+  1222→                  <IconTile icon={k.icon} color={k.color} size="sm" />
+  1223→                  <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+  1224→                    {k.d}
+  1225→                  </span>
+  1226→                </div>
+  1227→                <div className="mt-4 text-3xl font-bold text-white tabular-nums">{k.v}</div>
+  1228→                <div className="mt-1 text-[11px] uppercase tracking-wider text-white/55">{k.l}</div>
+  1229→              </MysticCard>
+  1230→            </Reveal>
+  1231→          ))}
+  1232→        </div>
+  1233→
+  1234→        {/* Chart mockup */}
+  1235→        <Reveal delay={400}>
+  1236→          <MysticCard accent="#2DD4BF" className="mt-6 p-6 sm:p-8">
+  1237→            <div className="flex items-center justify-between">
+  1238→              <div>
+  1239→                <div className="text-sm font-bold text-white">Performance trend</div>
+  1240→                <div className="text-[11px] text-white/55">Last 14 days · all platforms</div>
+  1241→              </div>
+  1242→              <div className="flex gap-2">
+  1243→                {["7d", "14d", "30d", "90d"].map((p, i) => (
+  1244→                  <span
+  1245→                    key={p}
+  1246→                    className={cn(
+  1247→                      "rounded-full px-3 py-1 text-[11px] font-semibold",
+  1248→                      i === 1 ? "bg-teal-400/20 text-teal-300" : "bg-white/5 text-white/50",
+  1249→                    )}
+  1250→                  >
+  1251→                    {p}
+  1252→                  </span>
+  1253→                ))}
+  1254→              </div>
+  1255→            </div>
+  1256→            {/* Bar chart */}
+  1257→            <div className="mt-6 h-44">
+  1258→              <GrowingBars
+  1259→                values={[35, 48, 42, 58, 65, 52, 70, 78, 68, 82, 75, 90, 85, 95]}
+  1260→                color="linear-gradient(to top, #0F766E, #2DD4BF, #5EEAD4)"
+  1261→                className="h-full"
+  1262→              />
+  1263→            </div>
+  1264→            {/* X-axis */}
+  1265→            <div className="mt-2 flex justify-between text-[10px] text-white/40">
+  1266→              {["Mon", "Wed", "Fri", "Sun", "Tue", "Thu", "Sat"].map((d, i) => (
+  1267→                <span key={d + i}>{d}</span>
+  1268→              ))}
+  1269→            </div>
+  1270→
+  1271→            {/* Platform breakdown */}
+  1272→            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+  1273→              {[
+  1274→                { l: "Instagram", v: "1.1M", c: "#F472B6", w: 78 },
+  1275→                { l: "X / Twitter", v: "620K", c: "#5EEAD4", w: 55 },
+  1276→                { l: "LinkedIn", v: "690K", c: "#22D3EE", w: 61 },
+  1277→              ].map((p) => (
+  1278→                <div key={p.l} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+  1279→                  <div className="flex items-center justify-between text-xs">
+  1280→                    <span className="font-semibold text-white/80">{p.l}</span>
+  1281→                    <span className="font-bold tabular-nums" style={{ color: p.c }}>{p.v}</span>
+  1282→                  </div>
+  1283→                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+  1284→                    <div
+  1285→                      className="h-full rounded-full"
+  1286→                      style={{
+  1287→                        width: `${p.w}%`,
+  1288→                        background: p.c,
+  1289→                        animation: "sfBarGrow 1.4s cubic-bezier(0.34,1.56,0.64,1) 0.4s both",
+  1290→                        ["--target-w" as string]: `${p.w}%`,
+  1291→                      }}
+  1292→                    />
+  1293→                  </div>
+  1294→                </div>
+  1295→              ))}
+  1296→            </div>
+  1297→          </MysticCard>
+  1298→        </Reveal>
+  1299→
+  1300→        <Reveal delay={600}>
+  1301→          <div className="mt-10 flex justify-center">
+  1302→            <GlowCTA onClick={onTrial} tone="teal">
+  1303→              <BarChart3 className="h-4 w-4" /> Explore your analytics
+  1304→            </GlowCTA>
+  1305→          </div>
+  1306→        </Reveal>
+  1307→      </div>
+  1308→    </section>
+  1309→  );
+  1310→}
+  1311→
+  1312→/* ------------------------- Act 8: Comparison --------------------------- */
+  1313→
+  1314→function Act8Comparison() {
+  1315→  const rows = COMPARE_ROWS;
+  1316→  const competitors = ["SocialFlow", "Hootsuite", "Buffer", "Sprout Social"];
+  1317→  return (
+  1318→    <section
+  1319→      id="compare"
+  1320→      className="relative w-full overflow-hidden py-24 sm:py-32"
+  1321→      style={{ background: "linear-gradient(180deg, #0F1419 0%, #151B22 50%, #0F1419 100%)" }}
+  1322→    >
+  1323→      <div
+  1324→        className="pointer-events-none absolute inset-0 opacity-50"
+  1325→        style={{
+  1326→          background:
+  1327→            "radial-gradient(ellipse at 50% 20%, rgba(45,212,191,0.16), transparent 60%), radial-gradient(ellipse at 80% 90%, rgba(99,102,241,0.14), transparent 60%)",
+  1328→        }}
+  1329→      />
+  1330→      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+  1331→        <div className="text-center">
+  1332→          <Reveal>
+  1333→            <Eyebrow icon={Target} label="Competitor comparison" color="#5EEAD4" />
+  1334→          </Reveal>
+  1335→          <Reveal delay={100}>
+  1336→            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+  1337→              Why settle for <span className="text-teal-400">less?</span>
+  1338→            </h2>
+  1339→          </Reveal>
+  1340→          <Reveal delay={200}>
+  1341→            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+  1342→              The only platform that combines AI content, multi-tenant isolation, and account protection in one workspace.
+  1343→            </p>
+  1344→          </Reveal>
+  1345→        </div>
+  1346→
+  1347→        <Reveal delay={300}>
+  1348→          <div className="mt-14 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl">
+  1349→            {/* Header row */}
+  1350→            <div className="grid grid-cols-5 border-b border-white/10 bg-white/[0.02]">
+  1351→              <div className="px-4 py-5 text-xs font-semibold uppercase tracking-wider text-white/55 sm:px-6">
+  1352→                Capability
+  1353→              </div>
+  1354→              {competitors.map((c, i) => (
+  1355→                <div
+  1356→                  key={c}
+  1357→                  className={cn(
+  1358→                    "px-2 py-5 text-center sm:px-6",
+  1359→                    i === 0 && "bg-gradient-to-b from-teal-500/15 to-transparent",
+  1360→                  )}
+  1361→                >
+  1362→                  <div
+  1363→                    className={cn(
+  1364→                      "text-xs font-bold sm:text-sm",
+  1365→                      i === 0 ? "text-teal-300" : "text-white/70",
+  1366→                    )}
+  1367→                  >
+  1368→                    {c}
+  1369→                  </div>
+  1370→                  {i === 0 && (
+  1371→                    <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-teal-400/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-teal-300">
+  1372→                      <Star className="h-2.5 w-2.5" /> Best
+  1373→                    </div>
+  1374→                  )}
+  1375→                </div>
+  1376→              ))}
+  1377→            </div>
+  1378→            {/* Body rows */}
+  1379→            {rows.map((r, ri) => (
+  1380→              <div
+  1381→                key={r.label}
+  1382→                className={cn(
+  1383→                  "grid grid-cols-5 items-center border-b border-white/5 last:border-b-0",
+  1384→                  ri % 2 === 0 ? "bg-white/[0.01]" : "",
+  1385→                )}
+  1386→              >
+  1387→                <div className="flex items-center gap-2 px-4 py-4 text-sm font-medium text-white/85 sm:px-6">
+  1388→                  <r.icon className="h-4 w-4 shrink-0 text-white/50" />
+  1389→                  <span className="hidden sm:inline">{r.label}</span>
+  1390→                  <span className="sm:hidden">{r.short}</span>
+  1391→                </div>
+  1392→                {r.values.map((v, i) => (
+  1393→                  <div
+  1394→                    key={i}
+  1395→                    className={cn(
+  1396→                      "px-2 py-4 text-center sm:px-6",
+  1397→                      i === 0 && "bg-gradient-to-b from-teal-500/[0.06] to-transparent",
+  1398→                    )}
+  1399→                  >
+  1400→                    {v === true ? (
+  1401→                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-teal-400/15 text-teal-300">
+  1402→                        <Check className="h-4 w-4" strokeWidth={3} />
+  1403→                      </span>
+  1404→                    ) : v === false ? (
+  1405→                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/5 text-white/30">
+  1406→                        <Minus className="h-3.5 w-3.5" />
+  1407→                      </span>
+  1408→                    ) : (
+  1409→                      <span className="text-xs text-white/50">{v}</span>
+  1410→                    )}
+  1411→                  </div>
+  1412→                ))}
+  1413→              </div>
+  1414→            ))}
+  1415→          </div>
+  1416→        </Reveal>
+  1417→      </div>
+  1418→    </section>
+  1419→  );
+  1420→}
+  1421→
+  1422→/* ----------------------------- Act 9: Pricing -------------------------- */
+  1423→
+  1424→function Act9Pricing({ onTrial }: { onTrial: () => void }) {
+  1425→  return (
+  1426→    <section
+  1427→      id="pricing"
+  1428→      className="relative w-full overflow-hidden py-24 sm:py-32"
+  1429→      style={{ background: "linear-gradient(180deg, #0A0A2F 0%, #0F0F35 50%, #0A0A2F 100%)" }}
+  1430→    >
+  1431→      <div
+  1432→        className="pointer-events-none absolute inset-0 opacity-60"
+  1433→        style={{
+  1434→          background:
+  1435→            "radial-gradient(ellipse at 50% 30%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(ellipse at 30% 80%, rgba(139,92,246,0.18), transparent 60%)",
+  1436→        }}
+  1437→      />
+  1438→      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+  1439→        <div className="text-center">
+  1440→          <Reveal>
+  1441→            <Eyebrow icon={CreditCard} label="Pricing" color="#818CF8" />
+  1442→          </Reveal>
+  1443→          <Reveal delay={100}>
+  1444→            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+  1445→              Start with a <span className="text-indigo-300">15-day free trial</span>
+  1446→            </h2>
+  1447→          </Reveal>
+  1448→          <Reveal delay={200}>
+  1449→            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+  1450→              No card to explore. Pick a plan when you&apos;re ready. Cancel anytime.
+  1451→            </p>
+  1452→          </Reveal>
+  1453→        </div>
+  1454→
+  1455→        <div className="mt-16 grid items-stretch gap-5 lg:grid-cols-3">
+  1456→          {PLANS.map((p, i) => {
+  1457→            const featured = p.featured;
+  1458→            return (
+  1459→              <Reveal key={p.name} delay={i * 120}>
+  1460→                <div
+  1461→                  className={cn(
+  1462→                    "group relative flex h-full flex-col overflow-hidden rounded-3xl border p-7 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5",
+  1463→                    featured
+  1464→                      ? "border-indigo-400/40 bg-gradient-to-b from-indigo-500/15 to-violet-500/5 shadow-[0_30px_80px_-30px_rgba(99,102,241,0.6)]"
+  1465→                      : "border-white/10 bg-white/[0.03] hover:border-white/20",
+  1466→                  )}
+  1467→                >
+  1468→                  {featured && (
+  1469→                    <>
+  1470→                      <div
+  1471→                        className="pointer-events-none absolute -inset-px rounded-3xl opacity-50 blur-2xl"
+  1472→                        style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.4), rgba(139,92,246,0.2))" }}
+  1473→                      />
+  1474→                      <div className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full bg-indigo-400 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-950">
+  1475→                        <Star className="h-3 w-3 fill-current" /> Most popular
+  1476→                      </div>
+  1477→                    </>
+  1478→                  )}
+  1479→                  <div className="relative flex h-full flex-col">
+  1480→                    <div className="text-sm font-semibold uppercase tracking-wider text-white/60">{p.name}</div>
+  1481→                    <div className="mt-4 flex items-baseline gap-1.5">
+  1482→                      <span
+  1483→                        className={cn(
+  1484→                          "text-5xl font-bold tabular-nums transition-all duration-300 group-hover:scale-105",
+  1485→                          featured ? "text-white" : "text-white/95",
+  1486→                        )}
+  1487→                        style={{ textShadow: featured ? "0 0 30px rgba(129,140,248,0.5)" : undefined }}
+  1488→                      >
+  1489→                        {p.price}
+  1490→                      </span>
+  1491→                      {p.price !== "Custom" && <span className="text-sm text-white/50">/mo</span>}
+  1492→                    </div>
+  1493→                    <p className="mt-3 text-sm text-white/60">{p.desc}</p>
+  1494→
+  1495→                    <ul className="mt-6 flex-1 space-y-2.5">
+  1496→                      {p.features.map((f) => (
+  1497→                        <li key={f} className="flex items-start gap-2.5 text-sm text-white/85">
+  1498→                          <span
+  1499→                            className={cn(
+  1500→                              "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full",
+  1501→                              featured ? "bg-indigo-400/20 text-indigo-300" : "bg-emerald-400/15 text-emerald-300",
+  1502→                            )}
+  1503→                          >
+  1504→                            <Check className="h-3 w-3" strokeWidth={3} />
+  1505→                          </span>
+  1506→                          <span>{f}</span>
+  1507→                        </li>
+  1508→                      ))}
+  1509→                    </ul>
+  1510→
+  1511→                    <button
+  1512→                      onClick={onTrial}
+  1513→                      className={cn(
+  1514→                        "mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5",
+  1515→                        featured
+  1516→                          ? "text-indigo-950 hover:brightness-110"
+  1517→                          : "border border-white/20 bg-white/5 text-white hover:bg-white/10",
+  1518→                      )}
+  1519→                      style={
+  1520→                        featured
+  1521→                          ? { background: "linear-gradient(135deg, #818CF8, #6366F1)", boxShadow: "0 12px 30px -8px rgba(99,102,241,0.6)" }
+  1522→                          : undefined
+  1523→                      }
+  1524→                    >
+  1525→                      Start 15-day trial <ArrowRight className="h-4 w-4" />
+  1526→                    </button>
+  1527→                  </div>
+  1528→                </div>
+  1529→              </Reveal>
+  1530→            );
+  1531→          })}
+  1532→        </div>
+  1533→
+  1534→        <Reveal delay={500}>
+  1535→          <p className="mt-10 text-center text-xs text-white/50">
+  1536→            All plans include the full SocialFlow module suite during your 15-day trial.
+  1537→            <br className="sm:hidden" /> Need a custom plan? <button onClick={onTrial} className="font-semibold text-indigo-300 underline-offset-4 hover:underline">Talk to sales →</button>
+  1538→          </p>
+  1539→        </Reveal>
+  1540→      </div>
+  1541→    </section>
+  1542→  );
+  1543→}
+  1544→
+  1545→/* --------------------------- Act 10: Final CTA -------------------------- */
+  1546→
+  1547→function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
+  1548→  return (
+  1549→    <section className="relative w-full overflow-hidden py-32 sm:py-40">
+  1550→      {/* Aurora finale background */}
+  1551→      <div className="absolute inset-0" aria-hidden>
+  1552→        <div
+  1553→          className="absolute inset-0"
+  1554→          style={{
+  1555→            background:
+  1556→              "linear-gradient(120deg, #0A1A2F 0%, #0F2A4F 20%, #0E3A3D 40%, #1F0A2A 60%, #2A1F0A 80%, #0A1A2F 100%)",
+  1557→            backgroundSize: "300% 300%",
+  1558→            animation: "sfGradientText 14s ease-in-out infinite",
+  1559→          }}
+  1560→        />
+  1561→        <div
+  1562→          className="absolute -top-20 left-1/4 h-72 w-72 rounded-full opacity-50 blur-3xl"
+  1563→          style={{ background: "radial-gradient(circle, rgba(45,212,191,0.6), transparent 70%)" }}
+  1564→        />
+  1565→        <div
+  1566→          className="absolute top-1/3 right-1/4 h-80 w-80 rounded-full opacity-50 blur-3xl"
+  1567→          style={{ background: "radial-gradient(circle, rgba(168,85,247,0.5), transparent 70%)" }}
+  1568→        />
+  1569→        <div
+  1570→          className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full opacity-50 blur-3xl"
+  1571→          style={{ background: "radial-gradient(circle, rgba(251,191,36,0.5), transparent 70%)" }}
+  1572→        />
+  1573→        <ConfettiField count={48} />
+  1574→      </div>
+  1575→
+  1576→      <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+  1577→        <Reveal>
+  1578→          <span
+  1579→            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-md"
+  1580→          >
+  1581→            <Sparkles className="h-3.5 w-3.5" /> Aurora finale
+  1582→          </span>
+  1583→        </Reveal>
+  1584→        <Reveal delay={120}>
+  1585→          <h2 className="mt-7 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+  1586→            <span
+  1587→              className="bg-clip-text text-transparent"
+  1588→              style={{
+  1589→                backgroundImage: "linear-gradient(120deg, #5EEAD4, #22D3EE, #A78BFA, #FBBF24)",
+  1590→                backgroundSize: "200% 200%",
+  1591→                animation: "sfGradientText 8s ease-in-out infinite",
+  1592→              }}
+  1593→            >
+  1594→              Ready to simplify
+  1595→            </span>
+  1596→            <br />
+  1597→            <span className="text-white">your social team?</span>
+  1598→          </h2>
+  1599→        </Reveal>
+  1600→        <Reveal delay={240}>
+  1601→          <p className="mx-auto mt-6 max-w-xl text-base text-white/75 sm:text-lg">
+  1602→            Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
+  1603→            Start your 15-day trial — full access, no card to explore.
+  1604→          </p>
+  1605→        </Reveal>
+  1606→        <Reveal delay={360}>
+  1607→          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+  1608→            <GlowCTA onClick={onTrial} tone="teal" className="min-w-[280px] px-8 py-4 text-base">
+  1609→              <Rocket className="h-5 w-5" /> Start your 15-day trial
+  1610→            </GlowCTA>
+  1611→          </div>
+  1612→        </Reveal>
+  1613→        <Reveal delay={480}>
+  1614→          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-white/70">
+  1615→            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> No credit card required</span>
+  1616→            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Cancel anytime</span>
+  1617→            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Full access for 15 days</span>
+  1618→          </div>
+  1619→        </Reveal>
+  1620→      </div>
+  1621→    </section>
+  1622→  );
+  1623→}
+  1624→
+  1625→/* ------------------------------ Act 11: Footer ------------------------- */
+  1626→
+  1627→function Act11Footer() {
+  1628→  return (
+  1629→    <footer className="relative w-full overflow-hidden bg-[#0A0A0A] pt-20 pb-10 text-white">
+  1630→      <div
+  1631→        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+  1632→        style={{ background: "linear-gradient(to right, transparent, rgba(94,234,212,0.4), transparent)" }}
+  1633→      />
+  1634→      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+  1635→        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+  1636→          <div className="lg:col-span-2">
+  1637→            <div className="flex items-center gap-2.5">
+  1638→              <Logo size={28} withTile={false} />
+  1639→              <span className="text-base font-bold tracking-tight">SocialFlow</span>
+  1640→            </div>
+  1641→            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/60">
+  1642→              Social, Simplified. The enterprise command center for modern social teams.
+  1643→            </p>
+  1644→            <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/55">
+  1645→              <ShieldCheck className="h-3.5 w-3.5 text-teal-400" />
+  1646→              Encrypted · 2FA · SOC2-ready
+  1647→            </div>
+  1648→            {/* Social icons */}
+  1649→            <div className="mt-6 flex gap-2">
+  1650→              {[Globe, MessageCircle, Send, Mail].map((Icon, i) => (
+  1651→                <a
+  1652→                  key={i}
+  1653→                  href="#"
+  1654→                  className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition hover:border-teal-400/30 hover:bg-teal-400/10 hover:text-teal-300"
+  1655→                >
+  1656→                  <Icon className="h-4 w-4" />
+  1657→                </a>
+  1658→              ))}
+  1659→            </div>
+  1660→          </div>
+  1661→          <FooterCol title="Product" links={["Features|/features", "Workflow|/workflow", "Pricing|/pricing", "AI Composer|/ai-composer", "Account Protection|/protection"]} />
+  1662→          <FooterCol title="Company" links={["About|/about", "Customers|/customers", "Blog|/blog", "Careers|/careers", "Contact|/contact"]} />
+  1663→          <FooterCol title="Resources" links={["Documentation|/docs", "API Reference|/api-reference", "Help Center|/help", "Status|/status", "Changelog|/changelog"]} />
+  1664→        </div>
+  1665→        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row">
+  1666→          <span>© 2026 SocialFlow · Social, Simplified</span>
+  1667→          <div className="flex gap-5">
+  1668→            <a href="#" className="transition hover:text-white">Privacy</a>
+  1669→            <a href="#" className="transition hover:text-white">Terms</a>
+  1670→            <a href="#" className="transition hover:text-white">Security</a>
+  1671→            <a href="#" className="transition hover:text-white">Legal</a>
+  1672→          </div>
+  1673→        </div>
+  1674→      </div>
+  1675→    </footer>
+  1676→  );
+  1677→}
+  1678→
+  1679→function FooterCol({ title, links }: { title: string; links: string[] }) {
+  1680→  return (
+  1681→    <div>
+  1682→      <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/45">{title}</div>
+  1683→      <ul className="mt-4 space-y-2.5">
+  1684→        {links.map((l) => {
+  1685→          const [text, href] = l.includes("|") ? l.split("|") : [l, "#"];
+  1686→          return (
+  1687→            <li key={text}>
+  1688→              <a href={href} className="text-sm text-white/70 transition hover:text-teal-300">{text}</a>
+  1689→            </li>
+  1690→          );
+  1691→        })}
+  1692→      </ul>
+  1693→    </div>
+  1694→  );
+  1695→}
+  1696→
+  1697→/* ============================================================================
+  1698→   Inline keyframes — injected once via <style> in the Landing wrapper.
+  1699→   ============================================================================ */
+  1700→
+  1701→const LANDING_KEYFRAMES = `
+  1702→@keyframes sfAuroraDrift {
+  1703→  0%   { transform: translate(0, 0) scale(1); }
+  1704→  33%  { transform: translate(8%, -6%) scale(1.1); }
+  1705→  66%  { transform: translate(-6%, 4%) scale(0.95); }
+  1706→  100% { transform: translate(0, 0) scale(1); }
+  1707→}
+  1708→@keyframes sfShimmerSweep {
+  1709→  0%   { background-position: 0% 50%; opacity: 0.15; }
+  1710→  50%  { background-position: 100% 50%; opacity: 0.3; }
+  1711→  100% { background-position: 0% 50%; opacity: 0.15; }
+  1712→}
+  1713→@keyframes sfGradientText {
+  1714→  0%, 100% { background-position: 0% 50%; }
+  1715→  50%      { background-position: 100% 50%; }
+  1716→}
+  1717→@keyframes sfParticleFloat {
+  1718→  0%   { transform: translate(0, 0); opacity: 0; }
+  1719→  10%  { opacity: 0.8; }
+  1720→  90%  { opacity: 0.8; }
+  1721→  100% { transform: translate(var(--drift, 20px), -120vh); opacity: 0; }
+  1722→}
+  1723→@keyframes sfPulseGlow {
+  1724→  0%, 100% { box-shadow: 0 0 30px -10px var(--glow, rgba(244,63,94,0.4)); opacity: 0.6; }
+  1725→  50%      { box-shadow: 0 0 70px 0 var(--glow, rgba(244,63,94,0.7)); opacity: 1; }
+  1726→}
+  1727→@keyframes sfShieldPulse {
+  1728→  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 25px rgba(244,63,94,0.5)); }
+  1729→  50%      { transform: scale(1.04); filter: drop-shadow(0 0 50px rgba(244,63,94,0.8)); }
+  1730→}
+  1731→@keyframes sfPulseRing {
+  1732→  0%   { transform: scale(0.8); opacity: 0.8; border-width: 1.5px; }
+  1733→  100% { transform: scale(1.8); opacity: 0; border-width: 0.5px; }
+  1734→}
+  1735→@keyframes sfTyping { from { width: 0; } to { width: 100%; } }
+  1736→@keyframes sfBlink { 50% { border-color: transparent; } }
+  1737→@keyframes sfBarGrow {
+  1738→  from { width: 0; height: var(--from-h, auto); }
+  1739→  to   { width: var(--target-w, 100%); }
+  1740→}
+  1741→@keyframes sfChevronBounce {
+  1742→  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  1743→  50%      { transform: translateY(8px); opacity: 1; }
+  1744→}
+  1745→@keyframes sfConfettiFall {
+  1746→  0%   { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  1747→  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  1748→}
+  1749→@keyframes sfFloat3 {
+  1750→  0%, 100% { transform: translateY(0); }
+  1751→  50%      { transform: translateY(-10px); }
+  1752→}
+  1753→@keyframes sfSpinSlow {
+  1754→  from { transform: rotate(0deg); }
+  1755→  to   { transform: rotate(360deg); }
+  1756→}
+  1757→`;
+  1758→
+  1759→/* ============================================================================
+  1760→   Trial Activation Dialog (unchanged from previous build)
+  1761→   ============================================================================ */
+  1762→
+  1763→function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpenChange: (b: boolean) => void; onActivated: () => void }) {
+  1764→  const { signup } = useAuth();
+  1765→  const [step, setStep] = React.useState<"details" | "payment" | "activating" | "done">("details");
+  1766→  const [form, setForm] = React.useState({
+  1767→    name: "", email: "", company: "", teamSize: "5-10", phone: "", password: "",
+  1768→    cardName: "", cardNumber: "", expiry: "", cvc: "",
+  1769→  });
+  1770→  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  1771→
+  1772→  React.useEffect(() => {
+  1773→    if (open) {
+  1774→      setStep("details");
+  1775→      setErrors({});
+  1776→    }
+  1777→  }, [open]);
+  1778→
+  1779→  const validateDetails = () => {
+  1780→    const e: Record<string, string> = {};
+  1781→    if (!form.name.trim()) e.name = "Full name is required";
+  1782→    if (!form.email.trim()) e.email = "Email is required";
+  1783→    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Invalid email";
+  1784→    if (!form.company.trim()) e.company = "Company is required";
+  1785→    if (!form.password.trim()) e.password = "Password is required";
+  1786→    else if (form.password.length < 6) e.password = "Min 6 characters";
+  1787→    setErrors(e);
+  1788→    return Object.keys(e).length === 0;
+  1789→  };
+  1790→
+  1791→  const validatePayment = () => {
+  1792→    const e: Record<string, string> = {};
+  1793→    if (!form.cardName.trim()) e.cardName = "Name on card required";
+  1794→    if (!form.cardNumber.trim()) e.cardNumber = "Card number required";
+  1795→    else if (form.cardNumber.replace(/\s/g, "").length < 15) e.cardNumber = "Invalid card number";
+  1796→    if (!form.expiry.trim()) e.expiry = "Expiry required";
+  1797→    else if (!/^\d{2}\/\d{2}$/.test(form.expiry)) e.expiry = "MM/YY";
+  1798→    if (!form.cvc.trim()) e.cvc = "CVC required";
+  1799→    else if (form.cvc.length < 3) e.cvc = "Invalid CVC";
+  1800→    setErrors(e);
+  1801→    return Object.keys(e).length === 0;
+  1802→  };
+  1803→
+  1804→  const activate = async () => {
+  1805→    if (!validatePayment()) return;
+  1806→    setStep("activating");
+  1807→    // Create the real user account via the signup API
+  1808→    const success = await signup(form.name.trim(), form.email.trim(), form.password);
+  1809→    if (success) {
+  1810→      setStep("done");
+  1811→      setTimeout(onActivated, 1400);
+  1812→    } else {
+  1813→      setStep("payment");
+  1814→      toast.error("Failed to create account. This email may already be registered.");
+  1815→    }
+  1816→  };
+  1817→
+  1818→  return (
+  1819→    <Dialog open={open} onOpenChange={onOpenChange}>
+  1820→      <DialogContent className="glass-strong max-h-[92vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto p-5 sm:p-6">
+  1821→        {/* Step indicator */}
+  1822→        <div className="mb-2 flex items-center gap-2">
+  1823→          <StepDot n={1} active={step === "details"} done={step !== "details"} />
+  1824→          <div className={cn("h-px flex-1 transition", step !== "details" ? "bg-[var(--gold)]" : "bg-border")} />
+  1825→          <StepDot n={2} active={step === "payment" || step === "activating"} done={step === "activating" || step === "done"} />
+  1826→          <div className={cn("h-px flex-1 transition", step === "done" ? "bg-[var(--gold)]" : "bg-border")} />
+  1827→          <StepDot n={3} active={step === "done"} done={step === "done"} />
+  1828→        </div>
+  1829→
+  1830→        {step === "details" && (
+  1831→          <>
+  1832→            <DialogHeader>
+  1833→              <DialogTitle className="flex items-center gap-2 text-lg">
+  1834→                <Rocket className="h-5 w-5 text-[var(--gold)]" /> Start your 15-day trial
+  1835→              </DialogTitle>
+  1836→              <DialogDescription>
+  1837→                Full access to every module. No charge for 15 days. Tell us about your team.
+  1838→              </DialogDescription>
+  1839→            </DialogHeader>
+  1840→            <div className="space-y-3">
+  1841→              <Field icon={<Users className="h-3.5 w-3.5" />} label="Full name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Maya Reyes" error={errors.name} />
+  1842→              <Field icon={<MailIcon className="h-3.5 w-3.5" />} label="Work email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="maya@yourcompany.com" error={errors.email} />
+  1843→              <Field icon={<Building2 className="h-3.5 w-3.5" />} label="Company" value={form.company} onChange={(v) => setForm({ ...form, company: v })} placeholder="Your Company Inc." error={errors.company} />
+  1844→              <div className="grid grid-cols-2 gap-3">
+  1845→                <div>
+  1846→                  <Label className="text-xs">Team size</Label>
+  1847→                  <Select value={form.teamSize} onValueChange={(v) => setForm({ ...form, teamSize: v })}>
+  1848→                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+  1849→                    <SelectContent>
+  1850→                      <SelectItem value="1-4">1–4 members</SelectItem>
+  1851→                      <SelectItem value="5-10">5–10 members</SelectItem>
+  1852→                      <SelectItem value="11-25">11–25 members</SelectItem>
+  1853→                      <SelectItem value="26-50">26–50 members</SelectItem>
+  1854→                      <SelectItem value="50+">50+ members</SelectItem>
+  1855→                    </SelectContent>
+  1856→                  </Select>
+  1857→                </div>
+  1858→                <Field icon={<PhoneCall className="h-3.5 w-3.5" />} label="Phone (optional)" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="+1 555 0100" />
+  1859→              </div>
+  1860→              <Field icon={<Lock className="h-3.5 w-3.5" />} label="Password" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder="Min 6 characters" error={errors.password} />
+  1861→              <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
+  1862→                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
+  1863→                <span>Your card won&apos;t be charged today. You&apos;ll get a reminder 3 days before the trial ends. Cancel anytime.</span>
+  1864→              </div>
+  1865→            </div>
+  1866→            <DialogFooter>
+  1867→              <button onClick={() => onOpenChange(false)} className="min-h-11 rounded-xl border border-border/50 px-4 py-2.5 text-sm font-medium hover:bg-muted sm:w-auto w-full">Cancel</button>
+  1868→              <button onClick={() => validateDetails() && setStep("payment")} className="liquid-gold glow-ring flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold sm:w-auto">
+  1869→                Continue to payment <ArrowRight className="h-4 w-4" />
+  1870→              </button>
+  1871→            </DialogFooter>
+  1872→          </>
+  1873→        )}
+  1874→
+  1875→        {step === "payment" && (
+  1876→          <>
+  1877→            <DialogHeader>
+  1878→              <DialogTitle className="flex items-center gap-2 text-lg">
+  1879→                <CreditCard className="h-5 w-5 text-[var(--gold)]" /> Add a payment method
+  1880→              </DialogTitle>
+  1881→              <DialogDescription>
+  1882→                Required to activate your trial. <b className="text-foreground">You won&apos;t be charged</b> for 15 days.
+  1883→              </DialogDescription>
+  1884→            </DialogHeader>
+  1885→            <div className="space-y-3">
+  1886→              <Field icon={<Users className="h-3.5 w-3.5" />} label="Name on card" value={form.cardName} onChange={(v) => setForm({ ...form, cardName: v })} placeholder="Maya Reyes" error={errors.cardName} />
+  1887→              <div>
+  1888→                <Label className="text-xs"><span className="flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5" /> Card number</span></Label>
+  1889→                <Input
+  1890→                  value={form.cardNumber}
+  1891→                  onChange={(e) => {
+  1892→                    const v = e.target.value.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+  1893→                    setForm({ ...form, cardNumber: v });
+  1894→                  }}
+  1895→                  placeholder="4242 4242 4242 4242"
+  1896→                  className={cn("mt-1.5 font-mono", errors.cardNumber && "border-rose-500/50")}
+  1897→                />
+  1898→                {errors.cardNumber && <p className="mt-1 text-[11px] font-medium text-rose-500">{errors.cardNumber}</p>}
+  1899→              </div>
+  1900→              <div className="grid grid-cols-2 gap-3">
+  1901→                <div>
+  1902→                  <Label className="text-xs">Expiry</Label>
+  1903→                  <Input
+  1904→                    value={form.expiry}
+  1905→                    onChange={(e) => {
+  1906→                      let v = e.target.value.replace(/\D/g, "").slice(0, 4);
+  1907→                      if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+  1908→                      setForm({ ...form, expiry: v });
+  1909→                    }}
+  1910→                    placeholder="MM/YY"
+  1911→                    className={cn("mt-1.5", errors.expiry && "border-rose-500/50")}
+  1912→                  />
+  1913→                  {errors.expiry && <p className="mt-1 text-[11px] font-medium text-rose-500">{errors.expiry}</p>}
+  1914→                </div>
+  1915→                <div>
+  1916→                  <Label className="text-xs"><span className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" /> CVC</span></Label>
+  1917→                  <Input
+  1918→                    value={form.cvc}
+  1919→                    onChange={(e) => setForm({ ...form, cvc: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+  1920→                    placeholder="123"
+  1921→                    className={cn("mt-1.5", errors.cvc && "border-rose-500/50")}
+  1922→                  />
+  1923→                  {errors.cvc && <p className="mt-1 text-[11px] font-medium text-rose-500">{errors.cvc}</p>}
+  1924→                </div>
+  1925→              </div>
+  1926→              <div className="flex items-center gap-2 rounded-xl bg-muted/30 p-3 text-[11px] text-muted-foreground">
+  1927→                <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
+  1928→                Payments are encrypted (AES-256) and PCI-DSS compliant. We never store your full card number.
+  1929→              </div>
+  1930→            </div>
+  1931→            <DialogFooter>
+  1932→              <button onClick={() => setStep("details")} className="min-h-11 w-full rounded-xl border border-border/50 px-4 py-2.5 text-sm font-medium hover:bg-muted sm:w-auto">Back</button>
+  1933→              <button onClick={activate} className="liquid-gold glow-ring flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold sm:w-auto">
+  1934→                <ShieldCheck className="h-4 w-4" /> Activate trial
+  1935→              </button>
+  1936→            </DialogFooter>
+  1937→          </>
+  1938→        )}
+  1939→
+  1940→        {step === "activating" && (
+  1941→          <div className="flex flex-col items-center justify-center py-12 text-center">
+  1942→            <Loader2 className="h-12 w-12 animate-spin text-[var(--gold)]" />
+  1943→            <h3 className="mt-5 text-lg font-semibold">Activating your trial…</h3>
+  1944→            <p className="mt-1 text-sm text-muted-foreground">Provisioning workspace, syncing modules</p>
+  1945→          </div>
+  1946→        )}
+  1947→
+  1948→        {step === "done" && (
+  1949→          <div className="flex flex-col items-center justify-center py-12 text-center">
+  1950→            <div className="relative mb-4">
+  1951→              <div className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
+  1952→                <Check className="h-10 w-10" strokeWidth={3} />
+  1953→              </div>
+  1954→              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/10" />
+  1955→            </div>
+  1956→            <h3 className="text-xl font-bold">Trial activated! Welcome to SocialFlow.</h3>
+  1957→            <p className="mt-1 text-sm text-muted-foreground">Account created successfully. Entering your workspace…</p>
+  1958→          </div>
+  1959→        )}
+  1960→      </DialogContent>
+  1961→    </Dialog>
+  1962→  );
+  1963→}
+  1964→
+  1965→function StepDot({ n, active, done }: { n: number; active: boolean; done: boolean }) {
+  1966→  return (
+  1967→    <div className={cn(
+  1968→      "grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold transition",
+  1969→      done ? "bg-[var(--gold)] text-[var(--gold-foreground)]" : active ? "bg-[var(--gold)]/15 text-[var(--gold)] ring-2 ring-[var(--gold)]/30" : "bg-muted text-muted-foreground"
+  1970→    )}>
+  1971→      {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : n}
+  1972→    </div>
+  1973→  );
+  1974→}
+  1975→
+  1976→function Field({ icon, label, value, onChange, placeholder, error, type = "text" }: {
+  1977→  icon: React.ReactNode; label: string; value: string; onChange: (v: string) => void; placeholder?: string; error?: string; type?: string;
+  1978→}) {
+  1979→  return (
+  1980→    <div>
+  1981→      <Label className="text-xs"><span className="flex items-center gap-1.5">{icon}{label}</span></Label>
+  1982→      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cn("mt-1.5", error && "border-rose-500/50 focus-visible:ring-rose-500/30")} />
+  1983→      {error && <p className="mt-1 text-[11px] font-medium text-rose-500">{error}</p>}
+  1984→    </div>
+  1985→  );
+  1986→}
+  1987→
+  1988→/* ============================================================================
+  1989→   Login Screen (unchanged from previous build)
+  1990→   ============================================================================ */
+  1991→
+  1992→function LoginScreen({ onBack }: { onBack: () => void }) {
+  1993→  const { login } = useAuth();
+  1994→  const [email, setEmail] = React.useState("");
+  1995→  const [password, setPassword] = React.useState("");
+  1996→  const [showPw, setShowPw] = React.useState(false);
+  1997→  const [loading, setLoading] = React.useState(false);
+  1998→  const [error, setError] = React.useState("");
+  1999→
+  2000→  const submit = async (e: React.FormEvent) => {
+
+[showing lines 1-2000 of 2212; use offset=2001 with limit to continue reading]

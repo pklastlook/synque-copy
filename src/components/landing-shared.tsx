@@ -70,31 +70,37 @@ export function LandingFooter() {
             <li><Link href="/features" className="text-xs text-muted-foreground transition hover:text-foreground">Features</Link></li>
             <li><Link href="/workflow" className="text-xs text-muted-foreground transition hover:text-foreground">Workflow</Link></li>
             <li><Link href="/pricing" className="text-xs text-muted-foreground transition hover:text-foreground">Pricing</Link></li>
+            <li><Link href="/ai-composer" className="text-xs text-muted-foreground transition hover:text-foreground">AI Composer</Link></li>
+            <li><Link href="/protection" className="text-xs text-muted-foreground transition hover:text-foreground">Account Protection</Link></li>
           </ul>
         </div>
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-foreground">Company</div>
           <ul className="mt-3 space-y-2">
             <li><Link href="/about" className="text-xs text-muted-foreground transition hover:text-foreground">About</Link></li>
-            <li><a href="#" className="text-xs text-muted-foreground transition hover:text-foreground">Blog</a></li>
-            <li><a href="#" className="text-xs text-muted-foreground transition hover:text-foreground">Contact</a></li>
+            <li><Link href="/blog" className="text-xs text-muted-foreground transition hover:text-foreground">Blog</Link></li>
+            <li><Link href="/contact" className="text-xs text-muted-foreground transition hover:text-foreground">Contact</Link></li>
+            <li><Link href="/careers" className="text-xs text-muted-foreground transition hover:text-foreground">Careers</Link></li>
+            <li><Link href="/customers" className="text-xs text-muted-foreground transition hover:text-foreground">Customers</Link></li>
           </ul>
         </div>
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-foreground">Resources</div>
           <ul className="mt-3 space-y-2">
-            <li><a href="#" className="text-xs text-muted-foreground transition hover:text-foreground">Documentation</a></li>
-            <li><a href="#" className="text-xs text-muted-foreground transition hover:text-foreground">Help Center</a></li>
-            <li><a href="#" className="text-xs text-muted-foreground transition hover:text-foreground">Status</a></li>
+            <li><Link href="/docs" className="text-xs text-muted-foreground transition hover:text-foreground">Documentation</Link></li>
+            <li><Link href="/api-reference" className="text-xs text-muted-foreground transition hover:text-foreground">API Reference</Link></li>
+            <li><Link href="/help" className="text-xs text-muted-foreground transition hover:text-foreground">Help Center</Link></li>
+            <li><Link href="/status" className="text-xs text-muted-foreground transition hover:text-foreground">Status</Link></li>
+            <li><Link href="/changelog" className="text-xs text-muted-foreground transition hover:text-foreground">Changelog</Link></li>
           </ul>
         </div>
       </div>
       <div className="mx-auto mt-8 flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-border/40 pt-6 text-xs text-muted-foreground sm:flex-row">
         <span>© 2026 SocialFlow · Social, Simplified</span>
         <div className="flex gap-4">
-          <a href="#" className="hover:text-foreground">Privacy</a>
-          <a href="#" className="hover:text-foreground">Terms</a>
-          <a href="#" className="hover:text-foreground">Security</a>
+          <Link href="/privacy" className="transition hover:text-foreground">Privacy</Link>
+          <Link href="/terms" className="transition hover:text-foreground">Terms</Link>
+          <Link href="/protection" className="transition hover:text-foreground">Security</Link>
         </div>
       </div>
     </footer>
