@@ -505,23 +505,14 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       <style>{LANDING_KEYFRAMES}</style>
       <CinematicNav onTrial={onTrial} onSignIn={onSignIn} />
       <Act1Hero onTrial={onTrial} onSignIn={onSignIn} />
-      <Transition from="#03060C" to="#1A0A0A" />
       <Act2Problem />
-      <Transition from="#1A0A0A" to="#0A1F1A" />
       <Act3Solution />
-      <Transition from="#0A1F1A" to="#1A1505" />
       <Act4Workflow onTrial={onTrial} />
-      <Transition from="#1A1505" to="#1F0A15" />
       <Act5Protection />
-      <Transition from="#1F0A15" to="#150A1F" />
       <Act6AIAssistant />
-      <Transition from="#150A1F" to="#0A1F1F" />
       <Act7Analytics onTrial={onTrial} />
-      <Transition from="#0A1F1F" to="#0F1419" />
       <Act8Comparison />
-      <Transition from="#0F1419" to="#0A0A2F" />
       <Act9Pricing onTrial={onTrial} />
-      <Transition from="#0A0A2F" to="#03060C" />
       <Act10FinalCTA onTrial={onTrial} />
       <Act11Footer />
     </div>
@@ -684,7 +675,7 @@ function Act2Problem() {
   return (
     <section
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #1A0A0A 0%, #2A0A0A 50%, #1A0A0A 100%)" }}
+      style={{ background: "linear-gradient(180deg, #03060C 0%, #2A0A0A 50%, #0A1F1A 100%)" }}
     >
       {/* Faint red aurora */}
       <div
@@ -760,7 +751,7 @@ function Act3Solution() {
     <section
       id="features"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #0A1F1A 0%, #0D2820 50%, #0A1F1A 100%)" }}
+      style={{ background: "linear-gradient(180deg, #0A1F1A 0%, #0D2820 50%, #1A1505 100%)" }}
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-60"
@@ -824,7 +815,7 @@ function Act4Workflow({ onTrial }: { onTrial: () => void }) {
     <section
       id="workflow"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #1A1505 0%, #2A1F0A 50%, #1A1505 100%)" }}
+      style={{ background: "linear-gradient(180deg, #1A1505 0%, #2A1F0A 50%, #1F0A15 100%)" }}
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-50"
@@ -945,7 +936,7 @@ function Act5Protection() {
     { icon: KeyRound,      t: "2FA enforcement",         d: "Require two-factor auth for every team member. No exceptions." },
   ];
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #1F0A15 0%, #2A0F1F 50%, #1F0A15 100%)" }}>
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #1F0A15 0%, #2A0F1F 50%, #150A1F 100%)" }}>
       <div
         className="pointer-events-none absolute inset-0 opacity-50"
         style={{
@@ -1057,7 +1048,7 @@ function FloatingTag({
 
 function Act6AIAssistant() {
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #150A1F 0%, #1F0A2A 50%, #150A1F 100%)" }}>
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #150A1F 0%, #1F0A2A 50%, #0A1F1F 100%)" }}>
       <div
         className="pointer-events-none absolute inset-0 opacity-60"
         style={{
@@ -1205,7 +1196,7 @@ function Act6AIAssistant() {
 
 function Act7Analytics({ onTrial }: { onTrial: () => void }) {
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #0A1F1F 0%, #0D2525 50%, #0A1F1F 100%)" }}>
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #0A1F1F 0%, #0D2525 50%, #0F1419 100%)" }}>
       <div
         className="pointer-events-none absolute inset-0 opacity-60"
         style={{
@@ -1340,7 +1331,7 @@ function Act8Comparison() {
     <section
       id="compare"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #0F1419 0%, #151B22 50%, #0F1419 100%)" }}
+      style={{ background: "linear-gradient(180deg, #0F1419 0%, #151B22 50%, #0A0A2F 100%)" }}
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-50"
@@ -1448,7 +1439,7 @@ function Act9Pricing({ onTrial }: { onTrial: () => void }) {
     <section
       id="pricing"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #0A0A2F 0%, #0F0F35 50%, #0A0A2F 100%)" }}
+      style={{ background: "linear-gradient(180deg, #0A0A2F 0%, #0F0F35 50%, #03060C 100%)" }}
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-60"

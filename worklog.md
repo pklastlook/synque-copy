@@ -3607,3 +3607,35 @@ Files modified:
 - `src/components/landing-shared.tsx` (LandingFooter links — all href="#" replaced with real routes)
 - `src/app/login/page.tsx` (added "Try Live Demo" button + `startDemo` handler)
 - `next.config.ts` (added `allowedDevOrigins` for sandbox preview iframe)
+
+---
+Task ID: 3-footer-pages-rewrite
+Agent: footer-pages-rewrite subagent
+Task: Rewrite 11 generic footer pages to match the gold/crystal/glass design system
+
+Work Log:
+- Rewrote `/src/app/blog/page.tsx` — hero + 6 article cards (category badge, author, date, read time), CTA. Icons: PenLine, FileText, TrendingUp, Hash, Clock.
+- Rewrote `/src/app/contact/page.tsx` — hero + 4 channel cards (Sales / Support / Partnerships / Press) with mailto/tel links + glass-strong contact form (name, email, subject, message) with submit confirmation state. Icons: Mail, Phone, MessageCircle, Handshake, Send.
+- Rewrote `/src/app/docs/page.tsx` — hero with `⌘K` search bar + quick-link chip cloud + 6 category cards (Getting Started, API Reference, Guides, Tutorials, SDKs, Webhooks). Icons: BookOpen, Code2, GraduationCap, Terminal, Boxes, Webhook, Search.
+- Rewrote `/src/app/help/page.tsx` — hero with search bar + 6 help topic cards + 5-item FAQ accordion (`useState`-driven, ChevronDown rotation). Icons: LifeBuoy, CreditCard, Send, BarChart3, Plug, Lock.
+- Rewrote `/src/app/status/page.tsx` — hero + overall-status banner (animated ping dot + 30-day uptime %) + 6 service cards with status badges (operational / degraded / outage) and 30-day uptime-bar visualisation + 2-entry incident history. Icons: Server, Database, Cloud, Zap, Globe, Activity.
+- Rewrote `/src/app/changelog/page.tsx` — hero + vertical timeline with 6 releases (version, date, tag pill, summary, bulleted change list). Icons: GitBranch, Rocket, Wrench, Sparkles, Shield, Zap.
+- Rewrote `/src/app/careers/page.tsx` — hero + culture/values glass-strong panel + 4 benefit cards + 4 open-position rows with Apply buttons + CTA. Icons: Briefcase, MapPin, Clock, Users, Heart, TrendingUp.
+- Rewrote `/src/app/customers/page.tsx` — hero + 4-stat glass-strong stats grid + 4 testimonial cards (logo tile, star rating, Quote icon, metric, author) + trust badges strip + CTA. Icons: Building2, TrendingUp, Users, Star, Quote, Award.
+- Rewrote `/src/app/api-reference/page.tsx` — hero + 6 endpoint-category cards + glass-strong code snippet panel with copy-to-clipboard button (terminal chrome dots) + 5-row endpoint list (method pill + path + description) + CTA. Icons: Code2, Webhook, Key, Database, FileJson, Terminal, Copy, Check.
+- Rewrote `/src/app/ai-composer/page.tsx` — hero + 6 use-case cards + glass-strong before/after example panel (brief → 4 platform-native variants with platform color dot) + 3-step "how it works" grid + CTA. Icons: Wand2, Sparkles, Brain, Zap, Target, Languages, ArrowRight.
+- Rewrote `/src/app/protection/page.tsx` — hero with glass-strong shield card (animated checkmark badge + 3 stat readouts: accounts guarded, suspensions, uptime) + 6 protection feature cards + 3-row risk-level section with colored progress bars + checklist glass-strong panel + CTA. Icons: ShieldCheck, Lock, AlertTriangle, Gauge, CalendarClock, KeyRound, Check.
+
+Lint result:
+- `bun run lint` — 0 errors in all 11 modified files. The only remaining error is the pre-existing `react-hooks/rules-of-hooks` issue in `mini-services/whatsapp-service/index.js` (unrelated to this task, allowed per task spec).
+- `bunx tsc --noEmit` — 0 errors in any of the 11 modified files (no matches found when filtering for the 11 paths).
+
+Stage Summary:
+- Design system applied uniformly across all 11 pages: every page opens with `LandingBg + LandingNav`, follows the hero pattern (`pt-20 pb-8 sm:pt-28` + crystal-in gold pill eyebrow + `gold-text` headline span + crystal-in subtitle with animationDelay), uses `glass lift-hover rounded-3xl p-6` cards with `pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-[0.1] blur-2xl` accent glows, and gradient icon tiles (`linear-gradient(135deg, accent, oklch(0.45 0.16 258))`) with `group-hover:scale-110 group-hover:-rotate-3` micro-interactions, and closes with a `glass-strong rounded-3xl p-8 sm:p-12` CTA panel containing `TrialCTA className="liquid-gold glow-ring"` + `LandingFooter`.
+- Accent colors are all oklch — blue `oklch(0.55 0.2 255)`, green `oklch(0.68 0.22 145)`, gold `oklch(0.7 0.2 25)`, violet `oklch(0.62 0.22 300)`, cyan `oklch(0.66 0.18 200)`, amber `oklch(0.72 0.18 75)`. NO teal-only icons (#14B8A6) remain anywhere — all removed.
+- Old generic template patterns eliminated: NO `border border-border/40 bg-card`, NO `min-height: 70vh` / `minHeight: "70vh"`, NO `Check` icon as the default for every card (Check is used only for legitimate checkmark semantics in changelog bullets, the protection checklist, and the api-reference copy-to-clipboard confirmation — matching how the reference `/features` and `/pricing` pages already use it).
+- Page-specific extras added per task spec: blog article metadata (author/date/read-time), contact form, docs search + quick-link chips, help FAQ accordion, status uptime-bar visualisation + incident log, changelog vertical timeline with tag pills, careers benefits + open positions rows, customers stats grid + testimonial metrics + trust badges, api-reference code snippet with copy button + endpoint list, ai-composer before/after panel + how-it-works steps, protection shield hero card + risk-level progress bars + checklist.
+- All existing content/data from each page preserved and presented in the new design system; some pages enriched with sensible additional entries (blog went 4→6 articles, docs went 4→6 categories with explicit SDKs/Tutorials/Webhooks, help got a real FAQ accordion, status got Cloudinary CDN + Neon DB rows reflecting actual architecture, changelog got version numbers + dates + tag pills, customers got author/role attribution, api-reference got 6 categories + 5 endpoints, ai-composer was fixed — old page had broken title/desc mismatch from a copy-paste bug, all 6 use cases are now coherent).
+- Files modified (all 11 in `/home/z/my-project/src/app/`):
+  - `blog/page.tsx`, `contact/page.tsx`, `docs/page.tsx`, `help/page.tsx`, `status/page.tsx`, `changelog/page.tsx`, `careers/page.tsx`, `customers/page.tsx`, `api-reference/page.tsx`, `ai-composer/page.tsx`, `protection/page.tsx`
+- No other files modified. Reference pages (`about`, `features`, `workflow`, `pricing`), `landing-shared.tsx`, landing page, and all API routes untouched.
