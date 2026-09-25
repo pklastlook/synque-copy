@@ -20,7 +20,6 @@ import {
   Rocket,
   Layers,
   Globe,
-  Heart,
   TrendingUp,
   Clock,
   ShieldAlert,
@@ -32,6 +31,19 @@ import {
   Building2,
   PhoneCall,
   Hash,
+  Play,
+  ChevronDown,
+  Send,
+  Bot,
+  Activity,
+  Eye as EyeIcon,
+  Gauge,
+  KeyRound,
+  CalendarClock,
+  Minus,
+  Edit3,
+  Image as ImageIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
@@ -75,562 +87,1680 @@ export function LandingPage() {
   );
 }
 
-/* ===================== Splash Screen ===================== */
-function SplashScreen({ onComplete }: { onComplete: () => void }) {
-  const [progress, setProgress] = React.useState(0);
-  const [done, setDone] = React.useState(false);
+/* ============================================================================
+   Cinematic Landing — Story Teller (11 Acts)
+   ----------------------------------------------------------------------------
+   Each act is a full-bleed section with its own deep mystic background colour,
+   separated by short gradient "Transition" bands that blend one act's palette
+   into the next. Scroll-triggered reveals use a tiny IntersectionObserver hook.
+   ============================================================================ */
 
+/* ----------------------------- Hooks & primitives ----------------------- */
+
+function useInView<T extends HTMLElement>(opts?: IntersectionObserverInit) {
+  const ref = React.useRef<T>(null);
+  const [inView, setInView] = React.useState(false);
   React.useEffect(() => {
-    let p = 0;
-    const iv = setInterval(() => {
-      p += Math.random() * 14 + 6;
-      if (p >= 100) {
-        p = 100;
-        clearInterval(iv);
-        setProgress(100);
-        setTimeout(() => setDone(true), 350);
-        setTimeout(onComplete, 1100);
-      } else {
-        setProgress(Math.floor(p));
-      }
-    }, 180);
-    return () => clearInterval(iv);
-  }, [onComplete]);
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") { setInView(true); return; }
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          obs.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -10% 0px", ...opts },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return { ref, inView };
+}
 
+type RevealProps = {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  y?: number;
+  once?: boolean;
+};
+
+function Reveal({ children, className, delay = 0, y = 24, once = true }: RevealProps) {
+  const { ref, inView } = useInView<HTMLDivElement>();
   return (
-    <div className={cn("relative min-h-screen overflow-hidden transition-opacity duration-500", done && "opacity-0")}>
-      <div className="retaina-bg" aria-hidden>
-        <div className="blob-3" />
-      </div>
-      <div className="relative flex min-h-screen flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
-        {/* Logo mark + SocialFlow text */}
-        <div className="crystal-in relative mb-4 flex flex-col items-center" style={{ animationDelay: "0.05s" }}>
-          <div className="pointer-events-none absolute inset-0 -z-10 scale-150 rounded-full bg-[var(--primary)]/20 blur-3xl" />
-          <Logo size={72} withTile={false} className="mb-4" />
-          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-            Social<span className="retaina-text">Flow</span>
-          </h1>
-        </div>
-        <div className="crystal-in text-center" style={{ animationDelay: "0.15s" }}>
-          <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Social, Simplified</p>
-        </div>
-
-        <div className="crystal-in mt-10 w-full max-w-xs" style={{ animationDelay: "0.3s" }}>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--gold)] transition-all duration-200 ease-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              {progress < 30 ? "Initializing workspace…" : progress < 60 ? "Loading modules…" : progress < 90 ? "Syncing accounts…" : "Almost there…"}
-            </span>
-            <span className="tabular-nums">{progress}%</span>
-          </div>
-        </div>
-
-        <div className="crystal-in mt-8 flex items-center gap-1.5" style={{ animationDelay: "0.4s" }}>
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]"
-              style={{ animation: `dotPulse 1.2s ease-in-out ${i * 0.15}s infinite` }}
-            />
-          ))}
-        </div>
-      </div>
-      <style>{`@keyframes dotPulse { 0%,80%,100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1.2); } }`}</style>
+    <div
+      ref={ref}
+      className={cn("transition-all duration-700 ease-out will-change-transform", className)}
+      style={{
+        transitionDelay: `${delay}ms`,
+        opacity: inView ? 1 : 0,
+        transform: inView ? "translateY(0)" : `translateY(${y}px)`,
+      }}
+    >
+      {children}
     </div>
   );
 }
 
-/* ===================== Landing — Story Teller ===================== */
+/* CSS particle field — pure CSS animation, JS only generates the dots */
+function ParticleField({
+  count = 28,
+  colors = ["#7DD3FC", "#22D3EE", "#5EEAD4", "#A78BFA"],
+  size = [2, 4],
+}: { count?: number; colors?: string[]; size?: [number, number] }) {
+  const dots = React.useMemo(() => {
+    const seed = 1337;
+    const rand = (i: number) => {
+      const x = Math.sin(seed + i * 12.9898) * 43758.5453;
+      return x - Math.floor(x);
+    };
+    return Array.from({ length: count }).map((_, i) => {
+      const s = size[0] + rand(i) * (size[1] - size[0]);
+      return {
+        left: rand(i * 7 + 1) * 100,
+        top: rand(i * 11 + 3) * 100,
+        size: s,
+        delay: rand(i * 5 + 7) * -20,
+        dur: 14 + rand(i * 3 + 9) * 18,
+        color: colors[i % colors.length],
+        drift: (rand(i * 13 + 2) - 0.5) * 60,
+      };
+    });
+  }, [count, colors, size]);
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      {dots.map((d, i) => (
+        <span
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            left: `${d.left}%`,
+            top: `${d.top}%`,
+            width: d.size,
+            height: d.size,
+            background: d.color,
+            boxShadow: `0 0 ${d.size * 3}px ${d.color}`,
+            animation: `sfParticleFloat ${d.dur}s linear ${d.delay}s infinite`,
+            ["--drift" as string]: `${d.drift}px`,
+            opacity: 0.5,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* Confetti — falling particles for the final CTA */
+function ConfettiField({ count = 36 }: { count?: number }) {
+  const pieces = React.useMemo(() => {
+    const colors = ["#22D3EE", "#5EEAD4", "#A78BFA", "#FBBF24", "#F472B6", "#34D399"];
+    const seed = 9001;
+    const rand = (i: number) => {
+      const x = Math.sin(seed + i * 7.91) * 43758.5453;
+      return x - Math.floor(x);
+    };
+    return Array.from({ length: count }).map((_, i) => ({
+      left: rand(i + 1) * 100,
+      delay: rand(i + 11) * -8,
+      dur: 5 + rand(i + 21) * 6,
+      size: 6 + rand(i + 31) * 8,
+      color: colors[i % colors.length],
+      rot: rand(i + 41) * 360,
+    }));
+  }, [count]);
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      {pieces.map((p, i) => (
+        <span
+          key={i}
+          className="absolute top-0 block"
+          style={{
+            left: `${p.left}%`,
+            width: p.size,
+            height: p.size * 0.5,
+            background: p.color,
+            borderRadius: 2,
+            transform: `rotate(${p.rot}deg)`,
+            animation: `sfConfettiFall ${p.dur}s linear ${p.delay}s infinite`,
+            opacity: 0.85,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* Typing chat bubble — pure CSS steps() typing reveal */
+function TypingBubble({
+  text,
+  durationMs = 4500,
+  className,
+}: { text: string; durationMs?: number; className?: string }) {
+  const { ref, inView } = useInView<HTMLDivElement>();
+  const chars = text.length;
+  return (
+    <div ref={ref} className={cn("relative", className)}>
+      <span
+        className="inline-block whitespace-pre-wrap align-top"
+        style={{
+          display: "inline-block",
+          maxWidth: "100%",
+          overflow: "hidden",
+          whiteSpace: "pre-wrap",
+          borderRight: "2px solid rgba(167,139,250,0.9)",
+          animation: inView
+            ? `sfTyping ${durationMs}ms steps(${chars}, end) 0.2s both, sfBlink 0.9s step-end infinite`
+            : "none",
+        }}
+      >
+        {text}
+      </span>
+      <style>{`
+        @keyframes sfTyping { from { width: 0; } to { width: 100%; } }
+        @keyframes sfBlink { 50% { border-color: transparent; } }
+      `}</style>
+    </div>
+  );
+}
+
+/* Growing chart bars — animated height on inView */
+function GrowingBars({
+  values,
+  color = "linear-gradient(to top, #14B8A6, #5EEAD4)",
+  className,
+  barClassName,
+}: {
+  values: number[];
+  color?: string;
+  className?: string;
+  barClassName?: string;
+}) {
+  const { ref, inView } = useInView<HTMLDivElement>();
+  return (
+    <div ref={ref} className={cn("flex h-full items-end gap-1.5", className)}>
+      {values.map((v, i) => (
+        <span
+          key={i}
+          className={cn("flex-1 rounded-t-md", barClassName)}
+          style={{
+            background: color,
+            height: inView ? `${v}%` : "0%",
+            transition: `height 900ms cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 70}ms`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* Animated aurora/nebula hero background — pure CSS drifting blobs */
+function AuroraHero() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      {/* Deep base */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 0%, #0E2A4F 0%, #0A1A2F 35%, #050B16 75%, #03060C 100%)",
+        }}
+      />
+      {/* Aurora layers — drifting */}
+      <div
+        className="absolute -top-[20%] left-[5%] h-[60vh] w-[60vw] rounded-full opacity-50 blur-3xl"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(45,212,191,0.55), transparent 65%)",
+          animation: "sfAuroraDrift 22s ease-in-out infinite",
+        }}
+      />
+      <div
+        className="absolute top-[10%] right-[0%] h-[55vh] w-[55vw] rounded-full opacity-40 blur-3xl"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(34,211,238,0.55), transparent 65%)",
+          animation: "sfAuroraDrift 28s ease-in-out -4s infinite reverse",
+        }}
+      />
+      <div
+        className="absolute bottom-[-10%] left-[30%] h-[50vh] w-[60vw] rounded-full opacity-35 blur-3xl"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(99,102,241,0.45), transparent 70%)",
+          animation: "sfAuroraDrift 26s ease-in-out -8s infinite",
+        }}
+      />
+      {/* Shimmer sweep */}
+      <div
+        className="absolute inset-0 opacity-20"
+        style={{
+          background:
+            "linear-gradient(115deg, transparent 30%, rgba(94,234,212,0.18) 50%, transparent 70%)",
+          backgroundSize: "200% 200%",
+          animation: "sfShimmerSweep 9s ease-in-out infinite",
+        }}
+      />
+      {/* Subtle starfield */}
+      <ParticleField count={36} colors={["#7DD3FC", "#5EEAD4", "#A78BFA", "#E0F2FE"]} size={[1.5, 3]} />
+    </div>
+  );
+}
+
+/* Gradient transition band between two acts */
+function Transition({ from, to, height = 120 }: { from: string; to: string; height?: number }) {
+  return (
+    <div
+      aria-hidden
+      className="w-full"
+      style={{ height, background: `linear-gradient(to bottom, ${from}, ${to})` }}
+    />
+  );
+}
+
+/* Eyebrow pill used at the top of each act */
+function Eyebrow({
+  icon: Icon,
+  label,
+  color,
+}: { icon: LucideIcon; label: string; color: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur-md"
+      style={{
+        background: `${color}1A`,
+        borderColor: `${color}40`,
+        color,
+      }}
+    >
+      <Icon className="h-3.5 w-3.5" /> {label}
+    </span>
+  );
+}
+
+/* A glass card with subtle accent glow + hover lift, themed per act */
+function MysticCard({
+  accent,
+  children,
+  className,
+  glow = false,
+}: {
+  accent: string;
+  children: React.ReactNode;
+  className?: string;
+  glow?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:border-white/20",
+        className,
+      )}
+      style={{
+        boxShadow: glow ? `0 0 0 1px ${accent}20, 0 30px 80px -30px ${accent}40` : undefined,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-[0.15] blur-3xl transition-opacity duration-500 group-hover:opacity-30"
+        style={{ background: accent }}
+      />
+      <div className="relative">{children}</div>
+    </div>
+  );
+}
+
+/* Icon tile with colored circle background */
+function IconTile({
+  icon: Icon,
+  color,
+  size = "md",
+}: {
+  icon: LucideIcon;
+  color: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  const dims = size === "lg" ? "h-14 w-14" : size === "sm" ? "h-10 w-10" : "h-12 w-12";
+  const ic = size === "lg" ? "h-6 w-6" : size === "sm" ? "h-4 w-4" : "h-5 w-5";
+  return (
+    <div
+      className={cn("relative grid place-items-center rounded-2xl border backdrop-blur-md", dims)}
+      style={{ background: `${color}1F`, borderColor: `${color}40` }}
+    >
+      <span
+        className="pointer-events-none absolute inset-0 rounded-2xl opacity-40 blur-md"
+        style={{ background: color }}
+      />
+      <Icon className={cn("relative", ic)} style={{ color }} />
+    </div>
+  );
+}
+
+/* Shared glow CTA button — teal/cyan accent */
+function GlowCTA({
+  children,
+  onClick,
+  className,
+  tone = "teal",
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
+  tone?: "teal" | "violet" | "amber" | "rose" | "emerald" | "indigo";
+}) {
+  const tones: Record<string, { bg: string; glow: string; text: string }> = {
+    teal:    { bg: "linear-gradient(135deg, #14B8A6, #06B6D4)", glow: "rgba(45,212,191,0.65)", text: "#04181A" },
+    violet:  { bg: "linear-gradient(135deg, #8B5CF6, #6366F1)", glow: "rgba(139,92,246,0.65)", text: "#11081F" },
+    amber:   { bg: "linear-gradient(135deg, #F59E0B, #F97316)", glow: "rgba(251,191,36,0.6)",  text: "#1A1003" },
+    rose:    { bg: "linear-gradient(135deg, #F43F5E, #EC4899)", glow: "rgba(244,63,94,0.6)",  text: "#1F0710" },
+    emerald: { bg: "linear-gradient(135deg, #10B981, #059669)", glow: "rgba(16,185,129,0.6)", text: "#04140E" },
+    indigo:  { bg: "linear-gradient(135deg, #6366F1, #818CF8)", glow: "rgba(99,102,241,0.6)", text: "#0A0A1F" },
+  };
+  const t = tones[tone];
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl px-7 py-3.5 text-sm font-bold tracking-tight transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.98]",
+        className,
+      )}
+      style={{
+        background: t.bg,
+        color: t.text,
+        boxShadow: `0 1px 0 rgba(255,255,255,0.4) inset, 0 8px 30px -8px ${t.glow}, 0 0 0 1px rgba(255,255,255,0.1)`,
+      }}
+    >
+      {/* Sheen sweep */}
+      <span
+        className="pointer-events-none absolute inset-0 -translate-x-full transition-transform duration-700 group-hover:translate-x-full"
+        style={{ background: "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%)" }}
+      />
+      <span className="relative flex items-center gap-2">{children}</span>
+    </button>
+  );
+}
+
+/* Secondary outline CTA */
+function OutlineCTA({
+  children,
+  onClick,
+  className,
+}: { children: React.ReactNode; onClick?: () => void; className?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all duration-300 hover:border-white/40 hover:bg-white/10 hover:-translate-y-0.5",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ============================================================================
+   Landing — 11 Cinematic Acts
+   ============================================================================ */
+
 function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
   return (
-    <div className="relative min-h-screen overflow-x-hidden">
-      <div className="retaina-bg" aria-hidden>
-        <div className="blob-3" />
-      </div>
+    <div className="relative min-h-screen overflow-x-hidden bg-[#03060C] text-white antialiased selection:bg-cyan-400/30">
+      <style>{LANDING_KEYFRAMES}</style>
+      <CinematicNav onTrial={onTrial} onSignIn={onSignIn} />
+      <Act1Hero onTrial={onTrial} onSignIn={onSignIn} />
+      <Transition from="#03060C" to="#1A0A0A" />
+      <Act2Problem />
+      <Transition from="#1A0A0A" to="#0A1F1A" />
+      <Act3Solution />
+      <Transition from="#0A1F1A" to="#1A1505" />
+      <Act4Workflow onTrial={onTrial} />
+      <Transition from="#1A1505" to="#1F0A15" />
+      <Act5Protection />
+      <Transition from="#1F0A15" to="#150A1F" />
+      <Act6AIAssistant />
+      <Transition from="#150A1F" to="#0A1F1F" />
+      <Act7Analytics onTrial={onTrial} />
+      <Transition from="#0A1F1F" to="#0F1419" />
+      <Act8Comparison />
+      <Transition from="#0F1419" to="#0A0A2F" />
+      <Act9Pricing onTrial={onTrial} />
+      <Transition from="#0A0A2F" to="#03060C" />
+      <Act10FinalCTA onTrial={onTrial} />
+      <Act11Footer />
+    </div>
+  );
+}
 
-      {/* Nav */}
-      <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-3 flex w-[calc(100%-1rem)] max-w-6xl items-center justify-between rounded-2xl px-4 py-3 sm:mt-4 sm:w-[calc(100%-2rem)] sm:px-5 lg:w-[calc(100%-3rem)]">
-        <LogoWordmark size="text-[17px]" logoSize={26} />
-        <div className="hidden items-center gap-6 md:flex">
-          <a href="/features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</a>
-          <a href="/workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</a>
-          <a href="/pricing" className="text-sm text-muted-foreground transition hover:text-foreground">Pricing</a>
-          <a href="/about" className="text-sm text-muted-foreground transition hover:text-foreground">About</a>
+/* --------------------------------- Nav ---------------------------------- */
+
+function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+  const [scrolled, setScrolled] = React.useState(false);
+  React.useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  return (
+    <nav
+      className={cn(
+        "fixed left-1/2 top-3 z-50 w-[calc(100%-1rem)] max-w-6xl -translate-x-1/2 rounded-2xl px-4 py-3 transition-all duration-300 sm:w-[calc(100%-2rem)] sm:px-5",
+        scrolled
+          ? "border border-white/10 bg-[#03060C]/80 backdrop-blur-xl shadow-[0_8px_40px_-8px_rgba(0,0,0,0.6)]"
+          : "border border-transparent bg-transparent",
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <Logo size={28} withTile={false} />
+          <span className="text-base font-bold tracking-tight">SocialFlow</span>
+        </div>
+        <div className="hidden items-center gap-7 md:flex">
+          <a href="#features"  className="text-sm text-white/70 transition hover:text-white">Features</a>
+          <a href="#workflow"   className="text-sm text-white/70 transition hover:text-white">Workflow</a>
+          <a href="#pricing"    className="text-sm text-white/70 transition hover:text-white">Pricing</a>
+          <a href="#compare"    className="text-sm text-white/70 transition hover:text-white">Compare</a>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onSignIn} className="hidden min-h-11 items-center rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:flex">
+          <button
+            onClick={onSignIn}
+            className="hidden min-h-10 items-center rounded-xl px-3 text-sm font-medium text-white/70 transition hover:text-white sm:flex"
+          >
             Sign in
           </button>
-          <button onClick={onTrial} className="liquid-gold glow-ring flex min-h-11 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold">
-            Start 15-day trial <ArrowRight className="h-3.5 w-3.5" />
-          </button>
+          <GlowCTA onClick={onTrial} className="px-5 py-2.5 text-[13px]" tone="teal">
+            <Rocket className="h-4 w-4" /> Start trial
+          </GlowCTA>
         </div>
-      </nav>
+      </div>
+    </nav>
+  );
+}
 
-      {/* ===== Story Act 1: The Problem ===== */}
-      <section id="story" className="relative mx-auto max-w-6xl px-4 pt-16 pb-12 sm:px-6 sm:pt-20 sm:pb-16 lg:px-8 lg:pt-28">
-        <div className="grid items-center gap-8 sm:gap-10 lg:grid-cols-2 lg:gap-12">
-          <div>
-            <div className="crystal-in mb-6 inline-flex items-center gap-2 rounded-full border border-border/40 bg-muted/30 px-4 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--gold)] opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--gold)]" />
-              </span>
-              The enterprise platform for social media teams
-            </div>
-            <h1 className="crystal-in text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl sm:leading-[1.05] lg:text-7xl" style={{ animationDelay: "0.1s" }}>
-              One flow.
-              <br />
-              <span className="gold-text">Every platform.</span>
-              <br />
-              Zero chaos.
-            </h1>
-            <p className="crystal-in mt-6 max-w-xl text-sm text-muted-foreground sm:text-base lg:text-lg" style={{ animationDelay: "0.2s" }}>
-              Your team posts to 7+ platforms every day. Switching tabs, copy-pasting captions,
-              praying nothing gets suspended. SocialFlow turns that chaos into one calm, AI-powered flow —
-              so your dissemination team ships more, faster.
-            </p>
-            <div className="crystal-in mt-8 flex flex-col gap-3 sm:flex-row" style={{ animationDelay: "0.3s" }}>
-              <button onClick={onTrial} className="liquid-pill glow-ring flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold sm:w-auto">
-                <Rocket className="h-4 w-4" />
-                Start 15-day trial
-              </button>
-              <button onClick={onSignIn} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border/50 bg-muted/30 px-6 py-3 text-sm font-semibold backdrop-blur transition hover:bg-muted/60 sm:w-auto">
-                Sign in
-              </button>
-            </div>
-            <div className="crystal-in mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] text-muted-foreground" style={{ animationDelay: "0.4s" }}>
-              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-500" /> No card to explore</span>
-              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-500" /> Cancel anytime</span>
-              <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-500" /> 15 days full access</span>
-            </div>
-          </div>
-          {/* Animated dashboard preview */}
-          <div className="crystal-in relative" style={{ animationDelay: "0.25s" }}>
-            <div className="glass-strong rounded-3xl p-4 shadow-2xl">
-              <div className="mb-3 flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                <span className="ml-2 text-[10px] text-muted-foreground">socialflow.app/dashboard</span>
-                <span className="ml-2 rounded-full bg-muted/60 px-1.5 py-0.5 text-[8px] text-muted-foreground">illustrative</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { l: "Followers", v: "1.6M", c: "oklch(0.55 0.2 255)", d: "+1%" },
-                  { l: "Impressions", v: "2.4M", c: "oklch(0.62 0.22 300)", d: "+18%" },
-                  { l: "Engagement", v: "191K", c: "oklch(0.7 0.2 25)", d: "+4%" },
-                ].map((k, i) => (
-                  <div key={k.l} className="crystal-card glass rounded-2xl p-3" style={{ animationDelay: `${0.4 + i * 0.1}s` }}>
-                    <div className="grid h-7 w-7 place-items-center rounded-lg text-white" style={{ background: k.c }}>
-                      <BarChart3 className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="mt-2 num-display text-lg font-bold">{k.v}</div>
-                    <div className="text-[9px] text-muted-foreground">{k.l}</div>
-                    <div className="text-[9px] font-semibold text-emerald-500">{k.d}</div>
-                  </div>
-                ))}
-              </div>
-              {/* mini animated chart */}
-              <div className="mt-3 crystal-card glass rounded-2xl p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[10px] font-semibold">Performance trend</span>
-                  <span className="text-[9px] text-muted-foreground">14 days</span>
-                </div>
-                <div className="flex h-16 items-end gap-1">
-                  {[35, 48, 42, 58, 65, 52, 70, 78, 68, 82, 75, 90, 85, 95].map((h, i) => (
-                    <span
-                      key={i}
-                      className="flex-1 rounded-t-sm"
-                      style={{
-                        height: `${h}%`,
-                        background: "linear-gradient(to top, var(--primary), var(--gold))",
-                        animation: `sparkRise 0.6s cubic-bezier(0.34,1.56,0.64,1) ${0.5 + i * 0.04}s both`,
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="pointer-events-none absolute -inset-4 -z-10 hidden rounded-[2rem] bg-[var(--primary)]/10 blur-2xl lg:block" />
-          </div>
-        </div>
-      </section>
+/* ----------------------------- Act 1: Hero ------------------------------ */
 
-      {/* ===== Story Act 2: The Pain (before/after) ===== */}
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="crystal-in glass-strong rounded-3xl p-5 sm:p-8 lg:p-12">
-          <div className="text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-500">
-              <ShieldAlert className="h-3 w-3" /> The old way
+function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+  return (
+    <section className="relative min-h-screen w-full overflow-hidden">
+      <AuroraHero />
+      {/* Subtle bottom fade into Act 2 */}
+      <div
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-40"
+        style={{ background: "linear-gradient(to bottom, transparent, #03060C)" }}
+      />
+
+      <div className="relative z-20 mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 pt-24 pb-32 text-center sm:px-6 lg:px-8">
+        <Reveal>
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300 backdrop-blur-md">
+            <Sparkles className="h-3.5 w-3.5" />
+            The enterprise command center for social teams
+          </span>
+        </Reveal>
+
+        <Reveal delay={120}>
+          <h1 className="mt-8 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            <span className="block text-white">One flow.</span>
+            <span
+              className="mt-2 block bg-clip-text text-transparent"
+              style={{
+                backgroundImage: "linear-gradient(120deg, #5EEAD4, #22D3EE 30%, #A78BFA 60%, #FBBF24 100%)",
+                backgroundSize: "200% 200%",
+                animation: "sfGradientText 8s ease-in-out infinite",
+              }}
+            >
+              Every platform.
             </span>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-              Social media management is <span className="text-rose-500">broken</span>
+            <span className="mt-2 block text-white/95">Zero chaos.</span>
+          </h1>
+        </Reveal>
+
+        <Reveal delay={240}>
+          <p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">
+            Your team posts to 7+ platforms every day. Switching tabs, copy-pasting captions,
+            praying nothing gets suspended. SocialFlow turns that chaos into one calm, AI-powered flow —
+            so your team ships more, faster.
+          </p>
+        </Reveal>
+
+        <Reveal delay={360}>
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <GlowCTA onClick={onTrial} tone="teal" className="min-w-[260px]">
+              <Rocket className="h-4 w-4" /> Start 15-day free trial
+            </GlowCTA>
+            <OutlineCTA onClick={onSignIn} className="min-w-[200px]">
+              <Play className="h-4 w-4" /> Watch demo
+            </OutlineCTA>
+          </div>
+        </Reveal>
+
+        <Reveal delay={480}>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-white/60">
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> No credit card required</span>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Cancel anytime</span>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> 25GB free media storage</span>
+          </div>
+        </Reveal>
+
+        {/* Scroll indicator */}
+        <div className="pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2">
+          <ChevronDown
+            className="h-6 w-6 text-white/40"
+            style={{ animation: "sfChevronBounce 1.8s ease-in-out infinite" }}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- Act 2: Problem ----------------------------- */
+
+function Act2Problem() {
+  const problems = [
+    { icon: Layers,       t: "7 tabs open",          d: "Instagram, X, LinkedIn, TikTok… each its own tab. Copy-paste fatigue is real.", accent: "#F87171" },
+    { icon: ShieldAlert,  t: "Accounts suspended",  d: "Your team posts too fast, uses banned hashtags, gets flagged — and gone.",         accent: "#FB7185" },
+    { icon: Clock,        t: "Content stuck",        d: "Drafts live in DMs and spreadsheets. Nobody knows what's ready to publish.",   accent: "#FBBF24" },
+    { icon: MessageCircle,t: "Inbox chaos",          d: "Comments scattered across 10 accounts. Half of them go unanswered.",          accent: "#C084FC" },
+  ];
+  return (
+    <section
+      className="relative w-full overflow-hidden py-24 sm:py-32"
+      style={{ background: "linear-gradient(180deg, #1A0A0A 0%, #2A0A0A 50%, #1A0A0A 100%)" }}
+    >
+      {/* Faint red aurora */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-50"
+        style={{
+          background:
+            "radial-gradient(ellipse at 30% 20%, rgba(244,63,94,0.18), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(220,38,38,0.18), transparent 60%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <Reveal>
+            <Eyebrow icon={ShieldAlert} label="The old way" color="#F87171" />
+          </Reveal>
+          <Reveal delay={100}>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              Social media management is <span className="text-rose-400">broken</span>
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
               Teams waste hours every day context-switching between tools. Accounts get suspended.
               Content gets lost. Here&apos;s what your team deals with right now:
             </p>
-          </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          </Reveal>
+        </div>
+
+        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {problems.map((p, i) => (
+            <Reveal key={p.t} delay={i * 120}>
+              <MysticCard accent={p.accent} glow className="h-full p-6">
+                <div
+                  className="absolute inset-0 -z-10 rounded-3xl opacity-50"
+                  style={{
+                    background: `radial-gradient(circle at 50% 0%, ${p.accent}25, transparent 70%)`,
+                    animation: "sfPulseGlow 3s ease-in-out infinite",
+                    ["--glow" as string]: `${p.accent}40`,
+                  }}
+                />
+                <IconTile icon={p.icon} color={p.accent} size="lg" />
+                <h3 className="mt-5 text-lg font-bold text-white">{p.t}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/65">{p.d}</p>
+              </MysticCard>
+            </Reveal>
+          ))}
+        </div>
+
+        {/* Pain stat strip */}
+        <Reveal delay={500}>
+          <div className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/5 sm:grid-cols-4">
             {[
-              { icon: Layers, t: "7 tabs open", d: "Instagram, X, LinkedIn, TikTok… each its own tab. Copy-paste fatigue.", accent: "oklch(0.62 0.22 300)" },
-              { icon: ShieldAlert, t: "Accounts suspended", d: "Your team posts too fast, uses banned hashtags, gets flagged.", accent: "oklch(0.7 0.2 25)" },
-              { icon: Clock, t: "Content stuck", d: "Drafts wait in DMs and spreadsheets. Nobody knows what's ready to publish.", accent: "oklch(0.72 0.18 75)" },
-              { icon: MessageCircle, t: "Inbox chaos", d: "Comments scattered across 10 accounts. Half go unanswered.", accent: "oklch(0.66 0.18 200)" },
-            ].map((p, i) => (
-              <div key={p.t} className="crystal-in crystal-card glass rounded-2xl p-5 lift-hover group" style={{ animationDelay: `${0.1 * i + 0.1}s` }}>
-                <div className="relative grid h-11 w-11 place-items-center rounded-xl border backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" style={{ background: `${p.accent}15`, borderColor: `${p.accent}30` }}>
-                  <span className="pointer-events-none absolute inset-0 rounded-xl opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70" style={{ background: p.accent }} />
-                  <span className="relative transition-transform duration-300 group-hover:scale-110" style={{ color: p.accent }}>
-                    <p.icon className="h-5 w-5" />
-                  </span>
-                </div>
-                <h3 className="mt-3 text-sm font-semibold">{p.t}</h3>
-                <p className="mt-1 text-xs text-muted-foreground">{p.d}</p>
+              { v: "11 hrs",  l: "Lost weekly per teammate to tab-switching" },
+              { v: "1 in 4",  l: "Accounts suspended in their first 90 days" },
+              { v: "$3.2K",   l: "Average cost per missed campaign deadline" },
+              { v: "62%",     l: "Of DMs go unanswered within 24 hours" },
+            ].map((s) => (
+              <div key={s.l} className="bg-black/30 p-6 text-center">
+                <div className="text-3xl font-bold text-rose-400 sm:text-4xl">{s.v}</div>
+                <div className="mt-2 text-[11px] uppercase tracking-wider text-white/55">{s.l}</div>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
 
-      {/* ===== Story Act 3: The Solution (features) ===== */}
-      <section id="features" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="mb-10 text-center">
-          <span className="crystal-in inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
-            <Zap className="h-3 w-3" /> The SocialFlow way
-          </span>
-          <h2 className="crystal-in mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl" style={{ animationDelay: "0.1s" }}>
-            Everything your team needs to <span className="gold-text">win social</span>
-          </h2>
-          <p className="crystal-in mt-3 text-muted-foreground" style={{ animationDelay: "0.2s" }}>
-            From ideation to publishing to protection — one premium platform, 17 integrated modules.
-          </p>
+/* --------------------------- Act 3: Solution ---------------------------- */
+
+function Act3Solution() {
+  return (
+    <section
+      id="features"
+      className="relative w-full overflow-hidden py-24 sm:py-32"
+      style={{ background: "linear-gradient(180deg, #0A1F1A 0%, #0D2820 50%, #0A1F1A 100%)" }}
+    >
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{
+          background:
+            "radial-gradient(ellipse at 20% 30%, rgba(16,185,129,0.18), transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(45,212,191,0.18), transparent 60%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <Reveal>
+            <Eyebrow icon={Sparkles} label="The SocialFlow way" color="#34D399" />
+          </Reveal>
+          <Reveal delay={100}>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              Everything your team needs to <span className="text-emerald-400">win social</span>
+            </h2>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+              From ideation to publishing to protection — one premium platform, 9 integrated modules.
+              Each built for teams that ship daily.
+            </p>
+          </Reveal>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
-            <div
-              key={f.title}
-              className="crystal-in crystal-card glass lift-hover group relative overflow-hidden rounded-3xl p-6"
-              style={{ animationDelay: `${0.05 * i + 0.1}s` }}
-            >
-              <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-[0.12] blur-2xl transition duration-500 group-hover:opacity-25 group-hover:scale-125" style={{ background: f.accent }} />
-              {/* Premium icon — glass tile with accent color (matches sidebar/KPI style) */}
-              <div className="relative grid h-12 w-12 place-items-center rounded-xl border backdrop-blur-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3" style={{ background: `${f.accent}15`, borderColor: `${f.accent}30` }}>
-                <span className="pointer-events-none absolute inset-0 rounded-xl opacity-40 blur-md transition-opacity duration-300 group-hover:opacity-70" style={{ background: f.accent }} />
-                <span className="relative transition-transform duration-300 group-hover:scale-110" style={{ color: f.accent }}>
-                  <f.icon className="h-5 w-5" />
-                </span>
-              </div>
-              <h3 className="relative mt-4 text-lg font-semibold">{f.title}</h3>
-              <p className="relative mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
-              <div className="relative mt-3 flex items-center gap-1 text-xs font-medium opacity-0 transition group-hover:opacity-100" style={{ color: f.accent }}>
-                Learn more <ArrowRight className="h-3 w-3" />
-              </div>
-            </div>
+            <Reveal key={f.title} delay={(i % 3) * 100}>
+              <MysticCard accent={f.accent} className="h-full p-6">
+                <div className="flex items-start justify-between">
+                  <IconTile icon={f.icon} color={f.accent} />
+                  <span
+                    className="grid h-7 w-7 place-items-center rounded-full border border-white/10 text-white/40 transition group-hover:bg-white/10 group-hover:text-white/80"
+                  >
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+                <h3 className="mt-5 text-lg font-bold text-white">{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/65">{f.desc}</p>
+              </MysticCard>
+            </Reveal>
           ))}
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* ===== Story Act 4: The Workflow ===== */}
-      <section id="workflow" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="crystal-in glass-strong overflow-hidden rounded-3xl p-5 sm:p-8 lg:p-12">
-          <div className="grid items-center gap-8 lg:grid-cols-2">
-            <div>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
-                <Zap className="h-3 w-3" /> The SocialFlow flow
-              </div>
-              <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-                Write once. Publish <span className="gold-text">everywhere.</span>
-              </h2>
-              <p className="mt-3 text-muted-foreground">
-                Compose one brief. Our AI generates distinct, platform-native captions for every
-                account — respecting each platform&apos;s tone, length, and hashtag conventions.
-                Review, approve, and publish to all in a single flow.
-              </p>
-              {/* Steps */}
-              <div className="mt-6 space-y-4">
-                {[
-                  { n: "01", t: "Select accounts", d: "Pick from Instagram, X, LinkedIn, TikTok, YouTube, Facebook, Threads." },
-                  { n: "02", t: "Write your brief", d: "One caption + tone. AI does the rest per platform." },
-                  { n: "03", t: "Upload media", d: "Drop your image or video once. We adapt it." },
-                  { n: "04", t: "Preview & publish", d: "See per-account variants in phone-style previews." },
-                  { n: "05", t: "Publish or schedule", d: "One click sends it to every account — or queues it." },
-                ].map((s, i) => (
-                  <div key={s.n} className="crystal-in flex items-start gap-3" style={{ animationDelay: `${0.1 * i + 0.2}s` }}>
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-xs font-bold text-white">
-                      {s.n}
-                    </span>
-                    <div>
-                      <div className="text-sm font-semibold">{s.t}</div>
-                      <div className="text-xs text-muted-foreground">{s.d}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button onClick={onTrial} className="liquid-gold glow-ring mt-8 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold sm:w-auto">
-                Try the composer <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+/* --------------------------- Act 4: Workflow ---------------------------- */
+
+function Act4Workflow({ onTrial }: { onTrial: () => void }) {
+  const steps = [
+    { n: "01", icon: Edit3, t: "Write brief",       d: "One caption, tone, and goal — that's it.",       accent: "#FBBF24" },
+    { n: "02", icon: Wand2, t: "AI generates variants", d: "Distinct, platform-native captions per account.", accent: "#F59E0B" },
+    { n: "03", icon: ImageIcon, t: "Add media",     d: "Drop your image or video once. We adapt it.",    accent: "#F97316" },
+    { n: "04", icon: Eye,   t: "Review",            d: "Phone-style previews per platform before publish.", accent: "#FB923C" },
+    { n: "05", icon: Send,  t: "Publish",           d: "One click sends it everywhere — or queues it.",  accent: "#22D3EE" },
+  ];
+  return (
+    <section
+      id="workflow"
+      className="relative w-full overflow-hidden py-24 sm:py-32"
+      style={{ background: "linear-gradient(180deg, #1A1505 0%, #2A1F0A 50%, #1A1505 100%)" }}
+    >
+      <div
+        className="pointer-events-none absolute inset-0 opacity-50"
+        style={{
+          background:
+            "radial-gradient(ellipse at 25% 30%, rgba(251,191,36,0.18), transparent 60%), radial-gradient(ellipse at 75% 80%, rgba(249,115,22,0.15), transparent 60%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <Reveal>
+            <Eyebrow icon={Zap} label="The SocialFlow flow" color="#FBBF24" />
+          </Reveal>
+          <Reveal delay={100}>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              Write once. Publish <span className="text-amber-400">everywhere.</span>
+            </h2>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+              Compose one brief. Our AI generates distinct, platform-native captions for every account —
+              respecting each platform&apos;s tone, length, and hashtag conventions.
+            </p>
+          </Reveal>
+        </div>
+
+        {/* Horizontal step flow */}
+        <Reveal delay={300}>
+          <div className="mt-16 hidden lg:block">
             <div className="relative">
-              <div className="glass rounded-3xl p-5">
-                <div className="flex items-center gap-2 border-b border-border/40 pb-3">
-                  <Wand2 className="h-4 w-4 text-[var(--gold)]" />
-                  <span className="text-sm font-semibold">AI Composer</span>
-                  <span className="ml-auto rounded-full bg-[var(--gold)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--gold)]">5 accounts</span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {[
-                    { p: "Instagram", c: "For creators who move fast. 🚀 Built to last, made to inspire..." },
-                    { p: "X", c: "Move fast, create faster. New collection, live now. 🚀" },
-                    { p: "LinkedIn", c: "We're excited to introduce our latest collection engineered for..." },
-                    { p: "TikTok", c: "IT'S HERE!!! ✨ New drop just went live for creators who hustle" },
-                    { p: "Threads", c: "New collection just dropped. Tap in. 🔥" },
-                  ].map((v, i) => (
-                    <div key={v.p} className="crystal-in flex items-start gap-2.5 rounded-xl bg-muted/30 p-2.5" style={{ animationDelay: `${0.15 * i + 0.3}s` }}>
-                      <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />
-                      <div className="min-w-0">
-                        <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--gold)]">{v.p}</div>
-                        <div className="truncate text-xs text-muted-foreground">{v.c}</div>
+              {/* Connecting line */}
+              <div className="absolute left-0 right-0 top-7 h-px bg-gradient-to-r from-amber-500/10 via-amber-400/50 to-cyan-400/50" />
+              <div className="grid grid-cols-5 gap-3">
+                {steps.map((s, i) => (
+                  <Reveal key={s.n} delay={i * 120}>
+                    <div className="flex flex-col items-center text-center">
+                      <div
+                        className="relative grid h-14 w-14 place-items-center rounded-2xl border backdrop-blur-md"
+                        style={{
+                          background: `${s.accent}1F`,
+                          borderColor: `${s.accent}55`,
+                          boxShadow: `0 0 30px -8px ${s.accent}80`,
+                        }}
+                      >
+                        <s.icon className="h-6 w-6" style={{ color: s.accent }} />
+                      </div>
+                      <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">{s.n}</div>
+                      <div className="mt-1 text-sm font-bold text-white">{s.t}</div>
+                      <div className="mt-1 text-xs text-white/60">{s.d}</div>
+                      {/* Progress bar */}
+                      <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            background: s.accent,
+                            animation: "sfBarGrow 1.2s cubic-bezier(0.34,1.56,0.64,1) both",
+                            animationDelay: `${0.3 + i * 0.15}s`,
+                            ["--target-w" as string]: `${(i + 1) * 20}%`,
+                            width: `${(i + 1) * 20}%`,
+                          }}
+                        />
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </Reveal>
+                ))}
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </Reveal>
 
-      {/* ===== Story Act 5: Protection ===== */}
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="crystal-in glass-strong rounded-3xl p-5 sm:p-8 lg:p-12">
-          <div className="grid items-center gap-8 lg:grid-cols-2">
-            <div className="order-2 lg:order-1">
-              <div className="glass rounded-3xl p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">Account Health</span>
-                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-500">Healthy</span>
+        {/* Mobile vertical step flow */}
+        <div className="mt-12 lg:hidden">
+          <div className="relative space-y-4 pl-8">
+            <div className="absolute left-[26px] top-2 bottom-2 w-px bg-gradient-to-b from-amber-400/50 via-amber-500/30 to-cyan-400/50" />
+            {steps.map((s, i) => (
+              <Reveal key={s.n} delay={i * 100}>
+                <div className="relative flex items-start gap-4">
+                  <div
+                    className="absolute -left-8 grid h-12 w-12 place-items-center rounded-2xl border backdrop-blur-md"
+                    style={{
+                      background: `${s.accent}1F`,
+                      borderColor: `${s.accent}55`,
+                      boxShadow: `0 0 20px -6px ${s.accent}80`,
+                    }}
+                  >
+                    <s.icon className="h-5 w-5" style={{ color: s.accent }} />
+                  </div>
+                  <div className="ml-4 flex-1 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">{s.n}</div>
+                    <div className="text-sm font-bold text-white">{s.t}</div>
+                    <div className="mt-1 text-xs text-white/60">{s.d}</div>
+                  </div>
                 </div>
-                <div className="mt-4 space-y-3">
-                  {[
-                    { n: "@prism.studio", r: "safe", v: 12, c: "oklch(0.55 0.2 255)" },
-                    { n: "@prismhq", r: "elevated", v: 52, c: "oklch(0.72 0.18 75)" },
-                    { n: "@prism", r: "high", v: 61, c: "oklch(0.7 0.2 25)" },
-                    { n: "/prism-studio", r: "safe", v: 9, c: "oklch(0.68 0.2 145)" },
-                  ].map((a, i) => (
-                    <div key={a.n} className="crystal-in flex items-center gap-3" style={{ animationDelay: `${0.1 * i + 0.2}s` }}>
-                      <span className="w-28 truncate text-xs text-muted-foreground">{a.n}</span>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${a.v}%`, background: a.c }} />
-                      </div>
-                      <span className="w-12 text-right text-xs font-bold tabular-nums" style={{ color: a.c }}>{a.v}</span>
-                    </div>
-                  ))}
-                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+
+        <Reveal delay={500}>
+          <div className="mt-14 flex justify-center">
+            <GlowCTA onClick={onTrial} tone="amber">
+              <Wand2 className="h-4 w-4" /> Try the composer
+            </GlowCTA>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- Act 5: Protection -------------------------- */
+
+function Act5Protection() {
+  const features = [
+    { icon: CalendarClock, t: "Daily post limits",     d: "Hard caps per account per platform. Auto-pause when threshold approaches." },
+    { icon: Hash,          t: "Hashtag safety checker", d: "Every caption scanned against shadowbanned tag lists before publish." },
+    { icon: Gauge,         t: "Warm-up mode",           d: "New accounts ramp activity gradually to build trust and avoid flags." },
+    { icon: KeyRound,      t: "2FA enforcement",         d: "Require two-factor auth for every team member. No exceptions." },
+  ];
+  return (
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #1F0A15 0%, #2A0F1F 50%, #1F0A15 100%)" }}>
+      <div
+        className="pointer-events-none absolute inset-0 opacity-50"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 30%, rgba(244,63,94,0.2), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(236,72,153,0.18), transparent 60%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="grid items-center gap-12 lg:grid-cols-2">
+          {/* Left — shield animation */}
+          <Reveal>
+            <div className="relative mx-auto flex aspect-square max-w-md items-center justify-center">
+              {/* Pulsing rings */}
+              {[0, 1, 2].map((r) => (
+                <div
+                  key={r}
+                  className="absolute rounded-full border border-rose-400/30"
+                  style={{
+                    width: `${40 + r * 22}%`,
+                    height: `${40 + r * 22}%`,
+                    animation: `sfPulseRing 3s ease-out infinite ${r * 0.6}s`,
+                  }}
+                />
+              ))}
+              {/* Glow */}
+              <div
+                className="absolute h-72 w-72 rounded-full opacity-60 blur-3xl"
+                style={{ background: "radial-gradient(circle, rgba(244,63,94,0.6), transparent 70%)" }}
+              />
+              {/* Shield */}
+              <div
+                className="relative grid h-44 w-44 place-items-center rounded-[2.5rem] border border-rose-400/40 bg-rose-950/40 backdrop-blur-xl"
+                style={{ animation: "sfShieldPulse 3.5s ease-in-out infinite" }}
+              >
+                <ShieldCheck className="h-20 w-20 text-rose-300" strokeWidth={1.5} />
               </div>
+              {/* Floating tags */}
+              <FloatingTag className="left-2 top-10" icon={Hash} label="No shadowbans" color="#FB7185" delay={0} />
+              <FloatingTag className="right-2 top-24" icon={Gauge} label="Warm-up safe" color="#F472B6" delay={1} />
+              <FloatingTag className="bottom-8 left-6" icon={KeyRound} label="2FA enforced" color="#C084FC" delay={2} />
+              <FloatingTag className="bottom-12 right-4" icon={CalendarClock} label="Cadence cap" color="#F87171" delay={1.5} />
             </div>
-            <div className="order-1 lg:order-2">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-500">
-                <ShieldCheck className="h-3 w-3" /> Account protection
-              </div>
-              <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-                Never get <span className="gold-text">suspended</span> again
+          </Reveal>
+
+          {/* Right — copy + features */}
+          <div>
+            <Reveal>
+              <Eyebrow icon={ShieldCheck} label="Account protection" color="#F87171" />
+            </Reveal>
+            <Reveal delay={100}>
+              <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
+                Never get <span className="text-rose-400">suspended</span> again
               </h2>
-              <p className="mt-3 text-muted-foreground">
+            </Reveal>
+            <Reveal delay={200}>
+              <p className="mt-5 text-base text-white/70 sm:text-lg">
                 SocialFlow monitors every account&apos;s health in real time. When risk rises —
                 from spam flags, report spikes, or aggressive engagement — we tell you exactly what
                 to fix and auto-enforce guards so your team can&apos;t accidentally trigger a suspension.
               </p>
-              <ul className="mt-6 space-y-3">
-                {[
-                  "Posting cadence limits (no more rapid-fire spam)",
-                  "Banned-hashtag blocker with custom lists",
-                  "Behavior caps on DMs, follows, comments",
-                  "Smart cooldown auto-pauses on warnings",
-                  "2FA enforcement + warm-up for new accounts",
-                ].map((t) => (
-                  <li key={t} className="flex items-center gap-2.5 text-sm">
-                    <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
-                      <Check className="h-3 w-3" strokeWidth={3} />
-                    </span>
-                    {t}
-                  </li>
-                ))}
-              </ul>
+            </Reveal>
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              {features.map((f, i) => (
+                <Reveal key={f.t} delay={i * 100}>
+                  <div className="group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md transition hover:border-rose-400/30 hover:bg-rose-950/20">
+                    <IconTile icon={f.icon} color="#F87171" size="sm" />
+                    <div>
+                      <div className="text-sm font-bold text-white">{f.t}</div>
+                      <div className="mt-0.5 text-xs text-white/60">{f.d}</div>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
             </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* ===== Story Act 6: Stats band ===== */}
-      <section id="stats" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="crystal-in glass-strong grid grid-cols-2 gap-px overflow-hidden rounded-3xl md:grid-cols-4">
-          {[
-            { v: "17", l: "Integrated modules", icon: Layers },
-            { v: "7+", l: "Social platforms", icon: Globe },
-            { v: "Live", l: "Real-time analytics", icon: BarChart3 },
-            { v: "24/7", l: "Account protection", icon: ShieldCheck },
-          ].map((s, i) => (
-            <div key={s.l} className="crystal-in relative p-4 text-center sm:p-6" style={{ animationDelay: `${0.08 * i + 0.1}s` }}>
-              <s.icon className="mx-auto h-5 w-5 text-[var(--gold)] sm:h-6 sm:w-6" />
-              <div className="num-display mt-3 text-2xl font-bold text-[var(--gold)] sm:text-3xl lg:text-4xl">{s.v}</div>
-              <div className="label-caps mt-2 text-muted-foreground">{s.l}</div>
+function FloatingTag({
+  className,
+  icon: Icon,
+  label,
+  color,
+  delay,
+}: {
+  className?: string;
+  icon: LucideIcon;
+  label: string;
+  color: string;
+  delay: number;
+}) {
+  return (
+    <div
+      className={cn(
+        "absolute flex items-center gap-1.5 rounded-full border bg-black/40 px-3 py-1.5 text-[11px] font-semibold backdrop-blur-md",
+        className,
+      )}
+      style={{ borderColor: `${color}55`, color, animation: `sfFloat3 4s ease-in-out ${delay}s infinite` }}
+    >
+      <Icon className="h-3 w-3" /> {label}
+    </div>
+  );
+}
+
+/* ------------------------- Act 6: AI Assistant -------------------------- */
+
+function Act6AIAssistant() {
+  return (
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #150A1F 0%, #1F0A2A 50%, #150A1F 100%)" }}>
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{
+          background:
+            "radial-gradient(ellipse at 30% 30%, rgba(139,92,246,0.2), transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(168,85,247,0.18), transparent 60%)",
+        }}
+      />
+      <ParticleField count={24} colors={["#A78BFA", "#C4B5FD", "#7DD3FC"]} size={[2, 3]} />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="grid items-center gap-12 lg:grid-cols-2">
+          {/* Left — copy */}
+          <div>
+            <Reveal>
+              <Eyebrow icon={Bot} label="AI Assistant" color="#A78BFA" />
+            </Reveal>
+            <Reveal delay={100}>
+              <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+                Your AI-powered <span className="text-violet-400">command center</span>
+              </h2>
+            </Reveal>
+            <Reveal delay={200}>
+              <p className="mt-5 text-base text-white/70 sm:text-lg">
+                Ask SocialFlow anything about your accounts. Get instant answers — performance,
+                scheduling, recommendations. Your AI co-pilot lives right inside the dashboard.
+              </p>
+            </Reveal>
+            <div className="mt-8 space-y-3">
+              {[
+                { q: "What should I post next?", a: "Based on your top content this week — try a behind-the-scenes Reel." },
+                { q: "When does my audience engage most?", a: "Tuesday & Thursday 7–9pm in your audience's timezone." },
+                { q: "Which account is at risk?", a: "@prismhq has elevated risk. Slow posting for 48h advised." },
+              ].map((c, i) => (
+                <Reveal key={c.q} delay={i * 120}>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md transition hover:border-violet-400/30">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-violet-300">
+                      <Bot className="h-3.5 w-3.5" /> You asked
+                      <span className="text-white/70">— “{c.q}”</span>
+                    </div>
+                    <div className="mt-2 flex items-start gap-2 text-sm text-white/80">
+                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-400" />
+                      <span>{c.a}</span>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
             </div>
+          </div>
+
+          {/* Right — chat mockup */}
+          <Reveal delay={300}>
+            <div className="relative">
+              {/* Floating AI badge */}
+              <div className="absolute -right-4 -top-4 z-10 flex items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-950/60 px-3 py-1.5 text-[11px] font-bold text-violet-300 backdrop-blur-md">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-400" />
+                </span>
+                AI Online
+              </div>
+
+              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#1B0F2E]/80 backdrop-blur-2xl shadow-[0_30px_80px_-20px_rgba(139,92,246,0.5)]">
+                {/* Header */}
+                <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white">
+                    <Bot className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-white">SocialFlow AI</div>
+                    <div className="text-[11px] text-white/50">Workspace · Prism Studio</div>
+                  </div>
+                  <div className="ml-auto flex gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-rose-400/70" />
+                    <span className="h-2 w-2 rounded-full bg-amber-400/70" />
+                    <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div className="space-y-4 p-5">
+                  {/* User message */}
+                  <div className="flex justify-end">
+                    <div className="max-w-[80%] rounded-2xl rounded-tr-sm border border-white/10 bg-white/10 px-4 py-2.5 text-sm text-white/90">
+                      How many posts did we publish this week?
+                    </div>
+                  </div>
+                  {/* AI typing message */}
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <div className="max-w-[85%] rounded-2xl rounded-tl-sm border border-violet-400/20 bg-violet-950/40 px-4 py-3 text-sm text-violet-100">
+                      <TypingBubble
+                        text="You published 12 posts across 3 platforms this week — 7 on Instagram, 3 on X, 2 on LinkedIn. Engagement is up 18% vs. last week. Top performer: your Tuesday Reel."
+                        durationMs={5200}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Suggested chips */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {["Show me chart", "Draft next week", "Flag risky account"].map((s) => (
+                      <span key={s} className="rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-[11px] font-medium text-violet-200">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Input */}
+                <div className="flex items-center gap-2 border-t border-white/10 p-3">
+                  <div className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/40">
+                    Ask anything about your social presence…
+                  </div>
+                  <button
+                    className="grid h-10 w-10 place-items-center rounded-xl text-white"
+                    style={{ background: "linear-gradient(135deg, #8B5CF6, #6366F1)" }}
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Floating KPI chips */}
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                {[
+                  { l: "Posts", v: "12", c: "#A78BFA" },
+                  { l: "Reach", v: "2.4M", c: "#22D3EE" },
+                  { l: "Engagement", v: "+18%", c: "#34D399" },
+                ].map((k) => (
+                  <div key={k.l} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center backdrop-blur-md">
+                    <div className="text-lg font-bold" style={{ color: k.c }}>{k.v}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-white/50">{k.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------- Act 7: Analytics ----------------------------- */
+
+function Act7Analytics({ onTrial }: { onTrial: () => void }) {
+  return (
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #0A1F1F 0%, #0D2525 50%, #0A1F1F 100%)" }}>
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{
+          background:
+            "radial-gradient(ellipse at 20% 30%, rgba(45,212,191,0.18), transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(34,211,238,0.16), transparent 60%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <Reveal>
+            <Eyebrow icon={Activity} label="Analytics" color="#2DD4BF" />
+          </Reveal>
+          <Reveal delay={100}>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              See your growth in <span className="text-teal-400">real-time</span>
+            </h2>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+              Track followers, reach, and engagement across every platform — unified, beautiful, alive.
+            </p>
+          </Reveal>
+        </div>
+
+        {/* KPI cards */}
+        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { l: "Followers",   v: "1.62M", d: "+1.2%",  icon: Users,      color: "#2DD4BF" },
+            { l: "Reach",       v: "2.41M", d: "+18%",   icon: EyeIcon,    color: "#22D3EE" },
+            { l: "Engagement",  v: "191K",  d: "+4.5%",  icon: TrendingUp, color: "#34D399" },
+            { l: "Posts",       v: "342",   d: "+12",    icon: Layers,     color: "#5EEAD4" },
+          ].map((k, i) => (
+            <Reveal key={k.l} delay={i * 100}>
+              <MysticCard accent={k.color} className="h-full p-5">
+                <div className="flex items-center justify-between">
+                  <IconTile icon={k.icon} color={k.color} size="sm" />
+                  <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                    {k.d}
+                  </span>
+                </div>
+                <div className="mt-4 text-3xl font-bold text-white tabular-nums">{k.v}</div>
+                <div className="mt-1 text-[11px] uppercase tracking-wider text-white/55">{k.l}</div>
+              </MysticCard>
+            </Reveal>
           ))}
         </div>
-      </section>
 
-      {/* ===== Story Act 7: Get started ===== */}
-      <section id="testimonials" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="crystal-in glass-strong rounded-3xl p-5 text-center sm:p-8 lg:p-12">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-            Built for teams that <span className="gold-text">move fast</span>
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-            Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
-            Start your 15-day trial — full access, no card to explore.
-          </p>
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[
-              { v: "17", l: "Integrated modules" },
-              { v: "7+", l: "Social platforms" },
-              { v: "AI", l: "Per-account content" },
-              { v: "24/7", l: "Account protection" },
-            ].map((s, i) => (
-              <div key={s.l} className="crystal-in" style={{ animationDelay: `${0.1 * i + 0.1}s` }}>
-                <div className="num-display text-xl font-bold text-[var(--gold)] sm:text-2xl">{s.v}</div>
-                <div className="label-caps mt-1 text-muted-foreground">{s.l}</div>
+        {/* Chart mockup */}
+        <Reveal delay={400}>
+          <MysticCard accent="#2DD4BF" className="mt-6 p-6 sm:p-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold text-white">Performance trend</div>
+                <div className="text-[11px] text-white/55">Last 14 days · all platforms</div>
+              </div>
+              <div className="flex gap-2">
+                {["7d", "14d", "30d", "90d"].map((p, i) => (
+                  <span
+                    key={p}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-[11px] font-semibold",
+                      i === 1 ? "bg-teal-400/20 text-teal-300" : "bg-white/5 text-white/50",
+                    )}
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {/* Bar chart */}
+            <div className="mt-6 h-44">
+              <GrowingBars
+                values={[35, 48, 42, 58, 65, 52, 70, 78, 68, 82, 75, 90, 85, 95]}
+                color="linear-gradient(to top, #0F766E, #2DD4BF, #5EEAD4)"
+                className="h-full"
+              />
+            </div>
+            {/* X-axis */}
+            <div className="mt-2 flex justify-between text-[10px] text-white/40">
+              {["Mon", "Wed", "Fri", "Sun", "Tue", "Thu", "Sat"].map((d, i) => (
+                <span key={d + i}>{d}</span>
+              ))}
+            </div>
+
+            {/* Platform breakdown */}
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              {[
+                { l: "Instagram", v: "1.1M", c: "#F472B6", w: 78 },
+                { l: "X / Twitter", v: "620K", c: "#5EEAD4", w: 55 },
+                { l: "LinkedIn", v: "690K", c: "#22D3EE", w: 61 },
+              ].map((p) => (
+                <div key={p.l} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-white/80">{p.l}</span>
+                    <span className="font-bold tabular-nums" style={{ color: p.c }}>{p.v}</span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${p.w}%`,
+                        background: p.c,
+                        animation: "sfBarGrow 1.4s cubic-bezier(0.34,1.56,0.64,1) 0.4s both",
+                        ["--target-w" as string]: `${p.w}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </MysticCard>
+        </Reveal>
+
+        <Reveal delay={600}>
+          <div className="mt-10 flex justify-center">
+            <GlowCTA onClick={onTrial} tone="teal">
+              <BarChart3 className="h-4 w-4" /> Explore your analytics
+            </GlowCTA>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------- Act 8: Comparison --------------------------- */
+
+function Act8Comparison() {
+  const rows = COMPARE_ROWS;
+  const competitors = ["SocialFlow", "Hootsuite", "Buffer", "Sprout Social"];
+  return (
+    <section
+      id="compare"
+      className="relative w-full overflow-hidden py-24 sm:py-32"
+      style={{ background: "linear-gradient(180deg, #0F1419 0%, #151B22 50%, #0F1419 100%)" }}
+    >
+      <div
+        className="pointer-events-none absolute inset-0 opacity-50"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 20%, rgba(45,212,191,0.16), transparent 60%), radial-gradient(ellipse at 80% 90%, rgba(99,102,241,0.14), transparent 60%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <Reveal>
+            <Eyebrow icon={Target} label="Competitor comparison" color="#5EEAD4" />
+          </Reveal>
+          <Reveal delay={100}>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              Why settle for <span className="text-teal-400">less?</span>
+            </h2>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+              The only platform that combines AI content, multi-tenant isolation, and account protection in one workspace.
+            </p>
+          </Reveal>
+        </div>
+
+        <Reveal delay={300}>
+          <div className="mt-14 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl">
+            {/* Header row */}
+            <div className="grid grid-cols-5 border-b border-white/10 bg-white/[0.02]">
+              <div className="px-4 py-5 text-xs font-semibold uppercase tracking-wider text-white/55 sm:px-6">
+                Capability
+              </div>
+              {competitors.map((c, i) => (
+                <div
+                  key={c}
+                  className={cn(
+                    "px-2 py-5 text-center sm:px-6",
+                    i === 0 && "bg-gradient-to-b from-teal-500/15 to-transparent",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "text-xs font-bold sm:text-sm",
+                      i === 0 ? "text-teal-300" : "text-white/70",
+                    )}
+                  >
+                    {c}
+                  </div>
+                  {i === 0 && (
+                    <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-teal-400/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-teal-300">
+                      <Star className="h-2.5 w-2.5" /> Best
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Body rows */}
+            {rows.map((r, ri) => (
+              <div
+                key={r.label}
+                className={cn(
+                  "grid grid-cols-5 items-center border-b border-white/5 last:border-b-0",
+                  ri % 2 === 0 ? "bg-white/[0.01]" : "",
+                )}
+              >
+                <div className="flex items-center gap-2 px-4 py-4 text-sm font-medium text-white/85 sm:px-6">
+                  <r.icon className="h-4 w-4 shrink-0 text-white/50" />
+                  <span className="hidden sm:inline">{r.label}</span>
+                  <span className="sm:hidden">{r.short}</span>
+                </div>
+                {r.values.map((v, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "px-2 py-4 text-center sm:px-6",
+                      i === 0 && "bg-gradient-to-b from-teal-500/[0.06] to-transparent",
+                    )}
+                  >
+                    {v === true ? (
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-teal-400/15 text-teal-300">
+                        <Check className="h-4 w-4" strokeWidth={3} />
+                      </span>
+                    ) : v === false ? (
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/5 text-white/30">
+                        <Minus className="h-3.5 w-3.5" />
+                      </span>
+                    ) : (
+                      <span className="text-xs text-white/50">{v}</span>
+                    )}
+                  </div>
+                ))}
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
 
-      {/* ===== Story Act 8: Pricing ===== */}
-      <section id="pricing" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="mb-10 text-center">
-          <span className="crystal-in inline-flex items-center gap-1.5 rounded-full bg-[var(--gold)]/15 px-3 py-1 text-xs font-semibold text-[var(--gold)]">
-            <CreditCard className="h-3 w-3" /> Simple pricing
-          </span>
-          <h2 className="crystal-in mt-4 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl" style={{ animationDelay: "0.1s" }}>
-            Start with a <span className="gold-text">15-day free trial</span>
-          </h2>
-          <p className="crystal-in mt-3 text-muted-foreground" style={{ animationDelay: "0.2s" }}>
-            No card to explore. Pick a plan when you&apos;re ready. Cancel anytime.
-          </p>
+/* ----------------------------- Act 9: Pricing -------------------------- */
+
+function Act9Pricing({ onTrial }: { onTrial: () => void }) {
+  return (
+    <section
+      id="pricing"
+      className="relative w-full overflow-hidden py-24 sm:py-32"
+      style={{ background: "linear-gradient(180deg, #0A0A2F 0%, #0F0F35 50%, #0A0A2F 100%)" }}
+    >
+      <div
+        className="pointer-events-none absolute inset-0 opacity-60"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 30%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(ellipse at 30% 80%, rgba(139,92,246,0.18), transparent 60%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <Reveal>
+            <Eyebrow icon={CreditCard} label="Pricing" color="#818CF8" />
+          </Reveal>
+          <Reveal delay={100}>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              Start with a <span className="text-indigo-300">15-day free trial</span>
+            </h2>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+              No card to explore. Pick a plan when you&apos;re ready. Cancel anytime.
+            </p>
+          </Reveal>
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {PLANS.map((p, i) => (
-            <div
-              key={p.name}
-              className={cn(
-                "crystal-in crystal-card relative overflow-hidden rounded-3xl p-5 sm:p-6 lift-hover",
-                p.featured ? "glass-strong ring-2 ring-[var(--gold)]" : "glass"
-              )}
-              style={{ animationDelay: `${0.1 * i + 0.1}s` }}
-            >
-              {p.featured && (
-                <div className="absolute right-4 top-4 rounded-full bg-[var(--gold)] px-2 py-0.5 text-[10px] font-bold text-[var(--gold-foreground)]">
-                  Most popular
+
+        <div className="mt-16 grid items-stretch gap-5 lg:grid-cols-3">
+          {PLANS.map((p, i) => {
+            const featured = p.featured;
+            return (
+              <Reveal key={p.name} delay={i * 120}>
+                <div
+                  className={cn(
+                    "group relative flex h-full flex-col overflow-hidden rounded-3xl border p-7 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5",
+                    featured
+                      ? "border-indigo-400/40 bg-gradient-to-b from-indigo-500/15 to-violet-500/5 shadow-[0_30px_80px_-30px_rgba(99,102,241,0.6)]"
+                      : "border-white/10 bg-white/[0.03] hover:border-white/20",
+                  )}
+                >
+                  {featured && (
+                    <>
+                      <div
+                        className="pointer-events-none absolute -inset-px rounded-3xl opacity-50 blur-2xl"
+                        style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.4), rgba(139,92,246,0.2))" }}
+                      />
+                      <div className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full bg-indigo-400 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-950">
+                        <Star className="h-3 w-3 fill-current" /> Most popular
+                      </div>
+                    </>
+                  )}
+                  <div className="relative flex h-full flex-col">
+                    <div className="text-sm font-semibold uppercase tracking-wider text-white/60">{p.name}</div>
+                    <div className="mt-4 flex items-baseline gap-1.5">
+                      <span
+                        className={cn(
+                          "text-5xl font-bold tabular-nums transition-all duration-300 group-hover:scale-105",
+                          featured ? "text-white" : "text-white/95",
+                        )}
+                        style={{ textShadow: featured ? "0 0 30px rgba(129,140,248,0.5)" : undefined }}
+                      >
+                        {p.price}
+                      </span>
+                      {p.price !== "Custom" && <span className="text-sm text-white/50">/mo</span>}
+                    </div>
+                    <p className="mt-3 text-sm text-white/60">{p.desc}</p>
+
+                    <ul className="mt-6 flex-1 space-y-2.5">
+                      {p.features.map((f) => (
+                        <li key={f} className="flex items-start gap-2.5 text-sm text-white/85">
+                          <span
+                            className={cn(
+                              "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full",
+                              featured ? "bg-indigo-400/20 text-indigo-300" : "bg-emerald-400/15 text-emerald-300",
+                            )}
+                          >
+                            <Check className="h-3 w-3" strokeWidth={3} />
+                          </span>
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <button
+                      onClick={onTrial}
+                      className={cn(
+                        "mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5",
+                        featured
+                          ? "text-indigo-950 hover:brightness-110"
+                          : "border border-white/20 bg-white/5 text-white hover:bg-white/10",
+                      )}
+                      style={
+                        featured
+                          ? { background: "linear-gradient(135deg, #818CF8, #6366F1)", boxShadow: "0 12px 30px -8px rgba(99,102,241,0.6)" }
+                          : undefined
+                      }
+                    >
+                      Start 15-day trial <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-              )}
-              <h3 className="text-lg font-bold">{p.name}</h3>
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="num-display text-3xl font-bold sm:text-4xl">{p.price}</span>
-                {p.price !== "Custom" && <span className="text-sm text-muted-foreground">/mo</span>}
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">{p.desc}</p>
-              <ul className="mt-5 space-y-2.5">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-sm">
-                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
-                      <Check className="h-2.5 w-2.5" strokeWidth={3} />
-                    </span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={onTrial}
-                className={cn(
-                  "mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition",
-                  p.featured ? "liquid-gold glow-ring" : "border border-border/50 bg-muted/40 hover:bg-muted"
-                )}
-              >
-                Start 15-day trial <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
+              </Reveal>
+            );
+          })}
         </div>
-      </section>
 
-      {/* ===== Story Act 9: Final CTA ===== */}
-      <section className="mx-auto max-w-4xl px-4 py-12 text-center sm:px-6 lg:px-8 lg:py-20">
-        <div className="crystal-in glass-strong crystal-card relative overflow-hidden rounded-3xl p-6 sm:p-10 lg:p-14">
-          <div className="pointer-events-none absolute -right-10 -top-10 hidden h-40 w-40 rounded-full bg-[var(--gold)]/20 blur-3xl lg:block" />
-          <div className="pointer-events-none absolute -bottom-10 -left-10 hidden h-40 w-40 rounded-full bg-[var(--primary)]/20 blur-3xl lg:block" />
-          <h2 className="relative text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-            Ready to <span className="gold-text">simplify</span> your social team?
-          </h2>
-          <p className="relative mx-auto mt-3 max-w-md text-muted-foreground">
-            Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
+        <Reveal delay={500}>
+          <p className="mt-10 text-center text-xs text-white/50">
+            All plans include the full SocialFlow module suite during your 15-day trial.
+            <br className="sm:hidden" /> Need a custom plan? <button onClick={onTrial} className="font-semibold text-indigo-300 underline-offset-4 hover:underline">Talk to sales →</button>
           </p>
-          <button onClick={onTrial} className="liquid-gold glow-ring relative mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold sm:mx-auto sm:w-auto">
-            <Rocket className="h-4 w-4" /> Start your 15-day trial <ArrowRight className="h-4 w-4" />
-          </button>
-          <p className="relative mt-3 text-[11px] text-muted-foreground">No card to explore · Cancel anytime · Full access for 15 days</p>
-        </div>
-      </section>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
 
-      {/* Footer */}
-      <footer className="border-t border-border/40 px-4 py-10 sm:px-6 lg:px-8 xl:px-12">
-        <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <LogoWordmark size="text-sm" logoSize={22} />
-            <p className="mt-2 text-xs text-muted-foreground">Social, Simplified. The enterprise command center for modern social teams.</p>
-            <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-[var(--gold)]" /> Encrypted · 2FA · SOC2-ready
+/* --------------------------- Act 10: Final CTA -------------------------- */
+
+function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
+  return (
+    <section className="relative w-full overflow-hidden py-32 sm:py-40">
+      {/* Aurora finale background */}
+      <div className="absolute inset-0" aria-hidden>
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(120deg, #0A1A2F 0%, #0F2A4F 20%, #0E3A3D 40%, #1F0A2A 60%, #2A1F0A 80%, #0A1A2F 100%)",
+            backgroundSize: "300% 300%",
+            animation: "sfGradientText 14s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute -top-20 left-1/4 h-72 w-72 rounded-full opacity-50 blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(45,212,191,0.6), transparent 70%)" }}
+        />
+        <div
+          className="absolute top-1/3 right-1/4 h-80 w-80 rounded-full opacity-50 blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(168,85,247,0.5), transparent 70%)" }}
+        />
+        <div
+          className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full opacity-50 blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(251,191,36,0.5), transparent 70%)" }}
+        />
+        <ConfettiField count={48} />
+      </div>
+
+      <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+        <Reveal>
+          <span
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-md"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Aurora finale
+          </span>
+        </Reveal>
+        <Reveal delay={120}>
+          <h2 className="mt-7 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            <span
+              className="bg-clip-text text-transparent"
+              style={{
+                backgroundImage: "linear-gradient(120deg, #5EEAD4, #22D3EE, #A78BFA, #FBBF24)",
+                backgroundSize: "200% 200%",
+                animation: "sfGradientText 8s ease-in-out infinite",
+              }}
+            >
+              Ready to simplify
+            </span>
+            <br />
+            <span className="text-white">your social team?</span>
+          </h2>
+        </Reveal>
+        <Reveal delay={240}>
+          <p className="mx-auto mt-6 max-w-xl text-base text-white/75 sm:text-lg">
+            Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
+            Start your 15-day trial — full access, no card to explore.
+          </p>
+        </Reveal>
+        <Reveal delay={360}>
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <GlowCTA onClick={onTrial} tone="teal" className="min-w-[280px] px-8 py-4 text-base">
+              <Rocket className="h-5 w-5" /> Start your 15-day trial
+            </GlowCTA>
+          </div>
+        </Reveal>
+        <Reveal delay={480}>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-white/70">
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> No credit card required</span>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Cancel anytime</span>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Full access for 15 days</span>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------ Act 11: Footer ------------------------- */
+
+function Act11Footer() {
+  return (
+    <footer className="relative w-full overflow-hidden bg-[#0A0A0A] pt-20 pb-10 text-white">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{ background: "linear-gradient(to right, transparent, rgba(94,234,212,0.4), transparent)" }}
+      />
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-2.5">
+              <Logo size={28} withTile={false} />
+              <span className="text-base font-bold tracking-tight">SocialFlow</span>
+            </div>
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/60">
+              Social, Simplified. The enterprise command center for modern social teams.
+            </p>
+            <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/55">
+              <ShieldCheck className="h-3.5 w-3.5 text-teal-400" />
+              Encrypted · 2FA · SOC2-ready
+            </div>
+            {/* Social icons */}
+            <div className="mt-6 flex gap-2">
+              {[Globe, MessageCircle, Send, Mail].map((Icon, i) => (
+                <a
+                  key={i}
+                  href="#"
+                  className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition hover:border-teal-400/30 hover:bg-teal-400/10 hover:text-teal-300"
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
             </div>
           </div>
           <FooterCol title="Product" links={["Features", "Workflow", "Pricing", "AI Composer", "Account Protection"]} />
           <FooterCol title="Company" links={["About", "Customers", "Blog", "Careers", "Contact"]} />
           <FooterCol title="Resources" links={["Documentation", "API Reference", "Help Center", "Status", "Changelog"]} />
         </div>
-        <div className="mx-auto mt-8 flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-border/40 pt-6 text-xs text-muted-foreground sm:flex-row">
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row">
           <span>© 2026 SocialFlow · Social, Simplified</span>
-          <div className="flex gap-4">
-            <a href="#" className="hover:text-foreground">Privacy</a>
-            <a href="#" className="hover:text-foreground">Terms</a>
-            <a href="#" className="hover:text-foreground">Security</a>
+          <div className="flex gap-5">
+            <a href="#" className="transition hover:text-white">Privacy</a>
+            <a href="#" className="transition hover:text-white">Terms</a>
+            <a href="#" className="transition hover:text-white">Security</a>
+            <a href="#" className="transition hover:text-white">Legal</a>
           </div>
         </div>
-      </footer>
-    </div>
+      </div>
+    </footer>
   );
 }
 
 function FooterCol({ title, links }: { title: string; links: string[] }) {
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-wide text-foreground">{title}</div>
-      <ul className="mt-3 space-y-2">
+      <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/45">{title}</div>
+      <ul className="mt-4 space-y-2.5">
         {links.map((l) => (
-          <li key={l}><a href="#" className="text-xs text-muted-foreground transition hover:text-foreground">{l}</a></li>
+          <li key={l}>
+            <a href="#" className="text-sm text-white/70 transition hover:text-teal-300">{l}</a>
+          </li>
         ))}
       </ul>
     </div>
   );
 }
 
-/* ===================== Trial Activation Dialog ===================== */
+/* ============================================================================
+   Inline keyframes — injected once via <style> in the Landing wrapper.
+   ============================================================================ */
+
+const LANDING_KEYFRAMES = `
+@keyframes sfAuroraDrift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(8%, -6%) scale(1.1); }
+  66%  { transform: translate(-6%, 4%) scale(0.95); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes sfShimmerSweep {
+  0%   { background-position: 0% 50%; opacity: 0.15; }
+  50%  { background-position: 100% 50%; opacity: 0.3; }
+  100% { background-position: 0% 50%; opacity: 0.15; }
+}
+@keyframes sfGradientText {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes sfParticleFloat {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 0.8; }
+  90%  { opacity: 0.8; }
+  100% { transform: translate(var(--drift, 20px), -120vh); opacity: 0; }
+}
+@keyframes sfPulseGlow {
+  0%, 100% { box-shadow: 0 0 30px -10px var(--glow, rgba(244,63,94,0.4)); opacity: 0.6; }
+  50%      { box-shadow: 0 0 70px 0 var(--glow, rgba(244,63,94,0.7)); opacity: 1; }
+}
+@keyframes sfShieldPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 25px rgba(244,63,94,0.5)); }
+  50%      { transform: scale(1.04); filter: drop-shadow(0 0 50px rgba(244,63,94,0.8)); }
+}
+@keyframes sfPulseRing {
+  0%   { transform: scale(0.8); opacity: 0.8; border-width: 1.5px; }
+  100% { transform: scale(1.8); opacity: 0; border-width: 0.5px; }
+}
+@keyframes sfTyping { from { width: 0; } to { width: 100%; } }
+@keyframes sfBlink { 50% { border-color: transparent; } }
+@keyframes sfBarGrow {
+  from { width: 0; height: var(--from-h, auto); }
+  to   { width: var(--target-w, 100%); }
+}
+@keyframes sfChevronBounce {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50%      { transform: translateY(8px); opacity: 1; }
+}
+@keyframes sfConfettiFall {
+  0%   { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+@keyframes sfFloat3 {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+@keyframes sfSpinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+`;
+
+/* ============================================================================
+   Trial Activation Dialog (unchanged from previous build)
+   ============================================================================ */
+
 function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpenChange: (b: boolean) => void; onActivated: () => void }) {
   const { signup } = useAuth();
   const [step, setStep] = React.useState<"details" | "payment" | "activating" | "done">("details");
@@ -856,7 +1986,10 @@ function Field({ icon, label, value, onChange, placeholder, error, type = "text"
   );
 }
 
-/* ===================== Login (no role buttons) ===================== */
+/* ============================================================================
+   Login Screen (unchanged from previous build)
+   ============================================================================ */
+
 function LoginScreen({ onBack }: { onBack: () => void }) {
   const { login } = useAuth();
   const [email, setEmail] = React.useState("");
@@ -1010,21 +2143,62 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-/* ===================== Data ===================== */
+/* ============================================================================
+   Data — Features, Plans, Comparison
+   ============================================================================ */
+
 const FEATURES = [
-  { icon: Wand2, title: "AI Composer", desc: "Generate distinct, platform-native captions for every account from one brief — respecting tone, length & hashtag conventions.", accent: "oklch(0.55 0.2 255)" },
-  { icon: ShieldCheck, title: "Account Protection", desc: "Anti-suspension guards: posting cadence limits, banned-hashtag blocker, behavior caps, smart cooldowns, and a suspension advisor.", accent: "oklch(0.68 0.22 145)" },
-  { icon: BarChart3, title: "Advanced Analytics", desc: "Deep insights across every platform — impressions, reach, engagement, audience growth, per-account comparison.", accent: "oklch(0.62 0.22 300)" },
-  { icon: Users, title: "Team & Roles", desc: "Granular permissions per user — admin, manager, editor, member, viewer. Designations, departments, and access control.", accent: "oklch(0.7 0.2 25)" },
-  { icon: Calendar, title: "Content Calendar", desc: "Plan and schedule your entire content pipeline with a visual month grid and drag-friendly scheduling.", accent: "oklch(0.66 0.18 200)" },
-  { icon: Server, title: "Mail Server", desc: "Host your team's email on your own domain — Hostinger, cPanel, Zoho or any provider. Create mailboxes, no Google needed.", accent: "oklch(0.72 0.18 75)" },
-  { icon: MessageCircle, title: "Unified Inbox", desc: "Comments and DMs from every account in one inbox. Sentiment-tagged, assignable, reply-ready.", accent: "oklch(0.62 0.22 300)" },
-  { icon: Target, title: "Competitor Tracking", desc: "Benchmark rivals with follower-growth charts, engagement comparisons, and posting-frequency insights.", accent: "oklch(0.55 0.2 255)" },
-  { icon: Hash, title: "Hashtag Manager", desc: "Save reusable hashtag groups per platform, track trending tags, and block shadowbanned hashtags.", accent: "oklch(0.68 0.22 145)" },
+  { icon: Wand2,        title: "AI Composer",         desc: "Generate distinct, platform-native captions for every account from one brief — respecting tone, length & hashtag conventions.", accent: "#22D3EE" },
+  { icon: ShieldCheck,  title: "Account Protection",  desc: "Anti-suspension guards: posting cadence limits, banned-hashtag blocker, behavior caps, smart cooldowns, and a suspension advisor.", accent: "#34D399" },
+  { icon: BarChart3,   title: "Advanced Analytics",  desc: "Deep insights across every platform — impressions, reach, engagement, audience growth, per-account comparison.", accent: "#A78BFA" },
+  { icon: Users,       title: "Team & Roles",         desc: "Granular permissions per user — admin, manager, editor, member, viewer. Designations, departments, and access control.", accent: "#F472B6" },
+  { icon: Calendar,     title: "Content Calendar",    desc: "Plan and schedule your entire content pipeline with a visual month grid and drag-friendly scheduling.", accent: "#FBBF24" },
+  { icon: Server,       title: "Mail Server",         desc: "Host your team's email on your own domain — Hostinger, cPanel, Zoho or any provider. Create mailboxes, no Google needed.", accent: "#5EEAD4" },
+  { icon: MessageCircle,title: "Unified Inbox",       desc: "Comments and DMs from every account in one inbox. Sentiment-tagged, assignable, reply-ready.", accent: "#22D3EE" },
+  { icon: Target,       title: "Competitor Tracking", desc: "Benchmark rivals with follower-growth charts, engagement comparisons, and posting-frequency insights.", accent: "#818CF8" },
+  { icon: Hash,         title: "Hashtag Manager",     desc: "Save reusable hashtag groups per platform, track trending tags, and block shadowbanned hashtags.", accent: "#34D399" },
 ];
 
 const PLANS = [
-  { name: "Starter", price: "$29", desc: "For solo creators & small teams getting started.", features: ["3 social accounts", "1 user", "AI composer (100/mo)", "Basic analytics", "Email support"], featured: false },
-  { name: "Growth", price: "$89", desc: "For growing teams that publish daily.", features: ["15 social accounts", "5 users", "Unlimited AI composer", "Advanced analytics", "Account protection", "Priority support"], featured: true },
-  { name: "Enterprise", price: "Custom", desc: "For large teams with custom needs.", features: ["Unlimited accounts", "Unlimited users", "Custom domain mail server", "SSO + SAML", "Dedicated success manager", "99.9% SLA"], featured: false },
+  {
+    name: "Starter",
+    price: "$0",
+    desc: "For solo creators & small teams getting started.",
+    features: ["3 social accounts", "1 user", "AI composer (100/mo)", "Basic analytics", "Email support"],
+    featured: false,
+  },
+  {
+    name: "Growth",
+    price: "$49",
+    desc: "For growing teams that publish daily.",
+    features: ["15 social accounts", "5 users", "Unlimited AI composer", "Advanced analytics", "Account protection", "Priority support"],
+    featured: true,
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    desc: "For large teams with custom needs.",
+    features: ["Unlimited accounts", "Unlimited users", "Custom domain mail server", "SSO + SAML", "Dedicated success manager", "99.9% SLA"],
+    featured: false,
+  },
+];
+
+type CompareRow = {
+  label: string;
+  short: string;
+  icon: LucideIcon;
+  values: [boolean | string, boolean | string, boolean | string, boolean | string];
+};
+
+const COMPARE_ROWS: CompareRow[] = [
+  { label: "AI Writer (per-account)",          short: "AI Writer",          icon: Wand2,        values: [true,  false, false, "Add-on"] },
+  { label: "Multi-tenant workspaces",           short: "Multi-tenant",       icon: Building2,    values: [true,  false, false, true] },
+  { label: "WhatsApp integration",             short: "WhatsApp",           icon: MessageCircle,values: [true,  false, false, false] },
+  { label: "Cloudinary CDN media",             short: "Cloudinary CDN",     icon: Layers,       values: [true,  false, false, true] },
+  { label: "Custom roles & departments",        short: "Custom Roles",      icon: Users,        values: [true,  true,  false, true] },
+  { label: "Tenant DB isolation",              short: "Tenant DB",          icon: Server,       values: [true,  false, false, true] },
+  { label: "Dedicated scheduler service",       short: "Scheduler",         icon: CalendarClock,values: [true,  true,  true,  true] },
+  { label: "Account suspension protection",    short: "Protection",        icon: ShieldCheck,  values: [true,  false, false, "Add-on"] },
+  { label: "Unified inbox across platforms",   short: "Unified Inbox",     icon: Mail,         values: [true,  true,  false, true] },
+  { label: "Custom domain mail server",         short: "Mail Server",       icon: Server,       values: [true,  false, false, false] },
 ];
