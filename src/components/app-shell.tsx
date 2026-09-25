@@ -164,7 +164,8 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* Mobile bottom tab bar — iOS 18 frosted glass + rounded top */}
+      {/* Mobile bottom tab bar — iOS 18 / macOS 27 style.
+          Solid #F0F0F2, flat top edge, dot indicator below active icon. */}
       {showMobileTabs && (
         <div className="mobile-only">
           <nav
@@ -173,7 +174,7 @@ export function AppShell() {
               "fixed bottom-0 left-0 right-0 z-50 flex items-stretch",
               "pb-[env(safe-area-inset-bottom,0px)]",
             )}
-            style={{ minHeight: "60px" }}
+            style={{ minHeight: "49px" }}
             aria-label="Primary"
           >
             {MOBILE_TABS.map((tab) => {
@@ -187,13 +188,12 @@ export function AppShell() {
                   className={cn(
                     "apple-tab-item touch-button",
                     isActive && "active",
-                    // Compose gets a subtle elevated pill (iOS primary action)
                     isCompose && "apple-compose-tab",
                   )}
                   aria-label={tab.label}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <Icon className="tab-icon h-[22px] w-[22px]" strokeWidth={isActive ? 2.4 : 2} />
+                  <Icon className="tab-icon h-6 w-6" strokeWidth={isActive ? 2.4 : 2} />
                   <span className="tab-label">{tab.label}</span>
                 </button>
               );
@@ -211,13 +211,13 @@ export function AppShell() {
             className="premium-scrim fixed inset-0 z-[60] animate-ios-fade-scale"
             aria-label="Close More menu"
           />
-          {/* Sheet */}
+          {/* Sheet — solid white, rounded-t-xl (NOT 3xl), flat Apple style */}
           <div
             className={cn(
               "apple-glass-heavy apple-font animate-ios-slide-up",
               "fixed bottom-0 left-0 right-0 z-[70] max-h-[85vh] overflow-y-auto scroll-liquid",
-              "rounded-t-[24px] border-t border-black/8 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] dark:border-white/10",
-              "shadow-[0_-12px_48px_-12px_rgba(0,0,0,0.35)]",
+              "rounded-t-xl border-t border-black/[0.06] pb-[calc(env(safe-area-inset-bottom,0px)+12px)] dark:border-white/[0.08]",
+              "shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.18)]",
             )}
             role="dialog"
             aria-modal="true"
@@ -231,10 +231,10 @@ export function AppShell() {
               <h2 className="text-[20px] font-semibold tracking-tight text-foreground">More</h2>
               <button
                 onClick={() => setShowMoreSheet(false)}
-                className="grid h-8 w-8 place-items-center rounded-full bg-black/5 text-muted-foreground transition hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20"
+                className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground transition hover:bg-black/[0.05] hover:text-foreground dark:hover:bg-white/[0.06]"
                 aria-label="Close"
               >
-                <X className="h-4 w-4" strokeWidth={2.5} />
+                <X className="h-4 w-4" strokeWidth={2.4} />
               </button>
             </div>
 
@@ -248,15 +248,15 @@ export function AppShell() {
                     key={item.id}
                     onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
                     className={cn(
-                      "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-2xl p-3",
-                      active && "!border-blue-500/50",
+                      "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-xl p-3",
+                      active && "!border-[#0071E3]/50 dark:!border-[#0A84FF]/50",
                     )}
                   >
                     <span
-                      className="grid h-10 w-10 place-items-center rounded-full"
+                      className="grid h-10 w-10 place-items-center rounded-xl"
                       style={{
-                        background: active ? "var(--apple-blue)" : "rgba(0,122,255,0.10)",
-                        color: active ? "#fff" : "var(--apple-blue)",
+                        background: active ? "#0071E3" : "rgba(0,113,227,0.10)",
+                        color: active ? "#fff" : "#0071E3",
                       }}
                     >
                       <Icon className="h-5 w-5" strokeWidth={2.2} />
@@ -269,7 +269,7 @@ export function AppShell() {
 
             {/* Admin / Manager items */}
             {user && (user.role === "admin" || user.role === "manager") && (
-              <div className="border-t border-black/5 px-4 pb-4 pt-4 dark:border-white/10">
+              <div className="border-t border-black/[0.06] px-4 pb-4 pt-4 dark:border-white/[0.08]">
                 <div className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Admin
                 </div>
@@ -285,15 +285,15 @@ export function AppShell() {
                         key={item.id}
                         onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
                         className={cn(
-                          "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-2xl p-3",
-                          active && "!border-blue-500/50",
+                          "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-xl p-3",
+                          active && "!border-[#0071E3]/50 dark:!border-[#0A84FF]/50",
                         )}
                       >
                         <span
-                          className="grid h-10 w-10 place-items-center rounded-full"
+                          className="grid h-10 w-10 place-items-center rounded-xl"
                           style={{
-                            background: active ? "var(--apple-blue)" : "rgba(0,122,255,0.10)",
-                            color: active ? "#fff" : "var(--apple-blue)",
+                            background: active ? "#0071E3" : "rgba(0,113,227,0.10)",
+                            color: active ? "#fff" : "#0071E3",
                           }}
                         >
                           <Icon className="h-5 w-5" strokeWidth={2.2} />
@@ -325,9 +325,9 @@ function AppFooter() {
   }, []);
   return (
     <footer className="px-4 pb-4 pt-2 sm:px-6 lg:px-8 safe-bottom">
-      <div className="glass-topbar mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 rounded-2xl px-4 py-2.5 text-[11px] text-muted-foreground">
+      <div className="glass-topbar mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
           All systems operational · {accountCount} {accountCount === 1 ? "account" : "accounts"} connected
         </div>
         <div className="hidden items-center gap-3 sm:flex">

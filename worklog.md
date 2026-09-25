@@ -3359,3 +3359,204 @@ While auditing all view files for un-wrapped tables, I found two more mobile cut
 - Particle positions are deterministically seeded via `Math.sin(i*seed)` so they match between server-rendered and client-rendered HTML — no hydration mismatch warnings.
 - All custom keyframes are scoped inside one `<style>` block rendered by the `Landing` component (the `LANDING_KEYFRAMES` constant). To add a new animation, append to that string rather than touching `globals.css`.
 - The `compare` anchor was added to the comparison section; the nav uses `#features`, `#workflow`, `#pricing`, `#compare` for in-page navigation. The existing `/features`, `/workflow`, `/pricing`, `/about` routes (served by `src/app/{features,workflow,pricing,about}/page.tsx` using `landing-shared.tsx`) are unaffected.
+
+---
+
+## Task ID: deep-apple-design-overhaul
+
+**Task**: Deep Apple macOS 27 / iOS 18 redesign of the SocialFlow visual design system. Light mode must be **crystal and solid** (not whitish / splashed). AI assistant must be **professional** (not iMessage). Icons must be more Apple macOS-like.
+
+### Problem fixed
+The previous light mode read as "whitish, splashed, not crystal" because the canvas was near-white (`oklch(0.95 0.004 250)` ≈ #F2F2F2) blending with white cards, the canvas had a `60vw` blurred accent blob (`.retaina-bg::before`), the AI assistant was iMessage-styled (gradient FAB, glow-pulse animation, bubble tails, frosted glass panel, "SocialFlow AI" header), and the mobile tab bar used a top-pill indicator + rounded-`22px` top edge (iOS 17 frosted style).
+
+### Files modified
+
+1. **`src/app/globals.css`** — design tokens, materials, shadows, radii, FAB / tab-bar / pill / send-btn classes
+2. **`src/components/ai-assistant.tsx`** — complete rewrite (professional Siri/Spotlight panel, NOT iMessage)
+3. **`src/components/app-shell.tsx`** — mobile tab bar (flat top, dot indicator), More sheet, AppFooter (rounded-xl, no pulse)
+4. **`src/components/glass/glass-card.tsx`** — solid card, `rounded-xl p-5` default, tighter hover lift
+5. **`src/components/app-header.tsx`** — solid white topbar, `rounded-lg` search/buttons, solid `#0071E3` compose button
+
+### Design system changes (`globals.css`)
+
+#### Radii (tighter, Apple-correct)
+- `--radius`: `0.75rem` (12px) → `0.5rem` (8px)
+- `--radius-sm: 4px`, `--radius-md: 6px`, `--radius-lg: 8px`, `--radius-xl: 12px`, `--radius-2xl: 16px`, `--radius-3xl: 22px`
+- Result: buttons/inputs naturally get 8px (`rounded-lg`), cards get 12px (`rounded-xl`). Existing `rounded-2xl` usages become 16px (was 22px) — visually tighter, more Apple.
+
+#### Light mode tokens (`:root`)
+| Token | Before | After | Note |
+|---|---|---|---|
+| `--background` | `oklch(0.95 0.004 250)` (~#F0F0F0) | `oklch(0.96 0.003 280)` (#F5F5F7) | Apple canvas off-white |
+| `--foreground` | `oklch(0.16 0.008 250)` | `oklch(0.22 0.003 280)` (#1D1D1F) | Apple near-black, NOT pure #000 |
+| `--muted-foreground` | `oklch(0.48 0.008 250)` (mid) | `oklch(0.62 0.002 280)` (#86868B) | Apple gray, more legible secondary text |
+| `--primary` | `oklch(0.588 0.167 254)` (#007AFF) | `oklch(0.581 0.189 256)` (#0071E3) | Apple blue, slightly more saturated |
+| `--sidebar` | `oklch(0.965 0.003 250 / 85%)` (translucent) | `oklch(0.945 0.003 280 / 100%)` (#F0F0F2) | SOLID macOS sidebar |
+| `--border` | `oklch(0.88 0.004 250)` | `oklch(0.88 0.003 280 / 60%)` | hairline `rgba(0,0,0,0.06)` |
+| `--success`, `--warning`, `--info` | (new) | `oklch(...)` for #34C759, #FF9500, #0071E3 | Apple semantic colors added |
+
+#### Dark mode tokens (`.dark`) — deep and rich
+- `--background`: `oklch(0.22 0.003 280)` = #1D1D1F (NOT pure black)
+- `--card`: `oklch(0.32 0.005 280)` = #2C2C2E
+- `--sidebar`: `oklch(0.21 0.003 280)` = #1C1C1E
+- `--foreground`: `oklch(0.96 0.003 280)` = #F5F5F7
+- `--border`: `oklch(1 0 0 / 8%)` = `rgba(255,255,255,0.08)`
+
+#### Shadows — CRITICAL (this is what makes Apple look "solid")
+- Card shadow (`.glass`): `0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)` (was 3-layer with 8px blur — too diffused)
+- Card hover (`.lift-hover:hover`): `0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.06)` (was 16px / 40px — too floaty)
+- Elevated (`.glass-strong`): `0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)` (was 32px / 64px — too soft)
+- Lift translateY reduced from `-2px` to `-1px` (Apple subtle).
+
+#### Background — solid canvas, no splashed blob
+- `.retaina-bg` is now SOLID `var(--background)` only — removed the `60vw` blurred accent `::before` glow that caused the "splashed" look.
+- Removed the dark-mode `.retaina-bg::before` accent tint.
+
+#### Materials — solid surfaces (no translucency on cards)
+- `.glass` — SOLID `#FFFFFF` (light) / `#2C2C2E` (dark), 1px hairline `rgba(0,0,0,0.06)` border, tight Apple shadow.
+- `.glass-strong` — SOLID `#FFFFFF` with `backdrop-blur(30px) saturate(150%)` for elevated popovers/dialogs.
+- `.glass-sidebar` — SOLID `#F0F0F2` (light) / `#1C1C1E` (dark), 1px right border. NO translucency (was `blur(40px) saturate(180%)`).
+- `.glass-topbar` — Solid white `bg-white/80` + `backdrop-blur-xl` (frosted-but-solid, only here translucency lives for scroll-behind content).
+
+#### Apple token additions (`:root` Apple block)
+- `--apple-blue: #0071E3` (was #007AFF)
+- `--apple-canvas: #F5F5F7` (was #F2F2F7)
+- `--apple-elevated: #FFFFFF` (light) / `#2C2C2E` (dark) (was #1C1C1E)
+- `--apple-sidebar: #F0F0F2` (light) / `#1C1C1E` (dark)
+- `--apple-bubble-out: #0071E3` (light) / `#0A84FF` (dark)
+- `--apple-bubble-in: #F5F5F7` (light) / `#2C2C2E` (dark) (was #E9E9EB / #1C1C1E)
+- `--apple-text: #1D1D1F` / `#F5F5F7`
+- `--apple-text-secondary: #86868B` / `#98989D`
+- `--apple-hairline: rgba(0,0,0,0.06)` / `rgba(255,255,255,0.08)`
+- Removed `--apple-gray: #8E8E93` (replaced by `#86868B` to match Apple's secondary text spec)
+
+#### FAB / chat / pill classes
+- `.apple-fab-gradient` — was blue→teal gradient + glow pulse. Now SOLID `var(--apple-blue)` with `0 4px 12px rgba(0,113,227,0.30)` shadow. Hover: scale(1.05) + brighter shadow. NO pulse.
+- `.fab-glow` — kept as a class no-op (`animation: none`) so existing refs don't break, but visually does nothing (Apple doesn't pulse-glow primary actions).
+- `@keyframes fab-in` — was 0.6 scale + rotate animation. Now simple `scale(0.92)→(1)` over 0.3s.
+- `.apple-avatar-gradient` — was blue→teal gradient. Now SOLID `var(--apple-blue)` with subtle `0 2px 6px -1px rgba(0,113,227,0.30)` shadow.
+- `.apple-pill` — was rounded-full `var(--apple-elevated)` with hover lift. Now SOLID `var(--apple-canvas)`, 8px radius, hairline border, hover `bg: #E8E8ED` (no transform lift).
+- `.apple-send-btn` — was circular (border-radius inherits). Now `border-radius: 8px` (rounded-lg), SOLID `var(--apple-blue)`, tight `0 1px 2px rgba(0,113,227,0.30)` shadow (was 0 2px 8px / 0.55 alpha — too glowy).
+- `.apple-bubble-out` / `.apple-bubble-in` — shadows tightened from `0 2px 8px -2px rgba(0,0,0,0.10)` to `0 1px 2px rgba(0,0,0,0.06)`.
+- `.bubble-tail-right` / `.bubble-tail-left` — `::after` triangles REMOVED (`content: none`). Classes kept as no-ops so older refs still work without breaking layout. (Asymmetric corners on bubbles replace tails — see ai-assistant.tsx.)
+- `.focus-ring-anim:focus-within` — was 0.25s animated ring expansion. Now a static `box-shadow: 0 0 0 4px rgba(0,113,227,0.18)` with 0.15s transition. NO animation.
+
+#### Mobile tab bar (`.apple-tab-bar` + `.apple-tab-item`)
+- `.apple-tab-bar` — was `border-radius: 22px 22px 0 0` + heavy `0 -8px 30px -8px rgba(0,0,0,0.18)` shadow. Now `border-radius: 0` (flat top edge — iOS 18 standard), hairline `0 -1px 0 rgba(0,0,0,0.04)` separation only.
+- `.apple-glass-heavy` — was 30px blur / 200% saturation / `rgba(249,249,249,0.82)`. Now 24px blur / 180% saturation / `rgba(240,240,242,0.92)` (more solid #F0F0F2).
+- Active indicator — was `::before` 28px×3px pill at TOP of icon (iOS 17 style). Now `::after` 4px×4px DOT at BOTTOM of icon (macOS Dock / iOS 18 home-screen pattern).
+- Tab icon size: 22px → 24px (h-6 w-6).
+- Inactive color: `var(--apple-gray)` → explicit `#86868B`.
+- Tab bar min-height: 60px → 49px (iOS standard).
+
+### `ai-assistant.tsx` — complete rewrite (Siri panel, NOT iMessage)
+
+#### Floating Action Button
+- 56px → **52px** circular, SOLID `#0071E3` background (no gradient, no pulse glow).
+- Icon: `Bot` → **`Sparkles`** from Lucide (Apple "intelligence" pattern).
+- Subtle shadow: `0 4px 12px rgba(0,113,227,0.30)` (via `.apple-fab-gradient` class).
+- Hover: `scale(1.05)` + brighter shadow. NO pulse, NO glow.
+- Removed the emerald "online" ping dot (was 3.5px + animate-ping ring) — Apple doesn't do flashy.
+
+#### Chat Panel
+- Was `400×640px` rounded-3xl frosted-glass (`apple-glass-heavy`).
+- Now **380×560px** `rounded-xl` (12px) **SOLID white** `bg-white dark:bg-[#2C2C2E]` with `1px border-black/[0.06]` + elevated shadow `0 12px 40px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.1)`.
+- Mobile: full-width sheet, flat top edge (no rounded-t-3xl).
+
+#### Header
+- Was frosted `apple-glass` with `apple-avatar-gradient` 40px circle + "SocialFlow AI" title + green online dot + "Online · typically replies instantly" subtitle.
+- Now SOLID white `bg-white dark:bg-[#2C2C2E]`, 1px bottom border. 32px solid-`#0071E3` rounded-lg icon circle with white `Sparkles`. Title: **"Assistant"** (was "SocialFlow AI"). Subtitle: **"Ask anything"** in `#86868B`. Close button 28px circular (kept for icon-only buttons — pills are for content buttons).
+- Removed `Eraser` clear button 32px → 28px (matches close button), hairline hover bg.
+
+#### Messages
+- Was `rounded-3xl` with `bubble-tail-right` / `bubble-tail-left` (iMessage tails), `15px` font, `75%` max width, last-in-group had `rounded-br-md`.
+- Now `rounded-xl` (12px) **asymmetric corners** (NO tails): user bubble `rounded-br-sm` on last, AI bubble `rounded-bl-sm` on last. `14px` font (Apple uses smaller text in panels). `80%` max width.
+- User bubble: SOLID `#0071E3` text-white (was gradient `apple-bubble-out` #007AFF).
+- AI bubble: SOLID `#F5F5F7` text-`#1D1D1F` (was `#E9E9EB`).
+- Action chip: `rounded-md` (was `rounded-lg`), tighter `bg-black/[0.05]` (was `rgba(255,255,255,0.18)` — too translucent on the blue).
+- AI avatar in messages: removed the per-message avatar bubble (was redundant with header). Now only the typing indicator + last-in-group keeps a small 28px solid-blue circle.
+
+#### Input area
+- Was frosted `apple-glass` with `rounded-full` input + circular 40px send button + `focus-ring-anim` pulse.
+- Now SOLID white `bg-white dark:bg-[#2C2C2E]`, 1px top border. Input `bg-[#F5F5F7]` `rounded-lg` (8px). Send button **36px** `rounded-lg` (NOT circular). NO focus-ring animation — just static `box-shadow: 0 0 0 4px rgba(0,113,227,0.18)` on focus-within.
+- Placeholder text: "Message…" → "Ask anything…".
+
+#### Quick prompts
+- Was `rounded-full` pills with hover lift + `ChevronDown` arrow.
+- Now `rounded-lg` chips (via `.apple-pill` class), 12px text, `bg-[#F5F5F7]` (light) / `bg-white/[0.06]` (dark), hover `bg-[#E8E8ED]` (NO transform lift).
+
+### `app-shell.tsx` — mobile chrome redesign
+
+#### Mobile tab bar
+- `min-height: 60px` → **49px** (iOS standard + safe-area env).
+- Tab icons 22px → **24px** (`h-6 w-6`).
+- `apple-tab-bar` class now applies flat-top + dot indicator (CSS changes above).
+
+#### More sheet
+- `rounded-t-[24px]` → `rounded-t-xl` (12px — flatter, Apple-standard).
+- Heavy shadow `0 -12px 48px -12px rgba(0,0,0,0.35)` → tighter `0 -8px 32px -8px rgba(0,0,0,0.18)`.
+- Border `border-black/8` → `border-black/[0.06]` (hairline).
+- Close button: `h-8 w-8 rounded-full bg-black/5` → `h-7 w-7 rounded-full` (no bg, just hover — cleaner).
+- More sheet nav tiles: `rounded-2xl` → `rounded-xl`. Active `!border-blue-500/50` → `!border-[#0071E3]/50 dark:!border-[#0A84FF]/50`. Icon container `rounded-full` → `rounded-xl` (matches Apple square tile pattern). Color references `var(--apple-blue)` → explicit `#0071E3`.
+
+#### AppFooter
+- Status pill container `rounded-2xl` → `rounded-xl`.
+- Removed `animate-pulse` on the emerald status dot (Apple doesn't pulse system indicators).
+
+### `glass-card.tsx` — solid Apple card
+
+- Default classes: `rounded-2xl` → **`rounded-xl p-5`** (12px corners, 20px padding — Apple standard).
+- Hover: `.lift-hover` class unchanged in name, but CSS now produces tighter `0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.06)` shadow with `-1px` lift (was `-2px`).
+- `KpiCard` — removed redundant `p-5` from className (now inherited from GlassCard default). Comment updated from "Sonoma" to "macOS 27".
+
+### `app-header.tsx` — solid white topbar
+
+- Container: `rounded-2xl shadow-lg` → `rounded-xl` (no explicit shadow — `.glass-topbar` provides the hairline border + frosted blur).
+- All buttons (`bg-muted/60`, `bg-muted/50`, `bg-muted/40`): → explicit `bg-[#F5F5F7]` (light) / `bg-white/[0.06]` (dark). Hover `bg-[#E8E8ED]` / `bg-white/[0.10]`.
+- Button corners: `rounded-xl` → **`rounded-lg`** (8px) for all chrome buttons.
+- Search button: was `rounded-xl border-border/40 bg-muted/30`. Now `rounded-lg border-black/[0.06] bg-[#F5F5F7]` with `text-[#86868B]` (Apple gray). NOT `rounded-full`.
+- Quick compose button: `bg-primary` (now `#0071E3`) → explicit `bg-[#0071E3] shadow-[0_1px_2px_rgba(0,113,227,0.30)]` for solid Apple-blue with tight shadow. Hover `bg-[#0061cb]`.
+- Admin toggle (segmented control): `rounded-xl bg-muted/40` → `rounded-lg bg-[#F5F5F7]`. Active button: `bg-background text-foreground shadow-sm` → `bg-white text-[#1D1D1F] shadow-[0_1px_2px_rgba(0,0,0,0.06)]` (tighter shadow).
+- Theme toggle: `rounded-xl bg-muted/50` → `rounded-lg bg-[#F5F5F7] text-[#1D1D1F]`.
+- Logout: `hover:bg-rose-500/15 hover:text-rose-500` → `hover:bg-[#FF3B30]/10 hover:text-[#FF3B30]` (Apple red `#FF3B30`).
+- NotificationsBell trigger: `rounded-xl bg-muted/50` → `rounded-lg bg-[#F5F5F7] text-[#1D1D1F]`. Badge `bg-primary` → `bg-[#FF3B30]` (Apple red, NOT primary blue). Ring color `ring-background` → `ring-white dark:ring-[#2C2C2E]` (matches solid card bg).
+- Notification "X new" pill: `rounded-full bg-primary/15 text-primary` → `rounded-md bg-[#0071E3]/12 text-[#0071E3]`.
+- "View all in inbox" item: `text-primary` → `text-[#0071E3] dark:text-[#0A84FF]` (explicit Apple blue).
+- Role badge in avatar dropdown: `rounded-full` → `rounded-md` (tighter, Apple standard).
+- User avatar trigger button: `rounded-xl hover:bg-muted/50` → `rounded-lg hover:bg-[#F5F5F7] dark:hover:bg-white/[0.06]`.
+
+### 12 design rules — verification checklist
+
+1. ✅ NO gradients on buttons/panels/backgrounds — `.apple-fab-gradient`, `.apple-avatar-gradient` are now SOLID `#0071E3`. `.retaina-bg::before` accent glow removed entirely.
+2. ✅ NO frosted glass on cards/panels — `.glass` is now SOLID `#FFFFFF`. AI chat panel is solid `bg-white`. Only `.glass-topbar` keeps `bg-white/80 + backdrop-blur-xl` for scroll-behind content (header).
+3. ✅ NO glow/pulse animations — `.fab-glow` is `animation: none`. Footer status dot lost `animate-pulse`. `.focus-ring-anim` is now a static box-shadow.
+4. ✅ NO `rounded-3xl` in the redesigned components — AI panel uses `rounded-xl`, glass-card uses `rounded-xl`, app-header uses `rounded-xl` (topbar) + `rounded-lg` (buttons).
+5. ✅ NO bubble tails — `.bubble-tail-right::after` / `.bubble-tail-left::after` set to `content: none`. AI bubbles use asymmetric corners (`rounded-br-sm` / `rounded-bl-sm`).
+6. ✅ Solid backgrounds everywhere — canvas `#F5F5F7`, cards `#FFFFFF`, sidebar `#F0F0F2`, panel `#FFFFFF`. No `bg-white/50` or similar translucent surfaces on content.
+7. ✅ Tight shadows — Card: `0 1px 3px / 0 1px 2px`. Hover: `0 4px 12px / 0 2px 4px`. Elevated: `0 8px 24px / 0 2px 8px`. AI panel: `0 12px 40px / 0 4px 12px`. All alphas ≤0.15 (was 0.35-0.55).
+8. ✅ Off-white `#F5F5F7` canvas — `--background: oklch(0.96 0.003 280)` ≈ `#F5F5F7`. NOT pure white.
+9. ✅ `#1D1D1F` text — `--foreground: oklch(0.22 0.003 280)` ≈ `#1D1D1F`. NOT pure #000.
+10. ✅ `#0071E3` accent — `--primary: oklch(0.581 0.189 256)` ≈ `#0071E3` (slightly more saturated than #007AFF). `--apple-blue: #0071E3`.
+11. ✅ 12px corners on cards — `--radius-xl: 12px` (explicit). Glass-card uses `rounded-xl`. AI panel uses `rounded-xl`. Topbar uses `rounded-xl`.
+12. ✅ 8px corners on buttons/inputs — `--radius-lg: 8px` (explicit). All header buttons use `rounded-lg`. AI send button uses `rounded-lg`. Search uses `rounded-lg`. AI input uses `rounded-lg`. Apple-pill quick prompts use 8px (in CSS).
+
+### Quality checks
+- ✅ **`bun run lint`** — zero errors in modified files. The only remaining lint error is the pre-existing `react-hooks/rules-of-hooks` issue in `mini-services/whatsapp-service/index.js` — completely unrelated to this task.
+- ✅ **`npx tsc --noEmit`** — zero new TypeScript errors introduced by my changes. All errors reported are pre-existing in unrelated files (API routes, sidebar, settings, reports). The single error in `app-shell.tsx:159` (`view === "organization"`) was pre-existing — I did not modify that line.
+- ✅ **Dev server** (port 3000) — `curl http://localhost:3000/` returns HTTP 200. Compiled CSS contains all the new tokens: `#0071E3`, `.apple-fab-gradient`, `.apple-tab-item.active:after` (dot indicator), `.apple-send-btn`, `.apple-pill` (8px radius).
+- ✅ Both light and dark mode supported — every redesigned surface has explicit `dark:` variants (e.g. `bg-white dark:bg-[#2C2C2E]`, `text-[#1D1D1F] dark:text-[#F5F5F7]`, `border-black/[0.06] dark:border-white/[0.08]`).
+
+### Preserved unchanged
+- All API routes (`src/app/api/**`) — untouched.
+- Prisma schema — untouched.
+- All view components (`src/components/views/**`) — untouched (they'll inherit the new tighter radii automatically because `--radius-2xl` is now 16px instead of 22px, but no JSX changes were needed).
+- Sidebar (`app-sidebar.tsx`) — untouched (it inherits `--sidebar` token which is now SOLID `#F0F0F2`).
+- All Lucide icon imports — kept consistent (added `Sparkles`, removed unused `ChevronDown` from ai-assistant).
+- Platform brand colors — untouched.
+- PWA splash screen CSS — untouched.
+
+### Notes for next agent
+- The redesign is **token-driven**, so any future component using `bg-primary`, `bg-muted`, `border-border`, `rounded-xl`, `rounded-lg` automatically inherits the new Apple-correct values. No need to hunt down every `rounded-2xl` in 30+ view files — they'll naturally tighten from 22px → 16px which is still acceptable for secondary surfaces.
+- If you want cards to look even tighter, switch their `rounded-2xl` to `rounded-xl` (12px) in individual view files. The token-level change to `--radius-xl: 12px` already makes `rounded-xl` exact.
+- The `.apple-fab-gradient`, `.apple-avatar-gradient`, `.fab-glow`, `.bubble-tail-right`, `.bubble-tail-left` class names were KEPT (as no-ops or solid-color variants) so any remaining references in other files don't break.
+- The `.glass-sidebar` no longer applies `backdrop-filter` — sidebar is now solid `#F0F0F2`. This is intentional (the task said "Solid backgrounds everywhere"). If a vibrancy effect is desired later, add a separate `.glass-sidebar-vibrant` class.
