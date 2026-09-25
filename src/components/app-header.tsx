@@ -106,10 +106,11 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
 
   return (
     <header className="sticky top-0 z-30 px-3 pt-3 sm:px-5 lg:px-6">
-      <div className="glass-topbar mx-auto flex w-full max-w-[1340px] items-center gap-2.5 rounded-2xl px-3 py-2.5 shadow-lg sm:px-4">
+      {/* Header bar — solid white (frosted via /80 + backdrop-blur-xl), rounded-xl, hairline border */}
+      <div className="glass-topbar mx-auto flex w-full max-w-[1340px] items-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-4">
         <button
           onClick={onMenu}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/60 text-foreground transition hover:bg-muted lg:hidden"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10] lg:hidden"
           aria-label="Open menu"
         >
           <Menu className="h-5 w-5" />
@@ -120,35 +121,35 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           <p className="hidden truncate text-[11px] text-muted-foreground lg:block">{t.subtitle}</p>
         </div>
 
-        {/* Search — opens command palette */}
+        {/* Search — opens command palette. bg-[#F5F5F7] rounded-lg (NOT rounded-full). */}
         <button
           onClick={() => setCmdOpen(true)}
-          className="hidden items-center gap-2 rounded-xl border border-border/40 bg-muted/30 px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/60 xl:flex"
+          className="hidden items-center gap-2 rounded-lg border border-black/[0.06] bg-[#F5F5F7] px-3 py-2 text-sm text-[#86868B] transition hover:bg-[#E8E8ED] dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-[#98989D] dark:hover:bg-white/[0.10] xl:flex"
         >
           <Search className="h-4 w-4" />
           <span>Search…</span>
-          <kbd className="ml-3 flex items-center gap-0.5 rounded bg-muted/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+          <kbd className="ml-3 flex items-center gap-0.5 rounded bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-[#86868B] dark:bg-white/[0.08] dark:text-[#98989D]">
             <Command className="h-3 w-3" />K
           </kbd>
         </button>
 
-        {/* Quick compose button */}
+        {/* Quick compose button — solid #0071E3, rounded-lg */}
         <button
           onClick={() => setView("composer")}
-          className="hidden items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 sm:flex"
+          className="hidden items-center gap-1.5 rounded-lg bg-[#0071E3] px-3 py-2 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,113,227,0.30)] transition hover:bg-[#0061cb] dark:bg-[#0A84FF] dark:hover:bg-[#0071E3] sm:flex"
           title="Compose with AI"
         >
           <PenLine className="h-3.5 w-3.5" />
           <span className="hidden lg:inline">Compose</span>
         </button>
 
-        {/* Admin / Member scope toggle */}
-        <div className="hidden items-center rounded-xl bg-muted/40 p-0.5 sm:flex" title={adminMode ? "Viewing all team data" : "Viewing only your data"}>
+        {/* Admin / Member scope toggle — segmented control. */}
+        <div className="hidden items-center rounded-lg bg-[#F5F5F7] p-0.5 dark:bg-white/[0.06] sm:flex" title={adminMode ? "Viewing all team data" : "Viewing only your data"}>
           <button
             onClick={() => setAdminMode(true)}
             className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-              adminMode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              "rounded-md px-3 py-1.5 text-xs font-semibold transition",
+              adminMode ? "bg-white text-[#1D1D1F] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#2C2C2E] dark:text-[#F5F5F7]" : "text-[#86868B] dark:text-[#98989D]"
             )}
           >
             All team
@@ -156,8 +157,8 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           <button
             onClick={() => setAdminMode(false)}
             className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-              !adminMode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+              "rounded-md px-3 py-1.5 text-xs font-semibold transition",
+              !adminMode ? "bg-white text-[#1D1D1F] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-[#2C2C2E] dark:text-[#F5F5F7]" : "text-[#86868B] dark:text-[#98989D]"
             )}
           >
             My work
@@ -172,7 +173,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
 
         <button
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-muted"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10]"
           aria-label="Toggle theme"
         >
           {mounted && resolvedTheme === "dark" ? (
@@ -184,7 +185,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
 
         <button
           onClick={logout}
-          className="hidden h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-rose-500/15 hover:text-rose-500 sm:grid"
+          className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#FF3B30]/10 hover:text-[#FF3B30] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-[#FF453A]/15 dark:hover:text-[#FF453A] sm:grid"
           aria-label="Log out"
           title="Log out"
         >
@@ -194,7 +195,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
         {/* User avatar — functional dropdown with role badge */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex shrink-0 items-center gap-1.5 rounded-xl p-0.5 transition hover:bg-muted/50">
+            <button className="flex shrink-0 items-center gap-1.5 rounded-lg p-0.5 transition hover:bg-[#F5F5F7] dark:hover:bg-white/[0.06]">
               <NameAvatar name={user?.name ?? "User"} color="blue" className="h-9 w-9 text-xs" ring />
               <ChevronDown className="h-3 w-3 text-muted-foreground" />
             </button>
@@ -209,7 +210,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
                     <span className="block text-xs font-normal text-muted-foreground truncate">{user?.email ?? ""}</span>
                   </div>
                 </div>
-                <span className={cn("mt-1 inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", roleBadge.bg, roleBadge.color)}>
+                <span className={cn("mt-1 inline-flex w-fit items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase", roleBadge.bg, roleBadge.color)}>
                   {roleBadge.label}
                 </span>
               </div>
@@ -366,10 +367,10 @@ function NotificationsBell({ onNavigate }: { onNavigate: () => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/50 text-foreground transition hover:bg-muted" aria-label="Notifications">
+        <button className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10]" aria-label="Notifications">
           <Bell className="h-[18px] w-[18px]" />
           {totalAlerts > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground ring-2 ring-background">
+            <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#FF3B30] px-1 text-[9px] font-bold text-white ring-2 ring-white dark:ring-[#2C2C2E]">
               {totalAlerts > 9 ? "9+" : totalAlerts}
             </span>
           )}
@@ -379,7 +380,7 @@ function NotificationsBell({ onNavigate }: { onNavigate: () => void }) {
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>Notifications</span>
           {totalAlerts > 0 && (
-            <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">{totalAlerts} new</span>
+            <span className="rounded-md bg-[#0071E3]/12 px-1.5 py-0.5 text-[10px] font-bold text-[#0071E3] dark:text-[#0A84FF] dark:bg-[#0A84FF]/15">{totalAlerts} new</span>
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -428,7 +429,7 @@ function NotificationsBell({ onNavigate }: { onNavigate: () => void }) {
           </div>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="justify-center text-xs font-medium text-primary cursor-pointer" onClick={onNavigate}>
+        <DropdownMenuItem className="justify-center text-xs font-medium text-[#0071E3] cursor-pointer dark:text-[#0A84FF]" onClick={onNavigate}>
           View all in inbox
         </DropdownMenuItem>
       </DropdownMenuContent>

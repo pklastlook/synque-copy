@@ -15,7 +15,8 @@ export function GlassCard({
     <div
       className={cn(
         strong ? "glass-strong" : "glass",
-        "rounded-2xl",
+        // Apple cards: 12px corners (rounded-xl), p-5 default padding (20px).
+        "rounded-xl p-5",
         hover && "lift-hover",
         className
       )}
@@ -83,8 +84,8 @@ export function KpiCard({
   const barRange = Math.max(barMax - barMin, 1);
 
   return (
-    <GlassCard hover className="crystal-in group relative overflow-hidden p-5" style={{ animationDelay: `${delay}ms` }}>
-      {/* Sonoma: clean card, NO ambient glow, NO shimmer sweep.
+    <GlassCard hover className="crystal-in group relative overflow-hidden" style={{ animationDelay: `${delay}ms` }}>
+      {/* macOS 27: clean solid card. NO ambient glow, NO shimmer sweep.
           Color is semantic — only the icon is colored, the card is neutral. */}
 
       {/* Top row: icon tile + delta badge */}

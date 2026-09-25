@@ -37,12 +37,15 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 10px);
-  --radius-3xl: calc(var(--radius) + 22px);
+  /* macOS 27 / iOS 18 — tight Apple radii.
+     --radius = 8px (buttons, inputs, list rows).
+     Cards use rounded-xl = 12px explicitly. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 22px;
 }
 
 /* ============================================================================
@@ -61,60 +64,67 @@
    ============================================================================ */
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.5rem; /* 8px — buttons, inputs, list rows. Cards use 12px via rounded-xl. */
 
-  /* Background — darker than cards so cards POP.
-     Light grey canvas, not near-white (that blends with white cards). */
-  --background: oklch(0.95 0.004 250);
-  --foreground: oklch(0.16 0.008 250);
+  /* Canvas — Apple off-white #F5F5F7 (NOT pure white).
+     Crystal-solid, not splashed or washed out. */
+  --background: oklch(0.96 0.003 280);
+  --foreground: oklch(0.22 0.003 280); /* #1D1D1F — Apple near-black */
 
-  /* Cards — pure white, clearly elevated above the grey background */
+  /* Cards — solid pure white, clearly elevated above the canvas.
+     Subtle 1px border separates them from the off-white background. */
   --card: oklch(1 0 0 / 100%);
-  --card-foreground: oklch(0.16 0.008 250);
+  --card-foreground: oklch(0.22 0.003 280);
 
   --popover: oklch(1 0 0 / 100%);
-  --popover-foreground: oklch(0.16 0.008 250);
+  --popover-foreground: oklch(0.22 0.003 280);
 
-  /* Brand — Apple system blue (#007AFF) */
-  --primary: oklch(0.588 0.167 254);
-  --primary-foreground: oklch(0.99 0 0);
+  /* Brand — Apple system blue #0071E3 (slightly more saturated than #007AFF). */
+  --primary: oklch(0.581 0.189 256);
+  --primary-foreground: oklch(1 0 0);
 
   /* Accent — Apple system indigo (#5856D6) */
   --gold: oklch(0.588 0.209 277);
   --gold-foreground: oklch(0.99 0 0);
   --accent-strong: oklch(0.54 0.21 277);
 
-  --secondary: oklch(0.92 0.003 250);
-  --secondary-foreground: oklch(0.22 0.008 250);
+  /* Secondary surfaces — solid Apple gray-6 #F2F2F7 */
+  --secondary: oklch(0.95 0.003 280);
+  --secondary-foreground: oklch(0.22 0.003 280);
 
-  --muted: oklch(0.92 0.003 250);
-  --muted-foreground: oklch(0.48 0.008 250);
+  --muted: oklch(0.95 0.003 280);
+  --muted-foreground: oklch(0.62 0.002 280); /* #86868B — Apple gray */
 
-  --accent: oklch(0.93 0.008 258);
+  --accent: oklch(0.94 0.005 258);
   --accent-foreground: oklch(0.36 0.13 258);
 
-  --destructive: oklch(0.626 0.225 27);
-  --border: oklch(0.88 0.004 250);
-  --input: oklch(0.91 0.003 250);
-  --ring: oklch(0.588 0.167 254 / 40%);
+  /* Apple system colors — semantic */
+  --destructive: oklch(0.626 0.225 27); /* #FF3B30 */
+  --success: oklch(0.723 0.178 142);     /* #34C759 */
+  --warning: oklch(0.737 0.165 55);      /* #FF9500 */
+  --info: oklch(0.581 0.189 256);         /* #0071E3 */
+
+  --border: oklch(0.88 0.003 280 / 60%);  /* hairline rgba(0,0,0,0.06) */
+  --input: oklch(0.95 0.003 280);
+  --ring: oklch(0.581 0.189 256 / 40%);
 
   /* Chart palette — Apple system colors (semantic, retina-ready) */
-  --chart-1: oklch(0.588 0.167 254);  /* blue    */
-  --chart-2: oklch(0.588 0.209 277);  /* indigo  */
-  --chart-3: oklch(0.723 0.178 142);  /* green   */
+  --chart-1: oklch(0.581 0.189 256);  /* blue    #0071E3 */
+  --chart-2: oklch(0.588 0.209 277);  /* indigo */
+  --chart-3: oklch(0.723 0.178 142);  /* green   #34C759 */
   --chart-4: oklch(0.635 0.217 17);   /* pink    */
-  --chart-5: oklch(0.737 0.165 55);   /* orange  */
+  --chart-5: oklch(0.737 0.165 55);   /* orange  #FF9500 */
 
-  /* Sidebar — Sonoma .sidebar material: translucent, vibrancy-enabled.
-     Slightly cooler than content to create depth separation. */
-  --sidebar: oklch(0.965 0.003 250 / 85%);
-  --sidebar-foreground: oklch(0.16 0.008 250);
-  --sidebar-primary: oklch(0.588 0.167 254);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.93 0.005 250 / 70%);
-  --sidebar-accent-foreground: oklch(0.22 0.008 250);
-  --sidebar-border: oklch(0.88 0.003 250 / 60%);
-  --sidebar-ring: oklch(0.588 0.167 254 / 40%);
+  /* Sidebar — solid #F0F0F2 (slightly darker than canvas, like macOS sidebar).
+     SOLID, not translucent — crystal clarity over vibrancy. */
+  --sidebar: oklch(0.945 0.003 280 / 100%);
+  --sidebar-foreground: oklch(0.22 0.003 280);
+  --sidebar-primary: oklch(0.581 0.189 256);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.005 280 / 100%);
+  --sidebar-accent-foreground: oklch(0.22 0.003 280);
+  --sidebar-border: oklch(0.88 0.003 280 / 60%);
+  --sidebar-ring: oklch(0.581 0.189 256 / 40%);
 
   /* Platform brand colors — solid */
   --p-instagram: oklch(0.635 0.217 17);
@@ -127,16 +137,16 @@
 }
 
 .dark {
-  /* Dark background — darker so cards (0.24) clearly pop above it */
-  --background: oklch(0.14 0.004 250);
-  --foreground: oklch(0.96 0.003 250);
+  /* Dark background — deep #1D1D1F (NOT pure black). Rich, not washed. */
+  --background: oklch(0.22 0.003 280);
+  --foreground: oklch(0.96 0.003 280); /* #F5F5F7 */
 
-  /* Cards — clearly elevated surface, brighter than background */
-  --card: oklch(0.24 0.006 250 / 100%);
-  --card-foreground: oklch(0.96 0.003 250);
+  /* Cards — solid #2C2C2E, clearly elevated above background. */
+  --card: oklch(0.32 0.005 280 / 100%);
+  --card-foreground: oklch(0.96 0.003 280);
 
-  --popover: oklch(0.27 0.006 250 / 100%);
-  --popover-foreground: oklch(0.96 0.003 250);
+  --popover: oklch(0.34 0.005 280 / 100%);
+  --popover-foreground: oklch(0.96 0.003 280);
 
   --primary: oklch(0.69 0.165 254);
   --primary-foreground: oklch(0.14 0.02 250);
@@ -145,18 +155,22 @@
   --gold-foreground: oklch(0.14 0.02 250);
   --accent-strong: oklch(0.66 0.21 277);
 
-  --secondary: oklch(0.28 0.005 250);
-  --secondary-foreground: oklch(0.96 0.003 250);
+  --secondary: oklch(0.36 0.005 280);
+  --secondary-foreground: oklch(0.96 0.003 280);
 
-  --muted: oklch(0.28 0.005 250);
-  --muted-foreground: oklch(0.68 0.008 250);
+  --muted: oklch(0.36 0.005 280);
+  --muted-foreground: oklch(0.72 0.005 280);
 
-  --accent: oklch(0.32 0.05 277);
+  --accent: oklch(0.38 0.05 277);
   --accent-foreground: oklch(0.90 0.04 277);
 
   --destructive: oklch(0.696 0.195 22);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
+  --success: oklch(0.76 0.178 142);
+  --warning: oklch(0.78 0.165 55);
+  --info: oklch(0.69 0.165 254);
+
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 10%);
   --ring: oklch(0.69 0.165 254 / 40%);
 
   --chart-1: oklch(0.69 0.165 254);
@@ -165,13 +179,13 @@
   --chart-4: oklch(0.69 0.217 17);
   --chart-5: oklch(0.78 0.165 55);
 
-  /* Sidebar — Sonoma dark: translucent, slightly darker than content */
-  --sidebar: oklch(0.15 0.004 250 / 85%);
-  --sidebar-foreground: oklch(0.94 0.003 250);
+  /* Sidebar — solid #1C1C1E (slightly darker than canvas). */
+  --sidebar: oklch(0.21 0.003 280 / 100%);
+  --sidebar-foreground: oklch(0.94 0.003 280);
   --sidebar-primary: oklch(0.69 0.165 254);
   --sidebar-primary-foreground: oklch(0.14 0.02 250);
-  --sidebar-accent: oklch(0.22 0.005 250 / 70%);
-  --sidebar-accent-foreground: oklch(0.94 0.003 250);
+  --sidebar-accent: oklch(0.28 0.005 280 / 100%);
+  --sidebar-accent-foreground: oklch(0.94 0.003 280);
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.69 0.165 254 / 40%);
 }
@@ -233,49 +247,52 @@
    ============================================================================ */
 
 :root {
-  /* .regularMaterial — solid card surface */
+  /* .regularMaterial — solid card surface (pure #FFFFFF) */
   --glass-bg: oklch(1 0 0 / 100%);
-  --glass-border: oklch(0.90 0.003 250 / 80%);
+  --glass-border: oklch(0 0 0 / 6%); /* hairline rgba(0,0,0,0.06) */
   --glass-highlight: oklch(1 0 0 / 100%);
-  --glass-shadow: oklch(0.25 0.01 250 / 10%);
-  --glass-shadow-soft: oklch(0.20 0.01 250 / 6%);
-  /* .thickMaterial — elevated (dialogs, popovers) */
+  --glass-shadow: oklch(0 0 0 / 6%);
+  --glass-shadow-soft: oklch(0 0 0 / 4%);
+  --glass-shadow-hover: oklch(0 0 0 / 8%);
+  /* .thickMaterial — elevated (dialogs, popovers) — solid #FFFFFF */
   --glass-bg-strong: oklch(1 0 0 / 100%);
   /* Subtle accent tint for focus/hover states */
-  --crystal-glow: oklch(0.588 0.167 254 / 6%);
+  --crystal-glow: oklch(0.581 0.189 256 / 4%);
 }
 .dark {
-  --glass-bg: oklch(0.225 0.005 250 / 100%);
-  --glass-border: oklch(1 0 0 / 10%);
+  --glass-bg: oklch(0.32 0.005 280 / 100%); /* #2C2C2E */
+  --glass-border: oklch(1 0 0 / 8%);
   --glass-highlight: oklch(1 0 0 / 6%);
-  --glass-shadow: oklch(0 0 0 / 40%);
-  --glass-shadow-soft: oklch(0 0 0 / 25%);
-  --glass-bg-strong: oklch(0.26 0.006 250 / 100%);
+  --glass-shadow: oklch(0 0 0 / 30%);
+  --glass-shadow-soft: oklch(0 0 0 / 20%);
+  --glass-shadow-hover: oklch(0 0 0 / 40%);
+  --glass-bg-strong: oklch(0.34 0.005 280 / 100%);
   --crystal-glow: oklch(0.69 0.165 254 / 8%);
 }
 
-/* Glass — the standard card surface. Must clearly POP above the background. */
+/* Glass — the standard card surface. SOLID white, tight Apple shadow.
+   NOT frosted glass — crystal-solid like macOS System Preferences cards. */
 .glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  /* Layered shadows: tight inner + soft drop = real elevation */
+  /* Apple card shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06) */
   box-shadow:
-    0 1px 2px 0 var(--glass-shadow-soft),
-    0 4px 12px -2px var(--glass-shadow),
-    0 8px 24px -8px var(--glass-shadow);
+    0 1px 3px 0 var(--glass-shadow-soft),
+    0 1px 2px 0 var(--glass-shadow);
   position: relative;
 }
-/* No ::after pseudo — Sonoma cards are clean, no top highlight gradient */
+/* No ::after pseudo — Apple cards are clean, no top highlight gradient */
 
-/* Glass strong — for dialogs, modals, popovers (.thickMaterial) */
+/* Glass strong — for dialogs, modals, popovers. SOLID + elevated shadow. */
 .glass-strong {
   background: var(--glass-bg-strong);
   backdrop-filter: blur(30px) saturate(150%);
   -webkit-backdrop-filter: blur(30px) saturate(150%);
   border: 1px solid var(--glass-border);
+  /* Apple elevated shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08) */
   box-shadow:
-    0 8px 32px -8px var(--glass-shadow),
-    0 24px 64px -16px var(--glass-shadow);
+    0 8px 24px 0 var(--glass-shadow-hover),
+    0 2px 8px 0 var(--glass-shadow);
   position: relative;
 }
 
@@ -286,22 +303,23 @@
   -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
-/* Sidebar — Sonoma .sidebar material: TRANSLUCENT with vibrancy.
-   This is the ONE place translucency lives — it shows the background
-   through a frosted layer, creating the signature macOS depth. */
+/* Sidebar — SOLID #F0F0F2 (light) / #1C1C1E (dark).
+   Crystal-solid like macOS sidebar — no translucency. */
 .glass-sidebar {
   background: var(--sidebar);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-right: 1px solid var(--sidebar-border);
 }
 
-/* Floating topbar — Sonoma toolbar (.windowBackground) */
+/* Floating topbar — solid white with backdrop-blur-xl.
+   Frosted but solid — for headers/toolbar where content scrolls behind. */
 .glass-topbar {
-  background: var(--glass-bg);
+  background: oklch(1 0 0 / 80%);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border-bottom: 1px solid var(--glass-border);
+}
+.dark .glass-topbar {
+  background: oklch(0.32 0.005 280 / 80%);
 }
 
 /* Liquid sheen — removed in Sonoma (cards are clean, no moving highlights) */
@@ -310,10 +328,8 @@
 }
 
 /* ============================================================================
-   Background — SOLID with a single subtle accent glow
-   (Replaces the 4 faded overlapping blobs that caused "splashed" look)
-
-   Tahoe: a solid base with ONE soft accent gradient = clean & premium
+   Background — SOLID canvas (#F5F5F7 light / #1D1D1F dark)
+   No splashed blobs. Crystal-solid, like macOS desktop wallpaper base.
    ============================================================================ */
 .retaina-bg {
   position: fixed;
@@ -322,33 +338,7 @@
   overflow: hidden;
   background: var(--background);
 }
-/* Single subtle accent glow — top-right, controlled, not splashed */
-.retaina-bg::before {
-  content: "";
-  position: absolute;
-  top: -20%;
-  right: -10%;
-  width: 60vw;
-  height: 60vw;
-  max-width: 900px;
-  max-height: 900px;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.25;
-  background: radial-gradient(
-    circle at center,
-    var(--crystal-glow),
-    transparent 70%
-  );
-}
-.dark .retaina-bg::before {
-  opacity: 0.4;
-  background: radial-gradient(
-    circle at center,
-    oklch(0.588 0.167 254 / 12%),
-    transparent 70%
-  );
-}
+/* No ::before glow — canvas must be SOLID, not splashed. */
 
 /* Retina gradient text — solid, crisp, not animated (less distracting) */
 .retaina-text {
@@ -416,17 +406,17 @@
   transform: scale(0.98);
 }
 
-/* Premium hover lift — for cards */
+/* Premium hover lift — for cards. Tight Apple hover shadow. */
 .lift-hover {
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.3s ease, border-color 0.3s ease;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.25s ease, border-color 0.25s ease;
 }
 .lift-hover:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
+  /* Apple card hover shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.06) */
   box-shadow:
-    0 1px 0 0 var(--glass-highlight) inset,
-    0 2px 6px 0 var(--glass-shadow-soft),
-    0 16px 40px -12px var(--glass-shadow-soft);
+    0 4px 12px 0 var(--glass-shadow-hover),
+    0 2px 4px 0 var(--glass-shadow);
 }
 
 /* Premium display number — large, light weight, tabular */
@@ -906,10 +896,11 @@ html { scroll-behavior: smooth; }
    ================================================================ */
 
 :root {
-  /* Apple system color palette */
-  --apple-blue: #007AFF;
+  /* Apple system color palette — macOS 27 / iOS 18.
+     #0071E3 replaces #007AFF for a slightly more saturated, premium accent. */
+  --apple-blue: #0071E3;
   --apple-blue-soft: #5AC8FA;
-  --apple-gray: #8E8E93;
+  --apple-gray: #86868B;       /* Apple secondary text gray */
   --apple-gray-2: #AEAEB2;
   --apple-gray-3: #C7C7CC;
   --apple-gray-4: #D1D1D6;
@@ -926,27 +917,41 @@ html { scroll-behavior: smooth; }
   --apple-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display",
     "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
 
-  /* Apple "Secondary System Grouped Background" — chat canvas */
-  --apple-canvas: #F2F2F7;
+  /* Apple canvas — solid #F5F5F7 (NOT pure white, NOT #F2F2F7). */
+  --apple-canvas: #F5F5F7;
   --apple-elevated: #FFFFFF;
+  --apple-sidebar: #F0F0F2;   /* macOS sidebar */
 
-  /* Apple bubble colors */
-  --apple-bubble-out: #007AFF;       /* user (right) — iMessage blue */
+  /* Apple bubble colors — SOLID (NO iMessage tails) */
+  --apple-bubble-out: #0071E3;       /* user (right) — Apple blue */
   --apple-bubble-out-fg: #FFFFFF;
-  --apple-bubble-in: #E9E9EB;        /* assistant (left) — light gray */
-  --apple-bubble-in-fg: #1C1C1E;
+  --apple-bubble-in: #F5F5F7;        /* assistant (left) — light gray */
+  --apple-bubble-in-fg: #1D1D1F;
+
+  /* Apple text colors */
+  --apple-text: #1D1D1F;
+  --apple-text-secondary: #86868B;
+
+  /* Apple hairline border */
+  --apple-hairline: rgba(0, 0, 0, 0.06);
+  --apple-hairline-strong: rgba(0, 0, 0, 0.10);
 
   /* Apple "Online" green dot */
   --apple-online: #34C759;
 }
 
 .dark {
-  --apple-canvas: #000000;
-  --apple-elevated: #1C1C1E;
-  --apple-bubble-out: #0A84FF;       /* brighter blue in dark */
+  --apple-canvas: #1D1D1F;       /* NOT pure black */
+  --apple-elevated: #2C2C2E;
+  --apple-sidebar: #1C1C1E;
+  --apple-bubble-out: #0A84FF;   /* brighter blue in dark */
   --apple-bubble-out-fg: #FFFFFF;
-  --apple-bubble-in: #1C1C1E;
-  --apple-bubble-in-fg: #F2F2F7;
+  --apple-bubble-in: #2C2C2E;
+  --apple-bubble-in-fg: #F5F5F7;
+  --apple-text: #F5F5F7;
+  --apple-text-secondary: #98989D;
+  --apple-hairline: rgba(255, 255, 255, 0.08);
+  --apple-hairline-strong: rgba(255, 255, 255, 0.14);
   --apple-online: #30D158;
 }
 
@@ -954,63 +959,38 @@ html { scroll-behavior: smooth; }
 .apple-font { font-family: var(--apple-font-sans); }
 
 /* ============================================================================
-   Apple "Liquid Glass" — frosted material for chat header / tab bar
-   Distinct from .glass-strong (Sonoma dialogs): higher translucency,
-   stronger saturation boost, signature iOS 18 vibrancy.
+   Apple "Liquid Glass" — frosted material for headers / tab bars only.
+   Crystal-solid base (#FFFFFF / #2C2C2E) with backdrop-blur-xl for
+   scroll-behind content. NOT used on cards or panels.
    ============================================================================ */
 .apple-glass {
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(255, 255, 255, 0.80);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 .dark .apple-glass {
-  background: rgba(28, 28, 30, 0.72);
+  background: rgba(44, 44, 46, 0.80);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Heavier frosted glass — tab bar / bottom sheet */
+/* Heavier frosted glass — solid #F0F0F2 with backdrop-blur-xl.
+   Used for tab bar / bottom sheet (flat top, NOT rounded). */
 .apple-glass-heavy {
-  backdrop-filter: blur(30px) saturate(200%);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
-  background: rgba(249, 249, 249, 0.82);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(240, 240, 242, 0.92);
 }
 .dark .apple-glass-heavy {
-  background: rgba(20, 20, 22, 0.82);
+  background: rgba(28, 28, 30, 0.92);
 }
 
-/* ============================================================================
-   iMessage-style bubble tails
-   Small ::after triangles that visually "anchor" each bubble to its side.
-   ============================================================================ */
-.bubble-tail-right {
-  position: relative;
-}
-.bubble-tail-right::after {
-  content: "";
-  position: absolute;
-  right: -6px;
-  bottom: 6px;
-  width: 12px;
-  height: 12px;
-  background: var(--apple-bubble-out);
-  border-bottom-left-radius: 14px;
-  clip-path: polygon(0 0, 100% 100%, 0 100%);
-}
-.bubble-tail-left {
-  position: relative;
-}
-.bubble-tail-left::after {
-  content: "";
-  position: absolute;
-  left: -6px;
-  bottom: 6px;
-  width: 12px;
-  height: 12px;
-  background: var(--apple-bubble-in);
-  border-bottom-right-radius: 14px;
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
-}
+/* NOTE: iMessage-style bubble tails REMOVED. Apple assistant panels use
+   asymmetric corner radii (rounded-xl rounded-br-sm for user) instead
+   of tails. Keep classes as no-ops so older component refs still work
+   without breaking the layout. */
+.bubble-tail-right, .bubble-tail-left { position: relative; }
+.bubble-tail-right::after, .bubble-tail-left::after { content: none; }
 
 /* ============================================================================
    Apple-style animations
@@ -1037,19 +1017,16 @@ html { scroll-behavior: smooth; }
 }
 .typing-dot { animation: typing-dot 1.2s ease-in-out infinite; }
 
-/* Floating action button entrance + idle pulse glow */
+/* Floating action button entrance — subtle scale-in, NO glow pulse. */
 @keyframes fab-in {
-  0%   { opacity: 0; transform: scale(0.6) rotate(-12deg); }
-  60%  { opacity: 1; transform: scale(1.08) rotate(4deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0); }
+  0%   { opacity: 0; transform: scale(0.92); }
+  100% { opacity: 1; transform: scale(1); }
 }
-.animate-fab-in { animation: fab-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-fab-in { animation: fab-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-@keyframes fab-pulse-glow {
-  0%, 100% { box-shadow: 0 8px 20px -6px rgba(0, 122, 255, 0.55), 0 0 0 0 rgba(52, 199, 89, 0.45); }
-  50%      { box-shadow: 0 12px 28px -6px rgba(0, 122, 255, 0.65), 0 0 0 8px rgba(52, 199, 89, 0); }
-}
-.fab-glow { animation: fab-pulse-glow 2.8s ease-in-out infinite; }
+/* .fab-glow kept as a no-op so existing refs still work — Apple doesn't
+   pulse-glow its primary action buttons (too flashy). */
+.fab-glow { animation: none; }
 
 /* Online dot — gentle pulse */
 @keyframes online-pulse {
@@ -1066,85 +1043,97 @@ html { scroll-behavior: smooth; }
 }
 .tab-bounce { animation: tab-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
-/* Input focus ring expansion (soft, Apple-style) */
-@keyframes focus-ring {
-  from { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); }
-  to   { box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.18); }
+/* Input focus ring — subtle static ring, NO animation. */
+.focus-ring-anim:focus-within {
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.18);
+  transition: box-shadow 0.15s ease-out;
 }
-.focus-ring-anim:focus-within { animation: focus-ring 0.25s ease-out forwards; }
 
 /* ============================================================================
    Apple bubble + canvas utility classes (compose with Tailwind utilities)
+   SOLID colors, tight shadows, NO tails. Use with rounded-xl + asymmetric
+   corner utility (rounded-br-sm for user, rounded-bl-sm for assistant).
    ============================================================================ */
 .apple-bubble-out {
   background: var(--apple-bubble-out);
   color: var(--apple-bubble-out-fg);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.10), 0 2px 8px -2px rgba(0,0,0,0.10);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 .apple-bubble-in {
   background: var(--apple-bubble-in);
   color: var(--apple-bubble-in-fg);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 2px 8px -2px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
 
-/* Apple gradient avatar (blue → teal — NO purple/violet) */
+/* Apple avatar — SOLID #0071E3 (NOT gradient). For header icons + chat avatars. */
 .apple-avatar-gradient {
-  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 60%, #30B0C7 100%);
-  box-shadow: 0 4px 12px -2px rgba(0, 122, 255, 0.45),
-              inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background: var(--apple-blue);
+  box-shadow: 0 2px 6px -1px rgba(0, 113, 227, 0.30);
 }
 
-/* Apple FAB gradient (blue → teal) with depth */
+/* Apple FAB — SOLID #0071E3 (NOT gradient). No flashy glow. */
 .apple-fab-gradient {
-  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
-  box-shadow: 0 8px 20px -6px rgba(0, 122, 255, 0.55),
-              inset 0 1px 0 rgba(255, 255, 255, 0.30);
+  background: var(--apple-blue);
+  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.30);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.2s ease;
+}
+.apple-fab-gradient:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 113, 227, 0.40);
+}
+.apple-fab-gradient:active {
+  transform: scale(0.96);
 }
 
-/* Apple quick-prompt pill */
+/* Apple quick-prompt — SOLID #F5F5F7, rounded-lg (NOT pill).
+   Tighter, more like a macOS suggestion chip than iMessage pill. */
 .apple-pill {
-  background: var(--apple-elevated);
-  border: 1px solid var(--apple-gray-5);
-  color: var(--apple-bubble-in-fg);
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  background: var(--apple-canvas);
+  border: 1px solid var(--apple-hairline);
+  color: var(--apple-text);
+  border-radius: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 .apple-pill:hover {
-  transform: translateY(-1px);
-  border-color: rgba(0, 122, 255, 0.40);
-  background: rgba(0, 122, 255, 0.06);
+  background: #E8E8ED;
+  border-color: var(--apple-hairline-strong);
 }
 .dark .apple-pill {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.10);
+  color: var(--apple-text);
 }
 .dark .apple-pill:hover {
-  background: rgba(0, 122, 255, 0.18);
-  border-color: rgba(0, 122, 255, 0.55);
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
-/* Apple send button (circular, blue) */
+/* Apple send button — SOLID #0071E3, rounded-lg (NOT circular). */
 .apple-send-btn {
-  background: var(--apple-bubble-out);
-  color: var(--apple-bubble-out-fg);
-  box-shadow: 0 2px 8px -2px rgba(0, 122, 255, 0.55),
-              inset 0 1px 0 rgba(255, 255, 255, 0.30);
+  background: var(--apple-blue);
+  color: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 113, 227, 0.30);
   transition: transform 0.15s ease, filter 0.15s ease;
 }
-.apple-send-btn:hover:not(:disabled) { filter: brightness(1.05); transform: scale(1.04); }
-.apple-send-btn:active:not(:disabled) { transform: scale(0.92); }
+.apple-send-btn:hover:not(:disabled) { filter: brightness(1.05); }
+.apple-send-btn:active:not(:disabled) { transform: scale(0.96); }
 .apple-send-btn:disabled { opacity: 0.40; box-shadow: none; }
 
 /* ============================================================================
-   Mobile tab bar — iOS 18 enhancements (rounded top + frosted heavy glass)
+   Mobile tab bar — iOS 18 / macOS 27 enhancements.
+   FLAT top edge (no rounded corners), solid #F0F0F2, dot indicator below
+   active icon (NOT a pill bar). backdrop-blur-xl only softens scroll-behind.
    ============================================================================ */
 .apple-tab-bar {
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 22px 22px 0 0;
-  box-shadow: 0 -8px 30px -8px rgba(0, 0, 0, 0.18);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 0;          /* flat edge — iOS tab bar style */
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.04); /* hairline separation only */
 }
 .dark .apple-tab-bar {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 -8px 30px -8px rgba(0, 0, 0, 0.55);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.30);
 }
 
 .apple-tab-item {
@@ -1153,11 +1142,11 @@ html { scroll-behavior: smooth; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   flex: 1 1 0;
   min-width: 0;
-  padding: 8px 6px 6px;
-  color: var(--apple-gray);
+  padding: 8px 6px 4px;
+  color: #86868B; /* inactive = Apple gray */
   transition: color 0.2s ease, transform 0.15s ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -1165,11 +1154,11 @@ html { scroll-behavior: smooth; }
 .apple-tab-item:active { transform: scale(0.92); }
 .apple-tab-item.active { color: var(--apple-blue); }
 .dark .apple-tab-item.active { color: #0A84FF; }
-.apple-tab-item.active .tab-icon { transform: scale(1.08); }
 .apple-tab-item .tab-icon {
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   stroke-width: 2;
 }
+.apple-tab-item.active .tab-icon { transform: scale(1.06); }
 .apple-tab-item .tab-label {
   font-family: var(--apple-font-sans);
   font-size: 10px;
@@ -1179,20 +1168,24 @@ html { scroll-behavior: smooth; }
 }
 .apple-tab-item.active .tab-label { font-weight: 600; }
 
-/* Active tab "pill" indicator — iOS 18 style */
-.apple-tab-item.active::before {
+/* Active tab indicator — small 4px dot BELOW the icon (NOT a pill bar).
+   Mirrors macOS Dock / iOS 18 home-screen indicator pattern. */
+.apple-tab-item.active::after {
   content: "";
   position: absolute;
-  top: 2px;
+  bottom: 2px;
   left: 50%;
   transform: translateX(-50%);
-  width: 28px;
-  height: 3px;
+  width: 4px;
+  height: 4px;
   border-radius: 999px;
   background: var(--apple-blue);
-  opacity: 0.85;
+  opacity: 0.9;
 }
-.dark .apple-tab-item.active::before { background: #0A84FF; }
+.dark .apple-tab-item.active::after { background: #0A84FF; }
+
+/* Remove old pill indicator (top-bar pill) — replaced with dot below. */
+.apple-tab-item.active::before { content: none; }
 
 /* "Compose" tab — primary action: always-blue tinted icon (iOS Mail pattern) */
 .apple-compose-tab .tab-icon {
@@ -1201,7 +1194,7 @@ html { scroll-behavior: smooth; }
 .dark .apple-compose-tab .tab-icon { color: #0A84FF; }
 .apple-compose-tab.active .tab-icon {
   color: var(--apple-blue);
-  filter: brightness(1.1);
+  filter: brightness(1.05);
 }
 
 /* ================================================================
