@@ -234,6 +234,9 @@ model MediaAsset {
   tags        String?  // comma separated
   folder      String   @default("root")
   uploadedById String?
+  // Multi-tenant: links this asset to a specific Customer (organisation).
+  // null = belongs to super-admin (visible across tenants).
+  customerId  String?
   createdAt   DateTime @default(now())
 }
 
@@ -705,4 +708,49 @@ model WorkspaceShare {
   acceptedAt      DateTime?
 
   @@unique([workspaceId, sharedWithUserId])
+}
+
+// ===== Organization directories (managed by admin/manager) =====
+// These three models act as the tenant-scoped "directory" of available
+// roles / departments / designations. The User table still stores the
+// chosen value as a plain string for backward compatibility — these
+// tables power the management UI (add / edit / delete options) and
+// feed the dropdowns in the Add/Edit Member dialogs.
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  level       Int      @default(2) // 1=viewer ... 5=admin (informational)
+  isSystem    Boolean  @default(false) // true for the 5 built-in roles — cannot be deleted
+  customerId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, customerId])
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?  // optional accent for tags / charts
+  headUserId  String?  // optional head of department (User.id)
+  customerId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, customerId])
+}
+
+model Designation {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  level       Int      @default(1) // junior / mid / senior / lead etc. (informational)
+  customerId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, customerId])
 }

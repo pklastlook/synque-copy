@@ -50,6 +50,7 @@ export type MediaAssetMinAggregateOutputType = {
   tags: string | null
   folder: string | null
   uploadedById: string | null
+  customerId: string | null
   createdAt: Date | null
 }
 
@@ -65,6 +66,7 @@ export type MediaAssetMaxAggregateOutputType = {
   tags: string | null
   folder: string | null
   uploadedById: string | null
+  customerId: string | null
   createdAt: Date | null
 }
 
@@ -80,6 +82,7 @@ export type MediaAssetCountAggregateOutputType = {
   tags: number
   folder: number
   uploadedById: number
+  customerId: number
   createdAt: number
   _all: number
 }
@@ -109,6 +112,7 @@ export type MediaAssetMinAggregateInputType = {
   tags?: true
   folder?: true
   uploadedById?: true
+  customerId?: true
   createdAt?: true
 }
 
@@ -124,6 +128,7 @@ export type MediaAssetMaxAggregateInputType = {
   tags?: true
   folder?: true
   uploadedById?: true
+  customerId?: true
   createdAt?: true
 }
 
@@ -139,6 +144,7 @@ export type MediaAssetCountAggregateInputType = {
   tags?: true
   folder?: true
   uploadedById?: true
+  customerId?: true
   createdAt?: true
   _all?: true
 }
@@ -241,6 +247,7 @@ export type MediaAssetGroupByOutputType = {
   tags: string | null
   folder: string
   uploadedById: string | null
+  customerId: string | null
   createdAt: Date
   _count: MediaAssetCountAggregateOutputType | null
   _avg: MediaAssetAvgAggregateOutputType | null
@@ -279,6 +286,7 @@ export type MediaAssetWhereInput = {
   tags?: Prisma.StringNullableFilter<"MediaAsset"> | string | null
   folder?: Prisma.StringFilter<"MediaAsset"> | string
   uploadedById?: Prisma.StringNullableFilter<"MediaAsset"> | string | null
+  customerId?: Prisma.StringNullableFilter<"MediaAsset"> | string | null
   createdAt?: Prisma.DateTimeFilter<"MediaAsset"> | Date | string
 }
 
@@ -294,6 +302,7 @@ export type MediaAssetOrderByWithRelationInput = {
   tags?: Prisma.SortOrderInput | Prisma.SortOrder
   folder?: Prisma.SortOrder
   uploadedById?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -312,6 +321,7 @@ export type MediaAssetWhereUniqueInput = Prisma.AtLeast<{
   tags?: Prisma.StringNullableFilter<"MediaAsset"> | string | null
   folder?: Prisma.StringFilter<"MediaAsset"> | string
   uploadedById?: Prisma.StringNullableFilter<"MediaAsset"> | string | null
+  customerId?: Prisma.StringNullableFilter<"MediaAsset"> | string | null
   createdAt?: Prisma.DateTimeFilter<"MediaAsset"> | Date | string
 }, "id">
 
@@ -327,6 +337,7 @@ export type MediaAssetOrderByWithAggregationInput = {
   tags?: Prisma.SortOrderInput | Prisma.SortOrder
   folder?: Prisma.SortOrder
   uploadedById?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.MediaAssetCountOrderByAggregateInput
   _avg?: Prisma.MediaAssetAvgOrderByAggregateInput
@@ -350,6 +361,7 @@ export type MediaAssetScalarWhereWithAggregatesInput = {
   tags?: Prisma.StringNullableWithAggregatesFilter<"MediaAsset"> | string | null
   folder?: Prisma.StringWithAggregatesFilter<"MediaAsset"> | string
   uploadedById?: Prisma.StringNullableWithAggregatesFilter<"MediaAsset"> | string | null
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"MediaAsset"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"MediaAsset"> | Date | string
 }
 
@@ -365,6 +377,7 @@ export type MediaAssetCreateInput = {
   tags?: string | null
   folder?: string
   uploadedById?: string | null
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -380,6 +393,7 @@ export type MediaAssetUncheckedCreateInput = {
   tags?: string | null
   folder?: string
   uploadedById?: string | null
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -395,6 +409,7 @@ export type MediaAssetUpdateInput = {
   tags?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folder?: Prisma.StringFieldUpdateOperationsInput | string
   uploadedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -410,6 +425,7 @@ export type MediaAssetUncheckedUpdateInput = {
   tags?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folder?: Prisma.StringFieldUpdateOperationsInput | string
   uploadedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -425,6 +441,7 @@ export type MediaAssetCreateManyInput = {
   tags?: string | null
   folder?: string
   uploadedById?: string | null
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -440,6 +457,7 @@ export type MediaAssetUpdateManyMutationInput = {
   tags?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folder?: Prisma.StringFieldUpdateOperationsInput | string
   uploadedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -455,6 +473,7 @@ export type MediaAssetUncheckedUpdateManyInput = {
   tags?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folder?: Prisma.StringFieldUpdateOperationsInput | string
   uploadedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -470,6 +489,7 @@ export type MediaAssetCountOrderByAggregateInput = {
   tags?: Prisma.SortOrder
   folder?: Prisma.SortOrder
   uploadedById?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -491,6 +511,7 @@ export type MediaAssetMaxOrderByAggregateInput = {
   tags?: Prisma.SortOrder
   folder?: Prisma.SortOrder
   uploadedById?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -506,6 +527,7 @@ export type MediaAssetMinOrderByAggregateInput = {
   tags?: Prisma.SortOrder
   folder?: Prisma.SortOrder
   uploadedById?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -537,6 +559,7 @@ export type MediaAssetSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   tags?: boolean
   folder?: boolean
   uploadedById?: boolean
+  customerId?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["mediaAsset"]>
 
@@ -552,6 +575,7 @@ export type MediaAssetSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   tags?: boolean
   folder?: boolean
   uploadedById?: boolean
+  customerId?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["mediaAsset"]>
 
@@ -567,6 +591,7 @@ export type MediaAssetSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   tags?: boolean
   folder?: boolean
   uploadedById?: boolean
+  customerId?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["mediaAsset"]>
 
@@ -582,10 +607,11 @@ export type MediaAssetSelectScalar = {
   tags?: boolean
   folder?: boolean
   uploadedById?: boolean
+  customerId?: boolean
   createdAt?: boolean
 }
 
-export type MediaAssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "type" | "url" | "thumbnail" | "size" | "width" | "height" | "tags" | "folder" | "uploadedById" | "createdAt", ExtArgs["result"]["mediaAsset"]>
+export type MediaAssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "type" | "url" | "thumbnail" | "size" | "width" | "height" | "tags" | "folder" | "uploadedById" | "customerId" | "createdAt", ExtArgs["result"]["mediaAsset"]>
 
 export type $MediaAssetPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "MediaAsset"
@@ -602,6 +628,7 @@ export type $MediaAssetPayload<ExtArgs extends runtime.Types.Extensions.Internal
     tags: string | null
     folder: string
     uploadedById: string | null
+    customerId: string | null
     createdAt: Date
   }, ExtArgs["result"]["mediaAsset"]>
   composites: {}
@@ -1037,6 +1064,7 @@ export interface MediaAssetFieldRefs {
   readonly tags: Prisma.FieldRef<"MediaAsset", 'String'>
   readonly folder: Prisma.FieldRef<"MediaAsset", 'String'>
   readonly uploadedById: Prisma.FieldRef<"MediaAsset", 'String'>
+  readonly customerId: Prisma.FieldRef<"MediaAsset", 'String'>
   readonly createdAt: Prisma.FieldRef<"MediaAsset", 'DateTime'>
 }
     

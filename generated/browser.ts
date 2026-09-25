@@ -217,3 +217,18 @@ export type Workspace = Prisma.WorkspaceModel
  * 
  */
 export type WorkspaceShare = Prisma.WorkspaceShareModel
+/**
+ * Model Role
+ * 
+ */
+export type Role = Prisma.RoleModel
+/**
+ * Model Department
+ * 
+ */
+export type Department = Prisma.DepartmentModel
+/**
+ * Model Designation
+ * 
+ */
+export type Designation = Prisma.DesignationModel
