@@ -24,6 +24,7 @@ interface AuthState {
   loading: boolean;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   login: (email: string, password: string) => Promise<boolean>;
+  loginAsDemo: () => Promise<boolean>;
   logout: () => void;
   fetchUser: () => Promise<void>;
 }
@@ -69,6 +70,31 @@ export const useAuth = create<AuthState>()(
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
+          });
+          const data = await res.json();
+          if (res.ok && data.token) {
+            set({
+              isAuthenticated: true,
+              user: data.user,
+              token: data.token,
+              loading: false,
+            });
+            return true;
+          }
+          set({ loading: false });
+          return false;
+        } catch {
+          set({ loading: false });
+          return false;
+        }
+      },
+
+      loginAsDemo: async () => {
+        set({ loading: true });
+        try {
+          const res = await fetch("/api/auth/demo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
           });
           const data = await res.json();
           if (res.ok && data.token) {

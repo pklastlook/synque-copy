@@ -1,17 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, ShieldCheck, Check, Lock, Mail as MailIcon, Eye, EyeOff, Loader2, ShieldAlert, Sparkles, Zap, BarChart3 } from "lucide-react";
+import { ArrowRight, ShieldCheck, Check, Lock, Mail as MailIcon, Eye, EyeOff, Loader2, ShieldAlert, Sparkles, Zap, BarChart3, Play } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { LogoWordmark } from "@/components/glass/logo";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginAsDemo } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPw, setShowPw] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [demoLoading, setDemoLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
   const submit = async (e: React.FormEvent) => {
@@ -27,6 +28,17 @@ export default function LoginPage() {
       setError("Invalid email or password. If you're new, start a free trial.");
       setLoading(false);
     }
+  };
+
+  const startDemo = async () => {
+    setDemoLoading(true);
+    setError("");
+    const ok = await loginAsDemo();
+    if (!ok) {
+      setDemoLoading(false);
+      setError("Could not start the demo session. Please try again.");
+    }
+    // On success, auth-store updates isAuthenticated and page.tsx swaps to AppShell
   };
 
   return (
@@ -183,10 +195,24 @@ export default function LoginPage() {
                 <div className="h-px flex-1 bg-border" />
               </div>
 
+              {/* Live Demo — one click, no signup */}
+              <button
+                type="button"
+                onClick={startDemo}
+                disabled={demoLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 py-2.5 text-sm font-semibold text-primary transition-all hover:bg-primary/10 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {demoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                {demoLoading ? "Loading demo…" : "Try Live Demo"}
+              </button>
+              <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                Browse every module as a read-only viewer — no account needed.
+              </p>
+
               {/* Trial CTA */}
               <Link
                 href="/"
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted/50 hover:scale-[1.01] active:scale-[0.99]"
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted/50 hover:scale-[1.01] active:scale-[0.99]"
               >
                 <Sparkles className="h-4 w-4 text-primary" />
                 Start a 15-day free trial

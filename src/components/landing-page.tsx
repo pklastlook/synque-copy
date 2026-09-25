@@ -577,6 +577,20 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
 /* ----------------------------- Act 1: Hero ------------------------------ */
 
 function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+  const { loginAsDemo } = useAuth();
+  const [demoLoading, setDemoLoading] = React.useState(false);
+
+  const startDemo = async () => {
+    setDemoLoading(true);
+    const ok = await loginAsDemo();
+    if (!ok) {
+      setDemoLoading(false);
+      // Fallback to /login if the demo endpoint fails
+      window.location.href = "/login";
+    }
+    // On success, auth-store updates isAuthenticated and page.tsx swaps to AppShell
+  };
+
   return (
     <section className="relative min-h-screen w-full overflow-hidden">
       <AuroraHero />
@@ -624,8 +638,16 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
             <GlowCTA onClick={onTrial} tone="teal" className="min-w-[260px]">
               <Rocket className="h-4 w-4" /> Start 15-day free trial
             </GlowCTA>
-            <OutlineCTA onClick={() => window.location.href = "/login"} className="min-w-[200px]">
-              <Play className="h-4 w-4" /> Live Demo
+            <OutlineCTA onClick={startDemo} className="min-w-[200px]">
+              {demoLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading demo…
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" /> Live Demo
+                </>
+              )}
             </OutlineCTA>
           </div>
         </Reveal>
@@ -1665,10 +1687,9 @@ function Act11Footer() {
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row">
           <span>© 2026 SocialFlow · Social, Simplified</span>
           <div className="flex gap-5">
-            <a href="#" className="transition hover:text-white">Privacy</a>
-            <a href="#" className="transition hover:text-white">Terms</a>
-            <a href="#" className="transition hover:text-white">Security</a>
-            <a href="#" className="transition hover:text-white">Legal</a>
+            <a href="/privacy" className="transition hover:text-white">Privacy</a>
+            <a href="/terms" className="transition hover:text-white">Terms</a>
+            <a href="/protection" className="transition hover:text-white">Security</a>
           </div>
         </div>
       </div>
@@ -1990,11 +2011,12 @@ function Field({ icon, label, value, onChange, placeholder, error, type = "text"
    ============================================================================ */
 
 function LoginScreen({ onBack }: { onBack: () => void }) {
-  const { login } = useAuth();
+  const { login, loginAsDemo } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPw, setShowPw] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [demoLoading, setDemoLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
   const submit = async (e: React.FormEvent) => {
@@ -2011,6 +2033,16 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
       setLoading(false);
     }
     // If success, the auth store updates isAuthenticated and page.tsx switches to AppShell
+  };
+
+  const startDemo = async () => {
+    setDemoLoading(true);
+    setError("");
+    const ok = await loginAsDemo();
+    if (!ok) {
+      setDemoLoading(false);
+      setError("Could not start the demo session. Please try again.");
+    }
   };
 
   return (
@@ -2129,13 +2161,24 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               </button>
             </form>
 
-            {/* Demo credentials */}
-            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-center">
-              <p className="text-[11px] font-semibold text-primary">Want to try it first?</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Demo account: <span className="font-mono font-semibold">demo@socialflow.app</span> · Password: <span className="font-mono font-semibold">demo1234</span>
-              </p>
-            </div>
+            {/* Demo credentials — one-click demo login */}
+            <button
+              type="button"
+              onClick={startDemo}
+              disabled={demoLoading}
+              className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-left transition hover:bg-primary/10 disabled:opacity-60"
+            >
+              <div className="flex items-center gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--primary)]/15 text-[var(--primary)]">
+                  {demoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                </span>
+                <div>
+                  <p className="text-[11px] font-semibold text-primary">Try Live Demo</p>
+                  <p className="text-[11px] text-muted-foreground">Browse every module as a viewer — no signup needed.</p>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+            </button>
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
               New to SocialFlow?{" "}
