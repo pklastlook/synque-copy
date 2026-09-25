@@ -349,12 +349,12 @@ function AuroraHero() {
 }
 
 /* Gradient transition band between two acts */
-function Transition({ from, to, height = 120 }: { from: string; to: string; height?: number }) {
+function Transition({ from, to, height = 180 }: { from: string; to: string; height?: number }) {
   return (
     <div
       aria-hidden
       className="w-full"
-      style={{ height, background: `linear-gradient(to bottom, ${from}, ${to})` }}
+      style={{ height, background: `linear-gradient(to bottom, ${from} 0%, ${from} 20%, ${to} 80%, ${to} 100%)` }}
     />
   );
 }
@@ -394,15 +394,15 @@ function MysticCard({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:border-white/20",
+        "group relative overflow-hidden rounded-2xl border border-white/15 bg-white/[0.08] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-white/25",
         className,
       )}
       style={{
-        boxShadow: glow ? `0 0 0 1px ${accent}20, 0 30px 80px -30px ${accent}40` : undefined,
+        boxShadow: `0 4px 24px -4px rgba(0,0,0,0.3), 0 0 0 1px ${accent}15`,
       }}
     >
       <div
-        className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-[0.15] blur-3xl transition-opacity duration-500 group-hover:opacity-30"
+        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.2] blur-3xl transition-opacity duration-500 group-hover:opacity-40"
         style={{ background: accent }}
       />
       <div className="relative">{children}</div>
@@ -410,7 +410,7 @@ function MysticCard({
   );
 }
 
-/* Icon tile with colored circle background */
+/* Icon tile with colored circle background — BRIGHTER colors for visibility */
 function IconTile({
   icon: Icon,
   color,
@@ -424,14 +424,10 @@ function IconTile({
   const ic = size === "lg" ? "h-6 w-6" : size === "sm" ? "h-4 w-4" : "h-5 w-5";
   return (
     <div
-      className={cn("relative grid place-items-center rounded-2xl border backdrop-blur-md", dims)}
-      style={{ background: `${color}1F`, borderColor: `${color}40` }}
+      className={cn("relative grid place-items-center rounded-xl", dims)}
+      style={{ background: `${color}30`, border: `1px solid ${color}50`, boxShadow: `0 4px 12px -4px ${color}40` }}
     >
-      <span
-        className="pointer-events-none absolute inset-0 rounded-2xl opacity-40 blur-md"
-        style={{ background: color }}
-      />
-      <Icon className={cn("relative", ic)} style={{ color }} />
+      <Icon className={cn("relative", ic)} style={{ color, filter: `brightness(1.3)` }} />
     </div>
   );
 }
@@ -628,8 +624,8 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
             <GlowCTA onClick={onTrial} tone="teal" className="min-w-[260px]">
               <Rocket className="h-4 w-4" /> Start 15-day free trial
             </GlowCTA>
-            <OutlineCTA onClick={onSignIn} className="min-w-[200px]">
-              <Play className="h-4 w-4" /> Watch demo
+            <OutlineCTA onClick={() => window.location.href = "/login"} className="min-w-[200px]">
+              <Play className="h-4 w-4" /> Live Demo
             </OutlineCTA>
           </div>
         </Reveal>
@@ -1662,9 +1658,9 @@ function Act11Footer() {
               ))}
             </div>
           </div>
-          <FooterCol title="Product" links={["Features", "Workflow", "Pricing", "AI Composer", "Account Protection"]} />
-          <FooterCol title="Company" links={["About", "Customers", "Blog", "Careers", "Contact"]} />
-          <FooterCol title="Resources" links={["Documentation", "API Reference", "Help Center", "Status", "Changelog"]} />
+          <FooterCol title="Product" links={["Features|/features", "Workflow|/workflow", "Pricing|/pricing", "AI Composer|/ai-composer", "Account Protection|/protection"]} />
+          <FooterCol title="Company" links={["About|/about", "Customers|/customers", "Blog|/blog", "Careers|/careers", "Contact|/contact"]} />
+          <FooterCol title="Resources" links={["Documentation|/docs", "API Reference|/api-reference", "Help Center|/help", "Status|/status", "Changelog|/changelog"]} />
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row">
           <span>© 2026 SocialFlow · Social, Simplified</span>
@@ -1685,11 +1681,14 @@ function FooterCol({ title, links }: { title: string; links: string[] }) {
     <div>
       <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/45">{title}</div>
       <ul className="mt-4 space-y-2.5">
-        {links.map((l) => (
-          <li key={l}>
-            <a href="#" className="text-sm text-white/70 transition hover:text-teal-300">{l}</a>
-          </li>
-        ))}
+        {links.map((l) => {
+          const [text, href] = l.includes("|") ? l.split("|") : [l, "#"];
+          return (
+            <li key={text}>
+              <a href={href} className="text-sm text-white/70 transition hover:text-teal-300">{text}</a>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -2130,10 +2129,18 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               </button>
             </form>
 
-            <p className="mt-6 text-center text-xs text-muted-foreground">
+            {/* Demo credentials */}
+            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-center">
+              <p className="text-[11px] font-semibold text-primary">Want to try it first?</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Demo account: <span className="font-mono font-semibold">demo@socialflow.app</span> · Password: <span className="font-mono font-semibold">demo1234</span>
+              </p>
+            </div>
+
+            <p className="mt-4 text-center text-xs text-muted-foreground">
               New to SocialFlow?{" "}
               <button onClick={onBack} className="inline-flex min-h-11 items-center px-2 font-medium text-[var(--primary)] hover:underline">
-                Sign in
+                Sign up
               </button>
             </p>
           </div>
