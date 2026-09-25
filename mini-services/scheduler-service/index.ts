@@ -16,7 +16,7 @@ import { config } from "dotenv";
 config({ override: true });
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
-const PORT = 3003;
+const PORT = parseInt(process.env.PORT || "3003", 10);
 const POLL_INTERVAL_MS = 60 * 1000; // Check every 60 seconds
 
 // Clean the DB URL (strip channel_binding=require)
@@ -42,7 +42,7 @@ async function publishScheduledPosts() {
   }
 
   // We query the DB directly to find due scheduled posts
-  const { PrismaClient } = await import("../../generated/client");
+  const { PrismaClient } = await import("./generated/client");
   const { PrismaNeon } = await import("@prisma/adapter-neon");
   const adapter = new PrismaNeon({ connectionString: dbUrl });
   const db = new PrismaClient({ adapter });
@@ -83,7 +83,10 @@ async function publishScheduledPosts() {
         try {
           const res = await fetch(`${APP_URL}/api/publish/${platform}`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "X-Scheduler-Key": process.env.SCHEDULER_API_KEY || "REDACTED",
+            },
             body: JSON.stringify({
               userId: post.authorId,
               accountId: variant.accountId,

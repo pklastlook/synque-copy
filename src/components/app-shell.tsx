@@ -30,6 +30,7 @@ import { AdminPanelView } from "@/components/views/admin-panel";
 import { OwnerView } from "@/components/views/owner";
 import { TeamPerformanceView } from "@/components/views/team-performance";
 import { AIAssistantPanel } from "@/components/ai-assistant";
+import { OrganizationView } from "@/components/views/organization";
 import {
   LayoutDashboard, PenSquare, Inbox, BarChart3, Settings,
   Users, MoreHorizontal, type LucideIcon,
@@ -62,7 +63,7 @@ export function AppShell() {
     if (!user) return;
     const isManager = user.role === "admin" || user.role === "manager";
     const isAdmin = user.role === "admin";
-    const restrictedForMembers = ["settings", "team", "team-performance"];
+    const restrictedForMembers = ["settings", "team", "team-performance", "organization"];
     const restrictedForManagers = ["owner"];
     if (!isManager && restrictedForMembers.includes(view)) {
       setView("dashboard");
@@ -72,7 +73,7 @@ export function AppShell() {
   }, [user, view, setView]);
 
   // Determine if bottom tab bar should show on mobile
-  const showMobileTabs = !["owner", "settings"].includes(view);
+  const showMobileTabs = !["owner", "settings", "organization"].includes(view);
 
   // Map "settings" tab to the More sheet on mobile
   function handleMobileTab(tabId: string) {
@@ -103,9 +104,9 @@ export function AppShell() {
         </Sheet>
 
         {/* Main content area */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden lg:ml-[272px]">
+        <div className="flex min-w-0 flex-1 flex-col lg:ml-[272px]">
           <AppHeader onMenu={() => setMobileOpen(true)} />
-          <main className="scroll-liquid flex-1 overflow-y-auto overflow-x-hidden">
+          <main className="scroll-liquid flex-1 overflow-y-auto">
             <div
               key={view}
               className="animate-ios-fade-scale mx-auto w-full max-w-[1400px] px-3 pt-4 pb-24 sm:px-6 lg:px-8 lg:pb-8 mobile-content"
@@ -131,6 +132,7 @@ export function AppShell() {
               {view === "admin" && <AdminPanelView />}
               {view === "owner" && <OwnerView />}
               {view === "team-performance" && <TeamPerformanceView />}
+              {view === "organization" && <OrganizationView />}
               {view === "settings" && <SettingsView />}
             </div>
           </main>
@@ -189,7 +191,7 @@ export function AppShell() {
               <div className="grid grid-cols-4 gap-3">
                 {[
                   { id: "settings", label: "Settings", icon: "⚙️" },
-                  { id: "team", label: "Team", icon: "👥" },
+                  { id: "organization", label: "Org", icon: "🏢" },
                   { id: "team-performance", label: "Performance", icon: "📈" },
                   ...(user.role === "admin" ? [{ id: "owner", label: "Owner", icon: "💼" }] : []),
                 ].map((item) => (

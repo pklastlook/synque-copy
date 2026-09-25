@@ -115,7 +115,7 @@ interface Customer {
   } | null;
   invoicesCount: number;
   quotationsCount: number;
-  database: { name: string; status: string; createdAt: string } | null;
+  database: { dbName: string; dbUrl: string; status: string; createdAt: string } | null;
   createdAt: string;
 }
 
@@ -974,7 +974,7 @@ function CustomersTab() {
                 {c.database ? (
                   <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-[10px]">
                     <Database className="h-3 w-3 text-emerald-500" />
-                    <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{c.database.name}</span>
+                    <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{c.database.dbName}</span>
                     <span className="ml-auto rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
                       {c.database.status}
                     </span>
@@ -3805,7 +3805,7 @@ function ClientUsersTab() {
                   <SelectContent>
                     <SelectItem value="__none__">No customer (super-admin)</SelectItem>
                     {customerList.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.company ?? c.name}{c.database ? ` · ${c.database.name}` : ""}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{c.company ?? c.name}{c.database ? ` · ${c.database.dbName}` : ""}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -78,38 +78,7 @@ interface MediaResponse {
 }
 
 /** Preset library images for "Add from library" quick-pick. */
-const PRESET_LIBRARY: { url: string; name: string; tags: string }[] = [
-  {
-    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/90d070238cd1.jpg",
-    name: "Brand sunset",
-    tags: "brand, sunset, product",
-  },
-  {
-    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/3c1a14f7bc03.jpg",
-    name: "Lifestyle shot",
-    tags: "lifestyle, people",
-  },
-  {
-    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/499f6186a75b.jpg",
-    name: "Flat lay",
-    tags: "flat-lay, product",
-  },
-  {
-    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/72adecde4e2f.jpg",
-    name: "Team moment",
-    tags: "team, behind-the-scenes",
-  },
-  {
-    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/26cfb8da4289.jpg",
-    name: "Texture background",
-    tags: "background, texture",
-  },
-  {
-    url: "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/0d38ffbc8924.jpg",
-    name: "City scene",
-    tags: "city, urban",
-  },
-];
+const PRESET_LIBRARY: { url: string; name: string; tags: string }[] = [];
 
 function fmtSize(bytes: number) {
   if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(2)} GB`;
@@ -930,7 +899,8 @@ function MediaSkeleton() {
 
 /**
  * FileUploadZone — drag-and-drop or click-to-browse file upload.
- * Uploads to /api/media/upload (multipart), saves to public/uploads/.
+ * Uploads to /api/media/upload (multipart), stored via the pluggable
+ * storage adapter (local FS in dev, swap to UploadThing/Cloudinary/R2 in prod).
  * On success, calls onUploaded(file, publicUrl) so the parent can
  * prefill the URL + name + type fields.
  */
@@ -959,8 +929,8 @@ function FileUploadZone({
       toast.error("Sign in to upload files");
       return;
     }
-    if (file.size > 1.5 * 1024 * 1024) {
-      toast.error("File too large (max 1.5MB for direct upload). For larger files, paste a URL below.");
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("File too large (max 25 MB)");
       return;
     }
     setUploading(true);
@@ -1053,7 +1023,7 @@ function FileUploadZone({
             <div>
               <div className="text-sm font-semibold">Drop a file or click to browse</div>
               <div className="mt-0.5 text-[11px] text-muted-foreground">
-                PNG, JPG, MP4, MP3 · max 1.5MB · URL auto-copied after upload
+                PNG, JPG, MP4, MP3 · max 25MB · URL auto-copied after upload
               </div>
             </div>
           </>

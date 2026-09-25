@@ -29,6 +29,9 @@ import {
   FileEdit,
   RotateCw,
   Pencil,
+  MessageSquare,
+  Bot,
+  User as UserIcon,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -1132,6 +1135,261 @@ function Step1({
 }
 
 /* ============================================================
+   AI Chat Panel — ChatGPT-style conversational assistant
+   ============================================================ */
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  /** Suggestions returned by the AI — each can be applied to the textbox. */
+  suggestions?: string[];
+}
+
+function AIChatPanel({
+  caption,
+  onApplyCaption,
+  tone,
+  platforms,
+}: {
+  caption: string;
+  onApplyCaption: (text: string) => void;
+  tone: string;
+  platforms: string[];
+}) {
+  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const [input, setInput] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  React.useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, sending]);
+
+  async function sendMessage(text?: string) {
+    const userText = (text ?? input).trim();
+    if (!userText || sending) return;
+    setInput("");
+    const newMessages: ChatMessage[] = [...messages, { role: "user", content: userText }];
+    setMessages(newMessages);
+    setSending(true);
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages,
+          tone,
+          platforms,
+          currentCaption: caption,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (json.reply) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: json.reply,
+            suggestions: Array.isArray(json.suggestions) ? json.suggestions : [],
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "I couldn't generate a response. Please try again.",
+          },
+        ]);
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Network error — please try again.",
+        },
+      ]);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function applySuggestion(text: string) {
+    onApplyCaption(text);
+    toast.success("Caption applied");
+  }
+
+  function clearChat() {
+    setMessages([]);
+  }
+
+  const quickPrompts = [
+    "Write 3 caption drafts for our product launch",
+    "Make my caption shorter and punchier",
+    "Add relevant hashtags for Instagram",
+    "Rewrite in a more casual tone",
+  ];
+
+  return (
+    <div className="flex h-[520px] flex-col rounded-2xl border border-border/50 bg-muted/20">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-primary">
+            <Bot className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="text-xs font-bold">AI Content Writer</div>
+            <div className="text-[10px] text-muted-foreground">
+              Chat to draft, refine, and ideate captions
+            </div>
+          </div>
+        </div>
+        {messages.length > 0 && (
+          <button
+            onClick={clearChat}
+            className="rounded-lg px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* Messages area */}
+      <div
+        ref={scrollRef}
+        className="scroll-liquid flex-1 space-y-3 overflow-y-auto p-4"
+      >
+        {messages.length === 0 && !sending && (
+          <div className="space-y-3">
+            <div className="rounded-xl bg-background/60 p-3 text-xs text-muted-foreground">
+              👋 Hi! I&apos;m your AI content writer. Tell me what you want to post
+              about, and I&apos;ll draft captions tailored to your platforms
+              ({" "}
+              <span className="font-medium text-foreground">
+                {platforms.length > 0 ? platforms.join(", ") : "any platform"}
+              </span>
+              ) in a{" "}
+              <span className="font-medium text-foreground">{tone}</span> tone.
+            </div>
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Quick prompts
+              </div>
+              {quickPrompts.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => sendMessage(p)}
+                  className="block w-full rounded-xl border border-border/40 bg-background/40 px-3 py-2 text-left text-[11px] text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            className={cn(
+              "flex gap-2",
+              m.role === "user" ? "justify-end" : "justify-start"
+            )}
+          >
+            {m.role === "assistant" && (
+              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                <Bot className="h-4 w-4" />
+              </div>
+            )}
+            <div
+              className={cn(
+                "max-w-[80%] space-y-2 rounded-2xl px-3 py-2 text-[13px] leading-relaxed",
+                m.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background/70 text-foreground"
+              )}
+            >
+              <p className="whitespace-pre-wrap">{m.content}</p>
+              {m.suggestions && m.suggestions.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                    Tap to apply ↓
+                  </div>
+                  {m.suggestions.map((s, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => applySuggestion(s)}
+                      className="block w-full rounded-xl border border-primary/30 bg-primary/5 p-2.5 text-left text-[12px] text-foreground transition hover:border-primary hover:bg-primary/10"
+                    >
+                      <div className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                        <span className="whitespace-pre-wrap">{s}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {m.role === "user" && (
+              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                <UserIcon className="h-4 w-4" />
+              </div>
+            )}
+          </div>
+        ))}
+
+        {sending && (
+          <div className="flex gap-2">
+            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div className="flex items-center gap-1 rounded-2xl bg-background/70 px-3 py-2.5">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60" style={{ animationDelay: "0ms" }} />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60" style={{ animationDelay: "150ms" }} />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Input area */}
+      <div className="border-t border-border/40 p-3">
+        <div className="flex items-end gap-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            placeholder="Ask the AI to write or refine your caption…"
+            rows={1}
+            className="scroll-liquid max-h-24 min-h-[40px] flex-1 resize-none rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-[13px] outline-none transition focus:border-primary/50"
+          />
+          <button
+            onClick={() => sendMessage()}
+            disabled={!input.trim() || sending}
+            className="liquid-pill grid h-10 w-10 shrink-0 place-items-center rounded-xl disabled:opacity-50"
+            aria-label="Send"
+          >
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </button>
+        </div>
+        <p className="mt-1.5 text-[10px] text-muted-foreground">
+          Press Enter to send · Shift+Enter for newline
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    Step 2 — Text Content
    ============================================================ */
 function Step2({
@@ -1157,7 +1415,10 @@ function Step2({
   variants: Record<string, Variant>;
   selectedAccounts: { id: string; platform: PlatformId; handle: string; displayName: string }[];
 }) {
+  const [mode, setMode] = React.useState<"brief" | "assistant">("brief");
   const charCount = caption.length;
+  const platformNames = selectedAccounts.map((a) => PLATFORMS[a.platform].name);
+
   return (
     <GlassCard
       strong
@@ -1170,128 +1431,190 @@ function Step2({
         desc="Write your brief once. Our AI adapts it natively for each platform in the next step."
       />
 
-      <div className="relative">
-        <textarea
-          value={caption}
-          onChange={(e) => onCaption(e.target.value)}
-          placeholder="e.g. Introducing our new collection — designed for creators who move fast. Built to last, made to inspire."
-          className="scroll-liquid min-h-[160px] w-full resize-y rounded-2xl border border-border/50 bg-muted/30 p-4 text-[15px] outline-none transition focus:border-primary/50 focus:bg-background/60"
-        />
-        <div className="pointer-events-none absolute bottom-3 right-3">
-          <span
-            className={cn(
-              "rounded-full px-2 py-1 text-[10px] font-medium",
-              charCount > 500
-                ? "bg-rose-500/15 text-rose-500"
-                : "bg-muted/70 text-muted-foreground"
-            )}
-          >
-            {charCount} chars
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">
-          Tone of voice
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {TONES.map((t) => (
-            <button
-              key={t}
-              onClick={() => onTone(t)}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition",
-                tone === t
-                  ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      {/* === Mode toggle: Write brief | AI Assistant === */}
+      <div className="mt-3 inline-flex rounded-xl border border-border/40 bg-muted/20 p-0.5">
         <button
-          onClick={onGenerate}
-          disabled={generating || !caption.trim() || selectedCount === 0}
-          className="liquid-gold glow-ring flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
-        >
-          {generating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Wand2 className="h-4 w-4" />
+          onClick={() => setMode("brief")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+            mode === "brief"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           )}
-          {generating
-            ? "Generating…"
-            : hasVariants
-            ? "Regenerate AI variants"
-            : "Generate AI variants"}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Write brief
         </button>
-        {selectedCount > 0 ? (
-          <span className="text-xs text-muted-foreground">
-            For{" "}
-            <b className="text-foreground">{selectedCount}</b> selected account
-            {selectedCount === 1 ? "" : "s"}
+        <button
+          onClick={() => setMode("assistant")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+            mode === "assistant"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Bot className="h-3.5 w-3.5" />
+          AI Assistant
+          <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
+            New
           </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            Select accounts in step 1 first
-          </span>
-        )}
+        </button>
       </div>
 
-      {/* === Generated variants preview — shown immediately after AI completes === */}
-      {hasVariants && !generating && (
-        <div className="mt-5 space-y-3">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            {Object.keys(variants).length} AI-generated variant{Object.keys(variants).length === 1 ? "" : "s"} ready
-          </div>
-          {selectedAccounts.map((a) => {
-            const v = variants[a.id];
-            if (!v) return null;
-            const p = PLATFORMS[a.platform];
-            return (
-              <div key={a.id} className="crystal-in rounded-2xl border border-border bg-muted/30 p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
-                    <PlatformBadge platform={a.platform} size={18} />
-                  </div>
-                  <span className="text-xs font-semibold">{p.name}</span>
-                  <span className="text-[11px] text-muted-foreground">{a.handle}</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground">{v.content.length} chars</span>
-                </div>
-                <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">{v.content}</p>
-                {v.hashtags && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {v.hashtags.split(",").map((tag, i) => (
-                      <span key={i} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                        #{tag.trim()}
-                      </span>
-                    ))}
-                  </div>
+      <div className="mt-4 grid gap-5 lg:grid-cols-2">
+        {/* === Left: Caption textarea (always visible) === */}
+        <div className="space-y-3">
+          <div className="relative">
+            <textarea
+              value={caption}
+              onChange={(e) => onCaption(e.target.value)}
+              placeholder="e.g. Introducing our new collection — designed for creators who move fast. Built to last, made to inspire."
+              className="scroll-liquid min-h-[200px] w-full resize-y rounded-2xl border border-border/50 bg-muted/30 p-4 text-[15px] outline-none transition focus:border-primary/50 focus:bg-background/60"
+            />
+            <div className="pointer-events-none absolute bottom-3 right-3">
+              <span
+                className={cn(
+                  "rounded-full px-2 py-1 text-[10px] font-medium",
+                  charCount > 500
+                    ? "bg-rose-500/15 text-rose-500"
+                    : "bg-muted/70 text-muted-foreground"
                 )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+              >
+                {charCount} chars
+              </span>
+            </div>
+          </div>
 
-      <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
-        <div className="flex items-start gap-3">
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-            <Lightbulb className="h-4 w-4" />
+          <div>
+            <div className="mb-2 text-xs font-medium text-muted-foreground">
+              Tone of voice
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {TONES.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => onTone(t)}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-xs font-medium transition",
+                    tone === t
+                      ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="text-xs leading-relaxed text-foreground/80">
-            <b className="text-foreground">Tip:</b> Front-load your hook in the
-            first 1–2 lines. Mention the offer or emotion early — our AI will
-            keep your angle but reshape length, hashtags, and tone per platform.
-            Aim for 60–280 characters for best results.
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={onGenerate}
+              disabled={generating || !caption.trim() || selectedCount === 0}
+              className="liquid-gold glow-ring flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
+            >
+              {generating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Wand2 className="h-4 w-4" />
+              )}
+              {generating
+                ? "Generating…"
+                : hasVariants
+                ? "Regenerate AI variants"
+                : "Generate AI variants"}
+            </button>
+            {selectedCount > 0 ? (
+              <span className="text-xs text-muted-foreground">
+                For{" "}
+                <b className="text-foreground">{selectedCount}</b> selected account
+                {selectedCount === 1 ? "" : "s"}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                Select accounts in step 1 first
+              </span>
+            )}
           </div>
+
+          {/* === Generated variants preview — shown immediately after AI completes === */}
+          {hasVariants && !generating && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {Object.keys(variants).length} AI-generated variant{Object.keys(variants).length === 1 ? "" : "s"} ready
+              </div>
+              {selectedAccounts.map((a) => {
+                const v = variants[a.id];
+                if (!v) return null;
+                const p = PLATFORMS[a.platform];
+                return (
+                  <div key={a.id} className="crystal-in rounded-2xl border border-border bg-muted/30 p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
+                        <PlatformBadge platform={a.platform} size={18} />
+                      </div>
+                      <span className="text-xs font-semibold">{p.name}</span>
+                      <span className="text-[11px] text-muted-foreground">{a.handle}</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground">{v.content.length} chars</span>
+                    </div>
+                    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">{v.content}</p>
+                    {v.hashtags && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {v.hashtags.split(",").map((tag, i) => (
+                          <span key={i} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                            #{tag.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+
+        {/* === Right: Either Tip panel (brief mode) or AI Assistant (assistant mode) === */}
+        {mode === "assistant" ? (
+          <AIChatPanel
+            caption={caption}
+            onApplyCaption={onCaption}
+            tone={tone}
+            platforms={platformNames}
+          />
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+              <div className="flex items-start gap-3">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                  <Lightbulb className="h-4 w-4" />
+                </div>
+                <div className="text-xs leading-relaxed text-foreground/80">
+                  <b className="text-foreground">Tip:</b> Front-load your hook in the
+                  first 1–2 lines. Mention the offer or emotion early — our AI will
+                  keep your angle but reshape length, hashtags, and tone per platform.
+                  Aim for 60–280 characters for best results.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setMode("assistant")}
+              className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4 text-left transition hover:border-primary hover:bg-primary/10"
+            >
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+                <Bot className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold">Try the AI Assistant →</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Chat conversationally to draft and refine your caption. Tap to apply suggestions.
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
       </div>
     </GlassCard>
   );
@@ -1516,8 +1839,8 @@ function UploadDialog({
       toast.error("Sign in to upload files");
       return;
     }
-    if (file.size > 1.5 * 1024 * 1024) {
-      toast.error("File too large (max 1.5MB). Use a URL for larger files.");
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("File too large (max 25 MB)");
       return;
     }
     setUploading(true);
@@ -1588,7 +1911,7 @@ function UploadDialog({
               {uploading ? "Uploading…" : "Drop a file or click to upload"}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              PNG, JPG, MP4 · max 1.5MB
+              PNG, JPG, MP4 · max 25MB
             </div>
           </div>
 

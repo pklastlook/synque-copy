@@ -41,7 +41,7 @@ const makeWASocket: typeof makeWASocketExport.makeWASocket =
 const logger = pino({ level: "silent" });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = 3002;
+const PORT = parseInt(process.env.PORT || "3002", 10);
 const SESSIONS_DIR = join(__dirname, "sessions");
 const STATE_FILE = join(__dirname, "state.json");
 
