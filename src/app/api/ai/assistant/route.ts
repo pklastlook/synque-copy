@@ -416,6 +416,266 @@ async function executeTool(
       }));
     }
 
+    case "reply_to_comment": {
+      const commentId = params.commentId as string;
+      const replyText = params.text as string;
+      if (!commentId || !replyText) {
+        return { error: "commentId and text are required" };
+      }
+      // Verify the comment exists
+      const comment = await targetDb.comment.findUnique({ where: { id: commentId } }).catch(() => null);
+      if (!comment) return { error: "Comment not found" };
+      // Mark as replied + store the reply
+      const updated = await targetDb.comment.update({
+        where: { id: commentId },
+        data: {
+          replied: true,
+          replyText: replyText.trim(),
+          repliedAt: new Date(),
+        },
+      });
+      return {
+        ok: true,
+        commentId: updated.id,
+        author: updated.author,
+        originalText: updated.text.slice(0, 100),
+        reply: replyText.trim(),
+        repliedAt: new Date().toISOString(),
+      };
+    }
+
+    case "schedule_post": {
+      const caption = params.caption as string;
+      const platforms = params.platforms as string[];
+      const scheduledAt = params.scheduledAt as string;
+      if (!caption || !platforms?.length) {
+        return { error: "caption and platforms are required" };
+      }
+      // Parse the scheduled time
+      let scheduleDate: Date | null = null;
+      if (scheduledAt) {
+        try {
+          scheduleDate = new Date(scheduledAt);
+          if (isNaN(scheduleDate.getTime())) {
+            // Try parsing natural language like "tomorrow 3pm" — basic support
+            const now = new Date();
+            if (scheduledAt.toLowerCase().includes("tomorrow")) {
+              scheduleDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+              scheduleDate.setHours(15, 0, 0, 0); // default 3pm
+            } else if (scheduledAt.toLowerCase().includes("next week")) {
+              scheduleDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+              scheduleDate.setHours(12, 0, 0, 0);
+            } else {
+              scheduleDate = new Date(scheduledAt);
+            }
+          }
+        } catch {
+          scheduleDate = null;
+        }
+      }
+
+      // Find accounts for the requested platforms
+      const accounts = await targetDb.account.findMany({
+        where: {
+          ...tenantWhere(scope),
+          platform: { in: platforms },
+        },
+      });
+
+      if (accounts.length === 0) {
+        return { error: `No connected accounts found for platforms: ${platforms.join(", ")}. Connect accounts first in the Accounts section.` };
+      }
+
+      // Create the post
+      const post = await targetDb.post.create({
+        data: {
+          title: caption.slice(0, 60),
+          caption: caption,
+          status: scheduleDate ? "scheduled" : "draft",
+          scheduledAt: scheduleDate,
+          authorId: userId,
+          customerId: scope.customerId,
+          tone: "Confident",
+          variants: {
+            create: accounts.map((a) => ({
+              accountId: a.id,
+              platform: a.platform,
+              content: caption,
+              status: scheduleDate ? "scheduled" : "draft",
+            })),
+          },
+        },
+        include: { variants: true },
+      });
+
+      return {
+        ok: true,
+        postId: post.id,
+        title: post.title,
+        status: post.status,
+        scheduledAt: post.scheduledAt?.toISOString() ?? null,
+        platforms: post.variants.map((v) => v.platform),
+        message: scheduleDate
+          ? `Post scheduled for ${scheduleDate.toLocaleString()} to ${accounts.length} account(s)`
+          : `Post saved as draft. ${accounts.length} variant(s) created.`,
+      };
+    }
+
+    case "get_user_activity": {
+      const targetUserId = (params.userId as string) || userId;
+      const days = (params.days as number) || 30;
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const [posts, tasks, comments, activities] = await Promise.all([
+        targetDb.post.count({
+          where: {
+            authorId: targetUserId,
+            ...tenantWhere(scope),
+            createdAt: { gte: since },
+          },
+        }),
+        targetDb.task.count({
+          where: {
+            ...tenantWhere(scope),
+            OR: [
+              { creatorId: targetUserId },
+              { assigneeId: targetUserId },
+            ],
+            createdAt: { gte: since },
+          },
+        }),
+        targetDb.comment.count({
+          where: { assigneeId: targetUserId, createdAt: { gte: since } },
+        }),
+        targetDb.activity.findMany({
+          where: { userId: targetUserId, createdAt: { gte: since } },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        }),
+      ]);
+
+      // Get user info
+      const userInfo = await targetDb.user.findUnique({
+        where: { id: targetUserId },
+        select: { name: true, email: true, role: true, title: true, department: true },
+      }).catch(() => null);
+
+      return {
+        user: userInfo ?? { name: "Unknown" },
+        period: `Last ${days} days`,
+        postsCreated: posts,
+        tasksInvolved: tasks,
+        commentsAssigned: comments,
+        recentActivities: activities.map((a) => ({
+          type: a.type,
+          description: a.description,
+          date: a.createdAt.toISOString(),
+        })),
+      };
+    }
+
+    case "delete_post": {
+      const postId = params.postId as string;
+      if (!postId) return { error: "postId is required" };
+      const post = await targetDb.post.findUnique({ where: { id: postId } }).catch(() => null);
+      if (!post) return { error: "Post not found" };
+      await targetDb.post.delete({ where: { id: postId } });
+      return { ok: true, deletedPostId: postId, title: post.title };
+    }
+
+    case "search_posts": {
+      const query = params.query as string;
+      const limit = (params.limit as number) || 10;
+      if (!query) return { error: "query is required" };
+      const baseWhere = scope.isSuperAdmin ? {} : tenantWhere(scope);
+      const posts = await targetDb.post.findMany({
+        where: {
+          ...baseWhere,
+          OR: [
+            { title: { contains: query, mode: "insensitive" } },
+            { caption: { contains: query, mode: "insensitive" } },
+          ],
+        },
+        include: {
+          variants: { select: { platform: true, status: true, likes: true, comments: true, shares: true } },
+          author: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      });
+      return posts.map((p) => ({
+        id: p.id,
+        title: p.title,
+        status: p.status,
+        author: p.author?.name ?? "Unknown",
+        platforms: p.variants.map((v) => v.platform),
+        totalEngagement: p.variants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0),
+        createdAt: p.createdAt.toISOString(),
+      }));
+    }
+
+    case "get_post_engagement": {
+      const postId = params.postId as string;
+      if (!postId) return { error: "postId is required" };
+      const post = await targetDb.post.findUnique({
+        where: { id: postId },
+        include: {
+          variants: {
+            include: { account: { select: { handle: true, displayName: true } } },
+          },
+        },
+      }).catch(() => null);
+      if (!post) return { error: "Post not found" };
+      const variants = post.variants.map((v) => ({
+        platform: v.platform,
+        account: v.account?.displayName ?? v.account?.handle ?? "Unknown",
+        status: v.status,
+        likes: v.likes,
+        comments: v.comments,
+        shares: v.shares,
+        reach: v.reach,
+        impressions: v.impressions,
+        engagement: v.likes + v.comments + v.shares,
+      }));
+      return {
+        postId: post.id,
+        title: post.title,
+        status: post.status,
+        totalLikes: variants.reduce((s, v) => s + v.likes, 0),
+        totalComments: variants.reduce((s, v) => s + v.comments, 0),
+        totalShares: variants.reduce((s, v) => s + v.shares, 0),
+        totalReach: variants.reduce((s, v) => s + v.reach, 0),
+        totalEngagement: variants.reduce((s, v) => s + v.engagement, 0),
+        perPlatform: variants,
+      };
+    }
+
+    case "get_media": {
+      const query = params.query as string | undefined;
+      const type = params.type as string | undefined;
+      const limit = (params.limit as number) || 10;
+      const baseWhere = scope.isSuperAdmin ? {} : tenantWhere(scope);
+      const assets = await targetDb.mediaAsset.findMany({
+        where: {
+          ...baseWhere,
+          ...(type ? { type } : {}),
+          ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      });
+      return assets.map((a) => ({
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        url: a.url,
+        thumbnail: a.thumbnail,
+        size: a.size,
+        folder: a.folder,
+        createdAt: a.createdAt.toISOString(),
+      }));
+    }
+
     default:
       return { error: `Unknown tool: ${toolName}` };
   }
