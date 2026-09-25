@@ -29,6 +29,7 @@ import { TasksView } from "@/components/views/tasks";
 import { AdminPanelView } from "@/components/views/admin-panel";
 import { OwnerView } from "@/components/views/owner";
 import { TeamPerformanceView } from "@/components/views/team-performance";
+import { AIAssistantPanel } from "@/components/ai-assistant";
 import {
   LayoutDashboard, PenSquare, Inbox, BarChart3, Settings,
   Users, MoreHorizontal, type LucideIcon,
@@ -206,6 +207,9 @@ export function AppShell() {
           )}
         </div>
       )}
+
+      {/* AI Assistant — floating chat widget available on every page */}
+      <AIAssistantPanel />
     </div>
   );
 }
