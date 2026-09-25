@@ -106,9 +106,10 @@ Rules:
     { role: "user", content: message },
   ];
 
-  // Multi-step tool execution loop (max 3 rounds for chained actions)
-  // e.g., get_inbox → reply_to_comment, or get_posts → get_post_engagement
-  const MAX_TOOL_ROUNDS = 3;
+  // Multi-step tool execution loop (max 2 rounds — keeps API calls low to avoid rate limits)
+  // Round 1: AI decides to call a tool or respond directly
+  // Round 2: AI summarizes the tool result (or calls a second tool if needed)
+  const MAX_TOOL_ROUNDS = 2;
   let currentMessages = [...conversationMessages];
   let lastAction: { tool: string; params: Record<string, unknown>; result?: unknown; error?: string } | null = null;
 
@@ -120,8 +121,12 @@ Rules:
       aiResponse = result.content;
     } catch (err) {
       console.error("[ai/assistant] LLM failed:", err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const isRateLimit = errMsg.includes("429") || errMsg.includes("Too many requests");
       return NextResponse.json({
-        reply: "I couldn't process your request right now. Please try again.",
+        reply: isRateLimit
+          ? "I'm getting too many requests from the AI service. Please wait a few seconds and try again."
+          : "I couldn't process your request right now. Please try again in a moment.",
       });
     }
 
