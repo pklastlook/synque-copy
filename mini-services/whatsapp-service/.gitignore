@@ -1,0 +1,4 @@
+node_modules/
+sessions/
+state.json
+service.log
