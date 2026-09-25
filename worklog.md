@@ -3277,3 +3277,85 @@ While auditing all view files for un-wrapped tables, I found two more mobile cut
 - The header search-on-scroll behavior from the brief ("search bar appears only on scroll") was NOT added because AppHeader lives in `src/components/app-header.tsx` (outside the 3 files I was permitted to edit). The existing AppHeader already has a command palette search trigger (`⌘K`). If you want a sticky search bar that appears on scroll, enhance `app-header.tsx` next.
 - The `apple-compose-tab` class makes Compose always-blue even when inactive — primary-action pattern. If you prefer it to behave like the other tabs (gray when inactive), remove the `apple-compose-tab` class from the button in `app-shell.tsx` or delete the rule from `globals.css`.
 - All Apple tokens are namespaced (`--apple-*`, `.apple-*`) so they coexist cleanly with the existing Sonoma `.glass*` system without conflicts.
+
+---
+
+## Task ID: landing-page-storytelling
+
+**Agent name**: frontend-styling-expert
+**Task**: Redesign the SocialFlow landing page (`src/components/landing-page.tsx`) as a cinematic, story-driven 11-act product website.
+
+### Files modified
+- `/home/z/my-project/src/components/landing-page.tsx` — complete rewrite of the cinematic `Landing` component (previously ~1031 lines of basic static sections → now ~2200 lines of full-bleed story acts with pure-CSS animations and IntersectionObserver scroll reveals).
+
+### What was built
+
+**11 cinematic acts**, each with its own deep mystic background colour and smooth gradient-blend transition bands between them:
+
+| # | Act | Background | Highlights |
+|---|-----|------------|------------|
+| 1 | Hero — Deep Mystic Aurora | `#0A1A2F` → `#03060C` | Full-screen aurora nebula (3 drifting blurred radial blobs), 36-particle CSS starfield, animated gradient text "One flow. Every platform. Zero chaos.", glow CTA + outline demo CTA, trust badges, bouncing chevron scroll indicator |
+| 2 | Problem — Dark Crimson | `#1A0A0A` → `#2A0A0A` | 4 problem cards with pulsing red glow (`sfPulseGlow` keyframes), hover lift, pain-stat strip (11 hrs / 1 in 4 / $3.2K / 62%) |
+| 3 | Solution — Emerald Dawn | `#0A1F1A` → `#0D2820` | 9-feature responsive grid, accent-coloured IconTiles, hover lift, per-card glow |
+| 4 | Workflow — Amber Twilight | `#1A1505` → `#2A1F0A` | 5-step horizontal flow with connecting gradient line on desktop + vertical timeline on mobile, animated per-step progress bars |
+| 5 | Protection — Rose Mist | `#1F0A15` → `#2A0F1F` | Pulsing shield animation (`sfShieldPulse`), 3 concentric expanding rings (`sfPulseRing`), 4 floating feature tags |
+| 6 | AI Assistant — Purple Mystic | `#150A1F` → `#1F0A2A` | Pure-CSS character-by-character typing effect (`sfTyping` + `sfBlink` with `steps()`), floating "AI Online" badge, suggested chips, KPI mini-cards |
+| 7 | Analytics — Teal Depths | `#0A1F1F` → `#0D2525` | 4 KPI cards, CSS bar chart that grows on scroll-into-view (`GrowingBars` component), platform breakdown bars |
+| 8 | Comparison — Slate Blue | `#0F1419` → `#151B22` | SocialFlow vs Hootsuite vs Buffer vs Sprout Social — 10 capability rows, SocialFlow column highlighted with teal glow + checkmarks |
+| 9 | Pricing — Indigo Night | `#0A0A2F` → `#0F0F35` | 3 plans ($0/$49/Custom), middle card glowing + "Most Popular" badge, animated price scale on hover |
+| 10 | Final CTA — Aurora Finale | Multi-stop aurora gradient | Confetti CSS animation (`sfConfettiFall`, 48 pieces), animated gradient headline, large glow CTA |
+| 11 | Footer — Dark Elegance | `#0A0A0A` | 4-column layout, logo + tagline, social icons, gradient top border accent |
+
+### Animation system (all pure CSS, no JS animation libs)
+
+- **Scroll reveals**: tiny `useInView` hook wraps IntersectionObserver; `Reveal` component applies fade-in + slide-up with optional stagger delay.
+- **Continuous**: aurora drift (`sfAuroraDrift`), gradient text shift (`sfGradientText`), particle float (`sfParticleFloat`), shield pulse (`sfShieldPulse`), confetti fall (`sfConfettiFall`), shimmer sweep (`sfShimmerSweep`).
+- **Hover**: cards lift + glow, buttons brightness-up + sheen sweep, icon tiles scale.
+- **CSS-only typing effect**: uses `width: 0 → 100%` with `steps(N, end)` and a blinking caret.
+- **Growing chart bars**: bars start at `height: 0` and transition to their data-driven height when the parent enters the viewport.
+
+### Reusable helper components introduced
+
+- `useInView<T>()` — IntersectionObserver hook (returns `{ ref, inView }`).
+- `Reveal` — fade + slide-up wrapper with delay + y offset.
+- `AuroraHero` — Act-1 nebula background (drifting blobs + starfield + shimmer).
+- `ParticleField` — deterministic CSS particles (seeded `Math.sin` so SSR/CSR match).
+- `ConfettiField` — falling rotated rectangles for the finale.
+- `TypingBubble` — CSS `steps()` typing reveal with blinking caret.
+- `GrowingBars` — CSS bar chart that animates on inView.
+- `Transition` — short gradient blend band between acts.
+- `Eyebrow` — uppercase pill label with accent colour.
+- `MysticCard` — glass card with accent glow + hover lift.
+- `IconTile` — coloured circle icon background.
+- `GlowCTA` / `OutlineCTA` — primary/secondary CTA buttons with sheen sweep.
+
+### Design tokens
+
+- **Accent**: teal/cyan (`#22D3EE`, `#5EEAD4`, `#2DD4BF`) — used as the primary brand accent throughout. No indigo/blue as primary brand colour (deep blue is used only as act-1 hero atmosphere, not the brand).
+- **Typography**: text-4xl → text-7xl for headings, text-sm/lg for body, tracking-tight.
+- **Layout**: full-width sections, 1200px content max-width, py-24/32 vertical padding, mobile-first responsive grids.
+- **Cards**: `rounded-3xl`, `border border-white/10`, `bg-white/[0.04] backdrop-blur-xl`, hover translate + glow.
+- **Keyframes** injected once via a single `<style>` tag in `Landing` (no globals.css changes needed).
+
+### Preserved unchanged
+
+- `LandingPage` wrapper component (`src/app/page.tsx` imports only this).
+- `TrialDialog` — full multi-step trial activation dialog with card payment form, processing animation, and success screen.
+- `LoginScreen` — full split-panel login screen with brand panel + form.
+- `FooterCol`, `StepDot`, `Field` helper sub-components.
+- `FEATURES`, `PLANS` data arrays (extended with new `COMPARE_ROWS` for Act 8).
+- All routing contracts — `/`, `/login`, `/pricing`, `/about`, `/features`, `/workflow` still work; anchor links (`#features`, `#workflow`, `#pricing`, `#compare`) added for in-page navigation.
+- No API routes, Prisma schema, or backend logic touched.
+
+### Quality checks
+
+- **`bun run lint`** — zero errors in `landing-page.tsx` (verified via `npx eslint src/components/landing-page.tsx`). The only remaining lint error in the project is the pre-existing `react-hooks/rules-of-hooks` issue in `mini-services/whatsapp-service/index.js` — completely unrelated.
+- **`npx tsc --noEmit`** — zero TypeScript errors in `landing-page.tsx`. Used the `LucideIcon` type exported by `lucide-react` for all icon prop types (cleaner than `React.ComponentType<{ className?: string }>` and accepts `style`/`strokeWidth` props).
+- **Dev server** (already running on port 3000) — `/` returns HTTP 200; HTML output verified to contain every act's distinctive copy ("One flow", "Every platform", "Never get", "Write once", "AI-powered", "Most popular", "Aurora finale", "simplify", "competitor").
+
+### Notes for next agent
+
+- The cinematic page is **dark-by-design** regardless of system theme — each act uses fixed hex backgrounds (e.g. `#0A1A2F`, `#1A0A0A`) so the experience is consistent in both light and dark mode. The existing `TrialDialog` and `LoginScreen` still use the theme-aware `.glass-strong` / `.retaina-bg` system, so they adapt to theme as before.
+- Particle positions are deterministically seeded via `Math.sin(i*seed)` so they match between server-rendered and client-rendered HTML — no hydration mismatch warnings.
+- All custom keyframes are scoped inside one `<style>` block rendered by the `Landing` component (the `LANDING_KEYFRAMES` constant). To add a new animation, append to that string rather than touching `globals.css`.
+- The `compare` anchor was added to the comparison section; the nav uses `#features`, `#workflow`, `#pricing`, `#compare` for in-page navigation. The existing `/features`, `/workflow`, `/pricing`, `/about` routes (served by `src/app/{features,workflow,pricing,about}/page.tsx` using `landing-shared.tsx`) are unaffected.
