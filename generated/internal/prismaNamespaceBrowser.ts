@@ -90,7 +90,10 @@ export const ModelName = {
   Integration: 'Integration',
   TenantDatabase: 'TenantDatabase',
   Workspace: 'Workspace',
-  WorkspaceShare: 'WorkspaceShare'
+  WorkspaceShare: 'WorkspaceShare',
+  Role: 'Role',
+  Department: 'Department',
+  Designation: 'Designation'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -311,6 +314,7 @@ export const MediaAssetScalarFieldEnum = {
   tags: 'tags',
   folder: 'folder',
   uploadedById: 'uploadedById',
+  customerId: 'customerId',
   createdAt: 'createdAt'
 } as const
 
@@ -798,6 +802,47 @@ export const WorkspaceShareScalarFieldEnum = {
 } as const
 
 export type WorkspaceShareScalarFieldEnum = (typeof WorkspaceShareScalarFieldEnum)[keyof typeof WorkspaceShareScalarFieldEnum]
+
+
+export const RoleScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  level: 'level',
+  isSystem: 'isSystem',
+  customerId: 'customerId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type RoleScalarFieldEnum = (typeof RoleScalarFieldEnum)[keyof typeof RoleScalarFieldEnum]
+
+
+export const DepartmentScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  color: 'color',
+  headUserId: 'headUserId',
+  customerId: 'customerId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DepartmentScalarFieldEnum = (typeof DepartmentScalarFieldEnum)[keyof typeof DepartmentScalarFieldEnum]
+
+
+export const DesignationScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  level: 'level',
+  customerId: 'customerId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DesignationScalarFieldEnum = (typeof DesignationScalarFieldEnum)[keyof typeof DesignationScalarFieldEnum]
 
 
 export const SortOrder = {
