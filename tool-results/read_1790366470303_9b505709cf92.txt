@@ -1,0 +1,693 @@
+     1→import { NextRequest, NextResponse } from "next/server";
+     2→import { getUserFromRequest, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+     3→import { db } from "@/lib/db";
+     4→
+     5→export const dynamic = "force-dynamic";
+     6→
+     7→function fmt(n: number) {
+     8→  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+     9→  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
+    10→  return n.toString();
+    11→}
+    12→
+    13→const PLATFORMS_COLOR_MAP: Record<string, string> = {
+    14→  instagram: "#E1306C",
+    15→  facebook: "#1877F2",
+    16→  x: "#0F1419",
+    17→  twitter: "#0F1419",
+    18→  linkedin: "#0A66C2",
+    19→  tiktok: "#010101",
+    20→  youtube: "#FF0000",
+    21→  threads: "#000000",
+    22→};
+    23→
+    24→/**
+    25→ * GET /api/dashboard
+    26→ *
+    27→ * Comprehensive command-center dashboard — the admin's at-a-glance overview.
+    28→ * Combines reach/followers (vanity) WITH content activity (posts/comments)
+    29→ * so the Dashboard is distinct from the Performance module (which is
+    30→ * purely content-activity focused).
+    31→ *
+    32→ * Sections:
+    33→ * - KPIs: followers, reach, posts created, comments (mixed vanity + content)
+    34→ * - Pages ranking: per-account followers/reach/posts/engagement (sortable)
+    35→ * - Reach + follower trend (14 days)
+    36→ * - Content pipeline (draft/scheduled/published/failed)
+    37→ * - Top performing content (by engagement)
+    38→ * - Comment inbox preview (latest unread)
+    39→ * - Top contributors (most active members)
+    40→ * - Recent posts (clickable for republish)
+    41→ * - Upcoming scheduled
+    42→ * - Team activity feed
+    43→ */
+    44→export async function GET(req: NextRequest) {
+    45→  // Get the authenticated user — managers/admins see overall, members see only their own data
+    46→  const authUser = getUserFromRequest(req);
+    47→  const userRole = authUser?.role ?? "member";
+    48→  const userId = authUser?.userId ?? null;
+    49→  const scope = getTenantScope(authUser ?? { userId: "", role: "member", customerId: null });
+    50→  // Members/editors/viewers see only their own accounts + posts; admins/managers see everything
+    51→  // Within their tenant. Super-admins (no customerId) see ALL tenants.
+    52→  const isManagerView = userRole === "admin" || userRole === "manager";
+    53→  try {
+    54→    // For members: filter to only their own accounts + posts (within their tenant)
+    55→    // For managers/admins: fetch everything in their tenant (or all for super-admins)
+    56→    const memberAccountIds = isManagerView || !userId
+    57→      ? null
+    58→      : await db.account.findMany({
+    59→          where: tenantWhere(scope, { ownerId: userId }),
+    60→          select: { id: true },
+    61→        }).then((rows) => rows.map((r) => r.id));
+    62→
+    63→    // First fetch accounts (needed to scope variants/comments/analytics by account IDs)
+    64→    const accounts = await db.account.findMany({
+    65→      include: { owner: true, health: true },
+    66→      where: tenantWhere(scope, isManagerView ? {} : userId ? { ownerId: userId } : {}),
+    67→    });
+    68→    const accountIds = accounts.map((a) => a.id);
+    69→
+    70→    const [posts, variants, comments, activities, analytics, tasks] = await Promise.all([
+    71→      db.post.findMany({
+    72→        include: {
+    73→          author: true,
+    74→          variants: { include: { account: true } },
+    75→        },
+    76→        where: tenantWhere(scope, isManagerView ? {} : userId ? { authorId: userId } : {}),
+    77→      }),
+    78→      db.postVariant.findMany({
+    79→        include: { account: true },
+    80→        where: { accountId: { in: accountIds } },
+    81→      }),
+    82→      db.comment.findMany({
+    83→        include: { account: { include: { owner: true } } },
+    84→        where: { accountId: { in: accountIds } },
+    85→      }),
+    86→      db.activity.findMany({
+    87→        include: { user: true },
+    88→        where: tenantWhere(scope, isManagerView ? {} : userId ? { userId } : {}),
+    89→        orderBy: { createdAt: "desc" },
+    90→        take: isManagerView ? 12 : 8,
+    91→      }),
+    92→      db.analyticsDaily.findMany({
+    93→        where: { accountId: { in: accountIds } },
+    94→        orderBy: { date: "asc" },
+    95→      }),
+    96→      db.task.findMany({
+    97→        where: tenantWhere(scope, isManagerView ? {} : userId ? { OR: [{ assigneeId: userId }, { creatorId: userId }] } : {}),
+    98→        orderBy: { createdAt: "desc" },
+    99→      }),
+   100→    ]);
+   101→
+   102→    const now = Date.now();
+   103→    const day = 86400000;
+   104→    const sevenDaysAgo = new Date(now - 7 * day);
+   105→    const fourteenDaysAgo = new Date(now - 14 * day);
+   106→    const thirtyDaysAgo = new Date(now - 30 * day);
+   107→
+   108→    // === Followers + Reach totals ===
+   109→    const totalFollowers = accounts.reduce((s, a) => s + a.followers, 0);
+   110→    const totalReach = analytics.reduce((s, a) => s + a.reach, 0);
+   111→    const totalImpressions = analytics.reduce((s, a) => s + a.impressions, 0);
+   112→    const totalEngagement = variants.reduce((s, v) => s + v.likes + v.comments + v.shares + v.saves, 0);
+   113→
+   114→    // 7d vs prev 7d deltas
+   115→    const last7Analytics = analytics.filter((a) => a.date.getTime() > now - 7 * day);
+   116→    const prev7Analytics = analytics.filter(
+   117→      (a) => a.date.getTime() > now - 14 * day && a.date.getTime() <= now - 7 * day
+   118→    );
+   119→    const l7Follow = last7Analytics.reduce((s, a) => s + a.followers, 0);
+   120→    const p7Follow = prev7Analytics.reduce((s, a) => s + a.followers, 0) || 1;
+   121→    const l7Reach = last7Analytics.reduce((s, a) => s + a.reach, 0);
+   122→    const p7Reach = prev7Analytics.reduce((s, a) => s + a.reach, 0) || 1;
+   123→    const l7Imp = last7Analytics.reduce((s, a) => s + a.impressions, 0);
+   124→    const p7Imp = prev7Analytics.reduce((s, a) => s + a.impressions, 0) || 1;
+   125→
+   126→    const delta = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : a > 0 ? 100 : 0);
+   127→
+   128→    // === Content pipeline counts ===
+   129→    const publishedCount = posts.filter((p) => p.status === "published").length;
+   130→    const scheduledCount = posts.filter((p) => p.status === "scheduled").length;
+   131→    const draftCount = posts.filter((p) => p.status === "draft").length;
+   132→    const failedCount = posts.filter((p) => p.status === "failed").length;
+   133→
+   134→    // === Comments tracking ===
+   135→    const commentsReceived = comments.length;
+   136→    const commentsReplied = comments.filter((c) => c.replied).length;
+   137→    const commentsPending = commentsReceived - commentsReplied;
+   138→    const replyRate = commentsReceived > 0
+   139→      ? Math.round((commentsReplied / commentsReceived) * 100)
+   140→      : 0;
+   141→
+   142→    // === Content activity deltas (7d vs prev 7d) ===
+   143→    const postsLast7d = posts.filter((p) => new Date(p.createdAt) > sevenDaysAgo).length;
+   144→    const postsPrev7d = posts.filter(
+   145→      (p) => new Date(p.createdAt) > fourteenDaysAgo && new Date(p.createdAt) <= sevenDaysAgo
+   146→    ).length;
+   147→    const postsDelta = delta(postsLast7d, postsPrev7d);
+   148→
+   149→    const commentsLast7d = comments.filter((c) => new Date(c.createdAt) > sevenDaysAgo).length;
+   150→    const commentsPrev7d = comments.filter(
+   151→      (c) => new Date(c.createdAt) > fourteenDaysAgo && new Date(c.createdAt) <= sevenDaysAgo
+   152→    ).length;
+   153→    const commentsDelta = delta(commentsLast7d, commentsPrev7d);
+   154→
+   155→    const publishedLast7d = variants.filter(
+   156→      (v) => v.publishedAt && new Date(v.publishedAt) > sevenDaysAgo
+   157→    ).length;
+   158→    const publishedPrev7d = variants.filter(
+   159→      (v) => v.publishedAt && new Date(v.publishedAt) > fourteenDaysAgo && new Date(v.publishedAt) <= sevenDaysAgo
+   160→    ).length;
+   161→    const publishedDelta = delta(publishedLast7d, publishedPrev7d);
+   162→
+   163→    // === Today's activity — what's actually being POSTED to social media ===
+   164→    const todayStart = new Date();
+   165→    todayStart.setHours(0, 0, 0, 0);
+   166→
+   167→    // Variants published to platforms today (tweets, IG posts, FB posts, etc.)
+   168→    const publishedVariantsToday = variants.filter(
+   169→      (v) => v.publishedAt && new Date(v.publishedAt) >= todayStart
+   170→    );
+   171→    const publishedToday = publishedVariantsToday.length;
+   172→
+   173→    // Which accounts (pages/profiles) had content posted to them today
+   174→    const activeAccountsToday = new Set(
+   175→      publishedVariantsToday.map((v) => v.accountId)
+   176→    ).size;
+   177→
+   178→    // Which team members published content today (via the post author)
+   179→    const activeMembersToday = new Set(
+   180→      publishedVariantsToday.map((v) => {
+   181→        const post = posts.find((p) => p.id === v.postId);
+   182→        return post?.authorId;
+   183→      }).filter(Boolean) as string[]
+   184→    ).size;
+   185→
+   186→    // Comments received on social today
+   187→    const commentsToday = comments.filter((c) => new Date(c.createdAt) >= todayStart).length;
+   188→
+   189→    // Per-platform breakdown of what was posted today
+   190→    const platformActivityToday: Record<string, number> = {};
+   191→    for (const v of publishedVariantsToday) {
+   192→      const p = v.account.platform;
+   193→      platformActivityToday[p] = (platformActivityToday[p] ?? 0) + 1;
+   194→    }
+   195→
+   196→    // Daily targets for progress bars
+   197→    const dailyPublishTarget = 5;
+   198→    const dailyCommentTarget = 10;
+   199→    const dailyActiveAccountTarget = accounts.length; // all accounts should be active
+   200→
+   201→    // === Combined trend series (14 days): followers, reach, postsCreated, comments ===
+   202→    const series: {
+   203→      date: string;
+   204→      followers: number;
+   205→      reach: number;
+   206→      impressions: number;
+   207→      postsCreated: number;
+   208→      published: number;
+   209→      comments: number;
+   210→    }[] = [];
+   211→    for (let d = 13; d >= 0; d--) {
+   212→      const date = new Date(now - d * day);
+   213→      const dayKey = date.toISOString().slice(0, 10);
+   214→      const dayAnalytics = analytics.filter((a) => a.date.toISOString().slice(0, 10) === dayKey);
+   215→      const dayPosts = posts.filter((p) => p.createdAt.toISOString().slice(0, 10) === dayKey);
+   216→      const dayVariants = variants.filter(
+   217→        (v) => v.publishedAt && v.publishedAt.toISOString().slice(0, 10) === dayKey
+   218→      );
+   219→      const dayComments = comments.filter((c) => c.createdAt.toISOString().slice(0, 10) === dayKey);
+   220→      series.push({
+   221→        date: dayKey,
+   222→        followers: dayAnalytics.reduce((s, a) => s + a.followers, 0),
+   223→        reach: dayAnalytics.reduce((s, a) => s + a.reach, 0),
+   224→        impressions: dayAnalytics.reduce((s, a) => s + a.impressions, 0),
+   225→        postsCreated: dayPosts.length,
+   226→        published: dayVariants.length,
+   227→        comments: dayComments.length,
+   228→      });
+   229→    }
+   230→
+   231→    // === Pages ranking (per-account leaderboard) ===
+   232→    const pagesRanking = accounts.map((acc) => {
+   233→      const accVariants = variants.filter((v) => v.accountId === acc.id);
+   234→      const accAnalytics = analytics.filter((a) => a.accountId === acc.id);
+   235→      const followers = acc.followers;
+   236→      const reach = accAnalytics.reduce((s, a) => s + a.reach, 0);
+   237→      const impressions = accAnalytics.reduce((s, a) => s + a.impressions, 0);
+   238→      const engagement = accVariants.reduce((s, v) => s + v.likes + v.comments + v.shares + v.saves, 0);
+   239→      const postsCount = accVariants.length;
+   240→      const engagementRate = reach > 0 ? Math.round((engagement / reach) * 1000) / 10 : 0;
+   241→
+   242→      // Growth 7d
+   243→      const sorted = [...accAnalytics].sort((a, b) => a.date.getTime() - b.date.getTime());
+   244→      let growth7d = 0;
+   245→      if (sorted.length >= 2) {
+   246→        const latest = sorted[sorted.length - 1].followers;
+   247→        const sevenAgo = sorted.find((x) => x.date.getTime() >= now - 7 * day)?.followers ?? null;
+   248→        if (sevenAgo !== null && sevenAgo > 0) {
+   249→          growth7d = Math.round(((latest - sevenAgo) / sevenAgo) * 1000) / 10;
+   250→        }
+   251→      }
+   252→
+   253→      // Sparkline (14-day followers)
+   254→      const sparkline: number[] = Array(14).fill(0);
+   255→      for (let d = 13; d >= 0; d--) {
+   256→        const date = new Date(now - d * day);
+   257→        const dayKey = date.toISOString().slice(0, 10);
+   258→        const dayA = accAnalytics.find((x) => x.date.toISOString().slice(0, 10) === dayKey);
+   259→        sparkline[13 - d] = dayA?.followers ?? (sparkline[13 - d - 1] ?? followers);
+   260→      }
+   261→      // Fill leading zeros with current follower count
+   262→      let lastVal = followers;
+   263→      for (let i = sparkline.length - 1; i >= 0; i--) {
+   264→        if (sparkline[i] === 0) sparkline[i] = lastVal;
+   265→        else lastVal = sparkline[i];
+   266→      }
+   267→
+   268→      return {
+   269→        id: acc.id,
+   270→        platform: acc.platform,
+   271→        handle: acc.handle,
+   272→        displayName: acc.displayName,
+   273→        avatar: acc.avatar,
+   274→        verified: acc.verified,
+   275→        followers,
+   276→        reach,
+   277→        impressions,
+   278→        engagement,
+   279→        postsCount,
+   280→        engagementRate,
+   281→        growth7d,
+   282→        sparkline,
+   283→        ownerName: acc.owner?.name ?? "Unassigned",
+   284→        ownerColor: acc.owner?.color ?? null,
+   285→        healthStatus: acc.health?.status ?? "healthy",
+   286→        riskLevel: acc.health?.riskLevel ?? "safe",
+   287→      };
+   288→    }).sort((a, b) => b.followers - a.followers);
+   289→
+   290→    // === Pipeline ===
+   291→    const pipeline = {
+   292→      draft: draftCount,
+   293→      scheduled: scheduledCount,
+   294→      published: publishedCount,
+   295→      failed: failedCount,
+   296→    };
+   297→    const pipelineTotal = draftCount + scheduledCount + publishedCount + failedCount;
+   298→
+   299→    // === Top contributors ===
+   300→    const contributorMap: Record<string, { name: string; color: string | null; avatar: string | null; posts: number; published: number; comments: number }> = {};
+   301→    for (const p of posts) {
+   302→      if (new Date(p.createdAt) < thirtyDaysAgo) continue;
+   303→      const aid = p.authorId;
+   304→      if (!contributorMap[aid]) {
+   305→        contributorMap[aid] = {
+   306→          name: p.author.name, color: p.author.color, avatar: p.author.avatar,
+   307→          posts: 0, published: 0, comments: 0,
+   308→        };
+   309→      }
+   310→      contributorMap[aid].posts++;
+   311→      if (p.status === "published") contributorMap[aid].published++;
+   312→    }
+   313→    for (const c of comments) {
+   314→      if (new Date(c.createdAt) < thirtyDaysAgo) continue;
+   315→      if (c.replied && c.account?.owner) {
+   316→        const oid = c.account.owner.id;
+   317→        if (contributorMap[oid]) contributorMap[oid].comments++;
+   318→      }
+   319→    }
+   320→    const topContributors = Object.values(contributorMap)
+   321→      .sort((a, b) => b.posts - a.posts)
+   322→      .slice(0, 5);
+   323→
+   324→    // === Recent posts ===
+   325→    const recentPosts = [...posts]
+   326→      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+   327→      .slice(0, 6)
+   328→      .map((p) => ({
+   329→        id: p.id,
+   330→        title: p.title,
+   331→        caption: p.caption,
+   332→        mediaUrl: p.mediaUrl,
+   333→        status: p.status,
+   334→        tone: p.tone,
+   335→        authorName: p.author.name,
+   336→        authorColor: p.author.color,
+   337→        createdAt: p.createdAt.toISOString(),
+   338→        publishedAt: p.variants[0]?.publishedAt?.toISOString() ?? null,
+   339→        platforms: p.variants.map((v) => v.account.platform),
+   340→        variantCount: p.variants.length,
+   341→      }));
+   342→
+   343→    // === Failed posts (posts with status "failed" — need republishing) ===
+   344→    // User-level concern — only returned for non-manager views.
+   345→    const failedPosts = isManagerView ? [] : posts
+   346→      .filter((p) => p.status === "failed")
+   347→      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+   348→      .slice(0, 6)
+   349→      .map((p) => ({
+   350→        id: p.id,
+   351→        title: p.title,
+   352→        caption: p.caption,
+   353→        mediaUrl: p.mediaUrl,
+   354→        tone: p.tone,
+   355→        authorName: p.author.name,
+   356→        authorColor: p.author.color,
+   357→        createdAt: p.createdAt.toISOString(),
+   358→        platforms: p.variants.map((v) => v.account.platform),
+   359→        variantCount: p.variants.length,
+   360→      }));
+   361→
+   362→    // === Published / shared posts (successfully posted & shared to social) ===
+   363→    // This is what admins/managers see — content that's live on social platforms.
+   364→    const publishedPosts = posts
+   365→      .filter((p) => p.status === "published")
+   366→      .sort((a, b) => {
+   367→        const aTime = a.variants.find((v) => v.publishedAt)?.publishedAt?.getTime()
+   368→          ?? a.variants[0]?.publishedAt?.getTime()
+   369→          ?? a.createdAt.getTime();
+   370→        const bTime = b.variants.find((v) => v.publishedAt)?.publishedAt?.getTime()
+   371→          ?? b.variants[0]?.publishedAt?.getTime()
+   372→          ?? b.createdAt.getTime();
+   373→        return bTime - aTime;
+   374→      })
+   375→      .slice(0, 6)
+   376→      .map((p) => ({
+   377→        id: p.id,
+   378→        title: p.title,
+   379→        caption: p.caption,
+   380→        mediaUrl: p.mediaUrl,
+   381→        tone: p.tone,
+   382→        authorName: p.author.name,
+   383→        authorColor: p.author.color,
+   384→        createdAt: p.createdAt.toISOString(),
+   385→        publishedAt: p.variants.find((v) => v.publishedAt)?.publishedAt?.toISOString()
+   386→          ?? p.variants[0]?.publishedAt?.toISOString()
+   387→          ?? null,
+   388→        platforms: p.variants.map((v) => v.account.platform),
+   389→        variantCount: p.variants.length,
+   390→        engagement: p.variants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0),
+   391→        reach: p.variants.reduce((s, v) => s + v.reach, 0),
+   392→      }));
+   393→
+   394→    // === Comment inbox preview ===
+   395→    const commentInbox = comments
+   396→      .filter((c) => !c.replied)
+   397→      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+   398→      .slice(0, 5)
+   399→      .map((c) => ({
+   400→        id: c.id,
+   401→        author: c.author,
+   402→        text: c.text,
+   403→        type: c.type,
+   404→        sentiment: c.sentiment,
+   405→        platform: c.account?.platform ?? "x",
+   406→        handle: c.account?.handle ?? "",
+   407→        accountName: c.account?.displayName ?? "",
+   408→        createdAt: c.createdAt.toISOString(),
+   409→      }));
+   410→
+   411→    // === Upcoming ===
+   412→    const upcoming = posts
+   413→      .filter((p) => p.status === "scheduled" && p.scheduledAt)
+   414→      .sort((a, b) => (a.scheduledAt?.getTime() ?? 0) - (b.scheduledAt?.getTime() ?? 0))
+   415→      .slice(0, 5)
+   416→      .map((p) => ({
+   417→        id: p.id,
+   418→        title: p.title,
+   419→        mediaUrl: p.mediaUrl,
+   420→        scheduledAt: p.scheduledAt?.toISOString() ?? null,
+   421→        platforms: p.variants.map((v) => v.account.platform),
+   422→        authorName: p.author.name,
+   423→        authorColor: p.author.color,
+   424→      }));
+   425→
+   426→    // === Top performing posts ===
+   427→    const topPosts = posts
+   428→      .map((p) => ({
+   429→        id: p.id,
+   430→        title: p.title,
+   431→        mediaUrl: p.mediaUrl,
+   432→        status: p.status,
+   433→        authorName: p.author.name,
+   434→        authorColor: p.author.color,
+   435→        engagement: p.variants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0),
+   436→        reach: p.variants.reduce((s, v) => s + v.reach, 0),
+   437→        impressions: p.variants.reduce((s, v) => s + v.impressions, 0),
+   438→        accounts: p.variants.length,
+   439→        platforms: p.variants.map((v) => v.account.platform),
+   440→        publishedAt: p.variants[0]?.publishedAt?.toISOString() ?? null,
+   441→      }))
+   442→      .sort((a, b) => b.engagement - a.engagement)
+   443→      .slice(0, 4);
+   444→
+   445→    // === AI Insights (smart recommendations based on real data) ===
+   446→    // Note: "failed to publish" / "drafts waiting" insights are user-level
+   447→    // concerns — admins/managers only see posted & shared data, not individual
+   448→    // draft failures. Skip those insights for the manager view.
+   449→    const insights: { type: "warning" | "info" | "success" | "tip"; title: string; desc: string; action?: string; actionView?: string }[] = [];
+   450→
+   451→    if (!isManagerView && failedCount > 0) {
+   452→      insights.push({
+   453→        type: "warning",
+   454→        title: `${failedCount} post${failedCount > 1 ? "s" : ""} failed to publish`,
+   455→        desc: "These drafts need attention — republish from the composer to retry.",
+   456→        action: "View drafts",
+   457→        actionView: "composer",
+   458→      });
+   459→    }
+   460→    if (commentsPending > 0) {
+   461→      insights.push({
+   462→        type: "info",
+   463→        title: `${commentsPending} unread comments need replies`,
+   464→        desc: `Your reply rate is ${replyRate}%. Responding within 24h boosts engagement by 3-5x.`,
+   465→        action: "Open inbox",
+   466→        actionView: "inbox",
+   467→      });
+   468→    }
+   469→    if (!isManagerView && draftCount > 0) {
+   470→      insights.push({
+   471→        type: "tip",
+   472→        title: `${draftCount} draft${draftCount > 1 ? "s" : ""} waiting to be published`,
+   473→        desc: "Publish or schedule them to maintain a consistent posting cadence.",
+   474→        action: "Open composer",
+   475→        actionView: "composer",
+   476→      });
+   477→    }
+   478→    if (postsLast7d > 0 && postsLast7d >= 3) {
+   479→      insights.push({
+   480→        type: "success",
+   481→        title: `Strong week — ${postsLast7d} posts created`,
+   482→        desc: `You're on track. Keep the momentum going with ${Math.max(0, 5 - postsLast7d)} more posts this week to hit your target.`,
+   483→      });
+   484→    }
+   485→    if (postsLast7d === 0) {
+   486→      insights.push({
+   487→        type: "warning",
+   488→        title: "No posts created this week",
+   489→        desc: "Consistency is key to social growth. Start with a quick post using AI composer.",
+   490→        action: "Compose with AI",
+   491→        actionView: "composer",
+   492→      });
+   493→    }
+   494→    if (insights.length === 0) {
+   495→      insights.push({
+   496→        type: "success",
+   497→        title: "All caught up!",
+   498→        desc: "No urgent actions needed. Your team is performing well.",
+   499→      });
+   500→    }
+   501→
+   502→    // === Goal tracking (weekly targets) ===
+   503→    const weeklyPostTarget = 5; // 5 posts/week target
+   504→    const replyRateTarget = 80; // 80% reply rate target
+   505→    const engagementTarget = 100; // 100 engagement interactions target
+   506→    const publishingTarget = 7; // 7 published posts/week target
+   507→
+   508→    const weeklyPostProgress = Math.min(100, Math.round((postsLast7d / weeklyPostTarget) * 100));
+   509→    const replyRateProgress = Math.min(100, Math.round((replyRate / replyRateTarget) * 100));
+   510→    const engagementProgress = Math.min(100, Math.round((totalEngagement / engagementTarget) * 100));
+   511→    const publishingProgress = Math.min(100, Math.round((publishedLast7d / publishingTarget) * 100));
+   512→
+   513→    const goals = {
+   514→      weeklyPosts: { current: postsLast7d, target: weeklyPostTarget, progress: weeklyPostProgress, label: "Posts this week" },
+   515→      publishing: { current: publishedLast7d, target: publishingTarget, progress: publishingProgress, label: "Published this week" },
+   516→      replyRate: { current: replyRate, target: replyRateTarget, progress: replyRateProgress, label: "Reply rate" },
+   517→      engagement: { current: totalEngagement, target: engagementTarget, progress: engagementProgress, label: "Total engagement" },
+   518→    };
+   519→
+   520→    // === Smart notifications (recent important events) ===
+   521→    const notifications: { id: string; type: "urgent" | "info" | "success"; title: string; desc: string; time: string; actionView?: string }[] = [];
+   522→
+   523→    if (failedCount > 0) {
+   524→      notifications.push({
+   525→        id: "notif-failed",
+   526→        type: "urgent",
+   527→        title: `${failedCount} failed publish attempt${failedCount > 1 ? "s" : ""}`,
+   528→        desc: "Posts couldn't be published to the platform. Check credentials and retry.",
+   529→        time: new Date().toISOString(),
+   530→        actionView: "composer",
+   531→      });
+   532→    }
+   533→    if (commentsPending > 0) {
+   534→      notifications.push({
+   535→        id: "notif-comments",
+   536→        type: "urgent",
+   537→        title: `${commentsPending} unread comments`,
+   538→        desc: "Reply to maintain engagement and build community trust.",
+   539→        time: new Date().toISOString(),
+   540→        actionView: "inbox",
+   541→      });
+   542→    }
+   543→    if (scheduledCount > 0) {
+   544→      const nextScheduled = posts
+   545→        .filter((p) => p.status === "scheduled" && p.scheduledAt)
+   546→        .sort((a, b) => (a.scheduledAt?.getTime() ?? 0) - (b.scheduledAt?.getTime() ?? 0))[0];
+   547→      if (nextScheduled && nextScheduled.scheduledAt) {
+   548→        const timeUntil = nextScheduled.scheduledAt.getTime() - now;
+   549→        const hoursUntil = Math.round(timeUntil / (60 * 60 * 1000));
+   550→        notifications.push({
+   551→          id: "notif-scheduled",
+   552→          type: "info",
+   553→          title: `Next post in ${hoursUntil}h`,
+   554→          desc: `"${nextScheduled.title}" is scheduled to publish soon.`,
+   555→          time: nextScheduled.scheduledAt.toISOString(),
+   556→          actionView: "calendar",
+   557→        });
+   558→      }
+   559→    }
+   560→    if (publishedLast7d > 0) {
+   561→      notifications.push({
+   562→        id: "notif-published",
+   563→        type: "success",
+   564→        title: `${publishedLast7d} posts published this week`,
+   565→        desc: "Great work! Your content is live across platforms.",
+   566→        time: new Date().toISOString(),
+   567→      });
+   568→    }
+   569→
+   570→    // === Audience breakdown (platform summary) ===
+   571→    const audienceByPlatform: { platform: string; followers: number; accounts: number; posts: number; engagement: number; color: string }[] = [];
+   572→    const platformMap: Record<string, { followers: number; accounts: number; posts: number; engagement: number }> = {};
+   573→    for (const acc of accounts) {
+   574→      if (!platformMap[acc.platform]) platformMap[acc.platform] = { followers: 0, accounts: 0, posts: 0, engagement: 0 };
+   575→      platformMap[acc.platform].followers += acc.followers;
+   576→      platformMap[acc.platform].accounts++;
+   577→      const accVariants = variants.filter((v) => v.accountId === acc.id);
+   578→      platformMap[acc.platform].posts += accVariants.length;
+   579→      platformMap[acc.platform].engagement += accVariants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0);
+   580→    }
+   581→    for (const [platform, data] of Object.entries(platformMap)) {
+   582→      audienceByPlatform.push({
+   583→        platform,
+   584→        ...data,
+   585→        color: PLATFORMS_COLOR_MAP[platform] ?? "var(--primary)",
+   586→      });
+   587→    }
+   588→
+   589→    // === Weekly mini-calendar (next 7 days scheduled posts) ===
+   590→    const weekCalendar: { date: string; dayName: string; dayNum: number; postCount: number; isToday: boolean }[] = [];
+   591→    for (let d = 0; d < 7; d++) {
+   592→      const date = new Date(now + d * day);
+   593→      const dayKey = date.toISOString().slice(0, 10);
+   594→      const dayPosts = posts.filter((p) =>
+   595→        p.status === "scheduled" && p.scheduledAt && p.scheduledAt.toISOString().slice(0, 10) === dayKey
+   596→      );
+   597→      weekCalendar.push({
+   598→        date: dayKey,
+   599→        dayName: date.toLocaleDateString(undefined, { weekday: "short" }),
+   600→        dayNum: date.getDate(),
+   601→        postCount: dayPosts.length,
+   602→        isToday: d === 0,
+   603→      });
+   604→    }
+   605→
+   606→    return NextResponse.json({
+   607→      isManagerView,
+   608→      userRole,
+   609→      kpis: {
+   610→        // Vanity metrics (with deltas)
+   611→        totalFollowers: { value: totalFollowers, display: fmt(totalFollowers), delta: delta(l7Follow, p7Follow) },
+   612→        totalReach: { value: totalReach, display: fmt(totalReach), delta: delta(l7Reach, p7Reach) },
+   613→        impressions: { value: totalImpressions, display: fmt(totalImpressions), delta: delta(l7Imp, p7Imp) },
+   614→        // Content activity (with deltas)
+   615→        postsCreated: { value: posts.length, display: fmt(posts.length), delta: postsDelta },
+   616→        published: { value: publishedCount, display: fmt(publishedCount), delta: publishedDelta },
+   617→        comments: { value: commentsReceived, display: fmt(commentsReceived), delta: commentsDelta },
+   618→        replyRate: { value: replyRate, display: `${replyRate}%`, delta: 0 },
+   619→        // Counts
+   620→        drafts: draftCount,
+   621→        scheduled: scheduledCount,
+   622→        failed: failedCount,
+   623→        pendingInbox: commentsPending,
+   624→        accounts: accounts.length,
+   625→        variantsPublished: variants.filter((v) => v.status === "published").length,
+   626→        totalEngagement,
+   627→        // Today's activity — what's actually posted to social media
+   628→        today: {
+   629→          published: publishedToday,
+   630→          comments: commentsToday,
+   631→          activeAccounts: activeAccountsToday,
+   632→          activeMembers: activeMembersToday,
+   633→          platformBreakdown: platformActivityToday,
+   634→          targets: {
+   635→            published: dailyPublishTarget,
+   636→            comments: dailyCommentTarget,
+   637→            activeAccounts: dailyActiveAccountTarget,
+   638→          },
+   639→        },
+   640→      },
+   641→      pipeline,
+   642→      pipelineTotal,
+   643→      series,
+   644→      pagesRanking,
+   645→      topContributors,
+   646→      recentPosts,
+   647→      failedPosts,
+   648→      publishedPosts,
+   649→      taskSummary: {
+   650→        total: tasks.length,
+   651→        done: tasks.filter((t) => t.status === "done").length,
+   652→        inProgress: tasks.filter((t) => t.status === "in_progress").length,
+   653→        blocked: tasks.filter((t) => t.status === "blocked").length,
+   654→        overdue: tasks.filter((t) => t.dueAt && new Date(t.dueAt) < new Date() && t.status !== "done").length,
+   655→        myTasks: tasks.filter((t) => t.assigneeId === userId).length,
+   656→        myDone: tasks.filter((t) => t.assigneeId === userId && t.status === "done").length,
+   657→        recent: tasks.slice(0, 5).map((t) => ({
+   658→          id: t.id,
+   659→          title: t.title,
+   660→          status: t.status,
+   661→          priority: t.priority,
+   662→          dueAt: t.dueAt?.toISOString() ?? null,
+   663→        })),
+   664→      },
+   665→      commentInbox,
+   666→      upcoming,
+   667→      topPosts,
+   668→      insights,
+   669→      goals,
+   670→      notifications,
+   671→      audienceByPlatform,
+   672→      weekCalendar,
+   673→      activities: activities.map((a) => ({
+   674→        id: a.id,
+   675→        userId: a.userId,
+   676→        userName: a.user.name,
+   677→        userColor: a.user.color,
+   678→        userAvatar: a.user.avatar,
+   679→        type: a.type,
+   680→        description: a.description,
+   681→        createdAt: a.createdAt.toISOString(),
+   682→      })),
+   683→    });
+   684→  } catch (err: unknown) {
+   685→    const message = err instanceof Error ? err.message : String(err);
+   686→    console.error("[/api/dashboard] DB error:", message);
+   687→    return NextResponse.json(
+   688→      { error: "Dashboard load failed", detail: message },
+   689→      { status: 500 }
+   690→    );
+   691→  }
+   692→}
+   693→
