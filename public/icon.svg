@@ -1,41 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
+    <!-- Dark canvas — deep near-black with a slight indigo tint -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0a0a0f"/>
       <stop offset="100%" stop-color="#1a1a2e"/>
     </linearGradient>
-    <linearGradient id="bar1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#5856D6"/>
-      <stop offset="100%" stop-color="#D4AF37"/>
+
+    <!-- Stream gradients (dark-mode brand colors: #0A84FF blue, #5E5CE6 indigo) -->
+    <linearGradient id="streamA" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#0A84FF"/>
     </linearGradient>
-    <linearGradient id="bar2" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#D4AF37"/>
-      <stop offset="100%" stop-color="#5856D6"/>
+    <linearGradient id="streamB" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5E5CE6" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#5E5CE6"/>
     </linearGradient>
-    <linearGradient id="bar3" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#5856D6"/>
-      <stop offset="50%" stop-color="#D4AF37"/>
-      <stop offset="100%" stop-color="#5856D6"/>
+    <linearGradient id="streamC" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.30"/>
+      <stop offset="60%" stop-color="#5E5CE6" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#5E5CE6"/>
     </linearGradient>
+
+    <!-- Prism — vibrant diagonal blend of both brand colors -->
+    <linearGradient id="prismGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A84FF"/>
+      <stop offset="55%" stop-color="#5E5CE6"/>
+      <stop offset="100%" stop-color="#0A84FF"/>
+    </linearGradient>
+
+    <!-- Glass highlight on the prism's upper facet -->
+    <linearGradient id="prismShine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
     <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feGaussianBlur stdDeviation="3.5" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
-  <!-- Dark background for maskable icon -->
+
+  <!-- Dark rounded-square background — maskable PWA-safe -->
   <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
-  <!-- Subtle ring -->
-  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(88,86,214,0.08)" stroke-width="2"/>
-  <!-- Flow wave logo — 3 bars centered in safe zone (80%) -->
-  <g filter="url(#glow)" transform="translate(96, 156)">
-    <!-- Bar 1 — top, widest -->
-    <rect x="0" y="0" width="320" height="50" rx="25" fill="url(#bar1)"/>
-    <!-- Bar 2 — middle, medium -->
-    <rect x="26" y="80" width="268" height="50" rx="25" fill="url(#bar2)"/>
-    <!-- Bar 3 — bottom, shortest -->
-    <rect x="52" y="160" width="216" height="50" rx="25" fill="url(#bar3)"/>
+
+  <!-- Subtle decorative ring inside the safe zone -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(94,92,230,0.10)" stroke-width="2"/>
+  <circle cx="256" cy="256" r="172" fill="none" stroke="rgba(10,132,255,0.06)" stroke-width="1.5"/>
+
+  <!-- SYNQUE convergence mark — centered, scaled to ~63% of canvas -->
+  <!-- Mark in local coords spans (7,13)-(56,51); center at (31.5, 32). -->
+  <g filter="url(#glow)" transform="translate(256 256) scale(6.3) translate(-31.5 -32)">
+    <!-- Three converging streams (multi-platform inputs) -->
+    <path d="M 7 13 C 22 13 26 23 32 30" stroke="url(#streamA)" stroke-width="4.2" stroke-linecap="round" fill="none"/>
+    <path d="M 7 32 L 32 32" stroke="url(#streamB)" stroke-width="4.2" stroke-linecap="round" fill="none"/>
+    <path d="M 7 51 C 22 51 26 41 32 34" stroke="url(#streamC)" stroke-width="4.2" stroke-linecap="round" fill="none"/>
+
+    <!-- Prism / arrowhead — unified queue node + forward tip -->
+    <path d="M 32 32 L 38 22 L 56 32 L 38 42 Z" fill="url(#prismGrad)"/>
+
+    <!-- Glass highlight on upper facet -->
+    <path d="M 32 32 L 38 22 L 56 32 Z" fill="url(#prismShine)"/>
   </g>
 </svg>

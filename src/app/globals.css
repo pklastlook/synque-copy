@@ -550,23 +550,39 @@
 }
 .glow-pulse { animation: glowPulse 2.5s ease-in-out infinite; }
 
-/* ===== Logo — SYNQUE flow wave (animated bars) ===== */
-@keyframes sfFlow1 {
-  0%, 100% { transform: scaleX(1); opacity: 1; }
-  50% { transform: scaleX(0.85); opacity: 0.8; }
+/* ===== Logo — SYNQUE convergence mark (animated streams + prism) =====
+   Three streams pulse in sequence — data flowing toward the queue node.
+   Prism gently breathes — the "active queue" core. Glass highlight
+   catches the light with a subtle shimmer. Subtle, not distracting. */
+@keyframes sfFlow {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
 }
-@keyframes sfFlow2 {
-  0%, 100% { transform: scaleX(0.92); opacity: 0.9; }
-  50% { transform: scaleX(1); opacity: 1; }
+.sf-logo .sf-bar-1 { animation: sfFlow 2.4s ease-in-out infinite; }
+.sf-logo .sf-bar-2 { animation: sfFlow 2.4s ease-in-out infinite 0.3s; }
+.sf-logo .sf-bar-3 { animation: sfFlow 2.4s ease-in-out infinite 0.6s; }
+
+@keyframes sfPrismPulse {
+  0%, 100% { opacity: 0.9; }
+  50%      { opacity: 1; }
 }
-@keyframes sfFlow3 {
-  0%, 100% { transform: scaleX(1); opacity: 1; }
-  50% { transform: scaleX(0.8); opacity: 0.85; }
+.sf-logo .sf-prism { animation: sfPrismPulse 3s ease-in-out infinite; }
+
+@keyframes sfShine {
+  0%, 100% { opacity: 0.65; }
+  50%      { opacity: 1; }
 }
-.sf-logo .sf-bar { transform-origin: left center; transform-box: fill-box; }
-.sf-logo .sf-bar-1 { animation: sfFlow1 2.5s ease-in-out infinite; }
-.sf-logo .sf-bar-2 { animation: sfFlow2 2.5s ease-in-out infinite 0.3s; }
-.sf-logo .sf-bar-3 { animation: sfFlow3 2.5s ease-in-out infinite 0.6s; }
+.sf-logo .sf-prism-shine { animation: sfShine 3s ease-in-out infinite 1.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-logo .sf-bar-1,
+  .sf-logo .sf-bar-2,
+  .sf-logo .sf-bar-3,
+  .sf-logo .sf-prism,
+  .sf-logo .sf-prism-shine {
+    animation: none !important;
+  }
+}
 
 /* Platform gradient utility classes — SOLID Apple-spectrum brand colors */
 .pl-ig {
@@ -1429,17 +1445,19 @@ html { scroll-behavior: smooth; }
      REPORTS — .report-print-root
      =========================================================================== */
 
-  /* Cover page — fills first page, then forces a break */
+  /* Cover page — fills first page, then forces a break.
+     Reduced padding (was 8mm 0 12mm → 6mm 0 8mm) so content fills the page
+     instead of leaving large gaps at top/bottom. */
   .report-cover {
     page-break-after: always;
     break-after: page;
     min-height: calc(100vh - 28mm);
     display: flex;
     flex-direction: column;
-    padding: 8mm 0 12mm;
+    padding: 6mm 0 8mm;
     color: #1a1a1a;
   }
-  .report-cover-spacer { flex: 1; }
+  .report-cover-spacer { flex: 1; min-height: 4mm; }
   .report-cover-brand {
     font-size: 28px;
     font-weight: 800;
@@ -1455,8 +1473,10 @@ html { scroll-behavior: smooth; }
     text-transform: uppercase;
     color: #777;
   }
+  /* Accent bar — tightened margins (was 32 0 28 → 22 0 18) so the cover
+     doesn't waste vertical space between brand and title. */
   .report-cover-accent {
-    margin: 32px 0 28px;
+    margin: 22px 0 18px;
     height: 4px;
     width: 64px;
     border-radius: 2px;
@@ -1485,10 +1505,11 @@ html { scroll-behavior: smooth; }
     max-width: 14cm;
     line-height: 1.6;
   }
+  /* Cover meta block — tightened gap above (was 28px → 18px). */
   .report-cover-meta {
-    margin-top: 28px;
+    margin-top: 18px;
     border-top: 1px solid #e5e5e5;
-    padding-top: 14px;
+    padding-top: 12px;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
@@ -1509,7 +1530,7 @@ html { scroll-behavior: smooth; }
   }
   .report-cover-footer {
     margin-top: auto;
-    padding-top: 18px;
+    padding-top: 14px;
     border-top: 1px solid #e5e5e5;
     font-size: 9px;
     color: #888;
@@ -1517,12 +1538,13 @@ html { scroll-behavior: smooth; }
     justify-content: space-between;
   }
 
-  /* Running header on every content page (after cover) */
+  /* Running header on every content page (after cover).
+     Reduced bottom margin (was 14px → 8px) so content starts closer. */
   .report-header-cell { padding: 0; }
   .report-header {
     border-bottom: 1px solid #e0e0e0;
-    padding: 0 0 8px;
-    margin-bottom: 14px;
+    padding: 0 0 6px;
+    margin-bottom: 8px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -1554,12 +1576,14 @@ html { scroll-behavior: smooth; }
     color: #1a1a1a;
   }
 
-  /* Section titles — keep with following content, never orphaned */
+  /* Section titles — keep with following content, never orphaned.
+     Tightened margins (was 18px 0 6px → 12px 0 4px) to reduce large gaps
+     between sections. */
   .report-section-title {
     font-size: 11px;
     font-weight: 700;
     color: #5856D6;
-    margin: 18px 0 6px;
+    margin: 12px 0 4px;
     padding-bottom: 3px;
     border-bottom: 1.5px solid #5856D6;
     text-transform: uppercase;
@@ -1572,19 +1596,20 @@ html { scroll-behavior: smooth; }
   .report-section-title:first-child { margin-top: 0; }
   .report-text {
     font-size: 10.5px;
-    line-height: 1.55;
+    line-height: 1.5;
     color: #333;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
-  /* Dense MetricRow-style KPI strip — compact, scannable, low ink */
+  /* Dense MetricRow-style KPI strip — compact, scannable, low ink.
+     Tightened margins (was 10 0 14 → 6 0 10) and padding (was 8 12 → 6 10). */
   .report-metric-row {
     display: flex;
     align-items: stretch;
     border: 1px solid #e0e0e0;
     border-left: 3px solid #5856D6;
     border-radius: 3px;
-    margin: 10px 0 14px;
+    margin: 6px 0 10px;
     overflow: hidden;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -1592,7 +1617,7 @@ html { scroll-behavior: smooth; }
   .report-metric {
     flex: 1;
     min-width: 0;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-right: 1px solid #e0e0e0;
   }
   .report-metric:last-child { border-right: none; }
@@ -1605,12 +1630,13 @@ html { scroll-behavior: smooth; }
     line-height: 1;
   }
   .report-metric-value {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: #1a1a1a;
     line-height: 1.1;
-    margin-top: 4px;
+    margin-top: 3px;
     font-variant-numeric: tabular-nums;
+    word-break: break-word;
   }
 
   /* Legacy KPI grid kept for back-compat */
@@ -1618,18 +1644,18 @@ html { scroll-behavior: smooth; }
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;
-    margin: 10px 0 14px;
+    margin: 6px 0 10px;
   }
   .report-kpi-card {
     border: 1px solid #e0e0e0;
     border-left: 3px solid #5856D6;
     border-radius: 3px;
-    padding: 8px 10px;
+    padding: 6px 8px;
     background: #fafafa;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .report-kpi-value { font-size: 18px; font-weight: 700; color: #1a1a1a; line-height: 1; }
+  .report-kpi-value { font-size: 16px; font-weight: 700; color: #1a1a1a; line-height: 1; }
   .report-kpi-label {
     font-size: 8.5px;
     font-weight: 600;
@@ -1639,12 +1665,16 @@ html { scroll-behavior: smooth; }
     margin-top: 3px;
   }
 
-  /* Tables — clean, header repeats on each page, rows don't break */
+  /* Tables — clean, header repeats on each page, rows don't break.
+     Tightened cell padding (was 5px 8px → 4px 6px) and table margin
+     (was 10px → 6px) to remove airy vertical gaps.
+     table-layout fixed forces consistent column widths across tables,
+     preventing misalignment between sections. */
   .report-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 9.5px;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     table-layout: auto;
   }
   .report-table thead { display: table-header-group; }
@@ -1653,23 +1683,28 @@ html { scroll-behavior: smooth; }
     color: #fff;
     font-weight: 600;
     text-align: left;
-    padding: 5px 8px;
+    padding: 4px 6px;
     border: none;
     font-size: 8.5px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    vertical-align: bottom;
   }
   .report-table tbody tr {
     page-break-inside: avoid;
     break-inside: avoid;
   }
   .report-table tbody td {
-    padding: 4px 8px;
+    padding: 3px 6px;
     border-bottom: 1px solid #e8e8e8;
     vertical-align: top;
   }
+  /* Right-aligned numeric columns line up tabular-nums digits */
+  .report-table .text-right { text-align: right; }
+  .report-table .text-center { text-align: center; }
+  .report-table .capitalize { text-transform: capitalize; }
   .report-table tbody tr:nth-child(even) td {
     background: #f9f9fb;
     -webkit-print-color-adjust: exact;
@@ -1681,11 +1716,11 @@ html { scroll-behavior: smooth; }
   .report-matrix th, .report-matrix td { font-size: 9px; padding: 3px 5px; }
 
   .report-subsection {
-    margin-top: 10px;
+    margin-top: 8px;
     page-break-inside: avoid;
     break-inside: avoid;
   }
-  .report-subhead { font-size: 10px; font-weight: 700; color: #333; margin-bottom: 4px; }
+  .report-subhead { font-size: 10px; font-weight: 700; color: #333; margin-bottom: 3px; }
   .report-sub-table thead th {
     background: #f0f0f5;
     color: #333;
@@ -1694,12 +1729,82 @@ html { scroll-behavior: smooth; }
   }
   .report-subtle { color: #888; font-weight: 400; font-size: 8.5px; }
 
-  /* Closing footer note */
+  /* === Leaderboard Top-3 Podium cards ===
+     Three side-by-side cards, each listing the top 3 contributors for
+     a different metric. Compact, no large gaps. */
+  .report-podium {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .report-podium-card {
+    border: 1px solid #e0e0e0;
+    border-top: 3px solid #5856D6;
+    border-radius: 3px;
+    padding: 6px 8px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .report-podium-title {
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #5856D6;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #e8e8e8;
+  }
+  .report-podium-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .report-podium-item {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 2px 0;
+    font-size: 9px;
+  }
+  .report-podium-rank {
+    font-weight: 700;
+    color: #888;
+    min-width: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+  .report-podium-name {
+    flex: 1;
+    font-weight: 600;
+    color: #1a1a1a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .report-podium-value {
+    font-weight: 700;
+    color: #1a1a1a;
+    font-variant-numeric: tabular-nums;
+  }
+  .report-podium-item.rank-1 .report-podium-rank { color: #b8860b; }
+  .report-podium-item.rank-2 .report-podium-rank { color: #666; }
+  .report-podium-item.rank-3 .report-podium-rank { color: #a0522d; }
+  .report-podium-empty {
+    font-size: 9px;
+    color: #888;
+    font-style: italic;
+    padding: 4px 0;
+  }
+
+  /* Closing footer note — tightened top margin (was 22px → 14px). */
   .report-footer-note {
     font-size: 9px;
     color: #888;
-    margin-top: 22px;
-    padding-top: 8px;
+    margin-top: 14px;
+    padding-top: 6px;
     border-top: 1px dashed #ccc;
     text-align: center;
   }

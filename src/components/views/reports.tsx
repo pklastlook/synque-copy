@@ -2479,7 +2479,39 @@ const POST_STATUS_META: Record<string, { label: string; color: string; bg: strin
   failed: { label: "Failed", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/15", icon: <XCircle className="h-2.5 w-2.5" /> },
 };
 
-// ============ Print Layout (hidden on screen) — modernized ============
+// ============ Print Layout (hidden on screen) — modernized, unique per template ============
+
+/** Compact KPI strip used by every report — accepts an array of {label, value} cells. */
+function PrintKpiStrip({ items }: { items: { label: string; value: string }[] }) {
+  return (
+    <div className="report-metric-row">
+      {items.map((k, i) => (
+        <div key={i} className="report-metric">
+          <div className="report-metric-value">{k.value}</div>
+          <div className="report-metric-label">{k.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Section title with keep-with-next behaviour (defined in globals.css). */
+function PrintSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <>
+      <h2 className="report-section-title">{title}</h2>
+      {children}
+    </>
+  );
+}
+
+/** Format a date as "MMM d" (e.g. "Mar 5") for compact trend tables. */
+function fmtDay(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch { return iso; }
+}
+
 function PrintLayout({
   template, dateRangeLabel, analytics, teamData, reportData, postsPerfData, totals,
 }: {
@@ -2494,6 +2526,32 @@ function PrintLayout({
   const title = `${template.name} Report`;
   const templateColor = template.color;
 
+  // ---- derived helpers used across multiple templates ----
+  const series = analytics.series ?? [];
+  const startFollowers = series[0]?.followers ?? totals.followers;
+  const endFollowers = series.length > 0 ? series[series.length - 1].followers : totals.followers;
+  const netGrowth = endFollowers - startFollowers;
+  const daysCount = series.length > 1 ? series.length : 1;
+  const avgDailyGrowth = Math.round(netGrowth / daysCount);
+  const engagementRate = totals.impressions > 0 ? ((totals.engagement / totals.impressions) * 100).toFixed(2) : "0.00";
+  const reachRate = totals.impressions > 0 ? ((totals.reach / totals.impressions) * 100).toFixed(2) : "0.00";
+
+  // platform aggregation (followers/impressions/engagement/posts per platform)
+  const platformAgg = (() => {
+    const map = new Map<string, { platform: string; accounts: number; followers: number; impressions: number; reach: number; engagement: number; posts: number }>();
+    for (const a of analytics.perAccount) {
+      const cur = map.get(a.platform) ?? { platform: a.platform, accounts: 0, followers: 0, impressions: 0, reach: 0, engagement: 0, posts: 0 };
+      cur.accounts++;
+      cur.followers += a.followers;
+      cur.impressions += a.impressions;
+      cur.reach += a.reach;
+      cur.engagement += a.engagement;
+      cur.posts += a.posts;
+      map.set(a.platform, cur);
+    }
+    return [...map.values()].sort((a, b) => b.followers - a.followers);
+  })();
+
   // Template-specific executive summary text
   const summaryText = (() => {
     switch (template.id) {
@@ -2507,18 +2565,189 @@ function PrintLayout({
       case "team":
         return `This ${dateRangeLabel.toLowerCase()} team activity report covers ${teamData?.teamTotals.members ?? 0} member(s) managing ${analytics.perAccount.length} account(s). The team created ${teamData?.teamTotals.postsCreated ?? 0} posts, published ${teamData?.teamTotals.publishedPosts ?? 0}, and replied to ${teamData?.teamTotals.commentsReplied ?? 0} of ${teamData?.teamTotals.commentsReceived ?? 0} comments (${teamData?.teamTotals.replyRate ?? 0}% reply rate).`;
       case "engagement":
-        return `This ${dateRangeLabel.toLowerCase()} engagement report covers ${analytics.perAccount.length} account(s). Total engagement: ${fmt(totals.engagement)} (${fmt(totals.likes)} likes, ${fmt(totals.comments)} comments, ${fmt(totals.shares)} shares, ${fmt(totals.saves)} saves).`;
+        return `This ${dateRangeLabel.toLowerCase()} engagement report covers ${analytics.perAccount.length} account(s). Total engagement: ${fmt(totals.engagement)} (${fmt(totals.likes)} likes, ${fmt(totals.comments)} comments, ${fmt(totals.shares)} shares, ${fmt(totals.saves)} saves) at a ${engagementRate}% engagement rate.`;
       case "posts-performance":
         return `This posts performance report covers all ${teamData?.teamTotals.postsCreated ?? 0} post(s) created by the team — ${teamData?.teamTotals.publishedPosts ?? 0} published, ${teamData?.teamTotals.scheduledPosts ?? 0} scheduled, ${teamData?.teamTotals.draftPosts ?? 0} drafts, ${teamData?.teamTotals.failedPosts ?? 0} failed, and ${postsPerfData?.kpis.totalVariantsPublished ?? 0} platform variants published across all platforms.`;
+      case "growth":
+        return `This ${dateRangeLabel.toLowerCase()} growth report tracks follower evolution across ${analytics.perAccount.length} account(s). Followers changed from ${fmt(startFollowers)} to ${fmt(endFollowers)} (${netGrowth >= 0 ? "+" : ""}${fmt(netGrowth)} net, avg ${fmt(avgDailyGrowth)}/day).`;
+      case "audience":
+        return `This ${dateRangeLabel.toLowerCase()} audience report covers ${analytics.perAccount.length} account(s) across ${platformAgg.length} platform(s). Total audience: ${fmt(totals.followers)} followers, with ${netGrowth >= 0 ? "+" : ""}${fmt(netGrowth)} net growth over the period.`;
+      case "reach":
+        return `This ${dateRangeLabel.toLowerCase()} reach report covers ${analytics.perAccount.length} account(s). Total impressions: ${fmt(totals.impressions)}, total reach: ${fmt(totals.reach)} (${reachRate}% reach rate).`;
+      case "platform":
+        return `This ${dateRangeLabel.toLowerCase()} platform comparison report aggregates performance across ${platformAgg.length} platform(s) and ${analytics.perAccount.length} account(s).`;
+      case "content":
+        return `This ${dateRangeLabel.toLowerCase()} content report covers the publishing pipeline: ${teamData?.teamTotals.postsCreated ?? 0} total posts, ${teamData?.teamTotals.publishedPosts ?? 0} published, ${teamData?.teamTotals.scheduledPosts ?? 0} scheduled, ${teamData?.teamTotals.draftPosts ?? 0} drafts, ${teamData?.teamTotals.failedPosts ?? 0} failed.`;
       default:
         return `This ${dateRangeLabel.toLowerCase()} ${template.name.toLowerCase()} report covers ${analytics.perAccount.length} account(s)${teamData ? ` and ${teamData.teamTotals.members} team member(s)` : ""}. Total audience: ${fmt(totals.followers)} followers, ${fmt(totals.impressions)} impressions, ${fmt(totals.reach)} reach, and ${fmt(totals.engagement)} total engagement.`;
     }
   })();
 
-  // Whether to show the user×account matrix table
-  const showUserMatrix = ["user-account", "team", "user-comparison"].includes(template.id) && reportData && reportData.userAccountMatrix.length > 0;
-  const showAccountUser = ["account-user"].includes(template.id) && reportData && reportData.accountUserMatrix.length > 0;
-  const showLeaderboard = ["leaderboard"].includes(template.id) && reportData;
+  // ---- template-specific KPI strip ----
+  const kpis: { label: string; value: string }[] = (() => {
+    switch (template.id) {
+      case "performance":
+        return [
+          { label: "Followers", value: fmt(totals.followers) },
+          { label: "Impressions", value: fmt(totals.impressions) },
+          { label: "Reach", value: fmt(totals.reach) },
+          { label: "Engagement", value: fmt(totals.engagement) },
+          { label: "Posts", value: totals.posts.toLocaleString() },
+          { label: "Eng. Rate", value: `${engagementRate}%` },
+        ];
+      case "audience": {
+        const largest = platformAgg[0];
+        const fastest = [...platformAgg].sort((a, b) => (b.followers - a.followers) - (a.followers - b.followers))[0] ?? largest;
+        return [
+          { label: "Total Followers", value: fmt(totals.followers) },
+          { label: "Net Growth", value: `${netGrowth >= 0 ? "+" : ""}${fmt(netGrowth)}` },
+          { label: "Avg Daily Growth", value: fmt(avgDailyGrowth) },
+          { label: "Largest Platform", value: largest?.platform ?? "—" },
+          { label: "Fastest Growing", value: fastest?.platform ?? "—" },
+        ];
+      }
+      case "engagement":
+        return [
+          { label: "Total Engagement", value: fmt(totals.engagement) },
+          { label: "Likes", value: fmt(totals.likes) },
+          { label: "Comments", value: fmt(totals.comments) },
+          { label: "Shares", value: fmt(totals.shares) },
+          { label: "Saves", value: fmt(totals.saves) },
+          { label: "Eng. Rate", value: `${engagementRate}%` },
+        ];
+      case "team": {
+        const t = teamData?.teamTotals;
+        const members = t?.members ?? reportData?.userComparison.length ?? 0;
+        const postsCreated = t?.postsCreated ?? reportData?.userComparison.reduce((s, u) => s + u.postsCreated, 0) ?? 0;
+        const published = t?.publishedPosts ?? reportData?.userComparison.reduce((s, u) => s + u.postsPublished, 0) ?? 0;
+        const replied = t?.commentsReplied ?? reportData?.userComparison.reduce((s, u) => s + u.commentsReplied, 0) ?? 0;
+        const replyRate = t?.replyRate ?? 0;
+        const avg = members > 0 ? (postsCreated / members).toFixed(1) : "0";
+        return [
+          { label: "Members", value: members.toString() },
+          { label: "Posts Created", value: postsCreated.toLocaleString() },
+          { label: "Published", value: published.toLocaleString() },
+          { label: "Comments Replied", value: replied.toLocaleString() },
+          { label: "Reply Rate", value: `${replyRate}%` },
+          { label: "Avg Posts/Member", value: avg },
+        ];
+      }
+      case "content": {
+        const p = teamData?.pipeline;
+        return [
+          { label: "Total Posts", value: (teamData?.teamTotals.postsCreated ?? 0).toLocaleString() },
+          { label: "Published", value: (p?.published ?? 0).toLocaleString() },
+          { label: "Scheduled", value: (p?.scheduled ?? 0).toLocaleString() },
+          { label: "Drafts", value: (p?.draft ?? 0).toLocaleString() },
+          { label: "Failed", value: (p?.failed ?? 0).toLocaleString() },
+          { label: "Variants", value: (postsPerfData?.kpis.totalVariantsPublished ?? 0).toLocaleString() },
+        ];
+      }
+      case "growth":
+        return [
+          { label: "Starting Followers", value: fmt(startFollowers) },
+          { label: "Ending Followers", value: fmt(endFollowers) },
+          { label: "Net Growth", value: `${netGrowth >= 0 ? "+" : ""}${fmt(netGrowth)}` },
+          { label: "Growth Rate", value: `${startFollowers > 0 ? ((netGrowth / startFollowers) * 100).toFixed(2) : "0.00"}%` },
+          { label: "Avg Daily", value: fmt(avgDailyGrowth) },
+        ];
+      case "platform": {
+        const avgEng = platformAgg.length > 0
+          ? fmt(Math.round(platformAgg.reduce((s, p) => s + p.engagement, 0) / platformAgg.length))
+          : "0";
+        return [
+          { label: "Platforms Active", value: platformAgg.length.toString() },
+          { label: "Total Accounts", value: analytics.perAccount.length.toString() },
+          { label: "Total Followers", value: fmt(totals.followers) },
+          { label: "Avg Eng./Platform", value: avgEng },
+        ];
+      }
+      case "reach": {
+        const best = [...analytics.perAccount].sort((a, b) => b.reach - a.reach)[0];
+        return [
+          { label: "Total Impressions", value: fmt(totals.impressions) },
+          { label: "Total Reach", value: fmt(totals.reach) },
+          { label: "Avg Reach/Post", value: fmt(Math.round(totals.reach / Math.max(1, totals.posts))) },
+          { label: "Reach Rate", value: `${reachRate}%` },
+          { label: "Best Platform", value: best?.platform ?? "—" },
+        ];
+      }
+      case "user-account": {
+        const users = reportData?.userComparison.length ?? 0;
+        const totalPosts = reportData?.userComparison.reduce((s, u) => s + u.postsCreated, 0) ?? 0;
+        const totalComments = reportData?.userComparison.reduce((s, u) => s + u.commentsReceived, 0) ?? 0;
+        const avg = users > 0 ? (totalPosts / users).toFixed(1) : "0";
+        return [
+          { label: "Members", value: users.toString() },
+          { label: "Accounts", value: analytics.perAccount.length.toString() },
+          { label: "Total Posts", value: totalPosts.toLocaleString() },
+          { label: "Total Comments", value: totalComments.toLocaleString() },
+          { label: "Avg Posts/Member", value: avg },
+        ];
+      }
+      case "user-comparison": {
+        const users = reportData?.userComparison ?? [];
+        const top = users[0];
+        const avgReply = users.length > 0
+          ? Math.round(users.reduce((s, u) => s + u.replyRate, 0) / users.length)
+          : 0;
+        return [
+          { label: "Members", value: users.length.toString() },
+          { label: "Total Posts", value: users.reduce((s, u) => s + u.postsCreated, 0).toLocaleString() },
+          { label: "Published", value: users.reduce((s, u) => s + u.postsPublished, 0).toLocaleString() },
+          { label: "Avg Reply Rate", value: `${avgReply}%` },
+          { label: "Top Contributor", value: top?.name ?? "—" },
+        ];
+      }
+      case "account-user": {
+        const accounts = reportData?.accountUserMatrix ?? [];
+        const totalPosts = accounts.reduce((s, a) => s + a.totalPosts, 0);
+        const totalComments = accounts.reduce((s, a) => s + a.totalComments, 0);
+        const mostActive = [...accounts].sort((a, b) => b.totalPosts - a.totalPosts)[0];
+        return [
+          { label: "Accounts", value: accounts.length.toString() },
+          { label: "Total Posts", value: totalPosts.toLocaleString() },
+          { label: "Total Comments", value: totalComments.toLocaleString() },
+          { label: "Avg Posts/Account", value: (accounts.length > 0 ? (totalPosts / accounts.length).toFixed(1) : "0") },
+          { label: "Most Active Account", value: mostActive?.displayName ?? "—" },
+        ];
+      }
+      case "leaderboard": {
+        const users = reportData?.userComparison ?? [];
+        const avgReply = users.length > 0
+          ? Math.round(users.reduce((s, u) => s + u.replyRate, 0) / users.length)
+          : 0;
+        return [
+          { label: "Total Members", value: users.length.toString() },
+          { label: "Total Posts", value: users.reduce((s, u) => s + u.postsCreated, 0).toLocaleString() },
+          { label: "Total Comments", value: users.reduce((s, u) => s + u.commentsReceived, 0).toLocaleString() },
+          { label: "Avg Reply Rate", value: `${avgReply}%` },
+        ];
+      }
+      case "posts-performance": {
+        const k = postsPerfData?.kpis;
+        const replyRate = k && k.totalComments > 0
+          ? Math.round((k.totalCommentsReplied / k.totalComments) * 100)
+          : 0;
+        return [
+          { label: "Total Posts", value: (k?.totalPosts ?? 0).toLocaleString() },
+          { label: "Published", value: (k?.published ?? 0).toLocaleString() },
+          { label: "Scheduled", value: (k?.scheduled ?? 0).toLocaleString() },
+          { label: "Drafts", value: (k?.draft ?? 0).toLocaleString() },
+          { label: "Failed", value: (k?.failed ?? 0).toLocaleString() },
+          { label: "Comments", value: (k?.totalComments ?? 0).toLocaleString() },
+          { label: "Reply Rate", value: `${replyRate}%` },
+        ];
+      }
+      default:
+        return [
+          { label: "Followers", value: fmt(totals.followers) },
+          { label: "Impressions", value: fmt(totals.impressions) },
+          { label: "Reach", value: fmt(totals.reach) },
+          { label: "Engagement", value: fmt(totals.engagement) },
+        ];
+    }
+  })();
 
   return (
     <div className="report-print-root hidden print:block">
@@ -2552,7 +2781,7 @@ function PrintLayout({
         </div>
         <div className="report-cover-footer">
           <span>Confidential — for internal use only</span>
-          <span>synque.app</span>
+          <span>synque.cloud</span>
         </div>
       </section>
 
@@ -2577,222 +2806,748 @@ function PrintLayout({
         <h2 className="report-section-title">Executive Summary</h2>
         <p className="report-text">{summaryText}</p>
 
-        {/* Dense MetricRow-style KPI strip — compact, scannable, low ink */}
-        <div className="report-metric-row">
-          {(() => {
-            const kpis: { label: string; value: string }[] = [];
-            if (["user-account", "user-comparison", "leaderboard", "team"].includes(template.id) && reportData) {
-              kpis.push(
-                { label: "Members", value: (reportData.userComparison.length).toString() },
-                { label: "Posts Created", value: reportData.userComparison.reduce((s, u) => s + u.postsCreated, 0).toString() },
-                { label: "Published", value: reportData.userComparison.reduce((s, u) => s + u.postsPublished, 0).toString() },
-                { label: "Comments Replied", value: reportData.userComparison.reduce((s, u) => s + u.commentsReplied, 0).toString() },
-              );
-            } else {
-              kpis.push(
-                { label: "Followers", value: fmt(totals.followers) },
-                { label: "Impressions", value: fmt(totals.impressions) },
-                { label: "Reach", value: fmt(totals.reach) },
-                { label: "Engagement", value: fmt(totals.engagement) },
-              );
-            }
-            return kpis.map((k, i) => (
-              <div key={i} className="report-metric">
-                <div className="report-metric-value">{k.value}</div>
-                <div className="report-metric-label">{k.label}</div>
-              </div>
-            ));
-          })()}
-        </div>
+        <PrintKpiStrip items={kpis} />
 
-        <h2 className="report-section-title">Key Metrics</h2>
-        <table className="report-table">
-          <thead><tr><th>Metric</th><th className="text-right">Value</th></tr></thead>
-          <tbody>
-            <tr><td>Total Followers</td><td className="text-right tabular-nums">{totals.followers.toLocaleString()}</td></tr>
-            <tr><td>Total Impressions</td><td className="text-right tabular-nums">{totals.impressions.toLocaleString()}</td></tr>
-            <tr><td>Total Reach</td><td className="text-right tabular-nums">{totals.reach.toLocaleString()}</td></tr>
-            <tr><td>Total Engagement</td><td className="text-right tabular-nums">{totals.engagement.toLocaleString()}</td></tr>
-            <tr><td>Likes</td><td className="text-right tabular-nums">{totals.likes.toLocaleString()}</td></tr>
-            <tr><td>Comments</td><td className="text-right tabular-nums">{totals.comments.toLocaleString()}</td></tr>
-            <tr><td>Shares</td><td className="text-right tabular-nums">{totals.shares.toLocaleString()}</td></tr>
-            <tr><td>Saves</td><td className="text-right tabular-nums">{totals.saves.toLocaleString()}</td></tr>
-            <tr><td>Posts Published</td><td className="text-right tabular-nums">{totals.posts.toLocaleString()}</td></tr>
-          </tbody>
-        </table>
-
-        {/* Team member comparison — full table */}
-        {reportData && ["team", "user-comparison", "leaderboard"].includes(template.id) && (
+        {/* ============================================================
+            TEMPLATE-SPECIFIC BODY — every report renders UNIQUE tables
+            ============================================================ */}
+        {template.id === "performance" && (
           <>
-            <h2 className="report-section-title">Team Member Work Comparison</h2>
-            <table className="report-table">
-              <thead><tr>
-                <th>Member</th>
-                <th className="text-right">Posts</th>
-                <th className="text-right">Published</th>
-                <th className="text-right">Drafts</th>
-                <th className="text-right">Failed</th>
-                <th className="text-right">Comments</th>
-                <th className="text-right">Replied</th>
-                <th className="text-right">Reply %</th>
-                <th className="text-right">7-day</th>
-              </tr></thead>
-              <tbody>
-                {reportData.userComparison.map(u => (
-                  <tr key={u.id}>
-                    <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
-                    <td className="text-right tabular-nums">{u.postsCreated}</td>
-                    <td className="text-right tabular-nums">{u.postsPublished}</td>
-                    <td className="text-right tabular-nums">{u.postsDraft}</td>
-                    <td className="text-right tabular-nums">{u.postsFailed}</td>
-                    <td className="text-right tabular-nums">{u.commentsReceived}</td>
-                    <td className="text-right tabular-nums">{u.commentsReplied}</td>
-                    <td className="text-right tabular-nums">{u.replyRate}%</td>
-                    <td className="text-right tabular-nums">{u.postsLast7d}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        {/* User × Account matrix table */}
-        {showUserMatrix && (() => {
-          const matrix = reportData!.userAccountMatrix;
-          const allAccounts: { id: string; displayName: string; platform: string }[] = [];
-          const seen = new Set<string>();
-          for (const u of matrix) for (const a of u.perAccount) if (!seen.has(a.accountId)) { seen.add(a.accountId); allAccounts.push({ id: a.accountId, displayName: a.displayName, platform: a.platform }); }
-          return (
-            <>
-              <h2 className="report-section-title">Posts & Comments by User on Each Account</h2>
-              <table className="report-table report-matrix">
+            <PrintSection title="Daily Trend">
+              <table className="report-table">
                 <thead><tr>
-                  <th>User</th>
-                  {allAccounts.map(a => <th key={a.id} className="text-center">{a.displayName}</th>)}
-                  <th className="text-right">Total</th>
+                  <th>Date</th>
+                  <th className="text-right">Followers</th>
+                  <th className="text-right">Impressions</th>
+                  <th className="text-right">Reach</th>
+                  <th className="text-right">Engagement</th>
                 </tr></thead>
                 <tbody>
-                  {matrix.map(u => (
-                    <tr key={u.userId}>
-                      <td className="font-medium">{u.userName}</td>
-                      {allAccounts.map(a => {
-                        const cell = u.perAccount.find(p => p.accountId === a.id);
-                        return <td key={a.id} className="text-center tabular-nums">{cell?.posts ?? "—"}</td>;
-                      })}
-                      <td className="text-right tabular-nums font-bold">{u.totals.postsCreated}</td>
+                  {series.slice(-30).map(s => (
+                    <tr key={s.date}>
+                      <td>{fmtDay(s.date)}</td>
+                      <td className="text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{s.impressions.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{s.reach.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{s.engagement.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </>
-          );
-        })()}
+            </PrintSection>
+            <PrintSection title="Per-Account Summary">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Account</th><th>Platform</th>
+                  <th className="text-right">Followers</th>
+                  <th className="text-right">Impressions</th>
+                  <th className="text-right">Reach</th>
+                  <th className="text-right">Engagement</th>
+                </tr></thead>
+                <tbody>
+                  {analytics.perAccount.map(a => (
+                    <tr key={a.id}>
+                      <td className="font-medium">{a.displayName}</td>
+                      <td className="capitalize">{a.platform}</td>
+                      <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{a.reach.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+          </>
+        )}
 
-        {/* Account × User (Pages Report) — per account who posted */}
-        {showAccountUser && (
+        {template.id === "audience" && (
           <>
-            <h2 className="report-section-title">Pages Report — Per Account Breakdown</h2>
-            <table className="report-table">
-              <thead><tr><th>Account</th><th>Platform</th><th>Owner</th><th className="text-right">Followers</th><th className="text-right">Posts</th><th className="text-right">Published</th><th className="text-right">Comments</th><th className="text-right">Replied</th></tr></thead>
-              <tbody>
-                {reportData!.accountUserMatrix.map(a => (
-                  <tr key={a.accountId}>
-                    <td className="font-medium">{a.displayName}</td>
-                    <td className="capitalize">{a.platform}</td>
-                    <td>{a.ownerName}</td>
-                    <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{a.totalPosts}</td>
-                    <td className="text-right tabular-nums">{a.totalPublished}</td>
-                    <td className="text-right tabular-nums">{a.totalComments}</td>
-                    <td className="text-right tabular-nums">{a.repliedComments}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {/* Per-account user breakdown */}
-            <h2 className="report-section-title">Who Posted on Each Account</h2>
-            {reportData!.accountUserMatrix.map(a => a.perUser.length > 0 && (
-              <div key={a.accountId} className="report-subsection">
-                <div className="report-subhead">{a.displayName} <span className="report-subtle">(@{a.handle})</span></div>
-                <table className="report-table report-sub-table">
-                  <thead><tr><th>User</th><th className="text-right">Posts</th><th className="text-right">Published</th></tr></thead>
+            <PrintSection title="Platform Distribution">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Platform</th>
+                  <th className="text-right">Accounts</th>
+                  <th className="text-right">Followers</th>
+                  <th className="text-right">Share %</th>
+                </tr></thead>
+                <tbody>
+                  {platformAgg.map(p => (
+                    <tr key={p.platform}>
+                      <td className="font-medium capitalize">{p.platform}</td>
+                      <td className="text-right tabular-nums">{p.accounts}</td>
+                      <td className="text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{totals.followers > 0 ? ((p.followers / totals.followers) * 100).toFixed(1) : "0.0"}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            <PrintSection title="Growth Trend">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Date</th>
+                  <th className="text-right">Total Followers</th>
+                  <th className="text-right">Daily Change</th>
+                </tr></thead>
+                <tbody>
+                  {series.slice(-30).map((s, i) => {
+                    const prev = i > 0 ? series[series.length - 30 + i - 1]?.followers ?? s.followers : s.followers;
+                    const delta = s.followers - prev;
+                    return (
+                      <tr key={s.date}>
+                        <td>{fmtDay(s.date)}</td>
+                        <td className="text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                        <td className="text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </PrintSection>
+          </>
+        )}
+
+        {template.id === "engagement" && (
+          <>
+            <PrintSection title="Engagement Breakdown by Account">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Account</th><th>Platform</th>
+                  <th className="text-right">Likes</th>
+                  <th className="text-right">Comments</th>
+                  <th className="text-right">Shares</th>
+                  <th className="text-right">Saves</th>
+                  <th className="text-right">Total</th>
+                </tr></thead>
+                <tbody>
+                  {analytics.perAccount.map(a => (
+                    <tr key={a.id}>
+                      <td className="font-medium">{a.displayName}</td>
+                      <td className="capitalize">{a.platform}</td>
+                      <td className="text-right tabular-nums">{a.likes.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{a.comments.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{a.shares.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{a.saves.toLocaleString()}</td>
+                      <td className="text-right tabular-nums font-semibold">{a.engagement.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            {analytics.topContent.length > 0 && (
+              <PrintSection title="Top Engaged Posts">
+                <table className="report-table">
+                  <thead><tr>
+                    <th>Post Title</th><th>Author</th><th>Platform</th>
+                    <th className="text-right">Engagement</th>
+                  </tr></thead>
                   <tbody>
-                    {a.perUser.map(u => (
-                      <tr key={u.userId}>
-                        <td>{u.userName}</td>
-                        <td className="text-right tabular-nums">{u.posts}</td>
-                        <td className="text-right tabular-nums">{u.published}</td>
+                    {analytics.topContent.slice(0, 10).map(c => (
+                      <tr key={c.id}>
+                        <td className="max-w-[200px] truncate">{c.title || "Untitled"}</td>
+                        <td>{c.authorName}</td>
+                        <td className="capitalize">{c.platform}</td>
+                        <td className="text-right tabular-nums">{c.engagement.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </PrintSection>
+            )}
+          </>
+        )}
+
+        {template.id === "team" && reportData && (
+          <>
+            <PrintSection title="Member Leaderboard">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Rank</th><th>Member</th>
+                  <th className="text-right">Posts</th>
+                  <th className="text-right">Published</th>
+                  <th className="text-right">Comments</th>
+                  <th className="text-right">Replied</th>
+                  <th className="text-right">Reply %</th>
+                  <th className="text-right">7-day</th>
+                </tr></thead>
+                <tbody>
+                  {[...reportData.userComparison]
+                    .sort((a, b) => b.postsCreated - a.postsCreated)
+                    .map((u, i) => (
+                    <tr key={u.id}>
+                      <td className="tabular-nums">{i + 1}</td>
+                      <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
+                      <td className="text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="text-right tabular-nums">{u.postsPublished}</td>
+                      <td className="text-right tabular-nums">{u.commentsReceived}</td>
+                      <td className="text-right tabular-nums">{u.commentsReplied}</td>
+                      <td className="text-right tabular-nums">{u.replyRate}%</td>
+                      <td className="text-right tabular-nums">{u.postsLast7d}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            <PrintSection title="Platform Activity by Member">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Member</th>
+                  <th className="text-right">Accounts Owned</th>
+                  <th className="text-right">Posts Created</th>
+                  <th className="text-right">Variants Published</th>
+                  <th className="text-right">Avg Posts/Account</th>
+                </tr></thead>
+                <tbody>
+                  {reportData.userComparison.map(u => (
+                    <tr key={u.id}>
+                      <td className="font-medium">{u.name}</td>
+                      <td className="text-right tabular-nums">{u.accountsOwned}</td>
+                      <td className="text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="text-right tabular-nums">{u.variantsPublished}</td>
+                      <td className="text-right tabular-nums">{u.avgPostsPerAccount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+          </>
+        )}
+
+        {template.id === "content" && (
+          <>
+            <PrintSection title="Content Pipeline">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Status</th>
+                  <th className="text-right">Count</th>
+                  <th className="text-right">% of Total</th>
+                </tr></thead>
+                <tbody>
+                  {(() => {
+                    const p = teamData?.pipeline ?? { draft: 0, scheduled: 0, published: 0, failed: 0 };
+                    const total = p.draft + p.scheduled + p.published + p.failed;
+                    const rows = [
+                      { status: "Published", count: p.published, color: "emerald" },
+                      { status: "Scheduled", count: p.scheduled, color: "primary" },
+                      { status: "Draft", count: p.draft, color: "amber" },
+                      { status: "Failed", count: p.failed, color: "rose" },
+                    ];
+                    return rows.map(r => (
+                      <tr key={r.status}>
+                        <td className="font-medium">{r.status}</td>
+                        <td className="text-right tabular-nums">{r.count}</td>
+                        <td className="text-right tabular-nums">{total > 0 ? ((r.count / total) * 100).toFixed(1) : "0.0"}%</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </PrintSection>
+            {postsPerfData && postsPerfData.posts.length > 0 && (
+              <PrintSection title="Recent Posts">
+                <table className="report-table">
+                  <thead><tr>
+                    <th>Title</th><th>Author</th><th>Status</th>
+                    <th>Platforms</th><th>Date</th>
+                  </tr></thead>
+                  <tbody>
+                    {postsPerfData.posts.slice(0, 20).map(p => (
+                      <tr key={p.id}>
+                        <td className="max-w-[180px] truncate font-medium">{p.title || "Untitled"}</td>
+                        <td>{p.authorName}</td>
+                        <td className="capitalize">{p.status}</td>
+                        <td className="text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
+                        <td>{fmtDay(p.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </PrintSection>
+            )}
+          </>
+        )}
+
+        {template.id === "growth" && (
+          <>
+            <PrintSection title="Growth by Platform">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Platform</th>
+                  <th className="text-right">Accounts</th>
+                  <th className="text-right">Current Followers</th>
+                  <th className="text-right">Avg Eng.</th>
+                  <th className="text-right">Posts</th>
+                </tr></thead>
+                <tbody>
+                  {platformAgg.map(p => (
+                    <tr key={p.platform}>
+                      <td className="font-medium capitalize">{p.platform}</td>
+                      <td className="text-right tabular-nums">{p.accounts}</td>
+                      <td className="text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
+                      <td className="text-right tabular-nums">{p.posts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            <PrintSection title="Daily Follower Trend">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Date</th>
+                  <th className="text-right">Total Followers</th>
+                  <th className="text-right">Daily Change</th>
+                  <th className="text-right">Growth %</th>
+                </tr></thead>
+                <tbody>
+                  {series.slice(-30).map((s, i) => {
+                    const slice = series.slice(-30);
+                    const prev = i > 0 ? slice[i - 1]?.followers ?? s.followers : s.followers;
+                    const delta = s.followers - prev;
+                    const pct = prev > 0 ? ((delta / prev) * 100).toFixed(2) : "0.00";
+                    return (
+                      <tr key={s.date}>
+                        <td>{fmtDay(s.date)}</td>
+                        <td className="text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                        <td className="text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
+                        <td className="text-right tabular-nums">{delta >= 0 ? "+" : ""}{pct}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </PrintSection>
+          </>
+        )}
+
+        {template.id === "platform" && (
+          <>
+            <PrintSection title="Platform Comparison">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Platform</th>
+                  <th className="text-right">Accounts</th>
+                  <th className="text-right">Followers</th>
+                  <th className="text-right">Posts</th>
+                  <th className="text-right">Engagement</th>
+                  <th className="text-right">Avg Eng.</th>
+                </tr></thead>
+                <tbody>
+                  {platformAgg.map(p => (
+                    <tr key={p.platform}>
+                      <td className="font-medium capitalize">{p.platform}</td>
+                      <td className="text-right tabular-nums">{p.accounts}</td>
+                      <td className="text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{p.posts}</td>
+                      <td className="text-right tabular-nums">{p.engagement.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            <PrintSection title="Best Platform per Metric">
+              <table className="report-table">
+                <thead><tr><th>Metric</th><th>Winning Platform</th><th className="text-right">Value</th></tr></thead>
+                <tbody>
+                  {(() => {
+                    const rows: { metric: string; platform: string; value: string }[] = [];
+                    if (platformAgg.length > 0) {
+                      const mostFollowers = [...platformAgg].sort((a, b) => b.followers - a.followers)[0];
+                      const mostEngagement = [...platformAgg].sort((a, b) => b.engagement - a.engagement)[0];
+                      const mostPosts = [...platformAgg].sort((a, b) => b.posts - a.posts)[0];
+                      const bestAvg = [...platformAgg].sort((a, b) => (b.engagement / Math.max(1, b.accounts)) - (a.engagement / Math.max(1, a.accounts)))[0];
+                      rows.push(
+                        { metric: "Most Followers", platform: mostFollowers.platform, value: fmt(mostFollowers.followers) },
+                        { metric: "Most Engagement", platform: mostEngagement.platform, value: fmt(mostEngagement.engagement) },
+                        { metric: "Most Posts", platform: mostPosts.platform, value: mostPosts.posts.toLocaleString() },
+                        { metric: "Best Avg Engagement", platform: bestAvg.platform, value: fmt(Math.round(bestAvg.engagement / Math.max(1, bestAvg.accounts))) },
+                      );
+                    }
+                    return rows.map(r => (
+                      <tr key={r.metric}>
+                        <td className="font-medium">{r.metric}</td>
+                        <td className="capitalize">{r.platform}</td>
+                        <td className="text-right tabular-nums">{r.value}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </PrintSection>
+          </>
+        )}
+
+        {template.id === "reach" && (
+          <>
+            <PrintSection title="Reach by Account">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Account</th><th>Platform</th>
+                  <th className="text-right">Impressions</th>
+                  <th className="text-right">Reach</th>
+                  <th className="text-right">Reach Rate</th>
+                </tr></thead>
+                <tbody>
+                  {[...analytics.perAccount].sort((a, b) => b.reach - a.reach).map(a => (
+                    <tr key={a.id}>
+                      <td className="font-medium">{a.displayName}</td>
+                      <td className="capitalize">{a.platform}</td>
+                      <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{a.reach.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{a.impressions > 0 ? ((a.reach / a.impressions) * 100).toFixed(1) : "0.0"}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            <PrintSection title="Daily Reach Trend">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Date</th>
+                  <th className="text-right">Impressions</th>
+                  <th className="text-right">Reach</th>
+                  <th className="text-right">Reach Rate</th>
+                </tr></thead>
+                <tbody>
+                  {series.slice(-30).map(s => (
+                    <tr key={s.date}>
+                      <td>{fmtDay(s.date)}</td>
+                      <td className="text-right tabular-nums">{s.impressions.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{s.reach.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{s.impressions > 0 ? ((s.reach / s.impressions) * 100).toFixed(1) : "0.0"}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+          </>
+        )}
+
+        {template.id === "user-account" && reportData && (
+          <>
+            <PrintSection title="User × Account Matrix — Posts">
+              {(() => {
+                const matrix = reportData.userAccountMatrix;
+                const allAccounts: { id: string; displayName: string; platform: string }[] = [];
+                const seen = new Set<string>();
+                for (const u of matrix) for (const a of u.perAccount) if (!seen.has(a.accountId)) { seen.add(a.accountId); allAccounts.push({ id: a.accountId, displayName: a.displayName, platform: a.platform }); }
+                return (
+                  <table className="report-table report-matrix">
+                    <thead><tr>
+                      <th>User</th>
+                      {allAccounts.map(a => <th key={a.id} className="text-center">{a.displayName}</th>)}
+                      <th className="text-right">Total</th>
+                    </tr></thead>
+                    <tbody>
+                      {matrix.map(u => (
+                        <tr key={u.userId}>
+                          <td className="font-medium">{u.userName}</td>
+                          {allAccounts.map(a => {
+                            const cell = u.perAccount.find(p => p.accountId === a.id);
+                            return <td key={a.id} className="text-center tabular-nums">{cell?.posts ?? "—"}</td>;
+                          })}
+                          <td className="text-right tabular-nums font-bold">{u.totals.postsCreated}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </PrintSection>
+            <PrintSection title="Per-User Totals">
+              <table className="report-table">
+                <thead><tr>
+                  <th>User</th><th>Role</th>
+                  <th className="text-right">Posts Created</th>
+                  <th className="text-right">Published</th>
+                  <th className="text-right">Drafts</th>
+                  <th className="text-right">Comments Received</th>
+                  <th className="text-right">Accounts Owned</th>
+                </tr></thead>
+                <tbody>
+                  {reportData.userAccountMatrix.map(u => (
+                    <tr key={u.userId}>
+                      <td className="font-medium">{u.userName}</td>
+                      <td>{u.title ?? u.role}</td>
+                      <td className="text-right tabular-nums">{u.totals.postsCreated}</td>
+                      <td className="text-right tabular-nums">{u.totals.published}</td>
+                      <td className="text-right tabular-nums">{u.totals.drafts}</td>
+                      <td className="text-right tabular-nums">{u.totals.commentsReceived}</td>
+                      <td className="text-right tabular-nums">{u.totals.accountsOwned}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+          </>
+        )}
+
+        {template.id === "user-comparison" && reportData && (
+          <>
+            <PrintSection title="Side-by-Side Comparison">
+              {(() => {
+                const users = reportData.userComparison.slice(0, 6);
+                const metrics: { key: string; label: string; get: (u: ReportDataRoot["userComparison"][number]) => string }[] = [
+                  { key: "postsCreated", label: "Posts Created", get: u => u.postsCreated.toLocaleString() },
+                  { key: "postsPublished", label: "Published", get: u => u.postsPublished.toLocaleString() },
+                  { key: "postsScheduled", label: "Scheduled", get: u => u.postsScheduled.toLocaleString() },
+                  { key: "postsDraft", label: "Drafts", get: u => u.postsDraft.toLocaleString() },
+                  { key: "postsFailed", label: "Failed", get: u => u.postsFailed.toLocaleString() },
+                  { key: "variantsPublished", label: "Variants", get: u => u.variantsPublished.toLocaleString() },
+                  { key: "commentsReceived", label: "Comments", get: u => u.commentsReceived.toLocaleString() },
+                  { key: "commentsReplied", label: "Replied", get: u => u.commentsReplied.toLocaleString() },
+                  { key: "replyRate", label: "Reply %", get: u => `${u.replyRate}%` },
+                  { key: "postsLast7d", label: "7-day Activity", get: u => u.postsLast7d.toLocaleString() },
+                  { key: "accountsOwned", label: "Accounts Owned", get: u => u.accountsOwned.toLocaleString() },
+                  { key: "avgPostsPerAccount", label: "Avg Posts/Acct", get: u => u.avgPostsPerAccount.toString() },
+                ];
+                return (
+                  <table className="report-table report-matrix">
+                    <thead><tr>
+                      <th>Metric</th>
+                      {users.map(u => <th key={u.id} className="text-center">{u.name}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {metrics.map(m => (
+                        <tr key={m.key}>
+                          <td className="font-medium">{m.label}</td>
+                          {users.map(u => <td key={u.id} className="text-center tabular-nums">{m.get(u)}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </PrintSection>
+            <PrintSection title="Per-Member Breakdown">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Member</th><th>Title</th>
+                  <th className="text-right">Posts</th>
+                  <th className="text-right">Published</th>
+                  <th className="text-right">Replied</th>
+                  <th className="text-right">Reply %</th>
+                  <th className="text-right">7-day</th>
+                </tr></thead>
+                <tbody>
+                  {reportData.userComparison.map(u => (
+                    <tr key={u.id}>
+                      <td className="font-medium">{u.name}</td>
+                      <td>{u.title ?? u.role}</td>
+                      <td className="text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="text-right tabular-nums">{u.postsPublished}</td>
+                      <td className="text-right tabular-nums">{u.commentsReplied}</td>
+                      <td className="text-right tabular-nums">{u.replyRate}%</td>
+                      <td className="text-right tabular-nums">{u.postsLast7d}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+          </>
+        )}
+
+        {template.id === "account-user" && reportData && (
+          <>
+            <PrintSection title="Per-Account Activity">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Account</th><th>Platform</th><th>Owner</th>
+                  <th className="text-right">Followers</th>
+                  <th className="text-right">Posts</th>
+                  <th className="text-right">Published</th>
+                  <th className="text-right">Comments</th>
+                  <th className="text-right">Replied</th>
+                </tr></thead>
+                <tbody>
+                  {reportData.accountUserMatrix.map(a => (
+                    <tr key={a.accountId}>
+                      <td className="font-medium">{a.displayName}</td>
+                      <td className="capitalize">{a.platform}</td>
+                      <td>{a.ownerName}</td>
+                      <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{a.totalPosts}</td>
+                      <td className="text-right tabular-nums">{a.totalPublished}</td>
+                      <td className="text-right tabular-nums">{a.totalComments}</td>
+                      <td className="text-right tabular-nums">{a.repliedComments}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            <PrintSection title="Top Contributors per Account">
+              {reportData.accountUserMatrix.map(a => a.perUser.length > 0 && (
+                <div key={a.accountId} className="report-subsection">
+                  <div className="report-subhead">{a.displayName} <span className="report-subtle">(@{a.handle})</span></div>
+                  <table className="report-table report-sub-table">
+                    <thead><tr>
+                      <th>Contributor</th>
+                      <th className="text-right">Posts</th>
+                      <th className="text-right">Published</th>
+                    </tr></thead>
+                    <tbody>
+                      {a.perUser.map(u => (
+                        <tr key={u.userId}>
+                          <td>{u.userName}</td>
+                          <td className="text-right tabular-nums">{u.posts}</td>
+                          <td className="text-right tabular-nums">{u.published}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </PrintSection>
+          </>
+        )}
+
+        {template.id === "leaderboard" && reportData && (
+          <>
+            <PrintSection title="Top 3 Podium">
+              <div className="report-podium">
+                {(() => {
+                  const podiums: { title: string; users: ReportDataRoot["userComparison"]; metric: string }[] = [
+                    { title: "Most Posts Created", users: reportData.leaderboard.mostPostsCreated.slice(0, 3), metric: "posts" },
+                    { title: "Most Comments Replied", users: reportData.leaderboard.mostCommentsReplied.slice(0, 3), metric: "replies" },
+                    { title: "Best Reply Rate", users: reportData.leaderboard.bestReplyRate.slice(0, 3), metric: "%" },
+                  ];
+                  return podiums.map(p => (
+                    <div key={p.title} className="report-podium-card">
+                      <div className="report-podium-title">{p.title}</div>
+                      <ol className="report-podium-list">
+                        {p.users.map((u, i) => (
+                          <li key={u.id} className={`report-podium-item rank-${i + 1}`}>
+                            <span className="report-podium-rank">#{i + 1}</span>
+                            <span className="report-podium-name">{u.name}</span>
+                            <span className="report-podium-value">
+                              {p.metric === "posts" ? u.postsCreated.toLocaleString()
+                                : p.metric === "replies" ? u.commentsReplied.toLocaleString()
+                                : `${u.replyRate}%`}
+                            </span>
+                          </li>
+                        ))}
+                        {p.users.length === 0 && <li className="report-podium-empty">No data</li>}
+                      </ol>
+                    </div>
+                  ));
+                })()}
               </div>
-            ))}
+            </PrintSection>
+            <PrintSection title="Full Ranking">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Rank</th><th>Member</th>
+                  <th className="text-right">Posts</th>
+                  <th className="text-right">Published</th>
+                  <th className="text-right">Comments Replied</th>
+                  <th className="text-right">Reply %</th>
+                  <th className="text-right">7-day</th>
+                  <th className="text-right">Score</th>
+                </tr></thead>
+                <tbody>
+                  {[...reportData.userComparison]
+                    .sort((a, b) => (b.postsCreated + b.commentsReplied + b.replyRate) - (a.postsCreated + a.commentsReplied + a.replyRate))
+                    .slice(0, 15)
+                    .map((u, i) => (
+                    <tr key={u.id}>
+                      <td className="tabular-nums">{i + 1}</td>
+                      <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
+                      <td className="text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="text-right tabular-nums">{u.postsPublished}</td>
+                      <td className="text-right tabular-nums">{u.commentsReplied}</td>
+                      <td className="text-right tabular-nums">{u.replyRate}%</td>
+                      <td className="text-right tabular-nums">{u.postsLast7d}</td>
+                      <td className="text-right tabular-nums font-semibold">{u.postsCreated + u.commentsReplied + u.replyRate}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
           </>
         )}
 
-        {/* Leaderboard */}
-        {showLeaderboard && reportData && (
+        {template.id === "posts-performance" && postsPerfData && (
           <>
-            <h2 className="report-section-title">Leaderboard — Top Contributors</h2>
-            <table className="report-table">
-              <thead><tr><th>Rank</th><th>Member</th><th>Posts Created</th><th>Published</th><th>Comments Replied</th><th>Reply Rate</th><th>7-day Activity</th></tr></thead>
-              <tbody>
-                {[...reportData.userComparison].sort((a, b) => b.postsCreated - a.postsCreated).slice(0, 10).map((u, i) => (
-                  <tr key={u.id}>
-                    <td className="tabular-nums">{i + 1}</td>
-                    <td className="font-medium">{u.name}</td>
-                    <td className="text-right tabular-nums">{u.postsCreated}</td>
-                    <td className="text-right tabular-nums">{u.postsPublished}</td>
-                    <td className="text-right tabular-nums">{u.commentsReplied}</td>
-                    <td className="text-right tabular-nums">{u.replyRate}%</td>
-                    <td className="text-right tabular-nums">{u.postsLast7d}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        {/* Standard account breakdown (for non-pages templates) */}
-        {!showAccountUser && (
-          <>
-            <h2 className="report-section-title">Account Breakdown</h2>
-            <table className="report-table">
-              <thead><tr><th>Account</th><th>Platform</th><th className="text-right">Followers</th><th className="text-right">Impressions</th><th className="text-right">Engagement</th><th>Owner</th></tr></thead>
-              <tbody>
-                {analytics.perAccount.map(a => (
-                  <tr key={a.id}>
-                    <td className="font-medium">{a.displayName}</td>
-                    <td className="capitalize">{a.platform}</td>
-                    <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
-                    <td>{a.ownerName}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        {analytics.topContent.length > 0 && (
-          <>
-            <h2 className="report-section-title">Top Performing Content</h2>
-            <table className="report-table">
-              <thead><tr><th>#</th><th>Title</th><th>Platform</th><th className="text-right">Engagement</th><th className="text-right">Reach</th></tr></thead>
-              <tbody>
-                {analytics.topContent.slice(0, 8).map((c, i) => (
-                  <tr key={c.id}>
-                    <td>{i + 1}</td>
-                    <td className="max-w-[200px] truncate">{c.title || "Untitled"}</td>
-                    <td className="capitalize">{c.platform}</td>
-                    <td className="text-right tabular-nums">{c.engagement.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{c.reach.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <PrintSection title="Platform Breakdown">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Platform</th>
+                  <th className="text-right">Published</th>
+                  <th className="text-right">Total Variants</th>
+                  <th className="text-right">Engagement</th>
+                  <th className="text-right">Avg/Post</th>
+                  <th className="text-right">Share %</th>
+                </tr></thead>
+                <tbody>
+                  {postsPerfData.platformBreakdown.map(p => (
+                    <tr key={p.platform}>
+                      <td className="font-medium capitalize">{p.platform}</td>
+                      <td className="text-right tabular-nums">{p.postsPublished}</td>
+                      <td className="text-right tabular-nums">{p.totalVariants}</td>
+                      <td className="text-right tabular-nums">{p.totalEngagement.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{p.avgEngagement.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{p.shareOfTotal.toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            <PrintSection title="Member Breakdown">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Member</th><th>Role</th>
+                  <th className="text-right">Posts</th>
+                  <th className="text-right">Published</th>
+                  <th className="text-right">Platforms</th>
+                  <th className="text-right">Comments</th>
+                  <th className="text-right">Reply %</th>
+                  <th className="text-right">Engagement</th>
+                </tr></thead>
+                <tbody>
+                  {postsPerfData.memberBreakdown.map(m => (
+                    <tr key={m.userId}>
+                      <td className="font-medium">{m.name}</td>
+                      <td>{m.title ?? m.role}</td>
+                      <td className="text-right tabular-nums">{m.postsAuthored}</td>
+                      <td className="text-right tabular-nums">{m.postsPublished}</td>
+                      <td className="text-right tabular-nums">{m.platforms.length}</td>
+                      <td className="text-right tabular-nums">{m.commentsReceived}</td>
+                      <td className="text-right tabular-nums">{m.replyRate}%</td>
+                      <td className="text-right tabular-nums">{m.engagement.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            {postsPerfData.posts.length > 0 && (
+              <PrintSection title="Top 10 Posts by Engagement">
+                <table className="report-table">
+                  <thead><tr>
+                    <th>Title</th><th>Author</th><th>Status</th>
+                    <th>Platforms</th>
+                    <th className="text-right">Engagement</th>
+                    <th className="text-right">Comments</th>
+                  </tr></thead>
+                  <tbody>
+                    {[...postsPerfData.posts]
+                      .sort((a, b) => b.engagement - a.engagement)
+                      .slice(0, 10)
+                      .map(p => (
+                      <tr key={p.id}>
+                        <td className="max-w-[180px] truncate font-medium">{p.title || "Untitled"}</td>
+                        <td>{p.authorName}</td>
+                        <td className="capitalize">{p.status}</td>
+                        <td className="text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
+                        <td className="text-right tabular-nums">{p.engagement.toLocaleString()}</td>
+                        <td className="text-right tabular-nums">{p.comments}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </PrintSection>
+            )}
           </>
         )}
 

@@ -10,7 +10,7 @@ if (!JWT_SECRET && process.env.NODE_ENV === "production") {
 const SECRET = JWT_SECRET || "socialflow-jwt-secret-2024-very-secure";
 
 // Demo credentials — fixed so anyone can preview the product
-const DEMO_EMAIL = "demo@synque.app";
+const DEMO_EMAIL = "demo@synque.cloud";
 const DEMO_PASSWORD = "demo1234";
 
 // Read-only permission set — viewer role
