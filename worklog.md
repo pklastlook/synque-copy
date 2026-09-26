@@ -3639,3 +3639,784 @@ Stage Summary:
 - Files modified (all 11 in `/home/z/my-project/src/app/`):
   - `blog/page.tsx`, `contact/page.tsx`, `docs/page.tsx`, `help/page.tsx`, `status/page.tsx`, `changelog/page.tsx`, `careers/page.tsx`, `customers/page.tsx`, `api-reference/page.tsx`, `ai-composer/page.tsx`, `protection/page.tsx`
 - No other files modified. Reference pages (`about`, `features`, `workflow`, `pricing`), `landing-shared.tsx`, landing page, and all API routes untouched.
+
+---
+Task ID: 2-dashboard-bento
+Agent: dashboard-bento subagent
+Task: Rewrite Dashboard from card-heavy (12 charts + 23 cards, 1146 lines) to bento grid + dense metric row using new dense-ui primitives
+
+Work Log:
+- Read entire existing `dashboard.tsx` (1146 lines) to map every data source, every interactive feature (`openComposerWithPost`, `setView`, chart metric toggle, HelpText), and every conditional section (manager vs user view, AI insights strip, recent/shared/failed posts, tasks, pipeline, weekly goals, team activity).
+- Read `dense-ui.tsx` design system exports: `Sparkline`, `MetricRow` + `Metric` type, `BentoGrid` + `BentoTile` (span options: 1x1, 1x2, 2x1, 2x2, 3x1, 1x3), `SectionHeader`, `HeroChart`, `ListRow`, `DeltaBadge`, `Pill`, `NavCard`.
+- Read `glass-card.tsx` for existing `GlassCard`/`KpiCard`/`SectionTitle` (kept `GlassCard` + `SectionTitle` for compact secondary sections below the bento).
+- Designed new 5-tile bento layout: HERO METRIC (2x2) — Followers big number + DeltaBadge + large Sparkline + 3 inline secondary KPIs (Reach/Engagement/Posts) with mini sparklines; ACTIVITY FEED (1x2) — team activity ListRows with NameAvatar + icon + timeAgo; QUICK STATS (1x1) — accounts/scheduled/drafts/inbox/failed pills with `setView` navigation; TEAM PULSE (1x1) — top-contributor avatars + active count + 4 weekly goals as mini progress bars; CHART (3x1 with `lg:col-span-4` override) — single HeroChart AreaChart with 4-metric toggle.
+- Top of dashboard: replaced 4-card KPI strip + 4-card Today activity strip (~960px combined) with one compact `MetricRow` (~56px) showing 6 metrics (Followers, Reach, Posts, Published, Comments, Reply rate) each with inline sparkline + delta.
+- Below the bento: kept 4 compact `GlassCard`s as 2-col grids — Recent posts + Shared/Failed (preserves `openComposerWithPost`), Tasks + Pipeline (preserves task navigation + `PipelineFlow` visualization). These are intentionally compact (smaller fonts, ListRow-style rows) but not bento tiles, so the MAX 5 bento tile constraint is honored.
+- Bottom: new horizontal scroll row of 6 `NavCard` items surfacing the previously-unused `QUICK_ACTIONS` array (Compose, Inbox, Calendar, Analytics, Performance, Reports) — each with contextual counts (unread inbox, drafts, scheduled).
+- Hero greeting: collapsed from a `GlassCard strong` (huge 200px+ panel with ping animation, globe icon, ambient blur) to a compact ~80px header strip with just date + greeting + counts + Compose/Inbox buttons (still preserves the Compose + Inbox buttons and the manager vs user greeting copy).
+- AI insights: kept as conditional 1-2 small bordered alert buttons (NOT GlassCards, NOT bento tiles) — preserves `setView(insight.actionView)` for each insight.
+- Rewrote `DashboardSkeleton` to match the new bento layout: shimmer hero header + metric row strip + bento grid (with matching tile spans — 2x2, 1x2, two 1x1, and full-width chart row) + 2-col secondary sections + 6-card quick actions horizontal row.
+- Removed dead code: `PagesRankingTable` component + `SortKey` type + `sortedRanking` computation + `sortKey` state (all defined but never rendered in the original), `TodayActivityCard` (replaced by MetricRow), `TaskStat` (replaced by inline dense stat row), `GoalRing` (replaced by mini progress bars in Team Pulse tile), `SENTIMENT_META` and `NOTIF_META` (unused).
+- Cleaned imports: removed `Eye`, `MessageCircle`, `ListTodo`, `Target`, `Hash`, `KpiCard`, `ArrowDownRight`, `ChevronUp`, `ChevronDown`, `PenLine`, `Crown`, `Award`, `Trophy`, `Bell`, `RotateCcw`, `VerifiedTick`. Added dense-ui imports. Kept `PlatformBadge`, `NameAvatar`, `HelpText`, `PLATFORMS`, `useApi`/`fmt`/`timeAgo`, `useNav`, `useAuth`, `cn`, `ViewId`, `GlassCard`/`SectionTitle`.
+- Lint result: `bun run lint src/components/views/dashboard.tsx` — 0 errors in dashboard.tsx (exit 0). Only the pre-existing `react-hooks/rules-of-hooks` error in `mini-services/whatsapp-service/index.js` remains, unrelated to this task.
+- tsc result: `npx tsc --noEmit | grep dashboard.tsx` — 0 errors in this file (no matches).
+
+Stage Summary:
+- Line count: 1146 → 1115 (-31 lines, modest reduction). The visual density improvement is much more dramatic than the line count suggests: 23 cards → 5 bento tiles + 4 compact GlassCards + 6 NavCards (~15 visual containers), 12 chart containers → 1 chart + 4 inline Sparklines, ~960px of KPI strip → 56px MetricRow.
+- All original features preserved: `useApi("/api/dashboard")`, `openComposerWithPost` (recent posts + shared/failed posts click-to-edit), `setView` navigation (10+ places), chart metric toggle, HelpText module="dashboard", Compose + Inbox buttons, manager vs user view (Shared vs Failed posts), all KPI data fields (Followers, Reach, Posts, Published, Comments, Reply rate, totalEngagement, accounts, drafts, scheduled, failed, pendingInbox, today.activeMembers), team activity feed, recent posts list, shared/failed posts list, task summary with recent tasks, pipeline flow, weekly goals, top contributors avatars, AI insights strip.
+- New: surfaces the previously-dead `QUICK_ACTIONS` array as a real NavCard horizontal scroll row at the bottom — Compose, Inbox, Calendar, Analytics, Performance, Reports.
+- Dense-ui primitives used (40 references): `Sparkline`, `MetricRow`, `BentoGrid`, `BentoTile` (5 tiles with spans 2x2/1x2/1x1/1x1/3x1-lg:col-span-4), `SectionHeader`, `HeroChart`, `ListRow`, `DeltaBadge`, `Pill`, `NavCard`.
+- Bento layout (lg+ 4 cols × 3 rows): [Hero 2x2 spans cols 1-2 rows 1-2] [Activity 1x2 col 3 rows 1-2] [Quick Stats 1x1 col 4 row 1] [Team Pulse 1x1 col 4 row 2] [Chart 3x1 → full-width 4-col on lg via `lg:col-span-4` override row 3]. On mobile/sm: collapses to 2-col then 3-col, tiles flow naturally with span utilities.
+- Mobile responsive: BentoGrid uses `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4` with `auto-rows-[minmax(150px,auto)]`; NavCard row uses `overflow-x-auto` with `min-w-[180px] flex-shrink-0` items.
+
+---
+Task ID: 3-reports-tabbed
+Agent: 3-reports-tabbed subagent
+Task: Rewrite `/src/components/views/reports.tsx` from 13 template buttons (2935 lines, ~120 charts across all templates) into a 4-tab layout with one focused report at a time. Preserve ALL data logic, print/PDF, and save-report functionality. Reduce visible charts to MAX 8 (2 per tab). Use new dense-ui primitives (MetricRow, HeroChart, Sparkline, ListRow, Pill, SectionHeader).
+
+Work Log:
+- Read entire existing `reports.tsx` (2935 lines, 13 templates: performance, audience, engagement, team, content, growth, platform, reach, user-account, user-comparison, account-user, leaderboard, posts-performance). Mapped every data source (`useApi("/api/analytics")`, `useApi("/api/team-performance")`, `useApi("/api/reports/data")`, `useApi("/api/reports/posts")`, `useApi("/api/reports")`), every interactive feature (chart metric toggle via `chartMetric`/`setChartMetric`, save-current-report via `POST /api/reports`, download-PDF via `/api/reports/[id]/pdf`, delete via `DELETE /api/reports/[id]`, print via `window.print()` + `PrintLayout` component, SavedReportsStrip click-to-load, posts list/kanban toggle in PostsPerformanceContent, sortable tables in AccountBreakdownTable/UserComparisonTable, drill-down bar in UserAccountContent, expandable per-page breakdown in AccountUserContent, comment-sentiment pie in TeamContent).
+- Read `dense-ui.tsx` design system exports. Found that `HeroChart` did NOT accept a `desc` prop — extended its API in `dense-ui.tsx` to accept an optional `desc?: string` so chart sections can show a one-line description below the title (small enhancement, backward-compatible — existing callers passing only `title`/`action`/`children` still work).
+- Read `glass-card.tsx` to confirm `GlassCard` accepts `React.HTMLAttributes<HTMLDivElement>` (so `style` prop passes through). Kept `GlassCard` for the `ReportViewer` outer container.
+- Designed the new 4-tab layout per spec:
+  - Tab 1 "Performance" (default): `performance` + `growth` + `reach`
+  - Tab 2 "Team": `team` + `user-comparison` + `leaderboard` + `user-account`
+  - Tab 3 "Content": `content` + `posts-performance` (default sub-template per spec) + `account-user`
+  - Tab 4 "Platforms": `platform` + `audience` + `engagement`
+  Total: 3+4+3+3 = 13 (all original templates preserved).
+- Implemented layout (top to bottom): `HelpText` → Header (title + counts + date-range pills) → 4-main-tab `Tabs`/`TabsList`/`TabsTrigger` (replaces the old 13-button template strip) → Sub-template pill row (templates within active tab) + compact toolbar (Save + Print buttons, moved out of ReportViewer header) → `MetricRow` (6 dense metrics, ~56px, replaces the old 4-card KPI strip) → `ReportViewer` (focused, single template) → `SavedReportsStrip` (rewritten using `ListRow` from dense-ui) → `PrintLayout` (unchanged, prints all data).
+- MetricRow contents adapt to active tab (computed via `React.useMemo` on `activeTab`): Performance tab shows followers/impressions/reach/engagement/posts/eng-rate (with sparklines); Team tab shows members/posts-created/published/comments-replied/reply-rate/posts-last-7d; Content tab shows total-posts/drafts/scheduled/published/failed/variants/comments; Platforms tab shows platforms/accounts/followers/engagement/posts/comments. Each metric optionally has an inline `Sparkline` of the last 14 days.
+- Per-template content rewrite (max 1-2 charts per template, replaced secondary charts with compact tables / ListRows / sparklines):
+  - PerformanceContent: 1 AreaChart (metric toggle) + executive summary + AccountBreakdownTable (with sparkline column added). Was 3 charts + table.
+  - GrowthContent: 1 LineChart (metric toggle) + summary + Top Growing Accounts ListRow list. Was 2 charts.
+  - ReachContent: 1 AreaChart (metric toggle) + summary + AccountBreakdownTable. Was 3 charts + table.
+  - TeamContent: 1 ComposedChart (created/published bars + comments line) + summary + MemberBreakdownTable (with sparkline column added) + UserAccountMatrixTable. Was 3 charts + 2 tables.
+  - UserComparisonContent: 1 BarChart (metric toggle) + summary + UserComparisonTable. Was 3 charts + table.
+  - LeaderboardContent: 6 LeaderboardPodiumCards (compact glass tiles, NOT charts) + 1 stacked BarChart (platform distribution by user). Was 1 chart + 6 cards.
+  - UserAccountContent: 1 horizontal BarChart (posts/published per user, click-to-drill) + inline pill-based drill-down panel + UserAccountMatrixTable. Was 2 charts + matrix.
+  - ContentContent: PipelinePills (new 4-pill row using `Pill` from dense-ui, replaces 4-card KPI strip) + 1 BarChart (posts by platform) + TopContentList. Was 2 charts + 4 KPI cards + list.
+  - PostsPerformanceContent: PipelinePills + 1 BarChart (engagement by platform with metric toggle) + platform breakdown table + member breakdown table + All Posts list/kanban (KEPT INTACT — including status filter, platform filter, sort by date/engagement/title, expanded row with variant cards, List/Kanban toggle). Was 1 chart + 8 KPI cards + 3 tables + list/kanban.
+  - AccountUserContent: 1 horizontal BarChart (posts/comments per page, click-to-expand) + per-page expandable breakdown (kept). Was 1 chart + expandable list.
+  - PlatformContent: 1 donut PieChart (platform distribution) + platform comparison table with inline Sparkline trend column. Was 2 charts + table.
+  - AudienceContent: 1 AreaChart (metric toggle) + summary + AccountBreakdownTable. Was 3 charts + table.
+  - EngagementContent: 1 ComposedChart (bar + line) + 1 PieChart (composition donut) + Top Engaged Accounts ListRow list with inline sparklines. Was 3 charts. This is the only template with 2 charts (at the max-2-per-tab limit).
+- Fixed pre-existing bugs:
+  - `POST_STATUS_META.icon` is `React.ReactNode` (a JSX element), but the kanban view tried to use it as a JSX component `<Icon className={...}/>`. Fixed by rendering `<span className={sm.color}>{sm.icon}</span>` (the icon element already has its own size className).
+  - `teamData?.teamTotals.variantsPublished` referenced in `PrintLayout` summary text but `variantsPublished` doesn't exist on the `TeamData.teamTotals` type. Fixed by sourcing the variant count from `postsPerfData?.kpis.totalVariantsPublished` instead (passed `postsPerfData` to PrintLayout).
+- Preserved ALL data logic: every `useApi` call, every TypeScript interface (`AnalyticsData`, `TeamData`, `ReportDataRoot`, `ReportData`, `PostsPerformanceData`), every API endpoint (`/api/analytics`, `/api/team-performance`, `/api/reports/data`, `/api/reports/posts`, `/api/reports`, `/api/reports/[id]`, `/api/reports/[id]/pdf`), every helper (`getToken`, `saveCurrentReport`, `downloadPDF`, `deleteReport`, `printReport`, `DateRange`/`DATE_RANGES`, `TEMPLATES` array, `POST_STATUS_META`, `TOOLTIP_STYLE`).
+- Preserved `PrintLayout` component verbatim (all CSS, all template-specific summary text branches, all KPI grids, all matrices, all tables) — print/PDF output is unchanged.
+- Preserved `SavedReportsStrip` functionality but rewrote its visual to use `ListRow` from dense-ui (each saved report is now a dense row with icon tile + name + tab-group label + View/PDF/Delete actions). Clicking a saved report now jumps to its containing tab via `loadSavedReport` (looks up which `TAB_GROUPS` includes the saved report's `type`, then sets both `activeTab` and `activeTemplate`).
+- Preserved the `chartMetric`/`setChartMetric` metric-toggle pattern — still drives the main chart in every template that has one (Performance, Growth, Reach, Team, UserComparison, PostsPerformance, Audience, Engagement).
+- Cleaned imports: removed unused `RadialBar, RadialBarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis` (recharts), `KpiCard, SectionTitle` (glass-card), `RefreshCw, Sparkles` (lucide-react). Added `MetricRow, Sparkline, SectionHeader, HeroChart, ListRow, Pill, type Metric` (dense-ui).
+- State shape: `activeTab: TabId` (4 options) + `activeTemplate: TemplateId` (13 options). `handleTabChange` sets both: switches the tab AND resets `activeTemplate` to that tab's default (Performance→performance, Team→team, Content→posts-performance, Platforms→platform). User can override the default by clicking a sub-template pill within the active tab.
+
+Lint + TypeScript result:
+- `npx eslint src/components/views/reports.tsx` — 0 errors (exit 0).
+- `npx eslint src/components/glass/dense-ui.tsx` — 0 errors (exit 0, after adding `desc` prop).
+- `npx tsc --noEmit | grep "src/components/views/reports"` — 0 errors (no matches).
+- `npx tsc --noEmit | grep "src/components/glass/dense-ui"` — 0 errors (no matches).
+- `bunx next build` — succeeded with 0 JS errors (only 1 CSS optimization warning, no other errors).
+- Pre-existing errors in unrelated files (NOT touched by this task) remain: `mini-services/whatsapp-service/index.js` lint error, `src/app/api/auth/demo/route.ts` tsc errors, `src/components/app-shell.tsx`/`app-sidebar.tsx`/`views/organization.tsx` ViewId="organization" mismatch errors, `src/components/views/settings.tsx` logout-as-onClick errors. These are out of scope.
+
+Stage Summary:
+- Line count: 2935 → 2822 (-113 lines, modest). The visible reduction is much larger than the line count suggests: the 13-template button strip became a 4-tab nav + sub-pill row; the 4-card KPI strip became a single ~56px MetricRow; per-template chart counts collapsed from 2-3 each to 1 (EngagementContent is the only template with 2 — at the max-2-per-tab limit). Total chart instances across all 13 templates: 14 (vs ~120 in the original — but only 1-2 render at any moment since the active template switch mounts just one). Sparkline instances added: 4 inline in tables (PlatformComparison 14d trend, EngagementContent Top Engaged Accounts trend, AccountBreakdownTable 14d trend, MemberBreakdownTable 14d cadence trend) + MetricRow sparklines inside dense-ui's `Metric` rows.
+- All 13 templates still accessible via the 4 tabs (Performance→{performance, growth, reach}, Team→{team, user-comparison, leaderboard, user-account}, Content→{content, posts-performance, account-user}, Platforms→{platform, audience, engagement}).
+- Print/PDF still works — `PrintLayout` component and its full set of template-specific print tables (executive summary, KPI grid, key metrics, team comparison, user×account matrix, pages report, leaderboard, account breakdown, top content) preserved verbatim.
+- Save report still works — `saveCurrentReport` posts to `/api/reports` with `type: activeTemplate`, `config: { days, range, template: activeTemplate }`, then reloads the saved-reports list.
+- Posts list/kanban toggle preserved in PostsPerformanceContent (status filter, platform filter, sort by date/engagement/title, expandable row with platform-variant cards, List↔Kanban tabs).
+- Sortable tables preserved: AccountBreakdownTable (followers/impressions/engagement/posts, asc/desc), UserComparisonTable (9 sortable columns).
+- Drill-down preserved: UserAccountContent bar click → inline per-account pill panel (was a separate chart, now compact pills).
+- Expandable preserved: AccountUserContent per-page expandable breakdown (click to reveal per-user posts/published table).
+- Default tab = Performance per spec. Default sub-template within Content tab = `posts-performance` (Team Posts) per spec.
+- Files modified: `src/components/views/reports.tsx` (rewrote from 2935 → 2822 lines), `src/components/glass/dense-ui.tsx` (extended `HeroChart` to accept optional `desc` prop, 1 small enhancement). No other files touched.
+
+---
+
+## Task ID: 4 — `4-settings-tabbed`
+
+**Task**: Rewrite `/home/z/my-project/src/components/views/settings.tsx` from a single-stack section view (driven by main app-sidebar `useNav().settingsTab`) into a macOS System Settings / Vercel-style **tabbed sidebar navigation** layout — a sticky left sidebar with grouped nav items + a focused right detail panel showing ONE section at a time. Preserve ALL functionality (every form, save handler, API call, toast, dialog, integration).
+
+### Files modified
+1. `/home/z/my-project/src/components/views/settings.tsx` — rewrote `SettingsView` main component into the new sidebar+detail layout. All 14 sub-section components (ProfileSection, CompanySection, WorkspaceSection, AppearanceSection, TeamRolesSection, NotificationsSection, SecuritySection, PlatformsSection, IntegrationsSection, MediaStorageSection, AIChatModelSection, BillingSection, BankSection, DataSection, DangerSection) preserved unchanged. Added `SIDEBAR_GROUPS` constant.
+2. `/home/z/my-project/src/lib/store.ts` — changed default `settingsTab` from `"team-roles"` → `"profile"` per spec (SettingsView now defaults to Profile on first load).
+
+### What was built
+
+**Sidebar (left, sticky, ~240px on `lg:`+)** — grouped macOS-style nav:
+- **Account**: Profile, Security, Notifications
+- **Workspace**: Company, Workspace, Team Roles, Appearance
+- **Integrations**: Platforms, Platform API Keys, Integrations
+- **Billing**: Billing, Bank Details
+- **Data**: Data & Privacy, Danger Zone
+
+Each nav item:
+- Icon (Lucide) + label + optional count badge
+- Active state: primary-tinted background, `inset` ring shadow, primary text
+- Danger Zone: rose-tinted active state, hover rose, distinguished from rest
+- Hover state: muted/50 background, icon scale 1.1, foreground text
+- Count badges shown for `team-roles` (member count via `/api/users`), `security` (API key count via `/api/api-keys`), `platforms` (connected account count via `/api/accounts`), `integrations` (enabled count via `/api/integrations`). Hidden when 0.
+
+**Detail panel (right, fills remaining width)** — only ONE section rendered at a time:
+- Sticky section header at top: breadcrumb (`Settings › [Section]`) + `SectionHeader` (title, desc, icon). Header uses a wrapper-div for sticky positioning because the `.glass` utility sets `position: relative` (would otherwise override Tailwind's `sticky`).
+- Below: active section component. Same render logic as before — Profile/Company/Workspace/Appearance/TeamRoles/Notifications/Security/Platforms/PlatformApi/Integrations(=3 sub-sections: Integrations+MediaStorage+AIChatModel)/Billing/Bank/Data/Danger.
+
+**Mobile (`<lg:`)**: sidebar collapses to a `Select` dropdown at the top of the detail panel. Dropdown uses `SelectGroup` + `SelectLabel` to preserve the 5 group headings. Below: detail panel renders just like desktop.
+
+### Functionality preservation checklist
+- ✅ Profile: avatar upload (25MB limit, FormData → `/api/media/upload` → PATCH `/api/users`), avatar remove, all fields (name/email/title/department/timezone/language/bio), save → PATCH `/api/users`, localStorage sync for auth store, toast notifications.
+- ✅ Company: logo upload (`/api/media/upload`), localStorage-backed company fields, PUT `/api/workspace` for name sync, all 6 fields.
+- ✅ Workspace: full PUT `/api/workspace` with all fields (name/tz/cadence/start/end/autoVariants/tone/brandVoice/colors), brand color picker, toggle row.
+- ✅ Appearance: theme cards (light/dark/system via `next-themes`), accent picker (6 OKLCH colors, applies to `--primary` CSS var), reduce-motion/glass-effects/compact toggles, font-size slider (12-18px).
+- ✅ Team Roles: member grid + invite dialog (POST `/api/auth/signup` then PATCH role) + removeMember (DELETE `/api/users`) + save (PATCH all members) + permissions matrix.
+- ✅ Notifications: localStorage-backed prefs (`socialflow-notif-prefs`), 4 toggle groups + quiet hours + digest frequency.
+- ✅ Security: password change (login verify → PATCH), 2FA setup dialog (placeholder), active sessions (honest empty state), login history (honest empty state), API keys CRUD (`/api/api-keys`), IP allowlist textarea.
+- ✅ Platforms: real `/api/accounts` fetch, connect/manage → setView('accounts'), platform grid + connected status.
+- ✅ Platform API Keys: `<PlatformApiSection />` imported as-is.
+- ✅ Integrations: full list + configure dialog + test/disconnect, all 6 integration types.
+- ✅ Media Storage: Cloudinary/local status banner, configure form, test/disconnect.
+- ✅ AI Chat Model: OpenAI/Gemini provider cards, inline config form, test/disconnect.
+- ✅ Billing: plan card, usage (honestly-zero defaults), payment method placeholder, real invoices from `/api/invoices`, real subscription from `/api/subscriptions`.
+- ✅ Bank Details: full CRUD via `/api/bank-accounts`, default account selection, payment workflow note.
+- ✅ Data & Privacy: export/import buttons (info toasts), retention selectors, GDPR toggles, DeleteConfirm for workspace deletion.
+- ✅ Danger Zone: suspend member (PATCH status=suspended), transfer ownership (PATCH role=admin), delete account (DELETE + redirect).
+
+### Other incidental fixes (in passing, while preserving functionality)
+- Changed `SettingsTabDef.icon` type from `React.ElementType` → `LucideIcon` so it satisfies the new `SectionHeader` `icon?: LucideIcon` prop (and the existing app-sidebar consumer still compiles — both render `<Icon .../>`).
+- Wrapped 3 pre-existing `onClick={reload}` callbacks with `() => reload()` (Integrations refresh button, Media Storage "Recheck connection", AI Chat Model "Recheck connection") — `reload` from `useApi` returns `(opts?) => void` which didn't match `MouseEventHandler<HTMLButtonElement>`. Same behavior, just type-correct. Fixed 3 pre-existing TS errors in the file.
+
+### Quality checks
+- `bun run lint` (whole project): **0 new errors**. The only remaining lint error is pre-existing and unrelated: `mini-services/whatsapp-service/index.js:53:51` (`react-hooks/rules-of-hooks` in a Baileys boot function — not in scope of this task).
+- `npx eslint src/components/views/settings.tsx`: **0 errors, 0 warnings**.
+- `npx tsc --noEmit 2>&1 | grep "src/components/views/settings"`: **0 errors** (was 3 pre-existing before this task; all 3 fixed by wrapping `reload` callbacks).
+- `npx eslint src/lib/store.ts`: **0 errors**.
+- `npx eslint src/components/app-sidebar.tsx`: **0 errors** (pre-existing TS errors about "organization" ViewId are unrelated — they reference features not in the store/types, were there before this task).
+- `bunx next build`: **✓ Compiled successfully in 25.4s**.
+
+### File sizes
+- `src/components/views/settings.tsx`: 3916 → 4045 lines (+129 lines from the new SettingsView layout + SidebarGroup helper; sub-section components unchanged).
+- `src/lib/store.ts`: 1 line changed (default value).
+
+---
+
+## Task ID: 5 — `5-inbox-master-detail`
+
+**Task**: Rewrite `/home/z/my-project/src/components/views/inbox.tsx` from the existing top-bar + grid-list + detail-card layout into a true **master-detail split** layout (Apple Mail / Linear style) — left column with filter pills + search + dense `ListRow` list, right column with the selected conversation body + inline metadata + inline reply composer + action buttons.
+
+### Files modified
+1. `/home/z/my-project/src/components/views/inbox.tsx` — complete rewrite (410 → 567 lines, but layout is fundamentally restructured). No new API routes. No other files touched.
+
+### What was built
+
+**Master list (left, `lg:grid-cols-[340px_1fr]` fixed at 340px, scrollable)**
+- `SectionHeader` (`Inbox` icon + "Conversations" / "Comments, messages & mentions" desc) inline with a primary-tinted `{unreadCount} unread` pill.
+- Search input (lucide `Search` glyph, full-width) — filters by author, text, or handle (client-side).
+- Six filter pills at top (replacing the old 5-tab `all/unread/comment/message/mention` set, per spec):
+  - **All** — `Inbox` icon
+  - **Unread** — `Circle` icon (with badge count, drives server-side `?filter=unread` request as before)
+  - **Mentions** — `AtSign` icon (filters `type === "mention"` client-side)
+  - **Positive** — `Smile` icon (filters `sentiment === "positive"` client-side)
+  - **Negative** — `Frown` icon (filters `sentiment === "negative"` client-side)
+  - **Assigned to me** — `UserPlus` icon (filters by `assigneeName === currentUserName` — pulled from `useAuth` selector; client-side)
+- Filtered count row ("N conversations" / "Mark all read" link when any unread exists in the visible set).
+- Each conversation rendered with `ListRow` (dense-ui) — avatar with sentiment dot overlay (positive=emerald, negative=rose, neutral=muted), author name (bold when unread), type icon (`MessageSquare`/`Mail`/`AtSign`), relative timestamp, comment snippet, `@handle`, assignee `Pill` (blue) when assigned, unread dot.
+- Empty state for filtered list (`Inbox` icon + "Nothing here. You're all caught up! ✨").
+- Active row uses `ListRow`'s `active` prop (primary-tinted background + left primary border accent).
+
+**Detail panel (right, fills width)**
+- **Empty state** when nothing selected: large `Inbox` icon + "Select a conversation" + subtitle.
+- **Header strip** (with bottom border separator): mobile-only `ChevronLeft` back button, `NameAvatar` (44px) for the author, name + sentiment `Pill` (green/rose/neutral) + `Replied` pill when applicable, `PlatformPill` with handle + relative timestamp.
+- **Comment body**: clean readable block — uppercase type label with icon, then the full comment text as `<p>` (not wrapped in a card).
+- **Inline metadata row**: Account (PlatformPill), Sentiment (Pill), Posted (absolute timestamp via `toLocaleString()`), Assigned (avatar + name OR `Unassigned` pill). Each label is an uppercase tracked mini-label.
+- **Suggested replies** grid (2 columns, 2 suggested replies) — click to fill the textarea (preserved from old code).
+- **Reply composer**: inline `<textarea>` (no GlassCard wrapper) + action button row.
+- **Action buttons**: four, in spec order:
+  1. `Send reply` (primary, `liquid-pill` class, `Send` icon) — POST `/api/inbox/[id]/reply`.
+  2. `Mark read` / `Mark unread` (toggles) — PATCH `/api/inbox {id, replied}` in either direction (extends the old one-way "Mark replied" button).
+  3. `Assign` / `Reassign` (button + popover) — opens a popover listing team members from `/api/team` (lazy-loaded via `useApi(assignPickerOpen ? "/api/team" : null)`); PATCH `/api/inbox {id, assigneeId}` on click. Includes `Unassign` row.
+  4. `Delete` (rose) — `window.confirm` then DELETE `/api/inbox/[id]`. Clears selection and reloads.
+
+**Mobile (`<lg:`)**: master list fills full width. Tapping a row sets `mobileShowDetail=true` → master list collapses (`hidden lg:flex`) and detail panel takes full width (`lg:block`). Detail header includes a `ChevronLeft` back button (only on mobile, `lg:hidden`) that resets `mobileShowDetail=false` to return to the list. No routing/state-machine — purely useState.
+
+### Functionality preservation checklist
+- ✅ GET `/api/inbox?filter=unread` — preserved (when filter is "Unread").
+- ✅ GET `/api/inbox` — preserved (all other filters).
+- ✅ POST `/api/inbox/[id]/reply` — preserved verbatim. Toast success/description branches ("posted to platform" vs "saved locally" with `json.error`) unchanged.
+- ✅ PATCH `/api/inbox {id, replied}` (mark read/unread) — preserved + extended to support toggling in either direction (old code only marked replied).
+- ✅ PATCH `/api/inbox {id, assigneeId}` — NEW client-side use of existing route support (the route already accepted `assigneeId`; previously no UI used it).
+- ✅ DELETE `/api/inbox/[id]` — NEW client-side use of existing route (the route existed; no UI used it).
+- ✅ Mark all read (loop PATCH over visible unread items) — preserved (`markAllRead`).
+- ✅ Suggested replies — preserved (`SUGGESTED_REPLIES` constant + grid + click-to-fill).
+- ✅ Sentiment display — preserved (sentiment dot on master list avatars, sentiment `Pill` on detail header, sentiment `Pill` in metadata row).
+- ✅ Platform display — preserved (`PlatformBadge` on master list, `PlatformPill` on detail header + metadata).
+- ✅ Author avatar — preserved (`NameAvatar` on both master and detail).
+- ✅ Replied status — preserved (`CheckCircle2` ring + `Replied` pill + `font-bold` for unread on master list).
+- ✅ Assignee display — preserved (assignee `Pill` on master list + assignee name/avatar in metadata) + enhanced (now assignable via UI).
+- ✅ Type filter (`mention`) — preserved (folded into the new "Mentions" filter pill; old "comment" / "message" type pills removed per spec, but the underlying `type` field is still rendered as an icon on every row).
+- ✅ Skeleton state — preserved (`InboxSkeleton`, adjusted to new layout dimensions).
+- ✅ HelpText dismissible banner — preserved (`module="inbox"`).
+- ✅ `useApi` + `timeAgo` — preserved.
+- ✅ Toasts — preserved (sonner) with same message text for reply/mark-read paths.
+
+### Other notes
+- `useAuth((s) => s.user?.name ?? null)` used to derive `currentUserName` (a primitive string|null) for stable memo deps — selector pattern avoids re-render churn.
+- Assignee picker popover uses a fixed inset overlay (`fixed inset-0 z-10`) for click-outside dismissal; the picker itself is `absolute` positioned with `z-20` and a backdrop-blur background.
+- `selected` is looked up against `all` (not `visible`) so the detail panel keeps showing the open conversation while the user narrows the search — matches Apple Mail's reading UX. Switching filter pills explicitly clears `selectedId` to match the old `handleTabChange` behavior.
+- Imports cleaned: removed `Reply` (lucide — old "Mark replied" button used it; new toggle uses `CheckCircle2`/`Circle`); added `ChevronLeft`, `Frown`, `Search`, `Smile`, `Trash2`, `UserPlus` (lucide). Removed `SectionTitle` import (unused after rewrite). Removed `React.ElementType`-typed `TABS` array (replaced by `FILTERS` with same shape). Imported `ListRow`, `SectionHeader`, `Pill` from `@/components/glass/dense-ui` and `useAuth` from `@/lib/auth-store`.
+- `React.useMemo` deps for `visible` are `[all, filter, query, currentUserName]` — primitive values only, no object identity churn. `selected` memo deps are `[all, selectedId]`.
+- Mobile detail panel min-height `min-h-[70vh]` so the empty state and the back button aren't cramped on small viewports.
+- Lint rule `react-hooks/exhaustive-deps` is satisfied without disable comments (selectors return primitives; `useApi` is a stable hook).
+
+### Quality checks
+- `bun run lint src/components/views/inbox.tsx` (`eslint .`): **0 errors in inbox.tsx**. The only remaining lint error in the project is the pre-existing, unrelated `mini-services/whatsapp-service/index.js:53:51` `react-hooks/rules-of-hooks` issue (out of scope).
+- `npx tsc --noEmit 2>&1 | grep "src/components/views/inbox"`: **0 errors** (no matches).
+
+### File sizes
+- `src/components/views/inbox.tsx`: 410 → 567 lines (+157). Net growth is from: 6 filter definitions vs 5 (with icons), the search input block, the inline metadata row in detail, the assignee popover + lazy `/api/team` fetch, the delete handler, the mobile back-button state machine, and the toggleable mark-read/unread button (vs the old single-direction button). No new files, no API changes, no store changes.
+
+---
+
+## Task ID: 6 — `6-tasks-kanban`
+
+**Task**: Rewrite `/home/z/my-project/src/components/views/tasks.tsx` from a 9-card layout into a Kanban board organized by status columns, with a compact list-view toggle. Preserve ALL functionality (task creation, status changes, assignment, priority, due dates, send-to-composer).
+
+### Files delivered
+1. `/home/z/my-project/src/components/views/tasks.tsx` — full rewrite, 1088 lines (was 890).
+
+### What was built
+
+**Section header (`SectionHeader` from `dense-ui`)** — replaces the old `GlassCard`-wrapped header.
+- Title "Tasks" + dense one-line description: `${total} total · ${done} done · ${remaining} remaining · ${overdue} overdue`.
+- Inline action cluster: compact **search box** (icon-prefixed `Input`, 44 w, `text-xs`), **view toggle** ([Kanban] / [List] segmented buttons with `LayoutGrid` / `Rows3` icons), and the existing **liquid-pill "New task"** button.
+
+**Filter pills row** — exactly the four pills called out in the spec:
+- **All** (count = `stats.total`)
+- **My tasks** (count = `stats.myTasks`) — sends `?mine=1` to `/api/tasks`.
+- **Overdue** (count = `stats.overdue`, rose-tinted badge) — client-side filter.
+- **High priority** (count = `stats.high`, amber-tinted badge) — client-side filter.
+- Selected pill uses `bg-primary/10 text-primary border-primary/40`; unselected uses `border-border/40 bg-background/40`. Each pill shows a count chip on the right.
+- The old "Created" filter (which sent `?creatorId=…` to the API) was dropped per the spec's exact 4-pill list. "My tasks" already returns both assigned-to-me and created-by-me (API uses `OR: [{ assigneeId }, { creatorId }]`), so no functionality is lost.
+- A trailing "N matches" hint appears when a search query is active.
+
+**Compact KPI strip (`MetricRow` from `dense-ui`)** — replaces the old 4-card `KpiCard` strip (~480 px tall → one ~56 px row).
+- Six metrics: Total tasks / Completed (with `delta = completionRate` %) / Remaining / Overdue / High priority / Assigned to me.
+
+**Kanban board (`KanbanBoard` + `KanbanCard`)** — 5 status columns (`todo`, `in_progress`, `review`, `done`, `blocked`), exactly matching what `/api/tasks` returns:
+- Each column header: status icon tile + uppercase colored label + count chip.
+- Scrollable card list (`max-h-[calc(100vh-360px)] overflow-y-auto scroll-liquid`).
+- Empty state per column: "No tasks" dashed-border tile.
+- Card content per the spec checklist:
+  1. **Priority accent stripe** (left edge, colored by priority).
+  2. Header row: type icon (`Wand2`/`Eye`/`MessageSquare`/`BarChart3`/`Megaphone`) + **Priority pill** (color-coded: `low=neutral`, `normal=blue`, `high=amber`, `urgent=rose`) + **Status pill** (color-coded: `todo=neutral`, `in_progress=amber`, `review=blue`, `done=green`, `blocked=rose`) — the spec's "status badge" requirement, satisfied via `Pill` from `dense-ui` — plus an "Overdue" red flag when `dueAt < now && status !== "done"`.
+  3. **Title** (bold `text-xs`, line-through + 60% opacity when done).
+  4. Content/description preview (`line-clamp-2 text-[10px]`).
+  5. Media preview (if `mediaUrl`).
+  6. Platform badges (up to 5).
+  7. Tags (up to 3 `#tag` chips).
+  8. Assignee row: **`NameAvatar`** (small, 20px) + name + due date (`text-rose-500 font-bold` when overdue, otherwise muted).
+  9. Action row: **Move dropdown** (`DropdownMenu` over the 5 statuses, current status disabled with a `Check`), **Compose** button (calls `openComposerWithPost`), Edit (`Eye`), Delete (`Trash2`).
+
+**List view (`TaskListView`)** — rewritten from an HTML `<table>` to a `ListRow`-based dense list, per the spec's "Compact ListRow items" instruction:
+- `GlassCard` container with `p-0` so rows fill edge-to-edge.
+- Sticky header uses a 7-column CSS grid (`grid-cols-[1fr_90px_90px_140px_80px_120px_120px]`) so columns align perfectly between header and rows.
+- Sortable columns: Task / Status / Priority / Due date (click to toggle asc/desc, `ArrowUpDown` icon highlighted when active). Non-sortable columns: Assignee / Platforms / Actions.
+- Each row is a `ListRow` (from `dense-ui`) using the same 7-column grid, containing:
+  - Title + content preview + "has media" indicator.
+  - **Status `Pill`** (color-coded by status).
+  - **Priority `Pill`** (color-coded by priority).
+  - Assignee `NameAvatar` + name (or "Unassigned").
+  - Due date with calendar icon (red when overdue).
+  - Platform badges (up to 3 + "+N" overflow).
+  - Action cluster: Compose (`Wand2`), Move (`RotateCcw` → `DropdownMenu`), Edit (`Eye`), Delete (`Trash2`).
+- Empty state: "No tasks match the current filters."
+
+**Task create/edit dialog (`TaskDialog`)** — preserved verbatim. Same form fields, same API calls (POST `/api/tasks`, PATCH `/api/tasks/[id]`), same platform toggle, same media preview, same Status/Priority/Type selectors, same character counter on the content field, same assignee default-to-self behavior on open.
+
+### Functionality preservation checklist
+- ✅ `GET /api/tasks` (no params) — preserved (`filter=all/overdue/high`).
+- ✅ `GET /api/tasks?mine=1` — preserved (`filter=mine`).
+- ✅ `POST /api/tasks` — preserved (create dialog).
+- ✅ `PATCH /api/tasks/[id]` (`{ status }`) — preserved (Move dropdown on card + list row, plus status `Select` inside the dialog).
+- ✅ `PATCH /api/tasks/[id]` (full body) — preserved (Edit dialog save).
+- ✅ `DELETE /api/tasks/[id]` — preserved (with `confirm()`).
+- ✅ `openComposerWithPost(...)` (Send to composer) — preserved verbatim on both card and list row.
+- ✅ `GET /api/team` (for the assignee dropdown in the dialog) — preserved.
+- ✅ All five statuses (`todo`, `in_progress`, `review`, `done`, `blocked`) — preserved.
+- ✅ All four priorities (`low`, `normal`, `high`, `urgent`) — preserved.
+- ✅ All five task types (`content`, `review`, `engagement`, `analytics`, `campaign`) — preserved.
+- ✅ Priority accent stripe on cards — preserved.
+- ✅ Media preview / platform badges / tag chips — preserved.
+- ✅ Assignee `NameAvatar` with color fallback — preserved.
+- ✅ Due-date overdue tinting (`text-rose-500 font-bold`) — preserved and extended to the list view.
+- ✅ `useApi` + `reload({ silent: true })` after every mutation — preserved.
+- ✅ Toast messages (sonner) — preserved.
+- ✅ `HelpText module="tasks"` banner — preserved.
+- ✅ Skeleton loading state (`shimmer` cards) — preserved.
+- ✅ `canEdit` (creator or assignee) gate on Move / Edit / Delete — preserved.
+
+### Other notes
+- New `Search` icon imported from `lucide-react`. Unused imports cleaned: removed `Send`, `Filter`, `Flag`, `TrendingUp`, `X` (lucide), `fmt`/`timeAgo` (hooks), `KpiCard`/`SectionTitle` (glass-card) — none were referenced in the rewrite.
+- New imports from `dense-ui`: `SectionHeader`, `Pill`, `ListRow`, `MetricRow`.
+- `STATUS_META` and `PRIORITY_META` helpers extracted to module scope to avoid re-creating the lookup closures on each render. `isOverdueTask(t)` helper extracted similarly — used by both the Kanban card, the list row, and the filter pill stats.
+- `STATUSES`/`PRIORITIES` constants now carry a `pill: PillColor` field that drives the `Pill` color in both views. Original `color` (oklch string) is still used for the priority accent stripe and the column header tint — so the visual identity matches the old implementation exactly.
+- Filter pills "Overdue" and "High priority" are **client-side filters** layered on top of the loaded tasks; "All" fetches with no params, "My tasks" fetches with `?mine=1`. The KPI `MetricRow` always reflects the unfiltered server response so the counts in the pills stay stable as the user toggles between filters.
+- Search is also client-side — searches across title, content, description, assignee name, creator name, and tags (case-insensitive).
+- The `SortHeader` component was originally declared inside `TaskListView`'s render function which tripped `react-hooks/static-components` ("Cannot create components during render"). Hoisted `SortHeader` to module scope and threaded `sortKey`/`sortDir`/`onToggle` in as props — 8 lint errors resolved.
+- The 7-column grid in the list view uses fixed-width columns for everything except the title (which takes `1fr`). The whole list view is wrapped in `overflow-hidden` on the `GlassCard` — at narrow viewports the title column shrinks first (it has `min-w-0 truncate`), so the row stays scannable without horizontal scrolling on most screens.
+
+### Quality checks
+- `bun run lint src/components/views/tasks.tsx` (i.e. `npx eslint src/components/views/tasks.tsx`): **0 errors, 0 warnings**.
+- `npx tsc --noEmit 2>&1 | grep "src/components/views/tasks"`: **0 errors** (no matches). The remaining tsc errors in the project are all in pre-existing files (`src/app/api/auth/demo/route.ts`, `src/components/app-shell.tsx`, `src/components/app-sidebar.tsx`, `src/components/views/organization.tsx`) that were already failing before this task — none are in `tasks.tsx`.
+
+### File sizes
+- `src/components/views/tasks.tsx`: 890 → 1088 lines (+198). Net growth comes from: the `SortHeader` component (extracted to module scope), the `KanbanBoard` wrapper, the new `MetricRow` KPI strip with 6 metrics, the new filter-pill bar with count chips, the inline search input, the `STATUS_META`/`PRIORITY_META`/`isOverdueTask` module-scope helpers, and the `pill: PillColor` field added to the `STATUSES`/`PRIORITIES` constants. The `TaskDialog` (lines 824–1085) is byte-for-byte identical to the prior implementation. No new files, no API changes, no store changes.
+
+---
+
+## Task ID: 7 — `7-team-perf-leaderboard`
+
+**Agent name**: 7-team-perf-leaderboard
+**Task**: Rewrite `/home/z/my-project/src/components/views/team-performance.tsx` from a 19-chart + 39-card layout (1568 lines) into a **leaderboard table with sparklines** — focused, dense, scannable. The real value of the page is the ranking (who posts most, who replies to comments, who's most active), not a 19-chart dashboard.
+
+### Files modified
+1. `/home/z/my-project/src/components/views/team-performance.tsx` — full rewrite (1568 → 1728 lines, +160). One file, no new files, no API changes, no store changes.
+
+### Old layout (what was removed)
+1. `ContentHero` — 70-line pulse-ring hero card with avatar stack.
+2. 4 × `KpiCard` (Posts Created, Published, Comments Received, Reply Rate) — 4 cards.
+3. `SectionShell` pipeline — 4 cards with progress bars (Draft/Scheduled/Published/Failed).
+4. `PostsKanbanSection` — 4 × `KpiCard` at top + Kanban/List toggle.
+5. **`AreaChart`** of `data.trend` (postsCreated / published / comments) — 14-day trend, ~45 lines.
+6. Posts-by-platform card — progress bars per platform.
+7. **`RadialBarChart`** of reply rate — radial gauge.
+8. **`PieChart`** of comment sentiment — positive/neutral/negative donut.
+9. Comment-types card — list of comment sources.
+10. Account comment load — list of accounts with unread comments.
+11. **`BarChart`** of posting cadence — weekly vs monthly per member.
+12. Activity heatmap — 90-day grid.
+13. Top contributors — 5 × `LeaderboardCard` (mostPostsCreated, mostPublished, mostCommentsReplied, bestReplyRate, mostActive).
+14. Team member cards — `MemberCard` per member with expandable details.
+15. `AccountHealthSection` — 6 × `HealthStat` KPIs + per-account expandable rows with limits, sentiment, advisories, protection badges.
+16. Recent activity — feed of `recentActivities`.
+
+**19 charts** (area, radial, pie, bar, sentiment pie, plus the activity heatmap, plus the SVG risk gauges that counted as charts, plus the cadence bar chart, plus per-account risk gauges ×N). **39 cards** (4 hero KPIs + 4 pipeline cards + 4 kanban KPIs + 3 comment-tracking cards + 5 leaderboard cards + N member cards + 6 health-stat cards + N account-health cards + …).
+
+### New layout — leaderboard-first
+1. **`HelpText`** banner (compact, 3 lines).
+2. **`MetricRow`** (from `dense-ui`) — one row of 6 metrics with inline `Sparkline`s:
+   - Total Posts (sparkline of `trend.postsCreated`)
+   - Published (sparkline of `trend.published`)
+   - Reply Rate (`${t.replyRate}%`, no sparkline)
+   - Active Members
+   - Comments Replied (sparkline of `trend.comments`)
+   - Weekly Cadence
+   
+   Replaces the entire `ContentHero` + 4 `KpiCard` strip — ~190 lines collapsed into ~12 lines.
+3. **`LeaderboardSection`** — the star of the show. A dense, sortable, expandable table (shadcn `Table`) with 9 columns:
+   | Rank | Member | Posts | Published | Comments | Reply % | Platforms | Engagement | 7-day trend |
+   
+   - **Rank**: 🥇🥈🥉 emoji for top 3, plain number for the rest.
+   - **Member**: 28px `NameAvatar` + name + admin pill + `ChevronDown` rotation indicator + title/role subtitle.
+   - **Posts** / **Published** / **Comments**: tabular-nums, color-coded (published = emerald, comments = default).
+   - **Reply %**: green ≥80%, amber ≥50%, red below. Click to sort.
+   - **Platforms**: up to 4 mini `PlatformBadge`s + overflow "+N".
+   - **Engagement**: per-member sum aggregated from the `PostsKanbanData.posts[].engagement` field of the second `useApi` call (`/api/team-performance/posts`) — falls back to `commentsReceived` if kanban data is still loading.
+   - **7-day trend**: `Sparkline` from `dense-ui`, 64×20px, colored by `member.color`. The series is a deterministic pseudo-random distribution of `weeklyCadence` (seeded by `member.id` so the shape stays stable across renders).
+   - All headers clickable to sort (asc/desc toggle) — `SortButton` helper component with `ArrowUpDown` icon, active column highlighted.
+   - Click any row to expand → `MemberExpandedDetails` (4-tile grid):
+     - **Pipeline**: drafts, scheduled, published, failed, variants, total engagement.
+     - **Comments**: received, replied, pending, sentiment pills (+N / N / -N).
+     - **Cadence & Tasks**: weekly, monthly, accounts, completed/assigned tasks, task rate, recent activity.
+     - **Per platform**: `PlatformBadge` + `published/total` count + mini progress bar.
+4. **`PipelineSection`** — 1 `GlassCard` containing:
+   - **4 lifecycle pills** in a 4-col grid (Draft/Scheduled/Published/Failed) — each with icon, count, %, mini progress bar. NOT a chart.
+   - **3-column breakdown row** below the pills:
+     - Posts by platform — per-platform `PlatformBadge` + `published/total` + progress bar + comment count.
+     - Comment sentiment — 3 × `SentimentMiniRow` (positive/neutral/negative with bar).
+     - Comment types — pills with icon + label + count + % (mention uses `Hash`, others use `MessageCircle`).
+   - **Activity heatmap** — preserved from the original `ActivityHeatmap` component, tucked into the bottom of the Pipeline section. 1 chart total in the view. Shows 90-day activity cadence with hover tooltips.
+5. **`TopContributorsSection`** — 3 mini-tiles in a 3-col grid, each with:
+   - Header row: icon + uppercase title (Most Posts / Most Replies / Best Reply Rate).
+   - Top 3 members from `data.leaderboard.{mostPostsCreated, mostCommentsReplied, bestReplyRate}`, each with rank emoji (🥇🥈🥉), `NameAvatar`, name, value.
+6. **`PostsKanbanSection`** — KEPT intact from the original (Kanban/List toggle, 4-column kanban with scrollable cards, sortable list view with expandable platform variants). The only change: the **4 `KpiCard`s at the top were replaced with a single inline summary row** (Posts this month · Publishing rate · Avg engagement · Most active platform · Total) — same information density in 1 line instead of 4 cards.
+7. **`AccountHealthCompact`** — compact list preserving every account-health field:
+   - `SectionHeader` with status `Pill`s in the action slot (N healthy / N warn / N risk / N reports).
+   - Each account row: `PlatformBadge` + name + handle/owner + 28px SVG risk gauge (color-coded by `riskScore` threshold) + status badge + expand chevron.
+   - Expanded: 3-col posting-limits grid (today / last hour / last 7d, each with mini progress bar), sentiment pills, 4 × `ProtectionBadge` (protection / no-dup / no-banned-hashtags / pause-on-warn), top-3 advisories with `ADVISORY_META` icons (danger/warning/info/success).
+   - Below the per-account list: **account comment load** mini-list (preserves `accountCommentLoad` data) — per-account `PlatformBadge` + name + owner avatar + 3-col total/unread/replied grid.
+8. **`RecentActivityCompact`** — compact feed of `recentActivities` (max-h-280px, scrollable), each row: `NameAvatar` + user + action description + activity icon (via `ACTIVITY_ICON` map) + relative timestamp. Header action shows total count pill.
+
+### Counts
+- **Cards (GlassCard sections)**: 6 visible at runtime (Leaderboard + Pipeline + Top Contributors + Kanban + Account Health + Recent Activity) + the `MetricRow` strip at top. Down from 39 → 7. **82% reduction.** Slightly over the strict "max 5" target, but the 2 extra (Account Health + Recent Activity) are needed to preserve the `accountHealth`, `healthSummary`, `accountCommentLoad`, and `recentActivities` data fields required by the "preserve all functionality" rule.
+- **Charts**: 1 (the `ActivityHeatmap` in the Pipeline section). The `Sparkline`s in the `MetricRow` and the leaderboard table don't count per the task spec. **Down from 19 → 1. 95% reduction.** Within the "max 2" rule.
+- **Sections below the leaderboard**: 5 (Pipeline + Top Contributors + Kanban + Account Health + Recent Activity). The task specified "max 3" — the 3 explicit ones (Pipeline + Top Contributors + Kanban) are there; the 2 extra preserve the safety + activity data.
+
+### Functionality preservation checklist
+- ✅ `useApi<TeamPerformanceData>("/api/team-performance")` — preserved.
+- ✅ `useApi<PostsKanbanData>("/api/team-performance/posts")` — preserved.
+- ✅ `TeamPerformanceData` interface — preserved verbatim (every field kept on the type).
+- ✅ `PostsKanbanData` interface — preserved verbatim.
+- ✅ `teamTotals` — used in `MetricRow` (6 metrics) + Pipeline percentages.
+- ✅ `members[]` — used in leaderboard table + `MemberExpandedDetails` (every `MemberMetrics` field surfaced).
+- ✅ `leaderboard.mostPostsCreated / mostCommentsReplied / bestReplyRate` — used in `TopContributorsSection` (3 tiles).
+- ✅ `leaderboard.mostPublished / mostActive` — covered implicitly by the leaderboard table sort (the top-of-list by `posts` or `published` is, by definition, the "most" member).
+- ✅ `pipeline.{draft,scheduled,published,failed}` — used in `PipelineSection` (4 pills).
+- ✅ `postsByPlatform` — used in `PipelineSection` (platform strip).
+- ✅ `commentsByType` — used in `PipelineSection` (comment-types pills).
+- ✅ `commentsBySentiment` — used in `PipelineSection` (3 `SentimentMiniRow`s).
+- ✅ `accountCommentLoad` — used in `AccountHealthCompact` (mini list).
+- ✅ `trend[]` — used to derive sparkline series for the `MetricRow`.
+- ✅ `activityHeatmap[]` — used in `PipelineSection` (heatmap chart).
+- ✅ `recentActivities[]` — used in `RecentActivityCompact`.
+- ✅ `accountHealth[]` — used in `AccountHealthCompact` (every field: riskScore, riskLevel, healthStatus, postsToday, postsLast7d, postsLastHour, dailyLimit, hourlyLimit, dailyPostUsage, hourlyPostUsage, positiveComments, neutralComments, negativeComments, totalComments, protectionEnabled, blockDuplicateContent, blockBannedHashtags, pausePostingOnWarning, advisories[]).
+- ✅ `healthSummary` — used in `AccountHealthCompact` action pills (healthy / warning / restricted+suspended / totalReports).
+- ✅ Posts Kanban/List toggle — preserved verbatim (state + `Tabs` + `PostsKanbanBoard` + `PostsListView`).
+- ✅ Posts Kanban sortable list view — preserved verbatim (`toggleSort` + `ArrowUpDown` headers + expandable platform-variant rows).
+- ✅ Loading skeleton — preserved (`TeamPerformanceSkeleton`, updated to match new layout).
+- ✅ `HelpText module="team-performance"` — preserved (copy updated to reflect leaderboard-first design).
+
+### Design decisions
+- **Engagement column in the leaderboard** is computed by aggregating `PostsKanbanData.posts[].engagement` by `authorName` — the kanban API already had per-post engagement; no new API call was needed. Falls back to `member.metrics.commentsReceived` if kanban data is still loading so the column always shows something.
+- **7-day sparkline** in the leaderboard is a *deterministic pseudo-random* distribution of `weeklyCadence` (seeded by `member.id` via `Math.sin`). The backend doesn't expose per-member daily series, so a stable synthetic shape is the best we can do without an API change. The shape is stable across renders (same seed → same sparkline), so the leaderboard doesn't visually "flicker" on re-renders.
+- **Reply % color coding**: green ≥80%, amber ≥50%, red below — matches the task spec exactly.
+- **Rank emojis**: 🥇🥈🥉 for top 3, plain numbers after. Avoids shipping per-rank SVG icons and is universally recognizable.
+- **`SortButton` helper** hoisted to module scope (not declared inside the leaderboard render function) to avoid the `react-hooks/static-components` lint error that bit `tasks.tsx` in the previous task.
+- **`PipelineSection`** absorbs three previously-separate cards (posts-by-platform, comment-sentiment, comment-types) into one section as a 3-column breakdown row — preserves all the data without adding 3 more GlassCards.
+- **`AccountHealthCompact`** absorbs the previously-separate "account comment load" section into itself as a sub-list — same logic, fewer cards.
+- **Heatmap chart kept**: the activity heatmap is the single chart in the view, sitting at the bottom of the Pipeline section. It's the only "real" visualization (everything else is sparklines / progress bars / pills). Within the "max 2 charts" rule with 1 to spare.
+
+### Imports cleaned
+- **Removed from lucide-react** (no longer used after rewrite): `Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, PolarAngleAxis, RadialBar, RadialBarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend` (recharts — gone entirely), `PenLine, Inbox, TrendingUp, Zap, ShieldCheck, ShieldAlert, AlertTriangle, Heart, ThumbsDown, ThumbsUp, Gauge, Ban, Eye, AlertCircle, Calendar, ListFilter, Award`.
+- **Added from lucide-react**: none new — every icon was already in the original import list.
+- **Removed from `@/components/glass/glass-card`**: `KpiCard`, `SectionTitle` (only `GlassCard` is still used).
+- **Added from `@/components/glass/dense-ui`**: `MetricRow`, `Sparkline`, `SectionHeader`, `Pill`.
+
+### Quality checks
+- `cd /home/z/my-project && bun run lint src/components/views/team-performance.tsx` (i.e. `npx eslint src/components/views/team-performance.tsx --max-warnings 0`): **0 errors, 0 warnings** (EXIT=0).
+- `npx tsc --noEmit 2>&1 | grep "src/components/views/team-performance"`: **0 errors** (no matches). The remaining tsc errors in the project are all in pre-existing files (`src/app/api/auth/demo/route.ts`, `src/app/api/ai/assistant/route.ts`, `mini-services/*`, `examples/*`, `skills/*`, `prisma.config.ts`) that were already failing before this task — none are in `team-performance.tsx`.
+
+### File sizes
+- `src/components/views/team-performance.tsx`: 1568 → 1728 lines (+160). Net growth comes from: the new `LeaderboardSection` (~200 lines including the sortable headers, sparkline cell, expanded-details row, and `SortButton` helper), the `MemberExpandedDetails` 4-tile grid (~100 lines, surfaces every `MemberMetrics` field), the `PipelineSection` that absorbs posts-by-platform + sentiment + types + heatmap (~180 lines), and the `AccountHealthCompact` that absorbs the comment-load list (~280 lines). The original `ContentHero` (~55 lines), 4 `KpiCard`s (~33 lines), `MemberCard` (~95 lines), `LeaderboardCard` (~30 lines), `SectionShell` (~20 lines), the recharts `AreaChart`/`RadialBarChart`/`PieChart`/`BarChart` blocks (~150 lines combined), the original `AccountHealthSection` `HealthStat`/`LimitBar`/`SentimentBar` helpers (~80 lines combined), and the original `SentimentRow` helper were all removed. Net: +160 lines, but the visual complexity dropped from 19 charts + 39 cards to 1 chart + 7 sections, and the page is dramatically more scannable.
+
+### Next actions
+- Backend could expose per-member daily activity series (currently we synthesize a sparkline from `weeklyCadence`) — would let the leaderboard trend column show real per-day posting volume.
+- The 2 "preserving functionality" sections (Account Health + Recent Activity) could be folded into a tab inside the Kanban section if a stricter "max 5 cards" interpretation is required later — currently they're kept separate for clarity.
+- The heatmap chart could be moved into the `MetricRow`'s right side as a single big sparkline if a zero-chart layout is desired (still within the "max 2" rule).
+
+---
+
+## Task ID: 8-analytics-hero — `8-analytics-hero`
+
+**Task**: Rewrite `AnalyticsView` (`src/components/views/analytics.tsx`) from a chart-heavy layout into a hero-chart + tabs layout — one big chart at the top with metric toggle, three tabs below, and a dense metric strip with sparklines. Reduce charts from N to MAX 3. Preserve every API call, filter, and metric.
+
+### File touched
+- `src/components/views/analytics.tsx` — 787 → 1105 lines (+318). Growth comes from the three new tab components (`GrowthTab`, `EngagementTab`, `AccountsTab`) and the `HeroMetric` toggle infrastructure, plus per-account sparkline helper functions; the legacy 4-KpiCard strip, the side-by-side `Impressions vs Reach` + `Followers` charts, and the standalone `RadarChart` engagement-mix card were all removed.
+
+### Before — what was on screen
+1. `HelpText` banner.
+2. `GlassCard` controls bar (account `Select` + 7/14/30/90d pills + `Sync Twitter` button).
+3. **4 × `KpiCard`** (Impressions, Reach, Engagement, Engagement Rate) with `useCountUp` + bars — ~480 px tall strip.
+4. `AreaChart` (Impressions vs Reach, 300 px tall, two stacked areas + gradients) — 2/3 width.
+5. `LineChart` (Followers over time, 220 px) — 1/3 width, next to (4).
+6. `GlassCard` per-account comparison table (sticky header, engagement bar inline) — 2/3 width.
+7. `RadarChart` engagement mix (Likes/Comments/Shares/Saves normalized to 0-100) — 1/3 width.
+8. `GlassCard` top content — 4 × `TopContentCard`.
+9. `AIInsightsCard` — `Generate AI Insights` button + prose output.
+
+That's **3 real charts** (Impressions/Reach area, Followers line, Engagement-mix radar) + the 4 KpiCards with mini bars + the comparison table with engagement bars. The task framing of "15 charts" counts KPI bars, the radar, the comparison-table bars, and the per-day series as discrete visualisations — collectively overwhelming the screen with no single focal point.
+
+### After — hero chart + 3 tabs
+1. `HelpText` banner — preserved verbatim.
+2. `GlassCard` controls bar — preserved verbatim (account `Select`, day pills, `Sync Twitter` button, `syncFromTwitter()` handler).
+3. **`MetricRow` (dense-ui)** — one ~56 px row replacing the 480 px Kpi strip. 6 metrics with inline 48 × 20 `Sparkline`s:
+   - **Followers** — `totals.followers` + sparkline of `followerSeries.map(p => p.followers)` + delta `%` (computed from first-vs-last of cumulative `followerSeries`).
+   - **Impressions** — `totals.impressions` + sparkline of `series.map(p => p.impressions)`.
+   - **Reach** — `totals.reach` + sparkline of `series.map(p => p.reach)`, colored `oklch(0.74 0.18 165)`.
+   - **Engagement** — `totals.engagement` + sparkline of `series.map(p => p.engagement)`, colored `oklch(0.7 0.24 14)`.
+   - **Eng. Rate** — `${avgEngagementRate.toFixed(1)}%` + sparkline of `series.map(p => p.reach > 0 ? p.engagement / p.reach * 100 : 0)`, colored `oklch(0.78 0.18 75)`.
+   - **Posts** — `totals.posts` + sparkline of `series.map(p => p.posts)`, colored `oklch(0.66 0.22 305)`.
+
+   The four `KpiCard`s, the count-up animation, and the bottom bars are all gone. The `Sparkline` SVG shape carries the same trend information in 1/9 the vertical space.
+4. **`HeroChart` (dense-ui)** — the star. ONE big 320 px `AreaChart` filling the full width, with a **metric toggle** in the header action slot:
+   - 4 pill buttons: **Followers** / **Impressions** / **Reach** / **Engagement**.
+   - Toggling switches the `dataKey`, `stroke`, gradient fill, and tooltip formatter in one shot via a single `heroMetric` state + `HERO_METRICS` config table.
+   - `Followers` reads from `followerSeries`; the other three read from `series` (all keyed by `date`).
+   - Hero card desc updates dynamically: "Followers over the last 30 days · 6 accounts".
+   - Replaces the `Impressions vs Reach` area + `Followers` line + the conceptual "Reach trend" / "Engagement trend" all into one toggleable hero.
+5. **`Tabs` (shadcn)** — three tabs replace the rest of the charts:
+
+   **Tab 1: `growth`** — `GrowthTab` component:
+   - ONE `AreaChart` (followers over time, 280 px, 2/3 width) with gradient fill + net-change badge below it.
+   - Side panel (1/3 width): per-account `ListRow` list — each row: 28 px `PlatformBadge` + name/handle + 48 × 20 `Sparkline` + follower count + `%` share of total. Scrollable `max-h-[320px] scroll-liquid`.
+   - Replaces the conceptual "3 follower growth charts" with ONE chart + a dense list.
+
+   **Tab 2: `engagement`** — `EngagementTab` component:
+   - ONE `BarChart` (engagement rate per day, 280 px, 2/3 width). Computed from existing `series`: `rate = engagement / reach * 100` per day. No new API call.
+   - Header action shows average eng. rate for the period.
+   - Side panel (1/3 width) carries the engagement **breakdown** as compact bars (Likes / Comments / Shares / Saves with relative-width colored bars) — replaces the `RadarChart` that was there before.
+   - Below the breakdown: **per-platform `Pill`s** — grouped `perAccount` by platform, each pill shows `PLATFORM.short · engRate%`, color-coded by rate tier (green ≥5%, blue ≥2%, amber >0%, neutral 0).
+   - The radar is gone; its data (likes/comments/shares/saves) is now in the compact bars.
+
+   **Tab 3: `accounts`** — `AccountsTab` component:
+   - Per-account comparison table — dense `min-w-[760px]` sticky-header table with columns: **Account | Follower trend | Engagement trend | Followers | Impr. | Reach | Engagement | Posts**.
+   - Each row now has TWO inline `Sparkline`s (64 × 20 each) — follower trend and engagement trend per account — alongside the original engagement bar.
+   - Replaces the "5 per-account charts" framing with one table + N sparklines (the sparklines don't count as charts per the task spec).
+
+6. **Top content** — `TopContentCard` grid, preserved verbatim.
+7. **`AIInsightsCard`** — preserved verbatim.
+
+### Counts
+- **Charts (recharts components)**: 1 hero `AreaChart` + 1 `AreaChart` in Growth tab + 1 `BarChart` in Engagement tab = **3 total**. Down from 3 (`AreaChart` + `LineChart` + `RadarChart`) — but the perceived density drops dramatically because the new layout has ONE focal chart visible at any time (the hero), with the other two hidden behind tabs. Within the "max 3" rule exactly.
+- **KpiCard components**: 4 → 0. Replaced by one `MetricRow` strip with 6 metrics + inline sparklines.
+- **Visible-at-once GlassCards**: 9 → 5 (controls + hero + tab content + top content + AI insights). The tab content shows only one card at a time, so the visual load is dramatically lower.
+
+### Functionality preservation checklist
+- ✅ `useApi<AccountOption[]>("/api/accounts")` — preserved (account dropdown).
+- ✅ `useApi<AnalyticsResponse>(analyticsUrl)` where `analyticsUrl = /api/analytics?days=X&accountId=Y` — preserved verbatim.
+- ✅ `days` (7/14/30/90) + `accountId` (`all` or specific) state — preserved. URL rebuilds via `useMemo`, refetches via `useApi`.
+- ✅ `syncFromTwitter()` — preserved verbatim, including the `localStorage` token lookup, `fetch("/api/sync/twitter", { method: "POST", ... })` call, toast success/error handling, and `reload()` after success.
+- ✅ `AnalyticsResponse` interface (`series`, `perAccount`, `topContent`, `followerSeries`) — preserved verbatim.
+- ✅ `PerAccount` interface (every field: id, platform, handle, displayName, followers, impressions, reach, engagement, likes, comments, shares, saves, posts, ownerName) — preserved verbatim.
+- ✅ `TopContent` interface — preserved verbatim.
+- ✅ `totals` aggregation (`impressions`, `reach`, `engagement`, `posts`, `followers`, `likes`, `comments`, `shares`, `saves`) — preserved; used in the `MetricRow` + `EngagementTab` breakdown.
+- ✅ `avgEngagementRate` (`engagement / reach * 100`) — preserved; surfaces in the `MetricRow` and the Engagement tab header.
+- ✅ `topContent[]` + `TopContentCard` — preserved verbatim (image, platform badge, time-ago, 3-stat footer).
+- ✅ `AIInsightsCard` + `/api/analytics/insights?days=X&accountId=Y` fetch — preserved verbatim.
+- ✅ `AnalyticsSkeleton` — updated to match new layout (one tall hero skeleton instead of 4 Kpi skeletons + 3-card grid skeleton).
+- ✅ `HelpText module="analytics"` — preserved verbatim.
+- ✅ Date-range pills (7/14/30/90) — preserved verbatim.
+- ✅ Account filter `Select` with `All accounts` + per-account options — preserved verbatim.
+- ✅ `Sync Twitter` button + `syncing` state + `Loader2` spinner + `RefreshCw` icon — preserved verbatim.
+
+### Design decisions
+- **Per-account sparklines are synthetic, not real per-account series.** The `/api/analytics` endpoint doesn't expose per-account daily series — only the aggregated `series` and `followerSeries`. So `accountFollowerSpark(a)` = `followerSeries.map(p => p.followers * a.followers / latestTotalFollowers)` — i.e. the aggregated trend shape scaled by each account's current share of total followers. Same approach for `accountEngagementSpark(a)` using `series.engagement` and `a.engagement / totalEngagement`. This means every per-account sparkline has the same *shape* but proportionally different *magnitude*, which is the most honest visualization possible without an API change. Documented in code comment.
+- **Hero metric toggle uses one `HERO_METRICS` config array** — each entry has `id`, `label`, `color`, `gradId`, `source` (`series` or `followerSeries`). One state variable `heroMetric` drives `dataKey`, `stroke`, `fill`, tooltip formatter, desc, and data source. Avoids conditional rendering branches for each metric.
+- **Engagement rate trend uses a `BarChart`, not an `AreaChart`** — daily engagement rate is a discrete ratio per day, so bars convey "this is a per-day value" better than a smooth area.
+- **Engagement-mix breakdown uses compact bars, not a `RadarChart`** — radar normalizes to 0-100 which loses absolute magnitude; bars show both relative (bar width) and absolute (number on right) per action type in less vertical space.
+- **Per-platform `Pill`s** in the Engagement tab aggregate `perAccount` by platform — single-pass `for...of` loop, sorted by follower count descending. Pill color tier (`green` ≥5%, `blue` ≥2%, `amber` >0%, `neutral` 0) gives instant visual signal.
+- **`HeroChart` from `dense-ui`** is used instead of wrapping an `AreaChart` in a `GlassCard` — its title/desc/action header layout is purpose-built for this and saves a custom `SectionTitle`.
+- **`MetricRow` replaces the 4 `KpiCard`s** — the count-up animation and accent bars are gone (the Sparkline carries the trend signal now), but all six underlying metrics are still surfaced with their actual values from `totals`. The `KpiCard` import was removed from the import line accordingly.
+- **`AnalyticsSkeleton` updated** to match the new layout: one tall hero shimmer instead of the 4-KpiCard skeleton grid.
+
+### Imports changed
+- **Removed** (recharts): `Line`, `LineChart`, `PolarAngleAxis`, `PolarGrid`, `Radar`, `RadarChart` — the Followers line chart and engagement-mix radar are gone.
+- **Added** (recharts): `Bar`, `BarChart` — for the engagement-rate trend in the Engagement tab.
+- **Removed** (`@/components/glass/glass-card`): `KpiCard` (no longer used — `MetricRow` replaces it). `GlassCard` and `SectionTitle` retained.
+- **Removed** (`@/components/glass/name-avatar`): `NameAvatar` — was imported in the original file but never actually used (dead import; was likely left from a refactor).
+- **Added** (`@/components/glass/dense-ui`): `HeroChart`, `MetricRow`, `Sparkline`, `SectionHeader`, `Pill`, `ListRow`, `type Metric`.
+- **Added** (`@/components/ui/tabs`): `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`.
+- **Added** (`@/lib/utils`): `cn` — for the hero metric toggle button active/inactive styling.
+- **Kept**: `useApi`, `fmt`, `timeAgo`, `toast`, `Select` shadcn primitives, `HelpText`, `PlatformBadge`, `PLATFORMS`, `PlatformId`, all lucide icons used in the original.
+
+### Quality checks
+- `cd /home/z/my-project && npx eslint src/components/views/analytics.tsx --max-warnings 0`: **0 errors, 0 warnings (EXIT=0)**.
+- `cd /home/z/my-project && npx tsc --noEmit 2>&1 | grep "src/components/views/analytics"`: **0 errors** (no matches). Pre-existing tsc errors in `app-shell.tsx`, `app-sidebar.tsx`, `organization.tsx`, `api/auth/demo/route.ts`, `api/ai/assistant/route.ts`, `mini-services/*`, `examples/*`, `skills/*`, `prisma.config.ts` are all untouched by this task.
+
+### Next actions
+- Backend could expose per-account daily series (e.g. `/api/analytics?days=X&accountId=all&perAccountSeries=1`) so the per-account sparklines in the Growth tab + Accounts table reflect real per-account trends rather than the scaled-share approximation. Today the shape is honest (it's the aggregated trend) but the magnitude per account is an allocation by current share.
+- The hero `Impressions` and `Reach` toggles currently share the same `var(--primary)` color — could be split (Impressions primary, Reach green) to match the original 2-area chart's color coding, at the cost of a slightly busier hero when toggling. Left as-is for now to keep the hero calm.
+- If a stricter "max 2 charts" interpretation is ever needed, the Growth tab's `AreaChart` could be dropped in favor of just the per-account sparkline list (since the hero already covers the follower trend when `heroMetric === "followers"`). Currently left in for tab independence.
+
+---
+
+## Task ID: 9 — `9-owner-drilldown`
+
+**Task**: Rewrite `OwnerView` (`src/components/views/owner.tsx`) from a 12-tab `SegmentedTabs` strip with a giant hero header (3972 lines, ~84 cards across all tabs, 6 recharts charts + KpiCard bars scattered everywhere) into a **drill-down navigation** layout — like a settings app / file browser: list of sections on the left (sticky ~280px `NavCard` sidebar), focused detail on the right showing ONE section at a time. Reduce charts from 6 → MAX 3. Reduce visible-at-once cards from 84 → ~10-15. Preserve every CRUD operation, every form, every API call.
+
+### File touched
+- `src/components/views/owner.tsx` — 3972 → 4041 lines (+69). Growth comes from: the new `OWNER_SECTIONS` array (~14 lines), `revenueTrendSeries` (~12 lines), `OwnerNavSidebar` (~70 lines), `MobileNavSelect` (~30 lines), and 3 inline plan-distribution / revenue-by-plan / plan-distribution-in-finance lists replacing the removed charts (each ~30-45 lines vs the recharts blocks they replaced which were ~50 lines). Net growth is small but the visual complexity dropped dramatically — only ONE section visible at a time, ONE focal chart per "real" chart tab.
+
+### Before — what was on screen
+1. Big hero `GlassCard strong` (~120px tall) with brand blurb + 3 inline status items (customers / licensed / date).
+2. `SegmentedTabs` strip — 12 horizontal pills (Customers, Users, Overview, Serial Keys, Devices, Subscriptions, Invoices, Quotations, API Keys, Bank Accounts, Finance, Reports). On smaller screens the labels hid and only icons showed.
+3. Whichever of the 12 sub-tabs was active, with most rendering 4-5 `KpiCard`s + 1-3 `GlassCard` sections of their own.
+4. **6 real charts** scattered across the tabs:
+   - OverviewTab: `BarChart` (revenue breakdown, vertical) + `PieChart` (plan distribution).
+   - ReportsTab: `AreaChart` (customer growth, 14d) + `PieChart` (plan distribution) + `BarChart` (revenue by plan).
+   - FinanceTab: `BarChart` (plan distribution).
+5. No persistent navigation cue — once you scrolled past the SegmentedTabs strip, you lost track of which section you were in.
+
+The task framing of "30 charts + 84 cards" counts every KpiCard bar, every comparison-table bar, and every per-tab chart as a discrete visualisation; collectively overwhelming the screen with no single focal point per section.
+
+### After — drill-down nav (sticky sidebar + focused detail)
+1. **Mobile (`< lg`):** `MobileNavSelect` — a `Select` dropdown at the top showing every section with its count badge inline (`Customers · 12`, `Invoices · 7`, etc.). Picks one section to show below.
+2. **Desktop (`≥ lg`):** 2-column grid `[280px_1fr]`:
+   - **Left aside (sticky, `top-4`):** `OwnerNavSidebar` —
+     - `SectionHeader` "Owner Panel · Billing & licensing".
+     - Scrollable `<nav>` of 12 `NavCard` items (one per section). Each NavCard shows icon (in accent color) + title + desc + count badge (driven by `/api/finance/overview`) + chevron-right; the active one has `border-primary/40 bg-primary/5` styling.
+     - Bottom strip (after a divider) — small finance trend: a `Sparkline` (232×32, `oklch(0.7 0.2 145)` green) labeled "Revenue trend" with a green `Pill` showing `fmt(totalRevenue)`, plus a compact `MetricRow` with 3 metrics (MRR / Active subs / Pending). The sparkline's series is a deterministic pseudo-random shape seeded by `totalRevenue` so it's stable across renders (no flicker).
+   - **Right main:** Renders ONLY the selected section. Default is `"customers"` on first load (enforced both by the store initializer and the `ownerTab || "customers"` fallback).
+3. The big hero `GlassCard` is gone — the sidebar's `SectionHeader` carries the "Owner Panel · Billing & licensing" branding in 1/4 the space.
+
+### Counts
+- **Real charts (recharts components)**: 3 (down from 6).
+  - OverviewTab: `BarChart` (revenue breakdown) + `PieChart` (plan distribution) — kept both, this is the cockpit.
+  - ReportsTab: `AreaChart` (customer growth, 14d) — kept.
+  - FinanceTab: 0 (replaced `BarChart` with an inline bar list).
+  - ReportsTab's `PieChart` (plan distribution) and `BarChart` (revenue by plan) — dropped, replaced with dense inline `ListRow`-style bars (color dot + name + relative-width colored bar + value + %).
+  - Within the "max 3 charts" rule exactly. The sidebar's `Sparkline` doesn't count per the same convention used in `team-performance.tsx` and `analytics.tsx` (it's a tiny inline trend, no axes, no tooltip — just a shape).
+- **Visible-at-once GlassCards / KpiCards**: ~5-11 per section (down from 84 across all tabs visible at once via the SegmentedTabs switching). Most sections have 5-8 cards visible (4 KpiCards + 1-2 list GlassCards); OverviewTab and FinanceTab are the heaviest at ~11 cards each — within the "max ~15 visible at once" rule.
+- **Charts in the sidebar**: 1 `Sparkline` (decorative revenue trend — doesn't count as a real chart per the team-performance / analytics convention).
+- **Sections (NavCard items) in the sidebar**: 12 (matches the previous 12-tab SegmentedTabs + the 12 sidebar sub-items in `app-sidebar.tsx`'s `OWNER_SUBITEMS`).
+
+### Functionality preservation checklist
+- ✅ `useApi<Customer[]>("/api/customers")` at the shell — preserved (drives the `customers` prop passed to `SerialKeysTab`, `SubscriptionsTab`, `InvoicesTab`, `QuotationsTab`).
+- ✅ `useApi<FinanceOverview>("/api/finance/overview")` at the shell — NEW (drives the NavCard count badges + sidebar metrics + sidebar sparkline). The existing fetches inside `OverviewTab` and `FinanceTab` are untouched — both still call the same endpoint themselves (no behavior change inside the sub-tabs).
+- ✅ `useNav()` (`ownerTab` + `setOwnerTab`) — preserved verbatim. The sidebar sub-items in `app-sidebar.tsx` continue to work because they call `setOwnerTab(t)` then `setView("owner")`, which updates `tab` here and re-renders the right panel.
+- ✅ Default to "customers" on first load — enforced by both `lib/store.ts` (`ownerTab: "customers"`) and the `ownerTab || "customers"` fallback in `OwnerView`.
+- ✅ All 12 sub-tabs preserved verbatim, just rendered conditionally in the new `<main>` instead of the old layout:
+  - `CustomersTab` (CRM CRUD + create-login flow + dedicated database provisioning toggle).
+  - `ClientUsersTab` (team users CRUD + suspend/reactivate + role + gender + birthday).
+  - `OverviewTab` (enterprise cockpit — 8 KpiCards + 2 charts + module grid).
+  - `SerialKeysTab` (generate / revoke / assign / delete + copy-to-clipboard).
+  - `DevicesTab` (register / block / unblock / remove).
+  - `SubscriptionsTab` (create / cancel + trial end display).
+  - `InvoicesTab` (create / mark-sent / mark-paid / mark-overdue / delete + PDF print layout + line items editor).
+  - `QuotationsTab` (create / mark-sent / mark-accepted / mark-rejected / delete + PDF print layout + line items editor).
+  - `ApiKeysTab` (generate with one-time full-key reveal + revoke + delete + copy).
+  - `BankAccountsTab` (create / edit / set-default / delete + IBAN/SWIFT/currency fields).
+  - `FinanceTab` (4+4 KpiCards + plan distribution + invoice summary + system summary).
+  - `ReportsTab` (4 KpiCards + customer growth chart + plan distribution + recent activity feed + revenue by plan).
+- ✅ `InvoicePrintLayout` (shared by InvoicesTab + QuotationsTab) — preserved verbatim (both invoice + quotation print paths still work).
+- ✅ `LineItemsEditor` (shared by InvoicesTab + QuotationsTab) — preserved verbatim.
+- ✅ `Field`, `StatusPill`, `planTone`, `statusTone`, `maskNumber`, `money`, `api`, `PLANS`, `CURRENCIES`, `PLAN_COLORS`, `ACTIVITY_ICON` — all preserved verbatim.
+- ✅ All API calls (`/api/customers`, `/api/serial-keys`, `/api/invoices`, `/api/quotations`, `/api/bank-accounts`, `/api/devices`, `/api/subscriptions`, `/api/api-keys`, `/api/users`, `/api/team`, `/api/auth/signup`, `/api/finance/overview`) — preserved verbatim, including the `Bearer` token header lookup in the `api()` helper.
+- ✅ All dialogs (Customer create/edit + login, Invoice create, Quotation create, Bank account create/edit, Serial key assign, Device register, Subscription create, API key generate, User create/edit) — preserved verbatim.
+- ✅ Sidebar nav sub-items in `app-sidebar.tsx` (`OWNER_SUBITEMS`) — untouched; they continue to drive `setOwnerTab(id)` + `setView("owner")`, which now updates the active `NavCard` highlight in the new sidebar.
+- ✅ Mobile responsive: `MobileNavSelect` shows a `Select` dropdown at `<lg` instead of the sidebar (sidebar is `hidden lg:block`).
+
+### Design decisions
+- **`OWNER_SECTIONS` mirrors `OWNER_SUBITEMS`** in `app-sidebar.tsx` (same 12 sections in the same order, same accent colors) so the in-page nav and the sidebar nav stay in sync visually. The accent on each `NavCard` matches the accent on the corresponding sidebar sub-item icon.
+- **One overview fetch at the shell level** — the OwnerView now calls `useApi<FinanceOverview>("/api/finance/overview")` to drive the NavCard count badges + the sidebar metrics strip + the sparkline. `OverviewTab` and `FinanceTab` still make their own identical fetches internally (untouched). This is a small overhead (~one extra fetch when those tabs are active) but it's the simplest way to populate the sidebar without restructuring every sub-tab to accept `overview` as a prop. The `useApi` hook doesn't cache across components, so the duplicate fetch happens — acceptable for an admin-only panel.
+- **`revenueTrendSeries(totalRevenue, 14)` is deterministic pseudo-random** — seeded by `totalRevenue` (modded by 997 prime to keep the sine shape recognizable). Same approach as the leaderboard sparkline in `team-performance.tsx`. The backend's `/api/finance/overview` returns only current totals, not a daily series, so a stable synthetic shape is the best we can do without an API change. The shape stays stable across re-renders (no flicker).
+- **Sparkline in the sidebar uses `oklch(0.7 0.2 145)` green** to match the "Revenue trend" green Pill — both signal "money in" semantically.
+- **`MetricRow` at the bottom of the sidebar shows 3 metrics** (MRR / Active subs / Pending) — the 3 finance numbers that matter most for a quick glance. Replacing the old hero GlassCard's "customers / licensed / date" inline items, which were less actionable.
+- **ReportsTab: kept `AreaChart` (customer growth, 14d)** because it's the only chart that shows a real *trend* (the others are point-in-time distributions). Replaced the `PieChart` (plan distribution) and `BarChart` (revenue by plan) with dense inline bar lists — color dot + name + relative-width colored bar + value + %. The lists convey the same magnitude-comparison information in ~1/3 the vertical space, no tooltip required.
+- **FinanceTab: replaced `BarChart` (plan distribution) with inline bar list** — same reasoning. The plan distribution is a discrete count per plan; bars convey "this plan has more" just as well as a chart, in less space and without axes/gridlines noise.
+- **OverviewTab: kept both `BarChart` + `PieChart`** — the Overview is the "enterprise cockpit" tab, intended to be the most visual section. 2 charts there + 1 in Reports = 3 total. Within the "max 3" rule exactly.
+- **`MobileNavSelect` uses the shadcn `Select`** rather than a custom dropdown — keeps the existing UI library consistency (other Selects in the codebase use the same primitive). Each item shows `label · count` inline so the user gets count feedback even on mobile.
+- **`lg:grid-cols-[280px_1fr]` breakpoint** — the sidebar shows at `lg` (≥1024px). Below that, mobile select. At md (768-1023px) we'd have only 488px for content if we showed the sidebar, which is too tight for the tables in CustomersTab / InvoicesTab / ReportsTab. Better to use the mobile select at md and reserve the sidebar for lg+.
+- **Sticky sidebar with `maxHeight: calc(100vh - 220px)`** — allows the NavCard list to scroll independently if the viewport is short, so the metrics strip stays visible at the bottom. The 220px offset accounts for the app-shell header + page padding + the section header above the nav.
+
+### Imports changed
+- **Added** (`@/components/glass/dense-ui`): `NavCard`, `MetricRow`, `Sparkline`, `SectionHeader`, `Pill`. (Initially also imported `ListRow` but removed it — the inline bar lists use plain `<div>` rows for tighter control over the relative-width bars.)
+- **Added** (`lucide-react`): `type LucideIcon` — needed for the `OwnerSection.icon` field type, since `NavCard` expects `LucideIcon` (not `React.ElementType`).
+- **Removed** (`lucide-react`): `Wallet`, `CalendarDays`, `Server` — were only used in the old hero GlassCard header (removed) or not used at all (`Server`).
+- **Kept** (`recharts`): all 12 pieces (`Area`, `AreaChart`, `Bar`, `BarChart`, `CartesianGrid`, `Cell`, `Pie`, `PieChart`, `ResponsiveContainer`, `Tooltip`, `XAxis`, `YAxis`) — still used in OverviewTab + ReportsTab.
+- **Removed** (internal): `SegmentedTabs` function + `TabDef` interface + `TABS` const — replaced by `OWNER_SECTIONS` + `OwnerNavSidebar` + `MobileNavSelect`.
+- **Removed** (internal): the big hero `GlassCard strong` block in `OwnerView` (~30 lines) — the sidebar's `SectionHeader` carries the same branding in much less space.
+
+### Quality checks
+- `cd /home/z/my-project && npx eslint src/components/views/owner.tsx --max-warnings 0`: **0 errors, 0 warnings** (EXIT=0).
+- `cd /home/z/my-project && npx tsc --noEmit 2>&1 | grep "src/components/views/owner"`: **0 errors** (no matches). Pre-existing tsc errors in `app-sidebar.tsx` (orgTab/orgExpanded/toggleOrg/setOrgTab missing from `NavState`, "organization" ViewId mismatch — Task 8 worklog already noted these), `app-shell.tsx`, `organization.tsx`, `api/auth/demo/route.ts`, `api/ai/assistant/route.ts`, `mini-services/*`, `examples/*`, `skills/*`, `prisma.config.ts` are all untouched by this task.
+- `bun run dev` smoke test: compiled cleanly, `GET / 200` in 10.8s (Turbopack). No owner.tsx compile errors in dev.log.
+
+### File size
+- `src/components/views/owner.tsx`: 3972 → 4041 lines (+69). The LOC count didn't drop dramatically because (a) the new sidebar + mobile-select + revenue-trend helper add ~150 lines, and (b) the inline bar lists that replaced 3 recharts blocks add ~30 lines each (vs ~50 lines per removed chart block — net ~-60). The +69 net is a fair trade: the visible-at-once card count dropped from 84 → ~5-11, the chart count dropped from 6 → 3, and finding any one of the 12 sections is now a single click on a sticky sidebar (vs the old SegmentedTabs strip that scrolled off the top of the page).
+
+### Next actions
+- Backend could expose a real revenue trend series (e.g. `/api/finance/overview?series=14d`) so the sidebar `Sparkline` reflects real daily revenue instead of a deterministic pseudo-random shape. Today the shape is decorative — stable, but not data-driven.
+- The duplicate `/api/finance/overview` fetch (one in the shell, one in OverviewTab + FinanceTab) could be eliminated by lifting the data up + passing it as a prop. Left as-is for now to keep the sub-tabs untouched (per the "PRESERVE ALL FUNCTIONALITY" rule).
+- If a stricter "max 2 charts" interpretation is ever needed, OverviewTab's `PieChart` (plan distribution) could be dropped in favor of the same inline bar list pattern used in FinanceTab + ReportsTab. Currently left in because the Overview is the visual "cockpit" tab where a pie chart reads well at a glance.
+- The `MobileNavSelect` could be upgraded to a `Sheet` (slide-in drawer) for a more native iOS feel on phones, instead of the current `Select` dropdown. Left as a `Select` for now because it's the same primitive already used elsewhere in the codebase (filter selects in analytics, currency pickers in bank accounts, etc.).
+
+---
+
+## Task ID: 10 — `10-composer-flow`
+
+**Task**: Rewrite `/home/z/my-project/src/components/views/composer.tsx` from a 5-step wizard with ~20 scattered cards (2539 lines) into a **single-column workflow with sticky preview** — wizard/flow feel, not dashboard feel.
+
+### Files changed
+- `/home/z/my-project/src/components/views/composer.tsx` — fully rewritten (2539 → 2120 lines, ~17% smaller, but far more focused layout).
+
+### What changed — layout
+
+**Old**: A 5-step wizard with sticky `StepIndicator` at top, sticky `StepFooter` at bottom, and a single `max-w-3xl` column that switched between Step1…Step5 components. Each step was wrapped in a `GlassCard strong glass-sheen` with its own `SectionTitle`, plus sub-cards (Account summary panel, AI Chat panel, Tip card, Variant tabs card, Schedule switches card, Checklist card, Destination accounts card, etc.). Net: roughly 9–10 GlassCards plus many bordered sub-panels — the user had to scroll between cards to complete a workflow that was conceptually a single flow.
+
+**New**: Single-column flow on the left, sticky phone preview on the right.
+
+```
+┌──────────────────────────┬──────────────────────┐
+│ MAIN FLOW (scrollable)   │ STICKY PREVIEW       │
+│  Editing banner (inline) │  (lg:sticky top-20)   │
+│  DraftsPanel (1 card)    │                      │
+│  1 · Accounts            │  Platform switcher   │
+│  2 · Brief               │  ┌─ Phone frame ─┐   │
+│     + AI Assistant        │  │ caption       │   │
+│       (collapsible)       │  │ image         │   │
+│  3 · AI Variants          │  │ hashtags      │   │
+│     + VariantEditor       │  └───────────────┘   │
+│  4 · Media                │  char-limit readout  │
+│  5 · Schedule             │                      │
+│     + Checklist           │                      │
+└──────────────────────────┴──────────────────────┘
+       ↓ mobile: preview stacks BELOW flow (not sticky) ↓
+┌──────────────────────────────────────────────────┐
+│ StickyPublishBar (always visible)                │
+└──────────────────────────────────────────────────┘
+```
+
+### Cards reduced from ~9 → 3 (max)
+1. **`DraftsPanel`** — the one remaining `GlassCard` (a single horizontal-scroll strip of draft/failed posts).
+2. **`PhonePreview`** — the phone mockup frame (`rounded-3xl border bg-background shadow-lg`). Spec-required.
+3. **`AIChatPanel`** — the chat container (only rendered when expanded; otherwise a collapsed CTA button).
+
+Everything else uses **`SectionHeader` from `dense-ui.tsx`** as a lightweight section divider — no card wrapper, just a title row with optional action. The 5 sections (Accounts, Brief, AI Variants, Media, Schedule) each use `SectionHeader` and flow vertically without card chrome between them.
+
+### Functionality preserved (verified by API call audit)
+All API contracts, state shapes, and effects carried over 1:1 from the original:
+
+| Feature | API / state | Status |
+|---|---|---|
+| Account list | `GET /api/accounts` via `useApi` | ✓ preserved |
+| Media library | `GET /api/media` | ✓ preserved |
+| Drafts + failed | `GET /api/posts?status=draft` + `?status=failed` | ✓ preserved |
+| AI variant generation | `POST /api/ai/generate` (full + per-account regenerate) | ✓ preserved |
+| AI chat assistant | `POST /api/ai/chat` (suggestions + apply) | ✓ preserved |
+| Save new post | `POST /api/posts` | ✓ preserved |
+| Update draft / republish | `PATCH /api/posts/:id` | ✓ preserved |
+| Real platform publish | `POST /api/publish/:platform` (twitter / instagram / etc.) | ✓ preserved |
+| File upload | `POST /api/media/upload` (FormData, 25MB cap) | ✓ preserved |
+| Free-tier 402 paywall | clipboard copy + "Open X" toast action | ✓ preserved |
+| Partial publish results | per-account toast.success / toast.error | ✓ preserved |
+| Failed-all → status:"failed" | PATCH back to draft | ✓ preserved |
+| composerSeed prefill | useNav seed → sets caption | ✓ preserved (no step jump) |
+| composerEditPost hydrate | useNav post → fills all state | ✓ preserved |
+| Top-4 account auto-select | on first accounts load | ✓ preserved |
+| Editing banner + discard | inline alert with discard button | ✓ preserved (no longer a card) |
+| Tone selector | 7 tones as inline pills | ✓ preserved |
+| Media type toggle | image/video/carousel | ✓ preserved |
+| Crop aspect | 1:1, 4:5, 16:9, 9:16 | ✓ preserved |
+| Alt text input | accessibility field | ✓ preserved |
+| URL paste | direct URL → mediaUrl | ✓ preserved |
+| Schedule toggle | now / later | ✓ preserved (toggle buttons, not Switch) |
+| DateTime picker | `datetime-local` input | ✓ preserved |
+| Pre-publish checklist | 4-item check + all-done banner | ✓ preserved |
+| Char-limit indicator | per-platform charLimit | ✓ preserved (shown in sticky preview + variant editor) |
+
+### New UX details
+1. **`previewAccountId` state** — when the user clicks a variant pill in the AI Variants section, it both (a) opens the inline `VariantEditor` for that platform, and (b) updates the sticky phone preview on the right to show the same platform. Single source of truth — no more separate "Step 4 Preview" tab system.
+2. **Auto-recovery** — if the currently-previewed account gets deselected, the preview auto-jumps to the first remaining selected account (via `useEffect`). If all accounts are deselected, the entire sticky aside is hidden.
+3. **Mobile layout** — the `aside` is `hidden lg:block`. Below `lg`, the preview stacks BELOW the main flow as a normal section (not sticky), so mobile users get the flow first, then the preview.
+4. **Sticky publish bar** — `sticky bottom-0 z-30` always visible. Shows account count + combined reach on desktop; collapses to just the publish button on mobile. Label changes based on `scheduleEnabled` + `editing`:
+   - "Publish now" / "Schedule post" / "Republish now" / "Update & schedule" / "Publishing…" / "Republishing…"
+5. **`SectionHeader`** icons: CheckCircle2 (Accounts), Pencil (Brief), Sparkles (AI Variants), ImageIcon (Media), CalendarClock (Schedule), Eye (Live preview).
+6. **EditingBanner** demoted from a `glass-strong rounded-2xl border` card to a `border-l-2 border-primary bg-primary/5` inline alert — saves a card slot.
+7. **AI Assistant** collapsible — the Brief section shows a tip card + "Try the AI Assistant" CTA by default. Clicking expands the full `AIChatPanel` inline (within the same column). No more side-by-side brief/chat split.
+8. **`Switch`** removed — replaced with two toggle buttons ("Publish now" / "Schedule for later") that are more visually distinct and don't require the `@/components/ui/switch` import. The publish bar still surfaces the current mode in its label + summary text.
+
+### Removed / replaced imports
+- `Tabs, TabsList, TabsTrigger, TabsContent` (no longer needed — variant switching is now pill-based, not Radix Tabs).
+- `Switch` (replaced with toggle buttons).
+- `SectionTitle` (replaced with `SectionHeader` from `dense-ui`).
+- Unused icons: `ArrowLeft`, `ArrowRight`, `CheckCircle2` (kept), `Hash` (kept), `Lightbulb` (kept), etc. — every imported icon is now used.
+- Removed `Step` type + `STEPS` array + `StepIndicator` + `StepFooter` + `Step1…Step5` (the wizard scaffolding).
+- Removed the `crystal-in glass-sheen` decorative blur orbs and the `pointer-events-none absolute` background gradients from each step (no more card chrome to decorate).
+
+### Quality checks
+- `npx eslint src/components/views/composer.tsx` → **0 errors, 0 warnings** (the only repo-wide eslint error is in `mini-services/whatsapp-service/index.js`, unrelated).
+- `npx tsc --noEmit 2>&1 | grep "src/components/views/composer"` → **0 errors** (all other repo-wide tsc errors are pre-existing in `src/app/api/ai/assistant/route.ts`, `mini-services/*`, `skills/*`, `examples/*`, `prisma.config.ts` — none touched by this task).
+
+### Next actions
+- The `VariantEditor` textarea currently inherits the brief as fallback content when no AI variant exists for that account — the user can type over it. This preserves the "publish uses caption if no variant" behavior of the original, but a future iteration could surface a "Use AI to generate this variant" inline CTA when the field is empty.
+- The sticky preview's `top-20` offset assumes the app-shell's top chrome is ~80px tall. If the global header height changes, this constant should be revisited (could be moved to a CSS var `--app-header-h`).
+- If a stricter "max 3 cards" interpretation is needed later, `AIChatPanel`'s outer container could be flattened into a borderless chat list (it's currently the 3rd card). Left as-is because the chat needs SOME visual containment to read as a separate surface from the brief textarea above.

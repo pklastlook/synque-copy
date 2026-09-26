@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
+import type { LucideIcon } from "lucide-react";
 import {
   // Tabs (shared with app-sidebar via SETTINGS_TABS export)
   User,
@@ -88,6 +89,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import { SectionHeader } from "@/components/glass/dense-ui";
 import { PlatformApiSection } from "@/components/views/platform-settings/platform-api-section";
 import {
   Dialog,
@@ -100,7 +102,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -131,7 +135,7 @@ export type SettingsTab =
 export interface SettingsTabDef {
   id: SettingsTab;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
 }
 
 /**
@@ -259,60 +263,185 @@ const ACCENTS: { name: string; value: string }[] = [
 
 const DEFAULT_ACCENT = ACCENTS[0].value;
 
+// ===== Sidebar groups — macOS-style grouping =====
+interface SidebarGroup {
+  label: string;
+  tabs: SettingsTab[];
+}
+
+const SIDEBAR_GROUPS: SidebarGroup[] = [
+  { label: "Account", tabs: ["profile", "security", "notifications"] },
+  { label: "Workspace", tabs: ["company", "workspace", "team-roles", "appearance"] },
+  { label: "Integrations", tabs: ["platforms", "platform-api", "integrations"] },
+  { label: "Billing", tabs: ["billing", "bank"] },
+  { label: "Data", tabs: ["data", "danger"] },
+];
+
 // ===== Main component =====
 export function SettingsView() {
-  const { settingsTab } = useNav();
-  const tab: SettingsTab = (settingsTab as SettingsTab) || "team-roles";
+  const { settingsTab, setSettingsTab } = useNav();
+  const tab: SettingsTab = (settingsTab as SettingsTab) || "profile";
   const activeDef = SETTINGS_TABS.find((t) => t.id === tab) ?? SETTINGS_TABS[0];
   const ActiveIcon = activeDef.icon;
 
+  // Lightweight count fetches for sidebar badges. Each endpoint is also
+  // fetched by the matching section when it renders, so these are read-only
+  // and only used to show a small count badge next to the nav item.
+  const { data: users } = useApi<ApiUser[]>("/api/users");
+  const { data: apiKeys } = useApi<SettingsApiKey[]>("/api/api-keys");
+  const { data: accounts } = useApi<{ id: string; platform: PlatformId }[]>("/api/accounts");
+  const { data: intData } = useApi<{ integrations: Integration[] }>("/api/integrations");
+
+  const counts: Partial<Record<SettingsTab, number>> = {
+    "team-roles": Array.isArray(users) ? users.length : 0,
+    security: Array.isArray(apiKeys) ? apiKeys.length : 0,
+    platforms: Array.isArray(accounts) ? accounts.length : 0,
+    integrations: intData?.integrations?.filter((i) => i.enabled).length ?? 0,
+  };
+
   return (
-    <div className="animate-rise space-y-4">
-      {/* Breadcrumb header — section is driven by the main sidebar */}
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-5">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/25 blur-3xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Settings className="h-3.5 w-3.5" />
+    <div className="animate-rise grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)] xl:gap-5">
+      {/* ============================================================ */}
+      {/* SIDEBAR — sticky on desktop, dropdown on mobile              */}
+      {/* ============================================================ */}
+      <aside className="lg:sticky lg:top-4 lg:self-start space-y-3">
+        {/* Mobile dropdown */}
+        <div className="lg:hidden">
+          <Select value={tab} onValueChange={(v) => setSettingsTab(v)}>
+            <SelectTrigger className="h-10 w-full">
+              <span className="flex items-center gap-2">
+                <ActiveIcon className="h-4 w-4 text-primary" />
+                <span className="font-medium">{activeDef.label}</span>
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              {SIDEBAR_GROUPS.map((g) => (
+                <SelectGroup key={g.label}>
+                  <SelectLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {g.label}
+                  </SelectLabel>
+                  {g.tabs.map((id) => {
+                    const def = SETTINGS_TABS.find((t) => t.id === id)!;
+                    const Icon = def.icon;
+                    return (
+                      <SelectItem key={id} value={id}>
+                        <span className="flex items-center gap-2">
+                          <Icon className="h-3.5 w-3.5" />
+                          {def.label}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Desktop sidebar — grouped nav cards */}
+        <nav className="hidden lg:block glass rounded-2xl p-2 space-y-4">
+          {SIDEBAR_GROUPS.map((group) => (
+            <div key={group.label} className="space-y-0.5">
+              <div className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                {group.label}
+              </div>
+              {group.tabs.map((id) => {
+                const def = SETTINGS_TABS.find((t) => t.id === id)!;
+                const Icon = def.icon;
+                const isActive = tab === id;
+                const count = counts[id];
+                const isDanger = id === "danger";
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setSettingsTab(id)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm transition-all duration-200",
+                      isActive
+                        ? isDanger
+                          ? "bg-rose-500/10 text-rose-500 shadow-[inset_0_0_0_1px_oklch(0.65_0.2_25)_0.3]"
+                          : "bg-primary/10 text-primary shadow-[inset_0_0_0_1px_var(--ring)]"
+                        : isDanger
+                          ? "text-rose-500/70 hover:bg-rose-500/10 hover:text-rose-500"
+                          : "text-foreground/70 hover:bg-muted/50 hover:text-foreground"
+                    )}
+                  >
+                    <Icon className={cn("h-4 w-4 shrink-0 transition-transform", !isActive && "group-hover:scale-110")} />
+                    <span className="flex-1 truncate text-[13px] font-medium">{def.label}</span>
+                    {count !== undefined && count > 0 && (
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                          isActive
+                            ? isDanger
+                              ? "bg-rose-500/15 text-rose-500"
+                              : "bg-primary/15 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      {/* ============================================================ */}
+      {/* DETAIL PANEL — only the active section is rendered           */}
+      {/* ============================================================ */}
+      <main className="min-w-0 space-y-4">
+        {/* Sticky section header — wrapper handles sticky positioning
+            because the .glass class sets position: relative which would
+            otherwise override Tailwind's sticky utility. */}
+        <div className="sticky top-0 z-10 -mx-1">
+          <div className="glass rounded-2xl border border-border/40 px-4 py-3">
+            <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+              <Settings className="h-3 w-3" />
               <span>Settings</span>
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
               <span className="flex items-center gap-1.5 font-semibold text-primary">
-                <ActiveIcon className="h-3.5 w-3.5" />
+                <ActiveIcon className="h-3 w-3" />
                 {activeDef.label}
               </span>
             </div>
-            <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">{activeDef.label}</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {SECTION_DESC[tab] ?? "Manage your workspace."}
-            </p>
+            <SectionHeader
+              title={activeDef.label}
+              desc={SECTION_DESC[tab] ?? "Manage your workspace."}
+              icon={ActiveIcon}
+              className="mb-0 mt-1"
+            />
           </div>
         </div>
-      </GlassCard>
 
-      {/* Full-width content panel — active tab driven by useNav().settingsTab */}
-      <div className="min-w-0 space-y-4">
-        {tab === "profile" && <ProfileSection />}
-        {tab === "company" && <CompanySection />}
-        {tab === "workspace" && <WorkspaceSection />}
-        {tab === "appearance" && <AppearanceSection />}
-        {tab === "team-roles" && <TeamRolesSection />}
-        {tab === "notifications" && <NotificationsSection />}
-        {tab === "security" && <SecuritySection />}
-        {tab === "platforms" && <PlatformsSection />}
-        {tab === "platform-api" && <PlatformApiSection />}
-        {tab === "integrations" && (
-          <>
-            <IntegrationsSection />
-            <MediaStorageSection />
-            <AIChatModelSection />
-          </>
-        )}
-        {tab === "billing" && <BillingSection />}
-        {tab === "bank" && <BankSection />}
-        {tab === "data" && <DataSection />}
-        {tab === "danger" && <DangerSection />}
-      </div>
+        {/* Active section content — only ONE section visible at a time */}
+        <div className="min-w-0 space-y-4">
+          {tab === "profile" && <ProfileSection />}
+          {tab === "company" && <CompanySection />}
+          {tab === "workspace" && <WorkspaceSection />}
+          {tab === "appearance" && <AppearanceSection />}
+          {tab === "team-roles" && <TeamRolesSection />}
+          {tab === "notifications" && <NotificationsSection />}
+          {tab === "security" && <SecuritySection />}
+          {tab === "platforms" && <PlatformsSection />}
+          {tab === "platform-api" && <PlatformApiSection />}
+          {tab === "integrations" && (
+            <>
+              <IntegrationsSection />
+              <MediaStorageSection />
+              <AIChatModelSection />
+            </>
+          )}
+          {tab === "billing" && <BillingSection />}
+          {tab === "bank" && <BankSection />}
+          {tab === "data" && <DataSection />}
+          {tab === "danger" && <DangerSection />}
+        </div>
+      </main>
     </div>
   );
 }
@@ -2440,7 +2569,7 @@ function IntegrationsSection() {
         desc="Connect SocialFlow with the tools your team already uses."
         action={
           <button
-            onClick={reload}
+            onClick={() => reload()}
             disabled={loading}
             className="flex items-center gap-1.5 rounded-lg border border-border/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/40"
           >
@@ -2943,7 +3072,7 @@ function MediaStorageSection() {
           </div>
         )}
 
-        <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => reload()} disabled={loading}>
           <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           Recheck connection
         </Button>
@@ -3283,7 +3412,7 @@ function AIChatModelSection() {
           </div>
         )}
 
-        <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => reload()} disabled={loading}>
           <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
           Recheck connection
         </Button>

@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   // For super-admin / legacy tenants on the main db, filter by customerId.
   const where = isTenantIsolated ? {} : tenantWhere(scope);
 
-  const [posts, variants, comments] = await Promise.all([
+  const [posts, variants] = await Promise.all([
     targetDb.post.findMany({
       where,
       include: {
@@ -46,11 +46,16 @@ export async function GET(req: NextRequest) {
       where: isTenantIsolated ? {} : { post: tenantWhere(scope) },
       include: { account: true, post: { include: { author: true } } },
     }),
-    // Fetch comments so we can compute per-member comment counts + reply rates
-    targetDb.comment.findMany({
-      where: isTenantIsolated ? {} : tenantWhere(scope),
-    }),
   ]);
+
+  // Fetch comments so we can compute per-member comment counts + reply rates.
+  // NOTE: Comment doesn't have a customerId field (it's linked via Account),
+  // so we can't use tenantWhere() directly. Instead, we filter by the accountIds
+  // of the variants we already fetched — this gives us tenant-scoped comments.
+  const accountIds = Array.from(new Set(variants.map((v) => v.accountId)));
+  const comments = accountIds.length > 0
+    ? await targetDb.comment.findMany({ where: { accountId: { in: accountIds } } })
+    : [];
 
   // ============ KPIs ============
   const totalPosts = posts.length;

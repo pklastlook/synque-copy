@@ -2,16 +2,19 @@
 
 import * as React from "react";
 import {
-  CheckCircle2, Clock, Plus, Trash2, Send, Loader2, Filter,
+  CheckCircle2, Clock, Plus, Trash2, Loader2,
   AlertCircle, ListTodo, Eye, MessageSquare, BarChart3, Megaphone,
-  Wand2, Image as ImageIcon, ChevronDown, Calendar, Flag, User,
-  TrendingUp, Check, X, RotateCcw, LayoutGrid, Rows3, ArrowUpDown, type LucideIcon,
+  Wand2, Image as ImageIcon, ChevronDown, Calendar, User,
+  Check, RotateCcw, LayoutGrid, Rows3, ArrowUpDown, Search, type LucideIcon,
 } from "lucide-react";
-import { useApi, fmt, timeAgo } from "@/lib/hooks";
-import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+import { useApi } from "@/lib/hooks";
+import { GlassCard } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
+import {
+  SectionHeader, Pill, ListRow, MetricRow,
+} from "@/components/glass/dense-ui";
 import { useAuth } from "@/lib/auth-store";
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -65,47 +68,62 @@ interface TeamMember {
 
 // ============ Constants ============
 type TaskStatus = "todo" | "in_progress" | "review" | "done" | "blocked";
-const STATUSES: { id: TaskStatus; label: string; color: string; bg: string; icon: LucideIcon }[] = [
-  { id: "todo", label: "To Do", color: "oklch(0.6 0.02 250)", bg: "oklch(0.6 0.02 250)", icon: ListTodo },
-  { id: "in_progress", label: "In Progress", color: "oklch(0.7 0.15 75)", bg: "oklch(0.7 0.15 75)", icon: Clock },
-  { id: "review", label: "In Review", color: "oklch(0.7 0.2 255)", bg: "oklch(0.7 0.2 255)", icon: Eye },
-  { id: "done", label: "Done", color: "oklch(0.7 0.2 145)", bg: "oklch(0.7 0.2 145)", icon: CheckCircle2 },
-  { id: "blocked", label: "Blocked", color: "oklch(0.55 0.22 25)", bg: "oklch(0.55 0.22 25)", icon: AlertCircle },
+type PillColor = "neutral" | "green" | "amber" | "rose" | "blue" | "violet";
+
+const STATUSES: { id: TaskStatus; label: string; color: string; pill: PillColor; icon: LucideIcon }[] = [
+  { id: "todo",        label: "To Do",       color: "oklch(0.6 0.02 250)",  pill: "neutral", icon: ListTodo },
+  { id: "in_progress", label: "In Progress", color: "oklch(0.7 0.15 75)",   pill: "amber",   icon: Clock },
+  { id: "review",      label: "In Review",   color: "oklch(0.7 0.2 255)",   pill: "blue",    icon: Eye },
+  { id: "done",        label: "Done",        color: "oklch(0.7 0.2 145)",   pill: "green",   icon: CheckCircle2 },
+  { id: "blocked",     label: "Blocked",     color: "oklch(0.55 0.22 25)",  pill: "rose",    icon: AlertCircle },
 ];
 
-const PRIORITIES: { id: string; label: string; color: string }[] = [
-  { id: "low", label: "Low", color: "oklch(0.6 0.02 250)" },
-  { id: "normal", label: "Normal", color: "oklch(0.62 0.2 255)" },
-  { id: "high", label: "High", color: "oklch(0.7 0.2 75)" },
-  { id: "urgent", label: "Urgent", color: "oklch(0.55 0.22 25)" },
+const PRIORITIES: { id: string; label: string; color: string; pill: PillColor }[] = [
+  { id: "low",     label: "Low",     color: "oklch(0.6 0.02 250)", pill: "neutral" },
+  { id: "normal",  label: "Normal",  color: "oklch(0.62 0.2 255)", pill: "blue" },
+  { id: "high",    label: "High",    color: "oklch(0.7 0.2 75)",   pill: "amber" },
+  { id: "urgent",  label: "Urgent",  color: "oklch(0.55 0.22 25)", pill: "rose" },
 ];
 
 const TYPES: { id: string; label: string; icon: LucideIcon }[] = [
-  { id: "content", label: "Content", icon: Wand2 },
-  { id: "review", label: "Review", icon: Eye },
-  { id: "engagement", label: "Engagement", icon: MessageSquare },
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "campaign", label: "Campaign", icon: Megaphone },
+  { id: "content",    label: "Content",    icon: Wand2 },
+  { id: "review",     label: "Review",      icon: Eye },
+  { id: "engagement", label: "Engagement",  icon: MessageSquare },
+  { id: "analytics",  label: "Analytics",   icon: BarChart3 },
+  { id: "campaign",   label: "Campaign",    icon: Megaphone },
 ];
 
 const TYPE_ICON: Record<string, LucideIcon> = Object.fromEntries(TYPES.map((t) => [t.id, t.icon]));
+
+const STATUS_META  = (s: string)  => STATUSES.find((x) => x.id === s)   ?? STATUSES[0];
+const PRIORITY_META = (p: string) => PRIORITIES.find((x) => x.id === p) ?? PRIORITIES[1];
+
+/** True when the task is past its due date and not yet done. */
+function isOverdueTask(t: Task): boolean {
+  return !!t.dueAt && new Date(t.dueAt) < new Date() && t.status !== "done";
+}
 
 // ============ Main view ============
 export function TasksView() {
   const { user } = useAuth();
   const { openComposerWithPost } = useNav();
-  const [filter, setFilter] = React.useState<"all" | "mine" | "created">("all");
+
+  // Top-bar filter pills. `mine` is sent to the API; `overdue` and `high`
+  // are client-side filters over the already-loaded tasks. `all` = no filter.
+  const [filter, setFilter] = React.useState<"all" | "mine" | "overdue" | "high">("all");
+  const [search, setSearch] = React.useState("");
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<"kanban" | "list">("kanban");
 
-  // Build the API URL based on the filter
+  // Build the API URL — only `mine` maps to a server-side filter; the rest
+  // fetch all tasks and apply client-side filters.
   const apiUrl = React.useMemo(() => {
     const params = new URLSearchParams();
     if (filter === "mine") params.set("mine", "1");
-    if (filter === "created" && user) params.set("creatorId", user.id);
-    return `/api/tasks?${params.toString()}`;
-  }, [filter, user]);
+    const qs = params.toString();
+    return qs ? `/api/tasks?${qs}` : `/api/tasks`;
+  }, [filter]);
 
   const { data: tasks, loading, reload } = useApi<Task[]>(apiUrl);
   const { data: members } = useApi<TeamMember[]>("/api/team");
@@ -118,23 +136,47 @@ export function TasksView() {
   const allTasks = tasks ?? [];
   const teamMembers = members ?? [];
 
-  // Group tasks by status
+  // Apply client-side filters: search query + (overdue | high) pill filter.
+  const filteredTasks = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allTasks.filter((t) => {
+      // Search across title / content / description / assignee / tags
+      if (q) {
+        const hay = [
+          t.title, t.content ?? "", t.description ?? "",
+          t.assigneeName ?? "", t.creatorName, t.tags ?? "",
+        ].join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (filter === "overdue" && !isOverdueTask(t)) return false;
+      if (filter === "high" && t.priority !== "high" && t.priority !== "urgent") return false;
+      return true;
+    });
+  }, [allTasks, search, filter]);
+
+  // Group the (already filtered) tasks by status for the Kanban board.
   const byStatus = React.useMemo(() => {
     const groups: Record<TaskStatus, Task[]> = { todo: [], in_progress: [], review: [], done: [], blocked: [] };
-    for (const t of allTasks) {
+    for (const t of filteredTasks) {
       if (groups[t.status as TaskStatus]) groups[t.status as TaskStatus].push(t);
     }
     return groups;
-  }, [allTasks]);
+  }, [filteredTasks]);
 
-  // KPI stats
+  // KPI stats — always computed over the unfiltered server-returned tasks so
+  // the filter counts in the top bar remain stable.
   const stats = React.useMemo(() => {
     const total = allTasks.length;
     const done = allTasks.filter((t) => t.status === "done").length;
     const remaining = total - done;
     const myTasks = allTasks.filter((t) => t.assigneeId === user?.id).length;
     const myDone = allTasks.filter((t) => t.assigneeId === user?.id && t.status === "done").length;
-    return { total, done, remaining, myTasks, myDone, completionRate: total > 0 ? Math.round((done / total) * 100) : 0 };
+    const overdue = allTasks.filter(isOverdueTask).length;
+    const high = allTasks.filter((t) => t.priority === "high" || t.priority === "urgent").length;
+    return {
+      total, done, remaining, myTasks, myDone, overdue, high,
+      completionRate: total > 0 ? Math.round((done / total) * 100) : 0,
+    };
   }, [allTasks, user]);
 
   async function updateTaskStatus(id: string, status: TaskStatus) {
@@ -195,41 +237,24 @@ export function TasksView() {
         pick platforms, then send a task straight to the composer with one click.
       </HelpText>
 
-      {/* Header */}
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-primary/20 blur-3xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-primary">
-              <ListTodo className="h-3.5 w-3.5" /> Workflow · Task management
+      {/* Section header: title + desc, with view toggle, search, new-task action */}
+      <SectionHeader
+        title="Tasks"
+        desc={`${stats.total} total · ${stats.done} done · ${stats.remaining} remaining · ${stats.overdue} overdue`}
+        icon={ListTodo}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Compact search box */}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search tasks…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 w-44 pl-8 text-xs"
+              />
             </div>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Tasks</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{stats.total}</span> total ·{" "}
-              <span className="font-semibold text-emerald-500">{stats.done} done</span> ·{" "}
-              <span className="font-semibold text-amber-500">{stats.remaining} remaining</span>
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-xl bg-muted/40 p-1">
-              {([
-                { id: "all", label: "All" },
-                { id: "mine", label: "My tasks" },
-                { id: "created", label: "Created" },
-              ] as const).map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setFilter(f.id)}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-                    filter === f.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
+            {/* View toggle */}
             <div className="flex items-center gap-1 rounded-xl bg-muted/40 p-1">
               <button
                 onClick={() => setViewMode("kanban")}
@@ -238,7 +263,7 @@ export function TasksView() {
                   viewMode === "kanban" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <LayoutGrid className="h-3.5 w-3.5" /> Board
+                <LayoutGrid className="h-3.5 w-3.5" /> Kanban
               </button>
               <button
                 onClick={() => setViewMode("list")}
@@ -250,68 +275,83 @@ export function TasksView() {
                 <Rows3 className="h-3.5 w-3.5" /> List
               </button>
             </div>
+            {/* New task */}
             <button
               onClick={() => setCreateOpen(true)}
               className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
             >
               <Plus className="h-4 w-4" /> New task
             </button>
-            </div>
           </div>
-        </div>
-      </GlassCard>
+        }
+      />
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Total tasks" value={stats.total} icon={<ListTodo className="h-5 w-5" />} accent="oklch(0.62 0.2 255)" />
-        <KpiCard label="Completed" value={stats.done} icon={<CheckCircle2 className="h-5 w-5" />} accent="oklch(0.7 0.2 145)" hint={`${stats.completionRate}% done`} />
-        <KpiCard label="Remaining" value={stats.remaining} icon={<Clock className="h-5 w-5" />} accent="oklch(0.7 0.15 75)" hint="Across all statuses" />
-        <KpiCard label="Assigned to me" value={stats.myTasks} icon={<User className="h-5 w-5" />} accent="oklch(0.66 0.22 305)" hint={`${stats.myDone} done by me`} />
+      {/* Filter pills row */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {([
+          { id: "all",     label: "All",           count: stats.total },
+          { id: "mine",     label: "My tasks",     count: stats.myTasks },
+          { id: "overdue",  label: "Overdue",       count: stats.overdue, accent: "rose" as const },
+          { id: "high",     label: "High priority", count: stats.high,    accent: "amber" as const },
+        ] as const).map((f) => {
+          const active = filter === f.id;
+          return (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition",
+                active
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border/40 bg-background/40 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+              )}
+            >
+              {f.label}
+              <span
+                className={cn(
+                  "rounded-full px-1.5 text-[10px] font-bold tabular-nums",
+                  active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                  "accent" in f && f.accent === "rose" && !active && "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+                  "accent" in f && f.accent === "amber" && !active && "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                )}
+              >
+                {f.count}
+              </span>
+            </button>
+          );
+        })}
+        {search.trim() && (
+          <span className="ml-1 text-[11px] text-muted-foreground">
+            {filteredTasks.length} match{filteredTasks.length === 1 ? "" : "es"}
+          </span>
+        )}
       </div>
+
+      {/* Compact KPI strip */}
+      <MetricRow
+        metrics={[
+          { label: "Total tasks",   value: stats.total },
+          { label: "Completed",     value: stats.done,     delta: stats.completionRate },
+          { label: "Remaining",     value: stats.remaining },
+          { label: "Overdue",       value: stats.overdue },
+          { label: "High priority", value: stats.high },
+          { label: "Assigned to me",value: stats.myTasks },
+        ]}
+      />
 
       {/* Kanban board OR List view */}
       {viewMode === "kanban" ? (
-      <div className="grid gap-3 lg:grid-cols-5">
-        {STATUSES.map((col) => {
-          const colTasks = byStatus[col.id];
-          const Icon = col.icon;
-          return (
-            <div key={col.id} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <div className="grid h-6 w-6 place-items-center rounded-lg" style={{ background: `${col.bg}18`, color: col.color }}>
-                    <Icon className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-xs font-bold uppercase tracking-wide" style={{ color: col.color }}>{col.label}</span>
-                </div>
-                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">{colTasks.length}</span>
-              </div>
-              <div className="scroll-liquid flex max-h-[calc(100vh-340px)] flex-col gap-2 overflow-y-auto pr-1">
-                {colTasks.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border/30 p-4 text-center text-[10px] text-muted-foreground/60">
-                    No tasks
-                  </div>
-                ) : (
-                  colTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onMove={(s) => updateTaskStatus(task.id, s)}
-                      onEdit={() => setEditingTask(task)}
-                      onDelete={() => deleteTask(task.id)}
-                      onSendComposer={() => sendToComposer(task)}
-                      canEdit={user?.id === task.creatorId || user?.id === task.assigneeId}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        <KanbanBoard
+          byStatus={byStatus}
+          onMove={(id, s) => updateTaskStatus(id, s)}
+          onEdit={(t) => setEditingTask(t)}
+          onDelete={(id) => deleteTask(id)}
+          onSendComposer={(t) => sendToComposer(t)}
+          canEdit={(t) => user?.id === t.creatorId || user?.id === t.assigneeId}
+        />
       ) : (
         <TaskListView
-          tasks={allTasks}
+          tasks={filteredTasks}
           onEdit={(t) => setEditingTask(t)}
           onDelete={(id) => deleteTask(id)}
           onMove={(id, s) => updateTaskStatus(id, s)}
@@ -342,8 +382,74 @@ export function TasksView() {
   );
 }
 
-// ============ Task card ============
-function TaskCard({
+// ============ Kanban board — 5 status columns ============
+function KanbanBoard({
+  byStatus, onMove, onEdit, onDelete, onSendComposer, canEdit,
+}: {
+  byStatus: Record<TaskStatus, Task[]>;
+  onMove: (id: string, status: TaskStatus) => void;
+  onEdit: (t: Task) => void;
+  onDelete: (id: string) => void;
+  onSendComposer: (t: Task) => void;
+  canEdit: (t: Task) => boolean;
+}) {
+  return (
+    <div className="grid gap-3 lg:grid-cols-5">
+      {STATUSES.map((col) => {
+        const colTasks = byStatus[col.id] ?? [];
+        const Icon = col.icon;
+        return (
+          <div key={col.id} className="flex flex-col gap-2">
+            {/* Column header */}
+            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className="grid h-6 w-6 place-items-center rounded-lg"
+                  style={{ background: `${col.color}18`, color: col.color }}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </div>
+                <span
+                  className="text-xs font-bold uppercase tracking-wide"
+                  style={{ color: col.color }}
+                >
+                  {col.label}
+                </span>
+              </div>
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+                {colTasks.length}
+              </span>
+            </div>
+
+            {/* Scrollable card list */}
+            <div className="scroll-liquid flex max-h-[calc(100vh-360px)] flex-col gap-2 overflow-y-auto pr-1">
+              {colTasks.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border/30 p-4 text-center text-[10px] text-muted-foreground/60">
+                  No tasks
+                </div>
+              ) : (
+                colTasks.map((task) => (
+                  <KanbanCard
+                    key={task.id}
+                    task={task}
+                    onMove={(s) => onMove(task.id, s)}
+                    onEdit={() => onEdit(task)}
+                    onDelete={() => onDelete(task.id)}
+                    onSendComposer={() => onSendComposer(task)}
+                    canEdit={canEdit(task)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============ Kanban card — compact, shows every key detail ============
+function KanbanCard({
   task, onMove, onEdit, onDelete, onSendComposer, canEdit,
 }: {
   task: Task;
@@ -353,9 +459,10 @@ function TaskCard({
   onSendComposer: () => void;
   canEdit: boolean;
 }) {
-  const priority = PRIORITIES.find((p) => p.id === task.priority) ?? PRIORITIES[1];
+  const priority = PRIORITY_META(task.priority);
+  const status   = STATUS_META(task.status);
   const TypeIcon = TYPE_ICON[task.type] ?? Wand2;
-  const isOverdue = task.dueAt && new Date(task.dueAt) < new Date() && task.status !== "done";
+  const overdue = isOverdueTask(task);
 
   return (
     <div
@@ -368,15 +475,18 @@ function TaskCard({
       <div className="absolute left-0 top-0 h-full w-1" style={{ background: priority.color }} />
 
       <div className="pl-1.5">
-        {/* Header: type + priority */}
-        <div className="mb-1.5 flex items-center gap-1.5">
+        {/* Header row: type icon + priority pill + status badge + overdue flag */}
+        <div className="mb-1.5 flex flex-wrap items-center gap-1">
           <div className="grid h-5 w-5 place-items-center rounded bg-muted text-muted-foreground">
             <TypeIcon className="h-3 w-3" />
           </div>
-          <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: priority.color }}>
-            {priority.label}
-          </span>
-          {isOverdue && <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-rose-500"><AlertCircle className="h-2.5 w-2.5" /> Overdue</span>}
+          <Pill color={priority.pill}>{priority.label}</Pill>
+          <Pill color={status.pill}>{status.label}</Pill>
+          {overdue && (
+            <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-rose-500">
+              <AlertCircle className="h-2.5 w-2.5" /> Overdue
+            </span>
+          )}
         </div>
 
         {/* Title */}
@@ -402,7 +512,9 @@ function TaskCard({
         {/* Platforms */}
         {task.platforms.length > 0 && (
           <div className="mt-1.5 flex items-center gap-1">
-            {task.platforms.slice(0, 5).map((pl, i) => <PlatformBadge key={i} platform={pl as PlatformId} size={12} />)}
+            {task.platforms.slice(0, 5).map((pl, i) => (
+              <PlatformBadge key={i} platform={pl as PlatformId} size={12} />
+            ))}
           </div>
         )}
 
@@ -410,7 +522,9 @@ function TaskCard({
         {task.tags && (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {task.tags.split(",").slice(0, 3).map((tag, i) => (
-              <span key={i} className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">#{tag.trim()}</span>
+              <span key={i} className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">
+                #{tag.trim()}
+              </span>
             ))}
           </div>
         )}
@@ -418,13 +532,26 @@ function TaskCard({
         {/* Assignee + due date */}
         <div className="mt-2 flex items-center gap-1.5">
           {task.assigneeName ? (
-            <NameAvatar name={task.assigneeName} color={(task.assigneeColor as any) ?? "blue"} className="h-5 w-5 text-[9px]" />
+            <NameAvatar
+              name={task.assigneeName}
+              color={(task.assigneeColor as any) ?? "blue"}
+              className="h-5 w-5 text-[9px]"
+            />
           ) : (
-            <div className="grid h-5 w-5 place-items-center rounded-full bg-muted text-muted-foreground"><User className="h-2.5 w-2.5" /></div>
+            <div className="grid h-5 w-5 place-items-center rounded-full bg-muted text-muted-foreground">
+              <User className="h-2.5 w-2.5" />
+            </div>
           )}
-          <span className="truncate text-[10px] text-muted-foreground">{task.assigneeName ?? "Unassigned"}</span>
+          <span className="truncate text-[10px] text-muted-foreground">
+            {task.assigneeName ?? "Unassigned"}
+          </span>
           {task.dueAt && (
-            <span className={cn("ml-auto flex items-center gap-0.5 text-[9px]", isOverdue ? "font-bold text-rose-500" : "text-muted-foreground")}>
+            <span
+              className={cn(
+                "ml-auto flex items-center gap-0.5 text-[9px]",
+                overdue ? "font-bold text-rose-500" : "text-muted-foreground"
+              )}
+            >
               <Calendar className="h-2.5 w-2.5" />
               {new Date(task.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
             </span>
@@ -433,7 +560,6 @@ function TaskCard({
 
         {/* Actions */}
         <div className="mt-2 flex items-center gap-1">
-          {/* Move dropdown */}
           {canEdit && (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-0.5 rounded-md border border-border/40 px-1.5 py-1 text-[9px] font-semibold text-muted-foreground transition hover:bg-muted/40">
@@ -489,7 +615,32 @@ function TaskCard({
   );
 }
 
-// ============ Task list view (table with full details) ============
+// ============ Sortable column header for the list view ============
+function SortHeader({
+  sortKey, sortDir, onToggle, k, label, className,
+}: {
+  sortKey: string;
+  sortDir: "asc" | "desc";
+  onToggle: (k: string) => void;
+  k?: string;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground", className)}>
+      {k ? (
+        <button onClick={() => onToggle(k)} className="flex items-center gap-1 hover:text-foreground">
+          {label}
+          <ArrowUpDown className={cn("h-2.5 w-2.5", sortKey === k ? "opacity-100 text-primary" : "opacity-30")} />
+        </button>
+      ) : (
+        <span>{label}</span>
+      )}
+    </div>
+  );
+}
+
+// ============ Task list view — dense ListRow items with sortable header ============
 function TaskListView({
   tasks, onEdit, onDelete, onMove, onSendComposer, canEdit,
 }: {
@@ -520,104 +671,152 @@ function TaskListView({
     else { setSortKey(k); setSortDir("desc"); }
   }
 
-  const statusMeta = (s: string) => STATUSES.find((st) => st.id === s) ?? STATUSES[0];
-  const priorityMeta = (p: string) => PRIORITIES.find((pr) => pr.id === p) ?? PRIORITIES[1];
-
   return (
-    <div className="crystal-in overflow-x-auto rounded-2xl border border-border/30">
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="border-b border-border/40 bg-muted/20">
-            <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">
-              <button onClick={() => toggle("title")} className="flex items-center gap-1 hover:text-foreground">Task <ArrowUpDown className="h-2.5 w-2.5 opacity-30" /></button>
-            </th>
-            <th className="px-2 py-2.5 text-left font-semibold">
-              <button onClick={() => toggle("status")} className="flex items-center gap-1 hover:text-foreground">Status <ArrowUpDown className="h-2.5 w-2.5 opacity-30" /></button>
-            </th>
-            <th className="px-2 py-2.5 text-left font-semibold">
-              <button onClick={() => toggle("priority")} className="flex items-center gap-1 hover:text-foreground">Priority <ArrowUpDown className="h-2.5 w-2.5 opacity-30" /></button>
-            </th>
-            <th className="px-2 py-2.5 text-left font-semibold text-muted-foreground">Assignee</th>
-            <th className="px-2 py-2.5 text-left font-semibold text-muted-foreground">
-              <button onClick={() => toggle("dueAt")} className="flex items-center gap-1 hover:text-foreground">Due <ArrowUpDown className="h-2.5 w-2.5 opacity-30" /></button>
-            </th>
-            <th className="px-2 py-2.5 text-left font-semibold text-muted-foreground">Platforms</th>
-            <th className="px-2 py-2.5 text-right font-semibold text-muted-foreground">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.length === 0 ? (
-            <tr><td colSpan={7} className="py-8 text-center text-muted-foreground">No tasks yet</td></tr>
-          ) : sorted.map((task) => {
-            const sm = statusMeta(task.status);
-            const pm = priorityMeta(task.priority);
-            const isOverdue = task.dueAt && new Date(task.dueAt) < new Date() && task.status !== "done";
-            return (
-              <tr key={task.id} className="border-b border-border/20 transition hover:bg-muted/20">
-                {/* Title + content preview */}
-                <td className="px-3 py-2">
-                  <div className={cn("font-medium", task.status === "done" && "line-through opacity-60")}>{task.title}</div>
-                  {task.content && <div className="mt-0.5 truncate text-[10px] text-muted-foreground max-w-[200px]">{task.content}</div>}
-                  {task.mediaUrl && <div className="mt-0.5 flex items-center gap-0.5 text-[9px] text-primary"><ImageIcon className="h-2.5 w-2.5" /> has media</div>}
-                </td>
-                {/* Status */}
-                <td className="px-2 py-2">
-                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: `${sm.color}15`, color: sm.color }}>{sm.label}</span>
-                </td>
-                {/* Priority */}
-                <td className="px-2 py-2">
-                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold" style={{ background: `${pm.color}15`, color: pm.color }}>{pm.label}</span>
-                </td>
-                {/* Assignee */}
-                <td className="px-2 py-2">
-                  {task.assigneeName ? (
-                    <div className="flex items-center gap-1.5">
-                      <NameAvatar name={task.assigneeName} color={(task.assigneeColor as any) ?? "blue"} className="h-5 w-5 text-[9px]" />
-                      <span className="text-[10px]">{task.assigneeName}</span>
-                    </div>
-                  ) : <span className="text-muted-foreground/50">—</span>}
-                </td>
-                {/* Due date */}
-                <td className="px-2 py-2">
-                  {task.dueAt ? (
-                    <span className={cn("text-[10px]", isOverdue ? "font-bold text-rose-500" : "text-muted-foreground")}>
-                      <Calendar className="mr-0.5 inline h-2.5 w-2.5" />
-                      {new Date(task.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                    </span>
-                  ) : <span className="text-muted-foreground/50">—</span>}
-                </td>
-                {/* Platforms */}
-                <td className="px-2 py-2">
-                  <div className="flex items-center gap-1">
-                    {task.platforms.slice(0, 3).map((pl, i) => <PlatformBadge key={i} platform={pl as PlatformId} size={12} />)}
-                    {task.platforms.length > 3 && <span className="text-[9px] text-muted-foreground">+{task.platforms.length - 3}</span>}
-                    {task.platforms.length === 0 && <span className="text-muted-foreground/50">—</span>}
+    <GlassCard className="crystal-in overflow-hidden p-0">
+      {/* Sticky header */}
+      <div className="grid grid-cols-[1fr_90px_90px_140px_80px_120px_120px] items-center gap-2 border-b border-border/40 bg-muted/20 px-3 py-2">
+        <SortHeader sortKey={sortKey} sortDir={sortDir} onToggle={toggle} k="title"    label="Task" />
+        <SortHeader sortKey={sortKey} sortDir={sortDir} onToggle={toggle} k="status"   label="Status" />
+        <SortHeader sortKey={sortKey} sortDir={sortDir} onToggle={toggle} k="priority" label="Priority" />
+        <SortHeader sortKey={sortKey} sortDir={sortDir} onToggle={toggle}              label="Assignee" />
+        <SortHeader sortKey={sortKey} sortDir={sortDir} onToggle={toggle} k="dueAt"    label="Due" />
+        <SortHeader sortKey={sortKey} sortDir={sortDir} onToggle={toggle}              label="Platforms" />
+        <SortHeader sortKey={sortKey} sortDir={sortDir} onToggle={toggle}              label="Actions" className="justify-end" />
+      </div>
+
+      {/* Body */}
+      {sorted.length === 0 ? (
+        <div className="py-10 text-center text-xs text-muted-foreground">No tasks match the current filters.</div>
+      ) : (
+        sorted.map((task) => {
+          const sm = STATUS_META(task.status);
+          const pm = PRIORITY_META(task.priority);
+          const overdue = isOverdueTask(task);
+          return (
+            <ListRow key={task.id} className="grid grid-cols-[1fr_90px_90px_140px_80px_120px_120px] items-center gap-2 py-2.5">
+              {/* Title + content preview */}
+              <div className="min-w-0">
+                <div className={cn("truncate text-xs font-bold", task.status === "done" && "line-through opacity-60")}>
+                  {task.title}
+                </div>
+                {task.content && (
+                  <div className="mt-0.5 truncate text-[10px] text-muted-foreground">{task.content}</div>
+                )}
+                {task.mediaUrl && (
+                  <div className="mt-0.5 flex items-center gap-0.5 text-[9px] text-primary">
+                    <ImageIcon className="h-2.5 w-2.5" /> has media
                   </div>
-                </td>
-                {/* Actions */}
-                <td className="px-2 py-2">
-                  <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => onSendComposer(task)} title="Send to composer" className="rounded-md bg-primary/10 px-1.5 py-1 text-[9px] font-bold text-primary transition hover:bg-primary/20">
-                      <Wand2 className="h-3 w-3" />
-                    </button>
-                    {canEdit(task) && (
-                      <>
-                        <button onClick={() => onEdit(task)} title="Edit" className="grid h-6 w-6 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:bg-muted/40">
-                          <Eye className="h-3 w-3" />
-                        </button>
-                        <button onClick={() => onDelete(task.id)} title="Delete" className="grid h-6 w-6 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500">
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </>
+                )}
+              </div>
+
+              {/* Status pill */}
+              <Pill color={sm.pill}>{sm.label}</Pill>
+
+              {/* Priority pill */}
+              <Pill color={pm.pill}>{pm.label}</Pill>
+
+              {/* Assignee */}
+              <div className="flex min-w-0 items-center gap-1.5">
+                {task.assigneeName ? (
+                  <>
+                    <NameAvatar
+                      name={task.assigneeName}
+                      color={(task.assigneeColor as any) ?? "blue"}
+                      className="h-5 w-5 text-[9px]"
+                    />
+                    <span className="truncate text-[10px]">{task.assigneeName}</span>
+                  </>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground/50">Unassigned</span>
+                )}
+              </div>
+
+              {/* Due date */}
+              <div>
+                {task.dueAt ? (
+                  <span
+                    className={cn(
+                      "flex items-center gap-0.5 text-[10px]",
+                      overdue ? "font-bold text-rose-500" : "text-muted-foreground"
                     )}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  >
+                    <Calendar className="h-2.5 w-2.5" />
+                    {new Date(task.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground/50">—</span>
+                )}
+              </div>
+
+              {/* Platforms */}
+              <div className="flex items-center gap-1">
+                {task.platforms.slice(0, 3).map((pl, i) => (
+                  <PlatformBadge key={i} platform={pl as PlatformId} size={12} />
+                ))}
+                {task.platforms.length > 3 && (
+                  <span className="text-[9px] text-muted-foreground">+{task.platforms.length - 3}</span>
+                )}
+                {task.platforms.length === 0 && (
+                  <span className="text-[10px] text-muted-foreground/50">—</span>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-1">
+                <button
+                  onClick={() => onSendComposer(task)}
+                  title="Send to composer"
+                  className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary transition hover:bg-primary/20"
+                >
+                  <Wand2 className="h-3 w-3" />
+                </button>
+                {canEdit(task) && (
+                  <>
+                    {/* Quick move dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        title="Move"
+                        className="grid h-6 w-6 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:bg-muted/40"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        {STATUSES.map((s) => (
+                          <DropdownMenuItem
+                            key={s.id}
+                            onClick={() => onMove(task.id, s.id)}
+                            disabled={s.id === task.status}
+                            className="text-xs"
+                          >
+                            <s.icon className="h-3 w-3" style={{ color: s.color }} />
+                            {s.label}
+                            {s.id === task.status && <Check className="ml-auto h-3 w-3" />}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <button
+                      onClick={() => onEdit(task)}
+                      title="Edit"
+                      className="grid h-6 w-6 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:bg-muted/40"
+                    >
+                      <Eye className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(task.id)}
+                      title="Delete"
+                      className="grid h-6 w-6 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </ListRow>
+          );
+        })
+      )}
+    </GlassCard>
   );
 }
 
