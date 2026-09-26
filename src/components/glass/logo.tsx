@@ -4,10 +4,20 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * SYNQUE logo — an interactive "flow wave" mark.
- * Three layered wave bars that animate continuously, representing
- * the flow of content across multiple platforms. Each bar has a
- * different gradient and staggered animation phase.
+ * SYNQUE logo — a "convergence flow" mark.
+ *
+ * Three streams (representing multiple social platforms) converge from
+ * the left into a single prism-arrowhead on the right — the unified
+ * queue node, with its extended right tip suggesting forward flow /
+ * publishing. The asymmetric diamond doubles as a rightward arrowhead.
+ *
+ * Concept: SYNC (multiple streams → one node) + QUEUE (sequential flow
+ * core + direction) + MULTI-PLATFORM (three colored inputs).
+ *
+ * Designed to render crisply from 16px (favicon) to 512px (PWA splash),
+ * on both light (#F5F5F7) and dark (#1D1D1F) backgrounds. Uses CSS
+ * custom properties (`--primary`, `--gold`) so the mark adapts to the
+ * active theme automatically.
  */
 export function Logo({
   size = 36,
@@ -20,72 +30,85 @@ export function Logo({
   className?: string;
   tileClassName?: string;
 }) {
-  const barW = size * 0.62;
-  const barH = size * 0.13;
-  const gap = size * 0.08;
-  const totalH = barH * 3 + gap * 2;
-
   const mark = (
     <svg
       width={size}
       height={size}
-      viewBox={`0 0 ${size} ${size}`}
+      viewBox="0 0 64 64"
       className={cn("sf-logo", className)}
       fill="none"
       aria-hidden
     >
       <defs>
-        <linearGradient id="sf-bar-1" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--primary)" />
+        {/* Stream gradients — fade in left → right, suggesting flow toward the prism. */}
+        <linearGradient id="sf-stream-a" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.3} />
+          <stop offset="100%" stopColor="var(--primary)" />
+        </linearGradient>
+        <linearGradient id="sf-stream-b" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--gold)" stopOpacity={0.3} />
           <stop offset="100%" stopColor="var(--gold)" />
         </linearGradient>
-        <linearGradient id="sf-bar-2" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--gold)" />
+        <linearGradient id="sf-stream-c" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.3} />
+          <stop offset="60%" stopColor="var(--gold)" stopOpacity={0.85} />
+          <stop offset="100%" stopColor="var(--gold)" />
+        </linearGradient>
+        {/* Prism gradient — vibrant diagonal blend of both brand colors. */}
+        <linearGradient id="sf-prism" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--primary)" />
+          <stop offset="55%" stopColor="var(--gold)" />
           <stop offset="100%" stopColor="var(--primary)" />
         </linearGradient>
-        <linearGradient id="sf-bar-3" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--primary)" />
-          <stop offset="50%" stopColor="var(--gold)" />
-          <stop offset="100%" stopColor="var(--primary)" />
+        {/* Glass highlight on the prism's upper facet — "liquid glass" feel. */}
+        <linearGradient id="sf-prism-shine" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity={0.55} />
+          <stop offset="60%" stopColor="#ffffff" stopOpacity={0} />
         </linearGradient>
         <filter id="sf-glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="0.8" result="b" />
+          <feGaussianBlur stdDeviation={0.6} result="b" />
           <feMerge>
             <feMergeNode in="b" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
       </defs>
-      <g filter="url(#sf-glow)" transform={`translate(${(size - barW) / 2}, ${(size - totalH) / 2})`}>
-        {/* Bar 1 — top wave, widest */}
-        <rect
+
+      <g filter="url(#sf-glow)">
+        {/* Three converging streams — top, middle, bottom (multi-platform inputs). */}
+        <path
           className="sf-bar sf-bar-1"
-          x="0"
-          y="0"
-          width={barW}
-          height={barH}
-          rx={barH / 2}
-          fill="url(#sf-bar-1)"
+          d="M 7 13 C 22 13 26 23 32 30"
+          stroke="url(#sf-stream-a)"
+          strokeWidth={4.2}
+          strokeLinecap="round"
         />
-        {/* Bar 2 — middle wave, medium */}
-        <rect
+        <path
           className="sf-bar sf-bar-2"
-          x={barW * 0.08}
-          y={barH + gap}
-          width={barW * 0.84}
-          height={barH}
-          rx={barH / 2}
-          fill="url(#sf-bar-2)"
+          d="M 7 32 L 32 32"
+          stroke="url(#sf-stream-b)"
+          strokeWidth={4.2}
+          strokeLinecap="round"
         />
-        {/* Bar 3 — bottom wave, shortest, flows right */}
-        <rect
+        <path
           className="sf-bar sf-bar-3"
-          x={barW * 0.16}
-          y={(barH + gap) * 2}
-          width={barW * 0.68}
-          height={barH}
-          rx={barH / 2}
-          fill="url(#sf-bar-3)"
+          d="M 7 51 C 22 51 26 41 32 34"
+          stroke="url(#sf-stream-c)"
+          strokeWidth={4.2}
+          strokeLinecap="round"
+        />
+
+        {/* Prism / arrowhead — the unified queue node + forward tip. */}
+        <path
+          className="sf-prism"
+          d="M 32 32 L 38 22 L 56 32 L 38 42 Z"
+          fill="url(#sf-prism)"
+        />
+        {/* Glass highlight on the upper facet of the prism. */}
+        <path
+          className="sf-prism-shine"
+          d="M 32 32 L 38 22 L 56 32 Z"
+          fill="url(#sf-prism-shine)"
         />
       </g>
     </svg>

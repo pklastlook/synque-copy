@@ -33,7 +33,7 @@ async function main() {
   const admin = await db.user.create({
     data: {
       name: "Admin",
-      email: "admin@synque.app",
+      email: "admin@synque.cloud",
       password: hashedPassword,
       role: "admin",
       title: "Administrator",

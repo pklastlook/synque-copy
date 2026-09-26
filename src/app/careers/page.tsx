@@ -113,7 +113,7 @@ export default function CareersPage() {
       <section className="mx-auto max-w-4xl px-4 py-16 text-center">
         <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
           <h2 className="text-3xl font-bold tracking-tight">Don't see your <span className="gold-text">role?</span></h2>
-          <p className="mt-3 text-muted-foreground">Email careers@synque.app — we hire from the inbound pile all the time.</p>
+          <p className="mt-3 text-muted-foreground">Email careers@synque.cloud — we hire from the inbound pile all the time.</p>
           <div className="mt-6 mx-auto w-fit">
             <TrialCTA className="liquid-gold glow-ring" label="Try SYNQUE" />
           </div>

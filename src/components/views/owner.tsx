@@ -1512,7 +1512,7 @@ function InvoicePrintLayout({
             <br />
             San Francisco, CA 94105
             <br />
-            billing@synque.app
+            billing@synque.cloud
           </div>
         </div>
         <div className="text-right">

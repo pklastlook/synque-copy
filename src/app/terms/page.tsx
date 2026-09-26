@@ -248,7 +248,7 @@ const SECTIONS = [
       <>
         <p>Questions about these Terms? We&apos;re happy to help:</p>
         <ul>
-          <li><strong>Email:</strong> <a className="text-primary hover:underline" href="mailto:legal@synque.app">legal@synque.app</a></li>
+          <li><strong>Email:</strong> <a className="text-primary hover:underline" href="mailto:legal@synque.cloud">legal@synque.cloud</a></li>
           <li><strong>Mail:</strong> SYNQUE, Attn: Legal, 548 Market St, San Francisco, CA 94104</li>
         </ul>
       </>

@@ -13,7 +13,7 @@ const SECTIONS = [
       <>
         <p>
           SYNQUE (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) operates the social media team work
-          management platform at synque.app (the &ldquo;Service&rdquo;). This Privacy Policy explains what
+          management platform at synque.cloud (the &ldquo;Service&rdquo;). This Privacy Policy explains what
           information we collect, how we use it, and the choices you have.
         </p>
         <p>
@@ -112,7 +112,7 @@ const SECTIONS = [
           <li><strong>Withdraw consent</strong> for non-essential processing at any time.</li>
         </ul>
         <p>
-          To exercise any of these rights, email <a className="text-primary hover:underline" href="mailto:privacy@synque.app">privacy@synque.app</a>.
+          To exercise any of these rights, email <a className="text-primary hover:underline" href="mailto:privacy@synque.cloud">privacy@synque.cloud</a>.
           We respond to verified requests within 30 days.
         </p>
       </>
@@ -204,7 +204,7 @@ const SECTIONS = [
           Questions about this Privacy Policy or your data? Reach our Data Protection Officer:
         </p>
         <ul>
-          <li><strong>Email:</strong> <a className="text-primary hover:underline" href="mailto:privacy@synque.app">privacy@synque.app</a></li>
+          <li><strong>Email:</strong> <a className="text-primary hover:underline" href="mailto:privacy@synque.cloud">privacy@synque.cloud</a></li>
           <li><strong>Mail:</strong> SYNQUE, Attn: Privacy, 548 Market St, San Francisco, CA 94104</li>
         </ul>
       </>

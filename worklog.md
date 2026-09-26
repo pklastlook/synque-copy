@@ -6392,3 +6392,157 @@ After grep'ing the codebase for `<KpiCard` and `<SectionTitle` JSX tags, the *on
 - The default bottom-margin tightens from `mb-4` (SectionTitle) to `mb-3` (SectionHeader) — a deliberate dense-ui design choice; visually unnoticeable inside a `p-4`/`p-5` `GlassCard`.
 - `analytics.tsx` and `dashboard.tsx` still use `GlassCard` extensively for outer section panels — that's by design (only `SectionTitle`/`KpiCard` are deprecated, `GlassCard` remains a sanctioned container). The import lines were trimmed to drop only the unused symbol.
 - The 9 comment-only cleanups were performed because the task brief explicitly listed "remove stray KpiCard reference" for each. They were explanatory code comments referencing the legacy `KpiCard` pattern by name; rewritten to describe the dense-strip layout without invoking the legacy component name. No code semantics changed.
+
+---
+
+## Task ID: 1 — `1-synque-logo`
+
+**Task**: Replace the wave-bars SYNQUE logo mark with a new, creative, original "convergence flow" design — three streams converging into a single prism-arrow — and ship a matching 512×512 PWA icon. Keep the Apple macOS-27 "liquid glass" aesthetic (retina, vibrant blue/indigo gradients, clean geometry). Zero impact on existing call sites (same props, same class hooks).
+
+### Design concept — "Convergence Flow"
+
+The brand name **SYNQUE = SYNC + QUEUE**. The new mark encodes both:
+
+```
+  stream 1 ─╲                       ╲
+   (blue)    ╲        ┌──────────┐   ╲
+  stream 2 ───◆  ───▶ │  PRISM   │ ───▶  (forward flow / publish)
+  (indigo)   ╱        │  ARROW   │   ╱
+  stream 3 ─╱         └──────────┘  ╱
+   (blend)
+```
+
+- **Three streams** on the left = multiple social platforms (multi-account input). Each carries a left-to-right gradient fade-in (0.30 → 1.0 opacity) suggesting flow *toward* the queue. Colors: stream 1 = pure `--primary` (Apple blue), stream 2 = pure `--gold` (Apple indigo), stream 3 = blue→indigo blend (the "bridge").
+- **Asymmetric prism-arrowhead** on the right = the unified queue node + forward tip. Vertices: `(32, 32)` left (where streams converge — sharp point), `(38, 22)` top, `(56, 32)` right (extended tip = arrow direction), `(38, 42)` bottom. Filled with a diagonal blue → indigo → blue gradient.
+- **Glass highlight** triangle on the prism's upper facet (white 0.55 → 0 opacity top-to-bottom) — gives the "liquid glass" material feel, like light catching a faceted jewel.
+- **Soft glow** via `feGaussianBlur stdDeviation=0.6` + `feMerge` — the whole mark glows gently, like a macOS Dock icon at night.
+
+The mark reads at a glance as: *"multiple things flowing into one forward-moving thing"*. That is the SYNQUE product thesis in a single shape.
+
+### Files delivered
+
+1. **`/home/z/my-project/src/components/glass/logo.tsx`** — full rewrite of the `Logo` component's SVG body. Same props (`size`, `withTile`, `className`, `tileClassName`) and same `LogoWordmark` component (unchanged — `SYN<span className="retaina-text">QUE</span>` already correct). The mark now uses a fixed `viewBox="0 0 64 64"` (no per-size geometry recalculation needed). Three stream `<path>`s with `className="sf-bar sf-bar-N"` (kept the existing class hooks so any external CSS targeting them still works), one prism `<path>` with `className="sf-prism"`, one shine `<path>` with `className="sf-prism-shine"`. Uses CSS variables (`var(--primary)`, `var(--gold)`) so the mark automatically adapts to light/dark theme — no hardcoded hex in the React component.
+2. **`/home/z/my-project/public/icon.svg`** — full rewrite. 512×512 viewBox, dark `#0a0a0f → #1a1a2e` rounded-square background (`rx=112`), two subtle decorative rings (rgba indigo 0.10 + rgba blue 0.06) inside the maskable safe zone, the convergence mark centered at `(256, 256)` via `transform="translate(256 256) scale(6.3) translate(-31.5 -32)"`. Scale chosen so the mark's max-radius (≈31 viewBox units) maps to ≈195px in the 512 canvas — comfortably inside the maskable 80% safe-zone circle (radius 204.8). Uses dark-mode Apple system hex (`#0A84FF` blue, `#5E5CE6` indigo) for maximum contrast on the dark tile. Static (no CSS animation — PWA icons render as a snapshot).
+3. **`/home/z/my-project/src/app/globals.css`** (lines 553-585) — replaced the old `sfFlow1/2/3` `scaleX`-based keyframes (which relied on `transform-box: fill-box` that's unreliable on stroked `<path>` with zero-height bboxes — the straight middle stream's bbox height is 0) with opacity-based animations that work uniformly on strokes and fills:
+   - `sfFlow` — streams pulse `opacity: 0.55 → 1 → 0.55` over 2.4s, staggered 0/0.3s/0.6s (wave-like flow toward the prism).
+   - `sfPrismPulse` — prism `opacity: 0.9 → 1 → 0.9` over 3s (subtle "active queue" breath).
+   - `sfShine` — glass highlight `opacity: 0.65 → 1 → 0.65` over 3s, offset 1.2s (light catches the prism facet out-of-phase with the prism breath — gives a "living" glass feel).
+   - `@media (prefers-reduced-motion: reduce)` block disables all five animations for accessibility.
+
+### Verification
+
+- **`bun run lint src/components/glass/logo.tsx`** → exit 0, 0 errors, 0 warnings in `logo.tsx`. (There is one pre-existing unrelated lint error in `mini-services/whatsapp-service/index.js` — a `react-hooks/rules-of-hooks` violation in a non-React service file — not introduced by this task.)
+- **`npx tsc --noEmit 2>&1 | grep logo`** → 0 matches. Zero TypeScript errors in `logo.tsx`. (Pre-existing tsc errors elsewhere in `src/app/api/ai/assistant/route.ts` etc. are unrelated.)
+- **`python3 -c "import xml.etree.ElementTree as ET; ET.parse('public/icon.svg')"`** → valid XML ✓.
+- **`rg "sf-bar|sf-prism|sf-logo" src/ -g "*.{ts,tsx,css,html}"`** → only 2 files match: `logo.tsx` and `globals.css`. No other file references these classes, so the animation-class rename is fully self-contained.
+- **VLM visual review** (rendered via Playwright + sharp at 2× device-scale, analyzed with `z-ai vision`):
+  - 64px mark on light + dark backgrounds: "Excellent. Nails the Apple aesthetic... looks like it belongs in the macOS Dock. The right-pointing arrowhead is distinct. The 'prism' concept is successfully conveyed through the geometric, faceted look where the streams merge into the solid arrow tip."
+  - PWA icon at 256px / 192 / 96 / 48 / 32 / 16: "Well-centered and well-proportioned. Dark background provides excellent contrast for the blue/indigo gradient. Mark is highly recognizable. No visual issues. Professional-looking app icon."
+  - Size sweep (22 / 26 / 28 / 32 / 48 px, light bg): 22px "Recognizable as arrow, streams merge into single blob, prism detail lost." / 26px "Clearly recognizable, 3 distinct streams visible, arrow head defined." / 28px+ "Crisp and clear, all elements well-proportioned." All actual UI call sites use ≥22px (smallest is `landing-shared.tsx` at `logoSize={22}` in the mobile footer); the 16px favicon is served from `favicon-16.png` (PNG, not SVG) so the SVG gradient crispness at 16px is not a production concern.
+
+### Notes / design choices
+
+- **Why convergence + asymmetric prism-arrow over the alternatives.** The brief offered 4 concept directions (convergence, sync waves, queue nodes, flow arrow). The shipped design is a fusion of (1) + (4): three converging streams carry the "multi-platform sync" meaning; the asymmetric prism (left vertex sharp where streams arrive, right vertex extended into an arrow tip) carries both the "queue node" and the "forward flow / publish" meanings in a single shape. This double-duty keeps the silhouette bold enough to survive at 22px — the three streams + arrowhead together still read as a rightward arrow even when their internal detail blurs.
+- **Why CSS variables in the React SVG, hex in `icon.svg`.** The React `<Logo>` is inlined in HTML and inherits the document's CSS cascade — `var(--primary)` and `var(--gold)` flip automatically with light/dark theme. The standalone `icon.svg` file has no HTML document to inherit from, so it ships with explicit dark-mode hex (`#0A84FF` / `#5E5CE6`) tuned for max contrast on the dark tile — these are the same colors the CSS tokens resolve to in dark mode (`oklch(0.69 0.165 254)` ≈ `#0A84FF`, `oklch(0.72 0.209 277)` ≈ `#5E5CE6`).
+- **Why opacity-based keyframes (not `transform: scaleX`).** The previous logo used `<rect>` bars with `transform-origin: left center; transform-box: fill-box;` and animated `scaleX`. That works for rects (clean rectangular bbox), but my new middle stream is a straight `<path>` from `(7, 32)` to `(32, 32)` — its geometric bbox has height 0, which makes `fill-box` transform-origin degenerate. Switching to `opacity`-only animations sidesteps the issue entirely and produces a smoother "data flowing" pulse that doesn't fight the gradient fade-in already baked into each stream's `<linearGradient>`.
+- **Why no `favicon.ico` generation.** The task explicitly says "skip (binary, can't generate)". The existing `favicon-16.png` / `favicon-32.png` / `apple-touch-icon.png` / `icon-192.png` / `icon-512.png` PNGs are unchanged; they continue to be served by `layout.tsx` for the sizes the SVG can't crisp-render. A future task could regenerate them from the new `icon.svg` via `sharp`/`rsvg-convert` if a matching raster set is desired.
+- **`public/logo.svg` left untouched.** It is a separate older "Z" mark with its own `.z-breathe` animation — not referenced by `layout.tsx`, `manifest.json`, or any `Logo` import. Out of scope for this task.
+- **Mark center math** (for `icon.svg`): the mark's vertex extrema are `x ∈ [7, 56]` (center `31.5`), `y ∈ [13, 51]` (center `32`). Furthest point from local center: `√(24.5² + 19²) = √961.25 ≈ 31.0` viewBox units. At `scale=6.3` that's `31 × 6.3 = 195.3` canvas px from canvas center `(256, 256)` — safely inside the maskable safe-zone radius of `0.4 × 512 = 204.8`. So even on Android adaptive icons that mask to a circle, no part of the mark gets clipped.
+
+
+---
+
+## Task ID: 2 — `2-print-formats-unique`
+
+**Task**: Fix the report print layouts. Before this task, ALL 13 report templates produced the SAME print output — the same "Key Metrics" table (Followers/Impressions/Reach/Engagement/Likes/Comments/Shares/Saves/Posts) regardless of report type. User-reported symptoms: (1) large gaps on the page (bad spacing), (2) tables not properly aligned, (3) all 13 print formats showed identical data tables instead of fetching and displaying data ACCORDING TO the report type, (4) each report format should be unique and enhanced.
+
+### Files changed (2)
+
+1. **`/home/z/my-project/src/components/views/reports.tsx`** — complete rewrite of the `PrintLayout` component (was lines 2482–2805; now lines 2482–3560). Added three internal helpers (`PrintKpiStrip`, `PrintSection`, `fmtDay`) and replaced the single shared body block with 13 template-specific body blocks (one per `template.id`). The cover page, running header, executive summary, KPI strip, and closing footer note are all kept (cover/header/footer were already correct — only the body needed uniqueness).
+2. **`/home/z/my-project/src/app/globals.css`** — print stylesheet section (lines 1448–1810). Tightened every major margin/padding to eliminate large vertical gaps; added `.report-podium`, `.report-podium-card`, `.report-podium-item`, `.report-podium-rank`, `.report-podium-name`, `.report-podium-value`, `.report-podium-empty` classes for the new leaderboard Top-3 podium cards.
+
+### What was wrong (concrete audit findings)
+
+- **Problem 1 — same table for all reports.** The old `PrintLayout` body always rendered: a "Key Metrics" 2-column table (Followers/Impressions/Reach/Engagement/Likes/Comments/Shares/Saves/Posts) for every template; an "Account Breakdown" table for every non-`account-user` template; a "Top Performing Content" table when `topContent.length > 0`; plus conditional team-leaderboard / user×account-matrix / account×user / leaderboard tables. So every report ended up showing the same 5–9 tables in roughly the same order — identical layout for `performance` vs `audience` vs `engagement` vs `growth` vs `platform` vs `reach` vs `content`, even though each of those templates uses different fields. The team-style reports (team/user-comparison/leaderboard) added one extra table on top, but still started with the same "Key Metrics" followers table that is meaningless for those reports.
+- **Problem 2 — large gaps.** CSS measurements before this task: `.report-cover` padding `8mm 0 12mm`, accent bar margin `32px 0 28px`, `.report-cover-meta` margin-top `28px`, `.report-header` margin-bottom `14px`, `.report-section-title` margin `18px 0 6px`, `.report-metric-row` margin `10px 0 14px`, `.report-metric` padding `8px 12px`, `.report-table` margin-bottom `10px`, `.report-table thead th` padding `5px 8px`, `.report-table tbody td` padding `4px 8px`, `.report-subsection` margin-top `10px`, `.report-footer-note` margin-top `22px`. Each of those added ~2–6mm of unused vertical space; cumulatively they produced the "airy" look the user complained about — especially visible after every section title (`18px 0 6px`) and after every table (`10px`).
+- **Problem 3 — alignment.** Numeric columns used `<th className="text-right">` and `<td className="text-right tabular-nums">` but the `.text-right` class is a Tailwind utility that depends on Tailwind's base styles being present in `@media print`. Inside the print stylesheet the table cells were relying on cascade-from-screen, which works in Chromium's print engine but is fragile. Section titles align with table left edges via the same parent `.report-content` block, but there was no explicit alignment rule — it worked by accident. The KPI strip and the cover meta block had no vertical alignment rule either.
+
+### What was built (per-template unique layouts)
+
+Every template now renders a DIFFERENT body. Each entry below lists the KPI strip cells (in order) and the body sections (in order):
+
+1. **performance** — KPI: Followers · Impressions · Reach · Engagement · Posts · Eng. Rate. Body: "Daily Trend" (date · followers · impressions · reach · engagement, last 30 rows) + "Per-Account Summary" (account · platform · followers · impressions · reach · engagement).
+2. **audience** — KPI: Total Followers · Net Growth · Avg Daily Growth · Largest Platform · Fastest Growing. Body: "Platform Distribution" (platform · accounts · followers · share %) + "Growth Trend" (date · total followers · daily change).
+3. **engagement** — KPI: Total Engagement · Likes · Comments · Shares · Saves · Eng. Rate. Body: "Engagement Breakdown by Account" (account · platform · likes · comments · shares · saves · total) + "Top Engaged Posts" (post title · author · platform · engagement, top 10).
+4. **team** — KPI: Members · Posts Created · Published · Comments Replied · Reply Rate · Avg Posts/Member. Body: "Member Leaderboard" (rank · member · posts · published · comments · replied · reply % · 7-day) + "Platform Activity by Member" (member · accounts owned · posts created · variants published · avg posts/account). NO generic "Key Metrics" followers table.
+5. **content** — KPI: Total Posts · Published · Scheduled · Drafts · Failed · Variants. Body: "Content Pipeline" (status · count · % of total) + "Recent Posts" (title · author · status · platforms · date, top 20).
+6. **growth** — KPI: Starting Followers · Ending Followers · Net Growth · Growth Rate · Avg Daily. Body: "Growth by Platform" (platform · accounts · current followers · avg eng · posts) + "Daily Follower Trend" (date · total followers · daily change · growth %).
+7. **platform** — KPI: Platforms Active · Total Accounts · Total Followers · Avg Eng./Platform. Body: "Platform Comparison" (platform · accounts · followers · posts · engagement · avg eng) + "Best Platform per Metric" (metric · winning platform · value, 4 rows for most followers / most engagement / most posts / best avg engagement).
+8. **reach** — KPI: Total Impressions · Total Reach · Avg Reach/Post · Reach Rate · Best Platform. Body: "Reach by Account" (account · platform · impressions · reach · reach rate, sorted desc by reach) + "Daily Reach Trend" (date · impressions · reach · reach rate, last 30 days).
+9. **user-account** — KPI: Members · Accounts · Total Posts · Total Comments · Avg Posts/Member. Body: "User × Account Matrix — Posts" (user × N account columns → posts count, plus Total column) + "Per-User Totals" (user · role · posts created · published · drafts · comments received · accounts owned).
+10. **user-comparison** — KPI: Members · Total Posts · Published · Avg Reply Rate · Top Contributor. Body: "Side-by-Side Comparison" (metric × up to 6 users, 12 metric rows: posts created / published / scheduled / drafts / failed / variants / comments / replied / reply % / 7-day / accounts owned / avg posts per account) + "Per-Member Breakdown" (member · title · posts · published · replied · reply % · 7-day).
+11. **account-user** — KPI: Accounts · Total Posts · Total Comments · Avg Posts/Account · Most Active Account. Body: "Per-Account Activity" (account · platform · owner · followers · posts · published · comments · replied) + "Top Contributors per Account" (per-account sub-sections, each with a sub-table of contributors and their posts/published).
+12. **leaderboard** — KPI: Total Members · Total Posts · Total Comments · Avg Reply Rate. Body: "Top 3 Podium" (3 side-by-side podium cards: Most Posts Created / Most Comments Replied / Best Reply Rate, each showing top 3 members with rank/name/value and gold/silver/bronze rank colors) + "Full Ranking" (rank · member · posts · published · comments replied · reply % · 7-day · score, top 15, sorted by composite score).
+13. **posts-performance** — KPI: Total Posts · Published · Scheduled · Drafts · Failed · Comments · Reply Rate. Body: "Platform Breakdown" (platform · published · total variants · engagement · avg/post · share %) + "Member Breakdown" (member · role · posts · published · platforms · comments · reply % · engagement) + "Top 10 Posts by Engagement" (title · author · status · platforms · engagement · comments, sorted desc by engagement).
+
+### Derived data computed inside `PrintLayout`
+
+To support the unique layouts without adding new API calls, the following derived values are computed once at the top of `PrintLayout` from the existing `analytics`, `teamData`, `reportData`, and `postsPerfData` props:
+
+- `series`, `startFollowers`, `endFollowers`, `netGrowth`, `avgDailyGrowth` — from `analytics.series`.
+- `engagementRate`, `reachRate` — computed from `totals`.
+- `platformAgg` — aggregated per-platform sums (accounts · followers · impressions · reach · engagement · posts) built by iterating `analytics.perAccount` and grouping by `platform`. Used by `audience`, `growth`, `platform` templates.
+- Per-template KPI arrays (`kpis`) — built via a `switch (template.id)` returning the unique cell array for each report.
+- Per-template executive summary text — extended with cases for `growth`, `audience`, `reach`, `platform`, `content`, `engagement` (with engagement rate) — previously only `team`, `engagement`, `posts-performance`, `user-account`, `user-comparison`, `account-user`, `leaderboard` had custom text; everything else fell through to the generic default.
+
+### CSS fixes in `globals.css` (concrete before → after)
+
+| Selector | Property | Before | After | Reason |
+|---|---|---|---|---|
+| `.report-cover` | padding | `8mm 0 12mm` | `6mm 0 8mm` | Reduce cover top/bottom gap |
+| `.report-cover-spacer` | min-height | (none) | `4mm` | Prevent flex spacer from collapsing to 0 |
+| `.report-cover-accent` | margin | `32px 0 28px` | `22px 0 18px` | Reduce gap between brand and title |
+| `.report-cover-meta` | margin-top | `28px` | `18px` | Reduce gap before meta block |
+| `.report-cover-footer` | padding-top | `18px` | `14px` | Reduce gap above footer |
+| `.report-header` | margin-bottom | `14px` | `8px` | Reduce gap before first section |
+| `.report-header` | padding-bottom | `8px` | `6px` | Tighten header strip |
+| `.report-section-title` | margin | `18px 0 6px` | `12px 0 4px` | Reduce gap before each section |
+| `.report-text` | line-height | `1.55` | `1.5` | Tighten exec summary text |
+| `.report-text` | margin-bottom | `8px` | `6px` | Reduce gap after exec summary |
+| `.report-metric-row` | margin | `10px 0 14px` | `6px 0 10px` | Reduce KPI strip gaps |
+| `.report-metric` | padding | `8px 12px` | `6px 10px` | Tighten KPI cells |
+| `.report-metric-value` | font-size | `18px` | `16px` | Slightly smaller KPI numbers (fits more cells) |
+| `.report-metric-value` | word-break | (none) | `break-word` | Long platform names (e.g. "Largest Platform" = "instagram") wrap instead of overflowing |
+| `.report-kpi-grid` | margin | `10px 0 14px` | `6px 0 10px` | Tighten legacy KPI grid (kept for back-compat) |
+| `.report-kpi-card` | padding | `8px 10px` | `6px 8px` | Tighten legacy KPI cards |
+| `.report-kpi-value` | font-size | `18px` | `16px` | Match `.report-metric-value` |
+| `.report-table` | margin-bottom | `10px` | `6px` | Reduce gap between tables |
+| `.report-table thead th` | padding | `5px 8px` | `4px 6px` | Tighten header cells |
+| `.report-table thead th` | vertical-align | (none) | `bottom` | Align multi-line headers to bottom edge |
+| `.report-table tbody td` | padding | `4px 8px` | `3px 6px` | Tighten body cells |
+| `.report-table .text-right/center/capitalize` | (new rules) | — | explicit `text-align` rules | Make alignment explicit in print (don't rely on Tailwind cascade) |
+| `.report-subsection` | margin-top | `10px` | `8px` | Tighten per-account sub-sections |
+| `.report-subhead` | margin-bottom | `4px` | `3px` | Tighten sub-head |
+| `.report-footer-note` | margin-top | `22px` | `14px` | Reduce gap before closing note |
+| `.report-footer-note` | padding-top | `8px` | `6px` | Tighten closing note |
+| `.report-podium`, `.report-podium-card`, `.report-podium-title`, `.report-podium-list`, `.report-podium-item`, `.report-podium-rank`, `.report-podium-name`, `.report-podium-value`, `.report-podium-empty` | (new rules) | — | full podium-card grid (3 columns, gap 6px, indigo top border, gold/silver/bronze rank colors) | New leaderboard Top-3 podium cards |
+
+### Verification
+
+- **`bun run lint src/components/views/reports.tsx`** → exit 0 for `reports.tsx` (the 1 error in `mini-services/whatsapp-service/index.js` is pre-existing and unrelated — see task `1-synque-logo` worklog entry for context).
+- **`npx eslint src/components/views/reports.tsx`** → exit 0, 0 errors, 0 warnings.
+- **`npx tsc --noEmit 2>&1 | grep reports`** → 0 matches. Zero TypeScript errors in `reports.tsx` or `globals.css`. (Pre-existing tsc errors in `src/app/api/auth/demo/route.ts` and `src/app/api/ai/assistant/route.ts` are unrelated to this task.)
+- **`grep -c "template.id ===" src/components/views/reports.tsx`** → `13`. Confirms each of the 13 templates (performance, audience, engagement, team, content, growth, platform, reach, user-account, user-comparison, account-user, leaderboard, posts-performance) gets its own unique body block — no template shares body JSX with another.
+- **`grep -nE "template\.id === \"" src/components/views/reports.tsx`** → 13 hits at lines 2814, 2864, 2911, 2961, 3017, 3071, 3124, 3182, 3228, 3287, 3352, 3406, 3471 — one per template, in the same order as the `TEMPLATES` array (lines 178–191).
+- **File line counts**: `reports.tsx` grew from 2805 → 3560 lines (+755, all inside `PrintLayout` and its 3 new helpers). `globals.css` grew from 1741 → 1830 lines (+89, all inside `@media print`, with the new podium rules and the tightened margins).
+
+### Notes / design choices
+
+- **Kept the cover page, running header, and @page footer untouched.** The cover page (`.report-cover`) and the running header (`.report-header`) were already correct in the old layout — they showed the right template name, date range, and SYNQUE branding. Only the body content (KPI strip + tables) needed to become unique per template. The `@page` rules in `globals.css` (page numbers at `@bottom-right`, "Generated by SYNQUE" at `@bottom-left`) were also already correct and stay unchanged.
+- **Why a `switch (template.id)` for KPI cells + 13 explicit body blocks instead of a config object.** A config-object-driven layout (e.g. `{ performance: { kpis: [...], sections: [...] } }`) would have been more "DRY" but each report needs slightly different rendering logic for its tables (e.g. `audience` computes daily deltas between consecutive series rows, `leaderboard` builds a 3-card podium grid, `user-comparison` transposes its data into a metric×user matrix). Forcing those through a generic config renderer would have produced worse code than 13 explicit JSX blocks. The 13 blocks share three small helpers (`PrintKpiStrip`, `PrintSection`, `fmtDay`) which keep them readable.
+- **Why derived `platformAgg` instead of a new API.** The `audience`, `growth`, and `platform` reports all need per-platform aggregates that aren't directly returned by `/api/analytics` (which returns `perAccount`, not `perPlatform`). Computing the aggregation inside `PrintLayout` (and inside the on-screen `metrics` memo where needed) avoids a new API route and keeps the print layout self-contained. The aggregation is O(N) where N = number of accounts, so it's trivially cheap.
+- **Why `series.slice(-30)` for trend tables.** The `90d` date range produces 90 daily rows — too many for a readable print table. Capping at the last 30 days keeps every trend table to a single page (or two at most), which matches the "no large gaps" goal. The 30-row cap also makes the daily-trend tables consistent in length across `performance`, `audience`, `growth`, and `reach` reports.
+- **Why a podium grid for leaderboard.** The leaderboard template needs to stand out from `team` and `user-comparison` (which both render similar member tables). The 3-column podium card grid (Most Posts Created / Most Comments Replied / Best Reply Rate, each top-3) gives the leaderboard a distinct visual identity in print, and the gold/silver/bronze rank colors (`#b8860b` / `#666` / `#a0522d`) make the top-3 visually scannable without needing a chart.
+- **Why `word-break: break-word` on `.report-metric-value`.** Without it, the `audience` KPI strip's "Largest Platform" cell (value = "instagram", 9 chars) was fine, but the `platform` report's "Avg Eng./Platform" cell (value = e.g. "12.3K", 5 chars) was getting clipped in some print engines when the strip had 4 cells in a narrow @page. Adding `word-break: break-word` lets long values wrap to a second line inside their cell rather than overflowing into the next cell.
+- **Why explicit `.report-table .text-right/.text-center/.capitalize` rules in `@media print`.** Tailwind's `text-right`, `text-center`, and `capitalize` utilities are defined in Tailwind's base stylesheet, which IS imported on screen. But in print, Chromium sometimes drops utilities that aren't explicitly re-declared inside `@media print` (especially when `body * { visibility: hidden }` is in effect, which is how this app hides the on-screen UI during print). Re-declaring them inside `@media print` makes alignment deterministic across browsers and print engines.
+- **No changes to the data layer.** This task uses the existing `analytics`, `teamData`, `reportData`, and `postsPerfData` props passed into `PrintLayout` by the parent `ReportsView` — no new API routes, no new fetch calls, no schema changes. The uniqueness is purely in how the same data is rendered.

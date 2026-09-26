@@ -1692,7 +1692,7 @@ function TeamRolesSection() {
             <Field label="Email">
               <Input
                 type="email"
-                placeholder="teammate@synque.app"
+                placeholder="teammate@synque.cloud"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
               />
