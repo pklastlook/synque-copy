@@ -12,7 +12,7 @@ import {
   Calendar, BarChart3, Users, TrendingUp, Heart, FileBarChart,
   Clock, RefreshCw, Loader2, Activity, Globe, Target, Sparkles,
   ChevronDown, Save, ArrowUpDown, Award, Trophy, UserCheck, Grid3x3, Zap,
-  Layers, CheckCircle2, XCircle, ListFilter,
+  Layers, CheckCircle2, XCircle, ListFilter, MessageCircle, Reply, LayoutGrid, List as ListIcon,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -124,6 +124,7 @@ interface PostsPerformanceData {
   kpis: {
     totalPosts: number; published: number; scheduled: number;
     draft: number; failed: number; totalVariantsPublished: number;
+    totalComments: number; totalCommentsReplied: number;
   };
   platformBreakdown: {
     platform: string; postsPublished: number; totalVariants: number;
@@ -134,12 +135,14 @@ interface PostsPerformanceData {
     role: string; title: string | null;
     postsAuthored: number; postsPublished: number;
     platforms: string[]; engagement: number; shareOfTotal: number;
+    commentsReceived: number; commentsReplied: number; replyRate: number;
   }[];
   posts: {
     id: string; title: string; caption: string; status: string;
     scheduledAt: string | null; createdAt: string;
     authorId: string; authorName: string; authorAvatar: string | null; authorColor: string | null;
     platforms: string[]; engagement: number;
+    comments: number; commentsReplied: number;
     variants: {
       id: string; platform: string; handle: string; accountName: string;
       content: string; status: string; publishedAt: string | null;
@@ -147,7 +150,7 @@ interface PostsPerformanceData {
       reach: number; impressions: number; saves: number; engagement: number;
     }[];
   }[];
-  totals: { totalPlatformPosts: number; totalEngagement: number };
+  totals: { totalPlatformPosts: number; totalEngagement: number; totalComments: number; totalCommentsReplied: number };
 }
 
 const TOOLTIP_STYLE = {
@@ -182,13 +185,14 @@ const TEMPLATES: Template[] = [
   { id: "user-comparison", name: "User Compare", icon: UserCheck, color: "oklch(0.7 0.18 180)", desc: "Side-by-side team member work comparison" },
   { id: "account-user", name: "Pages Report", icon: FileBarChart, color: "oklch(0.62 0.2 35)", desc: "Per-account: who posted & how much" },
   { id: "leaderboard", name: "Leaderboard", icon: Trophy, color: "oklch(0.72 0.2 75)", desc: "Top contributors ranked by metrics" },
-  { id: "posts-performance", name: "Posts Perf", icon: Layers, color: "oklch(0.66 0.22 305)", desc: "KPIs · platform breakdown · member breakdown · all posts" },
+  { id: "posts-performance", name: "Team Posts", icon: Layers, color: "oklch(0.66 0.22 305)", desc: "Per-user posts + comments + platforms · list & kanban" },
 ];
 
 // ============ Main view ============
 export function ReportsView() {
   const [dateRange, setDateRange] = React.useState<DateRange>("30d");
-  const [activeTemplate, setActiveTemplate] = React.useState<TemplateId>("performance");
+  // Default to "Team Posts" — the most-requested report (per-user posts + comments + platforms)
+  const [activeTemplate, setActiveTemplate] = React.useState<TemplateId>("posts-performance");
   const [chartMetric, setChartMetric] = React.useState<string>("followers");
   const [savingReport, setSavingReport] = React.useState(false);
   const { data: savedReports, reload } = useApi<ReportData[]>("/api/reports");
@@ -2061,6 +2065,7 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
   const [sortKey, setSortKey] = React.useState<"date" | "engagement" | "title">("date");
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
   const [expandedRow, setExpandedRow] = React.useState<string | null>(null);
+  const [postsView, setPostsView] = React.useState<"list" | "kanban">("list");
 
   // ---- Filtered + sorted posts (memoized; handles null data) ----
   const filteredPosts = React.useMemo(() => {
@@ -2078,17 +2083,30 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
     return sorted;
   }, [data, statusFilter, platformFilter, sortKey, sortDir]);
 
+  // ---- Kanban columns: group filtered posts by status ----
+  const kanbanColumns = React.useMemo(() => {
+    const cols: Record<string, typeof filteredPosts> = {
+      draft: [], scheduled: [], published: [], failed: [],
+    };
+    for (const p of filteredPosts) {
+      if (cols[p.status]) cols[p.status].push(p);
+    }
+    return cols;
+  }, [filteredPosts]);
+
   if (!data) return <EmptyState />;
   const k = data.kpis;
 
-  // ---- KPI strip (6 cards) ----
+  // ---- KPI strip (8 cards) — includes comments + reply rate ----
   const kpiCards = [
     { label: "Total Posts", value: k.totalPosts, icon: <Layers className="h-3.5 w-3.5" />, color: "oklch(0.62 0.22 255)" },
     { label: "Published", value: k.published, icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "oklch(0.74 0.18 165)" },
     { label: "Scheduled", value: k.scheduled, icon: <Clock className="h-3.5 w-3.5" />, color: "oklch(0.66 0.2 200)" },
     { label: "Drafts", value: k.draft, icon: <FileText className="h-3.5 w-3.5" />, color: "oklch(0.78 0.18 85)" },
     { label: "Failed", value: k.failed, icon: <XCircle className="h-3.5 w-3.5" />, color: "oklch(0.65 0.22 25)" },
-    { label: "Variants Published", value: k.totalVariantsPublished, icon: <Zap className="h-3.5 w-3.5" />, color: "oklch(0.72 0.2 75)" },
+    { label: "Variants", value: k.totalVariantsPublished, icon: <Zap className="h-3.5 w-3.5" />, color: "oklch(0.72 0.2 75)" },
+    { label: "Comments", value: k.totalComments, icon: <MessageCircle className="h-3.5 w-3.5" />, color: "oklch(0.7 0.2 305)" },
+    { label: "Reply Rate", value: k.totalComments > 0 ? `${Math.round((k.totalCommentsReplied / k.totalComments) * 100)}%` : "—", icon: <Reply className="h-3.5 w-3.5" />, color: "oklch(0.68 0.18 145)" },
   ];
 
   // ---- Engagement chart data (platform breakdown) ----
@@ -2113,8 +2131,8 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
 
   return (
     <div className="space-y-4">
-      {/* === KPI strip (6 cards) === */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+      {/* === KPI strip (8 cards) === */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8">
         {kpiCards.map((c, i) => (
           <div key={i} className="crystal-in rounded-xl border border-border/30 bg-muted/10 p-3" style={{ animationDelay: `${i * 0.04}s` }}>
             <div className="flex items-center gap-2" style={{ color: c.color }}>
@@ -2224,7 +2242,7 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
         <div className="mb-3 flex items-center justify-between">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Member Breakdown</div>
-            <div className="text-[10px] text-muted-foreground/70">Posts authored, published, platforms, and engagement per team member</div>
+            <div className="text-[10px] text-muted-foreground/70">Posts authored, published, platforms, comments received, and engagement per team member</div>
           </div>
           <Badge variant="outline" className="text-[10px]">{data.memberBreakdown.length} authors</Badge>
         </div>
@@ -2232,13 +2250,15 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
           <div className="py-8 text-center text-xs text-muted-foreground">No posts authored yet.</div>
         ) : (
           <div className="overflow-x-auto">
-            <Table className="min-w-[720px]">
+            <Table className="min-w-[920px]">
               <TableHeader>
                 <TableRow className="border-border/40">
                   <TableHead className="h-8 text-[10px] uppercase">Member</TableHead>
-                  <TableHead className="h-8 text-right text-[10px] uppercase">Authored</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Posts</TableHead>
                   <TableHead className="h-8 text-right text-[10px] uppercase">Published</TableHead>
                   <TableHead className="h-8 text-[10px] uppercase">Platforms</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Comments</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Reply %</TableHead>
                   <TableHead className="h-8 text-right text-[10px] uppercase">Engagement</TableHead>
                   <TableHead className="h-8 text-[10px] uppercase">Share</TableHead>
                 </TableRow>
@@ -2267,6 +2287,15 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
                         )}
                       </div>
                     </TableCell>
+                    <TableCell className="py-2.5 text-right text-xs tabular-nums">
+                      <span className="font-semibold">{m.commentsReceived}</span>
+                      <span className="text-[9px] text-muted-foreground"> / {m.commentsReplied} replied</span>
+                    </TableCell>
+                    <TableCell className="py-2.5 text-right text-xs tabular-nums">
+                      <span className={cn("font-bold", m.replyRate >= 80 ? "text-emerald-600 dark:text-emerald-400" : m.replyRate >= 50 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400")}>
+                        {m.commentsReceived > 0 ? `${m.replyRate}%` : "—"}
+                      </span>
+                    </TableCell>
                     <TableCell className="py-2.5 text-right text-xs font-semibold tabular-nums">{fmt(m.engagement)}</TableCell>
                     <TableCell className="py-2.5">
                       <div className="flex items-center gap-2">
@@ -2282,12 +2311,16 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
         )}
       </div>
 
-      {/* === Posts list (sortable + filterable + expandable) === */}
+      {/* === Posts list / kanban (sortable + filterable + expandable) === */}
       <div className="crystal-in rounded-2xl border border-border/30 bg-muted/10 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">All Posts</div>
-            <div className="text-[10px] text-muted-foreground/70">Click a row to expand and see platform variants</div>
+            <div className="text-[10px] text-muted-foreground/70">
+              {postsView === "list"
+                ? "Click a row to expand and see platform variants + comments"
+                : "Kanban view — posts grouped by lifecycle stage"}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -2316,12 +2349,89 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
                 ))}
               </SelectContent>
             </Select>
+            <Tabs value={postsView} onValueChange={(v) => setPostsView(v as "list" | "kanban")}>
+              <TabsList className="h-7 p-0.5">
+                <TabsTrigger value="list" className="gap-1 px-2 py-0 text-[10px]">
+                  <ListIcon className="h-3 w-3" /> List
+                </TabsTrigger>
+                <TabsTrigger value="kanban" className="gap-1 px-2 py-0 text-[10px]">
+                  <LayoutGrid className="h-3 w-3" /> Kanban
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         </div>
 
         {filteredPosts.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground">No posts match these filters.</div>
+        ) : postsView === "kanban" ? (
+          /* === Kanban view — 4 columns by status === */
+          <div className="grid gap-3 lg:grid-cols-4">
+            {(Object.entries(kanbanColumns) as [string, typeof filteredPosts][]).map(([status, items]) => {
+              const sm = POST_STATUS_META[status] ?? POST_STATUS_META.draft;
+              const Icon = sm.icon;
+              return (
+                <div key={status} className="flex flex-col gap-2">
+                  <div className="sticky top-0 z-10 flex items-center justify-between rounded-xl border border-border/40 bg-background/80 px-3 py-2 backdrop-blur">
+                    <div className="flex items-center gap-1.5">
+                      <Icon className={cn("h-3.5 w-3.5", sm.color)} />
+                      <span className="text-[11px] font-bold uppercase tracking-wide">{sm.label}</span>
+                    </div>
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums", sm.bg, sm.color)}>
+                      {items.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {items.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-border/40 p-4 text-center text-[10px] text-muted-foreground">
+                        No posts
+                      </div>
+                    ) : (
+                      items.map((p) => (
+                        <div
+                          key={p.id}
+                          className="group cursor-pointer rounded-xl border border-border/40 bg-background/60 p-3 transition hover:border-primary/40 hover:shadow-md"
+                        >
+                          {/* Title + caption */}
+                          <div className="mb-2">
+                            <div className="truncate text-xs font-bold">{p.title || "Untitled"}</div>
+                            <div className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">
+                              {p.caption || "—"}
+                            </div>
+                          </div>
+                          {/* Author */}
+                          <div className="mb-2 flex items-center gap-1.5">
+                            <NameAvatar name={p.authorName} color={p.authorColor ?? "blue"} src={p.authorAvatar} className="h-5 w-5 text-[8px]" />
+                            <span className="truncate text-[10px] font-medium">{p.authorName}</span>
+                          </div>
+                          {/* Platforms */}
+                          <div className="mb-2 flex flex-wrap gap-1">
+                            {p.platforms.slice(0, 5).map((pl) => (
+                              <PlatformBadge key={pl} platform={pl as PlatformId} size={14} />
+                            ))}
+                            {p.platforms.length > 5 && (
+                              <span className="text-[9px] text-muted-foreground">+{p.platforms.length - 5}</span>
+                            )}
+                          </div>
+                          {/* Footer: comments + engagement + date */}
+                          <div className="flex items-center justify-between border-t border-border/30 pt-2 text-[10px] text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <MessageCircle className="h-2.5 w-2.5" />
+                              <span className="tabular-nums">{p.comments}</span>
+                            </span>
+                            <span className="tabular-nums font-semibold text-foreground/70">{fmt(p.engagement)}</span>
+                            <span>{new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
+          /* === List view (sortable table) === */
           <div className="overflow-x-auto">
             <Table className="min-w-[760px]">
               <TableHeader>
@@ -2334,6 +2444,7 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
                   <TableHead className="h-8 text-[10px] uppercase">Author</TableHead>
                   <TableHead className="h-8 text-[10px] uppercase">Status</TableHead>
                   <TableHead className="h-8 text-[10px] uppercase">Platforms</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Comments</TableHead>
                   <TableHead className="h-8 text-right text-[10px] uppercase">
                     <button onClick={() => toggleSort("engagement")} className="flex items-center gap-1 hover:text-foreground">
                       Engagement <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
@@ -2388,6 +2499,16 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
                             {p.platforms.length === 0 && <span className="text-[10px] text-muted-foreground">—</span>}
                           </div>
                         </TableCell>
+                        <TableCell className="py-2.5 text-right text-xs tabular-nums">
+                          {p.comments > 0 ? (
+                            <div className="flex flex-col items-end">
+                              <span className="font-bold">{p.comments}</span>
+                              <span className="text-[9px] text-emerald-600 dark:text-emerald-400">{p.commentsReplied} replied</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell className="py-2.5 text-right text-xs font-bold tabular-nums">{fmt(p.engagement)}</TableCell>
                         <TableCell className="py-2.5 text-right text-[10px] tabular-nums text-muted-foreground">
                           {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
@@ -2395,7 +2516,7 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
                       </TableRow>
                       {isOpen && (
                         <TableRow className="border-border/30 bg-muted/20">
-                          <TableCell colSpan={6} className="p-4">
+                          <TableCell colSpan={7} className="p-4">
                             <div className="space-y-2">
                               <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                                 Platform variants ({p.variants.length})
