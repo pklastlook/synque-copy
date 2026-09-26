@@ -15,8 +15,6 @@ import {
   Hash,
   Search,
   CheckCircle2,
-  ArrowLeft,
-  ArrowRight,
   Upload,
   Link2,
   Lightbulb,
@@ -29,13 +27,13 @@ import {
   FileEdit,
   RotateCw,
   Pencil,
-  MessageSquare,
   Bot,
   User as UserIcon,
+  Eye,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
-import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
+import { GlassCard } from "@/components/glass/glass-card";
 import { PlatformBadge, VerifiedTick } from "@/components/glass/platform-badge";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
 import { useNav } from "@/lib/store";
@@ -50,10 +48,12 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { SectionHeader, Pill } from "@/components/glass/dense-ui";
 
+/* ============================================================
+   Types
+   ============================================================ */
 interface AccountData {
   id: string;
   platform: PlatformId;
@@ -70,16 +70,6 @@ interface Variant {
   hashtags: string;
 }
 
-const TONES = [
-  "Professional",
-  "Friendly",
-  "Energetic",
-  "Inspirational",
-  "Witty",
-  "Educational",
-  "Luxurious",
-];
-
 interface MediaAssetLite {
   id: string;
   name: string;
@@ -91,11 +81,9 @@ interface MediaLibraryResponse {
   assets: MediaAssetLite[];
 }
 
-type Step = 1 | 2 | 3 | 4 | 5;
 type MediaType = "image" | "video" | "carousel";
 
 interface ComposerState {
-  step: Step;
   selectedAccountIds: string[];
   caption: string;
   tone: string;
@@ -107,12 +95,14 @@ interface ComposerState {
   scheduleEnabled: boolean;
 }
 
-const STEPS: { id: Step; label: string; short: string; icon: LucideIcon }[] = [
-  { id: 1, label: "Select Accounts", short: "Accounts", icon: CheckCircle2 },
-  { id: 2, label: "Text Content", short: "Text", icon: Sparkles },
-  { id: 3, label: "Graphics / Media", short: "Media", icon: ImageIcon },
-  { id: 4, label: "Preview", short: "Preview", icon: Wand2 },
-  { id: 5, label: "Post", short: "Publish", icon: Send },
+const TONES = [
+  "Professional",
+  "Friendly",
+  "Energetic",
+  "Inspirational",
+  "Witty",
+  "Educational",
+  "Luxurious",
 ];
 
 const MEDIA_TYPE_OPTIONS: { id: MediaType; label: string; icon: LucideIcon }[] = [
@@ -122,7 +112,6 @@ const MEDIA_TYPE_OPTIONS: { id: MediaType; label: string; icon: LucideIcon }[] =
 ];
 
 const DEFAULT_STATE: ComposerState = {
-  step: 1,
   selectedAccountIds: [],
   caption: "",
   tone: "Friendly",
@@ -134,6 +123,13 @@ const DEFAULT_STATE: ComposerState = {
   scheduleEnabled: false,
 };
 
+/* ============================================================
+   ComposerView — single-column workflow with sticky preview.
+   No wizard steps; the user reads top-to-bottom: accounts →
+   brief → AI variants → media → schedule → publish. The phone
+   preview floats in a sticky aside on desktop and stacks below
+   on mobile.
+   ============================================================ */
 export function ComposerView() {
   const { composerSeed, clearComposerSeed, composerEditPost, clearComposerEditPost } = useNav();
   const { user } = useAuth();
@@ -163,13 +159,21 @@ export function ComposerView() {
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const [urlInput, setUrlInput] = React.useState("");
   const [cropAspect, setCropAspect] = React.useState("1:1");
+  // Which account the sticky preview is showing.
+  const [previewAccountId, setPreviewAccountId] = React.useState<string>("");
+  // Inline AI Assistant panel toggle.
+  const [aiAssistantOpen, setAiAssistantOpen] = React.useState(false);
 
   const initRef = React.useRef(false);
   const editHydrateRef = React.useRef<string | null>(null);
 
-  // Preselect the top 4 accounts by followers (the /api/accounts route
-  // already sorts by followers desc) so the composer opens with a sensible
-  // multi-platform default — without relying on hardcoded seeded IDs.
+  /* ----------------------------------------------------------
+     Effects — preselect accounts, seed caption, hydrate edit
+     ---------------------------------------------------------- */
+  // Preselect the top 4 accounts by followers (the /api/accounts
+  // route already sorts by followers desc) so the composer opens
+  // with a sensible multi-platform default — without relying on
+  // hardcoded seeded IDs.
   React.useEffect(() => {
     if (initRef.current || !accounts || accounts.length === 0) return;
     initRef.current = true;
@@ -179,16 +183,16 @@ export function ComposerView() {
     }
   }, [accounts]);
 
-  // Composer seed prefill — set caption + jump to step 2 (keeps existing behavior)
+  // Composer seed prefill — set caption (no step jump, single flow).
   React.useEffect(() => {
     if (composerSeed) {
-      setState((s) => ({ ...s, caption: composerSeed, step: 2 }));
+      setState((s) => ({ ...s, caption: composerSeed }));
       clearComposerSeed();
     }
   }, [composerSeed, clearComposerSeed]);
 
-  // When openComposerWithPost(post) is called, hydrate the composer state
-  // from the post's data and jump to Step 2 so the user can edit + regenerate.
+  // When openComposerWithPost(post) is called, hydrate the composer
+  // state from the post's data so the user can edit + regenerate.
   React.useEffect(() => {
     if (!composerEditPost) return;
     if (editHydrateRef.current === composerEditPost.id) return; // already hydrated
@@ -204,17 +208,16 @@ export function ComposerView() {
     }
     let selectedAccountIds = p.variants.map((v) => v.accountId);
 
-    // Some older drafts were saved without any variants (e.g. drafts created
-    // from a partial /api/posts POST that never made it to the publish step).
-    // If that's the case, preselect the top 4 user accounts so the user has
-    // somewhere to publish to — and let them know.
+    // Some older drafts were saved without any variants (e.g. drafts
+    // created from a partial /api/posts POST that never made it to
+    // the publish step). If that's the case, preselect the top 4 user
+    // accounts so the user has somewhere to publish to — and let them know.
     const hadNoVariants = selectedAccountIds.length === 0;
     if (hadNoVariants && accounts && accounts.length > 0) {
       selectedAccountIds = accounts.slice(0, 4).map((a) => a.id);
     }
 
     setState({
-      step: 2, // jump straight into editing content
       selectedAccountIds,
       caption: p.caption ?? "",
       tone: p.tone ?? "Friendly",
@@ -233,18 +236,39 @@ export function ComposerView() {
     });
   }, [composerEditPost, accounts]);
 
+  // Keep previewAccountId valid as selection changes — auto-jump to
+  // the first selected account if the current preview target is no
+  // longer selected.
+  const selectedAccounts = React.useMemo(
+    () => (accounts ?? []).filter((a) => state.selectedAccountIds.includes(a.id)),
+    [accounts, state.selectedAccountIds]
+  );
+  React.useEffect(() => {
+    if (selectedAccounts.length === 0) {
+      if (previewAccountId) setPreviewAccountId("");
+      return;
+    }
+    if (!selectedAccounts.find((a) => a.id === previewAccountId)) {
+      setPreviewAccountId(selectedAccounts[0].id);
+    }
+  }, [selectedAccounts, previewAccountId]);
+
+  /* ----------------------------------------------------------
+     Actions — discard, load draft, generate, publish, url
+     ---------------------------------------------------------- */
   function discardEdit() {
     editHydrateRef.current = null;
     setEditingPostId(null);
     clearComposerEditPost();
     setState(DEFAULT_STATE);
+    setPreviewAccountId("");
+    setAiAssistantOpen(false);
     // Re-run account preselect if accounts already loaded.
     initRef.current = false;
   }
 
   function loadDraft(post: Post) {
     // Use the store so the same hydrate effect handles it.
-    // (Calling openComposerWithPost triggers the effect above.)
     useNav.getState().openComposerWithPost(post);
   }
 
@@ -253,9 +277,6 @@ export function ComposerView() {
   }, []);
 
   const accountsList = accounts ?? [];
-  const selectedAccounts = accountsList.filter((a) =>
-    state.selectedAccountIds.includes(a.id)
-  );
   const filteredAccounts = accountsList.filter((a) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
@@ -278,12 +299,6 @@ export function ComposerView() {
   const selectAll = () =>
     setState((s) => ({ ...s, selectedAccountIds: accountsList.map((a) => a.id) }));
   const clearAll = () => setState((s) => ({ ...s, selectedAccountIds: [] }));
-
-  const goToStep = (step: Step) => setState((s) => ({ ...s, step }));
-  const next = () =>
-    setState((s) => ({ ...s, step: Math.min(5, (s.step as number) + 1) as Step }));
-  const back = () =>
-    setState((s) => ({ ...s, step: Math.max(1, (s.step as number) - 1) as Step }));
 
   async function generate(regenerateOnly?: string) {
     if (!state.caption.trim()) {
@@ -342,6 +357,10 @@ export function ComposerView() {
           }
         } else {
           setState((s) => ({ ...s, variants: normalized }));
+          // Auto-select the first variant for preview/editing.
+          if (!previewAccountId && selectedAccounts.length > 0) {
+            setPreviewAccountId(selectedAccounts[0].id);
+          }
           toast.success(
             `Generated ${Object.keys(normalized).length} platform-native captions`
           );
@@ -435,6 +454,7 @@ export function ComposerView() {
         setEditingPostId(null);
         clearComposerEditPost();
         setState(DEFAULT_STATE);
+        setPreviewAccountId("");
         reloadDrafts();
         return;
       }
@@ -489,7 +509,7 @@ export function ComposerView() {
         }
       }
 
-      // 4. If every platform failed, flip the post status back to "draft"
+      // 4. If every platform failed, flip the post status back to "failed"
       //    so the user can retry from the drafts list (instead of leaving
       //    it stranded as "published" with zero real delivery).
       const succeeded = results.filter((r) => r.success);
@@ -501,10 +521,6 @@ export function ComposerView() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "failed" }),
         }).catch(() => null);
-      } else if (savedPostId && failed.length === 0 && !state.scheduleEnabled) {
-        // Mark fully published — the PATCH route already sets status=published
-        // for the editing path; for the POST path the route set it on creation.
-        // Nothing to do here.
       }
 
       // 5. Show results with iOS-style popups
@@ -579,6 +595,7 @@ export function ComposerView() {
       setEditingPostId(null);
       clearComposerEditPost();
       setState(DEFAULT_STATE);
+      setPreviewAccountId("");
       reloadDrafts();
     } catch {
       toast.error("Network error");
@@ -598,22 +615,24 @@ export function ComposerView() {
     toast.success("Media URL added");
   }
 
-  const canContinue =
-    state.step === 1
-      ? selectedAccounts.length > 0
-      : state.step === 2
-      ? state.caption.trim().length > 0
-      : state.step === 3
-      ? !!state.mediaUrl
-      : state.step === 4
-      ? true
-      : false;
+  /* ----------------------------------------------------------
+     Derived view state
+     ---------------------------------------------------------- */
+  const hasVariants = Object.keys(state.variants).length > 0;
+  const combinedReach = selectedAccounts.reduce((s, a) => s + a.followers, 0);
+  const charCount = state.caption.length;
+  const previewAccount = selectedAccounts.find((a) => a.id === previewAccountId) ?? selectedAccounts[0];
+  const previewVariant = previewAccount ? state.variants[previewAccount.id] : undefined;
+  const previewContent = previewVariant?.content ?? state.caption;
+  const previewHashtags = previewVariant?.hashtags ?? "";
+  const canPublish = selectedAccounts.length > 0 && state.caption.trim().length > 0;
 
+  /* ----------------------------------------------------------
+     Render
+     ---------------------------------------------------------- */
   return (
-    <div className="space-y-5 pb-28">
-      <StepIndicator step={state.step} onStep={goToStep} />
-
-      {/* Editing / republish banner */}
+    <div className="space-y-5 pb-24">
+      {/* Editing / republish banner — inline, not a card */}
       {editingPostId && (
         <EditingBanner
           postId={editingPostId}
@@ -622,106 +641,642 @@ export function ComposerView() {
         />
       )}
 
-      {/* Drafts / failed posts picker — only on Step 1 when NOT already editing */}
-      {state.step === 1 && !editingPostId && (
-        <DraftsPanel
-          drafts={draftsList}
-          onLoad={loadDraft}
-        />
+      {/* Drafts / failed posts picker — only when NOT already editing */}
+      {!editingPostId && (
+        <DraftsPanel drafts={draftsList} onLoad={loadDraft} />
       )}
 
-      <div className="mx-auto w-full max-w-3xl space-y-5">
-        {state.step === 1 && (
-          <Step1
-            accounts={filteredAccounts}
-            selectedIds={state.selectedAccountIds}
-            onToggle={toggleAccount}
-            onSelectAll={selectAll}
-            onClear={clearAll}
-            search={search}
-            onSearch={setSearch}
-            selectedAccounts={selectedAccounts}
-          />
-        )}
-        {state.step === 2 && (
-          <Step2
-            caption={state.caption}
-            onCaption={(caption) => update({ caption })}
-            tone={state.tone}
-            onTone={(tone) => update({ tone })}
-            onGenerate={() => generate()}
-            generating={generating}
-            hasVariants={Object.keys(state.variants).length > 0}
-            selectedCount={selectedAccounts.length}
-            variants={state.variants}
-            selectedAccounts={selectedAccounts}
-          />
-        )}
-        {state.step === 3 && (
-          <Step3
-            mediaUrl={state.mediaUrl}
-            mediaType={state.mediaType}
-            altText={state.altText}
-            onMedia={(mediaUrl) => update({ mediaUrl })}
-            onMediaType={(mediaType) => update({ mediaType })}
-            onAltText={(altText) => update({ altText })}
-            uploadOpen={uploadOpen}
-            onUploadOpen={setUploadOpen}
-            urlInput={urlInput}
-            onUrlInput={setUrlInput}
-            onUrlSubmit={submitUrl}
-            mediaAssets={mediaAssets}
-            user={user}
-            cropAspect={cropAspect}
-            onCropAspect={setCropAspect}
-          />
-        )}
-        {state.step === 4 && (
-          <Step4
-            accounts={selectedAccounts}
-            variants={state.variants}
-            onVariantChange={(id, v) =>
-              setState((s) => ({ ...s, variants: { ...s.variants, [id]: v } }))
-            }
-            mediaUrl={state.mediaUrl}
-            caption={state.caption}
-            onRegenerate={(id) => generate(id)}
-            onRegenerateAll={() => generate()}
-            generating={generating}
-          />
-        )}
-        {state.step === 5 && (
-          <Step5
-            accounts={selectedAccounts}
-            mediaUrl={state.mediaUrl}
-            mediaType={state.mediaType}
-            tone={state.tone}
-            caption={state.caption}
-            scheduleEnabled={state.scheduleEnabled}
-            onScheduleEnabled={(scheduleEnabled) => update({ scheduleEnabled })}
-            scheduledAt={state.scheduledAt}
-            onScheduledAt={(scheduledAt) => update({ scheduledAt })}
-            hasVariants={Object.keys(state.variants).length > 0}
-          />
+      {/* === Two-column layout: main flow + sticky preview === */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+        {/* MAIN FLOW (scrollable) */}
+        <main className="min-w-0 space-y-8">
+          {/* === Step 1: Accounts === */}
+          <section className="space-y-3">
+            <SectionHeader
+              title="1 · Accounts"
+              desc="Pick destination accounts"
+              icon={CheckCircle2}
+              action={
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    onClick={selectAll}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Select all
+                  </button>
+                  <span className="text-muted-foreground/60">·</span>
+                  <button
+                    onClick={clearAll}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                </div>
+              }
+            />
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, handle, or platform…"
+                className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+              />
+            </div>
+
+            {/* Account list — single column, dense rows */}
+            <div className="scroll-liquid max-h-[420px] space-y-1.5 overflow-y-auto pr-1">
+              {filteredAccounts.length === 0 ? (
+                <div className="grid place-items-center py-12 text-center text-sm text-muted-foreground">
+                  No accounts match your search.
+                </div>
+              ) : (
+                filteredAccounts.map((a) => {
+                  const on = state.selectedAccountIds.includes(a.id);
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => toggleAccount(a.id)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition",
+                        on
+                          ? "border-primary/40 bg-primary/10 ring-1 ring-primary/30"
+                          : "border-border/40 hover:border-border hover:bg-muted/40"
+                      )}
+                    >
+                      <PlatformBadge platform={a.platform} size={32} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1">
+                          <span className="truncate text-sm font-semibold">
+                            {a.displayName}
+                          </span>
+                          {a.verified && <VerifiedTick className="text-primary" />}
+                        </div>
+                        <div className="truncate text-[11px] text-muted-foreground">
+                          {a.handle} · {fmt(a.followers)} followers
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
+                          on
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border"
+                        )}
+                      >
+                        {on && <Check className="h-3 w-3" />}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Inline summary */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Pill color={selectedAccounts.length > 0 ? "green" : "neutral"}>
+                {selectedAccounts.length} selected
+              </Pill>
+              {selectedAccounts.length > 0 && (
+                <span>
+                  · combined reach{" "}
+                  <b className="text-foreground">{fmt(combinedReach)}</b> followers
+                </span>
+              )}
+            </div>
+          </section>
+
+          {/* === Step 2: Brief === */}
+          <section className="space-y-3">
+            <SectionHeader
+              title="2 · Brief"
+              desc="Write your message — AI will adapt it per platform"
+              icon={Pencil}
+            />
+
+            {/* Caption textarea */}
+            <div className="relative">
+              <textarea
+                value={state.caption}
+                onChange={(e) => update({ caption: e.target.value })}
+                placeholder="e.g. Introducing our new collection — designed for creators who move fast. Built to last, made to inspire."
+                className="scroll-liquid min-h-[160px] w-full resize-y rounded-2xl border border-border/50 bg-muted/30 p-4 text-[15px] outline-none transition focus:border-primary/50 focus:bg-background/60"
+              />
+              <div className="pointer-events-none absolute bottom-3 right-3">
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-1 text-[10px] font-medium",
+                    charCount > 500
+                      ? "bg-rose-500/15 text-rose-500"
+                      : "bg-muted/70 text-muted-foreground"
+                  )}
+                >
+                  {charCount} chars
+                </span>
+              </div>
+            </div>
+
+            {/* Tone of voice — inline pills */}
+            <div>
+              <div className="mb-2 text-xs font-medium text-muted-foreground">
+                Tone of voice
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {TONES.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => update({ tone: t })}
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-xs font-medium transition",
+                      state.tone === t
+                        ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tip + AI Assistant toggle */}
+            {!aiAssistantOpen ? (
+              <div className="space-y-2">
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-foreground/80">
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span>
+                      <b className="text-foreground">Tip:</b> Front-load your hook in
+                      the first 1–2 lines. Mention the offer or emotion early — our
+                      AI will keep your angle but reshape length, hashtags, and tone
+                      per platform. Aim for 60–280 characters for best results.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAiAssistantOpen(true)}
+                  className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-left transition hover:border-primary hover:bg-primary/10"
+                >
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                    <Bot className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold">
+                      Try the AI Assistant
+                      <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
+                        New
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Chat conversationally to draft and refine your caption
+                    </div>
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold">
+                    <Bot className="h-3.5 w-3.5 text-primary" />
+                    AI Assistant
+                  </div>
+                  <button
+                    onClick={() => setAiAssistantOpen(false)}
+                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" /> Collapse
+                  </button>
+                </div>
+                <AIChatPanel
+                  caption={state.caption}
+                  onApplyCaption={(text) => update({ caption: text })}
+                  tone={state.tone}
+                  platforms={selectedAccounts.map((a) => PLATFORMS[a.platform].name)}
+                />
+              </div>
+            )}
+          </section>
+
+          {/* === Step 3: AI Variants === */}
+          <section className="space-y-3">
+            <SectionHeader
+              title="3 · AI Variants"
+              desc="Per-platform native rewrites"
+              icon={Sparkles}
+              action={
+                <button
+                  onClick={() => generate()}
+                  disabled={generating || !state.caption.trim() || selectedAccounts.length === 0}
+                  className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                >
+                  {generating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5" />
+                  )}
+                  {hasVariants ? "Regenerate all" : "Generate"}
+                </button>
+              }
+            />
+
+            {hasVariants ? (
+              <>
+                {/* Variant pills — pick which platform to edit/preview */}
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedAccounts.map((a) => {
+                    const active = previewAccountId === a.id;
+                    const has = !!state.variants[a.id];
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => setPreviewAccountId(a.id)}
+                        className={cn(
+                          "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition",
+                          active
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <PlatformBadge platform={a.platform} size={16} />
+                        <span>{PLATFORMS[a.platform].short}</span>
+                        {has && (
+                          <span className="grid h-3 w-3 place-items-center rounded-full bg-emerald-500/40 text-emerald-500">
+                            <Check className="h-2 w-2" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Inline editor for the selected variant */}
+                {previewAccount && (
+                  <VariantEditor
+                    account={previewAccount}
+                    variant={state.variants[previewAccount.id]}
+                    onChange={(v) =>
+                      setState((s) => ({
+                        ...s,
+                        variants: { ...s.variants, [previewAccount.id]: v },
+                      }))
+                    }
+                    onRegenerate={() => generate(previewAccount.id)}
+                    generating={generating}
+                    fallbackContent={state.caption}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+                {selectedAccounts.length === 0
+                  ? "Select accounts above to enable AI generation."
+                  : state.caption.trim()
+                  ? "Click Generate to create per-platform variants."
+                  : "Write a brief first, then generate variants."}
+              </div>
+            )}
+          </section>
+
+          {/* === Step 4: Media === */}
+          <section className="space-y-3">
+            <SectionHeader
+              title="4 · Media"
+              desc="Add visuals"
+              icon={ImageIcon}
+            />
+
+            {/* Media type toggle */}
+            <div className="flex flex-wrap gap-1.5">
+              {MEDIA_TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => update({ mediaType: opt.id })}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
+                    state.mediaType === opt.id
+                      ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <opt.icon className="h-3.5 w-3.5" />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Drop zone / preview */}
+            <button
+              type="button"
+              onClick={() => setUploadOpen(true)}
+              className={cn(
+                "group relative flex w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border/60 bg-muted/30 p-2 transition hover:border-primary/50 hover:bg-muted/40",
+                state.mediaUrl ? "min-h-[200px]" : "min-h-[160px]"
+              )}
+            >
+              {state.mediaUrl ? (
+                <>
+                  <div
+                    className="flex items-center justify-center"
+                    style={{ aspectRatio: cropAspect.replace(":", "/") }}
+                  >
+                    <img
+                      src={state.mediaUrl}
+                      alt={state.altText || "Selected media"}
+                      className="max-h-[280px] w-full rounded-xl object-cover"
+                    />
+                  </div>
+                  <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 via-transparent to-transparent p-3 opacity-0 transition group-hover:opacity-100">
+                    <span className="flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg backdrop-blur">
+                      <RefreshCw className="h-3 w-3" /> Replace media
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="grid place-items-center py-6 text-center">
+                  <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+                    <Upload className="h-4 w-4" />
+                  </div>
+                  <div className="mt-2 text-sm font-medium">Click to browse or upload</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    PNG, JPG, MP4 · up to 25MB
+                  </div>
+                </div>
+              )}
+            </button>
+
+            {/* Media library grid */}
+            {mediaAssets.length > 0 && (
+              <div>
+                <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">
+                  Media library
+                </div>
+                <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
+                  {mediaAssets.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => update({ mediaUrl: m.url })}
+                      className={cn(
+                        "relative aspect-square overflow-hidden rounded-lg ring-2 transition",
+                        state.mediaUrl === m.url
+                          ? "ring-primary"
+                          : "ring-transparent hover:ring-border"
+                      )}
+                    >
+                      <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
+                      {state.mediaUrl === m.url && (
+                        <span className="absolute inset-0 grid place-items-center bg-primary/30">
+                          <Check className="h-3.5 w-3.5 text-white drop-shadow" />
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Alt text + crop aspect */}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div>
+                <Label className="mb-1 text-[11px] text-muted-foreground">
+                  Alt text (accessibility)
+                </Label>
+                <input
+                  value={state.altText}
+                  onChange={(e) => update({ altText: e.target.value })}
+                  placeholder="Describe the image"
+                  className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+                />
+              </div>
+              <div>
+                <Label className="mb-1 text-[11px] text-muted-foreground">Crop aspect</Label>
+                <div className="flex flex-wrap gap-1">
+                  {["1:1", "4:5", "16:9", "9:16"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setCropAspect(c)}
+                      className={cn(
+                        "rounded-lg border px-2.5 py-2 text-xs font-medium transition",
+                        cropAspect === c
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <UploadDialog
+              open={uploadOpen}
+              onOpenChange={setUploadOpen}
+              onPick={(m) => {
+                update({ mediaUrl: m });
+                setUploadOpen(false);
+              }}
+              urlInput={urlInput}
+              onUrlInput={setUrlInput}
+              onUrlSubmit={submitUrl}
+              current={state.mediaUrl}
+              mediaAssets={mediaAssets}
+              userId={user?.id}
+            />
+          </section>
+
+          {/* === Step 5: Schedule === */}
+          <section className="space-y-3">
+            <SectionHeader
+              title="5 · Schedule"
+              desc="Publish now or pick a future time"
+              icon={CalendarClock}
+            />
+
+            {/* Publish mode — two toggle buttons */}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                onClick={() => update({ scheduleEnabled: false })}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition",
+                  !state.scheduleEnabled
+                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                    : "border-border/40 hover:bg-muted/40"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <Send className="h-4 w-4 text-primary" />
+                  <Check
+                    className={cn(
+                      "h-3.5 w-3.5",
+                      !state.scheduleEnabled ? "text-primary" : "opacity-0"
+                    )}
+                  />
+                </div>
+                <div className="mt-2 text-xs font-bold">Publish now</div>
+                <div className="text-[10px] text-muted-foreground">Send immediately</div>
+              </button>
+              <button
+                onClick={() => update({ scheduleEnabled: true })}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition",
+                  state.scheduleEnabled
+                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                    : "border-border/40 hover:bg-muted/40"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <CalendarClock className="h-4 w-4 text-primary" />
+                  <Check
+                    className={cn(
+                      "h-3.5 w-3.5",
+                      state.scheduleEnabled ? "text-primary" : "opacity-0"
+                    )}
+                  />
+                </div>
+                <div className="mt-2 text-xs font-bold">Schedule for later</div>
+                <div className="text-[10px] text-muted-foreground">Pick a future date &amp; time</div>
+              </button>
+            </div>
+
+            {/* DateTime picker */}
+            {state.scheduleEnabled && (
+              <div className="flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+                <input
+                  type="datetime-local"
+                  value={state.scheduledAt}
+                  onChange={(e) => update({ scheduledAt: e.target.value })}
+                  className="flex-1 rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-sm outline-none transition focus:border-primary/50"
+                />
+              </div>
+            )}
+
+            {/* Pre-publish checklist */}
+            <PrePublishChecklist
+              accounts={selectedAccounts}
+              caption={state.caption}
+              mediaUrl={state.mediaUrl}
+              hasVariants={hasVariants}
+            />
+          </section>
+        </main>
+
+        {/* STICKY PREVIEW — desktop only (lg:block) */}
+        {previewAccount && (
+          <aside className="hidden lg:block">
+            <div className="sticky top-20 space-y-3">
+              <SectionHeader
+                title="Live preview"
+                desc="Updates as you type"
+                icon={Eye}
+              />
+
+              {/* Platform switcher tabs */}
+              <div className="scroll-liquid flex gap-1 overflow-x-auto pb-1">
+                {selectedAccounts.map((a) => {
+                  const active = previewAccountId === a.id;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => setPreviewAccountId(a.id)}
+                      title={a.displayName}
+                      className={cn(
+                        "flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition",
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <PlatformBadge platform={a.platform} size={16} />
+                      <span>{PLATFORMS[a.platform].short}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Phone preview — the phone mockup frame */}
+              <PhonePreview
+                account={previewAccount}
+                content={previewContent}
+                mediaUrl={state.mediaUrl}
+                hashtags={previewHashtags}
+              />
+
+              {/* Char-limit indicator */}
+              <div className="text-center text-[10px] text-muted-foreground">
+                <span
+                  className={cn(
+                    previewContent.length > PLATFORMS[previewAccount.platform].charLimit &&
+                      "font-semibold text-rose-500"
+                  )}
+                >
+                  {previewContent.length}
+                </span>
+                {" / "}
+                {PLATFORMS[previewAccount.platform].charLimit} chars on{" "}
+                {PLATFORMS[previewAccount.platform].name}
+              </div>
+            </div>
+          </aside>
         )}
       </div>
 
-      <StepFooter
-        step={state.step}
-        onBack={back}
-        onNext={next}
-        canContinue={canContinue}
+      {/* === Mobile preview — below the flow, not sticky === */}
+      {previewAccount && (
+        <section className="space-y-3 lg:hidden">
+          <SectionHeader
+            title="Live preview"
+            desc="Tap a platform to switch"
+            icon={Eye}
+          />
+          <div className="scroll-liquid flex gap-1 overflow-x-auto pb-1">
+            {selectedAccounts.map((a) => {
+              const active = previewAccountId === a.id;
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => setPreviewAccountId(a.id)}
+                  title={a.displayName}
+                  className={cn(
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <PlatformBadge platform={a.platform} size={16} />
+                  <span>{PLATFORMS[a.platform].short}</span>
+                </button>
+              );
+            })}
+          </div>
+          <PhonePreview
+            account={previewAccount}
+            content={previewContent}
+            mediaUrl={state.mediaUrl}
+            hashtags={previewHashtags}
+          />
+        </section>
+      )}
+
+      {/* === Sticky publish bar — bottom of viewport === */}
+      <StickyPublishBar
         onPublish={publish}
         publishing={publishing}
         scheduleEnabled={state.scheduleEnabled}
         editing={!!editingPostId}
+        disabled={!canPublish}
+        accountCount={selectedAccounts.length}
+        combinedReach={combinedReach}
       />
     </div>
   );
 }
 
 /* ============================================================
-   Editing banner — shown when a draft/failed post is loaded
+   Editing banner — inline alert (not a card)
    ============================================================ */
 function EditingBanner({
   postId,
@@ -733,38 +1288,35 @@ function EditingBanner({
   onDiscard: () => void;
 }) {
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      <div className="glass-strong flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 sm:px-4">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
-          <RotateCw className="h-4 w-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-              Republishing draft
-            </span>
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
-              {postId.slice(-6)}
-            </span>
-          </div>
-          <div className="truncate text-sm font-semibold">{title}</div>
-        </div>
-        <button
-          onClick={onDiscard}
-          className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-background/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-        >
-          <X className="h-3 w-3" />
-          <span className="hidden sm:inline">Discard</span>
-        </button>
+    <div className="flex items-center gap-3 rounded-r-xl border-l-2 border-primary bg-primary/5 px-3 py-2.5">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+        <RotateCw className="h-4 w-4" />
       </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+            Republishing draft
+          </span>
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
+            {postId.slice(-6)}
+          </span>
+        </div>
+        <div className="truncate text-sm font-semibold">{title}</div>
+      </div>
+      <button
+        onClick={onDiscard}
+        className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-background/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+      >
+        <X className="h-3 w-3" />
+        <span className="hidden sm:inline">Discard</span>
+      </button>
     </div>
   );
 }
 
 /* ============================================================
-   Drafts panel — list of saved draft + failed posts that can be
-   re-opened and republished. Renders as a horizontally scrollable
-   strip above the step content.
+   Drafts panel — list of saved draft + failed posts.
+   Rendered as a card so it stands apart from the flow.
    ============================================================ */
 function DraftsPanel({
   drafts,
@@ -780,362 +1332,83 @@ function DraftsPanel({
   const visible = expanded ? drafts : drafts.slice(0, 4);
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
-      <GlassCard className="p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="grid h-7 w-7 place-items-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
-              <FileEdit className="h-3.5 w-3.5" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold">
-                Drafts &amp; failed posts
-              </div>
-              <div className="text-[10px] text-muted-foreground">
-                {drafts.length} saved — click to edit &amp; republish
-              </div>
+    <GlassCard className="p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="grid h-7 w-7 place-items-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+            <FileEdit className="h-3.5 w-3.5" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold">Drafts &amp; failed posts</div>
+            <div className="text-[10px] text-muted-foreground">
+              {drafts.length} saved — click to edit &amp; republish
             </div>
           </div>
-          {drafts.length > 4 && (
-            <button
-              onClick={() => setExpanded((v) => !v)}
-              className="rounded-lg bg-muted/60 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
-            >
-              {expanded ? "Show less" : `Show all (${drafts.length})`}
-            </button>
-          )}
         </div>
+        {drafts.length > 4 && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="rounded-lg bg-muted/60 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
+          >
+            {expanded ? "Show less" : `Show all (${drafts.length})`}
+          </button>
+        )}
+      </div>
 
-        <div className="scroll-liquid -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          {visible.map((p) => {
-            const isFailed = p.status === "failed";
-            return (
-              <button
-                key={p.id}
-                onClick={() => onLoad(p)}
-                className="group relative w-64 shrink-0 rounded-2xl border border-border/40 bg-muted/20 p-3 text-left transition hover:border-primary/40 hover:bg-muted/40"
-              >
-                <div className="mb-2 flex items-center gap-1.5">
-                  {p.variants.slice(0, 4).map((v) => (
-                    <PlatformBadge key={v.id} platform={v.platform} size={16} />
-                  ))}
-                  {p.variants.length > 4 && (
-                    <span className="text-[9px] text-muted-foreground">
-                      +{p.variants.length - 4}
-                    </span>
-                  )}
-                  <span
-                    className={cn(
-                      "ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase",
-                      isFailed
-                        ? "bg-rose-500/15 text-rose-500"
-                        : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                    )}
-                  >
-                    {p.status}
-                  </span>
-                </div>
-                <div className="line-clamp-1 text-xs font-semibold">
-                  {p.title || "Untitled"}
-                </div>
-                <div className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
-                  {p.caption || "(no caption)"}
-                </div>
-                <div className="mt-2 flex items-center justify-between">
+      <div className="scroll-liquid -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {visible.map((p) => {
+          const isFailed = p.status === "failed";
+          return (
+            <button
+              key={p.id}
+              onClick={() => onLoad(p)}
+              className="group relative w-56 shrink-0 rounded-xl border border-border/40 bg-muted/20 p-2.5 text-left transition hover:border-primary/40 hover:bg-muted/40"
+            >
+              <div className="mb-1.5 flex items-center gap-1">
+                {p.variants.slice(0, 4).map((v) => (
+                  <PlatformBadge key={v.id} platform={v.platform} size={14} />
+                ))}
+                {p.variants.length > 4 && (
                   <span className="text-[9px] text-muted-foreground">
-                    {timeAgo(p.createdAt)}
+                    +{p.variants.length - 4}
                   </span>
-                  <span className="flex items-center gap-1 text-[10px] font-semibold text-primary opacity-0 transition group-hover:opacity-100">
-                    <Pencil className="h-3 w-3" />
-                    Edit &amp; publish
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </GlassCard>
-    </div>
-  );
-}
-
-/* ============================================================
-   Step indicator — sticky, responsive (collapses on mobile)
-   ============================================================ */
-function StepIndicator({
-  step,
-  onStep,
-}: {
-  step: Step;
-  onStep: (s: Step) => void;
-}) {
-  const current = STEPS.find((s) => s.id === step) ?? STEPS[0];
-  return (
-    <div className="sticky top-0 z-30 -mx-4 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-      <div className="glass-strong glass-sheen rounded-2xl px-4 py-3 sm:px-5">
-        {/* Mobile — compact */}
-        <div className="flex items-center justify-between gap-3 sm:hidden">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground glow-pulse">
-              {step}
-            </span>
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Step {step} of {STEPS.length}
-              </div>
-              <div className="truncate text-sm font-semibold">{current.label}</div>
-            </div>
-          </div>
-          <div className="flex gap-1">
-            {STEPS.map((s) => (
-              <span
-                key={s.id}
-                className={cn(
-                  "h-1.5 rounded-full transition-all",
-                  s.id === step
-                    ? "w-5 bg-primary"
-                    : s.id < step
-                    ? "w-1.5 bg-primary/60"
-                    : "w-1.5 bg-muted-foreground/30"
                 )}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Desktop — full stepper */}
-        <div className="hidden items-center sm:flex">
-          {STEPS.map((s, i) => {
-            const done = s.id < step;
-            const active = s.id === step;
-            const clickable = s.id <= step;
-            return (
-              <React.Fragment key={s.id}>
-                <button
-                  type="button"
-                  disabled={!clickable}
-                  onClick={() => clickable && onStep(s.id)}
+                <span
                   className={cn(
-                    "group flex shrink-0 items-center gap-2.5 transition",
-                    clickable ? "cursor-pointer" : "cursor-default"
+                    "ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase",
+                    isFailed
+                      ? "bg-rose-500/15 text-rose-500"
+                      : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                   )}
                 >
-                  <span
-                    className={cn(
-                      "grid h-9 w-9 place-items-center rounded-full border text-sm font-semibold transition-all",
-                      active
-                        ? "border-primary bg-primary text-primary-foreground glow-pulse"
-                        : done
-                        ? "border-primary/40 bg-primary/15 text-primary"
-                        : "border-border bg-muted/40 text-muted-foreground"
-                    )}
-                  >
-                    {done ? <Check className="h-4 w-4" /> : s.id}
-                  </span>
-                  <div className="text-left">
-                    <div
-                      className={cn(
-                        "text-xs font-semibold leading-tight",
-                        active
-                          ? "text-foreground"
-                          : done
-                          ? "text-foreground/80"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      {s.label}
-                    </div>
-                  </div>
-                </button>
-                {i < STEPS.length - 1 && (
-                  <span
-                    className={cn(
-                      "mx-2 h-0.5 flex-1 rounded-full transition-all",
-                      s.id < step ? "bg-primary/50" : "bg-border"
-                    )}
-                  />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   Step 1 — Select Accounts
-   ============================================================ */
-function Step1({
-  accounts,
-  selectedIds,
-  onToggle,
-  onSelectAll,
-  onClear,
-  search,
-  onSearch,
-  selectedAccounts,
-}: {
-  accounts: AccountData[];
-  selectedIds: string[];
-  onToggle: (id: string) => void;
-  onSelectAll: () => void;
-  onClear: () => void;
-  search: string;
-  onSearch: (v: string) => void;
-  selectedAccounts: AccountData[];
-}) {
-  const combinedReach = selectedAccounts.reduce((s, a) => s + a.followers, 0);
-  return (
-    <GlassCard
-      strong
-      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
-      style={{ animationDelay: "0.05s" }}
-    >
-      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-primary/20 blur-3xl" />
-      <SectionTitle
-        title="Where should we publish?"
-        desc="Pick the destination accounts. We'll adapt your message for each platform."
-        action={
-          <div className="flex items-center gap-2 text-xs">
-            <button
-              onClick={onSelectAll}
-              className="font-medium text-primary hover:underline"
-            >
-              Select all
-            </button>
-            <span className="text-muted-foreground/60">·</span>
-            <button
-              onClick={onClear}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Clear
-            </button>
-          </div>
-        }
-      />
-
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={search}
-          onChange={(e) => onSearch(e.target.value)}
-          placeholder="Search by name, handle, or platform…"
-          className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
-        {/* Account grid */}
-        <div className="scroll-liquid max-h-[480px] space-y-2 overflow-y-auto pr-1">
-          {accounts.length === 0 ? (
-            <div className="grid place-items-center py-12 text-center text-sm text-muted-foreground">
-              No accounts match your search.
-            </div>
-          ) : (
-            accounts.map((a, i) => {
-              const on = selectedIds.includes(a.id);
-              return (
-                <button
-                  key={a.id}
-                  onClick={() => onToggle(a.id)}
-                  style={{ animationDelay: `${0.05 + i * 0.03}s` }}
-                  className={cn(
-                    "crystal-in flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition",
-                    on
-                      ? "border-primary/40 bg-primary/10 ring-1 ring-primary/30"
-                      : "border-border/40 hover:border-border hover:bg-muted/50"
-                  )}
-                >
-                  <PlatformBadge platform={a.platform} size={40} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1">
-                      <span className="truncate text-sm font-semibold">
-                        {a.displayName}
-                      </span>
-                      {a.verified && <VerifiedTick className="text-primary" />}
-                    </div>
-                    <div className="truncate text-[11px] text-muted-foreground">
-                      {a.handle} · {fmt(a.followers)} followers
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      "grid h-5 w-5 place-items-center rounded-full border transition",
-                      on
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border"
-                    )}
-                  >
-                    {on && <Check className="h-3 w-3" />}
-                  </span>
-                </button>
-              );
-            })
-          )}
-        </div>
-
-        {/* Summary panel — desktop */}
-        <div className="hidden lg:block">
-          <div className="sticky top-24 rounded-2xl border border-border/40 bg-muted/20 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="label-caps text-muted-foreground">Selected</div>
-              <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground">
-                {selectedIds.length}
-              </span>
-            </div>
-            <div className="scroll-liquid max-h-[340px] space-y-1 overflow-y-auto pr-1">
-              {selectedAccounts.length === 0 ? (
-                <div className="py-6 text-center text-xs text-muted-foreground">
-                  Nothing selected yet.
-                </div>
-              ) : (
-                selectedAccounts.map((a) => (
-                  <div
-                    key={a.id}
-                    className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-muted/40"
-                  >
-                    <PlatformBadge platform={a.platform} size={22} />
-                    <span className="truncate text-xs font-medium">
-                      {a.displayName}
-                    </span>
-                    <button
-                      onClick={() => onToggle(a.id)}
-                      className="ml-auto text-muted-foreground hover:text-foreground"
-                      aria-label={`Remove ${a.displayName}`}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-            {selectedAccounts.length > 0 && (
-              <div className="mt-3 border-t border-border/40 pt-3 text-[10px] text-muted-foreground">
-                Combined reach:{" "}
-                <b className="text-foreground">{fmt(combinedReach)}</b> followers
+                  {p.status}
+                </span>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile inline summary */}
-      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground lg:hidden">
-        <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-primary px-1.5 font-bold text-primary-foreground">
-          {selectedIds.length}
-        </span>
-        accounts selected · combined reach{" "}
-        <b className="text-foreground">{fmt(combinedReach)}</b>
+              <div className="line-clamp-1 text-xs font-semibold">
+                {p.title || "Untitled"}
+              </div>
+              <div className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
+                {p.caption || "(no caption)"}
+              </div>
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className="text-[9px] text-muted-foreground">
+                  {timeAgo(p.createdAt)}
+                </span>
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-primary opacity-0 transition group-hover:opacity-100">
+                  <Pencil className="h-2.5 w-2.5" /> Edit
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </GlassCard>
   );
 }
 
 /* ============================================================
-   AI Chat Panel — ChatGPT-style conversational assistant
+   AI Chat Panel — ChatGPT-style conversational assistant.
+   Inline within the Brief section when expanded.
    ============================================================ */
 interface ChatMessage {
   role: "user" | "assistant";
@@ -1234,16 +1507,16 @@ function AIChatPanel({
   ];
 
   return (
-    <div className="flex h-[520px] flex-col rounded-2xl border border-border/50 bg-muted/20">
+    <div className="flex h-[420px] flex-col rounded-2xl border border-border/50 bg-muted/20">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-border/40 px-3 py-2">
         <div className="flex items-center gap-2">
-          <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/15 text-primary">
-            <Bot className="h-4 w-4" />
+          <div className="grid h-6 w-6 place-items-center rounded-lg bg-primary/15 text-primary">
+            <Bot className="h-3.5 w-3.5" />
           </div>
           <div>
-            <div className="text-xs font-bold">AI Content Writer</div>
-            <div className="text-[10px] text-muted-foreground">
+            <div className="text-[11px] font-bold">AI Content Writer</div>
+            <div className="text-[9px] text-muted-foreground">
               Chat to draft, refine, and ideate captions
             </div>
           </div>
@@ -1261,14 +1534,13 @@ function AIChatPanel({
       {/* Messages area */}
       <div
         ref={scrollRef}
-        className="scroll-liquid flex-1 space-y-3 overflow-y-auto p-4"
+        className="scroll-liquid flex-1 space-y-3 overflow-y-auto p-3"
       >
         {messages.length === 0 && !sending && (
           <div className="space-y-3">
-            <div className="rounded-xl bg-background/60 p-3 text-xs text-muted-foreground">
+            <div className="rounded-xl bg-background/60 p-2.5 text-[11px] text-muted-foreground">
               👋 Hi! I&apos;m your AI content writer. Tell me what you want to post
-              about, and I&apos;ll draft captions tailored to your platforms
-              ({" "}
+              about, and I&apos;ll draft captions tailored to your platforms ({" "}
               <span className="font-medium text-foreground">
                 {platforms.length > 0 ? platforms.join(", ") : "any platform"}
               </span>
@@ -1283,7 +1555,7 @@ function AIChatPanel({
                 <button
                   key={p}
                   onClick={() => sendMessage(p)}
-                  className="block w-full rounded-xl border border-border/40 bg-background/40 px-3 py-2 text-left text-[11px] text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5"
+                  className="block w-full rounded-xl border border-border/40 bg-background/40 px-2.5 py-1.5 text-left text-[11px] text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5"
                 >
                   {p}
                 </button>
@@ -1301,13 +1573,13 @@ function AIChatPanel({
             )}
           >
             {m.role === "assistant" && (
-              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-                <Bot className="h-4 w-4" />
+              <div className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                <Bot className="h-3.5 w-3.5" />
               </div>
             )}
             <div
               className={cn(
-                "max-w-[80%] space-y-2 rounded-2xl px-3 py-2 text-[13px] leading-relaxed",
+                "max-w-[80%] space-y-2 rounded-2xl px-3 py-2 text-[12px] leading-relaxed",
                 m.role === "user"
                   ? "bg-primary text-primary-foreground"
                   : "bg-background/70 text-foreground"
@@ -1323,7 +1595,7 @@ function AIChatPanel({
                     <button
                       key={idx}
                       onClick={() => applySuggestion(s)}
-                      className="block w-full rounded-xl border border-primary/30 bg-primary/5 p-2.5 text-left text-[12px] text-foreground transition hover:border-primary hover:bg-primary/10"
+                      className="block w-full rounded-xl border border-primary/30 bg-primary/5 p-2 text-left text-[11px] text-foreground transition hover:border-primary hover:bg-primary/10"
                     >
                       <div className="flex items-start gap-2">
                         <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
@@ -1335,8 +1607,8 @@ function AIChatPanel({
               )}
             </div>
             {m.role === "user" && (
-              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-                <UserIcon className="h-4 w-4" />
+              <div className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                <UserIcon className="h-3.5 w-3.5" />
               </div>
             )}
           </div>
@@ -1344,8 +1616,8 @@ function AIChatPanel({
 
         {sending && (
           <div className="flex gap-2">
-            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-              <Bot className="h-4 w-4" />
+            <div className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+              <Bot className="h-3.5 w-3.5" />
             </div>
             <div className="flex items-center gap-1 rounded-2xl bg-background/70 px-3 py-2.5">
               <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60" style={{ animationDelay: "0ms" }} />
@@ -1357,7 +1629,7 @@ function AIChatPanel({
       </div>
 
       {/* Input area */}
-      <div className="border-t border-border/40 p-3">
+      <div className="border-t border-border/40 p-2.5">
         <div className="flex items-end gap-2">
           <textarea
             value={input}
@@ -1370,18 +1642,18 @@ function AIChatPanel({
             }}
             placeholder="Ask the AI to write or refine your caption…"
             rows={1}
-            className="scroll-liquid max-h-24 min-h-[40px] flex-1 resize-none rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-[13px] outline-none transition focus:border-primary/50"
+            className="scroll-liquid max-h-24 min-h-[36px] flex-1 resize-none rounded-xl border border-border/50 bg-background/60 px-2.5 py-1.5 text-[12px] outline-none transition focus:border-primary/50"
           />
           <button
             onClick={() => sendMessage()}
             disabled={!input.trim() || sending}
-            className="liquid-pill grid h-10 w-10 shrink-0 place-items-center rounded-xl disabled:opacity-50"
+            className="liquid-pill grid h-9 w-9 shrink-0 place-items-center rounded-xl disabled:opacity-50"
             aria-label="Send"
           >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
           </button>
         </div>
-        <p className="mt-1.5 text-[10px] text-muted-foreground">
+        <p className="mt-1 text-[9px] text-muted-foreground">
           Press Enter to send · Shift+Enter for newline
         </p>
       </div>
@@ -1390,425 +1662,286 @@ function AIChatPanel({
 }
 
 /* ============================================================
-   Step 2 — Text Content
+   Variant editor — inline editor for the selected platform
+   variant. Shows below the variant pills in the AI Variants
+   section. Edits live-update the sticky preview.
    ============================================================ */
-function Step2({
-  caption,
-  onCaption,
-  tone,
-  onTone,
-  onGenerate,
+function VariantEditor({
+  account,
+  variant,
+  onChange,
+  onRegenerate,
   generating,
-  hasVariants,
-  selectedCount,
-  variants,
-  selectedAccounts,
+  fallbackContent,
 }: {
-  caption: string;
-  onCaption: (v: string) => void;
-  tone: string;
-  onTone: (v: string) => void;
-  onGenerate: () => void;
+  account: AccountData;
+  variant: Variant | undefined;
+  onChange: (v: Variant) => void;
+  onRegenerate: () => void;
   generating: boolean;
-  hasVariants: boolean;
-  selectedCount: number;
-  variants: Record<string, Variant>;
-  selectedAccounts: { id: string; platform: PlatformId; handle: string; displayName: string }[];
+  fallbackContent: string;
 }) {
-  const [mode, setMode] = React.useState<"brief" | "assistant">("brief");
-  const charCount = caption.length;
-  const platformNames = selectedAccounts.map((a) => PLATFORMS[a.platform].name);
+  const p = PLATFORMS[account.platform];
+  const content = variant?.content ?? fallbackContent;
+  const hashtags = variant?.hashtags ?? "";
+  const overLimit = content.length > p.charLimit;
 
   return (
-    <GlassCard
-      strong
-      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
-      style={{ animationDelay: "0.05s" }}
-    >
-      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.72_0.13_190)]/20 blur-3xl" />
-      <SectionTitle
-        title="What's the message?"
-        desc="Write your brief once. Our AI adapts it natively for each platform in the next step."
-      />
-
-      {/* === Mode toggle: Write brief | AI Assistant === */}
-      <div className="mt-3 inline-flex rounded-xl border border-border/40 bg-muted/20 p-0.5">
-        <button
-          onClick={() => setMode("brief")}
-          className={cn(
-            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-            mode === "brief"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          Write brief
-        </button>
-        <button
-          onClick={() => setMode("assistant")}
-          className={cn(
-            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-            mode === "assistant"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Bot className="h-3.5 w-3.5" />
-          AI Assistant
-          <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
-            New
-          </span>
-        </button>
-      </div>
-
-      <div className="mt-4 grid gap-5 lg:grid-cols-2">
-        {/* === Left: Caption textarea (always visible) === */}
-        <div className="space-y-3">
-          <div className="relative">
-            <textarea
-              value={caption}
-              onChange={(e) => onCaption(e.target.value)}
-              placeholder="e.g. Introducing our new collection — designed for creators who move fast. Built to last, made to inspire."
-              className="scroll-liquid min-h-[200px] w-full resize-y rounded-2xl border border-border/50 bg-muted/30 p-4 text-[15px] outline-none transition focus:border-primary/50 focus:bg-background/60"
-            />
-            <div className="pointer-events-none absolute bottom-3 right-3">
-              <span
-                className={cn(
-                  "rounded-full px-2 py-1 text-[10px] font-medium",
-                  charCount > 500
-                    ? "bg-rose-500/15 text-rose-500"
-                    : "bg-muted/70 text-muted-foreground"
-                )}
-              >
-                {charCount} chars
-              </span>
-            </div>
+    <div className="rounded-2xl border border-border/40 bg-muted/20 p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <PlatformBadge platform={account.platform} size={22} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 text-xs font-semibold">
+            <span className="truncate">{account.displayName}</span>
+            {account.verified && <VerifiedTick className="text-primary" />}
           </div>
-
-          <div>
-            <div className="mb-2 text-xs font-medium text-muted-foreground">
-              Tone of voice
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {TONES.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => onTone(t)}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-xs font-medium transition",
-                    tone === t
-                      ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
-                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+          <div className="truncate text-[10px] text-muted-foreground">
+            {account.handle} · {p.name}
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={onGenerate}
-              disabled={generating || !caption.trim() || selectedCount === 0}
-              className="liquid-gold glow-ring flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
-            >
-              {generating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Wand2 className="h-4 w-4" />
-              )}
-              {generating
-                ? "Generating…"
-                : hasVariants
-                ? "Regenerate AI variants"
-                : "Generate AI variants"}
-            </button>
-            {selectedCount > 0 ? (
-              <span className="text-xs text-muted-foreground">
-                For{" "}
-                <b className="text-foreground">{selectedCount}</b> selected account
-                {selectedCount === 1 ? "" : "s"}
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                Select accounts in step 1 first
-              </span>
-            )}
-          </div>
-
-          {/* === Generated variants preview — shown immediately after AI completes === */}
-          {hasVariants && !generating && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {Object.keys(variants).length} AI-generated variant{Object.keys(variants).length === 1 ? "" : "s"} ready
-              </div>
-              {selectedAccounts.map((a) => {
-                const v = variants[a.id];
-                if (!v) return null;
-                const p = PLATFORMS[a.platform];
-                return (
-                  <div key={a.id} className="crystal-in rounded-2xl border border-border bg-muted/30 p-4">
-                    <div className="mb-2 flex items-center gap-2">
-                      <div className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">
-                        <PlatformBadge platform={a.platform} size={18} />
-                      </div>
-                      <span className="text-xs font-semibold">{p.name}</span>
-                      <span className="text-[11px] text-muted-foreground">{a.handle}</span>
-                      <span className="ml-auto text-[10px] text-muted-foreground">{v.content.length} chars</span>
-                    </div>
-                    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground/90">{v.content}</p>
-                    {v.hashtags && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {v.hashtags.split(",").map((tag, i) => (
-                          <span key={i} className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                            #{tag.trim()}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
-
-        {/* === Right: Either Tip panel (brief mode) or AI Assistant (assistant mode) === */}
-        {mode === "assistant" ? (
-          <AIChatPanel
-            caption={caption}
-            onApplyCaption={onCaption}
-            tone={tone}
-            platforms={platformNames}
-          />
-        ) : (
-          <div className="space-y-3">
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-              <div className="flex items-start gap-3">
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-                  <Lightbulb className="h-4 w-4" />
-                </div>
-                <div className="text-xs leading-relaxed text-foreground/80">
-                  <b className="text-foreground">Tip:</b> Front-load your hook in the
-                  first 1–2 lines. Mention the offer or emotion early — our AI will
-                  keep your angle but reshape length, hashtags, and tone per platform.
-                  Aim for 60–280 characters for best results.
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setMode("assistant")}
-              className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4 text-left transition hover:border-primary hover:bg-primary/10"
-            >
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
-                <Bot className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-bold">Try the AI Assistant →</div>
-                <div className="text-[11px] text-muted-foreground">
-                  Chat conversationally to draft and refine your caption. Tap to apply suggestions.
-                </div>
-              </div>
-            </button>
-          </div>
+        {variant && (
+          <Pill color="violet">
+            <Sparkles className="h-2.5 w-2.5" /> AI
+          </Pill>
         )}
+        <button
+          onClick={onRegenerate}
+          disabled={generating}
+          className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-primary disabled:opacity-50"
+          title="Regenerate this variant"
+          aria-label={`Regenerate ${account.displayName} variant`}
+        >
+          <RefreshCw className={cn("h-3 w-3", generating && "animate-spin")} />
+        </button>
       </div>
-    </GlassCard>
+      <textarea
+        value={content}
+        onChange={(e) => onChange({ content: e.target.value, hashtags })}
+        placeholder={`Write a ${p.name}-native caption…`}
+        className="scroll-liquid min-h-[80px] w-full resize-y rounded-xl border border-border/40 bg-background/60 p-2.5 text-sm outline-none transition focus:border-primary/50"
+      />
+      <div className="mt-1.5 flex items-center gap-2">
+        <Hash className="h-3 w-3 shrink-0 text-muted-foreground" />
+        <input
+          value={hashtags}
+          onChange={(e) => onChange({ content, hashtags: e.target.value })}
+          placeholder="hashtags, comma, separated"
+          className="flex-1 rounded-lg border border-border/40 bg-background/60 px-2 py-1 text-xs outline-none focus:border-primary/50"
+        />
+        <span
+          className={cn(
+            "shrink-0 text-[10px]",
+            overLimit ? "font-semibold text-rose-500" : "text-muted-foreground"
+          )}
+        >
+          {content.length}/{p.charLimit}
+        </span>
+      </div>
+    </div>
   );
 }
 
 /* ============================================================
-   Step 3 — Graphics / Media Upload
+   Phone preview — the only "card frame" in the view.
+   Floats in the sticky aside on desktop; stacks below on mobile.
    ============================================================ */
-function Step3({
+function PhonePreview({
+  account,
+  content,
   mediaUrl,
-  mediaType,
-  altText,
-  onMedia,
-  onMediaType,
-  onAltText,
-  uploadOpen,
-  onUploadOpen,
-  urlInput,
-  onUrlInput,
-  onUrlSubmit,
-  mediaAssets,
-  user,
-  cropAspect,
-  onCropAspect,
+  hashtags,
 }: {
+  account: AccountData;
+  content: string;
   mediaUrl: string;
-  mediaType: MediaType;
-  altText: string;
-  onMedia: (v: string) => void;
-  onMediaType: (v: MediaType) => void;
-  onAltText: (v: string) => void;
-  uploadOpen: boolean;
-  onUploadOpen: (o: boolean) => void;
-  urlInput: string;
-  onUrlInput: (v: string) => void;
-  onUrlSubmit: () => void;
-  mediaAssets: MediaAssetLite[];
-  user?: { id: string } | null;
-  cropAspect: string;
-  onCropAspect: (v: string) => void;
+  hashtags: string;
 }) {
+  const tags = hashtags
+    .split(/[,\s]+/)
+    .map((t) => t.replace(/^#/, "").trim())
+    .filter(Boolean);
   return (
-    <GlassCard
-      strong
-      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
-      style={{ animationDelay: "0.05s" }}
-    >
-      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.74_0.12_145)]/20 blur-3xl" />
-      <SectionTitle
-        title="Add visuals"
-        desc="Pick from your media library, or paste an image URL."
-      />
-
-      {/* Media type toggle */}
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {MEDIA_TYPE_OPTIONS.map((opt) => (
-          <button
-            key={opt.id}
-            onClick={() => onMediaType(opt.id)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
-              mediaType === opt.id
-                ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
-                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <opt.icon className="h-3.5 w-3.5" />
-            {opt.label}
-          </button>
-        ))}
+    <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-3xl border border-border/60 bg-background shadow-lg">
+      {/* Header */}
+      <div className="flex items-center gap-2 p-3">
+        <PlatformBadge platform={account.platform} size={32} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 text-xs font-semibold">
+            <span className="truncate">{account.displayName}</span>
+            {account.verified && <VerifiedTick className="text-primary" />}
+          </div>
+          <div className="text-[10px] text-muted-foreground">{account.handle}</div>
+        </div>
+        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
       </div>
 
-      {/* Drop zone / preview */}
-      <button
-        type="button"
-        onClick={() => onUploadOpen(true)}
-        className={cn(
-          "group relative flex w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border/60 bg-muted/30 p-2 transition hover:border-primary/50 hover:bg-muted/40",
-          mediaUrl ? "min-h-[280px]" : "min-h-[220px]"
-        )}
-      >
-        {mediaUrl ? (
-          <>
-            <div className="flex items-center justify-center" style={{ aspectRatio: cropAspect.replace(":", "/") }}>
-              <img
-                src={mediaUrl}
-                alt={altText || "Selected media"}
-                className="max-h-[340px] w-full rounded-xl object-cover"
-              />
-            </div>
-            <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 via-transparent to-transparent p-3 opacity-0 transition group-hover:opacity-100">
-              <span className="flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg backdrop-blur">
-                <RefreshCw className="h-3 w-3" /> Replace media
-              </span>
-            </div>
-          </>
-        ) : (
-          <div className="grid place-items-center py-8 text-center">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
-              <Upload className="h-5 w-5" />
-            </div>
-            <div className="mt-3 text-sm font-medium">Click to browse or upload</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              PNG, JPG, MP4 · up to 50MB
-            </div>
-          </div>
-        )}
-      </button>
-
-      {/* Media library grid */}
-      <div className="mt-4">
-        <div className="mb-2 text-xs font-medium text-muted-foreground">
-          Media library
+      {/* Media */}
+      {mediaUrl && (
+        <div className="aspect-square w-full overflow-hidden bg-muted">
+          <img src={mediaUrl} alt="" className="h-full w-full object-cover" />
         </div>
-        {mediaAssets.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground">
-            No media yet. Paste a URL above, or upload assets from the Media
-            Library view first.
-          </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-            {mediaAssets.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => onMedia(m.url)}
-                className={cn(
-                  "relative aspect-square overflow-hidden rounded-xl ring-2 transition",
-                  mediaUrl === m.url ? "ring-primary" : "ring-transparent hover:ring-border"
-                )}
-              >
-                <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
-                {mediaUrl === m.url && (
-                  <span className="absolute inset-0 grid place-items-center bg-primary/30">
-                    <Check className="h-4 w-4 text-white drop-shadow" />
-                  </span>
-                )}
-              </button>
+      )}
+
+      {/* Body */}
+      <div className="p-3">
+        <div className="mb-2 flex items-center gap-3 text-muted-foreground">
+          <Heart className="h-4 w-4" />
+          <MessageCircle className="h-4 w-4" />
+          <Send className="h-4 w-4" />
+          <Bookmark className="ml-auto h-4 w-4" />
+        </div>
+        <div className="text-[10px] font-semibold">
+          {fmt(account.followers)} followers
+        </div>
+        <p className="mt-1 line-clamp-4 text-xs leading-relaxed text-foreground/90">
+          {content || "Your caption will appear here…"}
+        </p>
+        {tags.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-x-1 text-[11px] font-medium text-primary">
+            {tags.slice(0, 6).map((t, i) => (
+              <span key={t + i}>#{t}</span>
             ))}
           </div>
         )}
-      </div>
-
-      {/* Alt text + crop hint */}
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div>
-          <Label className="mb-1.5 text-xs text-muted-foreground">
-            Alt text (accessibility)
-          </Label>
-          <input
-            value={altText}
-            onChange={(e) => onAltText(e.target.value)}
-            placeholder="Describe the image for screen readers"
-            className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
-          />
-        </div>
-        <div>
-          <Label className="mb-1.5 text-xs text-muted-foreground">Crop aspect</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {["1:1", "4:5", "16:9", "9:16"].map((c) => (
-              <button
-                key={c}
-                onClick={() => onCropAspect(c)}
-                className={cn(
-                  "rounded-lg border px-2.5 py-2 text-xs font-medium transition",
-                  cropAspect === c
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
+        <div className="mt-2 text-[9px] uppercase tracking-wide text-muted-foreground">
+          {PLATFORMS[account.platform].name}
         </div>
       </div>
-
-      <UploadDialog
-        open={uploadOpen}
-        onOpenChange={onUploadOpen}
-        onPick={(m) => {
-          onMedia(m);
-          onUploadOpen(false);
-        }}
-        urlInput={urlInput}
-        onUrlInput={onUrlInput}
-        onUrlSubmit={onUrlSubmit}
-        current={mediaUrl}
-        mediaAssets={mediaAssets}
-        userId={user?.id}
-      />
-    </GlassCard>
+    </div>
   );
 }
 
+/* ============================================================
+   Pre-publish checklist — inline summary in Schedule section
+   ============================================================ */
+function PrePublishChecklist({
+  accounts,
+  caption,
+  mediaUrl,
+  hasVariants,
+}: {
+  accounts: AccountData[];
+  caption: string;
+  mediaUrl: string;
+  hasVariants: boolean;
+}) {
+  const checklist = [
+    { label: `Accounts selected (${accounts.length})`, done: accounts.length > 0 },
+    { label: "Content written", done: caption.trim().length > 0 },
+    { label: "Media added", done: !!mediaUrl },
+    { label: "AI variants ready", done: hasVariants },
+  ];
+  const allDone = checklist.every((c) => c.done);
+
+  return (
+    <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+      <div className="label-caps mb-2 text-muted-foreground">Pre-publish checklist</div>
+      <div className="space-y-1.5">
+        {checklist.map((c) => (
+          <div key={c.label} className="flex items-center gap-2 text-xs">
+            <span
+              className={cn(
+                "grid h-4 w-4 shrink-0 place-items-center rounded-full border transition",
+                c.done
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              {c.done ? (
+                <Check className="h-2.5 w-2.5" />
+              ) : (
+                <AlertCircle className="h-2.5 w-2.5" />
+              )}
+            </span>
+            <span className={c.done ? "text-foreground" : "text-muted-foreground"}>
+              {c.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div
+        className={cn(
+          "mt-2 flex items-center gap-1.5 rounded-lg p-2 text-[11px] font-medium",
+          allDone
+            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+        )}
+      >
+        {allDone ? <Check className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+        {allDone ? "All set — ready to publish." : "Some items need attention."}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Sticky publish bar — bottom of viewport, always visible
+   ============================================================ */
+function StickyPublishBar({
+  onPublish,
+  publishing,
+  scheduleEnabled,
+  editing,
+  disabled,
+  accountCount,
+  combinedReach,
+}: {
+  onPublish: () => void;
+  publishing: boolean;
+  scheduleEnabled: boolean;
+  editing: boolean;
+  disabled: boolean;
+  accountCount: number;
+  combinedReach: number;
+}) {
+  return (
+    <div className="sticky bottom-0 z-30 -mx-4 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="glass-strong glass-sheen flex items-center justify-between gap-3 rounded-2xl px-4 py-3 sm:px-5">
+        <div className="hidden min-w-0 sm:block">
+          <div className="text-xs font-semibold">
+            {accountCount > 0
+              ? `${accountCount} account${accountCount === 1 ? "" : "s"} · ${fmt(combinedReach)} reach`
+              : "Select accounts to publish"}
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            {scheduleEnabled ? "Will be scheduled for later" : "Will publish immediately"}
+            {editing ? " · republishing draft" : ""}
+          </div>
+        </div>
+        <button
+          onClick={onPublish}
+          disabled={publishing || disabled}
+          className="liquid-pill glow-ring ml-auto flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+        >
+          {publishing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : scheduleEnabled ? (
+            <CalendarClock className="h-4 w-4" />
+          ) : editing ? (
+            <RotateCw className="h-4 w-4" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+          {publishing
+            ? editing
+              ? "Republishing…"
+              : "Publishing…"
+            : scheduleEnabled
+            ? editing
+              ? "Update & schedule"
+              : "Schedule post"
+            : editing
+            ? "Republish now"
+            : "Publish now"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Upload dialog — drag-and-drop, URL, or library picker
+   ============================================================ */
 function UploadDialog({
   open,
   onOpenChange,
@@ -1983,557 +2116,5 @@ function UploadDialog({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/* ============================================================
-   Step 4 — Preview
-   ============================================================ */
-function Step4({
-  accounts,
-  variants,
-  onVariantChange,
-  mediaUrl,
-  caption,
-  onRegenerate,
-  onRegenerateAll,
-  generating,
-}: {
-  accounts: AccountData[];
-  variants: Record<string, Variant>;
-  onVariantChange: (id: string, v: Variant) => void;
-  mediaUrl: string;
-  caption: string;
-  onRegenerate: (id: string) => void;
-  onRegenerateAll: () => void;
-  generating: boolean;
-}) {
-  const hasVariants = Object.keys(variants).length > 0;
-
-  if (accounts.length === 0) {
-    return (
-      <GlassCard className="crystal-in grid place-items-center p-10 text-center">
-        <Sparkles className="h-8 w-8 text-muted-foreground/40" />
-        <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-          Go back to step 1 and select at least one account to preview your
-          posts.
-        </p>
-      </GlassCard>
-    );
-  }
-
-  return (
-    <GlassCard
-      strong
-      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
-      style={{ animationDelay: "0.05s" }}
-    >
-      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.66_0.11_220)]/20 blur-3xl" />
-      <SectionTitle
-        title="Review your posts"
-        desc="AI-generated per platform. Edit freely — these will be published as-is."
-        action={
-          <button
-            onClick={onRegenerateAll}
-            disabled={generating}
-            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-          >
-            <RefreshCw className={cn("h-3 w-3", generating && "animate-spin")} />
-            Regenerate all
-          </button>
-        }
-      />
-
-      <Tabs defaultValue={accounts[0]?.id} className="w-full">
-        <div className="scroll-liquid mb-4 max-w-full overflow-x-auto pb-1">
-          <TabsList className="h-auto flex w-max gap-1 bg-muted/40 p-1">
-            {accounts.map((a) => (
-              <TabsTrigger
-                key={a.id}
-                value={a.id}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <PlatformBadge platform={a.platform} size={20} />
-                <span className="hidden sm:inline">{a.handle}</span>
-                <span className="sm:hidden">{PLATFORMS[a.platform].short}</span>
-                {variants[a.id] && (
-                  <span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-emerald-500/30 text-emerald-500">
-                    <Check className="h-2.5 w-2.5" />
-                  </span>
-                )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-
-        {accounts.map((a) => {
-          const p = PLATFORMS[a.platform];
-          const variant = variants[a.id];
-          const content = variant?.content ?? caption;
-          const hashtags = variant?.hashtags ?? "";
-          const overLimit = content.length > p.charLimit;
-          return (
-            <TabsContent key={a.id} value={a.id} className="mt-0">
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Editor */}
-                <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
-                  <div className="mb-3 flex items-center gap-2">
-                    <PlatformBadge platform={a.platform} size={28} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1 text-sm font-semibold">
-                        {a.displayName}
-                        {a.verified && <VerifiedTick className="text-primary" />}
-                      </div>
-                      <div className="truncate text-[11px] text-muted-foreground">
-                        {a.handle} · {p.name}
-                      </div>
-                    </div>
-                    {variant && (
-                      <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-500">
-                        <Sparkles className="h-3 w-3" /> AI
-                      </span>
-                    )}
-                    <button
-                      onClick={() => onRegenerate(a.id)}
-                      disabled={generating}
-                      className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-primary disabled:opacity-50"
-                      title="Regenerate this variant"
-                      aria-label={`Regenerate ${a.displayName} variant`}
-                    >
-                      <RefreshCw
-                        className={cn("h-3.5 w-3.5", generating && "animate-spin")}
-                      />
-                    </button>
-                  </div>
-                  <textarea
-                    value={content}
-                    onChange={(e) =>
-                      onVariantChange(a.id, {
-                        content: e.target.value,
-                        hashtags,
-                      })
-                    }
-                    placeholder={`Write a ${p.name}-native caption…`}
-                    className="scroll-liquid min-h-[120px] w-full resize-y rounded-xl border border-border/40 bg-background/60 p-3 text-sm outline-none transition focus:border-primary/50"
-                  />
-                  <div className="mt-2 flex items-center gap-2">
-                    <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <input
-                      value={hashtags}
-                      onChange={(e) =>
-                        onVariantChange(a.id, {
-                          content,
-                          hashtags: e.target.value,
-                        })
-                      }
-                      placeholder="hashtags, comma, separated"
-                      className="flex-1 rounded-lg border border-border/40 bg-background/60 px-2.5 py-1.5 text-xs outline-none focus:border-primary/50"
-                    />
-                    <span
-                      className={cn(
-                        "shrink-0 text-[10px]",
-                        overLimit
-                          ? "font-semibold text-rose-500"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      {content.length}/{p.charLimit}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Phone preview */}
-                <div>
-                  <div className="mb-2 text-xs font-medium text-muted-foreground">
-                    Preview
-                  </div>
-                  <PhonePreview
-                    account={a}
-                    content={content}
-                    mediaUrl={mediaUrl}
-                    hashtags={hashtags}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          );
-        })}
-      </Tabs>
-
-      {!hasVariants && (
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-foreground/80">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <span>
-            No AI variants yet — these previews show your base caption. Go back
-            to step 2 and tap{" "}
-            <b className="text-foreground">Generate AI variants</b> for
-            platform-native rewrites.
-          </span>
-        </div>
-      )}
-    </GlassCard>
-  );
-}
-
-function PhonePreview({
-  account,
-  content,
-  mediaUrl,
-  hashtags,
-}: {
-  account: AccountData;
-  content: string;
-  mediaUrl: string;
-  hashtags: string;
-}) {
-  const tags = hashtags
-    .split(/[,\s]+/)
-    .map((t) => t.replace(/^#/, "").trim())
-    .filter(Boolean);
-  return (
-    <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-3xl border border-border/60 bg-background shadow-lg">
-      {/* Header */}
-      <div className="flex items-center gap-2 p-3">
-        <PlatformBadge platform={account.platform} size={32} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1 text-xs font-semibold">
-            <span className="truncate">{account.displayName}</span>
-            {account.verified && <VerifiedTick className="text-primary" />}
-          </div>
-          <div className="text-[10px] text-muted-foreground">{account.handle}</div>
-        </div>
-        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-      </div>
-
-      {/* Media */}
-      {mediaUrl && (
-        <div className="aspect-square w-full overflow-hidden bg-muted">
-          <img src={mediaUrl} alt="" className="h-full w-full object-cover" />
-        </div>
-      )}
-
-      {/* Body */}
-      <div className="p-3">
-        <div className="mb-2 flex items-center gap-3 text-muted-foreground">
-          <Heart className="h-4 w-4" />
-          <MessageCircle className="h-4 w-4" />
-          <Send className="h-4 w-4" />
-          <Bookmark className="ml-auto h-4 w-4" />
-        </div>
-        <div className="text-[10px] font-semibold">
-          {fmt(account.followers)} followers
-        </div>
-        <p className="mt-1 line-clamp-4 text-xs leading-relaxed text-foreground/90">
-          {content || "Your caption will appear here…"}
-        </p>
-        {tags.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-x-1 text-[11px] font-medium text-primary">
-            {tags.slice(0, 6).map((t, i) => (
-              <span key={t + i}>#{t}</span>
-            ))}
-          </div>
-        )}
-        <div className="mt-2 text-[9px] uppercase tracking-wide text-muted-foreground">
-          {PLATFORMS[account.platform].name}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   Step 5 — Post
-   ============================================================ */
-function Step5({
-  accounts,
-  mediaUrl,
-  mediaType,
-  tone,
-  caption,
-  scheduleEnabled,
-  onScheduleEnabled,
-  scheduledAt,
-  onScheduledAt,
-  hasVariants,
-}: {
-  accounts: AccountData[];
-  mediaUrl: string;
-  mediaType: MediaType;
-  tone: string;
-  caption: string;
-  scheduleEnabled: boolean;
-  onScheduleEnabled: (v: boolean) => void;
-  scheduledAt: string;
-  onScheduledAt: (v: string) => void;
-  hasVariants: boolean;
-}) {
-  const checklist = [
-    { label: `Accounts selected (${accounts.length})`, done: accounts.length > 0 },
-    { label: "Content written", done: caption.trim().length > 0 },
-    { label: "Media added", done: !!mediaUrl },
-    { label: "AI variants ready", done: hasVariants },
-  ];
-  const allDone = checklist.every((c) => c.done);
-  const combinedReach = accounts.reduce((s, a) => s + a.followers, 0);
-
-  return (
-    <GlassCard
-      strong
-      className="crystal-in glass-sheen relative overflow-hidden p-5 sm:p-7"
-      style={{ animationDelay: "0.05s" }}
-    >
-      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.72_0.13_190)]/20 blur-3xl" />
-      <SectionTitle
-        title="Ready to publish"
-        desc="Review everything and hit publish. You can also schedule for later."
-      />
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Summary */}
-        <div className="space-y-3">
-          <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
-            <div className="label-caps mb-3 text-muted-foreground">Summary</div>
-            <div className="space-y-2.5">
-              <Row
-                label="Accounts"
-                value={`${accounts.length} selected · ${fmt(combinedReach)} reach`}
-              />
-              <Row
-                label="Media type"
-                value={mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}
-              />
-              <Row label="Tone" value={tone} />
-              <Row
-                label="Caption"
-                value={
-                  <span className="line-clamp-2 italic text-muted-foreground">
-                    “{caption.slice(0, 80) || "(empty)"}
-                    {caption.length > 80 ? "…" : ""}”
-                  </span>
-                }
-              />
-            </div>
-            {mediaUrl && (
-              <div className="mt-3 overflow-hidden rounded-xl border border-border/40">
-                <img
-                  src={mediaUrl}
-                  alt=""
-                  className="aspect-video w-full object-cover"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
-            <div className="label-caps mb-3 text-muted-foreground">
-              Destination accounts
-            </div>
-            <div className="scroll-liquid max-h-44 space-y-1 overflow-y-auto pr-1">
-              {accounts.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-muted/40"
-                >
-                  <PlatformBadge platform={a.platform} size={22} />
-                  <span className="truncate text-xs font-medium">
-                    {a.displayName}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {a.handle}
-                  </span>
-                  <span className="ml-auto text-[10px] text-muted-foreground">
-                    {fmt(a.followers)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Schedule + checklist */}
-        <div className="space-y-3">
-          <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold">Publish now</div>
-                <div className="text-[11px] text-muted-foreground">
-                  Send immediately to all selected accounts
-                </div>
-              </div>
-              <Switch
-                checked={!scheduleEnabled}
-                onCheckedChange={(v) => onScheduleEnabled(!v)}
-                aria-label="Publish now"
-              />
-            </div>
-            <div className="my-3 border-t border-border/40" />
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold">Schedule for later</div>
-                <div className="text-[11px] text-muted-foreground">
-                  Pick a future date &amp; time
-                </div>
-              </div>
-              <Switch
-                checked={scheduleEnabled}
-                onCheckedChange={onScheduleEnabled}
-                aria-label="Schedule for later"
-              />
-            </div>
-            {scheduleEnabled && (
-              <div className="mt-3 flex items-center gap-2">
-                <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => onScheduledAt(e.target.value)}
-                  className="flex-1 rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-sm outline-none transition focus:border-primary/50"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
-            <div className="label-caps mb-3 text-muted-foreground">
-              Pre-publish checklist
-            </div>
-            <div className="space-y-2">
-              {checklist.map((c) => (
-                <div key={c.label} className="flex items-center gap-2 text-sm">
-                  <span
-                    className={cn(
-                      "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
-                      c.done
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border text-muted-foreground"
-                    )}
-                  >
-                    {c.done ? (
-                      <Check className="h-3 w-3" />
-                    ) : (
-                      <AlertCircle className="h-3 w-3" />
-                    )}
-                  </span>
-                  <span className={c.done ? "text-foreground" : "text-muted-foreground"}>
-                    {c.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div
-              className={cn(
-                "mt-3 flex items-center gap-2 rounded-xl p-2.5 text-xs font-medium",
-                allDone
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-              )}
-            >
-              {allDone ? (
-                <Check className="h-3.5 w-3.5" />
-              ) : (
-                <AlertCircle className="h-3.5 w-3.5" />
-              )}
-              {allDone
-                ? "All set — ready to publish."
-                : "Some items need attention before publishing."}
-            </div>
-          </div>
-        </div>
-      </div>
-    </GlassCard>
-  );
-}
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="max-w-[60%] text-right text-xs font-medium">{value}</span>
-    </div>
-  );
-}
-
-/* ============================================================
-   Sticky footer with Back / Continue / Publish
-   ============================================================ */
-function StepFooter({
-  step,
-  onBack,
-  onNext,
-  canContinue,
-  onPublish,
-  publishing,
-  scheduleEnabled,
-  editing,
-}: {
-  step: Step;
-  onBack: () => void;
-  onNext: () => void;
-  canContinue: boolean;
-  onPublish: () => void;
-  publishing: boolean;
-  scheduleEnabled: boolean;
-  editing: boolean;
-}) {
-  const isPublish = step === 5;
-  return (
-    <div className="sticky bottom-0 z-30 -mx-4 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-      <div className="glass-strong flex items-center justify-between gap-3 rounded-2xl px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-2">
-          {step > 1 ? (
-            <button
-              onClick={onBack}
-              className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-sm font-medium transition hover:bg-muted"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Back</span>
-            </button>
-          ) : (
-            <span className="text-[11px] text-muted-foreground">
-              Step {step} of 5
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {isPublish ? (
-            <button
-              onClick={onPublish}
-              disabled={publishing}
-              className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
-            >
-              {publishing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : scheduleEnabled ? (
-                <CalendarClock className="h-4 w-4" />
-              ) : editing ? (
-                <RotateCw className="h-4 w-4" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-              {publishing
-                ? editing
-                  ? "Republishing…"
-                  : "Publishing…"
-                : scheduleEnabled
-                ? editing
-                  ? "Update & schedule"
-                  : "Schedule post"
-                : editing
-                ? "Republish now"
-                : "Publish now"}
-            </button>
-          ) : (
-            <button
-              onClick={onNext}
-              disabled={!canContinue}
-              className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
-            >
-              Continue
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }

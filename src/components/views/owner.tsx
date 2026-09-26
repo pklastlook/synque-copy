@@ -42,9 +42,7 @@ import {
   Printer,
   Star,
   X,
-  Wallet,
   CircleUserRound,
-  CalendarDays,
   Briefcase,
   UserPlus,
   Smartphone,
@@ -53,10 +51,10 @@ import {
   Loader2,
   Globe,
   Wifi,
-  Server,
   DollarSign,
   AlertTriangle,
   Database,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
@@ -64,6 +62,13 @@ import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card"
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
+import {
+  NavCard,
+  MetricRow,
+  Sparkline,
+  SectionHeader,
+  Pill,
+} from "@/components/glass/dense-ui";
 import {
   Dialog,
   DialogContent,
@@ -300,48 +305,146 @@ async function api(
 }
 
 // ============================================================================
-// Segmented control (custom pill-style tabs to match dashboard aesthetic)
+// Drill-down navigation — left sidebar of NavCard items + bottom metrics strip.
+// Replaces the old SegmentedTabs strip with a settings-app / file-browser style
+// layout: nav on the left (sticky, ~280px), focused detail panel on the right.
 // ============================================================================
 
-interface TabDef {
+interface OwnerSection {
   id: string;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
+  accent: string;
+  desc: string;
+  countKey?: Exclude<keyof FinanceOverview, "planDistribution">;
 }
 
-function SegmentedTabs({
-  tabs,
-  value,
+const OWNER_SECTIONS: OwnerSection[] = [
+  { id: "customers",     label: "Customers",     icon: Users,           accent: "oklch(0.55 0.2 255)",  desc: "CRM records & plans",   countKey: "customers" },
+  { id: "subscriptions", label: "Subscriptions",  icon: CreditCard,      accent: "oklch(0.68 0.22 145)", desc: "Active & trial plans",  countKey: "subscriptions" },
+  { id: "invoices",      label: "Invoices",       icon: FileText,        accent: "oklch(0.72 0.18 75)",  desc: "Bill customers",        countKey: "invoices" },
+  { id: "quotations",    label: "Quotations",     icon: FileSignature,   accent: "oklch(0.7 0.2 25)",    desc: "Proposals & quotes",    countKey: "quotations" },
+  { id: "keys",          label: "Serial Keys",    icon: KeyRound,        accent: "oklch(0.66 0.18 200)", desc: "License keys",          countKey: "serialKeys" },
+  { id: "devices",       label: "Devices",         icon: Smartphone,      accent: "oklch(0.62 0.22 300)", desc: "Registered devices",    countKey: "devices" },
+  { id: "apikeys",       label: "API Keys",        icon: Lock,            accent: "oklch(0.72 0.18 75)",  desc: "Integration keys",      countKey: "apiKeys" },
+  { id: "bank",          label: "Bank Accounts",   icon: Landmark,        accent: "oklch(0.68 0.22 145)", desc: "Accounts for invoices", countKey: "bankAccounts" },
+  { id: "users",         label: "Client Users",    icon: CircleUserRound, accent: "oklch(0.62 0.22 300)", desc: "Login accounts",        countKey: "users" },
+  { id: "overview",      label: "Overview",        icon: Briefcase,       accent: "oklch(0.72 0.18 75)",  desc: "Enterprise cockpit" },
+  { id: "finance",       label: "Finance",          icon: DollarSign,      accent: "oklch(0.55 0.2 255)",  desc: "Revenue & MRR" },
+  { id: "reports",       label: "Reports",          icon: BarChart3,       accent: "oklch(0.7 0.2 25)",    desc: "Growth & activity" },
+];
+
+// Deterministic pseudo-random revenue trend series (stable across renders).
+// Uses a small normalizer so Math.sin produces a recognizable shape instead
+// of pure noise when the seed (totalRevenue) is a large number. The shape is
+// stable for a given revenue value, so the sidebar sparkline doesn't flicker.
+function revenueTrendSeries(totalRevenue: number, points = 14): number[] {
+  const seed = totalRevenue || 1;
+  const base = Math.max(1, seed / points);
+  const norm = (seed % 997) / 997; // 997 is prime — gives good spread
+  return Array.from({ length: points }, (_, i) => {
+    const r = Math.sin((norm + i * 0.08) * Math.PI * 2) * 0.4 + 0.75;
+    return Math.max(1, Math.round(base * r));
+  });
+}
+
+function OwnerNavSidebar({
+  active,
   onChange,
+  overview,
 }: {
-  tabs: TabDef[];
-  value: string;
-  onChange: (v: string) => void;
+  active: string;
+  onChange: (id: string) => void;
+  overview: FinanceOverview | null;
 }) {
   return (
-    <div className="flex w-full gap-1 overflow-x-auto rounded-2xl border border-border/40 bg-background/60 p-1 backdrop-blur-md scroll-liquid no-scrollbar">
-      {tabs.map((t) => {
-        const active = t.id === value;
-        const Icon = t.icon;
-        return (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => onChange(t.id)}
-            aria-selected={active}
-            role="tab"
-            className={cn(
-              "relative flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition-all sm:text-sm",
-              active
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            <span className="hidden sm:inline">{t.label}</span>
-          </button>
-        );
-      })}
+    <div className="flex flex-col gap-3">
+      <SectionHeader
+        title="Owner Panel"
+        icon={Briefcase}
+        desc="Billing & licensing"
+      />
+      <nav
+        className="scroll-liquid space-y-1.5 overflow-y-auto pr-1"
+        style={{ maxHeight: "calc(100vh - 220px)" }}
+      >
+        {OWNER_SECTIONS.map((s) => {
+          const count =
+            s.countKey && overview ? overview[s.countKey] : undefined;
+          return (
+            <NavCard
+              key={s.id}
+              icon={s.icon}
+              title={s.label}
+              desc={s.desc}
+              accent={s.accent}
+              count={count}
+              active={active === s.id}
+              onClick={() => onChange(s.id)}
+            />
+          );
+        })}
+      </nav>
+
+      {overview && (
+        <div className="space-y-2 border-t border-border/40 pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Revenue trend
+            </span>
+            <Pill color="green">
+              <TrendingUp className="h-2.5 w-2.5" />
+              {fmt(overview.totalRevenue)}
+            </Pill>
+          </div>
+          <Sparkline
+            data={revenueTrendSeries(overview.totalRevenue)}
+            width={232}
+            height={32}
+            color="oklch(0.7 0.2 145)"
+          />
+          <MetricRow
+            metrics={[
+              { label: "MRR", value: fmt(overview.monthlyRevenue), color: "oklch(0.55 0.2 255)" },
+              { label: "Active subs", value: overview.activeSubs, color: "oklch(0.68 0.22 145)" },
+              { label: "Pending", value: fmt(overview.pendingRevenue), color: "oklch(0.72 0.18 75)" },
+            ]}
+            className="rounded-lg"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileNavSelect({
+  active,
+  onChange,
+  overview,
+}: {
+  active: string;
+  onChange: (id: string) => void;
+  overview: FinanceOverview | null;
+}) {
+  return (
+    <div className="sm:hidden">
+      <Select value={active} onValueChange={onChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Pick a section" />
+        </SelectTrigger>
+        <SelectContent>
+          {OWNER_SECTIONS.map((s) => {
+            const count =
+              s.countKey && overview ? overview[s.countKey] : undefined;
+            return (
+              <SelectItem key={s.id} value={s.id}>
+                {s.label}
+                {count !== undefined ? ` · ${count}` : ""}
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -2863,6 +2966,18 @@ function ReportsTab() {
     color: PLAN_COLORS[p],
   })).filter((p) => p.value > 0);
 
+  // Revenue by plan — paid invoices grouped by customer.plan
+  const planRevenue = PLANS.map((p) => ({
+    plan: p,
+    revenue: paidInvoices
+      .filter((inv) =>
+        customers.find((c) => c.id === inv.customerId && c.plan === p),
+      )
+      .reduce((s, i) => s + i.total, 0),
+    color: PLAN_COLORS[p],
+  }));
+  const maxPlanRevenue = Math.max(...planRevenue.map((p) => p.revenue), 1);
+
   // Customer growth series (cumulative count by createdAt day, last 14 days)
   const today = new Date();
   const days = Array.from({ length: 14 }).map((_, i) => {
@@ -3063,57 +3178,47 @@ function ReportsTab() {
         </GlassCard>
 
         <GlassCard className="crystal-in p-5">
-          <SectionTitle title="Plan distribution" desc="Across customers" />
-          <div className="relative mx-auto h-[180px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={planCounts}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={50}
-                  outerRadius={78}
-                  paddingAngle={3}
-                  stroke="none"
-                >
-                  {planCounts.map((p) => (
-                    <Cell key={p.name} fill={p.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number, n) => [`${v} customers`, n]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-bold">{customers.length}</span>
-              <span className="text-[10px] text-muted-foreground">customers</span>
-            </div>
-          </div>
-          <div className="mt-3 space-y-1.5">
-            {planCounts.map((p) => (
-              <div
-                key={p.name}
-                className="flex items-center gap-2 text-[11px]"
-              >
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: p.color }}
-                />
-                <span className="capitalize text-muted-foreground">{p.name}</span>
-                <span className="ml-auto font-medium">{p.value}</span>
-              </div>
-            ))}
-            {planCounts.length === 0 && (
-              <div className="py-4 text-center text-xs text-muted-foreground">
+          <SectionTitle
+            title="Plan distribution"
+            desc={`${customers.length} customers`}
+          />
+          <div className="space-y-0.5">
+            {planCounts.length === 0 ? (
+              <div className="py-8 text-center text-xs text-muted-foreground">
                 No customers yet
               </div>
+            ) : (
+              planCounts.map((p) => {
+                const pct = Math.round(
+                  (p.value / (customers.length || 1)) * 100,
+                );
+                return (
+                  <div
+                    key={p.name}
+                    className="flex items-center gap-2.5 py-1.5"
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: p.color }}
+                    />
+                    <span className="w-16 shrink-0 text-[11px] font-medium capitalize">
+                      {p.name}
+                    </span>
+                    <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, background: p.color }}
+                      />
+                    </div>
+                    <span className="w-8 shrink-0 text-right text-[11px] font-semibold tabular-nums">
+                      {p.value}
+                    </span>
+                    <span className="w-9 shrink-0 text-right text-[10px] text-muted-foreground tabular-nums">
+                      {pct}%
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
         </GlassCard>
@@ -3152,63 +3257,36 @@ function ReportsTab() {
         </GlassCard>
 
         <GlassCard className="crystal-in p-5">
-          <SectionTitle title="Revenue by plan" desc="Paid invoices per plan" />
-          <div className="h-[220px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={PLANS.map((p) => ({
-                  plan: p,
-                  revenue: paidInvoices
-                    .filter((inv) =>
-                      customers.find(
-                        (c) => c.id === inv.customerId && c.plan === p,
-                      ),
-                    )
-                    .reduce((s, i) => s + i.total, 0),
-                  color: PLAN_COLORS[p],
-                }))}
-                margin={{ left: -16, right: 8, top: 8, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border)"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="plan"
-                  tick={{
-                    fontSize: 10,
-                    fill: "var(--muted-foreground)",
-                  }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tickFormatter={(v) => fmt(v)}
-                  tick={{
-                    fontSize: 10,
-                    fill: "var(--muted-foreground)",
-                  }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={48}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number) => [money(v), "Revenue"]}
-                />
-                <Bar dataKey="revenue" radius={[8, 8, 0, 0]} isAnimationActive animationDuration={1000}>
-                  {PLANS.map((p) => (
-                    <Cell key={p} fill={PLAN_COLORS[p]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <SectionTitle title="Revenue by plan" desc="Paid invoices" />
+          <div className="space-y-0.5">
+            {planRevenue.map((p) => {
+              const pct = Math.round((p.revenue / maxPlanRevenue) * 100);
+              return (
+                <div key={p.plan} className="flex items-center gap-2.5 py-1.5">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: p.color }}
+                  />
+                  <span className="w-20 shrink-0 text-[11px] font-medium capitalize">
+                    {p.plan}
+                  </span>
+                  <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${pct}%`, background: p.color }}
+                    />
+                  </div>
+                  <span className="w-16 shrink-0 text-right text-[11px] font-semibold tabular-nums">
+                    {money(p.revenue)}
+                  </span>
+                </div>
+              );
+            })}
+            {planRevenue.every((p) => p.revenue === 0) && (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                No paid revenue yet
+              </div>
+            )}
           </div>
         </GlassCard>
       </div>
@@ -3503,20 +3581,45 @@ function FinanceTab() {
       </div>
 
       <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Plan Distribution" desc="Active subscriptions by plan" />
+        <SectionTitle title="Plan distribution" desc="Active subscriptions by plan" />
         {data.planDistribution.length > 0 ? (
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.planDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
-                <Bar dataKey="count" fill="var(--primary)" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="space-y-0.5">
+            {(() => {
+              const maxCount = Math.max(
+                ...data.planDistribution.map((p) => p.count),
+                1,
+              );
+              return data.planDistribution.map((p) => {
+                const pct = Math.round((p.count / maxCount) * 100);
+                const color = PLAN_COLORS[p.name] ?? "var(--primary)";
+                return (
+                  <div key={p.name} className="flex items-center gap-2.5 py-1.5">
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: color }}
+                    />
+                    <span className="w-20 shrink-0 text-[11px] font-medium capitalize">
+                      {p.name}
+                    </span>
+                    <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, background: color }}
+                      />
+                    </div>
+                    <span className="w-8 shrink-0 text-right text-[11px] font-semibold tabular-nums">
+                      {p.count}
+                    </span>
+                  </div>
+                );
+              });
+            })()}
           </div>
-        ) : <div className="py-8 text-center text-sm text-muted-foreground">No subscriptions yet.</div>}
+        ) : (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            No subscriptions yet.
+          </div>
+        )}
       </GlassCard>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -3895,78 +3998,44 @@ function ClientUsersTab() {
   );
 }
 
-const TABS: TabDef[] = [
-  { id: "customers", label: "Customers", icon: Users },
-  { id: "users", label: "Users", icon: CircleUserRound },
-  { id: "overview", label: "Overview", icon: Briefcase },
-  { id: "keys", label: "Serial Keys", icon: KeyRound },
-  { id: "devices", label: "Devices", icon: Smartphone },
-  { id: "subscriptions", label: "Subscriptions", icon: CreditCard },
-  { id: "invoices", label: "Invoices", icon: FileText },
-  { id: "quotations", label: "Quotations", icon: FileSignature },
-  { id: "apikeys", label: "API Keys", icon: Lock },
-  { id: "bank", label: "Bank Accounts", icon: Landmark },
-  { id: "finance", label: "Finance", icon: DollarSign },
-  { id: "reports", label: "Reports", icon: BarChart3 },
-];
-
 export function OwnerView() {
   const { ownerTab, setOwnerTab } = useNav();
-  const tab = ownerTab; // read from store so sidebar sub-items work
-  const setTab = setOwnerTab;
+  // Default to "customers" on first load (also enforced by the store initializer).
+  const tab = ownerTab || "customers";
   const { data: customers } = useApi<Customer[]>("/api/customers");
+  // One overview fetch in the shell drives the NavCard count badges + the
+  // sidebar metrics strip. Sub-tabs keep their own fetches (untouched).
+  const { data: overview } = useApi<FinanceOverview>("/api/finance/overview");
   const customerList = customers ?? [];
 
   return (
-    <div className="space-y-5">
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-12 -left-6 h-40 w-40 rounded-full bg-[oklch(0.72_0.22_300)]/30 blur-3xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-primary">
-              <Briefcase className="h-3.5 w-3.5" />
-              Owner Panel
-            </div>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-              Billing & <span className="retaina-text">licensing</span> cockpit
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage customers, licenses, invoices, quotations & bank accounts —
-              all in one place.
-            </p>
-          </div>
-          <div className="hidden items-center gap-3 text-[11px] text-muted-foreground sm:flex">
-            <div className="flex items-center gap-1.5">
-              <CircleUserRound className="h-3.5 w-3.5" />
-              {customerList.length} customers
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Wallet className="h-3.5 w-3.5" />
-              {customerList.filter((c) => c.serialKey).length} licensed
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {format(new Date(), "MMM d, yyyy")}
-            </div>
-          </div>
-        </div>
-      </GlassCard>
+    <div className="space-y-4">
+      {/* Mobile: nav collapses to a Select dropdown */}
+      <MobileNavSelect active={tab} onChange={setOwnerTab} overview={overview} />
 
-      <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
+      {/* Desktop: 2-col drill-down (sticky 280px nav sidebar + focused detail) */}
+      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+        <aside className="hidden lg:block">
+          <div className="sticky top-4">
+            <OwnerNavSidebar active={tab} onChange={setOwnerTab} overview={overview} />
+          </div>
+        </aside>
 
-      {tab === "overview" && <OverviewTab />}
-      {tab === "users" && <ClientUsersTab />}
-      {tab === "customers" && <CustomersTab />}
-      {tab === "keys" && <SerialKeysTab customers={customerList} />}
-      {tab === "devices" && <DevicesTab />}
-      {tab === "subscriptions" && <SubscriptionsTab customers={customerList} />}
-      {tab === "invoices" && <InvoicesTab customers={customerList} />}
-      {tab === "quotations" && <QuotationsTab customers={customerList} />}
-      {tab === "apikeys" && <ApiKeysTab />}
-      {tab === "bank" && <BankAccountsTab />}
-      {tab === "finance" && <FinanceTab />}
-      {tab === "reports" && <ReportsTab />}
+        <main className="min-w-0 space-y-4">
+          {tab === "customers" && <CustomersTab />}
+          {tab === "subscriptions" && <SubscriptionsTab customers={customerList} />}
+          {tab === "invoices" && <InvoicesTab customers={customerList} />}
+          {tab === "quotations" && <QuotationsTab customers={customerList} />}
+          {tab === "keys" && <SerialKeysTab customers={customerList} />}
+          {tab === "devices" && <DevicesTab />}
+          {tab === "apikeys" && <ApiKeysTab />}
+          {tab === "bank" && <BankAccountsTab />}
+          {tab === "users" && <ClientUsersTab />}
+          {tab === "overview" && <OverviewTab />}
+          {tab === "finance" && <FinanceTab />}
+          {tab === "reports" && <ReportsTab />}
+        </main>
+      </div>
     </div>
   );
 }

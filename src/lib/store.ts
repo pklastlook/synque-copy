@@ -42,7 +42,7 @@ export const useNav = create<NavState>((set) => ({
   openComposerWithPost: (post) =>
     set({ composerEditPost: post, composerSeed: null, view: "composer" }),
   clearComposerEditPost: () => set({ composerEditPost: null }),
-  settingsTab: "team-roles",
+  settingsTab: "profile",
   setSettingsTab: (tab) => set({ settingsTab: tab }),
   settingsExpanded: false,
   toggleSettings: () => set((s) => ({ settingsExpanded: !s.settingsExpanded })),
