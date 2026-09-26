@@ -183,7 +183,7 @@ export function CalendarView() {
 
   const draftCount = allPosts.filter((p) => p.status === "draft").length;
 
-  // Dense metric strip — replaces 3 KpiCards with inline sparklines per metric.
+  // Dense metric strip — inline sparklines per metric.
   const metrics: Metric[] = React.useMemo(
     () => [
       {
@@ -233,7 +233,7 @@ export function CalendarView() {
         and published posts. Click any day to see what&apos;s planned.
       </HelpText>
 
-      {/* Dense metric strip — 4 metrics with inline sparklines (replaces 3 KpiCards) */}
+      {/* Dense metric strip — 4 metrics with inline sparklines */}
       <MetricRow metrics={metrics} />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">

@@ -8,7 +8,6 @@ import {
   Shield,
   Briefcase,
   BadgeCheck,
-  ChevronRight,
   Plus,
   Pencil,
   Trash2,
@@ -72,7 +71,6 @@ import {
   HeroChart,
   ListRow,
   Pill,
-  NavCard,
   type Metric,
 } from "@/components/glass/dense-ui";
 import { TeamView } from "@/components/views/team";
@@ -179,7 +177,10 @@ async function apiFetch(path: string, init?: RequestInit) {
 }
 
 // ============================================================================
-// Main component — dense two-pane layout (NavCard sidebar + content)
+// Main component — single-column full-width layout. Sub-navigation is handled
+// by the main app-sidebar's Organization group (which sets `orgTab`). A
+// mobile dropdown is provided for when the app-sidebar collapses on small
+// screens.
 // ============================================================================
 
 export function OrganizationView() {
@@ -189,42 +190,35 @@ export function OrganizationView() {
   const ActiveIcon = activeDef.icon;
 
   return (
-    <div className="animate-rise grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-      {/* ---------- Sidebar (NavCard list) ---------- */}
-      <aside className="lg:sticky lg:top-4 lg:self-start space-y-3">
-        <GlassCard strong className="glass-sheen relative overflow-hidden p-4">
-          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/20 blur-3xl" />
-          <div className="relative">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-              <Building2 className="h-3 w-3" />
-              <span>Organization</span>
-              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
-              <span className="flex items-center gap-1.5 font-semibold text-primary">
-                <ActiveIcon className="h-3 w-3" />
-                {activeDef.label}
-              </span>
-            </div>
-            <h2 className="mt-1.5 text-base font-bold tracking-tight">{activeDef.label}</h2>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">{activeDef.description}</p>
-          </div>
-        </GlassCard>
+    <div className="animate-rise space-y-4">
+      {/* Mobile dropdown — visible only on small screens where the main
+          app-sidebar collapses to a sheet. On lg+ the app-sidebar's
+          Organization sub-items handle navigation. */}
+      <div className="lg:hidden">
+        <Select value={tab} onValueChange={(v) => setOrgTab(v as OrgTab)}>
+          <SelectTrigger className="h-10 w-full">
+            <span className="flex items-center gap-2">
+              <ActiveIcon className="h-4 w-4 text-primary" />
+              <span className="font-medium">{activeDef.label}</span>
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            {ORG_NAV.map((t) => {
+              const Icon = t.icon;
+              return (
+                <SelectItem key={t.id} value={t.id}>
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5" />
+                    {t.label}
+                  </span>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
 
-        <div className="space-y-2">
-          {ORG_NAV.map((t) => (
-            <NavCard
-              key={t.id}
-              icon={t.icon}
-              title={t.label}
-              desc={t.description}
-              accent={t.accent}
-              active={tab === t.id}
-              onClick={() => setOrgTab(t.id)}
-            />
-          ))}
-        </div>
-      </aside>
-
-      {/* ---------- Content pane ---------- */}
+      {/* ---------- Content pane (full-width) ---------- */}
       <div className="min-w-0 space-y-4">
         {tab === "organisation" && <OrganisationSection />}
         {tab === "overview" && <OverviewSection />}
@@ -461,7 +455,7 @@ function OverviewSection() {
         The <strong className="text-foreground">Organization</strong> module is your single hub for managing your team structure — users, team members, roles, departments, and designations. Use the sidebar to switch between management screens.
       </HelpText>
 
-      {/* MetricRow replaces 4-KpiCard grid — Card #1 */}
+      {/* MetricRow — Card #1 */}
       <MetricRow metrics={metrics} />
 
       {/* Department distribution — Card #2 */}

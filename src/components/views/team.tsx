@@ -630,7 +630,7 @@ export function TeamView() {
         </DialogContent>
       </Dialog>
 
-      {/* MetricRow — replaces 4-KpiCard grid. Dense, sparklines inline. */}
+      {/* MetricRow — dense, sparklines inline. */}
       <MetricRow
         metrics={[
           { label: "Members", value: sorted.length, spark: memberSpark, color: ADMIN_COLOR },

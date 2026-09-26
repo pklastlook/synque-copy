@@ -58,17 +58,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
-import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+import { MetricRow, SectionHeader } from "@/components/glass/dense-ui";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
-import {
-  NavCard,
-  MetricRow,
-  Sparkline,
-  SectionHeader,
-  Pill,
-} from "@/components/glass/dense-ui";
 import {
   Dialog,
   DialogContent,
@@ -305,9 +298,9 @@ async function api(
 }
 
 // ============================================================================
-// Drill-down navigation — left sidebar of NavCard items + bottom metrics strip.
-// Replaces the old SegmentedTabs strip with a settings-app / file-browser style
-// layout: nav on the left (sticky, ~280px), focused detail panel on the right.
+// Mobile nav dropdown — surfaces Owner sub-sections when the main app-sidebar
+// is hidden on small screens. On lg+ the app-sidebar's Owner sub-items take
+// over.
 // ============================================================================
 
 interface OwnerSection {
@@ -333,89 +326,6 @@ const OWNER_SECTIONS: OwnerSection[] = [
   { id: "finance",       label: "Finance",          icon: DollarSign,      accent: "oklch(0.55 0.2 255)",  desc: "Revenue & MRR" },
   { id: "reports",       label: "Reports",          icon: BarChart3,       accent: "oklch(0.7 0.2 25)",    desc: "Growth & activity" },
 ];
-
-// Deterministic pseudo-random revenue trend series (stable across renders).
-// Uses a small normalizer so Math.sin produces a recognizable shape instead
-// of pure noise when the seed (totalRevenue) is a large number. The shape is
-// stable for a given revenue value, so the sidebar sparkline doesn't flicker.
-function revenueTrendSeries(totalRevenue: number, points = 14): number[] {
-  const seed = totalRevenue || 1;
-  const base = Math.max(1, seed / points);
-  const norm = (seed % 997) / 997; // 997 is prime — gives good spread
-  return Array.from({ length: points }, (_, i) => {
-    const r = Math.sin((norm + i * 0.08) * Math.PI * 2) * 0.4 + 0.75;
-    return Math.max(1, Math.round(base * r));
-  });
-}
-
-function OwnerNavSidebar({
-  active,
-  onChange,
-  overview,
-}: {
-  active: string;
-  onChange: (id: string) => void;
-  overview: FinanceOverview | null;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <SectionHeader
-        title="Owner Panel"
-        icon={Briefcase}
-        desc="Billing & licensing"
-      />
-      <nav
-        className="scroll-liquid space-y-1.5 overflow-y-auto pr-1"
-        style={{ maxHeight: "calc(100vh - 220px)" }}
-      >
-        {OWNER_SECTIONS.map((s) => {
-          const count =
-            s.countKey && overview ? overview[s.countKey] : undefined;
-          return (
-            <NavCard
-              key={s.id}
-              icon={s.icon}
-              title={s.label}
-              desc={s.desc}
-              accent={s.accent}
-              count={count}
-              active={active === s.id}
-              onClick={() => onChange(s.id)}
-            />
-          );
-        })}
-      </nav>
-
-      {overview && (
-        <div className="space-y-2 border-t border-border/40 pt-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Revenue trend
-            </span>
-            <Pill color="green">
-              <TrendingUp className="h-2.5 w-2.5" />
-              {fmt(overview.totalRevenue)}
-            </Pill>
-          </div>
-          <Sparkline
-            data={revenueTrendSeries(overview.totalRevenue)}
-            width={232}
-            height={32}
-            color="oklch(0.7 0.2 145)"
-          />
-          <MetricRow
-            metrics={[
-              { label: "MRR", value: fmt(overview.monthlyRevenue), color: "oklch(0.55 0.2 255)" },
-              { label: "Active subs", value: overview.activeSubs, color: "oklch(0.68 0.22 145)" },
-              { label: "Pending", value: fmt(overview.pendingRevenue), color: "oklch(0.72 0.18 75)" },
-            ]}
-            className="rounded-lg"
-          />
-        </div>
-      )}
-    </div>
-  );
-}
 
 function MobileNavSelect({
   active,
@@ -636,26 +546,26 @@ function OverviewTab() {
   return (
     <div className="space-y-4">
       {/* Revenue KPI strip */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Total Revenue" value={`$${fmt(d.totalRevenue)}`} icon={<DollarSign className="h-5 w-5" />} accent="oklch(0.7 0.2 145)" hint="From paid invoices" />
-        <KpiCard label="Monthly Recurring" value={`$${fmt(d.monthlyRevenue)}`} icon={<TrendingUp className="h-5 w-5" />} accent="oklch(0.62 0.2 255)" hint="From active subscriptions" />
-        <KpiCard label="Pending" value={`$${fmt(d.pendingRevenue)}`} icon={<Clock className="h-5 w-5" />} accent="oklch(0.7 0.15 75)" hint="Sent invoices" />
-        <KpiCard label="Overdue" value={`$${fmt(d.overdueRevenue)}`} icon={<AlertTriangle className="h-5 w-5" />} accent="oklch(0.55 0.22 25)" hint="Needs follow-up" />
-      </div>
+      <MetricRow metrics={[
+        { label: "Total Revenue", value: `$${fmt(d.totalRevenue)}`, color: "oklch(0.7 0.2 145)" },
+        { label: "Monthly Recurring", value: `$${fmt(d.monthlyRevenue)}`, color: "oklch(0.62 0.2 255)" },
+        { label: "Pending", value: `$${fmt(d.pendingRevenue)}`, color: "oklch(0.7 0.15 75)" },
+        { label: "Overdue", value: `$${fmt(d.overdueRevenue)}`, color: "oklch(0.55 0.22 25)" },
+      ]} />
 
       {/* Customers + Subscriptions KPIs */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Customers" value={d.customers} icon={<Users className="h-5 w-5" />} accent="oklch(0.62 0.2 255)" hint={`${d.activeSubs} active subs`} />
-        <KpiCard label="Client Users" value={d.users} icon={<CircleUserRound className="h-5 w-5" />} accent="oklch(0.66 0.22 305)" hint="With login access" />
-        <KpiCard label="Serial Keys" value={d.serialKeys} icon={<KeyRound className="h-5 w-5" />} accent="oklch(0.72 0.18 75)" hint={`${licenseUtilization}% activated`} />
-        <KpiCard label="Devices" value={d.devices} icon={<Smartphone className="h-5 w-5" />} accent="oklch(0.6 0.2 220)" hint="Registered devices" />
-      </div>
+      <MetricRow metrics={[
+        { label: "Customers", value: d.customers, color: "oklch(0.62 0.2 255)" },
+        { label: "Client Users", value: d.users, color: "oklch(0.66 0.22 305)" },
+        { label: "Serial Keys", value: d.serialKeys, color: "oklch(0.72 0.18 75)" },
+        { label: "Devices", value: d.devices, color: "oklch(0.6 0.2 220)" },
+      ]} />
 
       {/* Charts row */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Revenue breakdown */}
-        <GlassCard className="crystal-in p-5">
-          <SectionTitle title="Revenue breakdown" desc="Paid vs pending vs overdue" />
+        <section>
+          <SectionHeader title="Revenue breakdown" desc="Paid vs pending vs overdue" icon={DollarSign} />
           <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={[
@@ -671,11 +581,11 @@ function OverviewTab() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </GlassCard>
+        </section>
 
         {/* Plan distribution */}
-        <GlassCard className="crystal-in p-5">
-          <SectionTitle title="Subscription plans" desc="Distribution by plan" />
+        <section>
+          <SectionHeader title="Subscription plans" desc="Distribution by plan" icon={CreditCard} />
           <div className="h-[240px]">
             {d.planDistribution.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -693,12 +603,12 @@ function OverviewTab() {
               <div className="grid h-full place-items-center text-sm text-muted-foreground">No subscriptions yet</div>
             )}
           </div>
-        </GlassCard>
+        </section>
       </div>
 
       {/* Module health grid */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Module overview" desc="All sub-modules at a glance" />
+      <section>
+        <SectionHeader title="Module overview" desc="All sub-modules at a glance" icon={Briefcase} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {[
             { label: "Invoices", value: d.invoices, sub: `${d.paidInvoices} paid · ${collectionRate}% collected`, icon: FileText, color: "oklch(0.62 0.2 255)" },
@@ -725,7 +635,7 @@ function OverviewTab() {
             );
           })}
         </div>
-      </GlassCard>
+      </section>
     </div>
   );
 }
@@ -897,41 +807,18 @@ function CustomersTab() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Total customers"
-          value={stats.total}
-          icon={<Users className="h-5 w-5" />}
-          accent="oklch(0.55 0.2 255)"
-          delay={50}
-        />
-        <KpiCard
-          label="Active"
-          value={stats.active}
-          icon={<ShieldCheck className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          delay={120}
-        />
-        <KpiCard
-          label="Trial"
-          value={stats.trial}
-          icon={<Clock className="h-5 w-5" />}
-          accent="oklch(0.82 0.14 85)"
-          delay={190}
-        />
-        <KpiCard
-          label="Suspended"
-          value={stats.suspended}
-          icon={<ShieldAlert className="h-5 w-5" />}
-          accent="oklch(0.7 0.2 25)"
-          delay={260}
-        />
-      </div>
+      <MetricRow metrics={[
+        { label: "Total customers", value: stats.total, color: "oklch(0.55 0.2 255)" },
+        { label: "Active", value: stats.active, color: "oklch(0.74 0.18 165)" },
+        { label: "Trial", value: stats.trial, color: "oklch(0.82 0.14 85)" },
+        { label: "Suspended", value: stats.suspended, color: "oklch(0.7 0.2 25)" },
+      ]} />
 
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section>
+        <SectionHeader
           title="Customers"
           desc="Manage CRM records, plans & license assignments"
+          icon={Users}
           action={
             <button
               onClick={openCreate}
@@ -1092,7 +979,7 @@ function CustomersTab() {
             ))}
           </div>
         )}
-      </GlassCard>
+      </section>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
@@ -1373,41 +1260,18 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Total keys"
-          value={stats.total}
-          icon={<KeyRound className="h-5 w-5" />}
-          accent="oklch(0.55 0.2 255)"
-          delay={50}
-        />
-        <KpiCard
-          label="Activated"
-          value={stats.activated}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          delay={120}
-        />
-        <KpiCard
-          label="Unused"
-          value={stats.unused}
-          icon={<Clock className="h-5 w-5" />}
-          accent="oklch(0.82 0.14 85)"
-          delay={190}
-        />
-        <KpiCard
-          label="Revoked"
-          value={stats.revoked}
-          icon={<Ban className="h-5 w-5" />}
-          accent="oklch(0.7 0.2 25)"
-          delay={260}
-        />
-      </div>
+      <MetricRow metrics={[
+        { label: "Total keys", value: stats.total, color: "oklch(0.55 0.2 255)" },
+        { label: "Activated", value: stats.activated, color: "oklch(0.74 0.18 165)" },
+        { label: "Unused", value: stats.unused, color: "oklch(0.82 0.14 85)" },
+        { label: "Revoked", value: stats.revoked, color: "oklch(0.7 0.2 25)" },
+      ]} />
 
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section>
+        <SectionHeader
           title="Serial keys"
           desc="Generate & manage license keys for customer devices"
+          icon={KeyRound}
           action={
             <button
               onClick={generate}
@@ -1523,7 +1387,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
             ))}
           </div>
         )}
-      </GlassCard>
+      </section>
 
       <Dialog open={!!assignFor} onOpenChange={(o) => !o && setAssignFor(null)}>
         <DialogContent className="max-w-md">
@@ -1750,8 +1614,8 @@ function InvoicePrintLayout({
         </tbody>
       </table>
 
-      {/* Totals */}
-      <div className="mt-4 flex justify-end">
+      {/* Totals — stays with last item across page break */}
+      <div className="totals-block mt-4 flex justify-end">
         <div className="w-64 text-[11px]">
           <div className="flex justify-between py-1">
             <span className="text-neutral-600">Subtotal</span>
@@ -1770,9 +1634,8 @@ function InvoicePrintLayout({
         </div>
       </div>
 
-      {/* Notes & terms */}
       {doc.notes && (
-        <div className="mt-6 border-t border-neutral-200 pt-4">
+        <div className="notes-block mt-6 border-t border-neutral-200 pt-4">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
             Notes
           </div>
@@ -1782,7 +1645,8 @@ function InvoicePrintLayout({
         </div>
       )}
 
-      <div className="mt-6 border-t border-neutral-200 pt-4 text-[11px] text-neutral-600">
+      {/* Notes & payment terms — kept together on one page */}
+      <div className="notes-block mt-6 border-t border-neutral-200 pt-4 text-[11px] text-neutral-600">
         <p>
           {kind === "invoice"
             ? "Payment is due within 15 days of issue date. Late payments may incur a 1.5% monthly fee."
@@ -1888,48 +1752,19 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-5">
-        <KpiCard
-          label="Total invoices"
-          value={stats.total}
-          icon={<FileText className="h-5 w-5" />}
-          accent="oklch(0.55 0.2 255)"
-          delay={50}
-        />
-        <KpiCard
-          label="Paid"
-          value={stats.paid}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          delay={120}
-        />
-        <KpiCard
-          label="Pending"
-          value={stats.pending}
-          icon={<Clock className="h-5 w-5" />}
-          accent="oklch(0.82 0.14 85)"
-          delay={190}
-        />
-        <KpiCard
-          label="Overdue"
-          value={stats.overdue}
-          icon={<ShieldAlert className="h-5 w-5" />}
-          accent="oklch(0.7 0.2 25)"
-          delay={260}
-        />
-        <KpiCard
-          label="Revenue"
-          value={money(stats.revenue)}
-          icon={<Coins className="h-5 w-5" />}
-          accent="oklch(0.72 0.22 300)"
-          delay={330}
-        />
-      </div>
+      <MetricRow metrics={[
+        { label: "Total invoices", value: stats.total, color: "oklch(0.55 0.2 255)" },
+        { label: "Paid", value: stats.paid, color: "oklch(0.74 0.18 165)" },
+        { label: "Pending", value: stats.pending, color: "oklch(0.82 0.14 85)" },
+        { label: "Overdue", value: stats.overdue, color: "oklch(0.7 0.2 25)" },
+        { label: "Revenue", value: money(stats.revenue), color: "oklch(0.72 0.22 300)" },
+      ]} />
 
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section>
+        <SectionHeader
           title="Invoices"
           desc="Bill customers for plans & services"
+          icon={FileText}
           action={
             <button
               onClick={() => {
@@ -2043,7 +1878,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
             ))}
           </div>
         )}
-      </GlassCard>
+      </section>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
@@ -2155,16 +1990,10 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
 
       {printDoc && (
         <>
+          {/* Print rules now live in globals.css (@media print for .print-area).
+              This inline style only handles the on-screen full-page preview
+              that appears briefly before window.print() fires. */}
           <style>{`
-            @media print {
-              body * { visibility: hidden !important; }
-              .print-area, .print-area * { visibility: visible !important; }
-              .print-area {
-                position: absolute !important;
-                left: 0; top: 0; width: 100%;
-                background: white !important;
-              }
-            }
             @media screen {
               .print-area {
                 position: fixed;
@@ -2280,48 +2109,19 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 xl:grid-cols-5">
-        <KpiCard
-          label="Total quotations"
-          value={stats.total}
-          icon={<FileSignature className="h-5 w-5" />}
-          accent="oklch(0.55 0.2 255)"
-          delay={50}
-        />
-        <KpiCard
-          label="Sent"
-          value={stats.sent}
-          icon={<Send className="h-5 w-5" />}
-          accent="oklch(0.82 0.14 85)"
-          delay={120}
-        />
-        <KpiCard
-          label="Accepted"
-          value={stats.accepted}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          delay={190}
-        />
-        <KpiCard
-          label="Rejected"
-          value={stats.rejected}
-          icon={<Ban className="h-5 w-5" />}
-          accent="oklch(0.7 0.2 25)"
-          delay={260}
-        />
-        <KpiCard
-          label="Pipeline value"
-          value={money(stats.value)}
-          icon={<Coins className="h-5 w-5" />}
-          accent="oklch(0.72 0.22 300)"
-          delay={330}
-        />
-      </div>
+      <MetricRow metrics={[
+        { label: "Total quotations", value: stats.total, color: "oklch(0.55 0.2 255)" },
+        { label: "Sent", value: stats.sent, color: "oklch(0.82 0.14 85)" },
+        { label: "Accepted", value: stats.accepted, color: "oklch(0.74 0.18 165)" },
+        { label: "Rejected", value: stats.rejected, color: "oklch(0.7 0.2 25)" },
+        { label: "Pipeline value", value: money(stats.value), color: "oklch(0.72 0.22 300)" },
+      ]} />
 
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section>
+        <SectionHeader
           title="Quotations"
           desc="Send proposals to prospective customers"
+          icon={FileSignature}
           action={
             <button
               onClick={() => {
@@ -2439,7 +2239,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
             ))}
           </div>
         )}
-      </GlassCard>
+      </section>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
@@ -2551,16 +2351,10 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
 
       {printDoc && (
         <>
+          {/* Print rules now live in globals.css (@media print for .print-area).
+              This inline style only handles the on-screen full-page preview
+              that appears briefly before window.print() fires. */}
           <style>{`
-            @media print {
-              body * { visibility: hidden !important; }
-              .print-area, .print-area * { visibility: visible !important; }
-              .print-area {
-                position: absolute !important;
-                left: 0; top: 0; width: 100%;
-                background: white !important;
-              }
-            }
             @media screen {
               .print-area {
                 position: fixed;
@@ -2681,10 +2475,11 @@ function BankAccountsTab() {
 
   return (
     <div className="space-y-4">
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section>
+        <SectionHeader
           title="Bank accounts"
           desc="Accounts displayed on invoices & quotations"
+          icon={Landmark}
           action={
             <button
               onClick={openCreate}
@@ -2798,7 +2593,7 @@ function BankAccountsTab() {
             ))}
           </div>
         )}
-      </GlassCard>
+      </section>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
@@ -3038,50 +2833,19 @@ function ReportsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Revenue"
-          value={money(revenue)}
-          icon={<Coins className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          delay={50}
-          hint="from paid invoices"
-        />
-        <KpiCard
-          label="Pending"
-          value={money(pending)}
-          icon={<Clock className="h-5 w-5" />}
-          accent="oklch(0.82 0.14 85)"
-          delay={120}
-          hint="drafts + sent"
-        />
-        <KpiCard
-          label="Activation rate"
-          value={`${activationRate}%`}
-          icon={<KeyRound className="h-5 w-5" />}
-          accent="oklch(0.72 0.22 300)"
-          delay={190}
-          hint={`${keys.filter((k) => k.status === "activated").length}/${keys.length} keys`}
-        />
-        <KpiCard
-          label="Avg deal size"
-          value={
-            invoices.length > 0
-              ? money(invoices.reduce((s, i) => s + i.total, 0) / invoices.length)
-              : money(0)
-          }
-          icon={<TrendingUp className="h-5 w-5" />}
-          accent="oklch(0.7 0.2 25)"
-          delay={260}
-          hint="per invoice"
-        />
-      </div>
+      <MetricRow metrics={[
+        { label: "Revenue", value: money(revenue), color: "oklch(0.74 0.18 165)" },
+        { label: "Pending", value: money(pending), color: "oklch(0.82 0.14 85)" },
+        { label: "Activation rate", value: `${activationRate}%`, color: "oklch(0.72 0.22 300)" },
+        { label: "Avg deal size", value: invoices.length > 0 ? money(invoices.reduce((s, i) => s + i.total, 0) / invoices.length) : money(0), color: "oklch(0.7 0.2 25)" },
+      ]} />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <GlassCard className="crystal-in p-5 lg:col-span-2">
-          <SectionTitle
+        <section className="lg:col-span-2">
+          <SectionHeader
             title="Customer growth"
             desc="Cumulative customers & invoices, last 14 days"
+            icon={TrendingUp}
           />
           <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -3175,12 +2939,13 @@ function ReportsTab() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </GlassCard>
+        </section>
 
-        <GlassCard className="crystal-in p-5">
-          <SectionTitle
+        <section>
+          <SectionHeader
             title="Plan distribution"
             desc={`${customers.length} customers`}
+            icon={Users}
           />
           <div className="space-y-0.5">
             {planCounts.length === 0 ? (
@@ -3221,12 +2986,12 @@ function ReportsTab() {
               })
             )}
           </div>
-        </GlassCard>
+        </section>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <GlassCard className="crystal-in p-5 lg:col-span-2">
-          <SectionTitle title="Recent activity" desc="Latest events across your workspace" />
+        <section className="lg:col-span-2">
+          <SectionHeader title="Recent activity" desc="Latest events across your workspace" icon={Clock} />
           <div className="space-y-1">
             {activities.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
@@ -3254,10 +3019,10 @@ function ReportsTab() {
               })
             )}
           </div>
-        </GlassCard>
+        </section>
 
-        <GlassCard className="crystal-in p-5">
-          <SectionTitle title="Revenue by plan" desc="Paid invoices" />
+        <section>
+          <SectionHeader title="Revenue by plan" desc="Paid invoices" icon={Coins} />
           <div className="space-y-0.5">
             {planRevenue.map((p) => {
               const pct = Math.round((p.revenue / maxPlanRevenue) * 100);
@@ -3288,7 +3053,7 @@ function ReportsTab() {
               </div>
             )}
           </div>
-        </GlassCard>
+        </section>
       </div>
     </div>
   );
@@ -3340,8 +3105,8 @@ function DevicesTab() {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle title="Device Management" desc="Registered devices and their activation status"
+    <section>
+      <SectionHeader title="Device Management" desc="Registered devices and their activation status" icon={Smartphone}
         action={<button onClick={() => setAddOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> Register device</button>} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {devices.map((d) => (
@@ -3381,7 +3146,7 @@ function DevicesTab() {
           <DialogFooter><Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button><button onClick={add} className="liquid-pill rounded-xl px-4 py-2 text-sm font-semibold">Register</button></DialogFooter>
         </DialogContent>
       </Dialog>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -3419,8 +3184,8 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle title="Subscriptions" desc="Manage customer subscriptions and trials"
+    <section>
+      <SectionHeader title="Subscriptions" desc="Manage customer subscriptions and trials" icon={CreditCard}
         action={<button onClick={() => setAddOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> New subscription</button>} />
       {subs.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">No subscriptions yet.</div>
@@ -3454,7 +3219,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
           <DialogFooter><Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button><button onClick={add} className="liquid-pill rounded-xl px-4 py-2 text-sm font-semibold">Create</button></DialogFooter>
         </DialogContent>
       </Dialog>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -3501,8 +3266,8 @@ function ApiKeysTab() {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle title="API Keys" desc="Generate and manage API keys for integrations"
+    <section>
+      <SectionHeader title="API Keys" desc="Generate and manage API keys for integrations" icon={Lock}
         action={<button onClick={() => setGenOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> Generate key</button>} />
       {keys.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">No API keys generated yet.</div>
@@ -3545,7 +3310,7 @@ function ApiKeysTab() {
           )}
         </DialogContent>
       </Dialog>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -3567,21 +3332,21 @@ function FinanceTab() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Total Revenue" value={fmt(data.totalRevenue)} icon={<DollarSign className="h-5 w-5" />} accent="oklch(0.68 0.22 145)" delay={50} />
-        <KpiCard label="Monthly Recurring" value={fmt(data.monthlyRevenue)} icon={<TrendingUp className="h-5 w-5" />} accent="oklch(0.55 0.2 255)" delay={120} />
-        <KpiCard label="Pending" value={fmt(data.pendingRevenue)} icon={<Clock className="h-5 w-5" />} accent="oklch(0.72 0.18 75)" delay={190} />
-        <KpiCard label="Overdue" value={fmt(data.overdueRevenue)} icon={<AlertTriangle className="h-5 w-5" />} accent="oklch(0.7 0.2 25)" delay={260} />
-      </div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Customers" value={data.customers} icon={<Users className="h-5 w-5" />} accent="oklch(0.62 0.22 300)" delay={50} />
-        <KpiCard label="Active Subs" value={data.activeSubs} icon={<CreditCard className="h-5 w-5" />} accent="oklch(0.68 0.22 145)" delay={120} />
-        <KpiCard label="Trial Subs" value={data.trialSubs} icon={<Clock className="h-5 w-5" />} accent="oklch(0.72 0.18 75)" delay={190} />
-        <KpiCard label="Devices" value={data.devices} icon={<Smartphone className="h-5 w-5" />} accent="oklch(0.66 0.18 200)" delay={260} />
-      </div>
+      <MetricRow metrics={[
+        { label: "Total Revenue", value: fmt(data.totalRevenue), color: "oklch(0.68 0.22 145)" },
+        { label: "Monthly Recurring", value: fmt(data.monthlyRevenue), color: "oklch(0.55 0.2 255)" },
+        { label: "Pending", value: fmt(data.pendingRevenue), color: "oklch(0.72 0.18 75)" },
+        { label: "Overdue", value: fmt(data.overdueRevenue), color: "oklch(0.7 0.2 25)" },
+      ]} />
+      <MetricRow metrics={[
+        { label: "Customers", value: data.customers, color: "oklch(0.62 0.22 300)" },
+        { label: "Active Subs", value: data.activeSubs, color: "oklch(0.68 0.22 145)" },
+        { label: "Trial Subs", value: data.trialSubs, color: "oklch(0.72 0.18 75)" },
+        { label: "Devices", value: data.devices, color: "oklch(0.66 0.18 200)" },
+      ]} />
 
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Plan distribution" desc="Active subscriptions by plan" />
+      <section>
+        <SectionHeader title="Plan distribution" desc="Active subscriptions by plan" icon={CreditCard} />
         {data.planDistribution.length > 0 ? (
           <div className="space-y-0.5">
             {(() => {
@@ -3620,26 +3385,26 @@ function FinanceTab() {
             No subscriptions yet.
           </div>
         )}
-      </GlassCard>
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <GlassCard className="crystal-in p-5">
-          <SectionTitle title="Invoice Summary" />
+        <section>
+          <SectionHeader title="Invoice Summary" icon={FileText} />
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Total Invoices</span><span className="num-display font-bold">{data.invoices}</span></div>
             <div className="flex items-center justify-between rounded-xl bg-emerald-500/5 p-3"><span className="text-sm text-emerald-500">Paid</span><span className="num-display font-bold text-emerald-500">{data.paidInvoices}</span></div>
             <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Quotations</span><span className="num-display font-bold">{data.quotations}</span></div>
           </div>
-        </GlassCard>
-        <GlassCard className="crystal-in p-5">
-          <SectionTitle title="System Summary" />
+        </section>
+        <section>
+          <SectionHeader title="System Summary" icon={Database} />
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Users</span><span className="num-display font-bold">{data.users}</span></div>
             <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Social Accounts</span><span className="num-display font-bold">{data.accounts}</span></div>
             <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Posts</span><span className="num-display font-bold">{data.posts}</span></div>
             <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">API Keys</span><span className="num-display font-bold">{data.apiKeys}</span></div>
           </div>
-        </GlassCard>
+        </section>
       </div>
     </div>
   );
@@ -3783,10 +3548,11 @@ function ClientUsersTab() {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle
+    <section>
+      <SectionHeader
         title="Users"
         desc="All users with login access — manage accounts, roles, profiles & birthdays"
+        icon={CircleUserRound}
         action={
           <button onClick={() => setLoginOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold">
             <UserPlus className="h-3.5 w-3.5" /> Add user
@@ -3994,7 +3760,7 @@ function ClientUsersTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -4003,39 +3769,32 @@ export function OwnerView() {
   // Default to "customers" on first load (also enforced by the store initializer).
   const tab = ownerTab || "customers";
   const { data: customers } = useApi<Customer[]>("/api/customers");
-  // One overview fetch in the shell drives the NavCard count badges + the
-  // sidebar metrics strip. Sub-tabs keep their own fetches (untouched).
+  // One overview fetch drives the MobileNavSelect count badges. Sub-tabs
+  // keep their own fetches (untouched).
   const { data: overview } = useApi<FinanceOverview>("/api/finance/overview");
   const customerList = customers ?? [];
 
   return (
     <div className="space-y-4">
-      {/* Mobile: nav collapses to a Select dropdown */}
+      {/* Mobile: nav collapses to a Select dropdown (hidden on lg+ where
+          the main app-sidebar handles sub-navigation). */}
       <MobileNavSelect active={tab} onChange={setOwnerTab} overview={overview} />
 
-      {/* Desktop: 2-col drill-down (sticky 280px nav sidebar + focused detail) */}
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-4">
-            <OwnerNavSidebar active={tab} onChange={setOwnerTab} overview={overview} />
-          </div>
-        </aside>
-
-        <main className="min-w-0 space-y-4">
-          {tab === "customers" && <CustomersTab />}
-          {tab === "subscriptions" && <SubscriptionsTab customers={customerList} />}
-          {tab === "invoices" && <InvoicesTab customers={customerList} />}
-          {tab === "quotations" && <QuotationsTab customers={customerList} />}
-          {tab === "keys" && <SerialKeysTab customers={customerList} />}
-          {tab === "devices" && <DevicesTab />}
-          {tab === "apikeys" && <ApiKeysTab />}
-          {tab === "bank" && <BankAccountsTab />}
-          {tab === "users" && <ClientUsersTab />}
-          {tab === "overview" && <OverviewTab />}
-          {tab === "finance" && <FinanceTab />}
-          {tab === "reports" && <ReportsTab />}
-        </main>
-      </div>
+      {/* Detail panel — renders only the active tab content, full-width. */}
+      <main className="min-w-0 space-y-4">
+        {tab === "customers" && <CustomersTab />}
+        {tab === "subscriptions" && <SubscriptionsTab customers={customerList} />}
+        {tab === "invoices" && <InvoicesTab customers={customerList} />}
+        {tab === "quotations" && <QuotationsTab customers={customerList} />}
+        {tab === "keys" && <SerialKeysTab customers={customerList} />}
+        {tab === "devices" && <DevicesTab />}
+        {tab === "apikeys" && <ApiKeysTab />}
+        {tab === "bank" && <BankAccountsTab />}
+        {tab === "users" && <ClientUsersTab />}
+        {tab === "overview" && <OverviewTab />}
+        {tab === "finance" && <FinanceTab />}
+        {tab === "reports" && <ReportsTab />}
+      </main>
     </div>
   );
 }

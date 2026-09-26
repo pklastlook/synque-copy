@@ -26,7 +26,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
-import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
+import { GlassCard } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { HelpText } from "@/components/glass/help-text";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
@@ -319,7 +319,7 @@ export function AnalyticsView() {
     return Object.values(groups).sort((a, b) => b.followers - a.followers);
   })();
 
-  // Metric row — 6 metrics with inline sparklines, replaces 4 KpiCards
+  // Metric row — 6 metrics with inline sparklines, dense single-line strip.
   const metrics: Metric[] = [
     {
       label: "Followers",
@@ -438,7 +438,7 @@ export function AnalyticsView() {
         </div>
       </GlassCard>
 
-      {/* Dense metric row — replaces 4 KpiCards */}
+      {/* Dense metric row */}
       <MetricRow metrics={metrics} className="animate-rise" />
 
       {/* Hero chart — one big chart with metric toggle */}
@@ -553,7 +553,7 @@ export function AnalyticsView() {
 
       {/* Top content */}
       <GlassCard className="p-5 animate-rise">
-        <SectionTitle
+        <SectionHeader
           title="Top performing content"
           desc="Highest engagement posts in range"
         />
@@ -598,7 +598,7 @@ function GrowthTab({
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <GlassCard className="p-5 lg:col-span-2">
-        <SectionTitle
+        <SectionHeader
           title="Follower growth"
           desc={`Cumulative audience over the last ${days} days`}
         />
@@ -725,7 +725,7 @@ function EngagementTab({
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <GlassCard className="p-5 lg:col-span-2">
-        <SectionTitle
+        <SectionHeader
           title="Engagement rate trend"
           desc="Engagement / Reach per day (%)"
           action={
@@ -975,7 +975,7 @@ function AIInsightsCard({ days, accountId }: { days: number; accountId: string }
   return (
     <GlassCard className="crystal-in relative overflow-hidden p-5 animate-rise">
       <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.588_0.209_277)]/15 blur-3xl" />
-      <SectionTitle
+      <SectionHeader
         title="AI Insights"
         desc="Data-driven recommendations from your real performance"
         action={

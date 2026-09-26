@@ -73,7 +73,6 @@ import {
   Bot,
   Sparkles,
 } from "lucide-react";
-import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
@@ -284,112 +283,45 @@ export function SettingsView() {
   const activeDef = SETTINGS_TABS.find((t) => t.id === tab) ?? SETTINGS_TABS[0];
   const ActiveIcon = activeDef.icon;
 
-  // Lightweight count fetches for sidebar badges. Each endpoint is also
-  // fetched by the matching section when it renders, so these are read-only
-  // and only used to show a small count badge next to the nav item.
-  const { data: users } = useApi<ApiUser[]>("/api/users");
-  const { data: apiKeys } = useApi<SettingsApiKey[]>("/api/api-keys");
-  const { data: accounts } = useApi<{ id: string; platform: PlatformId }[]>("/api/accounts");
-  const { data: intData } = useApi<{ integrations: Integration[] }>("/api/integrations");
-
-  const counts: Partial<Record<SettingsTab, number>> = {
-    "team-roles": Array.isArray(users) ? users.length : 0,
-    security: Array.isArray(apiKeys) ? apiKeys.length : 0,
-    platforms: Array.isArray(accounts) ? accounts.length : 0,
-    integrations: intData?.integrations?.filter((i) => i.enabled).length ?? 0,
-  };
-
   return (
-    <div className="animate-rise grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)] xl:gap-5">
+    <div className="animate-rise space-y-4">
       {/* ============================================================ */}
-      {/* SIDEBAR — sticky on desktop, dropdown on mobile              */}
+      {/* MOBILE DROPDOWN                                              */}
+      {/* Visible only on small screens where the main app-sidebar    */}
+      {/* collapses to a sheet. On lg+ the app-sidebar's Settings     */}
+      {/* sub-items handle navigation.                                */}
       {/* ============================================================ */}
-      <aside className="lg:sticky lg:top-4 lg:self-start space-y-3">
-        {/* Mobile dropdown */}
-        <div className="lg:hidden">
-          <Select value={tab} onValueChange={(v) => setSettingsTab(v)}>
-            <SelectTrigger className="h-10 w-full">
-              <span className="flex items-center gap-2">
-                <ActiveIcon className="h-4 w-4 text-primary" />
-                <span className="font-medium">{activeDef.label}</span>
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              {SIDEBAR_GROUPS.map((g) => (
-                <SelectGroup key={g.label}>
-                  <SelectLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    {g.label}
-                  </SelectLabel>
-                  {g.tabs.map((id) => {
-                    const def = SETTINGS_TABS.find((t) => t.id === id)!;
-                    const Icon = def.icon;
-                    return (
-                      <SelectItem key={id} value={id}>
-                        <span className="flex items-center gap-2">
-                          <Icon className="h-3.5 w-3.5" />
-                          {def.label}
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Desktop sidebar — grouped nav cards */}
-        <nav className="hidden lg:block glass rounded-2xl p-2 space-y-4">
-          {SIDEBAR_GROUPS.map((group) => (
-            <div key={group.label} className="space-y-0.5">
-              <div className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
-                {group.label}
-              </div>
-              {group.tabs.map((id) => {
-                const def = SETTINGS_TABS.find((t) => t.id === id)!;
-                const Icon = def.icon;
-                const isActive = tab === id;
-                const count = counts[id];
-                const isDanger = id === "danger";
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setSettingsTab(id)}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm transition-all duration-200",
-                      isActive
-                        ? isDanger
-                          ? "bg-rose-500/10 text-rose-500 shadow-[inset_0_0_0_1px_oklch(0.65_0.2_25)_0.3]"
-                          : "bg-primary/10 text-primary shadow-[inset_0_0_0_1px_var(--ring)]"
-                        : isDanger
-                          ? "text-rose-500/70 hover:bg-rose-500/10 hover:text-rose-500"
-                          : "text-foreground/70 hover:bg-muted/50 hover:text-foreground"
-                    )}
-                  >
-                    <Icon className={cn("h-4 w-4 shrink-0 transition-transform", !isActive && "group-hover:scale-110")} />
-                    <span className="flex-1 truncate text-[13px] font-medium">{def.label}</span>
-                    {count !== undefined && count > 0 && (
-                      <span
-                        className={cn(
-                          "rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
-                          isActive
-                            ? isDanger
-                              ? "bg-rose-500/15 text-rose-500"
-                              : "bg-primary/15 text-primary"
-                            : "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {count}
+      <div className="lg:hidden">
+        <Select value={tab} onValueChange={(v) => setSettingsTab(v)}>
+          <SelectTrigger className="h-10 w-full">
+            <span className="flex items-center gap-2">
+              <ActiveIcon className="h-4 w-4 text-primary" />
+              <span className="font-medium">{activeDef.label}</span>
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            {SIDEBAR_GROUPS.map((g) => (
+              <SelectGroup key={g.label}>
+                <SelectLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {g.label}
+                </SelectLabel>
+                {g.tabs.map((id) => {
+                  const def = SETTINGS_TABS.find((t) => t.id === id)!;
+                  const Icon = def.icon;
+                  return (
+                    <SelectItem key={id} value={id}>
+                      <span className="flex items-center gap-2">
+                        <Icon className="h-3.5 w-3.5" />
+                        {def.label}
                       </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-      </aside>
+                    </SelectItem>
+                  );
+                })}
+              </SelectGroup>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* ============================================================ */}
       {/* DETAIL PANEL — only the active section is rendered           */}
@@ -623,8 +555,8 @@ function ProfileSection() {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
         title="Profile"
         desc="Your personal information visible to your team."
         action={
@@ -741,7 +673,7 @@ function ProfileSection() {
         />
         <div className="mt-1 text-right text-[11px] text-muted-foreground">{bio.length} / 280</div>
       </Field>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -856,8 +788,8 @@ function CompanySection() {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
         title="Company profile"
         desc="Your company information used in reports, invoices, and branding."
         action={
@@ -906,7 +838,7 @@ function CompanySection() {
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 0100" className="settings-input" />
         </Field>
       </div>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -979,8 +911,8 @@ function BankSection() {
   }
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
         title="Bank details"
         desc="Bank accounts for subscription payments and invoice settlements."
         action={
@@ -1080,7 +1012,7 @@ function BankSection() {
         (once Stripe is connected in Integrations). Invoices are marked as "paid" manually by the admin after
         the bank transfer is confirmed.
       </div>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -1153,8 +1085,8 @@ function WorkspaceSection() {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
         title="Workspace"
         desc="Defaults applied across compose, schedule, and AI generation."
         action={
@@ -1271,7 +1203,7 @@ function WorkspaceSection() {
           </button>
         </div>
       </Field>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -1299,8 +1231,8 @@ function AppearanceSection() {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle title="Appearance" desc="Personalize how SocialFlow looks on this device." />
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader title="Appearance" desc="Personalize how SocialFlow looks on this device." />
 
       {/* Theme cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1432,7 +1364,7 @@ function AppearanceSection() {
           <span>A</span><span>Default</span><span>A</span>
         </div>
       </div>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -1574,8 +1506,8 @@ function TeamRolesSection() {
 
   return (
     <div className="space-y-4">
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader
           title="Team Roles & Permissions"
           desc="Manage who can access what. Changes are staged locally — save to sync."
           action={
@@ -1697,11 +1629,11 @@ function TeamRolesSection() {
             );
           })}
         </div>
-      </GlassCard>
+      </section>
 
       {/* Permissions matrix */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader
           title="Permissions matrix"
           desc="What each role can do across the platform."
         />
@@ -1738,7 +1670,7 @@ function TeamRolesSection() {
             </tbody>
           </table>
         </div>
-      </GlassCard>
+      </section>
 
       {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
@@ -1838,8 +1770,8 @@ function NotificationsSection() {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
         title="Notifications"
         desc="Choose what reaches your inbox and how often."
         action={
@@ -1896,7 +1828,7 @@ function NotificationsSection() {
           </Select>
         </Field>
       </div>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -2025,8 +1957,8 @@ function SecuritySection() {
   return (
     <div className="space-y-4">
       {/* Password */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Password" desc="Update your password regularly to keep your account secure." />
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader title="Password" desc="Update your password regularly to keep your account secure." />
         <div className="grid gap-3 sm:max-w-md">
           <Field label="Current password">
             <div className="relative">
@@ -2058,11 +1990,11 @@ function SecuritySection() {
             <KeyRound className="h-3.5 w-3.5" /> Update password
           </button>
         </div>
-      </GlassCard>
+      </section>
 
       {/* 2FA */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Two-factor authentication" desc="Add an extra layer of security to your account." />
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader title="Two-factor authentication" desc="Add an extra layer of security to your account." />
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted/30 p-4">
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -2092,11 +2024,11 @@ function SecuritySection() {
             <Switch checked={twoFA} onCheckedChange={(v) => { setTwoFA(v); if (v) setSetup2FA(true); }} />
           </div>
         </div>
-      </GlassCard>
+      </section>
 
       {/* Active sessions */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Active sessions" desc="Devices currently signed in to your account." />
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader title="Active sessions" desc="Devices currently signed in to your account." />
         {sessions.length === 0 ? (
           <div className="py-6 text-center text-xs text-muted-foreground">
             No session tracking yet. Active sessions will appear here once device
@@ -2134,11 +2066,11 @@ function SecuritySection() {
             ))}
           </div>
         )}
-      </GlassCard>
+      </section>
 
       {/* Login history */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Login history" desc="Recent sign-in attempts on your account." />
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader title="Login history" desc="Recent sign-in attempts on your account." />
         {history.length === 0 ? (
           <div className="py-6 text-center text-xs text-muted-foreground">
             No login history yet. Recent sign-ins will be logged here.
@@ -2174,11 +2106,11 @@ function SecuritySection() {
             </table>
           </div>
         )}
-      </GlassCard>
+      </section>
 
       {/* API keys */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader
           title="API keys"
           desc="Use these to authenticate with the SocialFlow API."
           action={
@@ -2249,11 +2181,11 @@ function SecuritySection() {
             ))}
           </div>
         )}
-      </GlassCard>
+      </section>
 
       {/* IP allowlist */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader
           title="IP allowlist"
           desc="Restrict API access to known IP ranges. One per line."
           action={
@@ -2274,7 +2206,7 @@ function SecuritySection() {
           className="resize-none font-mono text-xs"
           placeholder="0.0.0.0/0"
         />
-      </GlassCard>
+      </section>
 
       {/* 2FA setup dialog */}
       <Dialog open={setup2FA} onOpenChange={setSetup2FA}>
@@ -2387,8 +2319,8 @@ function PlatformsSection() {
   }, [accounts]);
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
         title="Connected platforms"
         desc="Manage which social accounts are connected to SocialFlow."
         action={
@@ -2446,7 +2378,7 @@ function PlatformsSection() {
           );
         })}
       </div>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -2563,8 +2495,8 @@ function IntegrationsSection() {
   const configuring = integrations.find((i) => i.type === configureType);
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
         title="Integrations"
         desc="Connect SocialFlow with the tools your team already uses."
         action={
@@ -2712,7 +2644,7 @@ function IntegrationsSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -2830,8 +2762,8 @@ function MediaStorageSection() {
   }
 
   return (
-    <GlassCard className="p-5">
-      <SectionTitle
+    <section className="glass rounded-xl p-5">
+      <SectionHeader
         title="Media storage"
         desc="Where uploaded media files (images, videos, audio) are stored. Affects the Media Library, Composer, and user avatars."
       />
@@ -3077,7 +3009,7 @@ function MediaStorageSection() {
           Recheck connection
         </Button>
       </div>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -3183,8 +3115,8 @@ function AIChatModelSection() {
   const isConfigured = status?.configured;
 
   return (
-    <GlassCard className="p-5">
-      <SectionTitle
+    <section className="glass rounded-xl p-5">
+      <SectionHeader
         title="AI chat model"
         desc="Powers the AI Content Writer in the Composer. Configure OpenAI (ChatGPT), Google Gemini, or any OpenAI-compatible provider."
       />
@@ -3417,7 +3349,7 @@ function AIChatModelSection() {
           Recheck connection
         </Button>
       </div>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -3457,7 +3389,7 @@ function BillingSection() {
   return (
     <div className="space-y-4">
       {/* Plan card */}
-      <GlassCard className="crystal-in glass-sheen relative overflow-hidden p-5">
+      <section className="glass rounded-xl crystal-in glass-sheen relative overflow-hidden p-5">
         <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[var(--gold)]/30 blur-3xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -3501,11 +3433,11 @@ function BillingSection() {
             </button>
           </div>
         </div>
-      </GlassCard>
+      </section>
 
       {/* Usage */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Usage this cycle" desc="Real usage from your workspace data" />
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader title="Usage this cycle" desc="Real usage from your workspace data" />
         <div className="grid gap-4 sm:grid-cols-2">
           {usage.map((u) => {
             const pct = Math.min(100, Math.round((u.used / u.limit) * 100));
@@ -3526,11 +3458,11 @@ function BillingSection() {
             );
           })}
         </div>
-      </GlassCard>
+      </section>
 
       {/* Payment method */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader
           title="Payment method"
           desc="Card used for subscription renewals."
           action={
@@ -3553,11 +3485,11 @@ function BillingSection() {
             </div>
           </div>
         </div>
-      </GlassCard>
+      </section>
 
       {/* Invoices */}
-      <GlassCard className="crystal-in p-5">
-        <SectionTitle title="Invoices" desc="Download past invoices and receipts." />
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader title="Invoices" desc="Download past invoices and receipts." />
         {invoicesLoading ? (
           <div className="space-y-2">
             <div className="shimmer h-8 rounded-lg" />
@@ -3607,7 +3539,7 @@ function BillingSection() {
             </table>
           </div>
         )}
-      </GlassCard>
+      </section>
     </div>
   );
 }
@@ -3632,8 +3564,8 @@ function DataSection() {
   };
 
   return (
-    <GlassCard className="crystal-in p-5">
-      <SectionTitle title="Data & Privacy" desc="Control how your data is stored, shared, and exported." />
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader title="Data & Privacy" desc="Control how your data is stored, shared, and exported." />
 
       {/* Export / Import */}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -3732,7 +3664,7 @@ function DataSection() {
           onConfirm={() => toast.info("Contact support to schedule workspace deletion")}
         />
       </div>
-    </GlassCard>
+    </section>
   );
 }
 
@@ -3799,8 +3731,8 @@ function DangerSection() {
   };
 
   return (
-    <GlassCard className="crystal-in border-2 border-rose-500/40 p-5">
-      <SectionTitle
+    <section className="glass rounded-xl crystal-in border-2 border-rose-500/40 p-5">
+      <SectionHeader
         title="Danger Zone"
         desc="Irreversible and destructive actions. Proceed with caution."
       />
@@ -3910,7 +3842,7 @@ function DangerSection() {
           />
         </div>
       </div>
-    </GlassCard>
+    </section>
   );
 }
 

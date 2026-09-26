@@ -528,7 +528,7 @@ export function ReportsView() {
         onDelete={deleteReport}
       />
 
-      {/* === Print layout (unchanged — prints all data) === */}
+      {/* === Print layout (modernized — cover page + page numbers) === */}
       <PrintLayout
         template={template}
         dateRangeLabel={DATE_RANGES.find(d => d.key === dateRange)?.label ?? "30 Days"}
@@ -2479,7 +2479,7 @@ const POST_STATUS_META: Record<string, { label: string; color: string; bg: strin
   failed: { label: "Failed", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/15", icon: <XCircle className="h-2.5 w-2.5" /> },
 };
 
-// ============ Print Layout (hidden on screen) — preserved ============
+// ============ Print Layout (hidden on screen) — modernized ============
 function PrintLayout({
   template, dateRangeLabel, analytics, teamData, reportData, postsPerfData, totals,
 }: {
@@ -2522,301 +2522,284 @@ function PrintLayout({
 
   return (
     <div className="report-print-root hidden print:block">
-      <table className="w-full">
-        <thead><tr><td className="report-header-cell">
-          <div className="report-header">
-            <div className="report-header-row">
-              <div>
-                <div className="report-brand">SocialFlow</div>
-                <div className="report-subtitle">{title}</div>
-                <div className="report-template-desc">{template.desc}</div>
-              </div>
-              <div className="text-right">
-                <div className="report-date">{now}</div>
-                <div className="report-type">{dateRangeLabel} Report</div>
-                <div className="report-range">Last {dateRangeLabel === "Today" ? "1 day" : dateRangeLabel === "7D" ? "7 days" : dateRangeLabel === "30D" ? "30 days" : "90 days"}</div>
-              </div>
-            </div>
-            <div className="report-accent-bar" style={{ background: templateColor }} />
+      {/* =========================================================
+          COVER PAGE — title, date, company, accent bar
+          Forces a page break after itself.
+         ========================================================= */}
+      <section className="report-cover">
+        <div>
+          <div className="report-cover-brand">SocialFlow</div>
+          <div className="report-cover-tagline">Social, Simplified.</div>
+        </div>
+        <div className="report-cover-spacer" />
+        <div className="report-cover-accent" style={{ background: templateColor }} />
+        <div className="report-cover-eyebrow">{dateRangeLabel} Report</div>
+        <div className="report-cover-title">{template.name}</div>
+        {template.desc && <div className="report-cover-desc">{template.desc}</div>}
+        <div className="report-cover-meta">
+          <div>
+            <div className="report-cover-meta-label">Report Date</div>
+            <div className="report-cover-meta-value">{now}</div>
           </div>
-        </td></tr></thead>
-        <tbody><tr><td className="report-body-cell">
-          <div className="report-content">
-            <h2 className="report-section-title">Executive Summary</h2>
-            <p className="report-text">{summaryText}</p>
+          <div>
+            <div className="report-cover-meta-label">Date Range</div>
+            <div className="report-cover-meta-value">{dateRangeLabel} · Last {dateRangeLabel === "Today" ? "1 day" : dateRangeLabel === "7D" ? "7 days" : dateRangeLabel === "30D" ? "30 days" : "90 days"}</div>
+          </div>
+          <div>
+            <div className="report-cover-meta-label">Prepared By</div>
+            <div className="report-cover-meta-value">SocialFlow</div>
+          </div>
+        </div>
+        <div className="report-cover-footer">
+          <span>Confidential — for internal use only</span>
+          <span>socialflow.app</span>
+        </div>
+      </section>
 
-            {/* KPI summary grid — 4 cards */}
-            <div className="report-kpi-grid">
-              {(() => {
-                const kpis: { label: string; value: string }[] = [];
-                if (["user-account", "user-comparison", "leaderboard", "team"].includes(template.id) && reportData) {
-                  kpis.push(
-                    { label: "Members", value: (reportData.userComparison.length).toString() },
-                    { label: "Posts Created", value: reportData.userComparison.reduce((s, u) => s + u.postsCreated, 0).toString() },
-                    { label: "Published", value: reportData.userComparison.reduce((s, u) => s + u.postsPublished, 0).toString() },
-                    { label: "Comments Replied", value: reportData.userComparison.reduce((s, u) => s + u.commentsReplied, 0).toString() },
-                  );
-                } else {
-                  kpis.push(
-                    { label: "Followers", value: fmt(totals.followers) },
-                    { label: "Impressions", value: fmt(totals.impressions) },
-                    { label: "Reach", value: fmt(totals.reach) },
-                    { label: "Engagement", value: fmt(totals.engagement) },
-                  );
-                }
-                return kpis.map((k, i) => (
-                  <div key={i} className="report-kpi-card">
-                    <div className="report-kpi-value">{k.value}</div>
-                    <div className="report-kpi-label">{k.label}</div>
-                  </div>
-                ));
-              })()}
-            </div>
+      {/* =========================================================
+          CONTENT PAGES — running header + body
+          (page numbers + "Generated by SocialFlow" handled by @page
+          footer rules in globals.css)
+         ========================================================= */}
+      <div className="report-header">
+        <div>
+          <div className="report-header-brand">SocialFlow</div>
+          <div className="report-header-title">{title}</div>
+        </div>
+        <div className="report-header-meta">
+          <strong>{now}</strong>
+          <br />
+          {dateRangeLabel} Report
+        </div>
+      </div>
 
-            <h2 className="report-section-title">Key Metrics</h2>
+      <div className="report-content">
+        <h2 className="report-section-title">Executive Summary</h2>
+        <p className="report-text">{summaryText}</p>
+
+        {/* Dense MetricRow-style KPI strip — compact, scannable, low ink */}
+        <div className="report-metric-row">
+          {(() => {
+            const kpis: { label: string; value: string }[] = [];
+            if (["user-account", "user-comparison", "leaderboard", "team"].includes(template.id) && reportData) {
+              kpis.push(
+                { label: "Members", value: (reportData.userComparison.length).toString() },
+                { label: "Posts Created", value: reportData.userComparison.reduce((s, u) => s + u.postsCreated, 0).toString() },
+                { label: "Published", value: reportData.userComparison.reduce((s, u) => s + u.postsPublished, 0).toString() },
+                { label: "Comments Replied", value: reportData.userComparison.reduce((s, u) => s + u.commentsReplied, 0).toString() },
+              );
+            } else {
+              kpis.push(
+                { label: "Followers", value: fmt(totals.followers) },
+                { label: "Impressions", value: fmt(totals.impressions) },
+                { label: "Reach", value: fmt(totals.reach) },
+                { label: "Engagement", value: fmt(totals.engagement) },
+              );
+            }
+            return kpis.map((k, i) => (
+              <div key={i} className="report-metric">
+                <div className="report-metric-value">{k.value}</div>
+                <div className="report-metric-label">{k.label}</div>
+              </div>
+            ));
+          })()}
+        </div>
+
+        <h2 className="report-section-title">Key Metrics</h2>
+        <table className="report-table">
+          <thead><tr><th>Metric</th><th className="text-right">Value</th></tr></thead>
+          <tbody>
+            <tr><td>Total Followers</td><td className="text-right tabular-nums">{totals.followers.toLocaleString()}</td></tr>
+            <tr><td>Total Impressions</td><td className="text-right tabular-nums">{totals.impressions.toLocaleString()}</td></tr>
+            <tr><td>Total Reach</td><td className="text-right tabular-nums">{totals.reach.toLocaleString()}</td></tr>
+            <tr><td>Total Engagement</td><td className="text-right tabular-nums">{totals.engagement.toLocaleString()}</td></tr>
+            <tr><td>Likes</td><td className="text-right tabular-nums">{totals.likes.toLocaleString()}</td></tr>
+            <tr><td>Comments</td><td className="text-right tabular-nums">{totals.comments.toLocaleString()}</td></tr>
+            <tr><td>Shares</td><td className="text-right tabular-nums">{totals.shares.toLocaleString()}</td></tr>
+            <tr><td>Saves</td><td className="text-right tabular-nums">{totals.saves.toLocaleString()}</td></tr>
+            <tr><td>Posts Published</td><td className="text-right tabular-nums">{totals.posts.toLocaleString()}</td></tr>
+          </tbody>
+        </table>
+
+        {/* Team member comparison — full table */}
+        {reportData && ["team", "user-comparison", "leaderboard"].includes(template.id) && (
+          <>
+            <h2 className="report-section-title">Team Member Work Comparison</h2>
             <table className="report-table">
-              <thead><tr><th>Metric</th><th className="text-right">Value</th></tr></thead>
+              <thead><tr>
+                <th>Member</th>
+                <th className="text-right">Posts</th>
+                <th className="text-right">Published</th>
+                <th className="text-right">Drafts</th>
+                <th className="text-right">Failed</th>
+                <th className="text-right">Comments</th>
+                <th className="text-right">Replied</th>
+                <th className="text-right">Reply %</th>
+                <th className="text-right">7-day</th>
+              </tr></thead>
               <tbody>
-                <tr><td>Total Followers</td><td className="text-right tabular-nums">{totals.followers.toLocaleString()}</td></tr>
-                <tr><td>Total Impressions</td><td className="text-right tabular-nums">{totals.impressions.toLocaleString()}</td></tr>
-                <tr><td>Total Reach</td><td className="text-right tabular-nums">{totals.reach.toLocaleString()}</td></tr>
-                <tr><td>Total Engagement</td><td className="text-right tabular-nums">{totals.engagement.toLocaleString()}</td></tr>
-                <tr><td>Likes</td><td className="text-right tabular-nums">{totals.likes.toLocaleString()}</td></tr>
-                <tr><td>Comments</td><td className="text-right tabular-nums">{totals.comments.toLocaleString()}</td></tr>
-                <tr><td>Shares</td><td className="text-right tabular-nums">{totals.shares.toLocaleString()}</td></tr>
-                <tr><td>Saves</td><td className="text-right tabular-nums">{totals.saves.toLocaleString()}</td></tr>
-                <tr><td>Posts Published</td><td className="text-right tabular-nums">{totals.posts.toLocaleString()}</td></tr>
+                {reportData.userComparison.map(u => (
+                  <tr key={u.id}>
+                    <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
+                    <td className="text-right tabular-nums">{u.postsCreated}</td>
+                    <td className="text-right tabular-nums">{u.postsPublished}</td>
+                    <td className="text-right tabular-nums">{u.postsDraft}</td>
+                    <td className="text-right tabular-nums">{u.postsFailed}</td>
+                    <td className="text-right tabular-nums">{u.commentsReceived}</td>
+                    <td className="text-right tabular-nums">{u.commentsReplied}</td>
+                    <td className="text-right tabular-nums">{u.replyRate}%</td>
+                    <td className="text-right tabular-nums">{u.postsLast7d}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+          </>
+        )}
 
-            {/* Team member comparison — full table */}
-            {reportData && ["team", "user-comparison", "leaderboard"].includes(template.id) && (
-              <>
-                <h2 className="report-section-title">Team Member Work Comparison</h2>
-                <table className="report-table">
-                  <thead><tr>
-                    <th>Member</th>
-                    <th className="text-right">Posts</th>
-                    <th className="text-right">Published</th>
-                    <th className="text-right">Drafts</th>
-                    <th className="text-right">Failed</th>
-                    <th className="text-right">Comments</th>
-                    <th className="text-right">Replied</th>
-                    <th className="text-right">Reply %</th>
-                    <th className="text-right">7-day</th>
-                  </tr></thead>
-                  <tbody>
-                    {reportData.userComparison.map(u => (
-                      <tr key={u.id}>
-                        <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
-                        <td className="text-right tabular-nums">{u.postsCreated}</td>
-                        <td className="text-right tabular-nums">{u.postsPublished}</td>
-                        <td className="text-right tabular-nums">{u.postsDraft}</td>
-                        <td className="text-right tabular-nums">{u.postsFailed}</td>
-                        <td className="text-right tabular-nums">{u.commentsReceived}</td>
-                        <td className="text-right tabular-nums">{u.commentsReplied}</td>
-                        <td className="text-right tabular-nums">{u.replyRate}%</td>
-                        <td className="text-right tabular-nums">{u.postsLast7d}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
+        {/* User × Account matrix table */}
+        {showUserMatrix && (() => {
+          const matrix = reportData!.userAccountMatrix;
+          const allAccounts: { id: string; displayName: string; platform: string }[] = [];
+          const seen = new Set<string>();
+          for (const u of matrix) for (const a of u.perAccount) if (!seen.has(a.accountId)) { seen.add(a.accountId); allAccounts.push({ id: a.accountId, displayName: a.displayName, platform: a.platform }); }
+          return (
+            <>
+              <h2 className="report-section-title">Posts & Comments by User on Each Account</h2>
+              <table className="report-table report-matrix">
+                <thead><tr>
+                  <th>User</th>
+                  {allAccounts.map(a => <th key={a.id} className="text-center">{a.displayName}</th>)}
+                  <th className="text-right">Total</th>
+                </tr></thead>
+                <tbody>
+                  {matrix.map(u => (
+                    <tr key={u.userId}>
+                      <td className="font-medium">{u.userName}</td>
+                      {allAccounts.map(a => {
+                        const cell = u.perAccount.find(p => p.accountId === a.id);
+                        return <td key={a.id} className="text-center tabular-nums">{cell?.posts ?? "—"}</td>;
+                      })}
+                      <td className="text-right tabular-nums font-bold">{u.totals.postsCreated}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          );
+        })()}
 
-            {/* User × Account matrix table */}
-            {showUserMatrix && (() => {
-              const matrix = reportData!.userAccountMatrix;
-              const allAccounts: { id: string; displayName: string; platform: string }[] = [];
-              const seen = new Set<string>();
-              for (const u of matrix) for (const a of u.perAccount) if (!seen.has(a.accountId)) { seen.add(a.accountId); allAccounts.push({ id: a.accountId, displayName: a.displayName, platform: a.platform }); }
-              return (
-                <>
-                  <h2 className="report-section-title">Posts & Comments by User on Each Account</h2>
-                  <table className="report-table report-matrix">
-                    <thead><tr>
-                      <th>User</th>
-                      {allAccounts.map(a => <th key={a.id} className="text-center">{a.displayName}</th>)}
-                      <th className="text-right">Total</th>
-                    </tr></thead>
-                    <tbody>
-                      {matrix.map(u => (
-                        <tr key={u.userId}>
-                          <td className="font-medium">{u.userName}</td>
-                          {allAccounts.map(a => {
-                            const cell = u.perAccount.find(p => p.accountId === a.id);
-                            return <td key={a.id} className="text-center tabular-nums">{cell?.posts ?? "—"}</td>;
-                          })}
-                          <td className="text-right tabular-nums font-bold">{u.totals.postsCreated}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </>
-              );
-            })()}
-
-            {/* Account × User (Pages Report) — per account who posted */}
-            {showAccountUser && (
-              <>
-                <h2 className="report-section-title">Pages Report — Per Account Breakdown</h2>
-                <table className="report-table">
-                  <thead><tr><th>Account</th><th>Platform</th><th>Owner</th><th className="text-right">Followers</th><th className="text-right">Posts</th><th className="text-right">Published</th><th className="text-right">Comments</th><th className="text-right">Replied</th></tr></thead>
-                  <tbody>
-                    {reportData!.accountUserMatrix.map(a => (
-                      <tr key={a.accountId}>
-                        <td className="font-medium">{a.displayName}</td>
-                        <td className="capitalize">{a.platform}</td>
-                        <td>{a.ownerName}</td>
-                        <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{a.totalPosts}</td>
-                        <td className="text-right tabular-nums">{a.totalPublished}</td>
-                        <td className="text-right tabular-nums">{a.totalComments}</td>
-                        <td className="text-right tabular-nums">{a.repliedComments}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {/* Per-account user breakdown */}
-                <h2 className="report-section-title">Who Posted on Each Account</h2>
-                {reportData!.accountUserMatrix.map(a => a.perUser.length > 0 && (
-                  <div key={a.accountId} className="report-subsection">
-                    <div className="report-subhead">{a.displayName} <span className="report-subtle">(@{a.handle})</span></div>
-                    <table className="report-table report-sub-table">
-                      <thead><tr><th>User</th><th className="text-right">Posts</th><th className="text-right">Published</th></tr></thead>
-                      <tbody>
-                        {a.perUser.map(u => (
-                          <tr key={u.userId}>
-                            <td>{u.userName}</td>
-                            <td className="text-right tabular-nums">{u.posts}</td>
-                            <td className="text-right tabular-nums">{u.published}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+        {/* Account × User (Pages Report) — per account who posted */}
+        {showAccountUser && (
+          <>
+            <h2 className="report-section-title">Pages Report — Per Account Breakdown</h2>
+            <table className="report-table">
+              <thead><tr><th>Account</th><th>Platform</th><th>Owner</th><th className="text-right">Followers</th><th className="text-right">Posts</th><th className="text-right">Published</th><th className="text-right">Comments</th><th className="text-right">Replied</th></tr></thead>
+              <tbody>
+                {reportData!.accountUserMatrix.map(a => (
+                  <tr key={a.accountId}>
+                    <td className="font-medium">{a.displayName}</td>
+                    <td className="capitalize">{a.platform}</td>
+                    <td>{a.ownerName}</td>
+                    <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                    <td className="text-right tabular-nums">{a.totalPosts}</td>
+                    <td className="text-right tabular-nums">{a.totalPublished}</td>
+                    <td className="text-right tabular-nums">{a.totalComments}</td>
+                    <td className="text-right tabular-nums">{a.repliedComments}</td>
+                  </tr>
                 ))}
-              </>
-            )}
-
-            {/* Leaderboard */}
-            {showLeaderboard && reportData && (
-              <>
-                <h2 className="report-section-title">Leaderboard — Top Contributors</h2>
-                <table className="report-table">
-                  <thead><tr><th>Rank</th><th>Member</th><th>Posts Created</th><th>Published</th><th>Comments Replied</th><th>Reply Rate</th><th>7-day Activity</th></tr></thead>
+              </tbody>
+            </table>
+            {/* Per-account user breakdown */}
+            <h2 className="report-section-title">Who Posted on Each Account</h2>
+            {reportData!.accountUserMatrix.map(a => a.perUser.length > 0 && (
+              <div key={a.accountId} className="report-subsection">
+                <div className="report-subhead">{a.displayName} <span className="report-subtle">(@{a.handle})</span></div>
+                <table className="report-table report-sub-table">
+                  <thead><tr><th>User</th><th className="text-right">Posts</th><th className="text-right">Published</th></tr></thead>
                   <tbody>
-                    {[...reportData.userComparison].sort((a, b) => b.postsCreated - a.postsCreated).slice(0, 10).map((u, i) => (
-                      <tr key={u.id}>
-                        <td className="tabular-nums">{i + 1}</td>
-                        <td className="font-medium">{u.name}</td>
-                        <td className="text-right tabular-nums">{u.postsCreated}</td>
-                        <td className="text-right tabular-nums">{u.postsPublished}</td>
-                        <td className="text-right tabular-nums">{u.commentsReplied}</td>
-                        <td className="text-right tabular-nums">{u.replyRate}%</td>
-                        <td className="text-right tabular-nums">{u.postsLast7d}</td>
+                    {a.perUser.map(u => (
+                      <tr key={u.userId}>
+                        <td>{u.userName}</td>
+                        <td className="text-right tabular-nums">{u.posts}</td>
+                        <td className="text-right tabular-nums">{u.published}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </>
-            )}
+              </div>
+            ))}
+          </>
+        )}
 
-            {/* Standard account breakdown (for non-pages templates) */}
-            {!showAccountUser && (
-              <>
-                <h2 className="report-section-title">Account Breakdown</h2>
-                <table className="report-table">
-                  <thead><tr><th>Account</th><th>Platform</th><th className="text-right">Followers</th><th className="text-right">Impressions</th><th className="text-right">Engagement</th><th>Owner</th></tr></thead>
-                  <tbody>
-                    {analytics.perAccount.map(a => (
-                      <tr key={a.id}>
-                        <td className="font-medium">{a.displayName}</td>
-                        <td className="capitalize">{a.platform}</td>
-                        <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
-                        <td>{a.ownerName}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
+        {/* Leaderboard */}
+        {showLeaderboard && reportData && (
+          <>
+            <h2 className="report-section-title">Leaderboard — Top Contributors</h2>
+            <table className="report-table">
+              <thead><tr><th>Rank</th><th>Member</th><th>Posts Created</th><th>Published</th><th>Comments Replied</th><th>Reply Rate</th><th>7-day Activity</th></tr></thead>
+              <tbody>
+                {[...reportData.userComparison].sort((a, b) => b.postsCreated - a.postsCreated).slice(0, 10).map((u, i) => (
+                  <tr key={u.id}>
+                    <td className="tabular-nums">{i + 1}</td>
+                    <td className="font-medium">{u.name}</td>
+                    <td className="text-right tabular-nums">{u.postsCreated}</td>
+                    <td className="text-right tabular-nums">{u.postsPublished}</td>
+                    <td className="text-right tabular-nums">{u.commentsReplied}</td>
+                    <td className="text-right tabular-nums">{u.replyRate}%</td>
+                    <td className="text-right tabular-nums">{u.postsLast7d}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
 
-            {analytics.topContent.length > 0 && (
-              <>
-                <h2 className="report-section-title">Top Performing Content</h2>
-                <table className="report-table">
-                  <thead><tr><th>#</th><th>Title</th><th>Platform</th><th className="text-right">Engagement</th><th className="text-right">Reach</th></tr></thead>
-                  <tbody>
-                    {analytics.topContent.slice(0, 8).map((c, i) => (
-                      <tr key={c.id}>
-                        <td>{i + 1}</td>
-                        <td className="max-w-[200px] truncate">{c.title || "Untitled"}</td>
-                        <td className="capitalize">{c.platform}</td>
-                        <td className="text-right tabular-nums">{c.engagement.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{c.reach.toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
+        {/* Standard account breakdown (for non-pages templates) */}
+        {!showAccountUser && (
+          <>
+            <h2 className="report-section-title">Account Breakdown</h2>
+            <table className="report-table">
+              <thead><tr><th>Account</th><th>Platform</th><th className="text-right">Followers</th><th className="text-right">Impressions</th><th className="text-right">Engagement</th><th>Owner</th></tr></thead>
+              <tbody>
+                {analytics.perAccount.map(a => (
+                  <tr key={a.id}>
+                    <td className="font-medium">{a.displayName}</td>
+                    <td className="capitalize">{a.platform}</td>
+                    <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                    <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+                    <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+                    <td>{a.ownerName}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
 
-            <p className="report-footer-note">Generated by SocialFlow on {now} · {title} · Confidential — for internal use only.</p>
-          </div>
-        </td></tr></tbody>
-        <tfoot><tr><td className="report-footer-cell">
-          <div className="report-footer">
-            <div className="report-footer-row">
-              <span><strong>SocialFlow</strong> — Social, Simplified.</span>
-              <span>Page <span className="page-number"></span> of <span className="page-count"></span></span>
-            </div>
-          </div>
-        </td></tr></tfoot>
-      </table>
+        {analytics.topContent.length > 0 && (
+          <>
+            <h2 className="report-section-title">Top Performing Content</h2>
+            <table className="report-table">
+              <thead><tr><th>#</th><th>Title</th><th>Platform</th><th className="text-right">Engagement</th><th className="text-right">Reach</th></tr></thead>
+              <tbody>
+                {analytics.topContent.slice(0, 8).map((c, i) => (
+                  <tr key={c.id}>
+                    <td>{i + 1}</td>
+                    <td className="max-w-[200px] truncate">{c.title || "Untitled"}</td>
+                    <td className="capitalize">{c.platform}</td>
+                    <td className="text-right tabular-nums">{c.engagement.toLocaleString()}</td>
+                    <td className="text-right tabular-nums">{c.reach.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
 
-      <style jsx global>{`
-        @media print {
-          @page { size: letter; margin: 0; }
-          body * { visibility: hidden; }
-          .report-print-root, .report-print-root * { visibility: visible; }
-          .report-print-root { position: absolute; top: 0; left: 0; width: 100%; }
-          .report-header { border-bottom: 1px solid #e0e0e0; }
-          .report-header-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 24px 48px 12px; }
-          .report-accent-bar { height: 3px; width: 100%; }
-          .report-brand { font-size: 22px; font-weight: 800; color: #5856D6; letter-spacing: -0.5px; }
-          .report-subtitle { font-size: 15px; font-weight: 600; color: #1a1a1a; margin-top: 2px; }
-          .report-template-desc { font-size: 10px; color: #777; margin-top: 2px; }
-          .report-date { font-size: 11px; color: #555; }
-          .report-type { font-size: 10px; color: #888; text-transform: uppercase; font-weight: 600; }
-          .report-range { font-size: 9px; color: #aaa; margin-top: 2px; }
-          .report-body-cell { padding: 20px 48px 32px; }
-          .report-content { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; }
-          .report-section-title { font-size: 13px; font-weight: 700; color: #5856D6; margin-top: 22px; margin-bottom: 8px; border-bottom: 2px solid #5856D6; padding-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
-          .report-text { font-size: 11.5px; line-height: 1.65; color: #333; margin-bottom: 12px; }
-          .report-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 16px; }
-          .report-kpi-card { border: 1px solid #e0e0e0; border-left: 3px solid #5856D6; border-radius: 4px; padding: 10px 12px; background: #fafafa; }
-          .report-kpi-value { font-size: 20px; font-weight: 700; color: #1a1a1a; line-height: 1; }
-          .report-kpi-label { font-size: 9px; font-weight: 600; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
-          .report-table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 14px; }
-          .report-table th { background: #5856D6; color: #fff; font-weight: 600; text-align: left; padding: 7px 10px; border: 1px solid #5856D6; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
-          .report-table td { padding: 5px 10px; border: 1px solid #e0e0e0; }
-          .report-table tbody tr:nth-child(even) { background: #f9f9fb; }
-          .report-table tbody tr:hover { background: #f0f0ff; }
-          .report-matrix th, .report-matrix td { font-size: 9.5px; padding: 4px 6px; }
-          .report-subsection { margin-top: 12px; page-break-inside: avoid; }
-          .report-subhead { font-size: 11px; font-weight: 700; color: #333; margin-bottom: 4px; }
-          .report-sub-table th { background: #f0f0f5; color: #333; font-size: 9px; }
-          .report-subtle { color: #888; font-weight: 400; font-size: 9px; }
-          .report-footer-note { font-size: 9.5px; color: #888; margin-top: 28px; font-style: italic; border-top: 1px dashed #ccc; padding-top: 8px; }
-          .report-footer { border-top: 2px solid #5856D6; padding: 10px 48px; }
-          .report-footer-row { display: flex; justify-content: space-between; font-size: 9.5px; color: #666; }
-          .page-number:after { content: counter(page); }
-          .page-count:after { content: counter(pages); }
-        }
-      `}</style>
+        <p className="report-footer-note">
+          Generated by SocialFlow on {now} · {title} · Confidential — for internal use only.
+        </p>
+      </div>
     </div>
   );
 }

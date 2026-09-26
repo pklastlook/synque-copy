@@ -1046,7 +1046,7 @@ function PostsKanbanSection({ data, loading }: { data: PostsKanbanData | null; l
         }
       />
 
-      {/* Compact summary row — replaces the 4 KpiCards from the original. */}
+      {/* Compact summary row — dense inline KPI strip. */}
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-muted/20 px-3 py-2 text-[11px]">
         <span className="text-muted-foreground">
           Posts this month:{" "}
