@@ -196,6 +196,7 @@ const QUICK_ACTIONS: { label: string; icon: LucideIcon; view: string; bg: string
   { label: "Calendar", icon: Calendar, view: "calendar", bg: "bg-blue-500/15", color: "text-blue-500" },
   { label: "Analytics", icon: BarChart3, view: "analytics", bg: "bg-emerald-500/15", color: "text-emerald-500" },
   { label: "Performance", icon: Activity, view: "team-performance", bg: "bg-purple-500/15", color: "text-purple-500" },
+  { label: "Reports", icon: Layers, view: "reports", bg: "bg-fuchsia-500/15", color: "text-fuchsia-500" },
 ];
 
 // ============ Main view ============
