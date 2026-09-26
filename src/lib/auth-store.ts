@@ -45,8 +45,14 @@ export const useAuth = create<AuthState>()(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, email, password }),
           });
-          const data = await res.json();
-          if (res.ok && data.token) {
+          // Guard: if the server returned HTML (e.g. 500 error page), don't
+          // try to parse it as JSON — that throws and can leave the button stuck.
+          if (!res.ok) {
+            set({ loading: false });
+            return false;
+          }
+          const data = await res.json().catch(() => null);
+          if (data?.token) {
             set({
               isAuthenticated: true,
               user: data.user,
@@ -71,8 +77,14 @@ export const useAuth = create<AuthState>()(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password }),
           });
-          const data = await res.json();
-          if (res.ok && data.token) {
+          // Guard: if the server returned HTML (e.g. 500 error page), don't
+          // try to parse it as JSON — that throws and can leave the button stuck.
+          if (!res.ok) {
+            set({ loading: false });
+            return false;
+          }
+          const data = await res.json().catch(() => null);
+          if (data?.token) {
             set({
               isAuthenticated: true,
               user: data.user,
@@ -96,8 +108,12 @@ export const useAuth = create<AuthState>()(
             method: "POST",
             headers: { "Content-Type": "application/json" },
           });
-          const data = await res.json();
-          if (res.ok && data.token) {
+          if (!res.ok) {
+            set({ loading: false });
+            return false;
+          }
+          const data = await res.json().catch(() => null);
+          if (data?.token) {
             set({
               isAuthenticated: true,
               user: data.user,

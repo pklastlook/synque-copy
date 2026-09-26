@@ -23,9 +23,15 @@ export default function LoginPage() {
     }
     setLoading(true);
     setError("");
-    const success = await login(email.trim(), password);
-    if (!success) {
-      setError("Invalid email or password. If you're new, start a free trial.");
+    try {
+      const success = await login(email.trim(), password);
+      if (!success) {
+        setError("Invalid email or password. If you're new, start a free trial.");
+      }
+      // On success, auth-store updates isAuthenticated and page.tsx swaps to AppShell
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
@@ -33,12 +39,17 @@ export default function LoginPage() {
   const startDemo = async () => {
     setDemoLoading(true);
     setError("");
-    const ok = await loginAsDemo();
-    if (!ok) {
-      setDemoLoading(false);
+    try {
+      const ok = await loginAsDemo();
+      if (!ok) {
+        setError("Could not start the demo session. Please try again.");
+      }
+      // On success, auth-store updates isAuthenticated and page.tsx swaps to AppShell
+    } catch {
       setError("Could not start the demo session. Please try again.");
+    } finally {
+      setDemoLoading(false);
     }
-    // On success, auth-store updates isAuthenticated and page.tsx swaps to AppShell
   };
 
   return (

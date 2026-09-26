@@ -2018,21 +2018,31 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
     }
     setLoading(true);
     setError("");
-    const success = await login(email.trim(), password);
-    if (!success) {
-      setError("Invalid email or password. If you're new, start a free trial.");
+    try {
+      const success = await login(email.trim(), password);
+      if (!success) {
+        setError("Invalid email or password. If you're new, start a free trial.");
+      }
+      // If success, the auth store updates isAuthenticated and page.tsx switches to AppShell
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
     }
-    // If success, the auth store updates isAuthenticated and page.tsx switches to AppShell
   };
 
   const startDemo = async () => {
     setDemoLoading(true);
     setError("");
-    const ok = await loginAsDemo();
-    if (!ok) {
-      setDemoLoading(false);
+    try {
+      const ok = await loginAsDemo();
+      if (!ok) {
+        setError("Could not start the demo session. Please try again.");
+      }
+    } catch {
       setError("Could not start the demo session. Please try again.");
+    } finally {
+      setDemoLoading(false);
     }
   };
 
