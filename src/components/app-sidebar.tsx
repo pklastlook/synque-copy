@@ -49,6 +49,7 @@ import { SETTINGS_TABS, type SettingsTab } from "@/components/views/settings";
 import { ORG_TABS, type OrgTab } from "@/components/views/organization";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { LogoWordmark } from "@/components/glass/logo";
+import { ListRow, Pill } from "@/components/glass/dense-ui";
 import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -99,6 +100,29 @@ const MEDIA_SUBITEMS: {
   { id: "videos", label: "Videos", icon: Video, accent: "oklch(0.7 0.2 25)" },
   { id: "audio", label: "Audio", icon: Music, accent: "oklch(0.66 0.18 165)" },
 ];
+
+/**
+ * Map an oklch accent color string to the nearest dense-ui Pill color so
+ * sidebar badges use the same Pill vocabulary as the rest of the app.
+ *
+ * oklch hue ranges (approximate):
+ *   rose    — 330–360, 0–30
+ *   amber   — 30–90
+ *   green   — 90–180
+ *   blue    — 180–285  (cyan/teal/blue all collapse here)
+ *   violet  — 285–330
+ */
+function accentToPillColor(accent: string):
+  | "neutral" | "green" | "amber" | "rose" | "blue" | "violet" {
+  const m = accent.match(/oklch\(\s*[^,]+,\s*[^,]+,\s*([\d.]+)\s*\)/);
+  if (!m) return "neutral";
+  const hue = parseFloat(m[1]);
+  if (hue >= 330 || hue < 30) return "rose";
+  if (hue < 90) return "amber";
+  if (hue < 180) return "green";
+  if (hue < 285) return "blue";
+  return "violet";
+}
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const {
@@ -183,16 +207,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 const Icon = n.icon;
                 const active = view === n.id;
                 return (
-                  <button
+                  <ListRow
                     key={n.id}
                     onClick={() => {
                       setView(n.id);
                       onNavigate?.();
                     }}
                     className={cn(
-                      "group crystal-sweep relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
+                      "group crystal-sweep relative w-full rounded-lg border-b-0 border-l-0 px-2.5 py-2 gap-2.5 text-sm font-medium transition-all duration-200",
                       active
-                        ? "font-semibold text-foreground shadow-[inset_0_0_0_1px_var(--ring)]"
+                        ? "font-semibold text-foreground hover:bg-transparent"
                         : "text-foreground/55 hover:bg-muted/50 hover:text-foreground"
                     )}
                     style={active ? ({ ["--section-accent" as string]: n.accent } as React.CSSProperties) : undefined}
@@ -207,7 +231,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                     {/* Active: accent-tinted background */}
                     {active && (
                       <span
-                        className="absolute inset-0 rounded-xl"
+                        className="absolute inset-0 rounded-lg"
                         style={{ background: n.accent, opacity: 0.12 }}
                       />
                     )}
@@ -215,17 +239,14 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                       className={cn("relative h-[18px] w-[18px] shrink-0 transition-transform", !active && "group-hover:scale-110")}
                       style={{ color: n.accent }}
                     />
-                    <span className="relative truncate">{n.label}</span>
+                    <span className="relative flex-1 min-w-0 truncate">{n.label}</span>
                     {n.badge && (
-                      <span
-                        className="relative ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
-                        style={{ background: n.accent }}
-                      >
+                      <Pill color={accentToPillColor(n.accent)} className="relative ml-auto">
                         {n.badge}
-                      </span>
+                      </Pill>
                     )}
                     {active && !n.badge && <ChevronRight className="relative ml-auto h-3.5 w-3.5" style={{ color: n.accent }} />}
-                  </button>
+                  </ListRow>
                 );
               })}
 
@@ -277,9 +298,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <div className="flex items-center gap-1.5">
             <span className="truncate text-[13px] font-semibold">{user?.name ?? "User"}</span>
             {user?.role === "admin" && (
-              <span className="rounded-md bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
-                Admin
-              </span>
+              <Pill color="blue" className="uppercase tracking-wide">Admin</Pill>
             )}
           </div>
           <div className="truncate text-[11px] text-muted-foreground">{user?.title ?? "Team Member"}</div>
@@ -634,17 +653,17 @@ function MediaGroup({
   return (
     <div className="space-y-0.5">
       {/* Parent row */}
-      <button
+      <ListRow
         onClick={handleParentClick}
         aria-expanded={expanded}
         aria-controls="media-subnav"
-        style={active ? ({ ["--section-accent" as string]: parentAccent } as React.CSSProperties) : undefined}
         className={cn(
-          "group crystal-sweep relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
+          "group crystal-sweep relative w-full rounded-lg border-b-0 border-l-0 px-2.5 py-2 gap-2.5 text-sm font-medium transition-all duration-200",
           active
-            ? "bg-primary/12 text-foreground shadow-[inset_0_0_0_1px_var(--ring)]"
+            ? "font-semibold text-foreground hover:bg-transparent"
             : "text-foreground/55 hover:bg-muted/50 hover:text-foreground"
         )}
+        style={active ? ({ ["--section-accent" as string]: parentAccent } as React.CSSProperties) : undefined}
       >
         {active && (
           <span
@@ -652,23 +671,29 @@ function MediaGroup({
             style={{ background: parentAccent }}
           />
         )}
+        {active && (
+          <span
+            className="absolute inset-0 rounded-lg"
+            style={{ background: parentAccent, opacity: 0.12 }}
+          />
+        )}
         <Images
           className={cn(
-            "h-[18px] w-[18px] shrink-0 transition-transform",
+            "relative h-[18px] w-[18px] shrink-0 transition-transform",
             !active && "group-hover:scale-110"
           )}
           style={{ color: parentAccent }}
         />
-        <span className="truncate">Media Library</span>
+        <span className="relative flex-1 min-w-0 truncate">Media Library</span>
         <ChevronDown
           className={cn(
-            "ml-auto h-4 w-4 transition-transform duration-300 ease-out",
+            "relative ml-auto h-4 w-4 transition-transform duration-300 ease-out",
             active ? "" : "text-muted-foreground",
             expanded && "rotate-180"
           )}
           style={active ? { color: parentAccent } : undefined}
         />
-      </button>
+      </ListRow>
 
       {/* Sub-items — animated via max-height + opacity */}
       <div
@@ -683,31 +708,43 @@ function MediaGroup({
             const Icon = t.icon;
             const subActive = active && mediaTab === t.id;
             return (
-              <button
+              <ListRow
                 key={t.id}
                 onClick={() => handleSubClick(t.id)}
                 aria-current={subActive ? "page" : undefined}
+                className={cn(
+                  "group relative w-full rounded-lg border-b-0 border-l-0 pl-7 pr-2.5 py-1.5 gap-2.5 text-[13px] font-medium transition-all duration-200",
+                  subActive
+                    ? "font-semibold text-foreground hover:bg-transparent"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                )}
                 style={
                   subActive
                     ? ({ ["--section-accent" as string]: t.accent } as React.CSSProperties)
                     : undefined
                 }
-                className={cn(
-                  "group flex w-full items-center gap-2.5 rounded-lg pl-7 pr-2.5 py-1.5 text-[13px] font-medium transition-all duration-200",
-                  subActive
-                    ? "bg-primary/12 text-foreground shadow-[inset_0_0_0_1px_var(--ring)]"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                )}
               >
+                {subActive && (
+                  <span
+                    className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full"
+                    style={{ background: t.accent }}
+                  />
+                )}
+                {subActive && (
+                  <span
+                    className="absolute inset-0 rounded-lg"
+                    style={{ background: t.accent, opacity: 0.10 }}
+                  />
+                )}
                 <Icon
                   className={cn(
-                    "h-3.5 w-3.5 shrink-0 transition-transform",
+                    "relative h-3.5 w-3.5 shrink-0 transition-transform",
                     !subActive && "group-hover:scale-110"
                   )}
                   style={{ color: t.accent }}
                 />
-                <span className="truncate">{t.label}</span>
-              </button>
+                <span className="relative flex-1 min-w-0 truncate">{t.label}</span>
+              </ListRow>
             );
           })}
         </div>
@@ -764,36 +801,44 @@ function SettingsGroup({
   return (
     <div className="space-y-0.5">
       {/* Parent row */}
-      <button
+      <ListRow
         onClick={handleParentClick}
         aria-expanded={expanded}
         aria-controls="settings-subnav"
         className={cn(
-          "group crystal-sweep relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
+          "group crystal-sweep relative w-full rounded-lg border-b-0 border-l-0 px-2.5 py-2 gap-2.5 text-sm font-medium transition-all duration-200",
           active
-            ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_var(--ring)]"
+            ? "font-semibold text-primary hover:bg-transparent"
             : "text-foreground/60 hover:bg-muted/50 hover:text-foreground"
         )}
       >
         {active && (
-          <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-[0_0_8px_var(--ring)]" />
+          <span
+            className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-[0_0_8px_var(--ring)]"
+          />
+        )}
+        {active && (
+          <span
+            className="absolute inset-0 rounded-lg bg-primary"
+            style={{ opacity: 0.12 }}
+          />
         )}
         <Settings
           className={cn(
-            "h-[18px] w-[18px] shrink-0 transition-transform",
+            "relative h-[18px] w-[18px] shrink-0 transition-transform",
             active && "text-primary",
             !active && "group-hover:scale-110"
           )}
         />
-        <span className="truncate">Settings</span>
+        <span className="relative flex-1 min-w-0 truncate">Settings</span>
         <ChevronDown
           className={cn(
-            "ml-auto h-4 w-4 transition-transform duration-300 ease-out",
+            "relative ml-auto h-4 w-4 transition-transform duration-300 ease-out",
             active ? "text-primary" : "text-muted-foreground",
             expanded && "rotate-180"
           )}
         />
-      </button>
+      </ListRow>
 
       {/* Sub-items — animated via max-height + opacity */}
       <div
@@ -809,29 +854,48 @@ function SettingsGroup({
             const subActive = active && settingsTab === t.id;
             const isDanger = t.id === "danger";
             return (
-              <button
+              <ListRow
                 key={t.id}
                 onClick={() => handleSubClick(t.id)}
                 aria-current={subActive ? "page" : undefined}
                 className={cn(
-                  "group flex w-full items-center gap-2.5 rounded-lg pl-7 pr-2.5 py-1.5 text-[13px] font-medium transition-all duration-200",
+                  "group relative w-full rounded-lg border-b-0 border-l-0 pl-7 pr-2.5 py-1.5 gap-2.5 text-[13px] font-medium transition-all duration-200",
                   subActive
                     ? isDanger
-                      ? "bg-rose-500/15 text-rose-500 shadow-[inset_0_0_0_1px_oklch(0.65_0.2_25)]"
-                      : "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_var(--ring)]"
+                      ? "font-semibold text-rose-500 hover:bg-transparent"
+                      : "font-semibold text-primary hover:bg-transparent"
                     : isDanger
                       ? "text-rose-500/70 hover:bg-rose-500/10 hover:text-rose-500"
                       : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 )}
               >
+                {subActive && (
+                  <span
+                    className={cn(
+                      "absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full",
+                      isDanger ? "bg-rose-500" : "bg-primary"
+                    )}
+                  />
+                )}
+                {subActive && (
+                  <span
+                    className={cn(
+                      "absolute inset-0 rounded-lg",
+                      isDanger ? "bg-rose-500" : "bg-primary"
+                    )}
+                    style={{ opacity: 0.12 }}
+                  />
+                )}
                 <Icon
                   className={cn(
-                    "h-3.5 w-3.5 shrink-0 transition-transform",
-                    !subActive && "group-hover:scale-110"
+                    "relative h-3.5 w-3.5 shrink-0 transition-transform",
+                    !subActive && "group-hover:scale-110",
+                    subActive && !isDanger && "text-primary",
+                    subActive && isDanger && "text-rose-500"
                   )}
                 />
-                <span className="truncate">{t.label}</span>
-              </button>
+                <span className="relative flex-1 min-w-0 truncate">{t.label}</span>
+              </ListRow>
             );
           })}
         </div>
@@ -876,21 +940,41 @@ function OwnerGroup({
 }) {
   return (
     <div className="space-y-0.5">
-      <button
+      <ListRow
         onClick={() => { toggle(); if (!active) { setTab(currentTab); } }}
         aria-expanded={expanded}
         className={cn(
-          "group crystal-sweep relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
-          active ? "bg-primary/12 text-foreground shadow-[inset_0_0_0_1px_var(--ring)]" : "text-foreground/60 hover:bg-muted/50 hover:text-foreground"
+          "group crystal-sweep relative w-full rounded-lg border-b-0 border-l-0 px-2.5 py-2 gap-2.5 text-sm font-medium transition-all duration-200",
+          active
+            ? "font-semibold text-foreground hover:bg-transparent"
+            : "text-foreground/60 hover:bg-muted/50 hover:text-foreground"
         )}
       >
         {active && (
           <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary shadow-[0_0_8px_var(--ring)]" />
         )}
-        <Briefcase className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")} style={{ color: active ? "var(--primary)" : undefined }} />
-        <span>Owner Panel</span>
-        <ChevronDown className={cn("ml-auto h-3.5 w-3.5 transition-transform duration-200", expanded && "rotate-180")} />
-      </button>
+        {active && (
+          <span
+            className="absolute inset-0 rounded-lg bg-primary"
+            style={{ opacity: 0.12 }}
+          />
+        )}
+        <Briefcase
+          className={cn(
+            "relative h-[18px] w-[18px] shrink-0 transition-transform group-hover:scale-110",
+            active && "text-primary"
+          )}
+          style={{ color: active ? "var(--primary)" : undefined }}
+        />
+        <span className="relative flex-1 min-w-0 truncate">Owner Panel</span>
+        <ChevronDown
+          className={cn(
+            "relative ml-auto h-3.5 w-3.5 transition-transform duration-200",
+            active ? "text-primary" : "text-muted-foreground",
+            expanded && "rotate-180"
+          )}
+        />
+      </ListRow>
 
       <div
         className="crystal-in overflow-hidden transition-all duration-300"
@@ -901,18 +985,35 @@ function OwnerGroup({
             const Icon = item.icon;
             const isActive = active && currentTab === item.id;
             return (
-              <button
+              <ListRow
                 key={item.id}
                 onClick={() => { setTab(item.id); onNavigate?.(); }}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "group flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
-                  isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  "group relative w-full rounded-lg border-b-0 border-l-0 px-3 py-1.5 gap-2.5 text-xs font-medium transition-all",
+                  isActive
+                    ? "font-semibold text-primary hover:bg-transparent"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 )}
               >
-                <Icon className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:scale-110" style={{ color: item.accent }} />
-                <span>{item.label}</span>
-              </button>
+                {isActive && (
+                  <span
+                    className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full"
+                    style={{ background: item.accent }}
+                  />
+                )}
+                {isActive && (
+                  <span
+                    className="absolute inset-0 rounded-lg"
+                    style={{ background: item.accent, opacity: 0.10 }}
+                  />
+                )}
+                <Icon
+                  className="relative h-3.5 w-3.5 shrink-0 transition-transform group-hover:scale-110"
+                  style={{ color: item.accent }}
+                />
+                <span className="relative flex-1 min-w-0 truncate">{item.label}</span>
+              </ListRow>
             );
           })}
         </div>
@@ -963,17 +1064,17 @@ function OrganizationGroup({
   return (
     <div className="space-y-0.5">
       {/* Parent row */}
-      <button
+      <ListRow
         onClick={handleParentClick}
         aria-expanded={expanded}
         aria-controls="organization-subnav"
-        style={active ? ({ ["--section-accent" as string]: parentAccent } as React.CSSProperties) : undefined}
         className={cn(
-          "group crystal-sweep relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
+          "group crystal-sweep relative w-full rounded-lg border-b-0 border-l-0 px-2.5 py-2 gap-2.5 text-sm font-medium transition-all duration-200",
           active
-            ? "bg-primary/12 text-foreground shadow-[inset_0_0_0_1px_var(--ring)]"
+            ? "font-semibold text-foreground hover:bg-transparent"
             : "text-foreground/55 hover:bg-muted/50 hover:text-foreground"
         )}
+        style={active ? ({ ["--section-accent" as string]: parentAccent } as React.CSSProperties) : undefined}
       >
         {active && (
           <span
@@ -981,23 +1082,29 @@ function OrganizationGroup({
             style={{ background: parentAccent }}
           />
         )}
+        {active && (
+          <span
+            className="absolute inset-0 rounded-lg"
+            style={{ background: parentAccent, opacity: 0.12 }}
+          />
+        )}
         <Building2
           className={cn(
-            "h-[18px] w-[18px] shrink-0 transition-transform",
+            "relative h-[18px] w-[18px] shrink-0 transition-transform",
             !active && "group-hover:scale-110"
           )}
           style={{ color: parentAccent }}
         />
-        <span className="truncate">Organization</span>
+        <span className="relative flex-1 min-w-0 truncate">Organization</span>
         <ChevronDown
           className={cn(
-            "ml-auto h-4 w-4 transition-transform duration-300 ease-out",
+            "relative ml-auto h-4 w-4 transition-transform duration-300 ease-out",
             active ? "" : "text-muted-foreground",
             expanded && "rotate-180"
           )}
           style={active ? { color: parentAccent } : undefined}
         />
-      </button>
+      </ListRow>
 
       {/* Sub-items — animated via max-height + opacity */}
       <div
@@ -1013,31 +1120,43 @@ function OrganizationGroup({
             const subActive = active && orgTab === t.id;
             const subAccent = ORG_TAB_ACCENTS[t.id] ?? parentAccent;
             return (
-              <button
+              <ListRow
                 key={t.id}
                 onClick={() => handleSubClick(t.id)}
                 aria-current={subActive ? "page" : undefined}
+                className={cn(
+                  "group relative w-full rounded-lg border-b-0 border-l-0 pl-7 pr-2.5 py-1.5 gap-2.5 text-[13px] font-medium transition-all duration-200",
+                  subActive
+                    ? "font-semibold text-foreground hover:bg-transparent"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                )}
                 style={
                   subActive
                     ? ({ ["--section-accent" as string]: subAccent } as React.CSSProperties)
                     : undefined
                 }
-                className={cn(
-                  "group flex w-full items-center gap-2.5 rounded-lg pl-7 pr-2.5 py-1.5 text-[13px] font-medium transition-all duration-200",
-                  subActive
-                    ? "bg-primary/12 text-foreground shadow-[inset_0_0_0_1px_var(--ring)]"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                )}
               >
+                {subActive && (
+                  <span
+                    className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full"
+                    style={{ background: subAccent }}
+                  />
+                )}
+                {subActive && (
+                  <span
+                    className="absolute inset-0 rounded-lg"
+                    style={{ background: subAccent, opacity: 0.10 }}
+                  />
+                )}
                 <Icon
                   className={cn(
-                    "h-3.5 w-3.5 shrink-0 transition-transform",
+                    "relative h-3.5 w-3.5 shrink-0 transition-transform",
                     !subActive && "group-hover:scale-110"
                   )}
                   style={{ color: subAccent }}
                 />
-                <span className="truncate">{t.label}</span>
-              </button>
+                <span className="relative flex-1 min-w-0 truncate">{t.label}</span>
+              </ListRow>
             );
           })}
         </div>

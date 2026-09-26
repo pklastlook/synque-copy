@@ -3,10 +3,11 @@
 import * as React from "react";
 import {
   Sparkles, Send, X, Loader2, TrendingUp, Users, Calendar, FileText,
-  Eraser,
+  Eraser, ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
+import { SectionHeader, Pill, ListRow } from "@/components/glass/dense-ui";
 
 interface ChatMsg {
   role: "user" | "assistant";
@@ -154,6 +155,18 @@ export function AIAssistantPanel() {
 
   const hasMessages = messages.length > 0;
 
+  // Status Pill shown in the header action slot — green Online / amber Thinking.
+  // Replaces the static "Ask anything" subtitle semantic; the desc field is
+  // reused to mirror the same state in text form (for screen-reader parity).
+  const statusPill = loading ? (
+    <Pill color="amber" className="uppercase tracking-wide">Thinking</Pill>
+  ) : (
+    <Pill color="green" className="uppercase tracking-wide">
+      <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      Online
+    </Pill>
+  );
+
   return (
     <>
       {/* ============================================================
@@ -176,16 +189,17 @@ export function AIAssistantPanel() {
       )}
 
       {/* ============================================================
-          Chat Panel — professional Apple Spotlight / Siri panel.
-          Solid white background, 380×560, rounded-xl (12px), tight shadow.
-          NOT iMessage, NOT frosted glass.
+          Chat Panel — dense-ui redesign.
+          Solid white background (NOT frosted), 360×540 (compact),
+          rounded-xl (12px), tight shadow. Uses SectionHeader + Pill +
+          ListRow from dense-ui. Keep asymmetric bubble style (no tails).
           ============================================================ */}
       {open && (
         <div
           className={cn(
             "apple-font fixed z-50 flex flex-col overflow-hidden",
-            // Desktop: floating 380×560 panel, rounded-xl
-            "bottom-6 right-6 h-[560px] max-h-[calc(100dvh-3rem)] w-[380px] max-w-[calc(100vw-2rem)]",
+            // Desktop: floating 360×540 panel, rounded-xl (was 380×560)
+            "bottom-6 right-6 h-[540px] max-h-[calc(100dvh-3rem)] w-[360px] max-w-[calc(100vw-2rem)]",
             // Mobile: full-width sheet, flat top edge (iOS standard)
             "max-lg:inset-x-0 max-lg:bottom-0 max-lg:h-[calc(100dvh-4rem)] max-lg:w-full max-lg:max-w-none",
             "rounded-xl",
@@ -200,50 +214,53 @@ export function AIAssistantPanel() {
           aria-label="Assistant"
         >
           {/* =====================================================
-              Header — solid white, 1px bottom border.
-              32px solid-blue icon circle + "Assistant" title.
+              Header — dense-ui SectionHeader.
+              icon=Sparkles (plain 16px, NOT the 32px solid blue circle —
+              saves 16px vertical vs. the old custom header for density).
+              mb-0 override (SectionHeader default mb-3 doesn't apply to
+              a header pinned above a border-b). Title size overridden
+              from text-sm → text-[15px] to match Apple panel prominence.
+              desc mirrors status (Ask anything / Thinking…).
+              action = status Pill + clear + close buttons.
               ===================================================== */}
-          <header
+          <SectionHeader
+            title="Assistant"
+            desc={loading ? "Thinking…" : "Ask anything"}
+            icon={Sparkles}
             className={cn(
-              "flex items-center gap-3 px-4 py-3",
-              "border-b border-black/[0.06] dark:border-white/[0.08]",
-              "bg-white dark:bg-[#2C2C2E]",
+              "apple-font mb-0 gap-2 px-4 py-2.5",
+              "border-b border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-[#2C2C2E]",
+              // Title override: SectionHeader default text-sm → 15px-semibold (panel header).
+              "[&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:tracking-tight",
+              "[&_h2]:text-[#1D1D1F] dark:[&_h2]:text-[#F5F5F7]",
+              // Subtitle override: 12px muted (was 11px).
+              "[&_p]:text-[12px] [&_p]:text-[#86868B] dark:[&_p]:text-[#98989D]",
+              // Icon override: blue (was muted-foreground) for brand color.
+              "[&_svg]:text-[#0071E3] dark:[&_svg]:text-[#0A84FF]",
             )}
-          >
-            {/* Icon — 32px solid Apple blue circle with white Sparkles */}
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#0071E3] dark:bg-[#0A84FF] shadow-[0_2px_6px_-1px_rgba(0,113,227,0.30)]">
-              <Sparkles className="h-[18px] w-[18px] text-white" strokeWidth={2.2} />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[15px] font-semibold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">
-                Assistant
-              </div>
-              <div className="truncate text-[12px] text-[#86868B] dark:text-[#98989D]">
-                Ask anything
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1">
-              {hasMessages && (
+            action={
+              <div className="flex items-center gap-1">
+                {statusPill}
+                {hasMessages && (
+                  <button
+                    onClick={clearChat}
+                    className="grid h-7 w-7 place-items-center rounded-full text-[#86868B] transition hover:bg-black/[0.05] hover:text-[#1D1D1F] dark:text-[#98989D] dark:hover:bg-white/[0.06] dark:hover:text-[#F5F5F7]"
+                    aria-label="Clear conversation"
+                    title="Clear"
+                  >
+                    <Eraser className="h-4 w-4" />
+                  </button>
+                )}
                 <button
-                  onClick={clearChat}
+                  onClick={() => setOpen(false)}
                   className="grid h-7 w-7 place-items-center rounded-full text-[#86868B] transition hover:bg-black/[0.05] hover:text-[#1D1D1F] dark:text-[#98989D] dark:hover:bg-white/[0.06] dark:hover:text-[#F5F5F7]"
-                  aria-label="Clear conversation"
-                  title="Clear"
+                  aria-label="Close chat"
                 >
-                  <Eraser className="h-4 w-4" />
+                  <X className="h-4 w-4" strokeWidth={2.4} />
                 </button>
-              )}
-              <button
-                onClick={() => setOpen(false)}
-                className="grid h-7 w-7 place-items-center rounded-full text-[#86868B] transition hover:bg-black/[0.05] hover:text-[#1D1D1F] dark:text-[#98989D] dark:hover:bg-white/[0.06] dark:hover:text-[#F5F5F7]"
-                aria-label="Close chat"
-              >
-                <X className="h-4 w-4" strokeWidth={2.4} />
-              </button>
-            </div>
-          </header>
+              </div>
+            }
+          />
 
           {/* =====================================================
               Messages area — solid white canvas.
@@ -251,45 +268,57 @@ export function AIAssistantPanel() {
               ===================================================== */}
           <div
             ref={scrollRef}
-            className="scroll-liquid flex-1 space-y-1 overflow-y-auto bg-white px-3 py-4 dark:bg-[#2C2C2E]"
+            className="scroll-liquid flex-1 space-y-1 overflow-y-auto bg-white px-3 py-3 dark:bg-[#2C2C2E]"
           >
-            {/* Empty state — greeting + quick prompts */}
+            {/* Empty state — greeting + dense-ui ListRow quick prompts */}
             {!hasMessages && !loading && (
-              <div className="flex flex-col items-center gap-5 px-2 py-6">
-                <div className="grid h-14 w-14 place-items-center rounded-full bg-[#0071E3] shadow-[0_4px_12px_-2px_rgba(0,113,227,0.30)] dark:bg-[#0A84FF]">
-                  <Sparkles className="h-7 w-7 text-white" strokeWidth={2.2} />
+              <div className="flex flex-col items-center gap-4 px-2 py-4">
+                {/* 48px brand circle (was 56px — denser) */}
+                <div className="grid h-12 w-12 place-items-center rounded-full bg-[#0071E3] shadow-[0_4px_12px_-2px_rgba(0,113,227,0.30)] dark:bg-[#0A84FF]">
+                  <Sparkles className="h-6 w-6 text-white" strokeWidth={2.2} />
                 </div>
                 <div className="text-center">
-                  <div className="text-[16px] font-semibold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">
+                  <div className="text-[15px] font-semibold tracking-tight text-[#1D1D1F] dark:text-[#F5F5F7]">
                     Hi{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
                   </div>
-                  <div className="mx-auto mt-1.5 max-w-[280px] text-[13px] leading-relaxed text-[#86868B] dark:text-[#98989D]">
+                  <div className="mx-auto mt-1 max-w-[280px] text-[12px] leading-relaxed text-[#86868B] dark:text-[#98989D]">
                     Ask me about posts, accounts, team, analytics — or have
                     me create tasks and check your schedule.
                   </div>
                 </div>
 
-                {/* Quick prompts — rounded-lg chips (NOT pills) */}
-                <div className="flex w-full flex-col gap-2">
-                  <div className="px-1 text-[11px] font-semibold uppercase tracking-wide text-[#86868B] dark:text-[#98989D]">
+                {/* Quick prompts — dense-ui ListRow (replaces apple-pill chips).
+                    Wrapped in a single bordered container so the rows read as
+                    one grouped list, with hairline dividers between rows. */}
+                <div className="flex w-full flex-col">
+                  <div className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[#86868B] dark:text-[#98989D]">
                     Try these
                   </div>
-                  {QUICK_PROMPTS.map((p) => {
-                    const Icon = p.icon;
-                    return (
-                      <button
-                        key={p.text}
-                        onClick={() => send(p.text)}
-                        className={cn(
-                          "apple-pill flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px]",
-                          "hover:bg-[#E8E8ED] dark:hover:bg-white/[0.10]",
-                        )}
-                      >
-                        <Icon className="h-4 w-4 shrink-0 text-[#0071E3] dark:text-[#0A84FF]" strokeWidth={2.2} />
-                        <span className="min-w-0 flex-1 truncate text-[#1D1D1F] dark:text-[#F5F5F7]">{p.text}</span>
-                      </button>
-                    );
-                  })}
+                  <div className="overflow-hidden rounded-lg border border-black/[0.06] bg-white dark:border-white/[0.08] dark:bg-[#2C2C2E]">
+                    {QUICK_PROMPTS.map((p, i) => {
+                      const Icon = p.icon;
+                      return (
+                        <ListRow
+                          key={p.text}
+                          onClick={() => send(p.text)}
+                          className={cn(
+                            "apple-font gap-2.5 px-3 py-2.5 text-left",
+                            // Use Apple-tinted hover (matches original chips)
+                            "hover:bg-[#E8E8ED] dark:hover:bg-white/[0.10]",
+                            // Hairline divider between rows; strip on last row
+                            // to avoid double-border with the outer container.
+                            i < QUICK_PROMPTS.length - 1
+                              ? "border-b border-black/[0.06] dark:border-white/[0.06]"
+                              : "border-b-0",
+                          )}
+                        >
+                          <Icon className="h-4 w-4 shrink-0 text-[#0071E3] dark:text-[#0A84FF]" strokeWidth={2.2} />
+                          <span className="min-w-0 flex-1 truncate text-[13px] text-[#1D1D1F] dark:text-[#F5F5F7]">{p.text}</span>
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#86868B] dark:text-[#98989D]" />
+                        </ListRow>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -298,7 +327,7 @@ export function AIAssistantPanel() {
             {grouped.map((group) => (
               <div key={group.key} className="space-y-1">
                 {/* Date separator — centered chip */}
-                <div className="flex justify-center py-2">
+                <div className="flex justify-center py-1.5">
                   <span
                     className="animate-pill-in rounded-lg bg-[#F5F5F7] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#86868B] dark:bg-white/[0.08] dark:text-[#98989D]"
                   >
@@ -333,7 +362,7 @@ export function AIAssistantPanel() {
                       {/* Bubble — rounded-xl with asymmetric corner (NOT tail) */}
                       <div
                         className={cn(
-                          "max-w-[80%] px-3.5 py-2",
+                          "max-w-[80%] px-3 py-1.5",
                           "rounded-xl text-[14px] leading-relaxed",
                           isUser
                             ? cn(
@@ -352,7 +381,7 @@ export function AIAssistantPanel() {
                         {m.action && (
                           <div
                             className={cn(
-                              "mt-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium",
+                              "mt-1.5 flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium",
                               isUser
                                 ? "bg-white/15 text-white/80"
                                 : "bg-black/[0.05] text-[#86868B] dark:bg-white/[0.08] dark:text-[#98989D]",
@@ -399,7 +428,10 @@ export function AIAssistantPanel() {
           </div>
 
           {/* =====================================================
-              Quick prompts collapsible row (after first message)
+              Quick prompts collapsible row (after first message).
+              These stay as horizontal apple-pill chips (NOT ListRow) —
+              they're a horizontally-scrollable suggestion strip, which
+              ListRow's vertical full-width layout doesn't fit.
               ===================================================== */}
           {hasMessages && showQuickPrompts && (
             <div className="flex gap-2 overflow-x-auto border-t border-black/[0.06] bg-white px-3 py-2 no-scrollbar dark:border-white/[0.08] dark:bg-[#2C2C2E]">
@@ -430,12 +462,12 @@ export function AIAssistantPanel() {
               Input area — solid white, 1px top border.
               Input: bg-[#F5F5F7] rounded-lg. Send: 36px rounded-lg.
               ===================================================== */}
-          <div className="border-t border-black/[0.06] bg-white px-3 py-3 dark:border-white/[0.08] dark:bg-[#2C2C2E]">
+          <div className="border-t border-black/[0.06] bg-white px-3 py-2.5 dark:border-white/[0.08] dark:bg-[#2C2C2E]">
             <div className="flex items-end gap-2">
               <div
                 className={cn(
                   "flex flex-1 items-end rounded-lg",
-                  "border border-black/[0.06] bg-[#F5F5F7] px-3 py-1.5 dark:border-white/[0.08] dark:bg-white/[0.06]",
+                  "border border-black/[0.06] bg-[#F5F5F7] px-3 py-1 dark:border-white/[0.08] dark:bg-white/[0.06]",
                   "transition-colors focus-within:border-[#0071E3]/50 dark:focus-within:border-[#0A84FF]/50",
                 )}
               >
@@ -451,7 +483,7 @@ export function AIAssistantPanel() {
                   }}
                   placeholder="Ask anything…"
                   rows={1}
-                  className="scroll-liquid max-h-24 min-h-[36px] flex-1 resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-[#1D1D1F] outline-none placeholder:text-[#86868B] dark:text-[#F5F5F7] dark:placeholder:text-[#98989D]"
+                  className="scroll-liquid max-h-24 min-h-[32px] flex-1 resize-none bg-transparent py-1 text-[14px] leading-relaxed text-[#1D1D1F] outline-none placeholder:text-[#86868B] dark:text-[#F5F5F7] dark:placeholder:text-[#98989D]"
                 />
               </div>
 
@@ -469,7 +501,7 @@ export function AIAssistantPanel() {
                 )}
               </button>
             </div>
-            <p className="mt-1.5 px-2 text-[11px] text-[#86868B] dark:text-[#98989D]">
+            <p className="mt-1 px-2 text-[10px] text-[#86868B] dark:text-[#98989D]">
               {loading
                 ? "Thinking…"
                 : "Enter to send · Shift+Enter for newline"}

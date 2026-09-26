@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { RetinaBg } from "@/components/glass/retina-bg";
+import { SectionHeader, Pill } from "@/components/glass/dense-ui";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import { DashboardView } from "@/components/views/dashboard";
@@ -170,11 +171,10 @@ export function AppShell() {
         <div className="mobile-only">
           <nav
             className={cn(
-              "apple-tab-bar apple-glass-heavy apple-font",
+              "apple-tab-bar apple-glass-heavy apple-font select-none antialiased",
               "fixed bottom-0 left-0 right-0 z-50 flex items-stretch",
-              "pb-[env(safe-area-inset-bottom,0px)]",
+              "min-h-[49px] pb-[env(safe-area-inset-bottom,0px)]",
             )}
-            style={{ minHeight: "49px" }}
             aria-label="Primary"
           >
             {MOBILE_TABS.map((tab) => {
@@ -186,7 +186,7 @@ export function AppShell() {
                   key={tab.id}
                   onClick={() => handleMobileTab(tab.id)}
                   className={cn(
-                    "apple-tab-item touch-button",
+                    "apple-tab-item touch-button transition-colors duration-200",
                     isActive && "active",
                     isCompose && "apple-compose-tab",
                   )}
@@ -194,7 +194,7 @@ export function AppShell() {
                   aria-current={isActive ? "page" : undefined}
                 >
                   <Icon className="tab-icon h-6 w-6" strokeWidth={isActive ? 2.4 : 2} />
-                  <span className="tab-label">{tab.label}</span>
+                  <span className="tab-label block leading-none">{tab.label}</span>
                 </button>
               );
             })}
@@ -324,18 +324,29 @@ function AppFooter() {
       .catch(() => {});
   }, []);
   return (
-    <footer className="px-4 pb-4 pt-2 sm:px-6 lg:px-8 safe-bottom">
-      <div className="glass-topbar mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-[11px] text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          All systems operational · {accountCount} {accountCount === 1 ? "account" : "accounts"} connected
-        </div>
-        <div className="hidden items-center gap-3 sm:flex">
-          <span>SocialFlow · v1.0</span>
-          <span>·</span>
-          <span>Crystal UI</span>
-        </div>
-      </div>
+    <footer className="mt-auto px-4 pb-3 pt-1 sm:px-6 lg:px-8 safe-bottom">
+      <SectionHeader
+        title="All systems operational"
+        desc={`${accountCount} ${accountCount === 1 ? "account" : "accounts"} connected`}
+        className={cn(
+          "glass-topbar mx-auto mb-0 w-full max-w-[1400px] rounded-xl px-3 py-1.5",
+          "text-[11px] text-muted-foreground",
+          "[&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:text-foreground/90",
+          "[&_p]:text-[10px] [&_p]:text-muted-foreground",
+        )}
+        action={
+          <div className="flex items-center gap-2">
+            <Pill color="green">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Live
+            </Pill>
+            <span className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex">
+              <span>SocialFlow · v1.0</span>
+              <Pill color="neutral">Crystal UI</Pill>
+            </span>
+          </div>
+        }
+      />
     </footer>
   );
 }

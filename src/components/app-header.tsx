@@ -15,6 +15,7 @@ import { useApi, timeAgo } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PlatformBadge } from "@/components/glass/platform-badge";
+import { Pill, SectionHeader } from "@/components/glass/dense-ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,12 +54,15 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   owner: { title: "Owner Panel", subtitle: "Clients, invoices, serial keys, devices, finance & API keys" },
 };
 
-const ROLE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
-  admin: { label: "Admin", color: "text-primary", bg: "bg-primary/15" },
-  manager: { label: "Manager", color: "text-blue-500", bg: "bg-blue-500/15" },
-  editor: { label: "Editor", color: "text-emerald-500", bg: "bg-emerald-500/15" },
-  member: { label: "Member", color: "text-muted-foreground", bg: "bg-muted" },
-  viewer: { label: "Viewer", color: "text-muted-foreground", bg: "bg-muted" },
+// Role → dense-ui Pill color mapping. Admin uses `blue` (matches primary accent in
+// app-sidebar.tsx user card). Manager gets `violet` for visual distinction. Editor gets
+// `green`. Member/Viewer get `neutral` (muted).
+const ROLE_BADGE: Record<string, { label: string; pill: "blue" | "violet" | "green" | "neutral" }> = {
+  admin: { label: "Admin", pill: "blue" },
+  manager: { label: "Manager", pill: "violet" },
+  editor: { label: "Editor", pill: "green" },
+  member: { label: "Member", pill: "neutral" },
+  viewer: { label: "Viewer", pill: "neutral" },
 };
 
 const COMMAND_ITEMS: { id: ViewId; label: string; icon: LucideIcon; group: string }[] = [
@@ -106,8 +110,9 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
 
   return (
     <header className="sticky top-0 z-30 px-3 pt-3 sm:px-5 lg:px-6">
-      {/* Header bar — solid white (frosted via /80 + backdrop-blur-xl), rounded-xl, hairline border */}
-      <div className="glass-topbar mx-auto flex w-full max-w-[1340px] items-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-4">
+      {/* Header bar — solid white (frosted via /80 + backdrop-blur-xl), rounded-xl, hairline border.
+          Density pass: gap-2 py-2 (was gap-2.5 py-2.5) for a tighter macOS-27 toolbar feel. */}
+      <div className="glass-topbar mx-auto flex w-full max-w-[1340px] items-center gap-2 rounded-xl px-3 py-2 sm:px-4">
         <button
           onClick={onMenu}
           className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10] lg:hidden"
@@ -121,10 +126,11 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           <p className="hidden truncate text-[11px] text-muted-foreground lg:block">{t.subtitle}</p>
         </div>
 
-        {/* Search — opens command palette. bg-[#F5F5F7] rounded-lg (NOT rounded-full). */}
+        {/* Search — opens command palette. bg-[#F5F5F7] rounded-lg (NOT rounded-full).
+            Dense: px-2.5 py-1.5 (was px-3 py-2) — matches h-9 icon buttons visually. */}
         <button
           onClick={() => setCmdOpen(true)}
-          className="hidden items-center gap-2 rounded-lg border border-black/[0.06] bg-[#F5F5F7] px-3 py-2 text-sm text-[#86868B] transition hover:bg-[#E8E8ED] dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-[#98989D] dark:hover:bg-white/[0.10] xl:flex"
+          className="hidden items-center gap-2 rounded-lg border border-black/[0.06] bg-[#F5F5F7] px-2.5 py-1.5 text-sm text-[#86868B] transition hover:bg-[#E8E8ED] dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-[#98989D] dark:hover:bg-white/[0.10] xl:flex"
         >
           <Search className="h-4 w-4" />
           <span>Search…</span>
@@ -133,10 +139,11 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           </kbd>
         </button>
 
-        {/* Quick compose button — solid #0071E3, rounded-lg */}
+        {/* Quick compose button — solid #0071E3, rounded-lg.
+            Dense: px-2.5 py-1.5 (was px-3 py-2) — consistent with search button. */}
         <button
           onClick={() => setView("composer")}
-          className="hidden items-center gap-1.5 rounded-lg bg-[#0071E3] px-3 py-2 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,113,227,0.30)] transition hover:bg-[#0061cb] dark:bg-[#0A84FF] dark:hover:bg-[#0071E3] sm:flex"
+          className="hidden items-center gap-1.5 rounded-lg bg-[#0071E3] px-2.5 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,113,227,0.30)] transition hover:bg-[#0061cb] dark:bg-[#0A84FF] dark:hover:bg-[#0071E3] sm:flex"
           title="Compose with AI"
         >
           <PenLine className="h-3.5 w-3.5" />
@@ -210,9 +217,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
                     <span className="block text-xs font-normal text-muted-foreground truncate">{user?.email ?? ""}</span>
                   </div>
                 </div>
-                <span className={cn("mt-1 inline-flex w-fit items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase", roleBadge.bg, roleBadge.color)}>
-                  {roleBadge.label}
-                </span>
+                <Pill color={roleBadge.pill} className="mt-1 uppercase tracking-wide">{roleBadge.label}</Pill>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -334,17 +339,22 @@ function ConnectionStatus() {
 
   return (
     <div className="hidden items-center gap-2 lg:flex">
-      {/* WhatsApp status */}
+      {/* WhatsApp status — dense-ui Pill replaces custom status divs.
+          Pill doesn't accept `title`, so wrap in a span to preserve the tooltip. */}
       {conn?.connected ? (
-        <div className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-500" title={`WhatsApp connected${conn.phone ? ` — ${conn.phone}` : ""}`}>
-          <Wifi className="h-3 w-3" />
-          <span className="hidden xl:inline">WA</span>
-        </div>
+        <span title={`WhatsApp connected${conn.phone ? ` — ${conn.phone}` : ""}`}>
+          <Pill color="green">
+            <Wifi className="h-3 w-3" />
+            <span className="hidden xl:inline">WA</span>
+          </Pill>
+        </span>
       ) : conn?.serviceOffline ? (
-        <div className="flex items-center gap-1 rounded-lg bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground" title="WhatsApp service not running">
-          <WifiOff className="h-3 w-3" />
-          <span className="hidden xl:inline">WA</span>
-        </div>
+        <span title="WhatsApp service not running">
+          <Pill color="neutral">
+            <WifiOff className="h-3 w-3" />
+            <span className="hidden xl:inline">WA</span>
+          </Pill>
+        </span>
       ) : null}
 
       {/* Live clock */}
@@ -377,11 +387,15 @@ function NotificationsBell({ onNavigate }: { onNavigate: () => void }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Notifications</span>
-          {totalAlerts > 0 && (
-            <span className="rounded-md bg-[#0071E3]/12 px-1.5 py-0.5 text-[10px] font-bold text-[#0071E3] dark:text-[#0A84FF] dark:bg-[#0A84FF]/15">{totalAlerts} new</span>
-          )}
+        {/* Header — dense-ui SectionHeader with Pill action showing alert count.
+            SectionHeader is wrapped in DropdownMenuLabel (p-0) to inherit Radix semantics
+            while still rendering SectionHeader's flex layout. */}
+        <DropdownMenuLabel className="p-0">
+          <SectionHeader
+            title="Notifications"
+            action={totalAlerts > 0 ? <Pill color="blue">{totalAlerts} new</Pill> : undefined}
+            className="mb-0 px-2 py-1.5"
+          />
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
@@ -396,7 +410,9 @@ function NotificationsBell({ onNavigate }: { onNavigate: () => void }) {
                 <div className="text-xs font-medium">{failedPosts} failed publish {failedPosts > 1 ? "attempts" : "attempt"}</div>
                 <div className="text-[11px] text-muted-foreground">Check the Composer to retry</div>
               </div>
-              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />
+              {/* Count Pill — dense-ui replacement for the bare red dot.
+                  Shows the actual failure count for scannability. */}
+              <Pill color="rose" className="mt-0.5 shrink-0">{failedPosts}</Pill>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>

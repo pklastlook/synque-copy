@@ -63,7 +63,7 @@ import type { PlatformId } from "@/lib/platforms";
  *
  * Layout (Apple macOS-27 "liquid glass" aesthetic):
  *   1. HelpText + SectionHeader (compact, no hero card)
- *   2. MetricRow — 5 inline metrics with sparklines (replaces 4 KpiCards)
+ *   2. MetricRow — 5 inline metrics with sparklines
  *   3. BentoGrid — 1 HeroChart (sentiment trend) + 1 sentiment-distribution tile
  *   4. Master-detail split — Queries ListRow (sidebar) + Mentions ListRow (feed)
  *
@@ -261,7 +261,7 @@ export function ListeningView() {
         action={<AddQueryDialog onCreated={() => reload()} />}
       />
 
-      {/* Dense metric row — replaces 4 KpiCards */}
+      {/* Dense metric row */}
       <MetricRow metrics={metrics} />
 
       {/* Top bento — 1 hero chart + 1 sentiment distribution tile */}

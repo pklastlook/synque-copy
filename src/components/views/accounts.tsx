@@ -310,7 +310,7 @@ export function AccountsView() {
         }
       />
 
-      {/* Dense metric strip — replaces 4 KpiCards + 1 hero GlassCard (~560px) with one ~56px row */}
+      {/* Dense metric strip — single ~56px row of inline KPIs */}
       <MetricRow metrics={metrics} />
 
       {/* Filter pills */}

@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
-import { GlassCard, SectionTitle } from "@/components/glass/glass-card";
+import { GlassCard } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
@@ -628,7 +628,7 @@ export function DashboardView() {
       <div className="grid gap-3 lg:grid-cols-2">
         {/* Recent posts — click to edit (preserves openComposerWithPost) */}
         <GlassCard className="p-4">
-          <SectionTitle
+          <SectionHeader
             title="Recent posts"
             desc="Click to edit & republish"
             action={
@@ -719,7 +719,7 @@ export function DashboardView() {
         {/* Shared content (manager) OR Failed posts (user) */}
         {isManager ? (
           <GlassCard className="p-4">
-            <SectionTitle
+            <SectionHeader
               title="Shared content"
               desc={data.publishedPosts.length > 0 ? `${data.publishedPosts.length} post${data.publishedPosts.length > 1 ? "s" : ""} live on social` : "No posts published yet"}
               action={
@@ -804,7 +804,7 @@ export function DashboardView() {
           </GlassCard>
         ) : (
           <GlassCard className="p-4">
-            <SectionTitle
+            <SectionHeader
               title="Failed posts"
               desc={data.failedPosts.length > 0 ? `${data.failedPosts.length} need republishing` : "All publishes succeeded"}
               action={
@@ -887,7 +887,7 @@ export function DashboardView() {
       <div className="grid gap-3 lg:grid-cols-2">
         {/* Task summary — compact dense list */}
         <GlassCard className="p-4">
-          <SectionTitle
+          <SectionHeader
             title="Tasks"
             desc={data.taskSummary.total > 0 ? `${data.taskSummary.done}/${data.taskSummary.total} done · ${data.taskSummary.overdue} overdue` : "No tasks yet"}
             action={
@@ -958,7 +958,7 @@ export function DashboardView() {
 
         {/* Pipeline — compact */}
         <GlassCard className="p-4">
-          <SectionTitle
+          <SectionHeader
             title="Content pipeline"
             desc="Every post by lifecycle stage"
             action={

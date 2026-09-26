@@ -360,7 +360,7 @@ export function LinkBioView() {
         update live on the right.
       </HelpText>
 
-      {/* Dense metrics band — replaces 4 KpiCards with a single ~56px row */}
+      {/* Dense metrics band — single ~56px row */}
       <MetricRow metrics={metrics} />
 
       {/* Master-detail: list (left) | editor (middle) | sticky preview (right) */}

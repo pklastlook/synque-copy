@@ -204,7 +204,7 @@ export function CompetitorsView() {
       : 0;
   const platformsTracked = new Set(sorted.map((c) => c.platform)).size;
 
-  // Dense MetricRow — replaces the old 4-tall KpiCard strip.
+  // Dense MetricRow — single-line KPI strip.
   const metrics: Metric[] = [
     {
       label: "Tracked",

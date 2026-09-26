@@ -294,7 +294,7 @@ export function MailView() {
         }
       />
 
-      {/* Dense metric strip — replaces 4 KpiCards */}
+      {/* Dense metric strip */}
       <MetricRow metrics={metrics} />
 
       {/* Master-detail GlassCard (1 card replaces 13) */}
