@@ -2,37 +2,37 @@
 
 import * as React from "react";
 import {
-  Bar,
-  BarChart,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
   Hash,
   Plus,
   Copy,
   Wand2,
-  Sparkles,
   Tags,
   TrendingUp,
   Eye,
-  Layers,
   Flame,
   MoreVertical,
   Pencil,
   Trash2,
   CheckCircle2,
+  Sparkles,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
-import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { HelpText } from "@/components/glass/help-text";
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import {
+  MetricRow,
+  BentoGrid,
+  BentoTile,
+  Sparkline,
+  SectionHeader,
+  ListRow,
+  Pill,
+  type Metric,
+} from "@/components/glass/dense-ui";
 import {
   Dialog,
   DialogContent,
@@ -124,22 +124,18 @@ function parseTags(raw: string): string[] {
     .filter(Boolean);
 }
 
-function PlatformCell({ platform }: { platform: HashtagPlatform }) {
-  if (platform === "all") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-        <Layers className="h-3 w-3" /> All platforms
-      </span>
-    );
+/** Convert a numeric series into a small sparkline-friendly shape (max 12 points). */
+function toSpark(values: number[], maxPoints = 12): number[] {
+  if (!values.length) return [];
+  if (values.length <= maxPoints) return values;
+  // Down-sample by averaging buckets
+  const step = Math.ceil(values.length / maxPoints);
+  const out: number[] = [];
+  for (let i = 0; i < values.length; i += step) {
+    const slice = values.slice(i, i + step);
+    out.push(slice.reduce((a, b) => a + b, 0) / slice.length);
   }
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <PlatformBadge platform={platform as PlatformId} size={20} />
-      <span className="text-[11px] font-medium">
-        {PLATFORM_OPTIONS.find((p) => p.value === platform)?.label ?? platform}
-      </span>
-    </span>
-  );
+  return out;
 }
 
 export function HashtagsView() {
@@ -169,7 +165,7 @@ export function HashtagsView() {
   const totalUses = data.totalUses;
   const totalReach = data.totalReach;
 
-  // Trending tag frequency (across all groups, weighted by usageCount)
+  // Trending tag frequency (across all groups)
   const tagFreq: Record<string, number> = {};
   for (const g of data.groups) {
     for (const t of parseTags(g.tags)) {
@@ -179,187 +175,243 @@ export function HashtagsView() {
   const trending = Object.entries(tagFreq)
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 12);
+    .slice(0, 14);
   const maxFreq = Math.max(1, ...trending.map((t) => t.count));
+  const bannedCount = 0; // Banned tags feature placeholder (preserved API hook for future)
 
-  // Bar chart data
-  const maxUsage = Math.max(1, ...data.groups.map((g) => g.usageCount));
+  // Per-group sparkline series (sorted by usage desc — top groups first)
+  const sortedGroups = [...data.groups].sort((a, b) => b.usageCount - a.usageCount);
+  const usesSpark = toSpark(sortedGroups.map((g) => g.usageCount));
+  const reachSpark = toSpark(sortedGroups.map((g) => g.avgReach));
+  const tagsSpark = toSpark(sortedGroups.map((g) => g.tagCount));
+  const groupsSpark = toSpark(
+    data.groups.map((g, i) => (i + 1) * (g.usageCount + 1)),
+  );
+
+  const metrics: Metric[] = [
+    {
+      label: "Total groups",
+      value: totalGroups,
+      spark: groupsSpark,
+      color: "oklch(0.7 0.24 14)",
+    },
+    {
+      label: "Total tags",
+      value: totalTags,
+      spark: tagsSpark,
+      color: "oklch(0.74 0.18 165)",
+    },
+    {
+      label: "Total uses",
+      value: fmt(totalUses),
+      spark: usesSpark,
+      color: "oklch(0.66 0.22 305)",
+    },
+    {
+      label: "Total reach",
+      value: fmt(totalReach),
+      spark: reachSpark,
+      color: "oklch(0.78 0.18 75)",
+    },
+  ];
+
+  // Top group by avg reach
+  const topByReach = sortedGroups
+    .slice()
+    .sort((a, b) => b.avgReach - a.avgReach)[0];
 
   return (
-    <div className="space-y-5">
-      <HelpText module="hashtags"><strong className="text-foreground">Hashtag Manager</strong> saves reusable hashtag groups. Add tags once, then insert them into any post.</HelpText>
-      {/* Hero */}
-      <GlassCard strong className="glass-sheen animate-rise relative overflow-hidden p-5">
-        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/25 blur-3xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-4">
+      <HelpText module="hashtags">
+        <strong className="text-foreground">Hashtag Manager</strong> — curate
+        reusable hashtag groups, then drop them into any post.
+      </HelpText>
+
+      {/* Hero strip — compact title bar */}
+      <div className="glass animate-rise relative overflow-hidden rounded-xl p-4">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-md">
-              <Hash className="h-5 w-5" />
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <Hash className="h-4 w-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2 text-[11px] font-medium text-primary">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-primary">
                 <Sparkles className="h-3 w-3" />
                 <span>Hashtag manager</span>
               </div>
-              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+              <h2 className="truncate text-base font-bold tracking-tight sm:text-lg">
                 Curated hashtag groups
               </h2>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {totalGroups} groups · {totalTags} tags · {fmt(totalReach)} total reach
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {totalGroups} groups · {totalTags} tags · {fmt(totalReach)} reach
               </p>
             </div>
           </div>
-          <CreateGroupDialog onCreated={() => reload()} />
-        </div>
-      </GlassCard>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 animate-rise">
-        <KpiCard
-          label="Total groups"
-          value={totalGroups}
-          icon={<Tags className="h-5 w-5" />}
-          accent="oklch(0.7 0.24 14)"
-          hint="curated tag sets"
-        />
-        <KpiCard
-          label="Total tags"
-          value={totalTags}
-          icon={<Hash className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          hint="across all groups"
-        />
-        <KpiCard
-          label="Total uses"
-          value={fmt(totalUses)}
-          icon={<TrendingUp className="h-5 w-5" />}
-          accent="oklch(0.66 0.22 305)"
-          hint="times posted"
-        />
-        <KpiCard
-          label="Total reach"
-          value={fmt(totalReach)}
-          icon={<Eye className="h-5 w-5" />}
-          accent="oklch(0.78 0.18 75)"
-          hint="sum of avg reach"
-        />
-      </div>
-
-      {/* Trending tags panel */}
-      <GlassCard className="animate-rise p-5">
-        <SectionTitle
-          title="Trending tags"
-          desc="Top 12 by frequency across all groups"
-          action={
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Flame className="h-3 w-3 text-primary" /> click to copy
-            </span>
-          }
-        />
-        <div className="flex flex-wrap items-center gap-2">
-          {trending.length === 0 && (
-            <div className="py-6 text-sm text-muted-foreground">
-              No tags yet — create a group to get started.
-            </div>
-          )}
-          {trending.map((t) => {
-            const size = 12 + Math.round((t.count / maxFreq) * 10); // 12–22px
-            const color = colorFor(t.tag);
-            return (
-              <button
-                key={t.tag}
-                onClick={() => {
-                  navigator.clipboard?.writeText(`#${t.tag}`).catch(() => {});
-                  toast.success(`Copied #${t.tag}`, {
-                    description: `Used ${t.count}× across groups`,
-                  });
-                }}
-                className="rounded-full px-3 py-1 font-semibold text-white shadow-sm transition hover:-translate-y-0.5"
-                style={{
-                  background: color,
-                  fontSize: size,
-                }}
-                title={`#${t.tag} · ${t.count} uses`}
-              >
-                #{t.tag}
-              </button>
-            );
-          })}
-        </div>
-      </GlassCard>
-
-      {/* Groups grid + bar chart */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 animate-rise">
-          {data.groups.map((g) => (
-            <GroupCard
-              key={g.id}
-              group={g}
-              maxUsage={maxUsage}
-              onUseInComposer={() => {
-                const tags = parseTags(g.tags).map((t) => `#${t}`).join(" ");
-                openComposer(tags);
-              }}
-              onEdit={() => setEditing(g)}
-              onDelete={() => handleDelete(g)}
-            />
-          ))}
-          {data.groups.length === 0 && (
-            <GlassCard className="col-span-full p-10 text-center text-sm text-muted-foreground">
-              No hashtag groups yet. Create your first group to start curating tags.
-            </GlassCard>
-          )}
-        </div>
-
-        {/* Bar chart: avg reach by group */}
-        <GlassCard className="animate-rise p-5">
-          <SectionTitle
-            title="Avg reach"
-            desc="By hashtag group"
-          />
-          <div
-            className="w-full"
-            style={{ height: Math.max(220, data.groups.length * 44 + 40) }}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={data.groups.map((g) => ({
-                  name: g.name.length > 18 ? g.name.slice(0, 18) + "…" : g.name,
-                  reach: g.avgReach,
-                  color: g.color,
-                }))}
-                layout="vertical"
-                margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
-              >
-                <XAxis type="number" hide />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={110}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number) => [fmt(v), "Avg reach"]}
-                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
-                />
-                <Bar dataKey="reach" radius={[6, 6, 6, 6]} barSize={18}>
-                  {data.groups.map((g, i) => (
-                    <Cell key={i} fill={g.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="flex items-center gap-2">
+            <Pill color="rose">{bannedCount} banned</Pill>
+            <Pill color="amber">
+              <Flame className="h-2.5 w-2.5" />
+              {trending.length} trending
+            </Pill>
+            <CreateGroupDialog onCreated={() => reload()} />
           </div>
-        </GlassCard>
+        </div>
       </div>
+
+      {/* Dense metric row — replaces 4 KPI cards */}
+      <MetricRow metrics={metrics} className="animate-rise" />
+
+      {/* Bento grid — 4 tiles max */}
+      <BentoGrid className="animate-rise">
+        {/* Groups list — 2x2 tile */}
+        <BentoTile span="2x2" className="flex flex-col overflow-hidden p-0">
+          <SectionHeader
+            title="Hashtag groups"
+            desc={`${totalGroups} curated · click tag to copy`}
+            icon={Tags}
+            action={
+              <span className="text-[10px] text-muted-foreground">
+                {totalTags} tags
+              </span>
+            }
+            className="border-b border-border/40 px-4 py-3"
+          />
+          <div className="min-h-0 flex-1 overflow-y-auto scroll-liquid">
+            {data.groups.length === 0 ? (
+              <div className="px-4 py-10 text-center text-xs text-muted-foreground">
+                No hashtag groups yet. Create your first group to start curating.
+              </div>
+            ) : (
+              data.groups.map((g) => (
+                <GroupListRow
+                  key={g.id}
+                  group={g}
+                  onUseInComposer={() => {
+                    const tags = parseTags(g.tags)
+                      .map((t) => `#${t}`)
+                      .join(" ");
+                    openComposer(tags);
+                  }}
+                  onEdit={() => setEditing(g)}
+                  onDelete={() => handleDelete(g)}
+                />
+              ))
+            )}
+          </div>
+        </BentoTile>
+
+        {/* Trending tags — 1x2 tile */}
+        <BentoTile span="1x2" className="flex flex-col overflow-hidden p-0">
+          <SectionHeader
+            title="Trending tags"
+            desc="Top by frequency · click to copy"
+            icon={Flame}
+            className="border-b border-border/40 px-4 py-3"
+          />
+          <div className="min-h-0 flex-1 overflow-y-auto p-3 scroll-liquid">
+            {trending.length === 0 ? (
+              <div className="py-6 text-center text-xs text-muted-foreground">
+                No tags yet.
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {trending.map((t) => {
+                  const size = 11 + Math.round((t.count / maxFreq) * 4); // 11–15px
+                  const color = colorFor(t.tag);
+                  return (
+                    <button
+                      key={t.tag}
+                      onClick={() => {
+                        navigator.clipboard?.writeText(`#${t.tag}`).catch(() => {});
+                        toast.success(`Copied #${t.tag}`, {
+                          description: `Used ${t.count}× across groups`,
+                        });
+                      }}
+                      className="rounded-full px-2 py-0.5 text-white shadow-sm transition hover:-translate-y-0.5"
+                      style={{
+                        background: color,
+                        fontSize: size,
+                        fontWeight: 600,
+                      }}
+                      title={`#${t.tag} · ${t.count} uses`}
+                    >
+                      #{t.tag}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </BentoTile>
+
+        {/* Top group by reach — 1x1 tile */}
+        <BentoTile span="1x1" className="flex flex-col">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0">
+              <div className="label-caps text-[10px] text-muted-foreground">
+                Top reach
+              </div>
+              <div className="mt-0.5 truncate text-sm font-bold tracking-tight">
+                {topByReach?.name ?? "—"}
+              </div>
+            </div>
+            <div
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white"
+              style={{ background: topByReach?.color ?? "var(--muted)" }}
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="num-display text-xl font-bold tabular-nums">
+              {fmt(topByReach?.avgReach ?? 0)}
+            </span>
+            <span className="text-[10px] text-muted-foreground">avg reach</span>
+          </div>
+          <div className="mt-auto pt-2">
+            <Sparkline
+              data={reachSpark}
+              color="oklch(0.78 0.18 75)"
+              width={220}
+              height={28}
+            />
+          </div>
+        </BentoTile>
+
+        {/* Usage distribution — 1x1 tile */}
+        <BentoTile span="1x1" className="flex flex-col">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0">
+              <div className="label-caps text-[10px] text-muted-foreground">
+                Usage distribution
+              </div>
+              <div className="mt-0.5 truncate text-sm font-bold tracking-tight">
+                {fmt(totalUses)} total uses
+              </div>
+            </div>
+            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <TrendingUp className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="num-display text-xl font-bold tabular-nums">
+              {totalGroups > 0
+                ? (totalUses / totalGroups).toFixed(1)
+                : "0"}
+            </span>
+            <span className="text-[10px] text-muted-foreground">avg / group</span>
+          </div>
+          <div className="mt-auto pt-2">
+            <Sparkline
+              data={usesSpark}
+              color="oklch(0.66 0.22 305)"
+              width={220}
+              height={28}
+            />
+          </div>
+        </BentoTile>
+      </BentoGrid>
 
       <EditGroupDialog
         group={editing}
@@ -375,21 +427,22 @@ export function HashtagsView() {
   );
 }
 
-function GroupCard({
+// ============================================================================
+// GroupListRow — dense row for a single hashtag group (uses ListRow primitive)
+// ============================================================================
+
+function GroupListRow({
   group,
-  maxUsage,
   onUseInComposer,
   onEdit,
   onDelete,
 }: {
   group: HashtagGroup;
-  maxUsage: number;
   onUseInComposer: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const tags = parseTags(group.tags);
-  const usagePct = Math.round((group.usageCount / maxUsage) * 100);
 
   function copyTag(tag: string) {
     navigator.clipboard?.writeText(`#${tag}`).catch(() => {});
@@ -404,127 +457,118 @@ function GroupCard({
     });
   }
 
-  return (
-    <GlassCard hover className="glass-sheen group relative flex flex-col overflow-hidden p-5">
-      {/* Top accent */}
-      <div
-        className="absolute inset-x-0 top-0 h-1.5"
-        style={{ background: group.color }}
-      />
-      <div
-        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-20 blur-2xl transition group-hover:opacity-40"
-        style={{ background: group.color }}
-      />
+  const platformPill =
+    group.platform === "all" ? (
+      <Pill color="neutral">
+        <Layers className="h-2.5 w-2.5" />
+        All
+      </Pill>
+    ) : (
+      <span className="inline-flex items-center gap-1">
+        <PlatformBadge platform={group.platform as PlatformId} size={16} />
+      </span>
+    );
 
-      {/* Header */}
-      <div className="relative mt-1 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-bold leading-tight">{group.name}</h3>
-          <div className="mt-1">
-            <PlatformCell platform={group.platform} />
+  return (
+    <ListRow className="!flex-col !items-stretch !gap-0 !px-0 !py-0">
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <span
+          className="h-7 w-1 shrink-0 rounded-full"
+          style={{ background: group.color }}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-xs font-bold tracking-tight">
+              {group.name}
+            </span>
+            {platformPill}
+          </div>
+          <div className="mt-0.5 flex items-center gap-3 text-[10px] text-muted-foreground">
+            <span>
+              <strong className="text-foreground">{group.tagCount}</strong> tags
+            </span>
+            <span>
+              <strong className="text-foreground">{group.usageCount}</strong> uses
+            </span>
+            <span>
+              <strong className="text-foreground">{fmt(group.avgReach)}</strong> reach
+            </span>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                aria-label={`Actions for ${group.name}`}
-              >
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 rounded-xl">
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="mr-2 h-4 w-4" /> Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-rose-500 focus:text-rose-500"
-                onClick={onDelete}
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <span
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl text-white shadow-sm"
-            style={{ background: group.color }}
-          >
-            <Hash className="h-4 w-4" />
-          </span>
-        </div>
+
+        {/* Copy all + use in composer */}
+        <button
+          onClick={copyAll}
+          className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          title="Copy all tags"
+          aria-label="Copy all tags"
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={onUseInComposer}
+          className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
+          title="Use in composer"
+          aria-label="Use in composer"
+        >
+          <Wand2 className="h-3.5 w-3.5" />
+        </button>
+
+        {/* Dropdown: edit + delete */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              aria-label={`Actions for ${group.name}`}
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36 rounded-xl">
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-rose-500 focus:text-rose-500"
+              onClick={onDelete}
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Tag pills */}
-      <div className="relative mt-3 flex flex-wrap gap-1.5">
-        {tags.slice(0, 8).map((t) => (
+      {/* Tag pills — inline, dense */}
+      <div className="flex flex-wrap gap-1 px-3 pb-2.5">
+        {tags.slice(0, 10).map((t) => (
           <button
             key={t}
             onClick={() => copyTag(t)}
-            className="rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-foreground/80 transition hover:bg-primary/15 hover:text-primary"
+            className="rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground/80 transition hover:bg-primary/15 hover:text-primary"
             title={`Copy #${t}`}
           >
             #{t}
           </button>
         ))}
-        {tags.length > 8 && (
-          <span className="rounded-full bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
-            +{tags.length - 8} more
+        {tags.length > 10 && (
+          <span className="rounded-full bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            +{tags.length - 10}
+          </span>
+        )}
+        {tags.length === 0 && (
+          <span className="text-[10px] italic text-muted-foreground">
+            No tags yet
           </span>
         )}
       </div>
-
-      {/* Stats */}
-      <div className="relative mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-muted/40 p-2.5">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Uses</div>
-          <div className="text-lg font-bold">{group.usageCount}</div>
-        </div>
-        <div className="rounded-xl bg-muted/40 p-2.5">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Avg reach</div>
-          <div className="text-lg font-bold">{fmt(group.avgReach)}</div>
-        </div>
-      </div>
-
-      {/* Usage bar */}
-      <div className="relative mt-3">
-        <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>Usage</span>
-          <span>{usagePct}% of max</span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${usagePct}%`, background: group.color }}
-          />
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="relative mt-4 flex items-center gap-2 border-t border-border/40 pt-3">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 flex-1 gap-1.5 text-xs"
-          onClick={copyAll}
-        >
-          <Copy className="h-3.5 w-3.5" />
-          Copy all
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 flex-1 gap-1.5 text-xs"
-          onClick={onUseInComposer}
-        >
-          <Wand2 className="h-3.5 w-3.5 text-primary" />
-          Use in composer
-        </Button>
-      </div>
-    </GlassCard>
+    </ListRow>
   );
 }
+
+// ============================================================================
+// CreateGroupDialog — preserved CRUD
+// ============================================================================
 
 function CreateGroupDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = React.useState(false);
@@ -580,10 +624,10 @@ function CreateGroupDialog({ onCreated }: { onCreated: () => void }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold"
+        className="liquid-pill glow-ring flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold"
       >
-        <Plus className="h-4 w-4" />
-        Create group
+        <Plus className="h-3.5 w-3.5" />
+        New group
       </button>
       <Dialog
         open={open}
@@ -683,6 +727,10 @@ function CreateGroupDialog({ onCreated }: { onCreated: () => void }) {
     </>
   );
 }
+
+// ============================================================================
+// EditGroupDialog — preserved CRUD
+// ============================================================================
 
 function EditGroupDialog({
   group,
@@ -832,24 +880,21 @@ function EditGroupDialog({
   );
 }
 
+// ============================================================================
+// Skeleton — compact, dense
+// ============================================================================
+
 function HashtagsSkeleton() {
   return (
-    <div className="space-y-5">
-      <div className="shimmer h-28 rounded-3xl" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="shimmer h-32 rounded-3xl" />
-        ))}
-      </div>
-      <div className="shimmer h-32 rounded-3xl" />
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="shimmer h-80 rounded-3xl" />
-          ))}
-        </div>
-        <div className="shimmer h-80 rounded-3xl" />
-      </div>
+    <div className="space-y-4">
+      <div className="shimmer h-20 rounded-xl" />
+      <div className="shimmer h-14 rounded-xl" />
+      <BentoGrid>
+        <BentoTile span="2x2" className="shimmer">{""}</BentoTile>
+        <BentoTile span="1x2" className="shimmer">{""}</BentoTile>
+        <BentoTile span="1x1" className="shimmer">{""}</BentoTile>
+        <BentoTile span="1x1" className="shimmer">{""}</BentoTile>
+      </BentoGrid>
     </div>
   );
 }

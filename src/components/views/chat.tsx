@@ -2,15 +2,33 @@
 
 import * as React from "react";
 import {
-  Send, Paperclip, Image as ImageIcon, FileText, Search, Users,
-  Circle, ArrowLeft, Smile, Download, type LucideIcon,
+  Send, Paperclip, FileText, Search, Users, Download,
 } from "lucide-react";
-import { useApi } from "@/lib/hooks";
+import { useApi, timeAgo } from "@/lib/hooks";
 import { GlassCard } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { ListRow, SectionHeader, Pill } from "@/components/glass/dense-ui";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { timeAgo } from "@/lib/hooks";
+
+/**
+ * Chat — master-detail split (Apple Messages / Linear style).
+ *
+ * Layout:
+ *   grid lg:grid-cols-[300px_1fr]
+ *   - LEFT  (GlassCard): SectionHeader + search + ListRow roster (group + DMs)
+ *   - RIGHT (GlassCard): avatar + SectionHeader (status Pill) + message stream + composer
+ *
+ * Dense-ui primitives used: SectionHeader, ListRow, Pill.
+ * Card count: 2 (member-list container + chat-area container).
+ *
+ * API surface preserved:
+ *   GET    /api/chat        — messages[] + members[] + currentUserId
+ *   POST   /api/chat        — send message (text or fileUrl)
+ *   PATCH  /api/chat        — mark conversation read (receiverId: string|null)
+ *
+ * Polling: every 8s, silent (no skeleton flash).
+ */
 
 interface ChatMessage {
   id: string;
@@ -40,6 +58,13 @@ interface ChatData {
   messages: ChatMessage[];
   members: TeamMember[];
   currentUserId: string;
+}
+
+// Active = lastActive within 5 min (matches the original dot logic)
+const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
+
+function isActive(lastActive: string | null): boolean {
+  return !!lastActive && Date.now() - new Date(lastActive).getTime() < ACTIVE_WINDOW_MS;
 }
 
 export function ChatView() {
@@ -77,7 +102,7 @@ export function ChatView() {
 
   // Mark messages as read when viewing a conversation.
   // IMPORTANT: depends ONLY on [selectedMember?.id] — NOT on `data` or `reload`.
-  // Including `data` would re-run this effect on every 5s poll, causing a
+  // Including `data` would re-run this effect on every 8s poll, causing a
   // reload loop (PATCH → reload → new data → effect re-runs → PATCH again).
   const prevMarkedRef = React.useRef<string | null>(null);
   React.useEffect(() => {
@@ -109,6 +134,26 @@ export function ChatView() {
       !search.trim() ||
       m.name.toLowerCase().includes(search.toLowerCase()) ||
       m.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Per-conversation unread counts — powers the Pills in the roster.
+  // Group key "group" for the team chat; otherwise the sender's id.
+  const unreadCounts = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const m of allMessages) {
+      if (m.isMine || m.isRead) continue;
+      if (m.receiverId === null) {
+        map.set("group", (map.get("group") ?? 0) + 1);
+      } else if (m.receiverId === currentUserId) {
+        map.set(m.senderId, (map.get(m.senderId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [allMessages, currentUserId]);
+
+  const activeCount = React.useMemo(
+    () => members.filter((m) => isActive(m.lastActive)).length,
+    [members]
   );
 
   async function sendMessage() {
@@ -194,9 +239,9 @@ export function ChatView() {
 
   if (loading) {
     return (
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <div className="shimmer h-[600px] rounded-2xl" />
-        <div className="shimmer h-[600px] rounded-2xl" />
+      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+        <div className="shimmer h-[600px] rounded-xl" />
+        <div className="shimmer h-[600px] rounded-xl" />
       </div>
     );
   }
@@ -222,15 +267,39 @@ export function ChatView() {
     );
   }
 
+  const groupUnread = unreadCounts.get("group") ?? 0;
+  const selectedActive = selectedMember ? isActive(selectedMember.lastActive) : false;
+
+  // Status Pill for the chat area header — depends on selectedMember state.
+  const statusPill = selectedMember ? (
+    selectedActive ? (
+      <Pill color="green">Active now</Pill>
+    ) : selectedMember.lastActive ? (
+      <Pill color="neutral">Last seen {timeAgo(selectedMember.lastActive)}</Pill>
+    ) : (
+      <Pill color="neutral">Offline</Pill>
+    )
+  ) : (
+    <Pill color="blue">{members.length + 1} members</Pill>
+  );
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-      {/* === Sidebar — member list === */}
+    <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+      {/* ============================================================= */}
+      {/* SIDEBAR — member list (GlassCard #1)                          */}
+      {/* ============================================================= */}
       <GlassCard className="flex h-[calc(100vh-180px)] flex-col overflow-hidden p-0">
-        <div className="border-b border-border/40 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            <span className="text-sm font-bold">Team Chat</span>
-          </div>
+        <div className="border-b border-border/40 p-3">
+          <SectionHeader
+            title="Team Chat"
+            desc="Direct & group"
+            icon={Users}
+            action={
+              activeCount > 0 ? (
+                <Pill color="green">{activeCount} online</Pill>
+              ) : undefined
+            }
+          />
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -243,40 +312,44 @@ export function ChatView() {
           </div>
         </div>
 
-        <div className="scroll-liquid flex-1 overflow-y-auto p-2">
-          {/* Group chat option */}
-          <button
+        <div className="scroll-liquid flex-1 overflow-y-auto">
+          {/* Group chat row */}
+          <ListRow
             onClick={() => setSelectedMember(null)}
-            className={cn(
-              "flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition",
-              !selectedMember ? "bg-primary/10" : "hover:bg-muted/50"
-            )}
+            active={!selectedMember}
+            className="gap-2.5"
           >
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
               <Users className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-semibold">Team Group</div>
-              <div className="text-[10px] text-muted-foreground">Everyone on the team</div>
+              <div className="truncate text-[10px] text-muted-foreground">
+                Everyone on the team
+              </div>
             </div>
-          </button>
-
-          <div className="my-2 border-t border-border/30" />
+            {groupUnread > 0 && <Pill color="blue">{groupUnread}</Pill>}
+          </ListRow>
 
           {filteredMembers.map((m) => {
-            const isActive = m.lastActive && Date.now() - new Date(m.lastActive).getTime() < 5 * 60 * 1000;
+            const memberActive = isActive(m.lastActive);
+            const unread = unreadCounts.get(m.id) ?? 0;
             return (
-              <button
+              <ListRow
                 key={m.id}
                 onClick={() => setSelectedMember(m)}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition",
-                  selectedMember?.id === m.id ? "bg-primary/10" : "hover:bg-muted/50"
-                )}
+                active={selectedMember?.id === m.id}
+                className="gap-2.5"
               >
                 <div className="relative shrink-0">
-                  <NameAvatar name={m.name} color={m.color ?? "blue"} src={m.avatar ?? undefined} gender={(m as any)?.gender ?? undefined} className="h-9 w-9 text-xs" />
-                  {isActive && (
+                  <NameAvatar
+                    name={m.name}
+                    color={m.color ?? "blue"}
+                    src={m.avatar ?? undefined}
+                    gender={(m as { gender?: "male" | "female" })?.gender ?? undefined}
+                    className="h-9 w-9 text-xs"
+                  />
+                  {memberActive && (
                     <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
                   )}
                 </div>
@@ -286,7 +359,12 @@ export function ChatView() {
                     {m.title ?? m.role}
                   </div>
                 </div>
-              </button>
+                {unread > 0 ? (
+                  <Pill color="blue">{unread}</Pill>
+                ) : memberActive ? (
+                  <Pill color="green">online</Pill>
+                ) : null}
+              </ListRow>
             );
           })}
 
@@ -298,31 +376,35 @@ export function ChatView() {
         </div>
       </GlassCard>
 
-      {/* === Chat area === */}
+      {/* ============================================================= */}
+      {/* CHAT AREA — header + messages + composer (GlassCard #2)       */}
+      {/* ============================================================= */}
       <GlassCard className="flex h-[calc(100vh-180px)] flex-col overflow-hidden p-0">
-        {/* Header */}
-        <div className="flex items-center gap-3 border-b border-border/40 p-4">
+        {/* Header — avatar + SectionHeader (status Pill as action) */}
+        <div className="flex items-center gap-3 border-b border-border/40 p-3">
           {selectedMember ? (
-            <>
-              <NameAvatar name={selectedMember.name} color={selectedMember.color ?? "blue"} src={selectedMember.avatar ?? undefined} gender={(selectedMember as any)?.gender ?? undefined} className="h-10 w-10 text-sm" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-bold">{selectedMember.name}</div>
-                <div className="text-[11px] text-muted-foreground">
-                  {selectedMember.title ?? selectedMember.role}
-                </div>
-              </div>
-            </>
+            <NameAvatar
+              name={selectedMember.name}
+              color={selectedMember.color ?? "blue"}
+              src={selectedMember.avatar ?? undefined}
+              gender={(selectedMember as { gender?: "male" | "female" })?.gender ?? undefined}
+              className="h-10 w-10 shrink-0 text-sm"
+            />
           ) : (
-            <>
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/15 text-primary">
-                <Users className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-sm font-bold">Team Group</div>
-                <div className="text-[11px] text-muted-foreground">{members.length + 1} members</div>
-              </div>
-            </>
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+              <Users className="h-5 w-5" />
+            </div>
           )}
+          <SectionHeader
+            title={selectedMember ? selectedMember.name : "Team Group"}
+            desc={
+              selectedMember
+                ? selectedMember.title ?? selectedMember.role
+                : "Everyone on the team"
+            }
+            className="mb-0 min-w-0 flex-1"
+            action={statusPill}
+          />
         </div>
 
         {/* Messages */}
@@ -381,7 +463,7 @@ export function ChatView() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* File URL form */}
+        {/* File URL form (collapsible) */}
         {showFileForm && (
           <div className="border-t border-border/40 p-3">
             <div className="flex gap-2">
@@ -410,7 +492,7 @@ export function ChatView() {
           </div>
         )}
 
-        {/* Input */}
+        {/* Composer */}
         <div className="border-t border-border/40 p-3">
           <div className="flex items-center gap-2">
             <button

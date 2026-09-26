@@ -36,6 +36,8 @@ export async function GET(req: NextRequest) {
         avatar: u.avatar,
         role: u.role,
         title: u.title,
+        department: u.department ?? null,
+        status: u.status ?? "active",
         color: u.color,
         accountsCount: uAccounts.length,
         postsCount: uPosts.length,

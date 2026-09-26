@@ -11,18 +11,22 @@ import {
   Trash2,
   ArrowRight,
   CheckCircle2,
-  FileEdit,
   Target,
   CalendarRange,
-  Pause,
   Sparkles,
   Eye,
   Heart,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/hooks";
-import { GlassCard, KpiCard } from "@/components/glass/glass-card";
 import { HelpText } from "@/components/glass/help-text";
+import {
+  MetricRow,
+  BentoTile,
+  SectionHeader,
+  ListRow,
+  Pill,
+} from "@/components/glass/dense-ui";
 import { useAuth } from "@/lib/auth-store";
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -52,6 +56,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
+// ============================================================================
+// Types & constants
+// ============================================================================
+
 interface Campaign {
   id: string;
   name: string;
@@ -66,6 +74,7 @@ interface Campaign {
 }
 
 type StatusFilter = "all" | "active" | "draft" | "paused" | "completed";
+type PillColor = "neutral" | "green" | "amber" | "rose" | "blue" | "violet";
 
 const COLOR_SWATCHES = [
   "#E1306C",
@@ -78,42 +87,35 @@ const COLOR_SWATCHES = [
   "#14B8A6",
 ];
 
-const STATUS_META: Record<
+const STATUS_PILL: Record<
   Campaign["status"],
-  { label: string; bg: string; text: string; dot: string }
+  { label: string; color: PillColor }
 > = {
-  active: {
-    label: "Active",
-    bg: "bg-[oklch(0.76_0.18_145)]/15",
-    text: "text-[oklch(0.55_0.18_145)]",
-    dot: "bg-[oklch(0.55_0.18_145)]",
-  },
-  draft: {
-    label: "Draft",
-    bg: "bg-[oklch(0.78_0.18_75)]/15",
-    text: "text-[oklch(0.58_0.16_75)]",
-    dot: "bg-[oklch(0.58_0.16_75)]",
-  },
-  paused: {
-    label: "Paused",
-    bg: "bg-muted",
-    text: "text-muted-foreground",
-    dot: "bg-muted-foreground/70",
-  },
-  completed: {
-    label: "Completed",
-    bg: "bg-[oklch(0.74_0.18_165)]/15",
-    text: "text-[oklch(0.55_0.18_165)]",
-    dot: "bg-[oklch(0.55_0.18_165)]",
-  },
+  active: { label: "Active", color: "green" },
+  draft: { label: "Draft", color: "amber" },
+  paused: { label: "Paused", color: "neutral" },
+  completed: { label: "Completed", color: "blue" },
 };
 
-const OBJECTIVES: { value: string; label: string; icon: React.ElementType }[] = [
-  { value: "awareness", label: "Awareness", icon: Eye },
-  { value: "engagement", label: "Engagement", icon: Heart },
-  { value: "conversion", label: "Conversion", icon: Target },
-  { value: "traffic", label: "Traffic", icon: ArrowRight },
+const OBJECTIVES: {
+  value: string;
+  label: string;
+  icon: React.ElementType;
+  color: string;
+}[] = [
+  { value: "awareness", label: "Awareness", icon: Eye, color: "oklch(0.7 0.18 250)" },
+  { value: "engagement", label: "Engagement", icon: Heart, color: "oklch(0.7 0.2 25)" },
+  { value: "conversion", label: "Conversion", icon: Target, color: "oklch(0.7 0.18 145)" },
+  { value: "traffic", label: "Traffic", icon: ArrowRight, color: "oklch(0.7 0.18 75)" },
 ];
+
+function objectiveMeta(value: string | null) {
+  return OBJECTIVES.find((o) => o.value === value) ?? null;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
 
 function fmtRange(start: string | null, end: string | null) {
   const s = start && isValid(parseISO(start)) ? parseISO(start) : null;
@@ -123,6 +125,40 @@ function fmtRange(start: string | null, end: string | null) {
   if (!s && e) return `→ ${format(e, "MMM d, yyyy")}`;
   return `${format(s as Date, "MMM d")} → ${format(e as Date, "MMM d, yyyy")}`;
 }
+
+function isoToDateInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = parseISO(iso);
+  if (!isValid(d)) return "";
+  return format(d, "yyyy-MM-dd");
+}
+
+/**
+ * Build a 6-bucket sparkline of campaign counts by `createdAt` month,
+ * optionally filtered by status. Used to give the MetricRow inline trends.
+ */
+function makeSpark(campaigns: Campaign[], status?: Campaign["status"]): number[] {
+  const now = new Date();
+  const out: number[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    out.push(
+      campaigns.filter((c) => {
+        if (!c.createdAt) return false;
+        const d = new Date(c.createdAt);
+        if (d < start || d >= end) return false;
+        if (status && c.status !== status) return false;
+        return true;
+      }).length,
+    );
+  }
+  return out;
+}
+
+// ============================================================================
+// Main view
+// ============================================================================
 
 export function CampaignsView() {
   const { data, loading, reload } = useApi<Campaign[]>("/api/campaigns");
@@ -176,141 +212,231 @@ export function CampaignsView() {
 
   const filtered = filter === "all" ? data : data.filter((c) => c.status === filter);
 
-  const kpis = {
+  const counts = {
+    all: data.length,
     active: data.filter((c) => c.status === "active").length,
     completed: data.filter((c) => c.status === "completed").length,
     draft: data.filter((c) => c.status === "draft").length,
     paused: data.filter((c) => c.status === "paused").length,
   };
 
-  const filterPills: { value: StatusFilter; label: string; count: number }[] = [
-    { value: "all", label: "All", count: data.length },
-    { value: "active", label: "Active", count: data.filter((c) => c.status === "active").length },
-    { value: "draft", label: "Draft", count: data.filter((c) => c.status === "draft").length },
-    { value: "paused", label: "Paused", count: data.filter((c) => c.status === "paused").length },
-    { value: "completed", label: "Completed", count: data.filter((c) => c.status === "completed").length },
+  const metrics = [
+    { label: "Total campaigns", value: counts.all, spark: makeSpark(data) },
+    {
+      label: "Active",
+      value: counts.active,
+      spark: makeSpark(data, "active"),
+      color: "oklch(0.55 0.18 145)",
+    },
+    {
+      label: "Completed",
+      value: counts.completed,
+      spark: makeSpark(data, "completed"),
+      color: "oklch(0.55 0.18 165)",
+    },
+    {
+      label: "Drafts",
+      value: counts.draft,
+      spark: makeSpark(data, "draft"),
+      color: "oklch(0.6 0.16 75)",
+    },
   ];
 
+  const filterPills: { value: StatusFilter; label: string; count: number }[] = [
+    { value: "all", label: "All", count: counts.all },
+    { value: "active", label: "Active", count: counts.active },
+    { value: "draft", label: "Draft", count: counts.draft },
+    { value: "paused", label: "Paused", count: counts.paused },
+    { value: "completed", label: "Completed", count: counts.completed },
+  ];
+
+  const statusBars: { label: string; count: number; color: string }[] = [
+    { label: "Active", count: counts.active, color: "oklch(0.7 0.18 145)" },
+    { label: "Draft", count: counts.draft, color: "oklch(0.78 0.18 75)" },
+    { label: "Paused", count: counts.paused, color: "oklch(0.65 0.02 250)" },
+    { label: "Completed", count: counts.completed, color: "oklch(0.74 0.18 165)" },
+  ];
+
+  const objBars = OBJECTIVES.map((o) => ({
+    label: o.label,
+    icon: o.icon,
+    color: o.color,
+    count: data.filter((c) => c.objective === o.value).length,
+  }));
+
+  const activeCampaigns = data.filter((c) => c.status === "active");
+  const featuredActive = activeCampaigns[0] ?? null;
+
   return (
-    <div className="animate-rise space-y-5">
-      <HelpText module="campaigns"><strong className="text-foreground">Campaigns</strong> groups related posts to measure their combined impact. Create a campaign to track multi-post initiatives.</HelpText>
-      {/* Hero */}
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
-        <div
-          className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full opacity-40 blur-3xl"
-          style={{ background: "var(--primary)" }}
-        />
-        <div
-          className="pointer-events-none absolute -bottom-12 left-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
-          style={{ background: "oklch(0.74 0.18 165)" }}
-        />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-              Campaigns
-            </div>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-              Plan, launch &amp; track your campaigns
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{data.length}</span> campaigns ·{" "}
-              <span className="font-semibold text-foreground">{kpis.active}</span> active right now
-            </p>
-          </div>
+    <div className="animate-rise space-y-4">
+      <HelpText module="campaigns">
+        <strong className="text-foreground">Campaigns</strong> groups related posts to
+        measure their combined impact. Create a campaign to track multi-post initiatives.
+      </HelpText>
+
+      {/* Header — compact title + desc + New Campaign action */}
+      <SectionHeader
+        title="Campaigns"
+        desc={`${counts.all} total · ${counts.active} active · ${counts.draft} drafts · ${counts.completed} completed`}
+        icon={Megaphone}
+        action={
           <button
             onClick={() => setCreateOpen(true)}
-            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+            className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
           >
-            <Plus className="h-4 w-4" />
-            New Campaign
+            <Plus className="h-4 w-4" /> New campaign
           </button>
-        </div>
-      </GlassCard>
+        }
+      />
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Active campaigns"
-          value={kpis.active}
-          icon={<Megaphone className="h-5 w-5" />}
-          accent="oklch(0.76 0.18 145)"
-          hint="running now"
-        />
-        <KpiCard
-          label="Paused"
-          value={kpis.paused}
-          icon={<Pause className="h-5 w-5" />}
-          accent="oklch(0.72 0.18 75)"
-          hint="on hold"
-        />
-        <KpiCard
-          label="Completed"
-          value={kpis.completed}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          hint="finished campaigns"
-        />
-        <KpiCard
-          label="Drafts"
-          value={kpis.draft}
-          icon={<FileEdit className="h-5 w-5" />}
-          accent="oklch(0.78 0.18 75)"
-          hint="not yet launched"
-        />
-      </div>
+      {/* Dense KPI strip with inline sparklines */}
+      <MetricRow metrics={metrics} />
 
-      {/* Filter pills */}
-      <div className="flex flex-wrap items-center gap-2">
-        {filterPills.map((p) => (
-          <button
-            key={p.value}
-            onClick={() => setFilter(p.value)}
-            className={cn(
-              "flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-xs font-semibold transition",
-              filter === p.value
-                ? "border-primary/40 bg-primary text-primary-foreground shadow-sm"
-                : "border-border/60 bg-background/60 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+      {/* Bento grid — 5 tiles total */}
+      <div className="grid auto-rows-[minmax(120px,auto)] grid-cols-1 gap-3 lg:grid-cols-4">
+        {/* Tile 1 — Campaigns list (main, wide & tall) */}
+        <BentoTile className="flex flex-col overflow-hidden p-0 lg:col-span-3 lg:row-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 px-4 py-2.5">
+            <div className="flex min-w-0 items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+              <h3 className="truncate text-sm font-bold tracking-tight">All campaigns</h3>
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+                {filtered.length}
+              </span>
+            </div>
+            {/* Inline filter pills */}
+            <div className="flex flex-wrap items-center gap-1">
+              {filterPills.map((p) => {
+                const active = filter === p.value;
+                return (
+                  <button
+                    key={p.value}
+                    onClick={() => setFilter(p.value)}
+                    className={cn(
+                      "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition",
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    {p.label}
+                    <span className={cn("tabular-nums", active ? "opacity-80" : "opacity-60")}>
+                      {p.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="scroll-liquid min-h-[280px] flex-1 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-2 py-12 text-center">
+                <Megaphone className="h-7 w-7 text-muted-foreground/40" />
+                <p className="text-sm font-medium">No campaigns match this filter</p>
+                <p className="text-xs text-muted-foreground">
+                  Try a different status or create a new campaign.
+                </p>
+              </div>
+            ) : (
+              filtered.map((c) => (
+                <CampaignListRow
+                  key={c.id}
+                  campaign={c}
+                  onViewPosts={() => setView("calendar")}
+                  onEdit={() => setEditing(c)}
+                  onDuplicate={() => handleDuplicate(c)}
+                  onDelete={() => handleDelete(c)}
+                />
+              ))
             )}
-          >
-            <span>{p.label}</span>
-            <span
-              className={cn(
-                "rounded-full px-1.5 py-0.5 text-[10px]",
-                filter === p.value
-                  ? "bg-primary-foreground/20 text-primary-foreground"
-                  : "bg-muted-foreground/15 text-muted-foreground"
-              )}
-            >
-              {p.count}
-            </span>
-          </button>
-        ))}
-      </div>
+          </div>
+        </BentoTile>
 
-      {/* Cards grid */}
-      {filtered.length === 0 ? (
-        <GlassCard className="p-10 text-center">
-          <Megaphone className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm font-medium">No campaigns match this filter</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Try a different status or create a new campaign.
-          </p>
-        </GlassCard>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((c) => (
-            <CampaignCard
-              key={c.id}
-              campaign={c}
+        {/* Tile 2 — Status distribution */}
+        <BentoTile>
+          <SectionHeader title="Status" desc="Distribution" />
+          <div className="space-y-2">
+            {statusBars.map((s) => {
+              const pct = counts.all > 0 ? (s.count / counts.all) * 100 : 0;
+              return (
+                <div key={s.label}>
+                  <div className="mb-1 flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">{s.label}</span>
+                    <span className="font-bold tabular-nums">{s.count}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted/60">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${pct}%`, background: s.color }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </BentoTile>
+
+        {/* Tile 3 — Objective breakdown */}
+        <BentoTile>
+          <SectionHeader title="Objective" desc="Breakdown" />
+          <div className="grid grid-cols-2 gap-2">
+            {objBars.map((o) => (
+              <div
+                key={o.label}
+                className="rounded-lg border border-border/30 bg-muted/30 p-2"
+              >
+                <div className="flex items-center gap-1.5">
+                  <o.icon className="h-3 w-3" style={{ color: o.color }} />
+                  <span className="truncate text-[10px] font-semibold">{o.label}</span>
+                </div>
+                <div className="mt-1 text-lg font-bold tabular-nums">{o.count}</div>
+              </div>
+            ))}
+          </div>
+        </BentoTile>
+
+        {/* Tile 4 — Featured active campaign */}
+        <BentoTile hover className="lg:col-span-2">
+          {featuredActive ? (
+            <FeaturedCampaign
+              campaign={featuredActive}
               onViewPosts={() => setView("calendar")}
-              onEdit={() => setEditing(c)}
-              onDuplicate={() => handleDuplicate(c)}
-              onDelete={() => handleDelete(c)}
+              onEdit={() => setEditing(featuredActive)}
             />
-          ))}
-        </div>
-      )}
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 py-6 text-center">
+              <Megaphone className="h-6 w-6 text-muted-foreground/40" />
+              <p className="text-xs font-medium text-muted-foreground">No active campaign</p>
+              <p className="text-[10px] text-muted-foreground">
+                Activate a campaign from the list to feature it here.
+              </p>
+            </div>
+          )}
+        </BentoTile>
+
+        {/* Tile 5 — Quick stats */}
+        <BentoTile className="lg:col-span-2">
+          <SectionHeader title="Quick stats" desc="Pipeline snapshot" />
+          <div className="grid grid-cols-3 gap-3">
+            <Stat
+              label="Active share"
+              value={`${counts.all > 0 ? Math.round((counts.active / counts.all) * 100) : 0}%`}
+              accent="oklch(0.7 0.18 145)"
+            />
+            <Stat
+              label="Completion rate"
+              value={`${counts.all > 0 ? Math.round((counts.completed / counts.all) * 100) : 0}%`}
+              accent="oklch(0.74 0.18 165)"
+            />
+            <Stat
+              label="On hold"
+              value={counts.paused}
+              accent="oklch(0.78 0.18 75)"
+            />
+          </div>
+        </BentoTile>
+      </div>
 
       <CreateCampaignDialog
         open={createOpen}
@@ -335,7 +461,11 @@ export function CampaignsView() {
   );
 }
 
-function CampaignCard({
+// ============================================================================
+// Campaign list row — dense ListRow item
+// ============================================================================
+
+function CampaignListRow({
   campaign,
   onViewPosts,
   onEdit,
@@ -348,107 +478,209 @@ function CampaignCard({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
-  const status = STATUS_META[campaign.status];
+  const statusPill = STATUS_PILL[campaign.status];
+  const objective = objectiveMeta(campaign.objective);
   const range = fmtRange(campaign.startDate, campaign.endDate);
-  const objective = campaign.objective
-    ? OBJECTIVES.find((o) => o.value === campaign.objective)
-    : null;
 
   return (
-    <GlassCard hover className="relative flex overflow-hidden p-5">
-      {/* Colored left accent bar */}
+    <ListRow className="group">
+      {/* Color accent */}
       <div
-        className="absolute inset-y-0 left-0 w-1.5"
+        className="h-8 w-1 shrink-0 rounded-full"
         style={{ background: campaign.color }}
       />
-      <div
-        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-15 blur-2xl"
-        style={{ background: campaign.color }}
-      />
-      <div className="relative ml-2 flex min-w-0 flex-1 flex-col">
-        {/* Top: status badge */}
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-              status.bg,
-              status.text
-            )}
-          >
-            <span className={cn("h-1.5 w-1.5 rounded-full", status.dot)} />
-            {status.label}
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                aria-label="Campaign actions"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 rounded-xl">
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="mr-2 h-4 w-4" /> Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDuplicate}>
-                <Copy className="mr-2 h-4 w-4" /> Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-rose-500 focus:text-rose-500"
-                onClick={onDelete}
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+      {/* Name + meta */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate text-xs font-bold leading-tight">{campaign.name}</span>
         </div>
-
-        {/* Name + description */}
-        <h3 className="mt-2 truncate text-base font-bold leading-tight">{campaign.name}</h3>
-        {campaign.description ? (
-          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-            {campaign.description}
-          </p>
-        ) : (
-          <p className="mt-1 text-xs italic text-muted-foreground/60">No description</p>
-        )}
-
-        {/* Objective row */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-0.5 flex items-center gap-1.5 truncate text-[10px] text-muted-foreground">
           {objective && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-muted/60 px-2 py-1 text-[11px] font-medium text-foreground/80">
-              <objective.icon className="h-3 w-3" />
+            <span className="inline-flex items-center gap-0.5">
+              <objective.icon className="h-2.5 w-2.5" />
               {objective.label}
             </span>
           )}
-        </div>
-
-        {/* Date range */}
-        {range && (
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <CalendarRange className="h-3 w-3" />
-            <span className="truncate">{range}</span>
-          </div>
-        )}
-
-
-        {/* Footer */}
-        <div className="mt-4 flex items-center gap-2 border-t border-border/60 pt-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 flex-1 rounded-xl text-xs"
-            onClick={onViewPosts}
-          >
-            View posts <ArrowRight className="ml-1 h-3.5 w-3.5" />
-          </Button>
+          {range && (
+            <>
+              <span className="text-muted-foreground/30">·</span>
+              <span className="inline-flex items-center gap-0.5 truncate">
+                <CalendarRange className="h-2.5 w-2.5" />
+                {range}
+              </span>
+            </>
+          )}
+          {!objective && !range && campaign.description && (
+            <span className="truncate italic">{campaign.description}</span>
+          )}
         </div>
       </div>
-    </GlassCard>
+
+      {/* Status pill */}
+      <Pill color={statusPill.color}>{statusPill.label}</Pill>
+
+      {/* View posts */}
+      <button
+        onClick={onViewPosts}
+        className="flex items-center gap-1 rounded-lg bg-muted/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-primary hover:text-primary-foreground"
+        aria-label="View posts"
+      >
+        Posts
+        <ArrowRight className="h-3 w-3" />
+      </button>
+
+      {/* Actions dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            aria-label="Campaign actions"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44 rounded-xl">
+          <DropdownMenuItem onClick={onEdit}>
+            <Pencil className="mr-2 h-4 w-4" /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDuplicate}>
+            <Copy className="mr-2 h-4 w-4" /> Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-rose-500 focus:text-rose-500"
+            onClick={onDelete}
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </ListRow>
   );
 }
+
+// ============================================================================
+// Featured active campaign tile
+// ============================================================================
+
+function FeaturedCampaign({
+  campaign,
+  onViewPosts,
+  onEdit,
+}: {
+  campaign: Campaign;
+  onViewPosts: () => void;
+  onEdit: () => void;
+}) {
+  const statusPill = STATUS_PILL[campaign.status];
+  const objective = objectiveMeta(campaign.objective);
+  const range = fmtRange(campaign.startDate, campaign.endDate);
+
+  return (
+    <div className="relative flex h-full flex-col gap-2 overflow-hidden">
+      {/* Soft color glow */}
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-20 blur-2xl"
+        style={{ background: campaign.color }}
+      />
+      <div className="relative flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+          <Sparkles className="h-3 w-3" /> Featured active
+        </div>
+        <Pill color={statusPill.color}>{statusPill.label}</Pill>
+      </div>
+
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <div
+            className="h-6 w-1 rounded-full"
+            style={{ background: campaign.color }}
+          />
+          <h3 className="truncate text-sm font-bold leading-tight">{campaign.name}</h3>
+        </div>
+        {campaign.description ? (
+          <p className="mt-1 line-clamp-2 pl-3 text-[11px] text-muted-foreground">
+            {campaign.description}
+          </p>
+        ) : (
+          <p className="mt-1 pl-3 text-[11px] italic text-muted-foreground/60">
+            No description
+          </p>
+        )}
+      </div>
+
+      <div className="relative mt-auto flex flex-wrap items-center gap-2 pt-2">
+        {objective && (
+          <span
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+            style={{ background: `${objective.color}1a`, color: objective.color }}
+          >
+            <objective.icon className="h-2.5 w-2.5" />
+            {objective.label}
+          </span>
+        )}
+        {range && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+            <CalendarRange className="h-2.5 w-2.5" />
+            <span className="truncate">{range}</span>
+          </span>
+        )}
+      </div>
+
+      <div className="relative flex items-center gap-2 border-t border-border/40 pt-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 flex-1 rounded-lg text-[11px]"
+          onClick={onViewPosts}
+        >
+          View posts <ArrowRight className="ml-1 h-3 w-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 rounded-lg text-[11px]"
+          onClick={onEdit}
+        >
+          <Pencil className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Tiny stat block (used inside Quick stats tile)
+// ============================================================================
+
+function Stat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  accent: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border/30 bg-muted/30 p-2">
+      <div
+        className="text-[10px] font-semibold uppercase tracking-wide"
+        style={{ color: accent }}
+      >
+        {label}
+      </div>
+      <div className="mt-1 text-lg font-bold tabular-nums">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Create dialog — preserved
+// ============================================================================
 
 function CreateCampaignDialog({
   open,
@@ -517,9 +749,7 @@ function CreateCampaignDialog({
       <DialogContent className="sm:max-w-lg rounded-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span
-              className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground"
-            >
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Megaphone className="h-4 w-4" />
             </span>
             New campaign
@@ -565,7 +795,7 @@ function CreateCampaignDialog({
                     "h-7 w-7 rounded-full border-2 transition",
                     color === c
                       ? "border-foreground scale-110"
-                      : "border-transparent hover:scale-110"
+                      : "border-transparent hover:scale-110",
                   )}
                   style={{ background: c }}
                   aria-label={`Select color ${c}`}
@@ -635,12 +865,9 @@ function CreateCampaignDialog({
   );
 }
 
-function isoToDateInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = parseISO(iso);
-  if (!isValid(d)) return "";
-  return format(d, "yyyy-MM-dd");
-}
+// ============================================================================
+// Edit dialog — preserved
+// ============================================================================
 
 function EditCampaignDialog({
   campaign,
@@ -709,9 +936,7 @@ function EditCampaignDialog({
       <DialogContent className="sm:max-w-lg rounded-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span
-              className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground"
-            >
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Pencil className="h-4 w-4" />
             </span>
             Edit campaign
@@ -838,24 +1063,21 @@ function EditCampaignDialog({
   );
 }
 
+// ============================================================================
+// Skeleton — matches new dense layout
+// ============================================================================
+
 function CampaignsSkeleton() {
   return (
-    <div className="space-y-5">
-      <div className="shimmer h-28 rounded-3xl" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="shimmer h-32 rounded-3xl" />
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="shimmer h-9 w-24 rounded-2xl" />
-        ))}
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="shimmer h-72 rounded-3xl" />
-        ))}
+    <div className="space-y-4">
+      <div className="shimmer h-9 rounded-xl" />
+      <div className="shimmer h-14 rounded-xl" />
+      <div className="grid auto-rows-[minmax(120px,auto)] grid-cols-1 gap-3 lg:grid-cols-4">
+        <div className="shimmer rounded-xl lg:col-span-3 lg:row-span-2" />
+        <div className="shimmer rounded-xl" />
+        <div className="shimmer rounded-xl" />
+        <div className="shimmer rounded-xl lg:col-span-2" />
+        <div className="shimmer rounded-xl lg:col-span-2" />
       </div>
     </div>
   );

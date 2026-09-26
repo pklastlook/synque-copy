@@ -3,13 +3,13 @@
 import * as React from "react";
 import {
   MessageCircle, Send, Trash2, Archive, Check, Inbox as InboxIcon,
-  Users, Clock, Plus, Search, Filter, Copy, CheckCheck,
-  Phone, MessageSquare, Radio, Sparkles, ChevronRight, X, Wifi, WifiOff,
-  QrCode, Loader2, Smartphone, RefreshCw,
+  Users, Clock, Plus, Search, Copy, CheckCheck,
+  MessageSquare, Radio, Sparkles, ChevronRight, X, Wifi,
+  QrCode, Loader2, Smartphone, RefreshCw, ChevronLeft,
   type LucideIcon,
 } from "lucide-react";
-import { useApi, fmt, timeAgo } from "@/lib/hooks";
-import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+import { useApi, timeAgo } from "@/lib/hooks";
+import { GlassCard } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
 import { useNav } from "@/lib/store";
@@ -19,6 +19,10 @@ import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose,
 } from "@/components/ui/dialog";
+import {
+  MetricRow, SectionHeader, ListRow, Pill,
+  type Metric,
+} from "@/components/glass/dense-ui";
 
 // ============ Types ============
 
@@ -56,11 +60,71 @@ const SOURCE_META: Record<string, { label: string; icon: LucideIcon; color: stri
   channel: { label: "Channel", icon: MessageCircle, color: "text-purple-500", bg: "bg-purple-500/15" },
 };
 
-const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: LucideIcon }> = {
-  new: { label: "New", color: "text-emerald-500", bg: "bg-emerald-500/15", icon: InboxIcon },
-  used: { label: "Used", color: "text-blue-500", bg: "bg-blue-500/15", icon: CheckCheck },
-  archived: { label: "Archived", color: "text-muted-foreground", bg: "bg-muted", icon: Archive },
+const STATUS_META: Record<string, { label: string; color: "green" | "blue" | "neutral" }> = {
+  new: { label: "New", color: "green" },
+  used: { label: "Used", color: "blue" },
+  archived: { label: "Archived", color: "neutral" },
 };
+
+// ============ Conversation grouping ============
+
+interface Conversation {
+  id: string;
+  name: string;       // group / channel / chat name (display title)
+  subtitle: string;   // secondary: "From {sender}" for groups, or phone for direct
+  source: string;
+  count: number;
+  newCount: number;
+  lastMessage: WhatsAppMessage;
+  messages: WhatsAppMessage[];
+}
+
+function groupByConversation(messages: WhatsAppMessage[]): Conversation[] {
+  const map = new Map<string, Conversation>();
+  for (const m of messages) {
+    const isGroup = m.source === "group" || m.source === "channel" || m.source === "broadcast";
+    const key = isGroup
+      ? `g:${m.groupName ?? m.senderName}`
+      : `c:${m.senderPhone ?? m.senderName}`;
+    const name = isGroup ? (m.groupName ?? m.senderName) : m.senderName;
+    const subtitle = isGroup ? `From ${m.senderName}` : (m.senderPhone ?? "");
+
+    if (!map.has(key)) {
+      map.set(key, {
+        id: key,
+        name,
+        subtitle,
+        source: m.source,
+        count: 0,
+        newCount: 0,
+        lastMessage: m,
+        messages: [],
+      });
+    }
+    const convo = map.get(key)!;
+    convo.count++;
+    if (m.status === "new") convo.newCount++;
+    if (new Date(m.createdAt).getTime() > new Date(convo.lastMessage.createdAt).getTime()) {
+      convo.lastMessage = m;
+    }
+    convo.messages.push(m);
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
+  );
+}
+
+function last7DayHistogram(messages: WhatsAppMessage[]): number[] {
+  const days = Array(7).fill(0);
+  const now = Date.now();
+  for (const m of messages) {
+    const diffDays = Math.floor((now - new Date(m.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 0 && diffDays < 7) {
+      days[6 - diffDays]++;
+    }
+  }
+  return days;
+}
 
 // ============ Main view ============
 
@@ -81,6 +145,10 @@ export function WhatsAppView() {
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [search, setSearch] = React.useState("");
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+
+  // === Master-detail state ===
+  const [selectedConvoId, setSelectedConvoId] = React.useState<string | null>(null);
+  const [mobileShowDetail, setMobileShowDetail] = React.useState(false);
 
   // === WhatsApp live connection state ===
   const [connection, setConnection] = React.useState<ConnectionStatus | null>(null);
@@ -226,6 +294,68 @@ export function WhatsAppView() {
     };
   }, [allMessages]);
 
+  // === Conversation grouping (for master-detail) ===
+  const conversations = React.useMemo(
+    () => groupByConversation(filtered),
+    [filtered]
+  );
+
+  const selectedConvo = React.useMemo(
+    () => conversations.find((c) => c.id === selectedConvoId) ?? null,
+    [conversations, selectedConvoId]
+  );
+
+  // Auto-select first conversation when none is selected (or selection lost).
+  React.useEffect(() => {
+    if (conversations.length === 0) return;
+    if (!selectedConvoId || !conversations.some((c) => c.id === selectedConvoId)) {
+      setSelectedConvoId(conversations[0].id);
+    }
+  }, [conversations, selectedConvoId]);
+
+  // === Sparkline data (7-day histogram) ===
+  const messagesSpark = React.useMemo(() => last7DayHistogram(allMessages), [allMessages]);
+  const newSpark = React.useMemo(
+    () => last7DayHistogram(allMessages.filter((m) => m.status === "new")),
+    [allMessages]
+  );
+  const usedSpark = React.useMemo(
+    () => last7DayHistogram(allMessages.filter((m) => m.status === "used")),
+    [allMessages]
+  );
+  // Connected spark — fake stable line based on connected state (1 if connected, 0 if not).
+  const connectedSpark = React.useMemo(
+    () => allMessages.length > 0 ? messagesSpark.map((n) => Math.max(1, n)) : [0, 1, 0, 1, 0, 1, 1],
+    [messagesSpark, allMessages.length]
+  );
+
+  const metrics: Metric[] = React.useMemo(() => [
+    {
+      label: "Messages",
+      value: stats.total,
+      spark: messagesSpark,
+      color: "oklch(0.78 0.18 145)",
+    },
+    {
+      label: "Conversations",
+      value: conversations.length,
+      spark: messagesSpark,
+      color: "oklch(0.7 0.16 230)",
+    },
+    {
+      label: "Unread",
+      value: stats.new,
+      spark: newSpark,
+      color: "oklch(0.74 0.18 165)",
+    },
+    {
+      label: "Connection",
+      value: connection?.connected ? "Live" : connection?.serviceOffline ? "Manual" : "Off",
+      spark: connectedSpark,
+      color: connection?.connected ? "oklch(0.74 0.18 145)" : "oklch(0.72 0.16 75)",
+    },
+  ], [stats, conversations.length, messagesSpark, newSpark, connectedSpark, connection]);
+
   async function handleCopy(msg: WhatsAppMessage) {
     try {
       await navigator.clipboard.writeText(msg.content);
@@ -270,17 +400,29 @@ export function WhatsAppView() {
     toast.success("Deleted");
   }
 
+  function selectConversation(convo: Conversation) {
+    setSelectedConvoId(convo.id);
+    setMobileShowDetail(true);
+  }
+
+  function backToList() {
+    setMobileShowDetail(false);
+  }
+
   if (loading) return <WhatsAppSkeleton />;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <HelpText module="whatsapp">
         <strong className="text-foreground">WhatsApp Inbox</strong> — connect your WhatsApp (scan QR, just like WhatsApp Web)
         to auto-receive messages from groups & chats. Or paste manually. Then send any message to the AI Composer.
       </HelpText>
 
-      {/* === CONNECTION BANNER (NEW) — live WhatsApp connection === */}
-      <ConnectionBanner
+      {/* === Dense metric strip (replaces 4 KPI cards) === */}
+      <MetricRow metrics={metrics} className="crystal-in" />
+
+      {/* === Connection status — compact banner with Pill === */}
+      <ConnectionStatusBar
         connection={connection}
         connecting={connecting}
         onConnect={handleStartConnection}
@@ -306,51 +448,162 @@ export function WhatsAppView() {
         </DialogContent>
       </Dialog>
 
-      {/* === KPI strip === */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Total Messages"
-          value={stats.total}
-          icon={<MessageCircle className="h-5 w-5" />}
-          accent="oklch(0.78 0.18 145)"
-          hint="pasted from WhatsApp"
-          delay={50}
-        />
-        <KpiCard
-          label="New"
-          value={stats.new}
-          icon={<InboxIcon className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          hint="waiting to be published"
-          delay={120}
-        />
-        <KpiCard
-          label="Used"
-          value={stats.used}
-          icon={<CheckCheck className="h-5 w-5" />}
-          accent="oklch(0.62 0.22 255)"
-          hint="sent to composer"
-          delay={190}
-        />
-        <KpiCard
-          label="Archived"
-          value={stats.archived}
-          icon={<Archive className="h-5 w-5" />}
-          accent="oklch(0.66 0.22 305)"
-          hint="no longer needed"
-          delay={260}
-        />
+      {/* === Master-detail split — Contacts | Messages === */}
+      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+        {/* ===== MASTER: Conversation list ===== */}
+        <GlassCard
+          className={cn(
+            "flex flex-col overflow-hidden p-0",
+            mobileShowDetail && "hidden lg:flex"
+          )}
+        >
+          {/* Header strip */}
+          <div className="border-b border-border/40 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <SectionHeader
+                title="Inbox"
+                desc={`${conversations.length} conversations`}
+                icon={MessageCircle}
+                className="mb-0 flex-1"
+              />
+              {stats.new > 0 && (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                  {stats.new} new
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="px-3 pt-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search sender, group or text…"
+                aria-label="Search WhatsApp messages"
+                className="w-full rounded-lg border border-border/60 bg-background/60 py-1.5 pl-8 pr-3 text-xs outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </div>
+
+          {/* Status filter pills */}
+          <div className="flex flex-wrap items-center gap-1.5 px-3 py-2.5">
+            {(["all", "new", "used", "archived"] as StatusFilter[]).map((f) => {
+              const active = statusFilter === f;
+              const meta = STATUS_META[f];
+              const count = f === "all"
+                ? stats.total
+                : f === "new" ? stats.new : f === "used" ? stats.used : stats.archived;
+              return (
+                <button
+                  key={f}
+                  onClick={() => setStatusFilter(f)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition",
+                    active
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {f === "all" ? "All" : meta?.label ?? f}
+                  {count > 0 && (
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 text-[9px] font-bold",
+                        active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* List meta row + list */}
+          <div className="min-h-0 flex-1 overflow-y-auto scroll-liquid">
+            <div className="flex items-center justify-between px-3 pb-1 pt-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {conversations.length} {conversations.length === 1 ? "conversation" : "conversations"}
+              </span>
+              <button
+                onClick={() => setShowPasteForm(true)}
+                className="flex items-center gap-1 text-[10px] font-medium text-primary hover:underline"
+              >
+                <Plus className="h-2.5 w-2.5" /> Paste
+              </button>
+            </div>
+
+            {conversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 px-3 py-12 text-center">
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-muted/60 text-muted-foreground">
+                  <MessageCircle className="h-4 w-4" />
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {stats.total === 0 ? "No messages yet — paste one to start." : "No conversations match your filter."}
+                </div>
+              </div>
+            ) : (
+              conversations.map((c) => (
+                <ConversationRow
+                  key={c.id}
+                  convo={c}
+                  active={selectedConvoId === c.id}
+                  onClick={() => selectConversation(c)}
+                />
+              ))
+            )}
+          </div>
+        </GlassCard>
+
+        {/* ===== DETAIL: Messages panel ===== */}
+        <GlassCard
+          className={cn(
+            "flex flex-col overflow-hidden p-0",
+            !mobileShowDetail && "hidden lg:flex"
+          )}
+        >
+          {!selectedConvo ? (
+            <div className="flex h-full min-h-[70vh] flex-col items-center justify-center gap-3 p-8 text-center">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted/60 text-muted-foreground">
+                <MessageCircle className="h-7 w-7" />
+              </div>
+              <div>
+                <div className="text-base font-semibold">Select a conversation</div>
+                <div className="text-sm text-muted-foreground">
+                  Pick a chat or group on the left to read its messages.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <ConversationDetail
+              convo={selectedConvo}
+              copiedId={copiedId}
+              onBack={backToList}
+              onCopy={handleCopy}
+              onSendToComposer={handleSendToComposer}
+              onArchive={handleArchive}
+              onDelete={handleDelete}
+            />
+          )}
+        </GlassCard>
       </div>
 
-      {/* === Paste form === */}
-      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.30s" }}>
-        <SectionTitle
+      {/* === Paste form (collapsible) === */}
+      <GlassCard className="crystal-in p-4">
+        <SectionHeader
           title="Paste from WhatsApp"
           desc="Copy a message from WhatsApp, then paste it here to publish on social media"
+          icon={Plus}
           action={
             <button
               onClick={() => setShowPasteForm(!showPasteForm)}
-              className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold"
+              className="liquid-pill flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold"
             >
               {showPasteForm ? <Archive className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
               {showPasteForm ? "Close" : "Paste message"}
@@ -368,92 +621,243 @@ export function WhatsAppView() {
           />
         )}
       </GlassCard>
+    </div>
+  );
+}
 
-      {/* === Messages list === */}
-      <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.38s" }}>
-        <SectionTitle
-          title="Saved messages"
-          desc={`${filtered.length} of ${stats.total} messages`}
-          action={
-            <div className="flex items-center gap-1.5">
-              {/* Search */}
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-32 rounded-lg border border-border/50 bg-background/60 py-1.5 pl-7 pr-2 text-xs outline-none transition focus:border-primary/50 sm:w-48"
-                />
-              </div>
-            </div>
-          }
-        />
+// ============ Conversation Row (master list item) ============
+function ConversationRow({
+  convo,
+  active,
+  onClick,
+}: {
+  convo: Conversation;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const sourceMeta = SOURCE_META[convo.source] ?? SOURCE_META.group;
+  const SourceIcon = sourceMeta.icon;
+  const last = convo.lastMessage;
+  const isUnread = convo.newCount > 0;
 
-        {/* Status filter pills */}
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          {(["all", "new", "used", "archived"] as StatusFilter[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setStatusFilter(f)}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition",
-                statusFilter === f
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {f === "all" ? "All" : STATUS_META[f]?.label ?? f}
-              {f !== "all" && stats[f] > 0 && (
-                <span className="ml-1.5 text-[10px] opacity-70">({stats[f]})</span>
-              )}
-            </button>
-          ))}
+  return (
+    <ListRow onClick={onClick} active={active} className="gap-2.5 py-2.5">
+      {/* Source icon */}
+      <div className={cn("relative grid h-9 w-9 shrink-0 place-items-center rounded-xl", sourceMeta.bg, sourceMeta.color)}>
+        <SourceIcon className="h-4 w-4" />
+        {convo.newCount > 0 && (
+          <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-white ring-2 ring-background">
+            {convo.newCount}
+          </span>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span
+            className={cn(
+              "truncate text-xs",
+              isUnread ? "font-bold" : "font-semibold"
+            )}
+          >
+            {convo.name}
+          </span>
+          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+            {timeAgo(last.createdAt)}
+          </span>
         </div>
-
-        {/* Messages */}
-        <div className="scroll-liquid max-h-[600px] space-y-2 overflow-y-auto pr-1">
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
-                <MessageCircle className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">
-                  {stats.total === 0 ? "No messages yet" : "No messages match your filter"}
-                </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {stats.total === 0
-                    ? "Paste a message from WhatsApp to get started"
-                    : "Try a different filter or search term"}
-                </p>
-              </div>
-              {stats.total === 0 && (
-                <button
-                  onClick={() => setShowPasteForm(true)}
-                  className="rounded-lg bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
-                >
-                  Paste message
-                </button>
-              )}
-            </div>
-          ) : (
-            filtered.map((msg, i) => (
-              <MessageCard
-                key={msg.id}
-                msg={msg}
-                copied={copiedId === msg.id}
-                onCopy={() => handleCopy(msg)}
-                onSendToComposer={() => handleSendToComposer(msg)}
-                onArchive={() => handleArchive(msg)}
-                onDelete={() => handleDelete(msg)}
-                delay={i * 0.03}
-              />
-            ))
+        <p
+          className={cn(
+            "mt-0.5 truncate text-[11px]",
+            isUnread ? "text-foreground/80" : "text-muted-foreground"
           )}
+        >
+          {last.content}
+        </p>
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className="truncate text-[10px] text-muted-foreground">
+            {convo.subtitle || sourceMeta.label}
+          </span>
+          <span className="ml-auto shrink-0 text-[10px] font-medium text-muted-foreground">
+            {convo.count} {convo.count === 1 ? "msg" : "msgs"}
+          </span>
         </div>
-      </GlassCard>
+      </div>
+    </ListRow>
+  );
+}
+
+// ============ Conversation Detail (messages panel) ============
+function ConversationDetail({
+  convo,
+  copiedId,
+  onBack,
+  onCopy,
+  onSendToComposer,
+  onArchive,
+  onDelete,
+}: {
+  convo: Conversation;
+  copiedId: string | null;
+  onBack: () => void;
+  onCopy: (m: WhatsAppMessage) => void;
+  onSendToComposer: (m: WhatsAppMessage) => void;
+  onArchive: (m: WhatsAppMessage) => void;
+  onDelete: (m: WhatsAppMessage) => void;
+}) {
+  const sourceMeta = SOURCE_META[convo.source] ?? SOURCE_META.group;
+  const SourceIcon = sourceMeta.icon;
+
+  // Display oldest → newest (chat order)
+  const ordered = React.useMemo(
+    () => [...convo.messages].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    ),
+    [convo.messages]
+  );
+
+  return (
+    <div className="flex h-full min-h-[70vh] flex-col">
+      {/* Detail header */}
+      <div className="flex items-start gap-3 border-b border-border/40 p-4">
+        <button
+          onClick={onBack}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted/60 text-foreground transition hover:bg-muted lg:hidden"
+          aria-label="Back to conversations"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <NameAvatar name={convo.name} className="h-10 w-10 text-xs" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-sm font-bold">{convo.name}</span>
+            <Pill color={sourceMeta.color === "text-blue-500" ? "blue" : sourceMeta.color === "text-emerald-500" ? "green" : sourceMeta.color === "text-amber-500" ? "amber" : "violet"}>
+              <SourceIcon className="h-2.5 w-2.5" />
+              {sourceMeta.label}
+            </Pill>
+            {convo.newCount > 0 && (
+              <Pill color="green">{convo.newCount} new</Pill>
+            )}
+          </div>
+          <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            {convo.subtitle || `${convo.count} messages`}
+            {convo.lastMessage && (
+              <> · last {timeAgo(convo.lastMessage.createdAt)}</>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Messages list (chronological) */}
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3 scroll-liquid">
+        {ordered.map((msg) => (
+          <MessageBubble
+            key={msg.id}
+            msg={msg}
+            copied={copiedId === msg.id}
+            onCopy={() => onCopy(msg)}
+            onSendToComposer={() => onSendToComposer(msg)}
+            onArchive={() => onArchive(msg)}
+            onDelete={() => onDelete(msg)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============ Message Bubble (single message in detail panel) ============
+function MessageBubble({
+  msg,
+  copied,
+  onCopy,
+  onSendToComposer,
+  onArchive,
+  onDelete,
+}: {
+  msg: WhatsAppMessage;
+  copied: boolean;
+  onCopy: () => void;
+  onSendToComposer: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+  const statusMeta = STATUS_META[msg.status] ?? STATUS_META.new;
+
+  return (
+    <div className="group rounded-xl border border-border/40 bg-background/40 p-3 transition hover:border-border/60">
+      {/* Sender + meta */}
+      <div className="mb-2 flex items-center gap-2">
+        <NameAvatar name={msg.senderName} className="h-6 w-6 text-[10px]" />
+        <span className="truncate text-xs font-bold">{msg.senderName}</span>
+        {msg.isLive && (
+          <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-500">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+            Live
+          </span>
+        )}
+        <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+          {timeAgo(msg.createdAt)}
+        </span>
+        <Pill color={statusMeta.color}>{statusMeta.label}</Pill>
+      </div>
+
+      {/* Content */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full text-left"
+      >
+        <div className={cn("whitespace-pre-wrap text-xs text-foreground/90", !expanded && "line-clamp-4")}>
+          {msg.content}
+        </div>
+      </button>
+      {expanded && (
+        <div className="mt-1 text-[10px] text-muted-foreground">
+          {msg.content.length} characters · {msg.content.split("\n").length} lines
+        </div>
+      )}
+
+      {/* Media preview */}
+      {msg.mediaUrl && (
+        <div className="mt-2 overflow-hidden rounded-lg border border-border/40">
+          <img src={msg.mediaUrl} alt="" className="max-h-48 w-full object-cover" />
+        </div>
+      )}
+
+      {/* Action row */}
+      <div className="mt-2 flex items-center gap-1.5 opacity-100 transition lg:opacity-60 lg:group-hover:opacity-100">
+        <button
+          onClick={onSendToComposer}
+          className="liquid-pill flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold"
+        >
+          <Sparkles className="h-3 w-3" />
+          Send to Composer
+          <ChevronRight className="h-3 w-3" />
+        </button>
+        <button
+          onClick={onCopy}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          title="Copy content"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+        <button
+          onClick={onArchive}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          title="Archive"
+        >
+          <Archive className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={onDelete}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
+          title="Delete"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -531,7 +935,7 @@ function PasteForm({
   }
 
   return (
-    <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-muted/20 p-4">
+    <div className="mt-3 space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4">
       {/* Source + sender */}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -654,138 +1058,8 @@ function PasteForm({
   );
 }
 
-// ============ Message Card ============
-function MessageCard({
-  msg,
-  copied,
-  onCopy,
-  onSendToComposer,
-  onArchive,
-  onDelete,
-  delay,
-}: {
-  msg: WhatsAppMessage;
-  copied: boolean;
-  onCopy: () => void;
-  onSendToComposer: () => void;
-  onArchive: () => void;
-  onDelete: () => void;
-  delay: number;
-}) {
-  const [expanded, setExpanded] = React.useState(false);
-  const sourceMeta = SOURCE_META[msg.source] ?? SOURCE_META.group;
-  const statusMeta = STATUS_META[msg.status] ?? STATUS_META.new;
-  const SourceIcon = sourceMeta.icon;
-  const StatusIcon = statusMeta.icon;
-
-  return (
-    <div
-      className="crystal-in glass rounded-2xl border border-border/40 p-3 transition hover:lift-hover"
-      style={{ animationDelay: `${delay}s` }}
-    >
-      {/* Header */}
-      <div className="flex items-center gap-2">
-        <span className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-lg", sourceMeta.bg, sourceMeta.color)}>
-          <SourceIcon className="h-3.5 w-3.5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-bold">{msg.senderName}</span>
-            <span className={cn("rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase", statusMeta.bg, statusMeta.color)}>
-              {statusMeta.label}
-            </span>
-            {msg.isLive && (
-              <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-500">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                Live
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            {msg.groupName && <span className="truncate">{msg.groupName}</span>}
-            {msg.groupName && <span>·</span>}
-            <span>{timeAgo(msg.createdAt)}</span>
-            {msg.savedByName && (
-              <>
-                <span>·</span>
-                <span>by {msg.savedByName}</span>
-              </>
-            )}
-          </div>
-        </div>
-        <span className={cn("flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-semibold", sourceMeta.bg, sourceMeta.color)}>
-          <SourceIcon className="h-2.5 w-2.5" />
-          {sourceMeta.label}
-        </span>
-      </div>
-
-      {/* Content */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="mt-2 w-full text-left"
-      >
-        <div className={cn("text-sm text-foreground/90", !expanded && "line-clamp-3")}>
-          {msg.content}
-        </div>
-      </button>
-      {expanded && (
-        <div className="mt-1 text-[10px] text-muted-foreground">
-          {msg.content.length} characters · {msg.content.split("\n").length} lines
-        </div>
-      )}
-
-      {/* Media preview */}
-      {msg.mediaUrl && (
-        <div className="mt-2 overflow-hidden rounded-xl border border-border/40">
-          <img src={msg.mediaUrl} alt="" className="max-h-48 w-full object-cover" />
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="mt-2 flex items-center gap-1.5">
-        {/* Primary: Send to Composer */}
-        <button
-          onClick={onSendToComposer}
-          className="liquid-pill flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Send to Composer
-          <ChevronRight className="h-3 w-3" />
-        </button>
-
-        {/* Copy */}
-        <button
-          onClick={onCopy}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          title="Copy content"
-        >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-        </button>
-
-        {/* Archive */}
-        <button
-          onClick={onArchive}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          title="Archive"
-        >
-          <Archive className="h-3.5 w-3.5" />
-        </button>
-
-        {/* Delete */}
-        <button
-          onClick={onDelete}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
-          title="Delete"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ============ Connection Banner — live WhatsApp status ============
-function ConnectionBanner({
+// ============ Connection Status Bar — compact, Pill-based ============
+function ConnectionStatusBar({
   connection,
   connecting,
   onConnect,
@@ -802,92 +1076,98 @@ function ConnectionBanner({
   const isConnected = connection?.connected;
   const hasQR = connection?.qr;
 
-  // Service offline — show manual-mode banner (NOT blocking — paste still works)
+  // Status pill
+  let pillColor: "green" | "amber" | "rose" | "blue" = "amber";
+  let pillLabel = "Connecting…";
+  let PillIcon: LucideIcon = Loader2;
   if (isOffline) {
-    return (
-      <GlassCard className="crystal-in border-amber-500/30 bg-amber-500/5 p-4" style={{ animationDelay: "0.15s" }}>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-500">
-            <Smartphone className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold">Manual mode — paste messages below</div>
-            <div className="text-[11px] text-muted-foreground">
-              Live WhatsApp connection (QR scan) needs the WhatsApp service running. You can still
-              paste messages manually from any WhatsApp group or chat to send them to the composer.
-            </div>
-          </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-1.5 text-xs font-semibold transition hover:bg-muted"
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Retry connection
-          </button>
-        </div>
-      </GlassCard>
-    );
+    pillColor = "amber";
+    pillLabel = "Manual mode";
+    PillIcon = Smartphone;
+  } else if (isConnected) {
+    pillColor = "green";
+    pillLabel = "Connected";
+    PillIcon = Wifi;
+  } else if (hasQR) {
+    pillColor = "blue";
+    pillLabel = "QR ready";
+    PillIcon = QrCode;
   }
 
-  // Connected — show success state
-  if (isConnected) {
-    return (
-      <GlassCard className="crystal-in border-emerald-500/30 bg-emerald-500/5 p-4" style={{ animationDelay: "0.15s" }}>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-500">
-            <Wifi className="h-5 w-5" />
-            <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background">
-              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500 opacity-75" />
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-sm font-bold text-emerald-600 dark:text-emerald-400">
-              WhatsApp Connected
-              <Check className="h-3.5 w-3.5" />
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {connection?.phone ? `+${connection.phone}` : "Live"} — auto-receiving messages from groups & chats
-            </div>
-          </div>
-          <button
-            onClick={onDisconnect}
-            className="flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/20 dark:text-rose-400"
-          >
-            <X className="h-3.5 w-3.5" /> Disconnect
-          </button>
-        </div>
-      </GlassCard>
-    );
-  }
+  const subtitle = isOffline
+    ? "Paste messages manually — WhatsApp service isn't running."
+    : isConnected
+      ? (connection?.phone ? `+${connection.phone}` : "Live") + " — auto-receiving messages"
+      : "Scan a QR code with your phone — just like WhatsApp Web.";
 
-  // Disconnected — show connect button
   return (
-    <GlassCard className="crystal-in border-amber-500/30 bg-amber-500/5 p-4" style={{ animationDelay: "0.15s" }}>
+    <GlassCard className="crystal-in p-3">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-500">
-          <Smartphone className="h-5 w-5" />
+        {/* Status icon */}
+        <div className={cn(
+          "grid h-9 w-9 shrink-0 place-items-center rounded-xl",
+          isConnected ? "bg-emerald-500/15 text-emerald-500" : isOffline ? "bg-amber-500/15 text-amber-500" : "bg-amber-500/15 text-amber-500"
+        )}>
+          <PillIcon className={cn("h-4 w-4", (pillLabel === "Connecting…" || connecting) && "animate-spin")} />
         </div>
+
+        {/* Title + subtitle */}
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold">Connect your WhatsApp</div>
-          <div className="text-[11px] text-muted-foreground">
-            Scan a QR code with your phone — just like WhatsApp Web. Messages from groups & chats will appear here automatically.
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold">WhatsApp Connection</span>
+            <Pill color={pillColor}>
+              <PillIcon className="h-2.5 w-2.5" />
+              {pillLabel}
+            </Pill>
+            {isConnected && (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+            )}
           </div>
+          <div className="truncate text-[11px] text-muted-foreground">{subtitle}</div>
         </div>
-        <button
-          onClick={onConnect}
-          disabled={connecting}
-          className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-50"
-        >
-          {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
-          {connecting ? "Starting..." : "Scan QR Code"}
-        </button>
-        {hasQR && (
-          <button
-            onClick={onShowQR}
-            className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-2 text-xs font-semibold transition hover:bg-muted"
-          >
-            <QrCode className="h-3.5 w-3.5" /> Show QR
-          </button>
-        )}
+
+        {/* Action buttons */}
+        <div className="flex shrink-0 items-center gap-2">
+          {isOffline && (
+            <button
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-1.5 text-xs font-semibold transition hover:bg-muted"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Retry
+            </button>
+          )}
+          {!isOffline && !isConnected && (
+            <>
+              <button
+                onClick={onConnect}
+                disabled={connecting}
+                className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+              >
+                {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
+                {connecting ? "Starting…" : "Scan QR"}
+              </button>
+              {hasQR && (
+                <button
+                  onClick={onShowQR}
+                  className="flex items-center gap-1.5 rounded-lg border border-border/50 px-3 py-1.5 text-xs font-semibold transition hover:bg-muted"
+                >
+                  <QrCode className="h-3.5 w-3.5" /> Show QR
+                </button>
+              )}
+            </>
+          )}
+          {isConnected && (
+            <button
+              onClick={onDisconnect}
+              className="flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/20 dark:text-rose-400"
+            >
+              <X className="h-3.5 w-3.5" /> Disconnect
+            </button>
+          )}
+        </div>
       </div>
     </GlassCard>
   );
@@ -946,12 +1226,13 @@ function QRCodeDisplay({ connection }: { connection: ConnectionStatus | null }) 
 // ============ Skeleton ============
 function WhatsAppSkeleton() {
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimmer h-32 rounded-3xl" />)}
+    <div className="space-y-4">
+      <div className="shimmer h-12 rounded-xl" />
+      <div className="shimmer h-16 rounded-xl" />
+      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+        <div className="shimmer h-96 rounded-xl" />
+        <div className="shimmer h-96 rounded-xl" />
       </div>
-      <div className="shimmer h-48 rounded-3xl" />
-      <div className="shimmer h-96 rounded-3xl" />
     </div>
   );
 }

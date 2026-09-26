@@ -17,25 +17,32 @@ import {
 import {
   CalendarDays,
   CalendarClock,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
-  FileEdit,
   Plus,
   RotateCw,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks";
-import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+import { GlassCard } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
+import {
+  MetricRow,
+  SectionHeader,
+  ListRow,
+  Pill,
+  type Metric,
+} from "@/components/glass/dense-ui";
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Post } from "@/lib/types";
 
 type StatusFilter = "all" | "scheduled" | "published" | "draft";
+
+type PillColor = "neutral" | "green" | "amber" | "rose" | "blue" | "violet";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -44,6 +51,14 @@ const STATUS_LABEL: Record<StatusFilter, string> = {
   scheduled: "Scheduled",
   published: "Published",
   draft: "Drafts",
+};
+
+/** Status → Pill color map for both calendar day cells and sidebar rows. */
+const STATUS_PILL_COLOR: Record<Post["status"], PillColor> = {
+  published: "green",
+  scheduled: "blue",
+  draft: "amber",
+  failed: "rose",
 };
 
 /**
@@ -62,11 +77,43 @@ function postDate(p: Post): Date | null {
   return null;
 }
 
+/**
+ * Daily post-count series for the selected month (used as sparkline input).
+ * For the current month, only days up to today are included (no future zeros).
+ * For past/future months, all days of the month are included.
+ * Returns [] when fewer than 2 days are available (Sparkline renders empty).
+ */
+function sparkForStatus(
+  posts: Post[],
+  status: Post["status"] | "all",
+  month: Date
+): number[] {
+  const monthStart = startOfMonth(month);
+  const monthEnd = endOfMonth(month);
+  const now = new Date();
+  const effectiveEnd =
+    isSameMonth(month, now) && monthEnd.getTime() > now.getTime()
+      ? now
+      : monthEnd;
+  const days = eachDayOfInterval({ start: monthStart, end: effectiveEnd });
+  if (days.length < 2) return [];
+  return days.map((d) =>
+    posts.filter((p) => {
+      const pd = postDate(p);
+      if (!pd || !isSameDay(pd, d)) return false;
+      if (status === "all") return true;
+      return p.status === status;
+    }).length
+  );
+}
+
 export function CalendarView() {
   const { data, loading } = useApi<Post[]>("/api/posts");
   const { openComposer, openComposerWithPost } = useNav();
 
-  const [currentMonth, setCurrentMonth] = React.useState<Date>(() => startOfMonth(new Date()));
+  const [currentMonth, setCurrentMonth] = React.useState<Date>(() =>
+    startOfMonth(new Date())
+  );
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [selectedDay, setSelectedDay] = React.useState<Date>(() => new Date());
 
@@ -105,6 +152,15 @@ export function CalendarView() {
     return map;
   }, [filtered, currentMonth]);
 
+  const monthPostTotal = React.useMemo(
+    () =>
+      allPosts.filter((p) => {
+        const d = postDate(p);
+        return d ? isSameMonth(d, currentMonth) : false;
+      }).length,
+    [allPosts, currentMonth]
+  );
+
   const scheduledCount = React.useMemo(
     () =>
       allPosts.filter((p) => {
@@ -127,6 +183,44 @@ export function CalendarView() {
 
   const draftCount = allPosts.filter((p) => p.status === "draft").length;
 
+  // Dense metric strip — replaces 3 KpiCards with inline sparklines per metric.
+  const metrics: Metric[] = React.useMemo(
+    () => [
+      {
+        label: "Posts this month",
+        value: monthPostTotal,
+        spark: sparkForStatus(allPosts, "all", currentMonth),
+        color: "var(--primary)",
+      },
+      {
+        label: "Scheduled",
+        value: scheduledCount,
+        spark: sparkForStatus(allPosts, "scheduled", currentMonth),
+        color: "oklch(0.72 0.16 230)",
+      },
+      {
+        label: "Published",
+        value: publishedCount,
+        spark: sparkForStatus(allPosts, "published", currentMonth),
+        color: "oklch(0.74 0.18 165)",
+      },
+      {
+        label: "Drafts",
+        value: draftCount,
+        spark: sparkForStatus(allPosts, "draft", currentMonth),
+        color: "oklch(0.66 0.22 305)",
+      },
+    ],
+    [
+      allPosts,
+      currentMonth,
+      monthPostTotal,
+      scheduledCount,
+      publishedCount,
+      draftCount,
+    ]
+  );
+
   const selectedDayKey = format(selectedDay, "yyyy-MM-dd");
   const selectedDayPosts = postsByDay.get(selectedDayKey) ?? [];
 
@@ -134,38 +228,21 @@ export function CalendarView() {
 
   return (
     <div className="space-y-4">
-      <HelpText module="calendar"><strong className="text-foreground">Calendar</strong> shows your scheduled and published posts. Click any day to see what's planned.</HelpText>
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <KpiCard
-          label="Scheduled this month"
-          value={scheduledCount}
-          icon={<CalendarClock className="h-5 w-5" />}
-          accent="oklch(0.78 0.18 75)"
-          hint={format(currentMonth, "MMMM yyyy")}
-        />
-        <KpiCard
-          label="Published this month"
-          value={publishedCount}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-        />
-        <KpiCard
-          label="Drafts"
-          value={draftCount}
-          icon={<FileEdit className="h-5 w-5" />}
-          accent="oklch(0.66 0.22 305)"
-          hint="across workspace"
-        />
-      </div>
+      <HelpText module="calendar">
+        <strong className="text-foreground">Calendar</strong> shows your scheduled
+        and published posts. Click any day to see what&apos;s planned.
+      </HelpText>
+
+      {/* Dense metric strip — 4 metrics with inline sparklines (replaces 3 KpiCards) */}
+      <MetricRow metrics={metrics} />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        {/* Calendar */}
+        {/* Calendar container — card #1 */}
         <GlassCard strong className="glass-sheen relative overflow-hidden p-5">
           <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
-          <SectionTitle
+          <SectionHeader
             title={format(currentMonth, "MMMM yyyy")}
-            desc="Your content pipeline — click a day to inspect"
+            desc="Content pipeline — click a day to inspect"
             action={
               <div className="flex items-center gap-1.5">
                 <button
@@ -270,9 +347,12 @@ export function CalendarView() {
                           {format(day, "d")}
                         </span>
                         {posts.length > 0 && (
-                          <span className="rounded-full bg-muted px-1.5 text-[9px] font-semibold text-muted-foreground">
+                          <Pill
+                            color="neutral"
+                            className="px-1 py-0 text-[9px]"
+                          >
                             {posts.length}
-                          </span>
+                          </Pill>
                         )}
                       </div>
 
@@ -285,18 +365,25 @@ export function CalendarView() {
                               key={p.id}
                               className="flex items-center gap-1 rounded-lg bg-background/70 px-1 py-0.5"
                             >
-                              {platform && <PlatformBadge platform={platform} size={12} />}
-                              <span className="truncate text-[10px] font-medium">{p.title}</span>
-                              {dt && (
-                                <span className="ml-auto shrink-0 text-[9px] text-muted-foreground">
-                                  {format(dt, "HH:mm")}
-                                </span>
+                              {platform && (
+                                <PlatformBadge platform={platform} size={12} />
                               )}
+                              <span className="truncate text-[10px] font-medium">
+                                {p.title}
+                              </span>
+                              <Pill
+                                color={STATUS_PILL_COLOR[p.status]}
+                                className="ml-auto shrink-0 px-1 py-0 text-[8px] leading-tight"
+                              >
+                                {dt ? format(dt, "HH:mm") : p.status}
+                              </Pill>
                             </div>
                           );
                         })}
                         {overflow > 0 && (
-                          <div className="px-1 text-[9px] font-semibold text-primary">+{overflow} more</div>
+                          <div className="px-1 text-[9px] font-semibold text-primary">
+                            +{overflow} more
+                          </div>
                         )}
                       </div>
                     </button>
@@ -307,25 +394,25 @@ export function CalendarView() {
           </div>
         </GlassCard>
 
-        {/* Day detail sidebar */}
-        <GlassCard className="p-5">
-          <SectionTitle
+        {/* Day detail / upcoming list — card #2 (dense ListRow items) */}
+        <GlassCard className="p-4">
+          <SectionHeader
             title={format(selectedDay, "EEEE")}
             desc={format(selectedDay, "MMM d, yyyy")}
             action={
-              <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                {selectedDayPosts.length} posts
-              </span>
+              <Pill color="neutral">{selectedDayPosts.length} posts</Pill>
             }
           />
 
-          <div className="max-h-[70vh] space-y-2 overflow-y-auto scroll-liquid pr-1">
+          <div className="max-h-[70vh] overflow-y-auto scroll-liquid -mx-4">
             {selectedDayPosts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+              <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
                 <div className="grid h-12 w-12 place-items-center rounded-2xl bg-muted/60 text-muted-foreground">
                   <CalendarDays className="h-6 w-6" />
                 </div>
-                <div className="text-sm text-muted-foreground">Nothing scheduled for this day.</div>
+                <div className="text-sm text-muted-foreground">
+                  Nothing scheduled for this day.
+                </div>
                 <button
                   onClick={() => openComposer()}
                   className="liquid-pill flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"
@@ -336,74 +423,92 @@ export function CalendarView() {
             ) : (
               selectedDayPosts.map((p) => {
                 const dt = postDate(p);
-                const canRepublish = p.status === "draft" || p.status === "failed";
+                const canRepublish =
+                  p.status === "draft" || p.status === "failed";
                 return (
-                  <div
+                  <ListRow
                     key={p.id}
-                    className="rounded-2xl border border-border/40 bg-muted/20 p-3 transition hover:bg-muted/40"
+                    className="flex-col !items-stretch gap-2 px-4 py-2.5 hover:bg-muted/40"
                   >
-                    <div className="flex gap-3">
-                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-muted">
+                    {/* Row 1: thumbnail + title/caption + status pill */}
+                    <div className="flex gap-2.5">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
                         {p.mediaUrl ? (
-                          <img src={p.mediaUrl} alt="" className="h-full w-full object-cover" />
+                          <img
+                            src={p.mediaUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
                         ) : (
                           <div className="grid h-full w-full place-items-center text-muted-foreground">
-                            <CalendarClock className="h-5 w-5" />
+                            <CalendarClock className="h-4 w-4" />
                           </div>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold">{p.title}</div>
-                        <div className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">{p.caption}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-xs font-semibold">
+                            {p.title}
+                          </span>
+                          <Pill
+                            color={STATUS_PILL_COLOR[p.status]}
+                            className="ml-auto shrink-0 capitalize"
+                          >
+                            {p.status}
+                          </Pill>
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <Clock className="h-2.5 w-2.5 shrink-0" />
+                          <span className="tabular-nums">
+                            {dt ? format(dt, "HH:mm") : "—"}
+                          </span>
+                          <span className="text-muted-foreground/40">·</span>
+                          <NameAvatar
+                            name={p.authorName}
+                            className="h-3.5 w-3.5 text-[7px]"
+                          />
+                          <span className="truncate">{p.authorName}</span>
+                        </div>
+                        <div className="mt-1 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                          {p.caption}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-2 flex items-center gap-2">
-                      <NameAvatar name={p.authorName} className="h-6 w-6 text-[9px]" />
-                      <span className="text-[11px] text-muted-foreground">{p.authorName}</span>
-                      <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {dt ? format(dt, "HH:mm") : "—"}
-                      </span>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      {p.variants.map((v) => (
-                        <PlatformBadge key={v.id} platform={v.platform} size={20} />
-                      ))}
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[9px] font-semibold capitalize",
-                          p.status === "published"
-                            ? "bg-emerald-500/15 text-emerald-500"
-                            : p.status === "scheduled"
-                              ? "bg-primary/15 text-primary"
-                              : p.status === "failed"
-                                ? "bg-rose-500/15 text-rose-500"
-                                : "bg-muted text-muted-foreground"
+                    {/* Row 2: platform badges + action button */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
+                        {p.variants.slice(0, 4).map((v) => (
+                          <PlatformBadge
+                            key={v.id}
+                            platform={v.platform}
+                            size={14}
+                          />
+                        ))}
+                        {p.variants.length > 4 && (
+                          <span className="text-[9px] text-muted-foreground">
+                            +{p.variants.length - 4}
+                          </span>
                         )}
-                      >
-                        {p.status}
-                      </span>
+                      </div>
+                      {(canRepublish || p.status === "scheduled") && (
+                        <button
+                          onClick={() => {
+                            openComposerWithPost(p);
+                            toast.info(`Loaded "${p.title}" into composer`, {
+                              description: canRepublish
+                                ? "Edit and republish when ready."
+                                : "Reschedule or publish now.",
+                            });
+                          }}
+                          className="ml-auto flex items-center gap-1 rounded-lg border border-border/50 bg-background/60 px-2 py-1 text-[10px] font-semibold text-foreground transition hover:bg-primary hover:text-primary-foreground"
+                        >
+                          <RotateCw className="h-2.5 w-2.5" />
+                          {canRepublish ? "Republish" : "Edit"}
+                        </button>
+                      )}
                     </div>
-
-                    {(canRepublish || p.status === "scheduled") && (
-                      <button
-                        onClick={() => {
-                          openComposerWithPost(p);
-                          toast.info(`Loaded "${p.title}" into composer`, {
-                            description: canRepublish
-                              ? "Edit and republish when ready."
-                              : "Reschedule or publish now.",
-                          });
-                        }}
-                        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border/50 bg-background/60 px-3 py-1.5 text-[11px] font-semibold text-foreground transition hover:bg-primary hover:text-primary-foreground"
-                      >
-                        <RotateCw className="h-3 w-3" />
-                        {canRepublish ? "Republish draft" : "Edit & reschedule"}
-                      </button>
-                    )}
-                  </div>
+                  </ListRow>
                 );
               })
             )}
@@ -417,11 +522,7 @@ export function CalendarView() {
 function CalendarSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="shimmer h-32 rounded-3xl" />
-        ))}
-      </div>
+      <div className="shimmer h-10 rounded-xl" />
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
         <div className="shimmer h-[640px] rounded-3xl" />
         <div className="shimmer h-[640px] rounded-3xl" />

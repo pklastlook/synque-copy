@@ -20,7 +20,8 @@ export type ViewId =
   | "tasks"
   | "admin"
   | "owner"
-  | "team-performance";
+  | "team-performance"
+  | "organization";
 
 export interface PlatformAccount {
   id: string;
