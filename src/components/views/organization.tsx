@@ -13,12 +13,10 @@ import {
   Pencil,
   Trash2,
   Save,
-  X,
   Mail,
   Phone,
   Calendar,
   Globe,
-  UserCircle,
   Crown,
   Loader2,
   Search,
@@ -32,8 +30,10 @@ import {
   Database,
   Server,
   Link2,
+  LayoutGrid,
+  type LucideIcon,
 } from "lucide-react";
-import { GlassCard, SectionTitle, KpiCard } from "@/components/glass/glass-card";
+import { GlassCard } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
 import { cn } from "@/lib/utils";
@@ -44,7 +44,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +66,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  MetricRow,
+  SectionHeader,
+  HeroChart,
+  ListRow,
+  Pill,
+  NavCard,
+  type Metric,
+} from "@/components/glass/dense-ui";
 import { TeamView } from "@/components/views/team";
 
 // ============================================================================
@@ -82,57 +90,72 @@ export type OrgTab =
   | "departments"
   | "designations";
 
-export interface OrgTabDef {
+interface OrgTabDef {
   id: OrgTab;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   description: string;
+  accent: string;
 }
 
-export const ORG_TABS: OrgTabDef[] = [
+const ORG_NAV: OrgTabDef[] = [
+  {
+    id: "overview",
+    label: "Overview",
+    icon: LayoutGrid,
+    description: "Org-wide snapshot",
+    accent: "oklch(0.62 0.22 300)",
+  },
   {
     id: "organisation",
     label: "Organisation",
     icon: Building2,
-    description: "Your tenant organisation profile, dedicated database, and plan.",
-  },
-  {
-    id: "overview",
-    label: "Overview",
-    icon: Building2,
-    description: "Org-wide snapshot of your people, roles, and structure.",
+    description: "Tenant profile & DB",
+    accent: "oklch(0.55 0.2 255)",
   },
   {
     id: "users",
-    label: "Users",
+    label: "Members",
     icon: Users,
-    description: "Every account holder in this workspace — full CRUD.",
+    description: "User directory & CRUD",
+    accent: "oklch(0.66 0.18 200)",
   },
   {
     id: "team",
     label: "Team",
     icon: Shield,
-    description: "Member cards, workload distribution, and invitations.",
+    description: "Member cards & invites",
+    accent: "oklch(0.55 0.2 25)",
   },
   {
     id: "roles",
     label: "Roles",
     icon: BadgeCheck,
-    description: "Define the roles available when adding or editing users.",
+    description: "Access levels",
+    accent: "oklch(0.62 0.22 300)",
   },
   {
     id: "departments",
     label: "Departments",
     icon: Briefcase,
-    description: "Create, edit, and remove departments in your org chart.",
+    description: "Org structure",
+    accent: "oklch(0.68 0.2 145)",
   },
   {
     id: "designations",
     label: "Designations",
     icon: Crown,
-    description: "Manage the list of job titles (designations).",
+    description: "Job titles & levels",
+    accent: "oklch(0.78 0.18 75)",
   },
 ];
+
+/** Backward-compat export consumed by app-sidebar (sub-tab list). */
+export const ORG_TABS: ReadonlyArray<{ id: OrgTab; label: string; icon: LucideIcon }> = ORG_NAV.map((t) => ({
+  id: t.id,
+  label: t.label,
+  icon: t.icon,
+}));
 
 function getToken(): string | null {
   try {
@@ -156,59 +179,52 @@ async function apiFetch(path: string, init?: RequestInit) {
 }
 
 // ============================================================================
-// Main component
+// Main component — dense two-pane layout (NavCard sidebar + content)
 // ============================================================================
 
 export function OrganizationView() {
   const { orgTab, setOrgTab } = useNav();
   const tab: OrgTab = (orgTab as OrgTab) || "overview";
-  const activeDef = ORG_TABS.find((t) => t.id === tab) ?? ORG_TABS[0];
+  const activeDef = ORG_NAV.find((t) => t.id === tab) ?? ORG_NAV[0];
   const ActiveIcon = activeDef.icon;
 
   return (
-    <div className="animate-rise space-y-4">
-      {/* Breadcrumb header */}
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-5">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/25 blur-3xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Building2 className="h-3.5 w-3.5" />
+    <div className="animate-rise grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+      {/* ---------- Sidebar (NavCard list) ---------- */}
+      <aside className="lg:sticky lg:top-4 lg:self-start space-y-3">
+        <GlassCard strong className="glass-sheen relative overflow-hidden p-4">
+          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/20 blur-3xl" />
+          <div className="relative">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+              <Building2 className="h-3 w-3" />
               <span>Organization</span>
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
               <span className="flex items-center gap-1.5 font-semibold text-primary">
-                <ActiveIcon className="h-3.5 w-3.5" />
+                <ActiveIcon className="h-3 w-3" />
                 {activeDef.label}
               </span>
             </div>
-            <h2 className="mt-2 text-xl font-bold tracking-tight sm:text-2xl">{activeDef.label}</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">{activeDef.description}</p>
+            <h2 className="mt-1.5 text-base font-bold tracking-tight">{activeDef.label}</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{activeDef.description}</p>
           </div>
-          {/* Sub-tab pills — quick switch */}
-          <div className="flex flex-wrap gap-1.5">
-            {ORG_TABS.map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setOrgTab(t.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition",
-                    active
-                      ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_var(--ring)]"
-                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </GlassCard>
+        </GlassCard>
 
+        <div className="space-y-2">
+          {ORG_NAV.map((t) => (
+            <NavCard
+              key={t.id}
+              icon={t.icon}
+              title={t.label}
+              desc={t.description}
+              accent={t.accent}
+              active={tab === t.id}
+              onClick={() => setOrgTab(t.id)}
+            />
+          ))}
+        </div>
+      </aside>
+
+      {/* ---------- Content pane ---------- */}
       <div className="min-w-0 space-y-4">
         {tab === "organisation" && <OrganisationSection />}
         {tab === "overview" && <OverviewSection />}
@@ -216,7 +232,7 @@ export function OrganizationView() {
         {tab === "team" && (
           <div className="space-y-4">
             <HelpText module="organization-team">
-              The <strong className="text-foreground">Team</strong> tab shows member cards, workload distribution, and lets you invite or create new members. Manage the <em>list</em> of available roles / departments / designations in their respective tabs above.
+              The <strong className="text-foreground">Team</strong> tab shows member cards, workload distribution, and lets you invite or create new members. Manage the <em>list</em> of available roles / departments / designations in their respective tabs in the sidebar.
             </HelpText>
             <TeamView />
           </div>
@@ -260,8 +276,6 @@ function OrganisationSection() {
   const { data: org, loading } = useApi<OrgInfo | OrgInfo[]>("/api/customers");
   const { data: users } = useApi<UserRow[]>("/api/users");
 
-  // For super-admin: shows the first customer (or all customers as cards)
-  // For tenant users: shows their own organisation
   const myOrg: OrgInfo | null = React.useMemo(() => {
     if (!org) return null;
     if (Array.isArray(org)) {
@@ -280,13 +294,16 @@ function OrganisationSection() {
   if (loading || !myOrg) {
     return (
       <div className="space-y-4">
-        <div className="shimmer h-32 rounded-3xl" />
-        <div className="shimmer h-48 rounded-3xl" />
+        <div className="shimmer h-24 rounded-xl" />
+        <div className="shimmer h-48 rounded-xl" />
       </div>
     );
   }
 
   const dbInfo = myOrg.database;
+  const planPill = myOrg.plan === "enterprise" ? "violet" : myOrg.plan === "pro" ? "blue" : "neutral";
+  const statusPill =
+    myOrg.status === "active" ? "green" : myOrg.status === "trial" ? "amber" : "rose";
 
   return (
     <div className="space-y-4">
@@ -294,89 +311,89 @@ function OrganisationSection() {
         <strong className="text-foreground">Organisation</strong> is your tenant — a client workspace with its own dedicated database. All users, roles, departments, designations, posts, and accounts you create here are stored in this organisation&apos;s isolated database for full data isolation.
       </HelpText>
 
-      {/* Organisation identity card */}
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-primary/25 blur-3xl" />
+      {/* Tenant identity hero card — Card #1 */}
+      <GlassCard strong className="glass-sheen relative overflow-hidden p-5">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-primary/25 blur-3xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/15 text-2xl font-bold text-primary">
+          <div className="flex items-center gap-3.5">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/15 text-xl font-bold text-primary">
               {(myOrg.company ?? myOrg.name).charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xl font-bold tracking-tight sm:text-2xl">{myOrg.company ?? myOrg.name}</h3>
-                <span className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                  myOrg.status === "active" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" :
-                  myOrg.status === "trial" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
-                  "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-                )}>
-                  {myOrg.status}
-                </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <h3 className="text-lg font-bold tracking-tight">{myOrg.company ?? myOrg.name}</h3>
+                <Pill color={statusPill as "green" | "amber" | "rose"}>{myOrg.status}</Pill>
+                <Pill color={planPill as "violet" | "blue" | "neutral"}>Plan · {myOrg.plan}</Pill>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 {myOrg.email}{myOrg.phone ? ` · ${myOrg.phone}` : ""}{myOrg.country ? ` · ${myOrg.country}` : ""}
               </p>
               <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                Plan: <span className="font-semibold uppercase">{myOrg.plan}</span> · Member since {new Date(myOrg.createdAt).toLocaleDateString()}
+                Member since {new Date(myOrg.createdAt).toLocaleDateString()}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded-xl border border-border/40 bg-muted/30 px-3 py-1.5 text-[11px] font-semibold">
+            <span className="rounded-xl border border-border/40 bg-muted/30 px-3 py-1.5 text-[11px] font-semibold tabular-nums">
               {memberCount} member{memberCount === 1 ? "" : "s"}
             </span>
           </div>
         </div>
       </GlassCard>
 
-      {/* Dedicated database panel */}
-      <GlassCard className="p-5">
-        <SectionTitle
-          title="Dedicated database"
-          desc="Each organisation has its own isolated PostgreSQL database. All tenant-scoped data lives here."
-        />
+      {/* Dedicated database panel — Card #2 */}
+      <HeroChart
+        title="Dedicated database"
+        desc="Each organisation has its own isolated PostgreSQL database. All tenant-scoped data lives here."
+        action={
+          dbInfo ? (
+            <Pill color="green">
+              <Check className="h-2.5 w-2.5" /> Isolated
+            </Pill>
+          ) : (
+            <Pill color="amber">
+              <ShieldAlert className="h-2.5 w-2.5" /> Shared
+            </Pill>
+          )
+        }
+      >
         {dbInfo ? (
-          <div className="mt-4 space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <DbStat icon={<Database className="h-4 w-4" />} label="Database name" value={dbInfo.dbName} />
-              <DbStat icon={<Server className="h-4 w-4" />} label="Status" value={dbInfo.status} badge />
-              <DbStat icon={<Calendar className="h-4 w-4" />} label="Provisioned" value={new Date(dbInfo.createdAt).toLocaleString()} />
-              <DbStat icon={<Link2 className="h-4 w-4" />} label="Connection" value={dbInfo.dbUrl ? `...${dbInfo.dbUrl.slice(-40)}` : "—"} />
+          <div className="space-y-3">
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <DbStat icon={<Database className="h-3.5 w-3.5" />} label="Database name" value={dbInfo.dbName} />
+              <DbStat icon={<Server className="h-3.5 w-3.5" />} label="Status" value={dbInfo.status} badge />
+              <DbStat icon={<Calendar className="h-3.5 w-3.5" />} label="Provisioned" value={new Date(dbInfo.createdAt).toLocaleString()} />
+              <DbStat icon={<Link2 className="h-3.5 w-3.5" />} label="Connection" value={dbInfo.dbUrl ? `...${dbInfo.dbUrl.slice(-40)}` : "—"} />
             </div>
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <Check className="h-3.5 w-3.5" />
-                Database isolated · all tenant data is stored here
-              </div>
-              <p className="mt-1 pl-5 text-[11px] text-muted-foreground">
-                Users in this organisation are linked to this database. Roles, departments, designations, posts, accounts, and analytics created here are isolated from other organisations.
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-2.5">
+              <p className="text-[11px] text-muted-foreground">
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Database isolated.</span> Users in this organisation are linked to this database. Roles, departments, designations, posts, accounts, and analytics created here are isolated from other organisations.
               </p>
             </div>
           </div>
         ) : (
-          <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
-              <ShieldAlert className="h-4 w-4" />
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              <ShieldAlert className="h-3.5 w-3.5" />
               No dedicated database provisioned
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-[11px] text-muted-foreground">
               This organisation is currently using the shared main database with row-level filtering. Ask the workspace owner to provision a dedicated database from the <strong>Owner Panel → Customers</strong> screen for full data isolation.
             </p>
           </div>
         )}
-      </GlassCard>
+      </HeroChart>
 
-      {/* Address / contact panel */}
+      {/* Contact / address — Card #3 (conditional) */}
       {(myOrg.address || myOrg.city || myOrg.country || myOrg.phone) && (
-        <GlassCard className="p-5">
-          <SectionTitle title="Contact & address" desc="Organisation contact details" />
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {myOrg.address && <DbStat icon={<Building2 className="h-4 w-4" />} label="Address" value={myOrg.address} />}
-            {myOrg.city && <DbStat icon={<Building2 className="h-4 w-4" />} label="City" value={myOrg.city} />}
-            {myOrg.country && <DbStat icon={<Globe className="h-4 w-4" />} label="Country" value={myOrg.country} />}
-            {myOrg.phone && <DbStat icon={<Phone className="h-4 w-4" />} label="Phone" value={myOrg.phone} />}
-            {myOrg.email && <DbStat icon={<Mail className="h-4 w-4" />} label="Email" value={myOrg.email} />}
+        <GlassCard className="p-4">
+          <SectionHeader title="Contact & address" desc="Organisation contact details" icon={Building2} />
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {myOrg.address && <DbStat icon={<Building2 className="h-3.5 w-3.5" />} label="Address" value={myOrg.address} />}
+            {myOrg.city && <DbStat icon={<Building2 className="h-3.5 w-3.5" />} label="City" value={myOrg.city} />}
+            {myOrg.country && <DbStat icon={<Globe className="h-3.5 w-3.5" />} label="Country" value={myOrg.country} />}
+            {myOrg.phone && <DbStat icon={<Phone className="h-3.5 w-3.5" />} label="Phone" value={myOrg.phone} />}
+            {myOrg.email && <DbStat icon={<Mail className="h-3.5 w-3.5" />} label="Email" value={myOrg.email} />}
           </div>
         </GlassCard>
       )}
@@ -386,18 +403,18 @@ function OrganisationSection() {
 
 function DbStat({ icon, label, value, badge }: { icon: React.ReactNode; label: string; value: string; badge?: boolean }) {
   return (
-    <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+    <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5">
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         {icon}
         {label}
       </div>
-      <div className={cn("mt-1 truncate text-sm font-semibold", badge && "capitalize")}>{value}</div>
+      <div className={cn("mt-1 truncate text-xs font-semibold", badge && "capitalize")}>{value}</div>
     </div>
   );
 }
 
 // ============================================================================
-// Overview
+// Overview — org-wide snapshot
 // ============================================================================
 
 function OverviewSection() {
@@ -409,6 +426,7 @@ function OverviewSection() {
   const userCount = users?.length ?? 0;
   const adminCount = users?.filter((u) => u.role === "admin").length ?? 0;
   const activeCount = users?.filter((u) => u.status === "active").length ?? 0;
+  const systemRoleCount = (roles ?? []).filter((r) => r.isSystem).length;
 
   const deptCounts = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -428,79 +446,98 @@ function OverviewSection() {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
   }, [users]);
 
+  const metrics: Metric[] = [
+    { label: "Total users", value: userCount, color: "oklch(0.66 0.18 200)", spark: activeCount ? [userCount - activeCount, activeCount] : [userCount] },
+    { label: "Active", value: activeCount, color: "oklch(0.68 0.2 145)" },
+    { label: "Admins", value: adminCount, color: "oklch(0.55 0.2 25)" },
+    { label: "Roles", value: roles?.length ?? 0, color: "oklch(0.62 0.22 300)" },
+    { label: "Departments", value: departments?.length ?? 0, color: "oklch(0.78 0.18 75)" },
+    { label: "Designations", value: designations?.length ?? 0, color: "oklch(0.72 0.18 165)" },
+  ];
+
   return (
     <div className="space-y-4">
       <HelpText module="organization-overview">
-        The <strong className="text-foreground">Organization</strong> module is your single hub for managing your team structure — users, team members, roles, departments, and designations. Use the sub-tabs above to switch between management screens.
+        The <strong className="text-foreground">Organization</strong> module is your single hub for managing your team structure — users, team members, roles, departments, and designations. Use the sidebar to switch between management screens.
       </HelpText>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Total users" value={userCount} icon={<Users className="h-5 w-5" />} accent="var(--primary)" hint={`${activeCount} active`} />
-        <KpiCard label="Admins" value={adminCount} icon={<Shield className="h-5 w-5" />} accent="oklch(0.55 0.2 25)" hint="full access" />
-        <KpiCard label="Roles" value={roles?.length ?? 0} icon={<BadgeCheck className="h-5 w-5" />} accent="oklch(0.62 0.22 300)" hint="configured" />
-        <KpiCard label="Departments" value={departments?.length ?? 0} icon={<Briefcase className="h-5 w-5" />} accent="oklch(0.68 0.2 145)" hint="active" />
-      </div>
+      {/* MetricRow replaces 4-KpiCard grid — Card #1 */}
+      <MetricRow metrics={metrics} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <GlassCard className="p-5">
-          <SectionTitle title="Members per department" desc="Where your people sit today" />
-          <div className="mt-3 space-y-2">
-            {deptCounts.length === 0 && (
-              <p className="text-xs text-muted-foreground">No users yet.</p>
-            )}
-            {deptCounts.map(([name, count]) => {
-              const max = Math.max(1, ...deptCounts.map((d) => d[1]));
-              const pct = Math.round((count / max) * 100);
-              const color = (departments ?? []).find((d) => d.name === name)?.color ?? "var(--primary)";
-              return (
-                <div key={name} className="flex items-center gap-3">
-                  <div className="w-28 truncate text-xs font-medium">{name}</div>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-                  </div>
-                  <div className="w-8 text-right text-xs font-semibold tabular-nums">{count}</div>
+      {/* Department distribution — Card #2 */}
+      <HeroChart
+        title="Members per department"
+        desc="Where your people sit today"
+        action={<Pill>{deptCounts.length} groups</Pill>}
+      >
+        <div className="space-y-2">
+          {deptCounts.length === 0 && (
+            <p className="text-xs text-muted-foreground">No users yet.</p>
+          )}
+          {deptCounts.map(([name, count]) => {
+            const max = Math.max(1, ...deptCounts.map((d) => d[1]));
+            const pct = Math.round((count / max) * 100);
+            const color = (departments ?? []).find((d) => d.name === name)?.color ?? "var(--primary)";
+            return (
+              <div key={name} className="flex items-center gap-3">
+                <div className="w-28 truncate text-xs font-medium">{name}</div>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
                 </div>
-              );
-            })}
-          </div>
-        </GlassCard>
+                <div className="w-8 text-right text-xs font-semibold tabular-nums">{count}</div>
+              </div>
+            );
+          })}
+        </div>
+      </HeroChart>
 
-        <GlassCard className="p-5">
-          <SectionTitle title="Members per role" desc="Access-level distribution" />
-          <div className="mt-3 space-y-2">
-            {roleCounts.length === 0 && (
-              <p className="text-xs text-muted-foreground">No users yet.</p>
-            )}
-            {roleCounts.map(([name, count]) => {
-              const max = Math.max(1, ...roleCounts.map((d) => d[1]));
-              const pct = Math.round((count / max) * 100);
-              return (
-                <div key={name} className="flex items-center gap-3">
-                  <div className="w-28 truncate text-xs font-medium capitalize">{name}</div>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="w-8 text-right text-xs font-semibold tabular-nums">{count}</div>
+      {/* Role distribution — Card #3 */}
+      <HeroChart
+        title="Members per role"
+        desc="Access-level distribution"
+        action={<Pill color="violet">{systemRoleCount} system</Pill>}
+      >
+        <div className="space-y-2">
+          {roleCounts.length === 0 && (
+            <p className="text-xs text-muted-foreground">No users yet.</p>
+          )}
+          {roleCounts.map(([name, count]) => {
+            const max = Math.max(1, ...roleCounts.map((d) => d[1]));
+            const pct = Math.round((count / max) * 100);
+            const isAdmin = name === "admin";
+            return (
+              <div key={name} className="flex items-center gap-3">
+                <div className="w-28 truncate text-xs font-medium capitalize">{name}</div>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${pct}%`, background: isAdmin ? "oklch(0.55 0.2 25)" : "var(--primary)" }}
+                  />
                 </div>
-              );
-            })}
-          </div>
-        </GlassCard>
-      </div>
+                <div className="w-8 text-right text-xs font-semibold tabular-nums">{count}</div>
+              </div>
+            );
+          })}
+        </div>
+      </HeroChart>
 
-      <GlassCard className="p-5">
-        <SectionTitle title="Designations" desc="Available job titles in your workspace" />
-        <div className="mt-3 flex flex-wrap gap-2">
+      {/* Designations pills — Card #4 */}
+      <GlassCard className="p-4">
+        <SectionHeader
+          title="Designations"
+          desc="Available job titles in your workspace"
+          icon={Crown}
+        />
+        <div className="flex flex-wrap gap-1.5">
           {(designations ?? []).length === 0 && (
-            <p className="text-xs text-muted-foreground">No designations yet — switch to the Designations tab to add some.</p>
+            <p className="text-xs text-muted-foreground">No designations yet — switch to the Designations tab in the sidebar to add some.</p>
           )}
           {(designations ?? []).map((d) => (
-            <Badge key={d.id} variant="secondary" className="gap-1.5 rounded-full capitalize">
-              <Crown className="h-3 w-3 text-amber-500" />
+            <Pill key={d.id} color="amber">
+              <Crown className="h-2.5 w-2.5" />
               {d.name}
-              <span className="text-[10px] text-muted-foreground">Lv {d.level}</span>
-            </Badge>
+              <span className="opacity-70">Lv {d.level}</span>
+            </Pill>
           ))}
         </div>
       </GlassCard>
@@ -509,7 +546,7 @@ function OverviewSection() {
 }
 
 // ============================================================================
-// Users — full CRUD over all users in this tenant
+// Users — full CRUD over all users in this tenant (Members section)
 // ============================================================================
 
 interface UserRow {
@@ -557,18 +594,38 @@ function UsersSection() {
     return arr.sort((a, b) => a.name.localeCompare(b.name));
   }, [data, search, filterRole, filterDept]);
 
-  if (loading) return <UsersSkeleton />;
+  const metrics: Metric[] = React.useMemo(() => {
+    const total = data?.length ?? 0;
+    const active = (data ?? []).filter((u) => u.status === "active").length;
+    const admins = (data ?? []).filter((u) => u.role === "admin").length;
+    const suspended = (data ?? []).filter((u) => u.status === "suspended").length;
+    return [
+      { label: "Total members", value: total, color: "oklch(0.66 0.18 200)" },
+      { label: "Active", value: active, color: "oklch(0.68 0.2 145)" },
+      { label: "Admins", value: admins, color: "oklch(0.55 0.2 25)" },
+      { label: "Suspended", value: suspended, color: "oklch(0.62 0.24 15)" },
+    ];
+  }, [data]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="shimmer h-14 rounded-xl" />
+        <div className="shimmer h-20 rounded-xl" />
+        <div className="shimmer h-96 rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <HelpText module="organization-users">
-        <strong className="text-foreground">Users</strong> is the master directory. Add, edit, search, and remove every account in this workspace. To manage the <em>list</em> of roles / departments / designations, use their tabs above.
-      </HelpText>
+      {/* MetricRow — Card #1 */}
+      <MetricRow metrics={metrics} />
 
-      {/* Toolbar */}
-      <GlassCard className="p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[220px] flex-1">
+      {/* Toolbar — Card #2 */}
+      <GlassCard className="p-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name or email…"
@@ -578,7 +635,7 @@ function UsersSection() {
             />
           </div>
           <Select value={filterRole} onValueChange={setFilterRole}>
-            <SelectTrigger className="w-[160px]"><SelectValue placeholder="All roles" /></SelectTrigger>
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder="All roles" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All roles</SelectItem>
               {(roles ?? []).map((r) => (
@@ -587,7 +644,7 @@ function UsersSection() {
             </SelectContent>
           </Select>
           <Select value={filterDept} onValueChange={setFilterDept}>
-            <SelectTrigger className="w-[180px]"><SelectValue placeholder="All departments" /></SelectTrigger>
+            <SelectTrigger className="w-[170px]"><SelectValue placeholder="All departments" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All departments</SelectItem>
               {(departments ?? []).map((d) => (
@@ -605,115 +662,112 @@ function UsersSection() {
         </div>
       </GlassCard>
 
-      {/* Users table */}
-      <GlassCard className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold">User</th>
-                <th className="px-4 py-3 text-left font-semibold">Role</th>
-                <th className="px-4 py-3 text-left font-semibold">Department</th>
-                <th className="px-4 py-3 text-left font-semibold">Designation</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-right font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                    No users match your filters.
-                  </td>
-                </tr>
-              )}
-              {filtered.map((u) => {
-                const isYou = u.id === currentUser?.id;
-                return (
-                  <tr key={u.id} className="border-t border-border/40 transition hover:bg-muted/30">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <NameAvatar name={u.name} src={u.avatar} color={u.color} gender={u.gender ?? undefined} className="h-9 w-9 text-xs" />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate font-semibold">{u.name}</span>
-                            {isYou && <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">You</span>}
-                          </div>
-                          <div className="truncate text-[11px] text-muted-foreground">{u.email}</div>
-                        </div>
+      {/* Members list — Card #3 */}
+      <HeroChart
+        title={`Members (${filtered.length})`}
+        desc="Full user directory with search and filters"
+        action={<Pill color="blue">{filtered.length} shown</Pill>}
+      >
+        <div className="-mx-3 -mb-3 max-h-[640px] overflow-y-auto">
+          {/* Header row */}
+          <div className="flex items-center gap-3 border-b border-border/40 bg-muted/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sticky top-0">
+            <div className="min-w-[200px] flex-1">User</div>
+            <div className="w-24">Role</div>
+            <div className="w-28">Department</div>
+            <div className="w-24">Designation</div>
+            <div className="w-20">Status</div>
+            <div className="w-8 text-right">·</div>
+          </div>
+          {filtered.length === 0 && (
+            <div className="px-3 py-12 text-center text-sm text-muted-foreground">
+              No users match your filters.
+            </div>
+          )}
+          {filtered.map((u) => {
+            const isYou = u.id === currentUser?.id;
+            const roleColor =
+              u.role === "admin" ? "rose"
+              : u.role === "manager" ? "violet"
+              : u.role === "editor" ? "blue"
+              : "neutral";
+            const statusColor =
+              u.status === "active" ? "green"
+              : u.status === "invited" ? "amber"
+              : "rose";
+            return (
+              <ListRow key={u.id} className="!py-2">
+                <div className="min-w-[200px] flex-1">
+                  <div className="flex items-center gap-2.5">
+                    <NameAvatar name={u.name} src={u.avatar} color={u.color} gender={u.gender ?? undefined} className="h-8 w-8 text-[11px]" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-semibold">{u.name}</span>
+                        {isYou && <Pill color="blue">You</Pill>}
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize",
-                        u.role === "admin" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
-                      )}>
-                        {u.role === "admin" && <Shield className="h-3 w-3" />}
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs">{u.department ?? <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-4 py-3 text-xs">{u.title ?? <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-4 py-3">
-                      <span className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
-                        u.status === "active" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" :
-                        u.status === "invited" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
-                        "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-                      )}>
-                        {u.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 rounded-lg p-0" aria-label="User actions">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44 rounded-xl">
-                          <DropdownMenuItem onClick={() => setEditing(u)}>
-                            <Pencil className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              apiFetch("/api/users", {
-                                method: "PATCH",
-                                body: JSON.stringify({ id: u.id, status: u.status === "suspended" ? "active" : "suspended" }),
-                              }).then((r) => {
-                                if (r.ok) { toast.success(u.status === "suspended" ? "User reactivated" : "User suspended"); reload(); }
-                                else { toast.error("Failed to update status"); }
-                              });
-                            }}
-                          >
-                            <ShieldAlert className="mr-2 h-4 w-4" /> {u.status === "suspended" ? "Reactivate" : "Suspend"}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-rose-500 focus:text-rose-500"
-                            disabled={u.role === "admin"}
-                            onClick={async () => {
-                              if (u.role === "admin") { toast.error("Cannot delete an admin — demote first"); return; }
-                              if (!confirm(`Permanently delete ${u.name}? This removes their account.`)) return;
-                              const res = await apiFetch(`/api/team/${u.id}?reassignTo=${currentUser?.id ?? ""}`, { method: "DELETE" });
-                              if (res.ok) { toast.success("User deleted"); reload(); }
-                              else { const j = await res.json().catch(() => ({})); toast.error(j.error ?? "Failed to delete"); }
-                            }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      <div className="truncate text-[10px] text-muted-foreground">{u.email}</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="w-24">
+                  <Pill color={roleColor as "rose" | "violet" | "blue" | "neutral"}>
+                    {u.role === "admin" && <Shield className="h-2.5 w-2.5" />}
+                    <span className="capitalize">{u.role}</span>
+                  </Pill>
+                </div>
+                <div className="w-28 truncate text-xs">{u.department ?? <span className="text-muted-foreground">—</span>}</div>
+                <div className="w-24 truncate text-xs">{u.title ?? <span className="text-muted-foreground">—</span>}</div>
+                <div className="w-20">
+                  <Pill color={statusColor as "green" | "amber" | "rose"}>
+                    <span className="capitalize">{u.status}</span>
+                  </Pill>
+                </div>
+                <div className="w-8 text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 rounded-lg p-0" aria-label="User actions">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44 rounded-xl">
+                      <DropdownMenuItem onClick={() => setEditing(u)}>
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          apiFetch("/api/users", {
+                            method: "PATCH",
+                            body: JSON.stringify({ id: u.id, status: u.status === "suspended" ? "active" : "suspended" }),
+                          }).then((r) => {
+                            if (r.ok) { toast.success(u.status === "suspended" ? "User reactivated" : "User suspended"); reload(); }
+                            else { toast.error("Failed to update status"); }
+                          });
+                        }}
+                      >
+                        <ShieldAlert className="mr-2 h-4 w-4" /> {u.status === "suspended" ? "Reactivate" : "Suspend"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-rose-500 focus:text-rose-500"
+                        disabled={u.role === "admin"}
+                        onClick={async () => {
+                          if (u.role === "admin") { toast.error("Cannot delete an admin — demote first"); return; }
+                          if (!confirm(`Permanently delete ${u.name}? This removes their account.`)) return;
+                          const res = await apiFetch(`/api/team/${u.id}?reassignTo=${currentUser?.id ?? ""}`, { method: "DELETE" });
+                          if (res.ok) { toast.success("User deleted"); reload(); }
+                          else { const j = await res.json().catch(() => ({})); toast.error(j.error ?? "Failed to delete"); }
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </ListRow>
+            );
+          })}
         </div>
-      </GlassCard>
+      </HeroChart>
 
-      {/* Edit dialog */}
       {editing && (
         <UserEditDialog
           user={editing}
@@ -724,8 +778,6 @@ function UsersSection() {
           onSaved={() => { setEditing(null); reload(); }}
         />
       )}
-
-      {/* Create dialog */}
       {creating && (
         <UserCreateDialog
           roles={roles ?? []}
@@ -739,16 +791,7 @@ function UsersSection() {
   );
 }
 
-function UsersSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="shimmer h-20 rounded-3xl" />
-      <div className="shimmer h-96 rounded-3xl" />
-    </div>
-  );
-}
-
-// ---- Edit dialog ----
+// ---- Edit dialog (functionality preserved) ----
 function UserEditDialog({
   user,
   roles,
@@ -800,14 +843,14 @@ function UserEditDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-base">
             <Pencil className="h-4 w-4 text-primary" /> Edit user
           </DialogTitle>
           <DialogDescription>Update profile, role, department, and designation.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3.5 py-2">
+        <div className="space-y-3 py-2">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Full name">
               <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -884,7 +927,7 @@ function UserEditDialog({
   );
 }
 
-// ---- Create dialog ----
+// ---- Create dialog (functionality preserved) ----
 function UserCreateDialog({
   roles,
   departments,
@@ -958,11 +1001,11 @@ function UserCreateDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
         {createdCreds ? (
           <>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 text-base">
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-500/15 text-emerald-500"><Check className="h-4 w-4" /></span>
                 User created
               </DialogTitle>
@@ -981,12 +1024,12 @@ function UserCreateDialog({
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 text-base">
                 <UserPlus className="h-4 w-4 text-primary" /> Add new user
               </DialogTitle>
               <DialogDescription>Create a login for a new team member.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-3.5 py-2">
+            <div className="space-y-3 py-2">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Full name *">
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" />
@@ -1091,7 +1134,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 // ============================================================================
-// Roles — CRUD
+// Roles — CRUD (dense ListRow layout)
 // ============================================================================
 
 function RolesSection() {
@@ -1099,7 +1142,29 @@ function RolesSection() {
   const [editing, setEditing] = React.useState<any | null>(null);
   const [creating, setCreating] = React.useState(false);
 
-  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  const metrics: Metric[] = React.useMemo(() => {
+    const total = data?.length ?? 0;
+    const system = (data ?? []).filter((r) => r.isSystem).length;
+    const custom = total - system;
+    const avgLevel = total ? Math.round((data ?? []).reduce((s, r) => s + (r.level ?? 0), 0) / total * 10) / 10 : 0;
+    const maxLevel = total ? Math.max(...(data ?? []).map((r) => r.level ?? 0)) : 0;
+    return [
+      { label: "Total roles", value: total, color: "oklch(0.62 0.22 300)" },
+      { label: "System roles", value: system, color: "oklch(0.55 0.2 25)" },
+      { label: "Custom roles", value: custom, color: "oklch(0.78 0.18 75)" },
+      { label: "Avg level", value: avgLevel, color: "oklch(0.68 0.2 145)" },
+      { label: "Max level", value: maxLevel, color: "oklch(0.72 0.18 165)" },
+    ];
+  }, [data]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="shimmer h-14 rounded-xl" />
+        <div className="shimmer h-96 rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -1107,80 +1172,97 @@ function RolesSection() {
         <strong className="text-foreground">Roles</strong> define the access levels available in the workspace. Add the roles your organisation needs — they&apos;ll appear as options when adding or editing users.
       </HelpText>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-bold">Roles</h3>
-          <p className="text-xs text-muted-foreground">{data?.length ?? 0} role(s) configured</p>
-        </div>
-        <Button onClick={() => setCreating(true)} className="liquid-pill flex items-center gap-2 rounded-xl">
-          <Plus className="h-4 w-4" /> Add role
-        </Button>
-      </div>
+      {/* MetricRow — Card #1 */}
+      <MetricRow metrics={metrics} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(data ?? []).map((r) => (
-          <GlassCard key={r.id} hover className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "grid h-9 w-9 place-items-center rounded-xl",
-                  r.isSystem ? "bg-primary/15 text-primary" : "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-                )}>
-                  {r.isSystem ? <Shield className="h-4 w-4" /> : <BadgeCheck className="h-4 w-4" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold capitalize">{r.name}</span>
-                    {r.isSystem && <Badge variant="secondary" className="text-[9px] uppercase">System</Badge>}
+      {/* Roles list — Card #2 */}
+      <HeroChart
+        title="Roles"
+        desc="Access-level configuration"
+        action={
+          <Button onClick={() => setCreating(true)} className="liquid-pill flex items-center gap-2 rounded-xl">
+            <Plus className="h-4 w-4" /> Add role
+          </Button>
+        }
+      >
+        <div className="-mx-3 -mb-3">
+          {/* Header row */}
+          <div className="flex items-center gap-3 border-b border-border/40 bg-muted/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="min-w-[200px] flex-1">Role</div>
+            <div className="w-16">Type</div>
+            <div className="w-16">Level</div>
+            <div className="w-8 text-right">·</div>
+          </div>
+          {(data ?? []).length === 0 && (
+            <div className="px-3 py-12 text-center text-sm text-muted-foreground">
+              No roles yet. Click <strong>Add role</strong> to create one.
+            </div>
+          )}
+          {(data ?? []).map((r) => (
+            <ListRow key={r.id} className="!py-2.5">
+              <div className="min-w-[200px] flex-1">
+                <div className="flex items-center gap-2.5">
+                  <div className={cn(
+                    "grid h-8 w-8 shrink-0 place-items-center rounded-lg",
+                    r.isSystem ? "bg-primary/15 text-primary" : "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+                  )}>
+                    {r.isSystem ? <Shield className="h-3.5 w-3.5" /> : <BadgeCheck className="h-3.5 w-3.5" />}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">Level {r.level}</div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-semibold capitalize">{r.name}</span>
+                    {r.description && (
+                      <div className="truncate text-[10px] text-muted-foreground">{r.description}</div>
+                    )}
+                  </div>
                 </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-36 rounded-xl">
-                  <DropdownMenuItem onClick={() => setEditing(r)}>
-                    <Pencil className="mr-2 h-4 w-4" /> Edit
-                  </DropdownMenuItem>
-                  {!r.isSystem && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-rose-500 focus:text-rose-500"
-                        onClick={async () => {
-                          if (!confirm(`Delete the "${r.name}" role?`)) return;
-                          const res = await apiFetch(`/api/organization/roles/${r.id}`, { method: "DELETE" });
-                          const j = await res.json().catch(() => ({}));
-                          if (res.ok) { toast.success("Role deleted"); reload(); }
-                          else toast.error(j.error ?? "Failed to delete");
-                        }}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            {r.description && <p className="mt-3 text-xs text-muted-foreground">{r.description}</p>}
-          </GlassCard>
-        ))}
-      </div>
+              <div className="w-16">
+                <Pill color={r.isSystem ? "blue" : "amber"}>
+                  {r.isSystem ? "system" : "custom"}
+                </Pill>
+              </div>
+              <div className="w-16 text-xs font-semibold tabular-nums">L{r.level}</div>
+              <div className="w-8 text-right">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 rounded-lg p-0" aria-label="Role actions">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-36 rounded-xl">
+                    <DropdownMenuItem onClick={() => setEditing(r)}>
+                      <Pencil className="mr-2 h-4 w-4" /> Edit
+                    </DropdownMenuItem>
+                    {!r.isSystem && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-rose-500 focus:text-rose-500"
+                          onClick={async () => {
+                            if (!confirm(`Delete the "${r.name}" role?`)) return;
+                            const res = await apiFetch(`/api/organization/roles/${r.id}`, { method: "DELETE" });
+                            const j = await res.json().catch(() => ({}));
+                            if (res.ok) { toast.success("Role deleted"); reload(); }
+                            else toast.error(j.error ?? "Failed to delete");
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </ListRow>
+          ))}
+        </div>
+      </HeroChart>
 
       {creating && (
-        <RoleDialog
-          onClose={() => setCreating(false)}
-          onSaved={() => { setCreating(false); reload(); }}
-        />
+        <RoleDialog onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />
       )}
       {editing && (
-        <RoleDialog
-          role={editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); reload(); }}
-        />
+        <RoleDialog role={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />
       )}
     </div>
   );
@@ -1216,9 +1298,9 @@ function RoleDialog({ role, onClose, onSaved }: { role?: any; onClose: () => voi
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-3xl sm:max-w-md">
+      <DialogContent className="rounded-2xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-base">
             <BadgeCheck className="h-4 w-4 text-primary" /> {role ? "Edit role" : "Add role"}
           </DialogTitle>
           <DialogDescription>
@@ -1256,7 +1338,7 @@ function RoleDialog({ role, onClose, onSaved }: { role?: any; onClose: () => voi
 }
 
 // ============================================================================
-// Departments — CRUD
+// Departments — CRUD (dense ListRow layout)
 // ============================================================================
 
 function DepartmentsSection() {
@@ -1265,9 +1347,30 @@ function DepartmentsSection() {
   const [editing, setEditing] = React.useState<any | null>(null);
   const [creating, setCreating] = React.useState(false);
 
-  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  const memberCount = React.useCallback((name: string) => (users ?? []).filter((u) => u.department === name).length, [users]);
 
-  const memberCount = (name: string) => (users ?? []).filter((u) => u.department === name).length;
+  const metrics: Metric[] = React.useMemo(() => {
+    const total = data?.length ?? 0;
+    const totalMembers = users?.length ?? 0;
+    const assigned = (users ?? []).filter((u) => !!u.department).length;
+    const max = total ? Math.max(...(data ?? []).map((d) => memberCount(d.name))) : 0;
+    const unassigned = totalMembers - assigned;
+    return [
+      { label: "Departments", value: total, color: "oklch(0.68 0.2 145)" },
+      { label: "Assigned users", value: assigned, color: "oklch(0.66 0.18 200)" },
+      { label: "Unassigned", value: unassigned, color: "oklch(0.62 0.24 15)" },
+      { label: "Largest dept", value: max, color: "oklch(0.78 0.18 75)" },
+    ];
+  }, [data, users, memberCount]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="shimmer h-14 rounded-xl" />
+        <div className="shimmer h-96 rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -1275,61 +1378,83 @@ function DepartmentsSection() {
         <strong className="text-foreground">Departments</strong> organize your people. Add or rename departments here — they appear as options when adding or editing users.
       </HelpText>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-bold">Departments</h3>
-          <p className="text-xs text-muted-foreground">{data?.length ?? 0} department(s)</p>
-        </div>
-        <Button onClick={() => setCreating(true)} className="liquid-pill flex items-center gap-2 rounded-xl">
-          <Plus className="h-4 w-4" /> Add department
-        </Button>
-      </div>
+      {/* MetricRow — Card #1 */}
+      <MetricRow metrics={metrics} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(data ?? []).map((d) => {
-          const count = memberCount(d.name);
-          return (
-            <GlassCard key={d.id} hover className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl" style={{ background: (d.color ?? "var(--primary)") + "22", color: d.color ?? "var(--primary)" }}>
-                    <Briefcase className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <div className="font-semibold">{d.name}</div>
-                    <div className="text-[11px] text-muted-foreground">{count} member{count === 1 ? "" : "s"}</div>
+      {/* Departments list — Card #2 */}
+      <HeroChart
+        title="Departments"
+        desc="Org structure & member distribution"
+        action={
+          <Button onClick={() => setCreating(true)} className="liquid-pill flex items-center gap-2 rounded-xl">
+            <Plus className="h-4 w-4" /> Add department
+          </Button>
+        }
+      >
+        <div className="-mx-3 -mb-3">
+          <div className="flex items-center gap-3 border-b border-border/40 bg-muted/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="min-w-[220px] flex-1">Department</div>
+            <div className="w-24">Members</div>
+            <div className="w-8 text-right">·</div>
+          </div>
+          {(data ?? []).length === 0 && (
+            <div className="px-3 py-12 text-center text-sm text-muted-foreground">
+              No departments yet. Click <strong>Add department</strong> to create one.
+            </div>
+          )}
+          {(data ?? []).map((d) => {
+            const count = memberCount(d.name);
+            return (
+              <ListRow key={d.id} className="!py-2.5">
+                <div className="min-w-[220px] flex-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: (d.color ?? "var(--primary)") + "22", color: d.color ?? "var(--primary)" }}>
+                      <Briefcase className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs font-semibold">{d.name}</span>
+                      {d.description && (
+                        <div className="truncate text-[10px] text-muted-foreground">{d.description}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-36 rounded-xl">
-                    <DropdownMenuItem onClick={() => setEditing(d)}>
-                      <Pencil className="mr-2 h-4 w-4" /> Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-rose-500 focus:text-rose-500"
-                      onClick={async () => {
-                        if (count > 0) { toast.error(`${count} user(s) are in this department. Reassign them first.`); return; }
-                        if (!confirm(`Delete the "${d.name}" department?`)) return;
-                        const res = await apiFetch(`/api/organization/departments/${d.id}`, { method: "DELETE" });
-                        const j = await res.json().catch(() => ({}));
-                        if (res.ok) { toast.success("Department deleted"); reload(); }
-                        else toast.error(j.error ?? "Failed to delete");
-                      }}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              {d.description && <p className="mt-3 text-xs text-muted-foreground">{d.description}</p>}
-            </GlassCard>
-          );
-        })}
-      </div>
+                <div className="w-24">
+                  <Pill color={count > 0 ? "green" : "neutral"}>{count} member{count === 1 ? "" : "s"}</Pill>
+                </div>
+                <div className="w-8 text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 rounded-lg p-0" aria-label="Department actions">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-36 rounded-xl">
+                      <DropdownMenuItem onClick={() => setEditing(d)}>
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-rose-500 focus:text-rose-500"
+                        onClick={async () => {
+                          if (count > 0) { toast.error(`${count} user(s) are in this department. Reassign them first.`); return; }
+                          if (!confirm(`Delete the "${d.name}" department?`)) return;
+                          const res = await apiFetch(`/api/organization/departments/${d.id}`, { method: "DELETE" });
+                          const j = await res.json().catch(() => ({}));
+                          if (res.ok) { toast.success("Department deleted"); reload(); }
+                          else toast.error(j.error ?? "Failed to delete");
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </ListRow>
+            );
+          })}
+        </div>
+      </HeroChart>
 
       {creating && (
         <DepartmentDialog onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} users={users ?? []} />
@@ -1377,9 +1502,9 @@ function DepartmentDialog({ department, onClose, onSaved, users }: { department?
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-3xl sm:max-w-md">
+      <DialogContent className="rounded-2xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-base">
             <Briefcase className="h-4 w-4 text-primary" /> {department ? "Edit department" : "Add department"}
           </DialogTitle>
           <DialogDescription>Define the department name, color, and head.</DialogDescription>
@@ -1430,7 +1555,7 @@ function DepartmentDialog({ department, onClose, onSaved, users }: { department?
 }
 
 // ============================================================================
-// Designations — CRUD
+// Designations — CRUD (dense ListRow layout)
 // ============================================================================
 
 function DesignationsSection() {
@@ -1439,9 +1564,31 @@ function DesignationsSection() {
   const [editing, setEditing] = React.useState<any | null>(null);
   const [creating, setCreating] = React.useState(false);
 
-  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  const memberCount = React.useCallback((name: string) => (users ?? []).filter((u) => u.title === name).length, [users]);
 
-  const memberCount = (name: string) => (users ?? []).filter((u) => u.title === name).length;
+  const metrics: Metric[] = React.useMemo(() => {
+    const total = data?.length ?? 0;
+    const maxLevel = total ? Math.max(...(data ?? []).map((d) => d.level ?? 0)) : 0;
+    const minLevel = total ? Math.min(...(data ?? []).map((d) => d.level ?? 0)) : 0;
+    const withMembers = (data ?? []).filter((d) => memberCount(d.name) > 0).length;
+    const totalHolders = (users ?? []).filter((u) => !!u.title).length;
+    return [
+      { label: "Designations", value: total, color: "oklch(0.78 0.18 75)" },
+      { label: "Title holders", value: totalHolders, color: "oklch(0.66 0.18 200)" },
+      { label: "Active titles", value: withMembers, color: "oklch(0.68 0.2 145)" },
+      { label: "Senior level", value: maxLevel, color: "oklch(0.55 0.2 25)" },
+      { label: "Junior level", value: minLevel, color: "oklch(0.62 0.22 300)" },
+    ];
+  }, [data, users, memberCount]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="shimmer h-14 rounded-xl" />
+        <div className="shimmer h-96 rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -1449,61 +1596,88 @@ function DesignationsSection() {
         <strong className="text-foreground">Designations</strong> are job titles (e.g. Junior, Senior, Lead, Head). Manage the list here — these appear as options in the Add/Edit user dialogs.
       </HelpText>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-bold">Designations</h3>
-          <p className="text-xs text-muted-foreground">{data?.length ?? 0} designation(s)</p>
-        </div>
-        <Button onClick={() => setCreating(true)} className="liquid-pill flex items-center gap-2 rounded-xl">
-          <Plus className="h-4 w-4" /> Add designation
-        </Button>
-      </div>
+      {/* MetricRow — Card #1 */}
+      <MetricRow metrics={metrics} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(data ?? []).map((d) => {
-          const count = memberCount(d.name);
-          return (
-            <GlassCard key={d.id} hover className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                    <Crown className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <div className="font-semibold">{d.name}</div>
-                    <div className="text-[11px] text-muted-foreground">Level {d.level} · {count} member{count === 1 ? "" : "s"}</div>
+      {/* Designations list — Card #2 */}
+      <HeroChart
+        title="Designations"
+        desc="Seniority ladder & job titles"
+        action={
+          <Button onClick={() => setCreating(true)} className="liquid-pill flex items-center gap-2 rounded-xl">
+            <Plus className="h-4 w-4" /> Add designation
+          </Button>
+        }
+      >
+        <div className="-mx-3 -mb-3">
+          <div className="flex items-center gap-3 border-b border-border/40 bg-muted/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="min-w-[220px] flex-1">Designation</div>
+            <div className="w-16">Level</div>
+            <div className="w-24">Holders</div>
+            <div className="w-8 text-right">·</div>
+          </div>
+          {(data ?? []).length === 0 && (
+            <div className="px-3 py-12 text-center text-sm text-muted-foreground">
+              No designations yet. Click <strong>Add designation</strong> to create one.
+            </div>
+          )}
+          {(data ?? []).map((d) => {
+            const count = memberCount(d.name);
+            const levelPill = d.level >= 5 ? "violet" : d.level >= 3 ? "blue" : "neutral";
+            return (
+              <ListRow key={d.id} className="!py-2.5">
+                <div className="min-w-[220px] flex-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                      <Crown className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs font-semibold">{d.name}</span>
+                      {d.description && (
+                        <div className="truncate text-[10px] text-muted-foreground">{d.description}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><Pencil className="h-3.5 w-3.5" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-36 rounded-xl">
-                    <DropdownMenuItem onClick={() => setEditing(d)}>
-                      <Pencil className="mr-2 h-4 w-4" /> Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-rose-500 focus:text-rose-500"
-                      onClick={async () => {
-                        if (count > 0) { toast.error(`${count} user(s) have this designation. Reassign them first.`); return; }
-                        if (!confirm(`Delete the "${d.name}" designation?`)) return;
-                        const res = await apiFetch(`/api/organization/designations/${d.id}`, { method: "DELETE" });
-                        const j = await res.json().catch(() => ({}));
-                        if (res.ok) { toast.success("Designation deleted"); reload(); }
-                        else toast.error(j.error ?? "Failed to delete");
-                      }}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              {d.description && <p className="mt-3 text-xs text-muted-foreground">{d.description}</p>}
-            </GlassCard>
-          );
-        })}
-      </div>
+                <div className="w-16">
+                  <Pill color={levelPill as "violet" | "blue" | "neutral"}>Lv {d.level}</Pill>
+                </div>
+                <div className="w-24">
+                  <Pill color={count > 0 ? "green" : "neutral"}>{count} holder{count === 1 ? "" : "s"}</Pill>
+                </div>
+                <div className="w-8 text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 rounded-lg p-0" aria-label="Designation actions">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-36 rounded-xl">
+                      <DropdownMenuItem onClick={() => setEditing(d)}>
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-rose-500 focus:text-rose-500"
+                        onClick={async () => {
+                          if (count > 0) { toast.error(`${count} user(s) have this designation. Reassign them first.`); return; }
+                          if (!confirm(`Delete the "${d.name}" designation?`)) return;
+                          const res = await apiFetch(`/api/organization/designations/${d.id}`, { method: "DELETE" });
+                          const j = await res.json().catch(() => ({}));
+                          if (res.ok) { toast.success("Designation deleted"); reload(); }
+                          else toast.error(j.error ?? "Failed to delete");
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </ListRow>
+            );
+          })}
+        </div>
+      </HeroChart>
 
       {creating && (
         <DesignationDialog onClose={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />
@@ -1544,9 +1718,9 @@ function DesignationDialog({ designation, onClose, onSaved }: { designation?: an
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-3xl sm:max-w-md">
+      <DialogContent className="rounded-2xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-base">
             <Crown className="h-4 w-4 text-primary" /> {designation ? "Edit designation" : "Add designation"}
           </DialogTitle>
           <DialogDescription>Define the title and seniority level.</DialogDescription>

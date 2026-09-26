@@ -17,18 +17,17 @@ import {
   ArrowDown,
   ArrowUp,
   AtSign,
+  Building2,
   CalendarClock,
   CheckCircle2,
   ChevronRight,
   ClipboardList,
-  Clock,
   Crown,
   Download,
   Eye,
   FileText,
   Flag,
   Heart,
-  LayoutDashboard,
   ListChecks,
   Mail,
   MessageCircle,
@@ -46,7 +45,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
-import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
+import { GlassCard } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
@@ -60,6 +59,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  MetricRow,
+  BentoGrid,
+  BentoTile,
+  SectionHeader,
+  ListRow,
+  Pill,
+  type Metric,
+} from "@/components/glass/dense-ui";
 
 /* ============================== Types ============================== */
 
@@ -154,30 +162,16 @@ interface AdminData {
 
 /* ============================== Style maps ============================== */
 
-const ROLE_STYLE: Record<
+type PillColor = "neutral" | "green" | "amber" | "rose" | "blue" | "violet";
+
+const ROLE_PILL: Record<
   string,
-  { label: string; className: string; icon: React.ElementType }
+  { label: string; icon: React.ElementType; color: PillColor }
 > = {
-  admin: {
-    label: "Admin",
-    className: "bg-[var(--gold)]/15 text-[var(--gold)]",
-    icon: Crown,
-  },
-  manager: {
-    label: "Manager",
-    className: "bg-primary/15 text-primary",
-    icon: Shield,
-  },
-  editor: {
-    label: "Editor",
-    className: "bg-[oklch(0.76_0.15_165)]/15 text-[oklch(0.55_0.15_165)]",
-    icon: Pencil,
-  },
-  member: {
-    label: "Member",
-    className: "bg-muted text-muted-foreground",
-    icon: Users,
-  },
+  admin: { label: "Admin", icon: Crown, color: "amber" },
+  manager: { label: "Manager", icon: Shield, color: "blue" },
+  editor: { label: "Editor", icon: Pencil, color: "green" },
+  member: { label: "Member", icon: Users, color: "neutral" },
 };
 
 const STATUS_DOT: Record<string, string> = {
@@ -186,65 +180,54 @@ const STATUS_DOT: Record<string, string> = {
   suspended: "bg-rose-500",
 };
 
-const PRIORITY_STYLE: Record<
+const PRIORITY_PILL: Record<
   TaskPriority,
-  { color: string; pill: string; label: string }
+  { label: string; color: PillColor }
 > = {
-  urgent: {
-    color: "var(--primary)",
-    pill: "bg-primary/15 text-primary",
-    label: "Urgent",
-  },
-  high: {
-    color: "oklch(0.78 0.18 75)",
-    pill: "bg-[oklch(0.78_0.18_75)]/15 text-[oklch(0.6_0.18_65)]",
-    label: "High",
-  },
-  normal: {
-    color: "oklch(0.76 0.15 165)",
-    pill: "bg-[oklch(0.76_0.15_165)]/15 text-[oklch(0.55_0.15_165)]",
-    label: "Normal",
-  },
-  low: {
-    color: "var(--muted-foreground)",
-    pill: "bg-muted text-muted-foreground",
-    label: "Low",
-  },
+  urgent: { label: "Urgent", color: "rose" },
+  high: { label: "High", color: "amber" },
+  normal: { label: "Normal", color: "blue" },
+  low: { label: "Low", color: "neutral" },
 };
 
 const TASK_STATUS_META: Record<
   TaskStatus,
-  { label: string; color: string; bg: string; icon: React.ElementType }
+  {
+    label: string;
+    color: string;
+    icon: React.ElementType;
+    pill: PillColor;
+  }
 > = {
   todo: {
     label: "To Do",
     color: "var(--muted-foreground)",
-    bg: "bg-muted/40",
     icon: ListChecks,
+    pill: "neutral",
   },
   in_progress: {
     label: "In Progress",
     color: "oklch(0.72 0.16 200)",
-    bg: "bg-[oklch(0.72_0.16_200)]/15",
     icon: Timer,
+    pill: "blue",
   },
   review: {
     label: "Review",
     color: "oklch(0.78 0.18 75)",
-    bg: "bg-[oklch(0.78_0.18_75)]/15",
     icon: Eye,
+    pill: "amber",
   },
   done: {
     label: "Done",
     color: "oklch(0.76 0.18 145)",
-    bg: "bg-[oklch(0.76_0.18_145)]/15",
     icon: CheckCircle2,
+    pill: "green",
   },
   blocked: {
     label: "Blocked",
     color: "var(--primary)",
-    bg: "bg-primary/15",
     icon: Pause,
+    pill: "rose",
   },
 };
 
@@ -261,15 +244,15 @@ const TASK_TYPE_ICON: Record<string, React.ElementType> = {
   default: ClipboardList,
 };
 
-const RISK_STYLE: Record<
+const RISK_PILL: Record<
   string,
-  { color: string; bg: string; label: string }
+  { label: string; color: PillColor }
 > = {
-  safe: { color: "text-emerald-500", bg: "bg-emerald-500/15", label: "Healthy" },
-  moderate: { color: "text-amber-500", bg: "bg-amber-500/15", label: "Moderate" },
-  elevated: { color: "text-orange-500", bg: "bg-orange-500/15", label: "Elevated" },
-  high: { color: "text-rose-500", bg: "bg-rose-500/15", label: "High risk" },
-  critical: { color: "text-rose-600", bg: "bg-rose-600/20", label: "Critical" },
+  safe: { label: "Healthy", color: "green" },
+  moderate: { label: "Moderate", color: "blue" },
+  elevated: { label: "Elevated", color: "amber" },
+  high: { label: "High risk", color: "rose" },
+  critical: { label: "Critical", color: "rose" },
 };
 
 const ACTIVITY_ICON: Record<string, React.ElementType> = {
@@ -303,6 +286,25 @@ function platformOf(p: string): PlatformId | null {
   return p in PLATFORMS ? (p as PlatformId) : null;
 }
 
+/**
+ * Synthesize a small 7-point sparkline ending at `value`. Decorative — the
+ * admin API returns only current snapshots, so we render a gentle trend that
+ * terminates at the live number. `trend` flips the slope for at-risk metrics.
+ */
+function sparkFromValue(
+  value: number,
+  trend: "up" | "down" | "flat" = "up",
+): number[] {
+  if (!value || value <= 0) return [0, 0, 0, 0, 0, 0, 0];
+  const points = 7;
+  const start = trend === "up" ? 0.85 : trend === "down" ? 1.15 : 1.0;
+  return Array.from({ length: points }, (_, i) => {
+    const t = i / (points - 1);
+    const factor = start + (1 - start) * t;
+    return Math.max(0, Math.round(value * factor));
+  });
+}
+
 /* ============================== Main view ============================== */
 
 export function AdminPanelView() {
@@ -315,159 +317,174 @@ export function AdminPanelView() {
 
 function AdminContent({ data }: { data: AdminData }) {
   const { overview } = data;
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AdminHero overview={overview} />
-      <OverviewKpiStrip overview={overview} />
-      <TeamPerformanceSection members={data.teamPerformance} />
-      <TaskBoardSection tasks={data.tasks} taskStatus={data.taskStatus} />
-      <AccountHealthSection accounts={data.accountHealth} overview={overview} />
-      <DepartmentSection departments={data.departments} />
-      <ActivitySection activities={data.activities} />
+      <SystemStatsRow overview={overview} />
+      <AdminBento data={data} />
     </div>
   );
 }
 
-/* ============================== 1. Hero ============================== */
+/* ============================== 1. Hero (compact strip) ============================== */
 
 function AdminHero({ overview }: { overview: Overview }) {
   return (
-    <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
-      <div className="pointer-events-none absolute -right-12 -top-12 h-56 w-56 rounded-full bg-primary/30 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-[var(--gold)]/25 blur-3xl" />
-      <div className="relative flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-medium text-primary">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Workspace · Command center
+    <GlassCard
+      strong
+      className="glass-sheen crystal-in relative overflow-hidden p-4"
+    >
+      <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-[var(--gold)]/20 blur-3xl" />
+      <div className="relative flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+            <ShieldCheck className="h-3 w-3" />
+            <span className="label-caps">Workspace · Command center</span>
           </div>
-          <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+          <h2 className="mt-0.5 text-lg font-bold tracking-tight sm:text-xl">
             Admin <span className="gold-text">Command Center</span>
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">
-              {overview.totalUsers}
-            </span>{" "}
-            members ·{" "}
-            <span className="font-semibold text-foreground">
-              {overview.totalAccounts}
-            </span>{" "}
-            accounts ·{" "}
-            <span className="font-semibold text-foreground">
-              {fmt(overview.totalFollowers)}
-            </span>{" "}
-            followers ·{" "}
-            <span className="font-semibold text-foreground">
-              {fmt(overview.totalEngagement)}
-            </span>{" "}
-            engagement
-          </p>
         </div>
-        <button
-          onClick={() =>
-            toast.success("Report exported", {
-              description: "Workspace snapshot copied to clipboard — paste into your report.",
-            })
-          }
-          className="liquid-gold glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
-        >
-          <Download className="h-4 w-4" />
-          Export report
-        </button>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <span>
+            <b className="text-foreground tabular-nums">{overview.totalUsers}</b>{" "}
+            members
+          </span>
+          <span className="text-muted-foreground/40">·</span>
+          <span>
+            <b className="text-foreground tabular-nums">{overview.totalAccounts}</b>{" "}
+            accounts
+          </span>
+          <span className="text-muted-foreground/40">·</span>
+          <span>
+            <b className="text-foreground tabular-nums">
+              {fmt(overview.totalFollowers)}
+            </b>{" "}
+            followers
+          </span>
+          <span className="text-muted-foreground/40">·</span>
+          <span>
+            <b className="text-foreground tabular-nums">
+              {fmt(overview.totalEngagement)}
+            </b>{" "}
+            engagement
+          </span>
+          <button
+            onClick={() =>
+              toast.success("Report exported", {
+                description:
+                  "Workspace snapshot copied to clipboard — paste into your report.",
+              })
+            }
+            className="liquid-gold glow-ring ml-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </button>
+        </div>
       </div>
     </GlassCard>
   );
 }
 
-/* ============================== 2. KPI strip ============================== */
+/* ============================== 2. System stats MetricRow ============================== */
 
-function OverviewKpiStrip({ overview }: { overview: Overview }) {
-  const cards: {
-    label: string;
-    value: string | number;
-    icon: React.ReactNode;
-    accent: string;
-    hint?: string;
-  }[] = [
+function SystemStatsRow({ overview }: { overview: Overview }) {
+  const metrics: Metric[] = [
     {
       label: "Total members",
       value: overview.totalUsers,
-      icon: <Users className="h-5 w-5" />,
-      accent: "var(--primary)",
-      hint: `${overview.activeUsers} active now`,
+      spark: sparkFromValue(overview.totalUsers, "up"),
+      color: "var(--primary)",
     },
     {
       label: "Active now",
       value: overview.activeUsers,
-      icon: <Activity className="h-5 w-5" />,
-      accent: "oklch(0.76 0.18 145)",
-      hint: "online today",
+      spark: sparkFromValue(overview.activeUsers, "up"),
+      color: "oklch(0.76 0.18 145)",
     },
     {
       label: "Total accounts",
       value: overview.totalAccounts,
-      icon: <AtSign className="h-5 w-5" />,
-      accent: "oklch(0.72 0.16 200)",
-      hint: "connected socials",
+      spark: sparkFromValue(overview.totalAccounts, "up"),
+      color: "oklch(0.72 0.16 200)",
     },
     {
       label: "At-risk accounts",
       value: overview.atRiskAccounts,
-      icon: <AlertTriangle className="h-5 w-5" />,
-      accent: "var(--primary)",
-      hint: `${overview.healthyAccounts} healthy`,
+      spark: sparkFromValue(overview.atRiskAccounts, "down"),
+      color: "var(--primary)",
     },
     {
       label: "Published posts",
       value: overview.publishedPosts,
-      icon: <Send className="h-5 w-5" />,
-      accent: "oklch(0.76 0.15 165)",
-      hint: `${overview.totalPosts} total`,
+      spark: sparkFromValue(overview.publishedPosts, "up"),
+      color: "oklch(0.76 0.15 165)",
     },
     {
       label: "Scheduled posts",
       value: overview.scheduledPosts,
-      icon: <CalendarClock className="h-5 w-5" />,
-      accent: "oklch(0.78 0.18 75)",
-      hint: "queued for publish",
+      spark: sparkFromValue(overview.scheduledPosts, "up"),
+      color: "oklch(0.78 0.18 75)",
     },
-      {
-        label: "Unread inbox",
-        value: overview.unreadInbox,
-        icon: <Mail className="h-5 w-5" />,
-      accent: "var(--gold)",
-      hint: "conversations open",
+    {
+      label: "Unread inbox",
+      value: overview.unreadInbox,
+      spark: sparkFromValue(overview.unreadInbox, "flat"),
+      color: "var(--gold)",
     },
   ];
 
+  return <MetricRow metrics={metrics} className="crystal-in" />;
+}
+
+/* ============================== 3. Bento grid ============================== */
+
+function AdminBento({ data }: { data: AdminData }) {
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      {cards.map((c, i) => (
-        <div
-          key={c.label}
-          className="crystal-in"
-          style={{ animationDelay: `${0.05 + i * 0.06}s` }}
-        >
-          <KpiCard
-            label={c.label}
-            value={typeof c.value === "number" ? fmt(c.value) : c.value}
-            icon={c.icon}
-            accent={c.accent}
-            hint={c.hint}
-          />
-        </div>
-      ))}
-    </div>
+    <BentoGrid>
+      <TeamPerformanceTile members={data.teamPerformance} />
+      <TaskBoardTile tasks={data.tasks} taskStatus={data.taskStatus} />
+      <AccountHealthTile
+        accounts={data.accountHealth}
+        overview={data.overview}
+      />
+      <DepartmentTile departments={data.departments} />
+      <ActivityTile activities={data.activities} />
+    </BentoGrid>
   );
 }
 
-/* ============================== 3. Team performance table ============================== */
+/* ============================== Tile A: Team performance (2×2) ============================== */
 
 type SortKey = "engagement" | "posts" | "followers" | "accounts" | "tasks";
 type SortDir = "asc" | "desc";
 
-function TeamPerformanceSection({ members }: { members: TeamMember[] }) {
+const SORT_KEYS: SortKey[] = [
+  "engagement",
+  "posts",
+  "followers",
+  "accounts",
+  "tasks",
+];
+
+function sortVal(m: TeamMember, key: SortKey): number {
+  switch (key) {
+    case "engagement":
+      return m.engagement;
+    case "posts":
+      return m.postsCount;
+    case "followers":
+      return m.followers;
+    case "accounts":
+      return m.accountsCount;
+    case "tasks":
+      return m.tasksDone;
+  }
+}
+
+function TeamPerformanceTile({ members }: { members: TeamMember[] }) {
   const [sortKey, setSortKey] = React.useState<SortKey>("engagement");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
   const [selected, setSelected] = React.useState<TeamMember | null>(null);
@@ -475,214 +492,126 @@ function TeamPerformanceSection({ members }: { members: TeamMember[] }) {
   const sorted = React.useMemo(() => {
     const copy = [...members];
     copy.sort((a, b) => {
-      const va =
-        sortKey === "tasks"
-          ? a.tasksDone
-          : sortKey === "engagement"
-            ? a.engagement
-            : sortKey === "posts"
-              ? a.postsCount
-              : sortKey === "followers"
-                ? a.followers
-                : a.accountsCount;
-      const vb =
-        sortKey === "tasks"
-          ? b.tasksDone
-          : sortKey === "engagement"
-            ? b.engagement
-            : sortKey === "posts"
-              ? b.postsCount
-              : sortKey === "followers"
-                ? b.followers
-                : b.accountsCount;
+      const va = sortVal(a, sortKey);
+      const vb = sortVal(b, sortKey);
       return sortDir === "asc" ? va - vb : vb - va;
     });
     return copy;
   }, [members, sortKey, sortDir]);
 
-  const toggleSort = (k: SortKey) => {
-    if (k === sortKey) {
+  const cycleSort = () => {
+    const i = SORT_KEYS.indexOf(sortKey);
+    const nextKey = SORT_KEYS[(i + 1) % SORT_KEYS.length];
+    if (nextKey === sortKey) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
-      setSortKey(k);
+      setSortKey(nextKey);
       setSortDir("desc");
     }
   };
 
   return (
-    <GlassCard className="crystal-in overflow-hidden p-0" style={{ animationDelay: "0.5s" }}>
-      <div className="p-5 pb-3">
-        <SectionTitle
+    <BentoTile
+      span="2x2"
+      className="crystal-in flex flex-col overflow-hidden p-0"
+      style={{ animationDelay: "0.1s" }}
+    >
+      <div className="border-b border-border/40 px-4 py-2.5">
+        <SectionHeader
           title="Team performance"
-          desc="Per-member output across accounts, posts, tasks & engagement"
+          desc={`${members.length} members · per-member output`}
+          icon={Users}
           action={
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <TrendingUp className="h-3.5 w-3.5 text-primary" />
-              sorted by{" "}
-              <span className="font-medium text-foreground">{sortKey}</span>
-            </div>
+            <button
+              onClick={cycleSort}
+              className="flex items-center gap-1 rounded-md border border-border/40 bg-background/60 px-2 py-1 text-[10px] font-semibold transition hover:bg-muted/40"
+              title="Click to cycle sort key"
+            >
+              <TrendingUp className="h-3 w-3 text-primary" />
+              <span className="text-muted-foreground">sort:</span>
+              <span className="text-primary">{sortKey}</span>
+              {sortDir === "asc" ? (
+                <ArrowUp className="h-3 w-3" />
+              ) : (
+                <ArrowDown className="h-3 w-3" />
+              )}
+            </button>
           }
         />
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="min-w-[820px]">
-          {/* Header */}
-          <div className="grid grid-cols-[2.2fr_0.8fr_0.8fr_1fr_1fr_1fr_auto] items-center gap-3 border-b border-border/40 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <SortHeader
-              label="Member"
-              active={false}
-              dir={sortDir}
-              onClick={() => toggleSort("engagement")}
-            />
-            <SortHeader
-              label="Accounts"
-              active={sortKey === "accounts"}
-              dir={sortDir}
-              onClick={() => toggleSort("accounts")}
-              align="right"
-            />
-            <SortHeader
-              label="Posts"
-              active={sortKey === "posts"}
-              dir={sortDir}
-              onClick={() => toggleSort("posts")}
-              align="right"
-            />
-            <SortHeader
-              label="Tasks"
-              active={sortKey === "tasks"}
-              dir={sortDir}
-              onClick={() => toggleSort("tasks")}
-              align="right"
-            />
-            <SortHeader
-              label="Engagement"
-              active={sortKey === "engagement"}
-              dir={sortDir}
-              onClick={() => toggleSort("engagement")}
-              align="right"
-            />
-            <SortHeader
-              label="Followers"
-              active={sortKey === "followers"}
-              dir={sortDir}
-              onClick={() => toggleSort("followers")}
-              align="right"
-            />
-            <span className="text-right">Profile</span>
-          </div>
+      {/* Column header */}
+      <div className="grid grid-cols-[1.6fr_0.7fr_0.8fr_0.8fr_auto] items-center gap-2 border-b border-border/30 px-4 py-1.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <span>Member</span>
+        <span className="text-right">Tasks</span>
+        <span className="text-right">Engage</span>
+        <span className="text-right">Followers</span>
+        <span className="w-6" />
+      </div>
 
-          {/* Rows */}
-          <div className="max-h-[640px] overflow-y-auto scroll-liquid">
-            {sorted.map((m) => (
-              <TeamRow
-                key={m.id}
-                member={m}
-                onProfile={() => setSelected(m)}
-              />
-            ))}
-            {sorted.length === 0 && (
-              <div className="py-12 text-center text-sm text-muted-foreground">
-                No team members yet.
-              </div>
-            )}
+      {/* Scrollable list */}
+      <div className="flex-1 overflow-y-auto scroll-liquid">
+        {sorted.map((m) => (
+          <TeamListRow
+            key={m.id}
+            member={m}
+            onProfile={() => setSelected(m)}
+          />
+        ))}
+        {sorted.length === 0 && (
+          <div className="py-10 text-center text-xs text-muted-foreground">
+            No team members yet.
           </div>
-        </div>
+        )}
       </div>
 
       <MemberProfileDialog
         member={selected}
         onClose={() => setSelected(null)}
       />
-    </GlassCard>
+    </BentoTile>
   );
 }
 
-function SortHeader({
-  label,
-  active,
-  dir,
-  onClick,
-  align = "left",
-}: {
-  label: string;
-  active: boolean;
-  dir: SortDir;
-  onClick: () => void;
-  align?: "left" | "right";
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-1 transition hover:text-foreground",
-        align === "right" ? "justify-end" : "justify-start",
-        active && "text-foreground",
-      )}
-    >
-      {label}
-      {active &&
-        (dir === "asc" ? (
-          <ArrowUp className="h-3 w-3" />
-        ) : (
-          <ArrowDown className="h-3 w-3" />
-        ))}
-    </button>
-  );
-}
-
-function TeamRow({
+function TeamListRow({
   member,
   onProfile,
 }: {
   member: TeamMember;
   onProfile: () => void;
 }) {
-  const role = ROLE_STYLE[member.role] ?? ROLE_STYLE.member;
+  const role = ROLE_PILL[member.role] ?? ROLE_PILL.member;
   const RoleIcon = role.icon;
-  const statusDot =
-    STATUS_DOT[member.status] ?? "bg-muted-foreground";
+  const statusDot = STATUS_DOT[member.status] ?? "bg-muted-foreground";
 
   return (
-    <button
+    <ListRow
       onClick={onProfile}
-      className="grid w-full grid-cols-[2.2fr_0.8fr_0.8fr_1fr_1fr_1fr_auto] items-center gap-3 border-b border-border/15 px-5 py-3 text-left transition hover:bg-muted/40 hover:shadow-[inset_2px_0_0_0_var(--primary)]"
+      className="grid grid-cols-[1.6fr_0.7fr_0.8fr_0.8fr_auto] items-center gap-2 px-4 py-2"
     >
       {/* Member */}
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         <NameAvatar
           name={member.name}
           color={member.color}
-          className="h-10 w-10 text-[11px]"
+          className="h-8 w-8 text-[10px]"
           ring
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold">{member.name}</span>
+            <span className="truncate text-xs font-semibold">{member.name}</span>
             <span
-              className={cn(
-                "inline-flex h-1.5 w-1.5 rounded-full",
-                statusDot,
-              )}
+              className={cn("inline-flex h-1.5 w-1.5 shrink-0 rounded-full", statusDot)}
               title={`Status: ${member.status}`}
             />
           </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span
-              className={cn(
-                "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                role.className,
-              )}
-            >
-              <RoleIcon className="h-2.5 w-2.5" />
+          <div className="mt-0.5 flex items-center gap-1">
+            <Pill color={role.color}>
+              <RoleIcon className="h-2 w-2" />
               {role.label}
-            </span>
-            {member.title && (
-              <span className="truncate">{member.title}</span>
-            )}
+            </Pill>
             {member.department && (
-              <span className="text-muted-foreground/60">
+              <span className="truncate text-[10px] text-muted-foreground">
                 · {member.department}
               </span>
             )}
@@ -690,27 +619,13 @@ function TeamRow({
         </div>
       </div>
 
-      {/* Accounts */}
-      <div className="text-right">
-        <div className="num-display text-sm font-semibold">
-          {member.accountsCount}
-        </div>
-      </div>
-
-      {/* Posts */}
-      <div className="text-right">
-        <div className="num-display text-sm font-semibold">
-          {member.postsCount}
-        </div>
-      </div>
-
       {/* Tasks */}
       <div className="text-right">
-        <div className="num-display text-sm font-semibold">
+        <div className="num-display text-xs font-semibold tabular-nums">
           {member.tasksDone}
           <span className="text-muted-foreground">/{member.tasksTotal}</span>
         </div>
-        <div className="mt-1 ml-auto h-1 w-16 overflow-hidden rounded-full bg-muted">
+        <div className="ml-auto mt-1 h-1 w-12 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-gradient-to-r from-primary to-[var(--gold)]"
             style={{ width: `${member.taskCompletionRate}%` }}
@@ -720,29 +635,25 @@ function TeamRow({
 
       {/* Engagement */}
       <div className="text-right">
-        <div className="num-display text-sm font-semibold">
+        <div className="num-display text-xs font-semibold tabular-nums">
           {fmt(member.engagement)}
         </div>
-        <div className="text-[10px] text-muted-foreground">engagement</div>
+        <div className="text-[9px] text-muted-foreground">engage</div>
       </div>
 
       {/* Followers */}
       <div className="text-right">
-        <div className="num-display text-sm font-semibold">
+        <div className="num-display text-xs font-semibold tabular-nums">
           {fmt(member.followers)}
         </div>
-        <div className="text-[10px] text-muted-foreground">followers</div>
+        <div className="text-[9px] text-muted-foreground">followers</div>
       </div>
 
-      {/* Profile */}
-      <div className="flex justify-end">
-        <span className="inline-flex items-center gap-1 rounded-xl px-2 py-1 text-[11px] font-medium text-primary transition group-hover:bg-primary/10">
-          <Eye className="h-3.5 w-3.5" />
-          View
-          <ChevronRight className="h-3 w-3" />
-        </span>
+      {/* Chevron */}
+      <div className="flex w-6 justify-end">
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
       </div>
-    </button>
+    </ListRow>
   );
 }
 
@@ -763,11 +674,16 @@ function MemberProfileDialog({
 }
 
 function ProfileBody({ member }: { member: TeamMember }) {
-  const role = ROLE_STYLE[member.role] ?? ROLE_STYLE.member;
+  const role = ROLE_PILL[member.role] ?? ROLE_PILL.member;
   const RoleIcon = role.icon;
   const statusDot = STATUS_DOT[member.status] ?? "bg-muted-foreground";
 
-  const stats: { label: string; value: string | number; icon: React.ReactNode; accent: string }[] = [
+  const stats: {
+    label: string;
+    value: string | number;
+    icon: React.ReactNode;
+    accent: string;
+  }[] = [
     {
       label: "Posts authored",
       value: member.postsCount,
@@ -807,15 +723,10 @@ function ProfileBody({ member }: { member: TeamMember }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="truncate">{member.name}</span>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                  role.className,
-                )}
-              >
+              <Pill color={role.color}>
                 <RoleIcon className="h-2.5 w-2.5" />
                 {role.label}
-              </span>
+              </Pill>
             </div>
             <div className="mt-1 flex items-center gap-2 text-xs font-normal text-muted-foreground">
               {member.title && <span>{member.title}</span>}
@@ -843,7 +754,6 @@ function ProfileBody({ member }: { member: TeamMember }) {
         </DialogDescription>
       </DialogHeader>
 
-      {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((s) => (
           <div
@@ -866,7 +776,6 @@ function ProfileBody({ member }: { member: TeamMember }) {
         ))}
       </div>
 
-      {/* Task completion */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-border/40 bg-muted/30 p-3">
           <div className="flex items-center justify-between text-xs">
@@ -889,9 +798,7 @@ function ProfileBody({ member }: { member: TeamMember }) {
         </div>
         <div className="rounded-2xl border border-border/40 bg-muted/30 p-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="label-caps text-muted-foreground">
-              Last active
-            </span>
+            <span className="label-caps text-muted-foreground">Last active</span>
             <span className="num-display text-sm font-semibold">
               {member.lastActive ? timeAgo(member.lastActive) : "never"}
             </span>
@@ -899,7 +806,6 @@ function ProfileBody({ member }: { member: TeamMember }) {
         </div>
       </div>
 
-      {/* Permissions */}
       <div>
         <div className="label-caps mb-2 text-muted-foreground">Permissions</div>
         {member.permissions.length === 0 ? (
@@ -909,19 +815,17 @@ function ProfileBody({ member }: { member: TeamMember }) {
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {member.permissions.map((p) => (
-              <span
-                key={p}
-                className="rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[11px] font-medium text-foreground/80"
-              >
-                {p.replace(/_/g, " ")}
-              </span>
+              <Pill key={p}>{p.replace(/_/g, " ")}</Pill>
             ))}
           </div>
         )}
       </div>
 
       <DialogFooter>
-        <Button variant="ghost" onClick={() => toast.info(`Emailing ${member.name}`)}>
+        <Button
+          variant="ghost"
+          onClick={() => toast.info(`Emailing ${member.name}`)}
+        >
           <Mail className="mr-2 h-4 w-4" />
           Message
         </Button>
@@ -939,9 +843,9 @@ function ProfileBody({ member }: { member: TeamMember }) {
   );
 }
 
-/* ============================== 4. Task board ============================== */
+/* ============================== Tile B: Task board (2×2) ============================== */
 
-function TaskBoardSection({
+function TaskBoardTile({
   tasks,
   taskStatus,
 }: {
@@ -962,30 +866,49 @@ function TaskBoardSection({
     count: taskStatus[s],
     color: TASK_STATUS_META[s].color,
   }));
-  const totalTasks = tasks.length || 1;
+
+  const topTasks = React.useMemo(() => {
+    return [...tasks]
+      .sort(
+        (a, b) =>
+          priorityRank(b.priority) - priorityRank(a.priority) ||
+          (a.dueAt ?? "").localeCompare(b.dueAt ?? ""),
+      )
+      .slice(0, 6);
+  }, [tasks]);
 
   return (
-    <GlassCard
-      className="crystal-in p-5"
-      style={{ animationDelay: "0.58s" }}
+    <BentoTile
+      span="2x2"
+      className="crystal-in flex flex-col overflow-hidden p-0"
+      style={{ animationDelay: "0.18s" }}
     >
-      <SectionTitle
-        title="Task board"
-        desc="Workflow distribution across the workspace"
-        action={
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <ClipboardList className="h-3.5 w-3.5 text-primary" />
-            {tasks.length} tasks
-          </div>
-        }
-      />
+      <div className="border-b border-border/40 px-4 py-2.5">
+        <SectionHeader
+          title="Task board"
+          desc={`${tasks.length} tasks · workflow distribution`}
+          icon={ClipboardList}
+          action={
+            <div className="flex flex-wrap items-center gap-1">
+              {statusOrder.map((s) => (
+                <Pill key={s} color={TASK_STATUS_META[s].pill}>
+                  <span className="tabular-nums">{taskStatus[s]}</span>
+                  <span className="hidden sm:inline">
+                    {TASK_STATUS_META[s].label}
+                  </span>
+                </Pill>
+              ))}
+            </div>
+          }
+        />
+      </div>
 
-      {/* Distribution bar chart */}
-      <div className="mb-5 h-[140px] w-full">
+      {/* Distribution chart */}
+      <div className="h-[96px] border-b border-border/40 px-2 py-1.5">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            margin={{ left: -16, right: 8, top: 8, bottom: 0 }}
+            margin={{ left: -20, right: 4, top: 4, bottom: 0 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -994,23 +917,23 @@ function TaskBoardSection({
             />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               tickFormatter={(v) => fmt(v)}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
               axisLine={false}
               tickLine={false}
-              width={32}
+              width={24}
             />
             <Tooltip
               cursor={{ fill: "var(--muted)", opacity: 0.35 }}
               contentStyle={TOOLTIP_STYLE}
               formatter={(v: number) => [`${v} tasks`, "Count"]}
             />
-            <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={48}>
+            <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={28}>
               {chartData.map((d) => (
                 <Cell key={d.short} fill={d.color} />
               ))}
@@ -1019,65 +942,17 @@ function TaskBoardSection({
         </ResponsiveContainer>
       </div>
 
-      {/* Kanban columns */}
-      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 scroll-liquid">
-        {statusOrder.map((s) => {
-          const meta = TASK_STATUS_META[s];
-          const Icon = meta.icon;
-          const colTasks = tasks
-            .filter((t) => t.status === s)
-            .sort(
-              (a, b) =>
-                priorityRank(b.priority) - priorityRank(a.priority) ||
-                (a.dueAt ?? "").localeCompare(b.dueAt ?? ""),
-            );
-          const ratio = Math.round(
-            (colTasks.length / totalTasks) * 100,
-          );
-          return (
-            <div
-              key={s}
-              className="flex w-[260px] shrink-0 flex-col rounded-2xl border border-border/40 bg-muted/20 p-3"
-            >
-              <div className="mb-2 flex items-center gap-2">
-                <span
-                  className={cn(
-                    "grid h-7 w-7 place-items-center rounded-xl",
-                    meta.bg,
-                  )}
-                  style={{ color: meta.color }}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 text-sm font-semibold">
-                    {meta.label}
-                    <span className="text-[11px] font-normal text-muted-foreground">
-                      {colTasks.length}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {ratio}% of board
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-1 scroll-liquid">
-                {colTasks.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border/50 py-6 text-center text-[11px] text-muted-foreground">
-                    No tasks
-                  </div>
-                ) : (
-                  colTasks.map((t) => (
-                    <TaskCard key={t.id} task={t} />
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
+      {/* Top tasks list */}
+      <div className="flex-1 overflow-y-auto scroll-liquid">
+        {topTasks.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
+            No tasks yet.
+          </div>
+        ) : (
+          topTasks.map((t) => <TaskListRow key={t.id} task={t} />)
+        )}
       </div>
-    </GlassCard>
+    </BentoTile>
   );
 }
 
@@ -1085,75 +960,58 @@ function priorityRank(p: TaskPriority): number {
   return { urgent: 3, high: 2, normal: 1, low: 0 }[p];
 }
 
-function TaskCard({ task }: { task: Task }) {
-  const ps = PRIORITY_STYLE[task.priority];
-  const typeIcon =
-    TASK_TYPE_ICON[task.type] ?? TASK_TYPE_ICON.default;
-  const overdue =
-    task.dueAt && new Date(task.dueAt).getTime() < Date.now();
+function TaskListRow({ task }: { task: Task }) {
+  const ps = PRIORITY_PILL[task.priority];
+  const typeIcon = TASK_TYPE_ICON[task.type] ?? TASK_TYPE_ICON.default;
   const TypeIcon = typeIcon;
+  const overdue = task.dueAt && new Date(task.dueAt).getTime() < Date.now();
 
   return (
-    <div
-      className="relative overflow-hidden rounded-xl border border-border/40 bg-background/60 p-2.5 pl-3 transition hover:bg-muted/30"
-      title={task.title}
-    >
-      <span
-        className="absolute inset-y-0 left-0 w-1"
-        style={{ background: ps.color }}
-      />
-      <div className="flex items-start gap-2">
-        <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-          <TypeIcon className="h-3 w-3" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[12px] font-semibold leading-snug">
-            {task.title}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+    <ListRow className="px-4 py-2">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+        <TypeIcon className="h-3 w-3" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-semibold leading-snug">
+          {task.title}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+          <Pill color={ps.color}>{ps.label}</Pill>
+          {task.dueAt && (
             <span
               className={cn(
-                "rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
-                ps.pill,
+                "inline-flex items-center gap-0.5",
+                overdue && "font-semibold text-rose-500",
               )}
             >
-              {ps.label}
+              {overdue && <AlertTriangle className="h-2.5 w-2.5" />}
+              {new Date(task.dueAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
             </span>
-            {task.dueAt && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-0.5",
-                  overdue && "font-semibold text-rose-500",
-                )}
-              >
-                {overdue && <AlertTriangle className="h-2.5 w-2.5" />}
-                {new Date(task.dueAt).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </span>
-            )}
-          </div>
+          )}
+          <span className="capitalize">{task.status.replace(/_/g, " ")}</span>
         </div>
       </div>
       {task.assigneeName && task.assigneeName !== "Unassigned" && (
-        <div className="mt-2 flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <NameAvatar
             name={task.assigneeName}
             className="h-5 w-5 text-[9px]"
           />
-          <span className="truncate text-[10px] text-muted-foreground">
-            {task.assigneeName}
+          <span className="hidden text-[10px] text-muted-foreground sm:inline">
+            {task.assigneeName.split(" ")[0]}
           </span>
         </div>
       )}
-    </div>
+    </ListRow>
   );
 }
 
-/* ============================== 5. Account health ============================== */
+/* ============================== Tile C: Account health (1×1) ============================== */
 
-function AccountHealthSection({
+function AccountHealthTile({
   accounts,
   overview,
 }: {
@@ -1163,43 +1021,37 @@ function AccountHealthSection({
   const total = accounts.length || 1;
   const healthyPct = Math.round((overview.healthyAccounts / total) * 100);
   const atRiskPct = 100 - healthyPct;
-  const sorted = [...accounts].sort(
-    (a, b) => b.riskScore - a.riskScore,
-  );
+  const top = [...accounts]
+    .sort((a, b) => b.riskScore - a.riskScore)
+    .slice(0, 5);
 
   return (
-    <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.66s" }}>
-      <SectionTitle
-        title="Account health"
-        desc="Risk, status & report signals across connected accounts"
-        action={
-          <div className="flex items-center gap-3 text-[11px]">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {overview.healthyAccounts} healthy
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-rose-500" />
-              {overview.atRiskAccounts} at risk
-            </span>
-          </div>
-        }
-      />
+    <BentoTile
+      span="1x1"
+      className="crystal-in flex flex-col overflow-hidden p-0"
+      style={{ animationDelay: "0.26s" }}
+    >
+      <div className="border-b border-border/40 px-4 py-2.5">
+        <SectionHeader
+          title="Account health"
+          desc={`${accounts.length} connected`}
+          icon={Shield}
+        />
+      </div>
 
-      {/* Healthy vs at-risk bar */}
-      <div className="mb-4 rounded-2xl border border-border/40 bg-muted/20 p-3">
-        <div className="mb-2 flex items-center justify-between text-[11px] font-medium">
-          <span className="text-muted-foreground">Health ratio</span>
-          <span className="num-display">
+      {/* Health ratio */}
+      <div className="border-b border-border/40 px-4 py-2.5">
+        <div className="mb-1.5 flex items-center justify-between text-[10px] font-medium">
+          <span className="label-caps text-muted-foreground">
+            Health ratio
+          </span>
+          <span className="num-display tabular-nums">
             <span className="text-emerald-500">{healthyPct}%</span>
-            <span className="text-muted-foreground">
-              {" "}
-              /{" "}
-              <span className="text-rose-500">{atRiskPct}%</span>
-            </span>
+            <span className="text-muted-foreground"> / </span>
+            <span className="text-rose-500">{atRiskPct}%</span>
           </span>
         </div>
-        <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full bg-emerald-500 transition-all"
             style={{ width: `${healthyPct}%` }}
@@ -1211,294 +1063,227 @@ function AccountHealthSection({
         </div>
       </div>
 
-      {/* List */}
-      <div className="max-h-[560px] space-y-2 overflow-y-auto pr-1 scroll-liquid">
-        {sorted.map((a) => (
-          <AccountHealthRowCard key={a.id} account={a} />
-        ))}
-        {sorted.length === 0 && (
-          <div className="py-12 text-center text-sm text-muted-foreground">
+      {/* Top accounts list */}
+      <div className="flex-1 overflow-y-auto scroll-liquid">
+        {top.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
             No accounts connected.
           </div>
+        ) : (
+          top.map((a) => <AccountHealthListRow key={a.id} account={a} />)
         )}
       </div>
-    </GlassCard>
+    </BentoTile>
   );
 }
 
-function AccountHealthRowCard({ account }: { account: AccountHealthRow }) {
+function AccountHealthListRow({ account }: { account: AccountHealthRow }) {
   const pid = platformOf(account.platform);
-  const risk =
-    RISK_STYLE[account.riskLevel] ?? RISK_STYLE.safe;
-  const atRisk = account.riskLevel !== "safe";
+  const risk = RISK_PILL[account.riskLevel] ?? RISK_PILL.safe;
   const barColor = riskBarColor(account.riskScore);
 
   return (
-    <div
-      className={cn(
-        "flex flex-wrap items-center gap-3 rounded-2xl border bg-background/50 p-3 transition hover:bg-muted/30",
-        atRisk
-          ? "border-primary/30 shadow-[inset_2px_0_0_0_var(--primary)]"
-          : "border-border/40",
-      )}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {pid ? (
-          <PlatformBadge platform={pid} size={36} />
-        ) : (
-          <span className="grid h-9 w-9 place-items-center rounded-[28%] bg-muted text-xs font-bold text-muted-foreground">
-            {account.platform.slice(0, 2).toUpperCase()}
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">
-            {account.displayName}
-          </div>
-          <div className="truncate text-[11px] text-muted-foreground">
-            @{account.handle}
-          </div>
-        </div>
-      </div>
-
-      {/* Followers */}
-      <div className="text-right">
-        <div className="num-display text-sm font-semibold">
-          {fmt(account.followers)}
-        </div>
-        <div className="text-[10px] text-muted-foreground">followers</div>
-      </div>
-
-      {/* Risk score mini bar */}
-      <div className="w-28">
-        <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>Risk score</span>
-          <span
-            className="num-display font-semibold"
-            style={{ color: barColor }}
-          >
-            {account.riskScore}
-          </span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${account.riskScore}%`, background: barColor }}
-          />
-        </div>
-      </div>
-
-      {/* Risk badge */}
-      <span
-        className={cn(
-          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-          risk.bg,
-          risk.color,
-        )}
-      >
-        {atRisk && (
-          <span
-            className={cn(
-              "inline-flex h-1.5 w-1.5 rounded-full",
-              risk.color.replace("text-", "bg-"),
-            )}
-          />
-        )}
-        {risk.label}
-      </span>
-
-      {/* Status */}
-      <span className="hidden text-[10px] text-muted-foreground capitalize sm:inline">
-        {account.status}
-      </span>
-
-      {/* Reports */}
-      <div className="flex items-center gap-1 text-[11px]">
-        <Flag
-          className={cn(
-            "h-3 w-3",
-            account.reportCount > 0 ? "text-rose-500" : "text-muted-foreground",
-          )}
-        />
-        <span
-          className={cn(
-            "num-display font-semibold",
-            account.reportCount > 0 && "text-rose-500",
-          )}
-        >
-          {account.reportCount}
+    <ListRow className="px-4 py-2">
+      {pid ? (
+        <PlatformBadge platform={pid} size={28} />
+      ) : (
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-[28%] bg-muted text-[10px] font-bold text-muted-foreground">
+          {account.platform.slice(0, 2).toUpperCase()}
         </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-semibold">
+          {account.displayName}
+        </div>
+        <div className="truncate text-[10px] text-muted-foreground">
+          @{account.handle}
+        </div>
       </div>
-    </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span
+          className="num-display text-[11px] font-semibold tabular-nums"
+          style={{ color: barColor }}
+        >
+          {account.riskScore}
+        </span>
+        <Pill color={risk.color}>{risk.label}</Pill>
+      </div>
+      {account.reportCount > 0 && (
+        <div className="flex shrink-0 items-center gap-0.5 text-rose-500">
+          <Flag className="h-2.5 w-2.5" />
+          <span className="num-display text-[10px] tabular-nums">
+            {account.reportCount}
+          </span>
+        </div>
+      )}
+    </ListRow>
   );
 }
 
-/* ============================== 6. Department breakdown ============================== */
+/* ============================== Tile D: Department breakdown (1×1) ============================== */
 
-function DepartmentSection({ departments }: { departments: DepartmentRow[] }) {
+const DEPT_COLORS = [
+  "var(--primary)",
+  "oklch(0.72 0.16 200)",
+  "oklch(0.76 0.15 165)",
+  "oklch(0.66 0.16 230)",
+  "oklch(0.78 0.18 75)",
+  "var(--gold)",
+  "oklch(0.66 0.22 305)",
+];
+
+function DepartmentTile({ departments }: { departments: DepartmentRow[] }) {
   const sorted = [...departments].sort((a, b) => b.engagement - a.engagement);
-  const maxEngagement = Math.max(1, ...sorted.map((d) => d.engagement));
-  const colors = [
-    "var(--primary)",
-    "oklch(0.72 0.16 200)",
-    "oklch(0.76 0.15 165)",
-    "oklch(0.66 0.16 230)",
-    "oklch(0.78 0.18 75)",
-    "var(--gold)",
-    "oklch(0.66 0.22 305)",
-  ];
   const chartData = sorted.map((d, i) => ({
     name: d.name,
     engagement: d.engagement,
-    fill: colors[i % colors.length],
+    fill: DEPT_COLORS[i % DEPT_COLORS.length],
   }));
 
   return (
-    <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.74s" }}>
-      <SectionTitle
-        title="Department breakdown"
-        desc="Engagement generated per department"
-        action={
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
-            {sorted.length} departments
-          </div>
-        }
-      />
-      <div
-        style={{ height: Math.max(180, sorted.length * 48) }}
-        className="w-full"
-      >
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            layout="vertical"
-            margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--border)"
-              horizontal={false}
-            />
-            <XAxis
-              type="number"
-              tickFormatter={(v) => fmt(v)}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              axisLine={false}
-              tickLine={false}
-              width={120}
-            />
-            <Tooltip
-              cursor={{ fill: "var(--muted)", opacity: 0.35 }}
-              contentStyle={TOOLTIP_STYLE}
-              formatter={(v: number) => [fmt(v), "Engagement"]}
-            />
-            <Bar dataKey="engagement" radius={[0, 6, 6, 0]} barSize={20}>
-              {chartData.map((d) => (
-                <Cell key={d.name} fill={d.fill} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+    <BentoTile
+      span="1x1"
+      className="crystal-in flex flex-col overflow-hidden p-0"
+      style={{ animationDelay: "0.34s" }}
+    >
+      <div className="border-b border-border/40 px-4 py-2.5">
+        <SectionHeader
+          title="Departments"
+          desc={`${sorted.length} teams · engagement`}
+          icon={Building2}
+        />
       </div>
 
-      {/* Legend */}
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        {sorted.map((d, i) => (
-          <div
-            key={d.name}
-            className="flex items-center gap-2 rounded-xl border border-border/40 bg-muted/20 p-2"
-          >
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: colors[i % colors.length] }}
-            />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[12px] font-medium">{d.name}</div>
-              <div className="text-[10px] text-muted-foreground">
-                {d.count} members · {fmt(d.engagement)}
-              </div>
-            </div>
-            <div className="h-1 w-10 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${(d.engagement / maxEngagement) * 100}%`,
-                  background: colors[i % colors.length],
-                }}
-              />
-            </div>
-          </div>
-        ))}
-        {sorted.length === 0 && (
-          <div className="col-span-full py-8 text-center text-sm text-muted-foreground">
+      <div className="flex-1 px-2 py-2">
+        {sorted.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
             No department data yet.
           </div>
+        ) : (
+          <ResponsiveContainer
+            width="100%"
+            height={Math.max(120, sorted.length * 28)}
+          >
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ left: 4, right: 8, top: 4, bottom: 4 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--border)"
+                horizontal={false}
+              />
+              <XAxis
+                type="number"
+                tickFormatter={(v) => fmt(v)}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={84}
+              />
+              <Tooltip
+                cursor={{ fill: "var(--muted)", opacity: 0.35 }}
+                contentStyle={TOOLTIP_STYLE}
+                formatter={(v: number) => [fmt(v), "Engagement"]}
+              />
+              <Bar dataKey="engagement" radius={[0, 4, 4, 0]} barSize={12}>
+                {chartData.map((d) => (
+                  <Cell key={d.name} fill={d.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         )}
       </div>
-    </GlassCard>
+
+      {/* Mini legend — top 4 */}
+      {sorted.length > 0 && (
+        <div className="border-t border-border/40 px-4 py-2">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            {sorted.slice(0, 4).map((d, i) => (
+              <div
+                key={d.name}
+                className="flex items-center gap-1.5 text-[10px]"
+              >
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ background: DEPT_COLORS[i % DEPT_COLORS.length] }}
+                />
+                <span className="truncate">{d.name}</span>
+                <span className="ml-auto shrink-0 num-display tabular-nums text-muted-foreground">
+                  {fmt(d.engagement)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </BentoTile>
   );
 }
 
-/* ============================== 7. Activity feed ============================== */
+/* ============================== Tile E: Activity feed (2×1) ============================== */
 
-function ActivitySection({ activities }: { activities: ActivityRow[] }) {
-  const top = activities.slice(0, 15);
+function ActivityTile({ activities }: { activities: ActivityRow[] }) {
+  const top = activities.slice(0, 6);
 
   return (
-    <GlassCard className="crystal-in p-5" style={{ animationDelay: "0.82s" }}>
-      <SectionTitle
-        title="Activity feed"
-        desc="Latest actions across your workspace"
-        action={
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <Activity className="h-3.5 w-3.5 text-primary" />
-            {activities.length} events
-          </div>
-        }
-      />
-      <div className="space-y-1">
-        {top.map((a) => {
-          const Icon = ACTIVITY_ICON[a.type] ?? CheckCircle2;
-          return (
-            <div
-              key={a.id}
-              className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-muted/50"
-            >
-              <NameAvatar name={a.userName} className="h-8 w-8 text-[11px]" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm">
-                  <span className="font-semibold">{a.userName}</span>{" "}
-                  <span className="text-muted-foreground">
-                    {a.description.replace(a.userName + " ", "")}
-                  </span>
-                </div>
-                <div className="text-[10px] text-muted-foreground">
-                  {a.type.replace(/_/g, " ")}
-                </div>
-              </div>
-              <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
-                <Icon className="h-3.5 w-3.5" />
-              </div>
-              <span className="hidden w-16 text-right text-[11px] text-muted-foreground sm:block">
-                {timeAgo(a.createdAt)}
-              </span>
-            </div>
-          );
-        })}
-        {top.length === 0 && (
-          <div className="py-12 text-center text-sm text-muted-foreground">
+    <BentoTile
+      span="2x1"
+      className="crystal-in flex flex-col overflow-hidden p-0"
+      style={{ animationDelay: "0.42s" }}
+    >
+      <div className="border-b border-border/40 px-4 py-2.5">
+        <SectionHeader
+          title="Activity feed"
+          desc={`${activities.length} events · latest workspace actions`}
+          icon={Activity}
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto scroll-liquid">
+        {top.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
             No recent activity.
           </div>
+        ) : (
+          top.map((a) => <ActivityListRow key={a.id} activity={a} />)
         )}
       </div>
-    </GlassCard>
+    </BentoTile>
+  );
+}
+
+function ActivityListRow({ activity }: { activity: ActivityRow }) {
+  const Icon = ACTIVITY_ICON[activity.type] ?? CheckCircle2;
+  return (
+    <ListRow className="px-4 py-2">
+      <NameAvatar name={activity.userName} className="h-7 w-7 text-[10px]" />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs">
+          <span className="font-semibold">{activity.userName}</span>{" "}
+          <span className="text-muted-foreground">
+            {activity.description.replace(activity.userName + " ", "")}
+          </span>
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          {activity.type.replace(/_/g, " ")}
+        </div>
+      </div>
+      <div className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="h-3 w-3" />
+      </div>
+      <span className="w-12 shrink-0 text-right text-[10px] text-muted-foreground">
+        {timeAgo(activity.createdAt)}
+      </span>
+    </ListRow>
   );
 }
 
@@ -1506,18 +1291,26 @@ function ActivitySection({ activities }: { activities: ActivityRow[] }) {
 
 function AdminSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="shimmer h-32 rounded-3xl" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="shimmer h-32 rounded-3xl" />
-        ))}
-      </div>
-      <div className="shimmer h-96 rounded-3xl" />
-      <div className="shimmer h-[420px] rounded-3xl" />
-      <div className="shimmer h-80 rounded-3xl" />
-      <div className="shimmer h-72 rounded-3xl" />
-      <div className="shimmer h-64 rounded-3xl" />
+    <div className="space-y-4">
+      <div className="shimmer h-16 rounded-xl" />
+      <div className="shimmer h-12 rounded-xl" />
+      <BentoGrid>
+        <BentoTile span="2x2">
+          <div className="shimmer h-full w-full rounded-lg" />
+        </BentoTile>
+        <BentoTile span="2x2">
+          <div className="shimmer h-full w-full rounded-lg" />
+        </BentoTile>
+        <BentoTile span="1x1">
+          <div className="shimmer h-full w-full rounded-lg" />
+        </BentoTile>
+        <BentoTile span="1x1">
+          <div className="shimmer h-full w-full rounded-lg" />
+        </BentoTile>
+        <BentoTile span="2x1">
+          <div className="shimmer h-full w-full rounded-lg" />
+        </BentoTile>
+      </BentoGrid>
     </div>
   );
 }

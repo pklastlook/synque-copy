@@ -8,7 +8,6 @@ import {
   Music,
   Search,
   Upload,
-  Plus,
   Folder as FolderIcon,
   FolderPlus,
   LayoutGrid,
@@ -24,14 +23,23 @@ import {
   Calendar,
   FolderOpen,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi } from "@/lib/hooks";
-import { GlassCard, KpiCard } from "@/components/glass/glass-card";
+import { GlassCard } from "@/components/glass/glass-card";
 import { HelpText } from "@/components/glass/help-text";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
+import {
+  MetricRow,
+  BentoGrid,
+  SectionHeader,
+  ListRow,
+  Pill,
+  type Metric,
+} from "@/components/glass/dense-ui";
 import {
   Dialog,
   DialogContent,
@@ -40,15 +48,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 interface MediaAsset {
@@ -77,9 +77,6 @@ interface MediaResponse {
   folders: MediaFolder[];
 }
 
-/** Preset library images for "Add from library" quick-pick. */
-const PRESET_LIBRARY: { url: string; name: string; tags: string }[] = [];
-
 function fmtSize(bytes: number) {
   if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(2)} GB`;
   if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
@@ -94,22 +91,30 @@ function fmtBytesBig(bytes: number) {
 
 const TYPE_META: Record<
   MediaAsset["type"],
-  { icon: React.ElementType; color: string; bg: string }
+  {
+    icon: React.ElementType;
+    color: string;
+    bg: string;
+    pillColor: "blue" | "amber" | "violet";
+  }
 > = {
   image: {
     icon: ImageIcon,
     color: "text-[oklch(0.55_0.18_145)]",
     bg: "bg-[oklch(0.76_0.18_145)]/20",
+    pillColor: "blue",
   },
   video: {
     icon: Film,
     color: "text-[oklch(0.55_0.16_75)]",
     bg: "bg-[oklch(0.78_0.18_75)]/20",
+    pillColor: "amber",
   },
   audio: {
     icon: Music,
     color: "text-[oklch(0.55_0.18_165)]",
     bg: "bg-[oklch(0.74_0.18_165)]/20",
+    pillColor: "violet",
   },
 };
 
@@ -121,9 +126,56 @@ function parseTags(tags: string | null): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Compute a 7-day trend (count of assets created each day) for the sparkline.
+ * Returns zeros if no assets.
+ */
+function computeTrend(assets: MediaAsset[], days = 7): number[] {
+  if (assets.length === 0) return Array(days).fill(0);
+  const now = new Date();
+  const trend: number[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const dayStart = new Date(now);
+    dayStart.setDate(now.getDate() - i);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayStart.getDate() + 1);
+    trend.push(
+      assets.filter((a) => {
+        const c = new Date(a.createdAt);
+        return c >= dayStart && c < dayEnd;
+      }).length,
+    );
+  }
+  return trend;
+}
+
+/** Storage trend — MB uploaded per day, for the sparkline. */
+function computeSizeTrendMb(assets: MediaAsset[], days = 7): number[] {
+  if (assets.length === 0) return Array(days).fill(0);
+  const now = new Date();
+  const trend: number[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const dayStart = new Date(now);
+    dayStart.setDate(now.getDate() - i);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayStart.getDate() + 1);
+    const sum = assets
+      .filter((a) => {
+        const c = new Date(a.createdAt);
+        return c >= dayStart && c < dayEnd;
+      })
+      .reduce((s, a) => s + a.size, 0);
+    trend.push(sum / 1_048_576); // MB
+  }
+  return trend;
+}
+
 export function MediaLibraryView() {
   const { data, loading, reload } = useApi<MediaResponse>("/api/media");
-  const { openComposer, mediaTab } = useNav();
+  const { openComposer, mediaTab, setMediaTab } = useNav();
+  const { user } = useAuth();
   const [folder, setFolder] = React.useState<string>("all");
   const [query, setQuery] = React.useState("");
   const [view, setView] = React.useState<"grid" | "list">("grid");
@@ -155,7 +207,9 @@ export function MediaLibraryView() {
     {
       name: "root",
       count: assets.filter((a) => a.folder === "root").length,
-      size: assets.filter((a) => a.folder === "root").reduce((s, a) => s + a.size, 0),
+      size: assets
+        .filter((a) => a.folder === "root")
+        .reduce((s, a) => s + a.size, 0),
     },
     ...folders.filter((f) => f.name !== "root"),
   ];
@@ -176,299 +230,269 @@ export function MediaLibraryView() {
 
   // KPIs — scope counts to the active type filter so the strip reflects
   // what the user is currently viewing in the sidebar.
-  const scopedAssets = activeType === null ? assets : assets.filter((a) => a.type === activeType);
+  const scopedAssets =
+    activeType === null ? assets : assets.filter((a) => a.type === activeType);
   const totalSize = scopedAssets.reduce((s, a) => s + a.size, 0);
   const imageCount = scopedAssets.filter((a) => a.type === "image").length;
-  const uniqueFolders = new Set(scopedAssets.map((a) => a.folder)).size;
+  const videoCount = scopedAssets.filter((a) => a.type === "video").length;
+  const audioCount = scopedAssets.filter((a) => a.type === "audio").length;
+
+  // Trends — 7-day sparkline based on createdAt
+  const allTrend = computeTrend(scopedAssets);
+  const sizeTrendMb = computeSizeTrendMb(scopedAssets);
+  const imageTrend = computeTrend(assets.filter((a) => a.type === "image"));
+  const videoTrend = computeTrend(assets.filter((a) => a.type === "video"));
+
+  const metrics: Metric[] = [
+    {
+      label: "Total assets",
+      value: scopedAssets.length,
+      spark: allTrend,
+      color: "var(--primary)",
+    },
+    {
+      label: "Storage used",
+      value: fmtBytesBig(totalSize),
+      spark: sizeTrendMb,
+      color: "oklch(0.74 0.18 165)",
+    },
+    {
+      label: "Images",
+      value: imageCount,
+      spark: imageTrend,
+      color: "oklch(0.55 0.18 145)",
+    },
+    {
+      label: "Videos",
+      value: videoCount,
+      spark: videoTrend,
+      color: "oklch(0.55 0.16 75)",
+    },
+  ];
+
+  // Type filter pills (SectionHeader action)
+  const typePills: {
+    id: string;
+    label: string;
+    count: number;
+    color: "neutral" | "blue" | "amber" | "violet";
+  }[] = [
+    { id: "all", label: "All", count: assets.length, color: "neutral" },
+    {
+      id: "images",
+      label: "Images",
+      count: assets.filter((a) => a.type === "image").length,
+      color: "blue",
+    },
+    {
+      id: "videos",
+      label: "Videos",
+      count: assets.filter((a) => a.type === "video").length,
+      color: "amber",
+    },
+    {
+      id: "audio",
+      label: "Audio",
+      count: assets.filter((a) => a.type === "audio").length,
+      color: "violet",
+    },
+  ];
 
   return (
-    <div className="animate-rise space-y-5">
+    <div className="animate-rise space-y-4">
       {/* Help text for new users */}
       <HelpText module="media-library">
         <strong className="text-foreground">Media Library</strong> stores all your images, videos, and audio for use
-        in posts. Click <strong className="text-foreground">Upload</strong> to drag-and-drop a file from your computer,
-        or paste a URL. Assets are organized into folders by tag.
+        in posts. Drag-and-drop a file into the upload zone, or click <strong className="text-foreground">Upload</strong> for the
+        URL/manual flow. Assets are organized into folders by tag.
       </HelpText>
-      {/* Hero */}
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
-        <div
-          className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full opacity-40 blur-3xl"
-          style={{ background: "oklch(0.74 0.18 165)" }}
-        />
-        <div
-          className="pointer-events-none absolute -bottom-12 left-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
-          style={{ background: "var(--primary)" }}
-        />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-              Media library
-              {mediaTab !== "all" && (
-                <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                  {mediaTab}
-                </span>
-              )}
-            </div>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-              Your creative assets, organized
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{scopedAssets.length}</span> assets ·{" "}
-              <span className="font-semibold text-foreground">{fmtBytesBig(totalSize)}</span> used ·{" "}
-              <span className="font-semibold text-foreground">{uniqueFolders}</span> folders
-            </p>
+
+      {/* MetricRow — dense KPI strip with sparklines (replaces hero + 4 KPI cards) */}
+      <MetricRow metrics={metrics} />
+
+      {/* CARD #1 — Toolbar (search + folder pills + view toggle + upload button) */}
+      <GlassCard className="p-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[200px] flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or tag…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-9"
+            />
           </div>
-          <button
+
+          {/* Folder pills — horizontal scroll on overflow */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1">
+            {folderList.map((f) => {
+              const isActive = folder === f.name;
+              const label =
+                f.name === "all" ? "All" : f.name === "root" ? "Root" : f.name;
+              return (
+                <button
+                  key={f.name}
+                  onClick={() => setFolder(f.name)}
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition",
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {f.name === "all" ? (
+                    <LayoutGrid className="h-3 w-3" />
+                  ) : (
+                    <FolderIcon className="h-3 w-3" />
+                  )}
+                  <span className="whitespace-nowrap">{label}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-1 text-[10px] tabular-nums",
+                      isActive
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-muted-foreground/15 text-muted-foreground",
+                    )}
+                  >
+                    {f.count}
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              onClick={() => {
+                const name = window.prompt("Enter folder name:");
+                if (!name?.trim()) return;
+                setFolder(name.trim());
+                toast.success(`Folder "${name.trim()}" created`, {
+                  description: "Upload media to this folder to populate it.",
+                });
+              }}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              aria-label="New folder"
+              title="New folder"
+            >
+              <FolderPlus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* View toggle */}
+          <div className="flex items-center gap-1 rounded-lg bg-muted/60 p-1">
+            <button
+              onClick={() => setView("grid")}
+              className={cn(
+                "grid h-6 w-6 place-items-center rounded transition",
+                view === "grid"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              aria-label="Grid view"
+              title="Grid view"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={cn(
+                "grid h-6 w-6 place-items-center rounded transition",
+                view === "list"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              aria-label="List view"
+              title="List view"
+            >
+              <ListIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <Button
             onClick={() => setUploadOpen(true)}
-            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+            size="sm"
+            className="liquid-pill gap-1.5 rounded-xl"
           >
             <Upload className="h-4 w-4" />
             Upload
-          </button>
+          </Button>
         </div>
       </GlassCard>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Total assets"
-          value={scopedAssets.length}
-          icon={<ImageIcon className="h-5 w-5" />}
-          accent="var(--primary)"
-          hint={mediaTab === "all" ? "all media files" : `${mediaTab} only`}
+      {/* CARD #2 — Upload zone (compact, always visible drag-and-drop) */}
+      <GlassCard className="p-3">
+        <FileUploadZoneInline
+          userId={user?.id ?? null}
+          folder={folder === "all" ? "root" : folder}
+          onDone={reload}
+          onOpenDialog={() => setUploadOpen(true)}
         />
-        <KpiCard
-          label="Total size"
-          value={fmtBytesBig(totalSize)}
-          icon={<HardDrive className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          hint="storage used"
-        />
-        <KpiCard
-          label="Folders"
-          value={uniqueFolders}
-          icon={<FolderIcon className="h-5 w-5" />}
-          accent="oklch(0.66 0.22 305)"
-          hint="organized collections"
-        />
-        <KpiCard
-          label="Images"
-          value={imageCount}
-          icon={<Hash className="h-5 w-5" />}
-          accent="oklch(0.78 0.18 75)"
-          hint="image assets"
-        />
-      </div>
+      </GlassCard>
 
-      <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
-        {/* Sidebar (folders) — hidden on mobile, becomes horizontal pills */}
-        <div className="lg:block">
-          <GlassCard className="p-4">
-            <div className="mb-3 hidden items-center justify-between lg:flex">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Folders
-              </span>
-              <button
-                onClick={() => {
-                  const name = window.prompt("Enter folder name:");
-                  if (!name?.trim()) return;
-                  // Create a folder by adding a placeholder asset to it
-                  // (folders are virtual — they exist when assets reference them)
-                  // For now, just switch to the new folder so the user can upload to it
-                  setFolder(name.trim());
-                  toast.success(`Folder "${name.trim()}" created`, {
-                    description: "Upload media to this folder to populate it.",
-                  });
-                }}
-                className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                aria-label="New folder"
-              >
-                <FolderPlus className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            {/* Mobile: horizontal scroll */}
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-              {folderList.map((f) => {
-                const isActive = folder === f.name;
-                const label = f.name === "all" ? "All assets" : f.name === "root" ? "Root" : f.name;
+      {/* Media grid — NOT a card; SectionHeader + direct grid (BentoGrid) */}
+      <div>
+        <SectionHeader
+          title="Media library"
+          desc={`${filtered.length} of ${assets.length} assets · ${fmtBytesBig(
+            filtered.reduce((s, a) => s + a.size, 0),
+          )} · ${audioCount} audio`}
+          icon={Sparkles}
+          action={
+            <div className="flex flex-wrap items-center gap-1">
+              {typePills.map((p) => {
+                const isActive = mediaTab === p.id;
                 return (
                   <button
-                    key={f.name}
-                    onClick={() => setFolder(f.name)}
+                    key={p.id}
+                    onClick={() => setMediaTab(p.id)}
                     className={cn(
-                      "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium transition lg:shrink-0",
-                      isActive
-                        ? "border-primary/40 bg-primary text-primary-foreground shadow-sm"
-                        : "border-border/60 bg-background/60 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                      "transition",
+                      !isActive && "opacity-50 hover:opacity-100",
                     )}
+                    title={`Filter to ${p.label.toLowerCase()}`}
                   >
-                    {f.name === "all" ? (
-                      <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
-                    ) : (
-                      <FolderIcon className="h-3.5 w-3.5 shrink-0" />
-                    )}
-                    <span className="whitespace-nowrap">{label}</span>
-                    <span
-                      className={cn(
-                        "ml-auto rounded-full px-1.5 py-0.5 text-[10px]",
-                        isActive
-                          ? "bg-primary-foreground/20 text-primary-foreground"
-                          : "bg-muted-foreground/15 text-muted-foreground"
-                      )}
-                    >
-                      {f.count}
-                    </span>
+                    <Pill color={p.color}>
+                      {p.label}
+                      <span className="opacity-70">{p.count}</span>
+                    </Pill>
                   </button>
                 );
               })}
-              <button
-                onClick={() => {
-                  const name = window.prompt("Enter folder name:");
-                  if (!name?.trim()) return;
-                  setFolder(name.trim());
-                  toast.success(`Folder "${name.trim()}" created`);
-                }}
-                className="flex shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted/40 hover:text-foreground lg:hidden"
-              >
-                <FolderPlus className="h-3.5 w-3.5" /> New
-              </button>
             </div>
-          </GlassCard>
-        </div>
+          }
+        />
 
-        {/* Main area */}
-        <div className="min-w-0 space-y-4">
-          {/* Toolbar */}
-          <GlassCard className="flex flex-wrap items-center gap-3 p-3">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or tag…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/40 py-12 text-center">
+            <FolderOpen className="h-8 w-8 text-muted-foreground/50" />
+            <p className="text-sm font-medium">No assets match this filter</p>
+            <p className="text-xs text-muted-foreground">
+              Try a different folder, type filter, or search query.
+            </p>
+          </div>
+        ) : view === "grid" ? (
+          <BentoGrid
+            className="grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+          >
+            {filtered.map((a) => (
+              <MediaTile
+                key={a.id}
+                asset={a}
+                onSelect={() => setSelected(a)}
+                onUse={() => openComposer()}
               />
-            </div>
-            <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1">
-              <button
-                onClick={() => setView("grid")}
-                className={cn(
-                  "grid h-7 w-7 place-items-center rounded-lg transition",
-                  view === "grid"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                aria-label="Grid view"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setView("list")}
-                className={cn(
-                  "grid h-7 w-7 place-items-center rounded-lg transition",
-                  view === "list"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                aria-label="List view"
-              >
-                <ListIcon className="h-4 w-4" />
-              </button>
-            </div>
-          </GlassCard>
-
-          {/* Grid or list */}
-          {filtered.length === 0 ? (
-            <GlassCard className="p-10 text-center">
-              <FolderOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
-              <p className="text-sm font-medium">No assets match this filter</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Try a different folder or search query.
-              </p>
-            </GlassCard>
-          ) : view === "grid" ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {filtered.map((a) => (
-                <MediaGridCard
-                  key={a.id}
-                  asset={a}
-                  onSelect={() => setSelected(a)}
-                  onUse={() => openComposer()}
-                />
-              ))}
-            </div>
-          ) : (
-            <GlassCard className="overflow-hidden p-0">
-              <div className="max-h-[70vh] overflow-y-auto scroll-liquid">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 z-10 bg-background/80 backdrop-blur">
-                    <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                      <th className="px-4 py-2 font-semibold">Asset</th>
-                      <th className="hidden px-4 py-2 font-semibold sm:table-cell">Folder</th>
-                      <th className="px-4 py-2 font-semibold">Size</th>
-                      <th className="hidden px-4 py-2 font-semibold md:table-cell">Date</th>
-                      <th className="px-4 py-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((a) => (
-                      <tr
-                        key={a.id}
-                        className="cursor-pointer border-t border-border/40 transition hover:bg-muted/40"
-                        onClick={() => setSelected(a)}
-                      >
-                        <td className="px-4 py-2">
-                          <div className="flex items-center gap-2">
-                            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-muted">
-                              {a.type === "image" && a.thumbnail ? (
-                                <img
-                                  src={a.thumbnail}
-                                  alt={a.name}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className={cn("grid h-full w-full place-items-center", TYPE_META[a.type].bg)}>
-                                  <TypeIcon type={a.type} className={cn("h-4 w-4", TYPE_META[a.type].color)} />
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="truncate text-xs font-medium">{a.name}</div>
-                              <div className="text-[10px] text-muted-foreground">{a.type}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="hidden px-4 py-2 text-xs text-muted-foreground sm:table-cell">
-                          {a.folder}
-                        </td>
-                        <td className="px-4 py-2 text-xs tabular-nums text-muted-foreground">
-                          {fmtSize(a.size)}
-                        </td>
-                        <td className="hidden px-4 py-2 text-xs text-muted-foreground md:table-cell">
-                          {isValid(parseISO(a.createdAt))
-                            ? format(parseISO(a.createdAt), "MMM d, yyyy")
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openComposer();
-                            }}
-                            className="rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground"
-                          >
-                            Use
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </GlassCard>
-          )}
-        </div>
+            ))}
+          </BentoGrid>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border/40">
+            {filtered.map((a) => (
+              <MediaListRow
+                key={a.id}
+                asset={a}
+                onClick={() => setSelected(a)}
+                onUse={() => openComposer()}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <UploadDialog
@@ -490,7 +514,9 @@ export function MediaLibraryView() {
         }}
         onDelete={async (a) => {
           try {
-            const res = await fetch(`/api/media/${a.id}`, { method: "DELETE" });
+            const res = await fetch(`/api/media/${a.id}`, {
+              method: "DELETE",
+            });
             if (res.ok) {
               toast.success(`"${a.name}" deleted`);
               reload();
@@ -507,18 +533,12 @@ export function MediaLibraryView() {
   );
 }
 
-function TypeIcon({
-  type,
-  className,
-}: {
-  type: MediaAsset["type"];
-  className?: string;
-}) {
-  const Icon = TYPE_META[type].icon;
-  return <Icon className={className} />;
-}
+// ============================================================================
+// MediaTile — direct grid tile, NOT a card. Pure visual container for a
+// media asset thumbnail + type Pill + size badge + hover overlay.
+// ============================================================================
 
-function MediaGridCard({
+function MediaTile({
   asset,
   onSelect,
   onUse,
@@ -534,7 +554,7 @@ function MediaGridCard({
     <div className="group flex flex-col">
       <button
         onClick={onSelect}
-        className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/40 bg-muted shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        className="relative aspect-square w-full overflow-hidden rounded-xl border border-border/40 bg-muted transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
       >
         {asset.type === "image" && asset.thumbnail ? (
           <img
@@ -544,46 +564,45 @@ function MediaGridCard({
           />
         ) : (
           <div className={cn("grid h-full w-full place-items-center", typeMeta.bg)}>
-            <TypeIcon type={asset.type} className={cn("h-10 w-10", typeMeta.color)} />
+            <typeMeta.icon className={cn("h-10 w-10", typeMeta.color)} />
           </div>
         )}
 
-        {/* Type icon top-left */}
-        <span
-          className={cn(
-            "absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-lg backdrop-blur",
-            typeMeta.bg,
-            typeMeta.color
-          )}
-        >
-          <TypeIcon type={asset.type} className="h-3.5 w-3.5" />
+        {/* Type Pill top-left */}
+        <span className="absolute left-2 top-2">
+          <Pill color={typeMeta.pillColor}>
+            <typeMeta.icon className="h-2.5 w-2.5" />
+            {asset.type}
+          </Pill>
         </span>
 
         {/* Size badge top-right */}
-        <span className="absolute right-2 top-2 rounded-lg bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
+        <span className="absolute right-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur">
           {fmtSize(asset.size)}
         </span>
 
-        {/* Hover overlay with name + Use */}
+        {/* Hover overlay with name + Use button */}
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/30 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
-          <div className="pointer-events-none text-[11px] font-semibold text-white drop-shadow line-clamp-1">
+          <div className="pointer-events-none line-clamp-1 text-[11px] font-semibold text-white drop-shadow">
             {asset.name}
           </div>
-          <div
-            className="pointer-events-auto mt-1 inline-flex w-fit items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-[10px] font-semibold text-foreground"
+          <button
             onClick={(e) => {
               e.stopPropagation();
               onUse();
             }}
+            className="pointer-events-auto mt-1 inline-flex w-fit items-center gap-1 rounded-lg bg-white/95 px-2 py-1 text-[10px] font-semibold text-foreground transition hover:bg-white"
           >
             <Wand2 className="h-3 w-3" /> Use
-          </div>
+          </button>
         </div>
       </button>
 
-      {/* Below: name + tags */}
+      {/* Caption below thumbnail — NOT a card */}
       <div className="mt-1.5 px-0.5">
-        <div className="truncate text-xs font-medium leading-tight">{asset.name}</div>
+        <div className="truncate text-xs font-medium leading-tight">
+          {asset.name}
+        </div>
         {tags.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
             {tags.slice(0, 3).map((t) => (
@@ -601,6 +620,70 @@ function MediaGridCard({
   );
 }
 
+// ============================================================================
+// MediaListRow — dense list row (uses ListRow primitive, NOT a card).
+// ============================================================================
+
+function MediaListRow({
+  asset,
+  onClick,
+  onUse,
+}: {
+  asset: MediaAsset;
+  onClick: () => void;
+  onUse: () => void;
+}) {
+  const typeMeta = TYPE_META[asset.type];
+  return (
+    <ListRow onClick={onClick} className="bg-background/50 hover:bg-muted/40">
+      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
+        {asset.type === "image" && asset.thumbnail ? (
+          <img
+            src={asset.thumbnail}
+            alt={asset.name}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className={cn("grid h-full w-full place-items-center", typeMeta.bg)}>
+            <typeMeta.icon className={cn("h-4 w-4", typeMeta.color)} />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-medium">{asset.name}</div>
+        <div className="mt-0.5 flex items-center gap-1.5">
+          <Pill color={typeMeta.pillColor}>{asset.type}</Pill>
+          <span className="text-[10px] text-muted-foreground">
+            {asset.folder}
+          </span>
+        </div>
+      </div>
+      <div className="hidden shrink-0 text-xs tabular-nums text-muted-foreground sm:block">
+        {fmtSize(asset.size)}
+      </div>
+      <div className="hidden shrink-0 text-xs text-muted-foreground md:block">
+        {isValid(parseISO(asset.createdAt))
+          ? format(parseISO(asset.createdAt), "MMM d, yyyy")
+          : "—"}
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onUse();
+        }}
+        className="shrink-0 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground"
+      >
+        Use
+      </button>
+      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+    </ListRow>
+  );
+}
+
+// ============================================================================
+// UploadDialog — modal for URL/manual upload flow. Preserved from original.
+// ============================================================================
+
 function UploadDialog({
   open,
   onOpenChange,
@@ -613,60 +696,10 @@ function UploadDialog({
   onUploaded: () => void;
 }) {
   const { user } = useAuth();
-  const [url, setUrl] = React.useState("");
-  const [name, setName] = React.useState("");
-  const [tags, setTags] = React.useState("");
-  const [folder, setFolder] = React.useState<string>("root");
-  const [type, setType] = React.useState<"image" | "video" | "audio">("image");
-  const [submitting, setSubmitting] = React.useState(false);
-
-  const reset = () => {
-    setUrl("");
-    setName("");
-    setTags("");
-    setFolder("root");
-    setType("image");
-  };
-
-  const handleSubmit = async (override?: Partial<typeof PRESET_LIBRARY[number]> & { url?: string; name?: string }) => {
-    const finalUrl = override?.url ?? url;
-    const finalName = override?.name ?? name;
-    if (!finalUrl || !finalName) {
-      toast.error("URL and name are required");
-      return;
-    }
-    if (!user?.id) {
-      toast.error("You must be signed in to upload media");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/media", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: finalName,
-          url: finalUrl,
-          type,
-          tags: (override?.tags ?? tags) || null,
-          folder,
-          uploadedById: user.id,
-        }),
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      toast.success(`"${finalName}" added`);
-      reset();
-      onUploaded();
-    } catch {
-      toast.error("Could not upload asset");
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg rounded-3xl">
+      <DialogContent className="rounded-3xl sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
@@ -675,22 +708,18 @@ function UploadDialog({
             Upload media
           </DialogTitle>
           <DialogDescription>
-            Upload a file and copy the link to use anywhere.
+            Drag-and-drop a file or click to browse. URL is auto-copied after
+            upload.
           </DialogDescription>
         </DialogHeader>
 
         <FileUploadZone
-          onUploaded={(file, uploadedUrl) => {
-            setName(file.name.replace(/\.[^/.]+$/, ""));
-            setUrl(uploadedUrl);
-            const mime = file.type.toLowerCase();
-            if (mime.startsWith("video/")) setType("video");
-            else if (mime.startsWith("audio/")) setType("audio");
-            else setType("image");
+          onUploaded={() => {
+            /* parent handles */
           }}
-          submitting={submitting}
+          submitting={false}
           userId={user?.id ?? null}
-          folder={folder}
+          folder={folders[0] ?? "root"}
           onDone={onUploaded}
         />
 
@@ -703,6 +732,10 @@ function UploadDialog({
     </Dialog>
   );
 }
+
+// ============================================================================
+// AssetDetailDialog — modal for asset preview, copy URL, delete. Preserved.
+// ============================================================================
 
 function AssetDetailDialog({
   asset,
@@ -720,21 +753,23 @@ function AssetDetailDialog({
 
   return (
     <Dialog open={!!asset} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-2xl rounded-3xl" showCloseButton>
+      <DialogContent className="rounded-3xl sm:max-w-2xl" showCloseButton>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 pr-8">
             <span
               className={cn(
                 "grid h-7 w-7 place-items-center rounded-lg",
                 typeMeta.bg,
-                typeMeta.color
+                typeMeta.color,
               )}
             >
-              <TypeIcon type={asset?.type ?? "image"} className="h-4 w-4" />
+              {asset && <typeMeta.icon className="h-4 w-4" />}
             </span>
             <span className="truncate">{asset?.name ?? "Asset"}</span>
           </DialogTitle>
-          <DialogDescription className="sr-only">Asset preview and details</DialogDescription>
+          <DialogDescription className="sr-only">
+            Asset preview and details
+          </DialogDescription>
         </DialogHeader>
 
         {asset && (
@@ -749,16 +784,16 @@ function AssetDetailDialog({
                 />
               ) : (
                 <div className={cn("grid h-full w-full place-items-center", typeMeta.bg)}>
-                  <TypeIcon type={asset.type} className={cn("h-16 w-16", typeMeta.color)} />
+                  <typeMeta.icon className={cn("h-16 w-16", typeMeta.color)} />
                 </div>
               )}
-              <span className="absolute left-3 top-3 rounded-lg bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase text-white backdrop-blur">
-                {asset.type}
+              <span className="absolute left-3 top-3">
+                <Pill color={typeMeta.pillColor}>{asset.type}</Pill>
               </span>
             </div>
 
-            {/* Metadata grid */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* Metadata grid — compact, uses dense MetricRow-like cells */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <MetaItem
                 icon={<HardDrive className="h-3.5 w-3.5" />}
                 label="Size"
@@ -806,7 +841,9 @@ function AssetDetailDialog({
 
             {/* URL row */}
             <div className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2">
-              <span className="text-[11px] font-medium text-muted-foreground">URL</span>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                URL
+              </span>
               <code className="min-w-0 flex-1 truncate text-[11px] text-foreground/80">
                 {asset.url}
               </code>
@@ -825,10 +862,13 @@ function AssetDetailDialog({
                 size="sm"
                 className="rounded-xl"
                 onClick={() => {
-                  if (typeof navigator !== "undefined" && navigator.clipboard) {
+                  if (
+                    typeof navigator !== "undefined" &&
+                    navigator.clipboard
+                  ) {
                     navigator.clipboard.writeText(asset.url).then(
                       () => toast.success("URL copied to clipboard"),
-                      () => toast.error("Could not copy URL")
+                      () => toast.error("Could not copy URL"),
                     );
                   } else {
                     toast.info("Copy not supported in this browser");
@@ -873,37 +913,199 @@ function MetaItem({
   );
 }
 
-function MediaSkeleton() {
+// ============================================================================
+// FileUploadZoneInline — compact, always-visible drop zone (page card #2).
+// Uploads files directly via /api/media/upload on drop; shows the resulting
+// URL with a copy button. Click "Open dialog" for the URL/manual flow.
+// ============================================================================
+
+function FileUploadZoneInline({
+  userId,
+  folder,
+  onDone,
+  onOpenDialog,
+}: {
+  userId: string | null;
+  folder: string;
+  onDone: () => void;
+  onOpenDialog: () => void;
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const [progress, setProgress] = React.useState<string>("");
+  const [uploadedUrl, setUploadedUrl] = React.useState<string>("");
+  const [copied, setCopied] = React.useState(false);
+
+  const handleFile = async (file: File) => {
+    if (!userId) {
+      toast.error("Sign in to upload files");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("File too large (max 25 MB)");
+      return;
+    }
+    setUploading(true);
+    setUploadedUrl("");
+    setProgress(`Uploading ${file.name}…`);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("uploadedById", userId);
+      fd.append("folder", folder);
+      const res = await fetch("/api/media/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (res.ok && json.url) {
+        toast.success(`"${file.name}" uploaded successfully`);
+        setUploadedUrl(json.url);
+        onDone();
+        // Auto-copy URL to clipboard
+        try {
+          await navigator.clipboard.writeText(json.url);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 3000);
+        } catch {
+          /* Clipboard may not be available */
+        }
+      } else {
+        toast.error(json.error ?? "Upload failed");
+      }
+    } catch {
+      toast.error("Network error during upload");
+    } finally {
+      setUploading(false);
+      setProgress("");
+    }
+  };
+
+  const copyUrl = async () => {
+    if (!uploadedUrl) return;
+    try {
+      await navigator.clipboard.writeText(uploadedUrl);
+      toast.success("URL copied to clipboard");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy URL");
+    }
+  };
+
   return (
-    <div className="space-y-5">
-      <div className="shimmer h-28 rounded-3xl" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="shimmer h-32 rounded-3xl" />
-        ))}
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      {/* Drop zone — compact */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer.files[0];
+          if (f) handleFile(f);
+        }}
+        onClick={() => !uploading && inputRef.current?.click()}
+        className={cn(
+          "relative flex flex-1 cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed p-3 transition",
+          dragOver
+            ? "border-primary bg-primary/10"
+            : "border-border hover:border-primary/40 hover:bg-muted/40",
+          uploading && "pointer-events-none opacity-60",
+        )}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,video/*,audio/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFile(f);
+            e.target.value = "";
+          }}
+        />
+        {uploading ? (
+          <>
+            <Loader2 className="h-7 w-7 shrink-0 animate-spin text-primary" />
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold">Uploading…</div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {progress}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <Upload className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold">
+                Drop a file or click to browse
+              </div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                PNG, JPG, MP4, MP3 · max 25MB · URL auto-copied
+              </div>
+            </div>
+          </>
+        )}
       </div>
-      <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
-        <div className="shimmer h-64 rounded-3xl" />
-        <div className="space-y-3">
-          <div className="shimmer h-14 rounded-3xl" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="shimmer aspect-square rounded-2xl" />
-            ))}
+
+      {/* Right column: either upload-success or open-dialog button */}
+      {uploadedUrl && !uploading ? (
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-2.5">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+              Upload successful
+            </div>
+            <div className="truncate text-[11px] text-muted-foreground">
+              {uploadedUrl.startsWith("data:")
+                ? "Image data URL (copied to clipboard)"
+                : uploadedUrl}
+            </div>
           </div>
+          <button
+            onClick={copyUrl}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition",
+              copied
+                ? "bg-emerald-500 text-white"
+                : "bg-primary/10 text-primary hover:bg-primary/20",
+            )}
+          >
+            {copied ? (
+              <>
+                <Check className="h-3 w-3" /> Copied
+              </>
+            ) : (
+              <>
+                <Copy className="h-3 w-3" /> Copy URL
+              </>
+            )}
+          </button>
         </div>
-      </div>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0 rounded-xl"
+          onClick={onOpenDialog}
+        >
+          <Wand2 className="h-3.5 w-3.5" />
+          URL upload
+        </Button>
+      )}
     </div>
   );
 }
 
-/**
- * FileUploadZone — drag-and-drop or click-to-browse file upload.
- * Uploads to /api/media/upload (multipart), stored via the pluggable
- * storage adapter (local FS in dev, swap to UploadThing/Cloudinary/R2 in prod).
- * On success, calls onUploaded(file, publicUrl) so the parent can
- * prefill the URL + name + type fields.
- */
+// ============================================================================
+// FileUploadZone — full drop zone used inside the UploadDialog. Preserved.
+// ============================================================================
+
 function FileUploadZone({
   onUploaded,
   submitting,
@@ -954,7 +1156,7 @@ function FileUploadZone({
           setCopied(true);
           setTimeout(() => setCopied(false), 3000);
         } catch {
-          // Clipboard may not be available
+          /* Clipboard may not be available */
         }
       } else {
         toast.error(json.error ?? "Upload failed");
@@ -982,7 +1184,10 @@ function FileUploadZone({
   return (
     <div className="space-y-3">
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
           e.preventDefault();
@@ -996,7 +1201,7 @@ function FileUploadZone({
           dragOver
             ? "border-primary bg-primary/10"
             : "border-border hover:border-primary/40 hover:bg-muted/40",
-          (uploading || submitting) && "pointer-events-none opacity-60"
+          (uploading || submitting) && "pointer-events-none opacity-60",
         )}
       >
         <input
@@ -1013,7 +1218,9 @@ function FileUploadZone({
         {uploading ? (
           <>
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="text-[13px] font-medium text-muted-foreground">{progress}</span>
+            <span className="text-[13px] font-medium text-muted-foreground">
+              {progress}
+            </span>
           </>
         ) : (
           <>
@@ -1021,7 +1228,9 @@ function FileUploadZone({
               <Upload className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-sm font-semibold">Drop a file or click to browse</div>
+              <div className="text-sm font-semibold">
+                Drop a file or click to browse
+              </div>
               <div className="mt-0.5 text-[11px] text-muted-foreground">
                 PNG, JPG, MP4, MP3 · max 25MB · URL auto-copied after upload
               </div>
@@ -1035,9 +1244,13 @@ function FileUploadZone({
         <div className="crystal-in flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">Upload successful!</div>
+            <div className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
+              Upload successful!
+            </div>
             <div className="truncate text-[11px] text-muted-foreground">
-              {uploadedUrl.startsWith("data:") ? "Image data URL (copied to clipboard)" : uploadedUrl}
+              {uploadedUrl.startsWith("data:")
+                ? "Image data URL (copied to clipboard)"
+                : uploadedUrl}
             </div>
           </div>
           <button
@@ -1046,17 +1259,40 @@ function FileUploadZone({
               "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition",
               copied
                 ? "bg-emerald-500 text-white"
-                : "bg-primary/10 text-primary hover:bg-primary/20"
+                : "bg-primary/10 text-primary hover:bg-primary/20",
             )}
           >
             {copied ? (
-              <><Check className="h-3 w-3" /> Copied!</>
+              <>
+                <Check className="h-3 w-3" /> Copied!
+              </>
             ) : (
-              <><Copy className="h-3 w-3" /> Copy URL</>
+              <>
+                <Copy className="h-3 w-3" /> Copy URL
+              </>
             )}
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================================
+// MediaSkeleton — loading placeholder.
+// ============================================================================
+
+function MediaSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="shimmer h-14 rounded-xl" />
+      <div className="shimmer h-14 rounded-xl" />
+      <div className="shimmer h-14 rounded-xl" />
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="shimmer aspect-square rounded-xl" />
+        ))}
+      </div>
     </div>
   );
 }

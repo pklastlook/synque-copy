@@ -5,6 +5,9 @@ import {
   Area,
   AreaChart,
   ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import {
   Users,
@@ -12,7 +15,6 @@ import {
   TrendingUp,
   Heart,
   Plus,
-  ArrowRight,
   Settings2,
   ShieldCheck,
   Sparkles,
@@ -45,13 +47,22 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useApi, fmt } from "@/lib/hooks";
-import { GlassCard, KpiCard } from "@/components/glass/glass-card";
+import {
+  MetricRow,
+  Sparkline,
+  BentoGrid,
+  BentoTile,
+  SectionHeader,
+  HeroChart,
+  ListRow,
+  Pill,
+  type Metric,
+} from "@/components/glass/dense-ui";
 import {
   PlatformBadge,
   PlatformPill,
   VerifiedTick,
 } from "@/components/glass/platform-badge";
-import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
 import { PLATFORMS, PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
 import { useAuth } from "@/lib/auth-store";
@@ -67,13 +78,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -131,28 +135,68 @@ interface AccountData {
   analytics?: { date: string; followers: number }[];
 }
 
-/** Build a sparkline from real analytics data (followers per day).
+/** Build a flat number[] sparkline series from real analytics data.
  *  Falls back to a flat line at the current follower count when no analytics
- *  exist yet — never generates fake wave data.
- */
-function buildSpark(followers: number, analytics?: { date: string; followers: number }[]) {
+ *  exist yet — never generates fake wave data. */
+function buildSparkValues(
+  followers: number,
+  analytics?: { date: string; followers: number }[]
+): number[] {
   const points = 12;
   if (!analytics || analytics.length === 0) {
-    return Array.from({ length: points }, (_, i) => ({ i, v: Math.max(2, followers) }));
+    return Array.from({ length: points }, () => Math.max(2, followers));
   }
-  // Use last `points` data points, or pad if fewer
   const recent = analytics.slice(-points);
   const padded = [
-    ...Array.from({ length: Math.max(0, points - recent.length) }, () => recent[0] ?? { followers }),
+    ...Array.from(
+      { length: Math.max(0, points - recent.length) },
+      () => recent[0] ?? { followers }
+    ),
     ...recent,
   ];
-  return padded.map((p, i) => ({ i, v: Math.max(2, p.followers ?? followers) }));
+  return padded.map((p) => Math.max(2, p.followers ?? followers));
+}
+
+/** Aggregate per-day series across all accounts (for the hero trend chart).
+ *  Each account's `impressions` / `engagement` are distributed evenly across
+ *  the account's analytics days so the trend has a sensible shape. */
+function buildAggregateSeries(accounts: AccountData[]): {
+  date: string;
+  followers: number;
+  impressions: number;
+  engagement: number;
+}[] {
+  const dateMap = new Map<
+    string,
+    { followers: number; impressions: number; engagement: number }
+  >();
+  for (const a of accounts) {
+    if (!a.analytics || a.analytics.length === 0) continue;
+    const share = a.analytics.length;
+    for (const point of a.analytics) {
+      const existing = dateMap.get(point.date) ?? {
+        followers: 0,
+        impressions: 0,
+        engagement: 0,
+      };
+      existing.followers += point.followers;
+      existing.impressions += a.impressions / share;
+      existing.engagement += a.engagement / share;
+      dateMap.set(point.date, existing);
+    }
+  }
+  return Array.from(dateMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, v]) => ({ date, ...v }));
 }
 
 export function AccountsView() {
   const { data, loading, reload } = useApi<AccountData[]>("/api/accounts");
   const [filter, setFilter] = React.useState<"all" | PlatformId>("all");
   const [connectOpen, setConnectOpen] = React.useState(false);
+  const [heroMetric, setHeroMetric] = React.useState<
+    "followers" | "impressions" | "engagement"
+  >("followers");
 
   if (loading || !data) return <AccountsSkeleton />;
 
@@ -161,6 +205,8 @@ export function AccountsView() {
   const totalAccounts = sorted.length;
   const totalFollowers = sorted.reduce((s, a) => s + a.followers, 0);
   const totalImpressions = sorted.reduce((s, a) => s + a.impressions, 0);
+  const totalEngagement = sorted.reduce((s, a) => s + a.engagement, 0);
+  const totalPosts = sorted.reduce((s, a) => s + a.postsCount, 0);
   const avgGrowth =
     totalAccounts > 0
       ? Math.round(sorted.reduce((s, a) => s + a.followerGrowth, 0) / totalAccounts)
@@ -172,77 +218,103 @@ export function AccountsView() {
 
   const filtered = filter === "all" ? sorted : sorted.filter((a) => a.platform === filter);
 
+  // Aggregated analytics series — powers the hero chart + sparklines.
+  // Plain computation (no useMemo) to keep hook order stable across the
+  // loading/empty branches above.
+  const aggregateSeries = buildAggregateSeries(sorted);
+  const followerSpark =
+    aggregateSeries.length > 1 ? aggregateSeries.map((p) => p.followers) : [];
+  const impressionsSpark =
+    aggregateSeries.length > 1 ? aggregateSeries.map((p) => p.impressions) : [];
+  const engagementSpark =
+    aggregateSeries.length > 1 ? aggregateSeries.map((p) => p.engagement) : [];
+
+  // Risk-level counts for the health-summary bento tile
+  const healthCounts = { safe: 0, moderate: 0, elevated: 0, high: 0, critical: 0 };
+  for (const a of sorted) {
+    if (a.health) healthCounts[a.health.riskLevel]++;
+  }
+
+  const metrics: Metric[] = [
+    {
+      label: "Accounts",
+      value: totalAccounts,
+      spark: followerSpark.length ? [totalAccounts] : undefined,
+      color: "oklch(0.7 0.24 14)",
+    },
+    {
+      label: "Followers",
+      value: fmt(totalFollowers),
+      delta: avgGrowth,
+      spark: followerSpark,
+      color: "oklch(0.74 0.18 165)",
+    },
+    {
+      label: "Impressions",
+      value: fmt(totalImpressions),
+      spark: impressionsSpark,
+      color: "oklch(0.66 0.22 305)",
+    },
+    {
+      label: "Engagement",
+      value: fmt(totalEngagement),
+      spark: engagementSpark,
+      color: "oklch(0.7 0.19 50)",
+    },
+    {
+      label: "Posts",
+      value: fmt(totalPosts),
+      color: "oklch(0.78 0.18 75)",
+    },
+    {
+      label: "Avg growth",
+      value: fmt(avgGrowth),
+      delta: avgGrowth,
+      spark: followerSpark,
+      color: "oklch(0.76 0.18 145)",
+    },
+  ];
+
+  const heroColor =
+    heroMetric === "followers"
+      ? "oklch(0.74 0.18 165)"
+      : heroMetric === "impressions"
+      ? "oklch(0.66 0.22 305)"
+      : "oklch(0.7 0.19 50)";
+  const heroData = aggregateSeries.map((p) => ({
+    date: p.date,
+    v: p[heroMetric],
+  }));
+
   return (
-    <div className="space-y-6">
-      <HelpText module="accounts"><strong className="text-foreground">Accounts</strong> shows all your connected social profiles. Click <strong className="text-foreground">Connect account</strong> to add a new platform via secure OAuth.</HelpText>
-      {/* Header */}
-      <GlassCard
-        strong
-        className="glass-sheen animate-rise relative overflow-hidden p-6"
-      >
-        <div className="pointer-events-none absolute -right-12 -top-12 h-52 w-52 rounded-full bg-primary/20 blur-3xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-[11px] font-medium text-primary">
-                <Sparkles className="h-3 w-3" />
-                <span>Accounts</span>
-              </div>
-              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-                Connected social profiles
-              </h2>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {totalAccounts} accounts · {presentPlatforms.length} platforms
-              </p>
-            </div>
-          </div>
+    <div className="space-y-5">
+      <HelpText module="accounts">
+        <strong className="text-foreground">Accounts</strong> shows all your
+        connected social profiles. Click{" "}
+        <strong className="text-foreground">Connect account</strong> to add a
+        new platform via secure OAuth.
+      </HelpText>
+
+      <SectionHeader
+        title="Connected social profiles"
+        desc={`${totalAccounts} accounts · ${presentPlatforms.length} platforms`}
+        icon={Users}
+        action={
           <button
             onClick={() => setConnectOpen(true)}
-            className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
+            className="liquid-pill glow-ring flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
           >
             <Plus className="h-4 w-4" />
             Connect account
           </button>
-        </div>
-      </GlassCard>
+        }
+      />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 animate-rise">
-        <KpiCard
-          label="Total accounts"
-          value={totalAccounts}
-          icon={<Users className="h-5 w-5" />}
-          accent="oklch(0.7 0.24 14)"
-          hint={`${presentPlatforms.length} platforms`}
-        />
-        <KpiCard
-          label="Total followers"
-          value={fmt(totalFollowers)}
-          icon={<TrendingUp className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          hint="all accounts combined"
-        />
-        <KpiCard
-          label="Impressions"
-          value={fmt(totalImpressions)}
-          icon={<Eye className="h-5 w-5" />}
-          accent="oklch(0.66 0.22 305)"
-          hint="all time"
-        />
-        <KpiCard
-          label="Avg. growth"
-          value={fmt(avgGrowth)}
-          icon={<Heart className="h-5 w-5" />}
-          accent="oklch(0.78 0.18 75)"
-          hint="followers per account"
-        />
-      </div>
+      {/* Dense metric strip — replaces 4 KpiCards + 1 hero GlassCard (~560px) with one ~56px row */}
+      <MetricRow metrics={metrics} />
 
       {/* Filter pills */}
-      <div className="flex flex-wrap items-center gap-2 animate-rise">
+      <div className="flex flex-wrap items-center gap-2">
         <FilterPill
           active={filter === "all"}
           onClick={() => setFilter("all")}
@@ -261,23 +333,171 @@ export function AccountsView() {
         ))}
       </div>
 
-      {/* Account grid */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 animate-rise">
-        {filtered.map((a) => (
-          <AccountCard key={a.id} account={a} />
-        ))}
-        {/* Add-account placeholder to fill grid gaps */}
-        <button
-          onClick={() => setConnectOpen(true)}
-          className="lift-hover group flex min-h-[260px] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border/50 bg-muted/20 p-6 text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+      {/* HERO CHART — single trend chart with metric toggle */}
+      {aggregateSeries.length > 1 && (
+        <HeroChart
+          title="Performance trend"
+          desc={`Daily ${heroMetric} across all connected accounts`}
+          action={
+            <div className="flex items-center gap-0.5 rounded-lg bg-muted/40 p-0.5">
+              {(["followers", "impressions", "engagement"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setHeroMetric(m)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-[11px] font-semibold capitalize transition",
+                    heroMetric === m
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          }
         >
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted/50 transition group-hover:bg-primary/10">
-            <Plus className="h-6 w-6" />
+          <div className="h-[240px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={heroData}
+                margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="hero-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={heroColor} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={heroColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={40}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={48}
+                  tickFormatter={(v: number) => fmt(v)}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ fontSize: 11 }}
+                  formatter={(v: number) => [fmt(v), heroMetric]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="v"
+                  stroke={heroColor}
+                  strokeWidth={2}
+                  fill="url(#hero-grad)"
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-          <div className="text-sm font-semibold">Connect another account</div>
-          <div className="text-xs text-muted-foreground">Add a new social profile</div>
-        </button>
-      </div>
+        </HeroChart>
+      )}
+
+      {/* BENTO GRID — 3 tiles: account list (2x2) + health summary + platform distribution */}
+      <BentoGrid className="lg:grid-cols-3">
+        {/* Account list — master-detail list, 2-col wide */}
+        <BentoTile span="2x2" className="flex flex-col overflow-hidden p-0">
+          <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-bold">Accounts</h3>
+              <Pill>{filtered.length}</Pill>
+            </div>
+            <button
+              onClick={() => setConnectOpen(true)}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary/10"
+            >
+              <Plus className="h-3 w-3" />
+              Add
+            </button>
+          </div>
+          <div className="max-h-[460px] flex-1 overflow-y-auto scroll-liquid">
+            {filtered.length === 0 && (
+              <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+                No accounts match this filter. Click{" "}
+                <strong className="text-foreground">Connect account</strong> to
+                add one.
+              </div>
+            )}
+            {filtered.map((a) => (
+              <AccountListRow key={a.id} account={a} />
+            ))}
+          </div>
+        </BentoTile>
+
+        {/* Health summary */}
+        <BentoTile>
+          <SectionHeader title="Health" icon={ShieldAlert} className="mb-2" />
+          <div className="space-y-2">
+            {(
+              [
+                { level: "safe", label: "Healthy", color: "green" as const, count: healthCounts.safe },
+                { level: "moderate", label: "Moderate", color: "amber" as const, count: healthCounts.moderate },
+                { level: "elevated", label: "Elevated", color: "amber" as const, count: healthCounts.elevated },
+                { level: "high", label: "High risk", color: "rose" as const, count: healthCounts.high },
+                { level: "critical", label: "Critical", color: "rose" as const, count: healthCounts.critical },
+              ] as const
+            )
+              .filter((r) => r.count > 0)
+              .map((r) => (
+                <div
+                  key={r.level}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <Pill color={r.color}>{r.label}</Pill>
+                  <span className="num-display font-bold tabular-nums">
+                    {r.count}
+                  </span>
+                </div>
+              ))}
+            {sorted.every((a) => !a.health) && (
+              <div className="text-xs text-muted-foreground">
+                No health data available.
+              </div>
+            )}
+          </div>
+        </BentoTile>
+
+        {/* Platform distribution */}
+        <BentoTile>
+          <SectionHeader title="By platform" icon={BarChart3} className="mb-2" />
+          <div className="space-y-2">
+            {presentPlatforms.map((p) => {
+              const accs = sorted.filter((a) => a.platform === p);
+              const fols = accs.reduce((s, a) => s + a.followers, 0);
+              return (
+                <div
+                  key={p}
+                  className="flex items-center gap-2 text-xs"
+                  title={`${accs.length} ${PLATFORMS[p].name} accounts · ${fmt(fols)} followers`}
+                >
+                  <PlatformBadge platform={p} size={20} />
+                  <span className="flex-1 truncate font-semibold">
+                    {PLATFORMS[p].name}
+                  </span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {accs.length} · {fmt(fols)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </BentoTile>
+      </BentoGrid>
 
       {/* Connect dialog — premium multi-step credentials flow */}
       <ConnectAccountDialog
@@ -289,6 +509,215 @@ export function AccountsView() {
         }}
       />
     </div>
+  );
+}
+
+/* ===================== Account list row (dense, replaces AccountCard) ===================== */
+
+function AccountListRow({ account }: { account: AccountData }) {
+  const { setView } = useNav();
+  const [healthOpen, setHealthOpen] = React.useState(false);
+
+  const spark = React.useMemo(
+    () => buildSparkValues(account.followers, account.analytics),
+    [account.followers, account.analytics]
+  );
+  const growthUp = account.followerGrowth >= 0;
+  const sparkColor = growthUp ? "oklch(0.76 0.18 145)" : "oklch(0.62 0.24 27)";
+  const health = account.health;
+
+  return (
+    <>
+      <ListRow
+        onClick={() => setHealthOpen(true)}
+        className="px-4 py-2.5"
+      >
+        {/* Platform + identity */}
+        <PlatformBadge platform={account.platform} size={32} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-sm font-bold leading-tight">
+              {account.displayName}
+            </span>
+            {account.verified && (
+              <VerifiedTick className="h-3.5 w-3.5 shrink-0 text-primary" />
+            )}
+          </div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {account.handle}
+          </div>
+        </div>
+
+        {/* Followers + sparkline */}
+        <div className="hidden min-w-[110px] flex-col items-end gap-0.5 sm:flex">
+          <div className="num-display text-sm font-bold tabular-nums">
+            {fmt(account.followers)}
+          </div>
+          <Sparkline data={spark} color={sparkColor} width={64} height={16} />
+        </div>
+
+        {/* Growth delta */}
+        <div className="hidden min-w-[60px] items-center justify-end md:flex">
+          <span
+            className={cn(
+              "text-xs font-bold tabular-nums",
+              growthUp ? "text-emerald-500" : "text-rose-500"
+            )}
+          >
+            {growthUp ? "+" : ""}
+            {fmt(account.followerGrowth)}
+          </span>
+        </div>
+
+        {/* Inline secondary stats */}
+        <div className="hidden items-center gap-2 text-[10px] text-muted-foreground lg:flex">
+          <span title="Posts" className="tabular-nums">
+            {fmt(account.postsCount)}p
+          </span>
+          <span title="Impressions" className="tabular-nums">
+            {fmt(account.impressions)}i
+          </span>
+        </div>
+
+        {/* Health pill */}
+        {health && <HealthPill health={health} />}
+
+        {/* Action icon cluster — stop propagation so the row click doesn't double-fire */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setView("analytics");
+            }}
+            className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            title="View analytics"
+            aria-label="View analytics"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setHealthOpen(true);
+            }}
+            className={cn(
+              "grid h-7 w-7 place-items-center rounded-md transition",
+              health && health.riskLevel !== "safe"
+                ? "text-amber-500 hover:bg-amber-500/10"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+            title="Account health"
+            aria-label="Account health"
+          >
+            <ShieldAlert className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (
+                !confirm(
+                  `Remove ${account.displayName}? This will delete all related data.`
+                )
+              )
+                return;
+              try {
+                const res = await fetch(`/api/accounts/${account.id}`, {
+                  method: "DELETE",
+                });
+                if (res.ok) {
+                  toast.success(`${account.displayName} removed`);
+                  window.location.reload();
+                } else toast.error("Failed to remove account");
+              } catch {
+                toast.error("Network error");
+              }
+            }}
+            className="grid h-7 w-7 place-items-center rounded-md text-rose-500 transition hover:bg-rose-500/10"
+            aria-label="Remove account"
+            title="Remove account"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </ListRow>
+
+      {/* Account Health dialog (full detail — preserved) */}
+      <AccountHealthDialog
+        account={account}
+        open={healthOpen}
+        onOpenChange={setHealthOpen}
+      />
+    </>
+  );
+}
+
+/* ===================== Health pill (compact ListRow status indicator) ===================== */
+
+const RISK_STYLE: Record<
+  string,
+  { color: string; bg: string; label: string; dot: string }
+> = {
+  safe: {
+    color: "text-emerald-500",
+    bg: "bg-emerald-500/15",
+    dot: "bg-emerald-500",
+    label: "Healthy",
+  },
+  moderate: {
+    color: "text-amber-500",
+    bg: "bg-amber-500/15",
+    dot: "bg-amber-500",
+    label: "Moderate",
+  },
+  elevated: {
+    color: "text-orange-500",
+    bg: "bg-orange-500/15",
+    dot: "bg-orange-500",
+    label: "Elevated",
+  },
+  high: {
+    color: "text-rose-500",
+    bg: "bg-rose-500/15",
+    dot: "bg-rose-500",
+    label: "High risk",
+  },
+  critical: {
+    color: "text-rose-600",
+    bg: "bg-rose-600/20",
+    dot: "bg-rose-600",
+    label: "Critical",
+  },
+};
+
+const RISK_PILL_COLOR: Record<
+  HealthData["riskLevel"],
+  "green" | "amber" | "rose"
+> = {
+  safe: "green",
+  moderate: "amber",
+  elevated: "amber",
+  high: "rose",
+  critical: "rose",
+};
+
+function HealthPill({ health }: { health: HealthData }) {
+  const s = RISK_STYLE[health.riskLevel] ?? RISK_STYLE.safe;
+  const pillColor = RISK_PILL_COLOR[health.riskLevel];
+  return (
+    <Pill color={pillColor}>
+      <span className={cn("relative flex h-1.5 w-1.5")}>
+        {health.riskLevel !== "safe" && (
+          <span
+            className={cn(
+              "absolute inline-flex h-full w-full animate-ping rounded-full opacity-60",
+              s.dot
+            )}
+          />
+        )}
+        <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", s.dot)} />
+      </span>
+      {s.label}
+    </Pill>
   );
 }
 
@@ -885,7 +1314,7 @@ function ConnectingStep({ label, done, pending }: { label: string; done?: boolea
   );
 }
 
-/* ===================== Filter pill ===================== */
+/* ===================== Filter pill (compact toolbar pill) ===================== */
 function FilterPill({
   active,
   onClick,
@@ -903,17 +1332,17 @@ function FilterPill({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-xs font-semibold transition",
+        "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition",
         active
           ? "border-primary/40 bg-primary text-primary-foreground shadow-sm"
           : "border-border/40 bg-background/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
       )}
     >
-      {platform && <PlatformBadge platform={platform} size={18} />}
+      {platform && <PlatformBadge platform={platform} size={16} />}
       <span>{label}</span>
       <span
         className={cn(
-          "rounded-full px-1.5 py-0.5 text-[10px]",
+          "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
           active
             ? "bg-primary-foreground/20 text-primary-foreground"
             : "bg-muted-foreground/15 text-muted-foreground"
@@ -921,229 +1350,6 @@ function FilterPill({
       >
         {count}
       </span>
-    </button>
-  );
-}
-
-/* ===================== Account card ===================== */
-function AccountCard({ account }: { account: AccountData }) {
-  const { setView } = useNav();
-  const [healthOpen, setHealthOpen] = React.useState(false);
-  const spark = React.useMemo(
-    () => buildSpark(account.followers, account.analytics),
-    [account.followers, account.analytics]
-  );
-  const growthUp = account.followerGrowth >= 0;
-  const platform = PLATFORMS[account.platform];
-  const health = account.health;
-
-  return (
-    <GlassCard
-      hover
-      className="glass-sheen lift-hover group relative flex flex-col overflow-hidden p-6"
-    >
-      <div
-        className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full opacity-[0.12] blur-2xl transition group-hover:opacity-25"
-        style={{ background: platform.color }}
-      />
-      {/* Top: platform + name */}
-      <div className="relative flex items-start gap-3">
-        <div className="relative">
-          <PlatformBadge platform={account.platform} size={48} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h3 className="truncate text-lg font-bold leading-tight">
-              {account.displayName}
-            </h3>
-            {account.verified && (
-              <VerifiedTick className="h-4 w-4 shrink-0 text-primary" />
-            )}
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {account.handle}
-          </div>
-        </div>
-        {/* Health status badge */}
-        {health && <HealthBadge health={health} onClick={() => setHealthOpen(true)} />}
-      </div>
-
-      {/* Big follower stat + sparkline */}
-      <div className="relative mt-5 flex items-end justify-between gap-3">
-        <div>
-          <div className="num-display text-3xl font-semibold leading-none tracking-tight">
-            {fmt(account.followers)}
-          </div>
-          <div className="label-caps mt-1.5 text-muted-foreground">Followers</div>
-        </div>
-        <div className="h-12 w-28">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={spark} margin={{ left: 0, right: 0, top: 2, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`spark-${account.id}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0%"
-                    stopColor={growthUp ? "oklch(0.76 0.18 145)" : "oklch(0.62 0.24 27)"}
-                    stopOpacity={0.5}
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor={growthUp ? "oklch(0.76 0.18 145)" : "oklch(0.62 0.24 27)"}
-                    stopOpacity={0}
-                  />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="v"
-                stroke={growthUp ? "oklch(0.76 0.18 145)" : "oklch(0.62 0.24 27)"}
-                strokeWidth={2}
-                fill={`url(#spark-${account.id})`}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Growth delta */}
-      <div className="relative mt-2 flex items-center gap-1.5 text-[11px]">
-        <span
-          className={cn(
-            "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold tabular-nums",
-            growthUp
-              ? "bg-emerald-500/15 text-emerald-500"
-              : "bg-rose-500/15 text-rose-500"
-          )}
-        >
-          {growthUp ? "↑" : "↓"} {fmt(Math.abs(account.followerGrowth))}
-        </span>
-        <span className="text-muted-foreground">growth</span>
-      </div>
-
-      {/* Health ratio bar — positive / neutral / negative + reports */}
-      {health && <HealthRatioBar health={health} onClick={() => setHealthOpen(true)} />}
-
-      {/* Stat grid — decluttered, no boxes */}
-      <div className="relative mt-5 grid grid-cols-3 gap-3 border-t border-border/40 pt-4">
-        <Stat label="Posts" value={fmt(account.postsCount)} />
-        <Stat label="Impressions" value={fmt(account.impressions)} />
-        <Stat label="Engagement" value={fmt(account.engagement)} />
-      </div>
-
-      {/* Footer actions */}
-      <div className="relative mt-4 flex items-center gap-2">
-        <button
-          onClick={() => setView("analytics")}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground"
-        >
-          View analytics <ArrowRight className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => setHealthOpen(true)}
-          className={cn(
-            "flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition",
-            health && health.riskLevel !== "safe"
-              ? "bg-amber-500/15 text-amber-500 hover:bg-amber-500/25"
-              : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}
-        >
-          <ShieldAlert className="h-3.5 w-3.5" /> Health
-        </button>
-        <button
-          onClick={async () => {
-            if (!confirm(`Remove ${account.displayName}? This will delete all related data.`)) return;
-            try {
-              const res = await fetch(`/api/accounts/${account.id}`, { method: "DELETE" });
-              if (res.ok) { toast.success(`${account.displayName} removed`); window.location.reload(); }
-              else toast.error("Failed to remove account");
-            } catch { toast.error("Network error"); }
-          }}
-          className="grid h-9 w-9 place-items-center rounded-xl bg-rose-500/10 text-rose-500 transition hover:bg-rose-500/20"
-          aria-label="Remove account"
-          title="Remove account"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Account Health dialog */}
-      <AccountHealthDialog
-        account={account}
-        open={healthOpen}
-        onOpenChange={setHealthOpen}
-      />
-    </GlassCard>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="text-center">
-      <div className="num-display text-base font-semibold tabular-nums">{value}</div>
-      <div className="label-caps mt-0.5 text-muted-foreground">{label}</div>
-    </div>
-  );
-}
-
-/* ===================== Health badge (card corner) ===================== */
-const RISK_STYLE: Record<string, { color: string; bg: string; label: string }> = {
-  safe: { color: "text-emerald-500", bg: "bg-emerald-500/15", label: "Healthy" },
-  moderate: { color: "text-amber-500", bg: "bg-amber-500/15", label: "Moderate" },
-  elevated: { color: "text-orange-500", bg: "bg-orange-500/15", label: "Elevated" },
-  high: { color: "text-rose-500", bg: "bg-rose-500/15", label: "High risk" },
-  critical: { color: "text-rose-600", bg: "bg-rose-600/20", label: "Critical" },
-};
-
-function HealthBadge({ health, onClick }: { health: HealthData; onClick: () => void }) {
-  const s = RISK_STYLE[health.riskLevel] ?? RISK_STYLE.safe;
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold transition hover:scale-105",
-        s.bg, s.color
-      )}
-      title={`Account health: ${s.label} (risk ${health.riskScore}/100)`}
-    >
-      <span className="relative flex h-1.5 w-1.5">
-        {health.riskLevel !== "safe" && (
-          <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", s.bg)} />
-        )}
-        <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", s.color.replace("text-", "bg-"))} />
-      </span>
-      {s.label}
-    </button>
-  );
-}
-
-/* ===================== Health ratio bar (on card) ===================== */
-function HealthRatioBar({ health, onClick }: { health: HealthData; onClick: () => void }) {
-  const pos = health.positiveRatio;
-  const neu = health.neutralRatio;
-  const neg = health.negativeRatio;
-  return (
-    <button
-      onClick={onClick}
-      className="lift-hover relative mt-4 w-full rounded-xl border border-border/30 bg-muted/20 p-3 text-left transition hover:border-border/60"
-    >
-      <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        <span className="flex items-center gap-1"><Activity className="h-3 w-3" /> Comment health</span>
-        <span className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-emerald-500"><Flag className="h-2.5 w-2.5" />{health.reportCount} reports</span>
-        </span>
-      </div>
-      {/* Stacked ratio bar */}
-      <div className="mt-2 flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
-        <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pos}%` }} title={`Positive ${pos}%`} />
-        <div className="h-full bg-muted-foreground/40 transition-all" style={{ width: `${neu}%` }} title={`Neutral ${neu}%`} />
-        <div className="h-full bg-rose-500 transition-all" style={{ width: `${neg}%` }} title={`Negative ${neg}%`} />
-      </div>
-      <div className="mt-1.5 flex items-center justify-between text-[10px] tabular-nums">
-        <span className="flex items-center gap-1 text-emerald-500"><ThumbsUp className="h-2.5 w-2.5" />{pos}%</span>
-        <span className="flex items-center gap-1 text-muted-foreground"><Minus className="h-2.5 w-2.5" />{neu}%</span>
-        <span className="flex items-center gap-1 text-rose-500"><ThumbsDown className="h-2.5 w-2.5" />{neg}%</span>
-      </div>
     </button>
   );
 }
@@ -1580,22 +1786,19 @@ function ToggleSetting({ icon: Icon, label, desc, checked, onChange }: { icon: R
 
 function AccountsSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="shimmer h-32 rounded-3xl" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="shimmer h-32 rounded-3xl" />
-        ))}
-      </div>
+    <div className="space-y-5">
+      <div className="shimmer h-8 w-72 rounded-lg" />
+      <div className="shimmer h-14 rounded-xl" />
       <div className="flex flex-wrap gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="shimmer h-9 w-24 rounded-2xl" />
+          <div key={i} className="shimmer h-7 w-24 rounded-lg" />
         ))}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="shimmer h-80 rounded-3xl" />
-        ))}
+      <div className="shimmer h-[300px] rounded-xl" />
+      <div className="grid grid-cols-3 gap-3">
+        <div className="shimmer col-span-2 h-[460px] rounded-xl" />
+        <div className="shimmer h-[220px] rounded-xl" />
+        <div className="shimmer h-[220px] rounded-xl" />
       </div>
     </div>
   );

@@ -31,12 +31,20 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
-import { GlassCard, KpiCard, SectionTitle } from "@/components/glass/glass-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
 import { useAuth } from "@/lib/auth-store";
 import { useNav } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import {
+  MetricRow,
+  SectionHeader,
+  HeroChart,
+  ListRow,
+  Pill,
+  Sparkline,
+  BentoGrid,
+  BentoTile,
+} from "@/components/glass/dense-ui";
 import {
   Dialog,
   DialogContent,
@@ -68,8 +76,10 @@ interface TeamMember {
   name: string;
   email: string;
   avatar: string | null;
-  role: "admin" | "member";
+  role: "admin" | "manager" | "editor" | "member" | "viewer";
   title: string | null;
+  department?: string | null;
+  status?: string;
   color: string | null;
   accountsCount: number;
   postsCount: number;
@@ -80,6 +90,22 @@ interface TeamMember {
 
 const ADMIN_COLOR = "var(--primary)";
 const MEMBER_COLOR = "oklch(0.74 0.18 165)";
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Admin",
+  manager: "Manager",
+  editor: "Editor",
+  member: "Member",
+  viewer: "Viewer",
+};
+
+const ROLE_COLORS: Record<string, "rose" | "violet" | "blue" | "green" | "neutral"> = {
+  admin: "rose",
+  manager: "violet",
+  editor: "blue",
+  member: "green",
+  viewer: "neutral",
+};
 
 export function TeamView() {
   const { data, loading, reload } = useApi<TeamMember[]>("/api/team");
@@ -131,14 +157,38 @@ export function TeamView() {
     },
     { accounts: 0, posts: 0, engagement: 0 },
   );
-  const maxPosts = Math.max(1, ...sorted.map((m) => m.postsCount));
-  const adminCount = sorted.filter((m) => m.role === "admin").length;
 
-  const workloadData = sorted.map((m) => ({
-    name: m.name,
-    posts: m.postsCount,
-    fill: m.role === "admin" ? ADMIN_COLOR : MEMBER_COLOR,
-  }));
+  const adminCount = sorted.filter((m) => m.role === "admin").length;
+  const activeCount = sorted.filter((m) => (m.status ?? "active") === "active").length;
+
+  // Department aggregation — uses department when present, falls back to title.
+  const deptKey = (m: TeamMember) => m.department ?? m.title ?? null;
+  const deptNames = Array.from(
+    new Set(sorted.map(deptKey).filter((d): d is string => Boolean(d))),
+  );
+  const deptDist = deptNames
+    .map((name) => ({
+      name,
+      count: sorted.filter((m) => deptKey(m) === name).length,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // Role counts in priority order
+  const roleOrder = ["admin", "manager", "editor", "member", "viewer"];
+  const roleCounts = roleOrder
+    .map((r) => ({ role: r, count: sorted.filter((m) => m.role === r).length }))
+    .filter((r) => r.count > 0);
+
+  // Top contributors by engagement (top 5)
+  const topContributors = [...sorted]
+    .sort((a, b) => b.engagement - a.engagement)
+    .slice(0, 5);
+
+  // Sparkline inputs — derived from real workload/role data
+  const memberSpark = sorted.slice(0, 8).map((m) => m.postsCount);
+  const activeSpark = sorted.slice(0, 8).map((m) => Math.max(1, m.postsCount + m.variantCount));
+  const deptSpark = deptDist.slice(0, 8).map((d) => d.count);
+  const roleSpark = roleCounts.map((r) => r.count);
 
   const onInvite = async () => {
     if (!email.trim()) {
@@ -253,47 +303,28 @@ export function TeamView() {
   }
 
   return (
-    <div className="animate-rise space-y-5">
+    <div className="animate-rise space-y-4">
       <HelpText module="team"><strong className="text-foreground">Team</strong> shows all workspace members and their roles. Invite teammates to collaborate on content.</HelpText>
-      {/* Header */}
-      <GlassCard strong className="glass-sheen relative overflow-hidden p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-primary/30 blur-3xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-primary">
-              <Shield className="h-3.5 w-3.5" />
-              Admin · Team management
-            </div>
-            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-              Your team
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{sorted.length}</span>{" "}
-              members managing{" "}
-              <span className="font-semibold text-foreground">{totals.accounts}</span>{" "}
-              social accounts.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setInviteOpen(true)}
-              className="flex items-center gap-2 rounded-2xl border border-border/50 bg-background/50 px-4 py-2.5 text-sm font-semibold transition hover:bg-muted/40"
-            >
-              <Mail className="h-4 w-4" />
-              <span className="hidden sm:inline">Invite member</span>
-              <span className="sm:hidden">Invite</span>
-            </button>
-            <button
-              onClick={() => setAddOpen(true)}
-              className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold"
-            >
-              <UserPlus className="h-4 w-4" />
+
+      {/* Header — compact SectionHeader with action buttons */}
+      <SectionHeader
+        title="Your team"
+        desc={`${sorted.length} members · ${totals.accounts} accounts · ${adminCount} admin${adminCount === 1 ? "" : "s"}`}
+        icon={Shield}
+        action={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setInviteOpen(true)}>
+              <Mail className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Invite</span>
+            </Button>
+            <Button size="sm" onClick={() => setAddOpen(true)} className="liquid-pill">
+              <UserPlus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Add member</span>
               <span className="sm:hidden">Add</span>
-            </button>
+            </Button>
           </div>
-        </div>
-      </GlassCard>
+        }
+      />
 
       {/* Invite dialog (email-only) */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
@@ -454,7 +485,7 @@ export function TeamView() {
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-muted-foreground">
-                  Links the user to the selected customer's tenant database. They will only see that customer's data.
+                  Links the user to the selected customer&apos;s tenant database. They will only see that customer&apos;s data.
                 </p>
               </div>
             )}
@@ -599,108 +630,184 @@ export function TeamView() {
         </DialogContent>
       </Dialog>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Team members"
-          value={sorted.length}
-          icon={<Users className="h-5 w-5" />}
-          accent="var(--primary)"
-          hint={`${adminCount} admin${adminCount === 1 ? "" : "s"}`}
-        />
-        <KpiCard
-          label="Accounts managed"
-          value={totals.accounts}
-          icon={<AtSign className="h-5 w-5" />}
-          accent="oklch(0.74 0.18 165)"
-          hint="across all members"
-        />
-        <KpiCard
-          label="Total posts"
-          value={totals.posts}
-          icon={<FileText className="h-5 w-5" />}
-          accent="oklch(0.66 0.22 305)"
-          hint="authored by team"
-        />
-        <KpiCard
-          label="Total engagement"
-          value={fmt(totals.engagement)}
-          icon={<Heart className="h-5 w-5" />}
-          accent="oklch(0.78 0.18 75)"
-          hint="likes + comments + shares"
-        />
-      </div>
+      {/* MetricRow — replaces 4-KpiCard grid. Dense, sparklines inline. */}
+      <MetricRow
+        metrics={[
+          { label: "Members", value: sorted.length, spark: memberSpark, color: ADMIN_COLOR },
+          { label: "Active", value: activeCount, spark: activeSpark, color: MEMBER_COLOR },
+          { label: "Departments", value: deptNames.length, spark: deptSpark, color: "oklch(0.66 0.22 305)" },
+          { label: "Roles", value: roleCounts.length, spark: roleSpark, color: "oklch(0.78 0.18 75)" },
+        ]}
+      />
 
-      {/* Member cards grid */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {sorted.map((m) => (
-          <MemberCard
-            key={m.id}
-            member={m}
-            maxPosts={maxPosts}
-            isYou={m.id === currentUserId}
-            onReload={reload}
-          />
-        ))}
-      </div>
-
-      {/* Workload distribution */}
-      <GlassCard className="p-5">
-        <SectionTitle
-          title="Workload distribution"
-          desc="Posts authored per member · admins in rose, members in teal"
-        />
-        <div
-          style={{ height: Math.max(140, sorted.length * 44) }}
-          className="w-full"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={workloadData}
-              layout="vertical"
-              margin={{ left: 8, right: 24, top: 4, bottom: 4 }}
-            >
-              <XAxis type="number" hide />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                axisLine={false}
-                tickLine={false}
-                width={104}
-              />
-              <Tooltip
-                cursor={{ fill: "var(--muted)", opacity: 0.35 }}
-                contentStyle={{
-                  background: "var(--popover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  fontSize: 12,
-                  boxShadow: "0 8px 32px -8px rgba(0,0,0,0.2)",
-                }}
-                formatter={(v: number) => [`${v} posts`, "Authored"]}
-              />
-              <Bar dataKey="posts" radius={[6, 6, 6, 6]} barSize={18}>
-                {workloadData.map((d, i) => (
-                  <Cell key={i} fill={d.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="mt-3 flex items-center gap-4 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-primary" /> Admin
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ background: MEMBER_COLOR }}
+      {/* Member directory — dense ListRow layout (scannable, like a contacts table) */}
+      <HeroChart
+        title={`Team directory (${sorted.length})`}
+        desc="All workspace members · admins first"
+        action={<Pill color="blue">{sorted.length} shown</Pill>}
+      >
+        <div className="-mx-3 -mb-3 max-h-[640px] overflow-y-auto scroll-liquid">
+          {/* Header row */}
+          <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/40 bg-muted/40 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur">
+            <div className="min-w-[200px] flex-1">Member</div>
+            <div className="w-20">Role</div>
+            <div className="hidden w-28 md:block">Department</div>
+            <div className="w-16 text-right">Posts</div>
+            <div className="hidden w-16 text-right sm:block">Reach</div>
+            <div className="w-16 text-right">Eng.</div>
+            <div className="w-8 text-right">·</div>
+          </div>
+          {sorted.map((m) => (
+            <MemberRow
+              key={m.id}
+              member={m}
+              isYou={m.id === currentUserId}
+              onReload={reload}
             />
-            Member
-          </span>
+          ))}
+          {sorted.length === 0 && (
+            <div className="px-3 py-12 text-center text-sm text-muted-foreground">
+              No team members yet — invite a teammate to get started.
+            </div>
+          )}
         </div>
-      </GlassCard>
+      </HeroChart>
+
+      {/* Bento grid — 3 tiles (department chart, roles, top contributors) */}
+      <BentoGrid>
+        {/* Department distribution — the single allowed chart */}
+        <BentoTile span="2x1" className="sm:col-span-2">
+          <SectionHeader
+            title="Department distribution"
+            desc="Members grouped by department or title"
+            icon={Briefcase}
+            action={<Pill>{deptNames.length} depts</Pill>}
+          />
+          {deptDist.length === 0 ? (
+            <div className="py-10 text-center text-xs text-muted-foreground">
+              No department data — add departments when inviting members.
+            </div>
+          ) : (
+            <div
+              style={{ height: Math.max(120, deptDist.length * 36) }}
+              className="w-full"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={deptDist}
+                  layout="vertical"
+                  margin={{ left: 8, right: 24, top: 4, bottom: 4 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={104}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--muted)", opacity: 0.35 }}
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                      boxShadow: "0 8px 32px -8px rgba(0,0,0,0.2)",
+                    }}
+                    formatter={(v: number) => [`${v} members`, "In dept"]}
+                  />
+                  <Bar dataKey="count" radius={[6, 6, 6, 6]} barSize={14}>
+                    {deptDist.map((d, i) => (
+                      <Cell
+                        key={i}
+                        fill={i === 0 ? ADMIN_COLOR : MEMBER_COLOR}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </BentoTile>
+
+        {/* Roles breakdown */}
+        <BentoTile span="1x1">
+          <SectionHeader
+            title="Roles"
+            desc="By access level"
+            icon={Shield}
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {roleCounts.length === 0 && (
+              <p className="text-xs text-muted-foreground">No roles assigned.</p>
+            )}
+            {roleCounts.map((r) => (
+              <Pill key={r.role} color={ROLE_COLORS[r.role] ?? "neutral"}>
+                {r.role === "admin" && <Shield className="h-2.5 w-2.5" />}
+                <span className="capitalize">{ROLE_LABELS[r.role] ?? r.role}</span>
+                <span className="tabular-nums">{r.count}</span>
+              </Pill>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-[10px] text-muted-foreground">
+            <AtSign className="h-3 w-3" />
+            <span>{totals.accounts} accounts managed</span>
+          </div>
+          <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+            <FileText className="h-3 w-3" />
+            <span>{totals.posts} posts authored</span>
+          </div>
+        </BentoTile>
+
+        {/* Top contributors — sparkline-driven */}
+        <BentoTile span="2x1" className="sm:col-span-2">
+          <SectionHeader
+            title="Top contributors"
+            desc="Ranked by engagement"
+            icon={Heart}
+            action={<Pill color="green">Top {topContributors.length}</Pill>}
+          />
+          {topContributors.length === 0 ? (
+            <div className="py-8 text-center text-xs text-muted-foreground">
+              No engagement data yet.
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {topContributors.map((m, i) => (
+                <div key={m.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/40">
+                  <span className="num-display w-5 text-[11px] font-bold tabular-nums text-muted-foreground">
+                    {i + 1}
+                  </span>
+                  <NameAvatar
+                    name={m.name}
+                    src={m.avatar}
+                    color={m.color}
+                    className="h-7 w-7 text-[10px]"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-semibold">{m.name}</div>
+                    <div className="truncate text-[10px] text-muted-foreground">
+                      {m.title ?? m.department ?? m.email}
+                    </div>
+                  </div>
+                  <div className="hidden text-right sm:block">
+                    <div className="text-[11px] font-semibold tabular-nums">{fmt(m.engagement)}</div>
+                    <div className="label-caps text-[9px] text-muted-foreground">engagement</div>
+                  </div>
+                  <Sparkline
+                    data={[m.postsCount, m.variantCount, Math.round(m.engagement / 10), m.followers > 0 ? Math.round(Math.log10(m.followers + 1) * 10) : 0]}
+                    color={m.role === "admin" ? ADMIN_COLOR : MEMBER_COLOR}
+                    width={56}
+                    height={20}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </BentoTile>
+      </BentoGrid>
     </div>
   );
 }
@@ -724,71 +831,84 @@ function CredRow({ label, value, copied, onCopy }: { label: string; value: strin
   );
 }
 
-function MemberCard({
+// MemberRow — dense ListRow replacement for the old MemberCard.
+// Keeps all functionality: avatar, role pill, stats, dropdown (role change / view / remove).
+function MemberRow({
   member,
-  maxPosts,
   isYou,
   onReload,
 }: {
   member: TeamMember;
-  maxPosts: number;
   isYou: boolean;
   onReload: () => void;
 }) {
   const { setView } = useNav();
-  const workload = Math.round((member.postsCount / maxPosts) * 100);
+  const roleColor = ROLE_COLORS[member.role] ?? "neutral";
+  const roleLabel = ROLE_LABELS[member.role] ?? member.role;
+  const deptLabel = member.department ?? member.title ?? null;
 
   return (
-    <GlassCard hover className="flex flex-col p-5">
-      <div className="flex items-start gap-3">
-        <NameAvatar
-          name={member.name}
-          src={member.avatar}
-          color={member.color}
-          gender={(member as any)?.gender ?? undefined}
-          className="h-16 w-16 text-base"
-          ring
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="truncate font-semibold leading-tight">
-              {member.name}
-            </span>
-            {isYou && (
-              <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
-                You
-              </span>
-            )}
-          </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                member.role === "admin"
-                  ? "bg-primary/15 text-primary"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {member.role === "admin" && <Shield className="h-3 w-3" />}
-              {member.role === "admin" ? "Admin" : "Member"}
-            </span>
-            {member.title && (
-              <span className="truncate text-[11px] text-muted-foreground">
-                {member.title}
-              </span>
-            )}
-          </div>
-          <div className="mt-0.5 truncate text-[11px] text-muted-foreground/80">
-            {member.email}
+    <ListRow className="!py-2">
+      {/* Avatar + name + email */}
+      <div className="min-w-[200px] flex-1">
+        <div className="flex items-center gap-2.5">
+          <NameAvatar
+            name={member.name}
+            src={member.avatar}
+            color={member.color}
+            className="h-9 w-9 text-[11px]"
+            ring
+          />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-xs font-semibold">{member.name}</span>
+              {isYou && <Pill color="blue">You</Pill>}
+            </div>
+            <div className="truncate text-[10px] text-muted-foreground">{member.email}</div>
           </div>
         </div>
+      </div>
+
+      {/* Role */}
+      <div className="w-20">
+        <Pill color={roleColor}>
+          {member.role === "admin" && <Shield className="h-2.5 w-2.5" />}
+          <span className="capitalize">{roleLabel}</span>
+        </Pill>
+      </div>
+
+      {/* Department / title */}
+      <div className="hidden w-28 truncate text-xs md:block">
+        {deptLabel ?? <span className="text-muted-foreground">—</span>}
+      </div>
+
+      {/* Posts */}
+      <div className="w-16 text-right">
+        <div className="text-xs font-semibold tabular-nums">{member.postsCount}</div>
+        <div className="label-caps text-[9px] text-muted-foreground">posts</div>
+      </div>
+
+      {/* Reach */}
+      <div className="hidden w-16 text-right sm:block">
+        <div className="text-xs tabular-nums text-muted-foreground">{fmt(member.followers)}</div>
+        <div className="label-caps text-[9px] text-muted-foreground/70">reach</div>
+      </div>
+
+      {/* Engagement */}
+      <div className="w-16 text-right">
+        <div className="text-xs tabular-nums text-muted-foreground">{fmt(member.engagement)}</div>
+        <div className="label-caps text-[9px] text-muted-foreground/70">eng.</div>
+      </div>
+
+      {/* Actions dropdown — preserves role-change, view-activity, remove */}
+      <div className="w-8 text-right">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
               aria-label="Member actions"
             >
-              <MoreVertical className="h-4 w-4" />
+              <MoreVertical className="h-3.5 w-3.5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48 rounded-xl">
@@ -856,94 +976,21 @@ function MemberCard({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      {/* Stats 2x2 grid */}
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <Stat
-          icon={<AtSign className="h-3.5 w-3.5" />}
-          value={member.accountsCount}
-          label="Accounts"
-        />
-        <Stat
-          icon={<FileText className="h-3.5 w-3.5" />}
-          value={member.postsCount}
-          label="Posts"
-        />
-        <Stat
-          icon={<Heart className="h-3.5 w-3.5" />}
-          value={fmt(member.engagement)}
-          label="Engagement"
-        />
-        <Stat
-          icon={<Users className="h-3.5 w-3.5" />}
-          value={fmt(member.followers)}
-          label="Reach"
-        />
-      </div>
-
-      {/* Workload bar */}
-      <div className="mt-4">
-        <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>Workload</span>
-          <span className="font-medium text-foreground">{workload}%</span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-primary to-[var(--gold)] transition-all"
-            style={{ width: `${workload}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center gap-2 border-t pt-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 rounded-xl"
-          onClick={() => toast.info(`Opening ${member.name}'s profile`)}
-        >
-          View profile
-        </Button>
-      </div>
-    </GlassCard>
-  );
-}
-
-function Stat({
-  icon,
-  value,
-  label,
-}: {
-  icon: React.ReactNode;
-  value: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <div className="rounded-xl bg-muted/40 p-2.5">
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        {icon}
-        <span className="text-[10px] uppercase tracking-wide">{label}</span>
-      </div>
-      <div className="mt-0.5 text-sm font-bold">{value}</div>
-    </div>
+    </ListRow>
   );
 }
 
 function TeamSkeleton() {
   return (
-    <div className="space-y-5">
-      <div className="shimmer h-28 rounded-3xl" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="shimmer h-32 rounded-3xl" />
+    <div className="space-y-4">
+      <div className="shimmer h-10 rounded-xl" />
+      <div className="shimmer h-14 rounded-xl" />
+      <div className="shimmer h-96 rounded-xl" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="shimmer h-48 rounded-xl" />
         ))}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="shimmer h-72 rounded-3xl" />
-        ))}
-      </div>
-      <div className="shimmer h-64 rounded-3xl" />
     </div>
   );
 }

@@ -28,6 +28,11 @@ interface NavState {
   setOwnerTab: (tab: string) => void;
   ownerExpanded: boolean;
   toggleOwner: () => void;
+  /** Organization sub-section */
+  orgTab: string;
+  setOrgTab: (tab: string) => void;
+  orgExpanded: boolean;
+  toggleOrg: () => void;
 }
 
 export const useNav = create<NavState>((set) => ({
@@ -54,4 +59,8 @@ export const useNav = create<NavState>((set) => ({
   setOwnerTab: (tab: string) => set({ ownerTab: tab }),
   ownerExpanded: false,
   toggleOwner: () => set((s) => ({ ownerExpanded: !s.ownerExpanded })),
+  orgTab: "overview",
+  setOrgTab: (tab: string) => set({ orgTab: tab }),
+  orgExpanded: false,
+  toggleOrg: () => set((s) => ({ orgExpanded: !s.orgExpanded })),
 }));
