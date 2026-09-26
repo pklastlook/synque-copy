@@ -102,7 +102,7 @@ export default function ChangelogPage() {
             <GitBranch className="h-3 w-3" /> Changelog
           </span>
           <h1 className="crystal-in mt-4 text-4xl font-bold tracking-tight sm:text-6xl" style={{ animationDelay: "0.1s" }}>
-            What's <span className="gold-text">new</span> in SocialFlow
+            What's <span className="gold-text">new</span> in SYNQUE
           </h1>
           <p className="crystal-in mx-auto mt-4 max-w-2xl text-muted-foreground" style={{ animationDelay: "0.2s" }}>
             Every release — features, improvements, security, and fixes. Shipped continuously, documented honestly.

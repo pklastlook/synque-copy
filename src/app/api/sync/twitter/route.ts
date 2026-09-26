@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * replies, impressions) for existing ones.
  *
  * This solves the problem: "I published a post on Twitter directly but
- * it doesn't show in SocialFlow analytics."
+ * it doesn't show in SYNQUE analytics."
  *
  * Body: { accountId } — the X/Twitter account to sync
  */

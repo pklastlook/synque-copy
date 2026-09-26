@@ -1500,19 +1500,19 @@ function InvoicePrintLayout({
             </div>
             <div>
               <div className="text-xl font-bold tracking-tight text-neutral-900">
-                SocialFlow
+                SYNQUE
               </div>
               <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">
-                Social, Simplified.
+                Sync Your Social.
               </div>
             </div>
           </div>
           <div className="mt-3 text-[11px] text-neutral-600">
-            SocialFlow HQ · 100 Market Street
+            SYNQUE HQ · 100 Market Street
             <br />
             San Francisco, CA 94105
             <br />
-            billing@socialflow.app
+            billing@synque.app
           </div>
         </div>
         <div className="text-right">
@@ -1653,7 +1653,7 @@ function InvoicePrintLayout({
             : "This quotation is valid for 30 days from the issue date. Prices are subject to change after expiration."}
         </p>
         <p className="mt-3 font-semibold text-neutral-900">
-          Thank you for your business — SocialFlow.
+          Thank you for your business — SYNQUE.
         </p>
       </div>
     </div>
@@ -2614,7 +2614,7 @@ function BankAccountsTab() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, accountName: e.target.value }))
                 }
-                placeholder="SocialFlow LLC"
+                placeholder="SYNQUE LLC"
               />
             </Field>
             <Field label="Bank name *">

@@ -10,7 +10,7 @@ if (!JWT_SECRET && process.env.NODE_ENV === "production") {
 const SECRET = JWT_SECRET || "REDACTED";
 
 // Demo credentials — fixed so anyone can preview the product
-const DEMO_EMAIL = "demo@socialflow.app";
+const DEMO_EMAIL = "demo@synque.app";
 const DEMO_PASSWORD = "demo1234";
 
 // Read-only permission set — viewer role

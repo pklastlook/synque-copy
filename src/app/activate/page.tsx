@@ -17,7 +17,7 @@ export default function ActivatePage() {
             <span className="pointer-events-none absolute inset-0 rounded-2xl opacity-50 blur-md" style={{ background: "var(--primary)" }} />
             <ShieldCheck className="relative h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Welcome to SocialFlow</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Welcome to SYNQUE</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Your account has been created by your administrator. Sign in with your email and password to access your workspace.
           </p>

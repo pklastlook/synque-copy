@@ -22,7 +22,7 @@ const ENDPOINTS = [
 
 export default function ApiReferencePage() {
   const [copied, setCopied] = React.useState(false);
-  const snippet = `curl -X POST https://api.socialflow.app/v1/posts \\
+  const snippet = `curl -X POST https://api.synque.app/v1/posts \\
   -H "Authorization: Bearer $SOCIALFLOW_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{

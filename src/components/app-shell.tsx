@@ -341,7 +341,7 @@ function AppFooter() {
               Live
             </Pill>
             <span className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex">
-              <span>SocialFlow · v1.0</span>
+              <span>SYNQUE · v1.0</span>
               <Pill color="neutral">Crystal UI</Pill>
             </span>
           </div>

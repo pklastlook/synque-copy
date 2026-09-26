@@ -28,7 +28,7 @@ export default function WorkflowPage() {
             Write once. Publish <span className="gold-text">everywhere.</span>
           </h1>
           <p className="crystal-in mx-auto mt-4 max-w-2xl text-muted-foreground" style={{ animationDelay: "0.2s" }}>
-            The SocialFlow flow turns multi-platform publishing into a single, guided 5-step wizard. No more copy-pasting between tabs — one brief goes in, platform-native posts come out.
+            The SYNQUE flow turns multi-platform publishing into a single, guided 5-step wizard. No more copy-pasting between tabs — one brief goes in, platform-native posts come out.
           </p>
         </div>
       </section>

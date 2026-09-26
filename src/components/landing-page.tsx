@@ -541,7 +541,7 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <Logo size={28} withTile={false} />
-          <span className="text-base font-bold tracking-tight">SocialFlow</span>
+          <span className="text-base font-bold tracking-tight">SYNQUE</span>
         </div>
         <div className="hidden items-center gap-7 md:flex">
           <a href="#features"  className="text-sm text-white/70 transition hover:text-white">Features</a>
@@ -619,7 +619,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         <Reveal delay={240}>
           <p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">
             Your team posts to 7+ platforms every day. Switching tabs, copy-pasting captions,
-            praying nothing gets suspended. SocialFlow turns that chaos into one calm, AI-powered flow —
+            praying nothing gets suspended. SYNQUE turns that chaos into one calm, AI-powered flow —
             so your team ships more, faster.
           </p>
         </Reveal>
@@ -763,7 +763,7 @@ function Act3Solution() {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
-            <Eyebrow icon={Sparkles} label="The SocialFlow way" color="#34D399" />
+            <Eyebrow icon={Sparkles} label="The SYNQUE way" color="#34D399" />
           </Reveal>
           <Reveal delay={100}>
             <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
@@ -827,7 +827,7 @@ function Act4Workflow({ onTrial }: { onTrial: () => void }) {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
-            <Eyebrow icon={Zap} label="The SocialFlow flow" color="#FBBF24" />
+            <Eyebrow icon={Zap} label="The SYNQUE flow" color="#FBBF24" />
           </Reveal>
           <Reveal delay={100}>
             <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
@@ -993,7 +993,7 @@ function Act5Protection() {
             </Reveal>
             <Reveal delay={200}>
               <p className="mt-5 text-base text-white/70 sm:text-lg">
-                SocialFlow monitors every account&apos;s health in real time. When risk rises —
+                SYNQUE monitors every account&apos;s health in real time. When risk rises —
                 from spam flags, report spikes, or aggressive engagement — we tell you exactly what
                 to fix and auto-enforce guards so your team can&apos;t accidentally trigger a suspension.
               </p>
@@ -1071,7 +1071,7 @@ function Act6AIAssistant() {
             </Reveal>
             <Reveal delay={200}>
               <p className="mt-5 text-base text-white/70 sm:text-lg">
-                Ask SocialFlow anything about your accounts. Get instant answers — performance,
+                Ask SYNQUE anything about your accounts. Get instant answers — performance,
                 scheduling, recommendations. Your AI co-pilot lives right inside the dashboard.
               </p>
             </Reveal>
@@ -1116,7 +1116,7 @@ function Act6AIAssistant() {
                     <Bot className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-white">SocialFlow AI</div>
+                    <div className="text-sm font-bold text-white">SYNQUE AI</div>
                     <div className="text-[11px] text-white/50">Workspace · Prism Studio</div>
                   </div>
                   <div className="ml-auto flex gap-1.5">
@@ -1326,7 +1326,7 @@ function Act7Analytics({ onTrial }: { onTrial: () => void }) {
 
 function Act8Comparison() {
   const rows = COMPARE_ROWS;
-  const competitors = ["SocialFlow", "Hootsuite", "Buffer", "Sprout Social"];
+  const competitors = ["SYNQUE", "Hootsuite", "Buffer", "Sprout Social"];
   return (
     <section
       id="compare"
@@ -1546,7 +1546,7 @@ function Act9Pricing({ onTrial }: { onTrial: () => void }) {
 
         <Reveal delay={500}>
           <p className="mt-10 text-center text-xs text-white/50">
-            All plans include the full SocialFlow module suite during your 15-day trial.
+            All plans include the full SYNQUE module suite during your 15-day trial.
             <br className="sm:hidden" /> Need a custom plan? <button onClick={onTrial} className="font-semibold text-indigo-300 underline-offset-4 hover:underline">Talk to sales →</button>
           </p>
         </Reveal>
@@ -1612,7 +1612,7 @@ function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
         </Reveal>
         <Reveal delay={240}>
           <p className="mx-auto mt-6 max-w-xl text-base text-white/75 sm:text-lg">
-            Join the teams using SocialFlow to publish smarter, protect their accounts, and beat the competition.
+            Join the teams using SYNQUE to publish smarter, protect their accounts, and beat the competition.
             Start your 15-day trial — full access, no card to explore.
           </p>
         </Reveal>
@@ -1649,10 +1649,10 @@ function Act11Footer() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2.5">
               <Logo size={28} withTile={false} />
-              <span className="text-base font-bold tracking-tight">SocialFlow</span>
+              <span className="text-base font-bold tracking-tight">SYNQUE</span>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/60">
-              Social, Simplified. The enterprise command center for modern social teams.
+              Sync Your Social. The enterprise command center for modern social teams.
             </p>
             <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/55">
               <ShieldCheck className="h-3.5 w-3.5 text-teal-400" />
@@ -1676,7 +1676,7 @@ function Act11Footer() {
           <FooterCol title="Resources" links={["Documentation|/docs", "API Reference|/api-reference", "Help Center|/help", "Status|/status", "Changelog|/changelog"]} />
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row">
-          <span>© 2026 SocialFlow · Social, Simplified</span>
+          <span>© 2026 SYNQUE · Sync Your Social</span>
           <div className="flex gap-5">
             <a href="/privacy" className="transition hover:text-white">Privacy</a>
             <a href="/terms" className="transition hover:text-white">Terms</a>
@@ -1965,7 +1965,7 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
               </div>
               <span className="absolute inset-0 animate-ping rounded-full bg-emerald-500/10" />
             </div>
-            <h3 className="text-xl font-bold">Trial activated! Welcome to SocialFlow.</h3>
+            <h3 className="text-xl font-bold">Trial activated! Welcome to SYNQUE.</h3>
             <p className="mt-1 text-sm text-muted-foreground">Account created successfully. Entering your workspace…</p>
           </div>
         )}
@@ -2091,7 +2091,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               <div className="relative">
                 <div className="login-splash-ripple" />
                 <div className="login-splash-logo grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[oklch(0.55_0.2_280)] text-2xl font-extrabold text-white shadow-lg">
-                  SF
+                  SQ
                 </div>
               </div>
             </div>
@@ -2100,7 +2100,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               <ArrowRight className="h-3 w-3 rotate-180" /> Back to home
             </button>
 
-            <h1 className="text-2xl font-bold tracking-tight text-center">Sign in to SocialFlow</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-center">Sign in to SYNQUE</h1>
             <p className="mt-1 text-center text-sm text-muted-foreground">Enter your credentials to continue</p>
 
             <form className="mt-6 space-y-4" onSubmit={submit}>
@@ -2182,7 +2182,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
             </button>
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
-              New to SocialFlow?{" "}
+              New to SYNQUE?{" "}
               <button onClick={onBack} className="inline-flex min-h-11 items-center px-2 font-medium text-[var(--primary)] hover:underline">
                 Sign up
               </button>

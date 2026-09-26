@@ -38,9 +38,9 @@ export async function GET(req: NextRequest) {
       const first = aAnalytics[0];
       const followerGrowth = last && first ? last.followers - first.followers : 0;
       const aVariants = variants.filter((v) => v.accountId === a.id);
-      // Engagement = max of (SocialFlow variant engagement, analytics row engagement)
+      // Engagement = max of (SYNQUE variant engagement, analytics row engagement)
       // so real profile data entered at connect time isn't overwritten by 0
-      // when no posts have been published through SocialFlow yet.
+      // when no posts have been published through SYNQUE yet.
       const variantEng = aVariants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0);
       const analyticsEng = aAnalytics.reduce((s, x) => s + x.engagement, 0);
       const engagement = Math.max(variantEng, analyticsEng);

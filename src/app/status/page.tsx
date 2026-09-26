@@ -43,7 +43,7 @@ export default function StatusPage() {
             System <span className="gold-text">status</span>
           </h1>
           <p className="crystal-in mx-auto mt-4 max-w-2xl text-muted-foreground" style={{ animationDelay: "0.2s" }}>
-            Real-time status of every SocialFlow service. Updates every 60 seconds.
+            Real-time status of every SYNQUE service. Updates every 60 seconds.
           </p>
         </div>
 
@@ -124,7 +124,7 @@ export default function StatusPage() {
       <section className="mx-auto max-w-4xl px-4 py-16 text-center">
         <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
           <h2 className="text-3xl font-bold tracking-tight">Reliability you can <span className="gold-text">count on</span></h2>
-          <p className="mt-3 text-muted-foreground">Try SocialFlow risk-free for 15 days — backed by 99.9% uptime SLA.</p>
+          <p className="mt-3 text-muted-foreground">Try SYNQUE risk-free for 15 days — backed by 99.9% uptime SLA.</p>
           <div className="mt-6 mx-auto w-fit">
             <TrialCTA className="liquid-gold glow-ring" />
           </div>

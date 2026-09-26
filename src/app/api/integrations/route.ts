@@ -26,7 +26,7 @@ export const INTEGRATION_DEFS: Record<string, {
       { key: "port", label: "Port", type: "text", placeholder: "465", required: true },
       { key: "user", label: "Username", type: "text", placeholder: "noreply@yourcompany.com", required: true },
       { key: "pass", label: "Password", type: "password", placeholder: "••••••••", required: true },
-      { key: "from", label: "From Email", type: "text", placeholder: "SocialFlow <noreply@yourcompany.com>", required: false },
+      { key: "from", label: "From Email", type: "text", placeholder: "SYNQUE <noreply@yourcompany.com>", required: false },
     ],
   },
   slack: {
@@ -79,7 +79,7 @@ export const INTEGRATION_DEFS: Record<string, {
   },
   zapier: {
     name: "Zapier",
-    desc: "Trigger SocialFlow actions from 6,000+ apps.",
+    desc: "Trigger SYNQUE actions from 6,000+ apps.",
     icon: "Zap",
     fields: [
       { key: "webhookUrl", label: "Zapier Webhook URL", type: "url", placeholder: "https://hooks.zapier.com/hooks/catch/.../...", required: true },

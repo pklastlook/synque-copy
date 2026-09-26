@@ -12,7 +12,7 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          These Terms of Service (&ldquo;Terms&rdquo;) govern your use of the SocialFlow platform, including all related
+          These Terms of Service (&ldquo;Terms&rdquo;) govern your use of the SYNQUE platform, including all related
           web pages, API services, and integrations (the &ldquo;Service&rdquo;). By creating an account, accessing, or
           using the Service, you agree to be bound by these Terms and our Privacy Policy.
         </p>
@@ -53,7 +53,7 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          SocialFlow offers three plans: Starter (free), Growth ($49/mo or $89/mo when billed with extra accounts), and
+          SYNQUE offers three plans: Starter (free), Growth ($49/mo or $89/mo when billed with extra accounts), and
           Enterprise (custom pricing). Each plan includes a 15-day free trial during which no charge is applied to your
           payment method.
         </p>
@@ -86,9 +86,9 @@ const SECTIONS = [
           <li>Using the Service to circumvent rate limits or platform-level enforcement actions.</li>
         </ul>
         <p>
-          SocialFlow includes built-in account-protection features (posting cadence limits, banned-hashtag screening,
+          SYNQUE includes built-in account-protection features (posting cadence limits, banned-hashtag screening,
           warm-up mode). Disabling or circumventing these features is at your own risk and may result in account
-          suspension by the upstream platform. SocialFlow is not liable for such suspensions.
+          suspension by the upstream platform. SYNQUE is not liable for such suspensions.
         </p>
       </>
     ),
@@ -101,7 +101,7 @@ const SECTIONS = [
       <>
         <p>
           You retain all ownership rights to content you create, upload, or publish through the Service
-          (&ldquo;User Content&rdquo;). By using the Service, you grant SocialFlow a worldwide, non-exclusive,
+          (&ldquo;User Content&rdquo;). By using the Service, you grant SYNQUE a worldwide, non-exclusive,
           royalty-free license to host, store, process, and transmit your User Content solely as needed to operate the
           Service for you.
         </p>
@@ -119,9 +119,9 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          SocialFlow uses a large language model to generate platform-native caption variants based on the brief you
+          SYNQUE uses a large language model to generate platform-native caption variants based on the brief you
           provide. You are solely responsible for reviewing, editing, and approving any AI-generated content before
-          publication. SocialFlow does not guarantee that AI-generated content is accurate, original, or fit for a
+          publication. SYNQUE does not guarantee that AI-generated content is accurate, original, or fit for a
           particular purpose.
         </p>
         <p>
@@ -138,12 +138,12 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          The Service, including its design, features, and underlying software, is the exclusive property of SocialFlow
+          The Service, including its design, features, and underlying software, is the exclusive property of SYNQUE
           and its licensors. These Terms do not grant you any right, title, or interest in the Service except for the
           limited right to use it in accordance with these Terms.
         </p>
         <p>
-          &ldquo;SocialFlow&rdquo;, the SocialFlow logo, and other SocialFlow trademarks are protected by trademark and
+          &ldquo;SYNQUE&rdquo;, the SYNQUE logo, and other SYNQUE trademarks are protected by trademark and
           unfair-competition laws. You may not use them without prior written permission.
         </p>
       </>
@@ -216,7 +216,7 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          You agree to indemnify and hold harmless SocialFlow, its officers, directors, employees, and agents from any
+          You agree to indemnify and hold harmless SYNQUE, its officers, directors, employees, and agents from any
           claim, demand, loss, or damages — including reasonable attorneys&apos; fees — arising out of your User
           Content, your breach of these Terms, or your violation of any law or third-party rights.
         </p>
@@ -248,8 +248,8 @@ const SECTIONS = [
       <>
         <p>Questions about these Terms? We&apos;re happy to help:</p>
         <ul>
-          <li><strong>Email:</strong> <a className="text-primary hover:underline" href="mailto:legal@socialflow.app">legal@socialflow.app</a></li>
-          <li><strong>Mail:</strong> SocialFlow, Attn: Legal, 548 Market St, San Francisco, CA 94104</li>
+          <li><strong>Email:</strong> <a className="text-primary hover:underline" href="mailto:legal@synque.app">legal@synque.app</a></li>
+          <li><strong>Mail:</strong> SYNQUE, Attn: Legal, 548 Market St, San Francisco, CA 94104</li>
         </ul>
       </>
     ),
@@ -271,10 +271,10 @@ export default function TermsPage() {
             The rules of the <span className="gold-text">road.</span>
           </h1>
           <p className="crystal-in mx-auto mt-4 max-w-2xl text-muted-foreground" style={{ animationDelay: "0.2s" }}>
-            Plain-English terms that protect both you and SocialFlow. No legalese where a sentence will do.
+            Plain-English terms that protect both you and SYNQUE. No legalese where a sentence will do.
           </p>
           <p className="crystal-in mt-3 text-xs text-muted-foreground" style={{ animationDelay: "0.3s" }}>
-            Last updated: January 2026 · By using SocialFlow you agree to these Terms
+            Last updated: January 2026 · By using SYNQUE you agree to these Terms
           </p>
         </div>
       </section>

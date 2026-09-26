@@ -291,7 +291,7 @@ export function TeamView() {
   function copyAllCreds() {
     if (!createdCreds) return;
     const text =
-      `SocialFlow Login Details\n` +
+      `SYNQUE Login Details\n` +
       `———————————————\n` +
       `Name: ${createdCreds.name}\n` +
       `Email: ${createdCreds.email}\n` +
@@ -332,7 +332,7 @@ export function TeamView() {
           <DialogHeader>
             <DialogTitle>Invite a teammate</DialogTitle>
             <DialogDescription>
-              They will get an email invitation to join your SocialFlow workspace.
+              They will get an email invitation to join your SYNQUE workspace.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

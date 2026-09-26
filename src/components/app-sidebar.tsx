@@ -162,7 +162,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full w-full flex-col gap-2 p-3">
-      {/* Brand — logo + SocialFlow */}
+      {/* Brand — logo + SYNQUE */}
       <div className="px-1 pb-1 pt-2">
         <LogoWordmark size="text-[18px]" logoSize={30} />
       </div>

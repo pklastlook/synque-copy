@@ -66,7 +66,7 @@ export default function FeaturesPage() {
               </span>
               <h2 className="mt-4 text-3xl font-bold tracking-tight">Never get <span className="gold-text">suspended</span> again</h2>
               <p className="mt-3 text-muted-foreground">
-                SocialFlow monitors every account's health in real time. When risk rises — from spam flags, report spikes, or aggressive engagement — we tell you exactly what to fix and auto-enforce guards.
+                SYNQUE monitors every account's health in real time. When risk rises — from spam flags, report spikes, or aggressive engagement — we tell you exactly what to fix and auto-enforce guards.
               </p>
               <ul className="mt-6 space-y-3">
                 {["Posting cadence limits (no more rapid-fire spam)", "Banned-hashtag blocker with custom lists", "Behavior caps on DMs, follows, comments", "Smart cooldown auto-pauses on warnings", "2FA enforcement + warm-up for new accounts"].map((t) => (

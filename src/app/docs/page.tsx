@@ -32,7 +32,7 @@ export default function DocsPage() {
             <BookOpen className="h-3 w-3" /> Documentation
           </span>
           <h1 className="crystal-in mt-4 text-4xl font-bold tracking-tight sm:text-6xl" style={{ animationDelay: "0.1s" }}>
-            Everything you need to <span className="gold-text">master SocialFlow</span>
+            Everything you need to <span className="gold-text">master SYNQUE</span>
           </h1>
           <p className="crystal-in mx-auto mt-4 max-w-2xl text-muted-foreground" style={{ animationDelay: "0.2s" }}>
             From your first post to multi-tenant deployments — guides, references, SDKs, and webhooks all in one place.

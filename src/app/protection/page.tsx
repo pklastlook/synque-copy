@@ -33,7 +33,7 @@ export default function ProtectionPage() {
             Never get <span className="gold-text">suspended</span> again
           </h1>
           <p className="crystal-in mx-auto mt-4 max-w-2xl text-muted-foreground" style={{ animationDelay: "0.2s" }}>
-            Automated safeguards that watch every account, every minute. When risk rises, SocialFlow tells you exactly what to fix — and auto-enforces the guardrails for you.
+            Automated safeguards that watch every account, every minute. When risk rises, SYNQUE tells you exactly what to fix — and auto-enforces the guardrails for you.
           </p>
         </div>
 

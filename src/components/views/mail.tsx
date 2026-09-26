@@ -810,7 +810,7 @@ function AddServerDialog({
 }) {
   const [provider, setProvider] = React.useState("hostinger");
   const [form, setForm] = React.useState({
-    name: "SocialFlow Primary Mail",
+    name: "SYNQUE Primary Mail",
     domain: "prism.co",
     imapHost: "imap.hostinger.com",
     imapPort: 993,
@@ -818,7 +818,7 @@ function AddServerDialog({
     smtpPort: 465,
     username: "admin@prism.co",
     password: "",
-    fromName: "SocialFlow Team",
+    fromName: "SYNQUE Team",
     fromEmail: "hello@prism.co",
   });
   const [creating, setCreating] = React.useState(false);
@@ -929,7 +929,7 @@ function AddServerDialog({
           <div className="flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-[11px] text-muted-foreground">
             <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
             <span>
-              Credentials are stored encrypted for this workspace. SocialFlow
+              Credentials are stored encrypted for this workspace. SYNQUE
               uses this connection to provision and manage mailboxes on your
               domain.
             </span>

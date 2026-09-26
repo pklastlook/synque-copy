@@ -4,7 +4,7 @@ import * as React from "react";
 
 /**
  * PWA Splash Screen — iOS/Android native app launch animation.
- * Shows the SocialFlow logo SVG with liquid glass ripple effects,
+ * Shows the SYNQUE logo SVG with liquid glass ripple effects,
  * title, subtitle, and a loading bar. Fades out after 2s.
  */
 export function PwaSplashScreen({ onComplete }: { onComplete: () => void }) {
@@ -49,8 +49,8 @@ export function PwaSplashScreen({ onComplete }: { onComplete: () => void }) {
       </div>
 
       {/* Title with staggered fade */}
-      <div className="pwa-splash-title">SocialFlow</div>
-      <div className="pwa-splash-subtitle">Social, Simplified</div>
+      <div className="pwa-splash-title">SYNQUE</div>
+      <div className="pwa-splash-subtitle">Sync Your Social</div>
 
       {/* Liquid glass loading bar */}
       <div className="pwa-splash-bar">
