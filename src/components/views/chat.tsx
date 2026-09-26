@@ -43,7 +43,7 @@ interface ChatData {
 }
 
 export function ChatView() {
-  const { data, loading, reload } = useApi<ChatData>("/api/chat");
+  const { data, loading, error, reload } = useApi<ChatData>("/api/chat");
   const [selectedMember, setSelectedMember] = React.useState<TeamMember | null>(null);
   const [messageText, setMessageText] = React.useState("");
   const [search, setSearch] = React.useState("");
@@ -76,11 +76,11 @@ export function ChatView() {
   }, [conversationMessages.length]);
 
   // Mark messages as read when viewing a conversation.
-  // Uses a ref so it only runs when the selection actually changes — NOT on
-  // every data refresh from polling (which would cause a reload loop).
+  // IMPORTANT: depends ONLY on [selectedMember?.id] — NOT on `data` or `reload`.
+  // Including `data` would re-run this effect on every 5s poll, causing a
+  // reload loop (PATCH → reload → new data → effect re-runs → PATCH again).
   const prevMarkedRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!data) return;
     const key = selectedMember?.id ?? "group";
     if (prevMarkedRef.current === key) return;
     prevMarkedRef.current = key;
@@ -94,12 +94,13 @@ export function ChatView() {
         ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ receiverId: selectedMember?.id ?? null }),
-    }).then(() => reload({ silent: true }));
-  }, [selectedMember?.id, data, reload]);
+    }).catch(() => {/* silent — read-status is non-critical */});
+  }, [selectedMember?.id]);
 
-  // Poll for new messages every 5s — silent so the UI doesn't flash a skeleton
+  // Poll for new messages every 8s — silent so the UI doesn't flash a skeleton.
+  // 8s (not 5s) reduces server load in constrained environments.
   React.useEffect(() => {
-    const interval = setInterval(() => reload({ silent: true }), 5000);
+    const interval = setInterval(() => reload({ silent: true }), 8000);
     return () => clearInterval(interval);
   }, [reload]);
 
@@ -112,7 +113,10 @@ export function ChatView() {
 
   async function sendMessage() {
     if (!messageText.trim()) return;
+    const text = messageText.trim();
     setSending(true);
+    // Optimistic: clear input immediately so the user can type the next message
+    setMessageText("");
     try {
       const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
       const res = await fetch("/api/chat", {
@@ -123,15 +127,19 @@ export function ChatView() {
         },
         body: JSON.stringify({
           receiverId: selectedMember?.id ?? null,
-          text: messageText.trim(),
+          text,
         }),
       });
       if (res.ok) {
-        setMessageText("");
         reload({ silent: true });
+      } else {
+        // Restore the text so the user doesn't lose their message
+        setMessageText(text);
+        toast.error("Failed to send message");
       }
     } catch {
-      toast.error("Failed to send");
+      setMessageText(text);
+      toast.error("Network error — message not sent");
     } finally {
       setSending(false);
     }
@@ -189,6 +197,27 @@ export function ChatView() {
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <div className="shimmer h-[600px] rounded-2xl" />
         <div className="shimmer h-[600px] rounded-2xl" />
+      </div>
+    );
+  }
+
+  // Error state — show retry button instead of empty "No members" state
+  if (error && !data) {
+    return (
+      <div className="grid place-items-center" style={{ minHeight: "60vh" }}>
+        <div className="text-center">
+          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-rose-500/10 text-rose-500">
+            <Send className="h-7 w-7" />
+          </div>
+          <h3 className="text-lg font-bold">Couldn&apos;t load chat</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <button
+            onClick={() => reload()}
+            className="liquid-pill mt-4 rounded-lg px-4 py-2 text-sm font-semibold"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

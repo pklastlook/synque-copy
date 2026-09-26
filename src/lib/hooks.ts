@@ -29,14 +29,18 @@ export function useApi<T>(url: string | null) {
       if (token) headers["Authorization"] = `Bearer ${token}`;
       fetch(url, { headers })
         .then(async (r) => {
-          if (!r.ok) throw new Error("Request failed");
+          if (!r.ok) {
+            // Try to extract a meaningful error message from the response
+            const msg = await r.text().catch(() => "");
+            throw new Error(msg ? `Request failed (${r.status})` : `Request failed (${r.status})`);
+          }
           return r.json();
         })
         .then((d) => {
           setData(d);
           setError(null);
         })
-        .catch((e) => setError(e.message ?? "Error"))
+        .catch((e) => setError(e.message ?? "Network error"))
         .finally(() => {
           if (!opts?.silent) setLoading(false);
         });
