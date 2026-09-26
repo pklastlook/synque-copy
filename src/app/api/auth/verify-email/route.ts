@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       await transporter.sendMail({
         from: `"${mailServer.fromName}" <${mailServer.fromEmail}>`,
         to: user.email,
-        subject: "Verify your SocialFlow email",
+        subject: "Verify your SYNQUE email",
         text: `Hi ${user.name},\n\nClick the link below to verify your email address:\n\n${verifyUrl}\n\nIf you didn't create an account, ignore this email.`,
       });
 

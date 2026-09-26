@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 function genKey() {
-  const segments = ["SF", "PRO", "2026"];
+  const segments = ["SQ", "PRO", "2026"];
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   segments.push(Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join(""));
   return segments.join("-");

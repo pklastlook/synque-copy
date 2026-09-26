@@ -5,7 +5,7 @@ import { LandingNav, LandingFooter, LandingBg, TrialCTA } from "@/components/lan
 import { cn } from "@/lib/utils";
 
 const TOPICS = [
-  { icon: LifeBuoy, title: "Getting Started", desc: "New to SocialFlow? Onboarding, first publish, account setup.", accent: "oklch(0.55 0.2 255)" },
+  { icon: LifeBuoy, title: "Getting Started", desc: "New to SYNQUE? Onboarding, first publish, account setup.", accent: "oklch(0.55 0.2 255)" },
   { icon: CreditCard, title: "Account & Billing", desc: "Plans, invoices, payment methods, switching tiers.", accent: "oklch(0.7 0.2 25)" },
   { icon: Send, title: "Publishing", desc: "Composer, scheduling, multi-account variants, drafts.", accent: "oklch(0.62 0.22 300)" },
   { icon: BarChart3, title: "Analytics", desc: "Reading metrics, building reports, comparing accounts.", accent: "oklch(0.66 0.18 200)" },

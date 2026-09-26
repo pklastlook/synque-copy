@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       await transporter.sendMail({
         from: `"${mailServer.fromName}" <${mailServer.fromEmail}>`,
         to: user.email,
-        subject: "Reset your SocialFlow password",
+        subject: "Reset your SYNQUE password",
         text: `Hi ${user.name},\n\nClick the link below to reset your password:\n\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, ignore this email.`,
       });
 

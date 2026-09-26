@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/ai/assistant
  *
- * An AI-powered assistant that can answer questions about SocialFlow data
+ * An AI-powered assistant that can answer questions about SYNQUE data
  * AND execute commands (create tasks, schedule posts, reply to comments).
  *
  * Body: { message: string, history: [{role, content}] }
@@ -47,7 +47,7 @@ Time: ${new Date().toISOString()}
 `;
 
   // System prompt describing available tools
-  const systemPrompt = `You are SocialFlow AI, an advanced AI assistant inside a social media management platform. You can answer questions about the user's data, provide analytics and reports, AND execute commands like scheduling posts, replying to comments, and creating tasks.
+  const systemPrompt = `You are SYNQUE AI, an advanced AI assistant inside a social media management platform. You can answer questions about the user's data, provide analytics and reports, AND execute commands like scheduling posts, replying to comments, and creating tasks.
 
 ${userContext}
 

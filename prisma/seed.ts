@@ -1,5 +1,5 @@
 /**
- * SocialFlow — Database Bootstrap
+ * SYNQUE — Database Bootstrap
  *
  * Creates the initial admin user on first run.
  * Usage: bun run prisma/seed.ts
@@ -10,7 +10,7 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import bcrypt from "bcryptjs";
 
 async function main() {
-  console.log("Bootstrapping SocialFlow database...");
+  console.log("Bootstrapping SYNQUE database...");
 
   const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
   const db = new PrismaClient({ adapter });
@@ -33,7 +33,7 @@ async function main() {
   const admin = await db.user.create({
     data: {
       name: "Admin",
-      email: "admin@socialflow.app",
+      email: "admin@synque.app",
       password: hashedPassword,
       role: "admin",
       title: "Administrator",

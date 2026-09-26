@@ -163,13 +163,13 @@ const SECTION_DESC: Record<SettingsTab, string> = {
   profile: "Your personal information visible to your team.",
   company: "Company profile — logo, address, contact details.",
   workspace: "Defaults applied across compose, schedule, and AI generation.",
-  appearance: "Personalize how SocialFlow looks on this device.",
+  appearance: "Personalize how SYNQUE looks on this device.",
   "team-roles": "Manage who can access what. Changes are staged locally — save to sync.",
   notifications: "Choose what reaches your inbox and how often.",
   security: "Password, 2FA, sessions, API keys, and IP allowlist.",
-  platforms: "Manage which social accounts are connected to SocialFlow.",
+  platforms: "Manage which social accounts are connected to SYNQUE.",
   "platform-api": "Connect real platform APIs for live posting and automatic data sync.",
-  integrations: "Connect SocialFlow with the tools your team already uses.",
+  integrations: "Connect SYNQUE with the tools your team already uses.",
   billing: "Plan, usage, payment method, and invoices.",
   bank: "Bank account details for subscription payments.",
   data: "Control how your data is stored, shared, and exported.",
@@ -1232,7 +1232,7 @@ function AppearanceSection() {
 
   return (
     <section className="glass rounded-xl crystal-in p-5">
-      <SectionHeader title="Appearance" desc="Personalize how SocialFlow looks on this device." />
+      <SectionHeader title="Appearance" desc="Personalize how SYNQUE looks on this device." />
 
       {/* Theme cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1692,7 +1692,7 @@ function TeamRolesSection() {
             <Field label="Email">
               <Input
                 type="email"
-                placeholder="teammate@socialflow.app"
+                placeholder="teammate@synque.app"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
               />
@@ -2112,7 +2112,7 @@ function SecuritySection() {
       <section className="glass rounded-xl crystal-in p-5">
         <SectionHeader
           title="API keys"
-          desc="Use these to authenticate with the SocialFlow API."
+          desc="Use these to authenticate with the SYNQUE API."
           action={
             <button
               onClick={() => { setNewKey(null); setGenOpen(true); }}
@@ -2322,7 +2322,7 @@ function PlatformsSection() {
     <section className="glass rounded-xl crystal-in p-5">
       <SectionHeader
         title="Connected platforms"
-        desc="Manage which social accounts are connected to SocialFlow."
+        desc="Manage which social accounts are connected to SYNQUE."
         action={
           <button
             onClick={() => setView("accounts")}
@@ -2498,7 +2498,7 @@ function IntegrationsSection() {
     <section className="glass rounded-xl crystal-in p-5">
       <SectionHeader
         title="Integrations"
-        desc="Connect SocialFlow with the tools your team already uses."
+        desc="Connect SYNQUE with the tools your team already uses."
         action={
           <button
             onClick={() => reload()}
@@ -3643,7 +3643,7 @@ function DataSection() {
       <div className="space-y-1">
         <ToggleRow label="Right to export (GDPR)" desc="Allow any team member to request a data export." checked={toggles.gdprExport} onChange={flip("gdprExport")} />
         <ToggleRow label="Anonymize IP addresses" desc="Strip the last octet from stored IP addresses." checked={toggles.anonymizeIp} onChange={flip("anonymizeIp")} />
-        <ToggleRow label="Share usage analytics" desc="Help us improve SocialFlow by sending anonymous telemetry." checked={toggles.shareUsage} onChange={flip("shareUsage")} />
+        <ToggleRow label="Share usage analytics" desc="Help us improve SYNQUE by sending anonymous telemetry." checked={toggles.shareUsage} onChange={flip("shareUsage")} />
         <ToggleRow label="Opt out of AI training" desc="Prevent your content from being used to improve AI models." checked={toggles.optOutAI} onChange={flip("optOutAI")} />
       </div>
 

@@ -45,7 +45,7 @@ export async function POST(
     await db.comment.create({
       data: {
         accountId: mention.queryId, // associate with the listening query
-        author: "SocialFlow Team",
+        author: "SYNQUE Team",
         text: replyText.trim(),
         type: "mention",
         sentiment: "neutral",

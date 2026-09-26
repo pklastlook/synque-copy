@@ -4,7 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * SocialFlow logo — an interactive "flow wave" mark.
+ * SYNQUE logo — an interactive "flow wave" mark.
  * Three layered wave bars that animate continuously, representing
  * the flow of content across multiple platforms. Each bar has a
  * different gradient and staggered animation phase.
@@ -109,7 +109,7 @@ export function Logo({
 }
 
 /**
- * SocialFlow wordmark — logo + name with enhanced typography.
+ * SYNQUE wordmark — logo + name with enhanced typography.
  */
 export function LogoWordmark({
   className,
@@ -127,9 +127,9 @@ export function LogoWordmark({
       {showLogo && <Logo size={logoSize} />}
       <div className="leading-tight">
         <div className={cn("font-bold tracking-tight", size)}>
-          Social<span className="retaina-text">Flow</span>
+          SYN<span className="retaina-text">QUE</span>
         </div>
-        <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Social, Simplified</div>
+        <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Sync Your Social</div>
       </div>
     </div>
   );

@@ -59,7 +59,7 @@ export function LandingFooter() {
       <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <LogoWordmark size="text-sm" logoSize={22} />
-          <p className="mt-2 text-xs text-muted-foreground">Social, Simplified. The enterprise command center for modern social teams.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Sync Your Social. The enterprise command center for modern social teams.</p>
           <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
             <ShieldCheck className="h-3.5 w-3.5 text-[var(--gold)]" /> Encrypted · 2FA · SOC2-ready
           </div>
@@ -96,7 +96,7 @@ export function LandingFooter() {
         </div>
       </div>
       <div className="mx-auto mt-8 flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-border/40 pt-6 text-xs text-muted-foreground sm:flex-row">
-        <span>© 2026 SocialFlow · Social, Simplified</span>
+        <span>© 2026 SYNQUE · Sync Your Social</span>
         <div className="flex gap-4">
           <Link href="/privacy" className="transition hover:text-foreground">Privacy</Link>
           <Link href="/terms" className="transition hover:text-foreground">Terms</Link>

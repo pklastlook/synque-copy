@@ -28,7 +28,7 @@ const ARTICLES = [
     icon: TrendingUp,
     category: "Engineering",
     title: "Building Multi-Tenant SaaS",
-    desc: "How SocialFlow isolates client data with dedicated databases.",
+    desc: "How SYNQUE isolates client data with dedicated databases.",
     author: "Priya Anand",
     date: "Feb 22, 2025",
     read: "11 min",
@@ -81,7 +81,7 @@ export default function BlogPage() {
             Insights from the <span className="gold-text">social frontier</span>
           </h1>
           <p className="crystal-in mx-auto mt-4 max-w-2xl text-muted-foreground" style={{ animationDelay: "0.2s" }}>
-            Tips, deep dives, and stories from the team building SocialFlow — covering AI, account safety, analytics, and modern social media workflow.
+            Tips, deep dives, and stories from the team building SYNQUE — covering AI, account safety, analytics, and modern social media workflow.
           </p>
         </div>
       </section>
@@ -119,7 +119,7 @@ export default function BlogPage() {
       <section className="mx-auto max-w-4xl px-4 py-16 text-center">
         <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
           <h2 className="text-3xl font-bold tracking-tight">Build your own <span className="gold-text">story</span></h2>
-          <p className="mt-3 text-muted-foreground">Try SocialFlow free for 15 days and put these insights to work.</p>
+          <p className="mt-3 text-muted-foreground">Try SYNQUE free for 15 days and put these insights to work.</p>
           <div className="mt-6 mx-auto w-fit">
             <TrialCTA className="liquid-gold glow-ring" />
           </div>

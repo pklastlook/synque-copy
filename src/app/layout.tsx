@@ -11,18 +11,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SocialFlow — Social, Simplified",
+  title: "SYNQUE — Sync Your Social",
   description:
-    "SocialFlow is a liquid-retina social media team work management platform. Publish to multiple accounts in one flow, generate per-account AI content, and track advanced analytics.",
+    "SYNQUE is a liquid-retina social media team work management platform. Publish to multiple accounts in one flow, generate per-account AI content, and track advanced analytics.",
   keywords: [
     "social media management",
     "team workflow",
     "multi-account publishing",
     "AI content generation",
     "analytics",
-    "SocialFlow",
+    "SYNQUE",
   ],
-  authors: [{ name: "SocialFlow" }],
+  authors: [{ name: "SYNQUE" }],
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -38,15 +38,15 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "SocialFlow",
+    title: "SYNQUE",
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: "website",
-    siteName: "SocialFlow",
-    title: "SocialFlow — Social, Simplified",
+    siteName: "SYNQUE",
+    title: "SYNQUE — Sync Your Social",
     description: "The enterprise platform for social media teams",
   },
 };
@@ -74,7 +74,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="SocialFlow" />
+        <meta name="apple-mobile-web-app-title" content="SYNQUE" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />

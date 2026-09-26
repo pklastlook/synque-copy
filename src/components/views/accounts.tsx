@@ -947,7 +947,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
         )}
 
         {/* ================================================================
-            STEP 2a — OAuth consent screen (what SocialFlow will access)
+            STEP 2a — OAuth consent screen (what SYNQUE will access)
             ================================================================ */}
         {step === "consent" && p && (
           <>
@@ -963,7 +963,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 Authorize {p.name}
               </DialogTitle>
               <DialogDescription className="text-[13px]">
-                SocialFlow needs permission to manage your {p.name} account.
+                SYNQUE needs permission to manage your {p.name} account.
               </DialogDescription>
             </DialogHeader>
 
@@ -981,7 +981,7 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 </div>
               </div>
               <p className="mt-4 text-center text-[13px] text-muted-foreground">
-                <strong className="font-semibold text-foreground">SocialFlow</strong> wants to access your{" "}
+                <strong className="font-semibold text-foreground">SYNQUE</strong> wants to access your{" "}
                 <strong className="font-semibold text-foreground">{p.name}</strong> account
               </p>
 

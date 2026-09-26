@@ -36,7 +36,7 @@ Runs on `http://localhost:3003`. The main app's `start-dev.sh` auto-starts this 
 ### Step 1: Create a Railway project
 
 1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
-2. Select your `SocialFlow` repo
+2. Select your `SYNQUE` repo
 3. Railway will ask for the root directory — set it to `mini-services/scheduler-service`
 
 ### Step 2: Set environment variables

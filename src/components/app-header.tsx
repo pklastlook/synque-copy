@@ -92,7 +92,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
   const [mounted, setMounted] = React.useState(false);
   const [cmdOpen, setCmdOpen] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
-  const t = TITLES[view] ?? { title: "SocialFlow", subtitle: "" };
+  const t = TITLES[view] ?? { title: "SYNQUE", subtitle: "" };
 
   // ⌘K shortcut to open command palette
   React.useEffect(() => {

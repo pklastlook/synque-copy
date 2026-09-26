@@ -12,8 +12,8 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          SocialFlow (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) operates the social media team work
-          management platform at socialflow.app (the &ldquo;Service&rdquo;). This Privacy Policy explains what
+          SYNQUE (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) operates the social media team work
+          management platform at synque.app (the &ldquo;Service&rdquo;). This Privacy Policy explains what
           information we collect, how we use it, and the choices you have.
         </p>
         <p>
@@ -71,7 +71,7 @@ const SECTIONS = [
         <ul>
           <li><strong>Encryption at rest</strong> — database volumes and object storage are encrypted with AES-256.</li>
           <li><strong>Encryption in transit</strong> — all API requests and webhook payloads are TLS-encrypted.</li>
-          <li><strong>Access control</strong> — strict role-based access control (RBAC) inside SocialFlow; only authorized engineers can access production data, and every access is logged.</li>
+          <li><strong>Access control</strong> — strict role-based access control (RBAC) inside SYNQUE; only authorized engineers can access production data, and every access is logged.</li>
           <li><strong>2FA enforcement</strong> — admins can require two-factor authentication for every team member.</li>
           <li><strong>SOC2 readiness</strong> — our controls are aligned with SOC 2 Type II criteria; annual third-party audits are scheduled.</li>
         </ul>
@@ -112,7 +112,7 @@ const SECTIONS = [
           <li><strong>Withdraw consent</strong> for non-essential processing at any time.</li>
         </ul>
         <p>
-          To exercise any of these rights, email <a className="text-primary hover:underline" href="mailto:privacy@socialflow.app">privacy@socialflow.app</a>.
+          To exercise any of these rights, email <a className="text-primary hover:underline" href="mailto:privacy@synque.app">privacy@synque.app</a>.
           We respond to verified requests within 30 days.
         </p>
       </>
@@ -143,7 +143,7 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          SocialFlow is a global product. Your data may be processed in countries other than your own, including the
+          SYNQUE is a global product. Your data may be processed in countries other than your own, including the
           United States, the European Union, and India. When we transfer data across borders, we rely on Standard
           Contractual Clauses (SCCs) approved by the European Commission and other recognized transfer mechanisms.
         </p>
@@ -204,8 +204,8 @@ const SECTIONS = [
           Questions about this Privacy Policy or your data? Reach our Data Protection Officer:
         </p>
         <ul>
-          <li><strong>Email:</strong> <a className="text-primary hover:underline" href="mailto:privacy@socialflow.app">privacy@socialflow.app</a></li>
-          <li><strong>Mail:</strong> SocialFlow, Attn: Privacy, 548 Market St, San Francisco, CA 94104</li>
+          <li><strong>Email:</strong> <a className="text-primary hover:underline" href="mailto:privacy@synque.app">privacy@synque.app</a></li>
+          <li><strong>Mail:</strong> SYNQUE, Attn: Privacy, 548 Market St, San Francisco, CA 94104</li>
         </ul>
       </>
     ),

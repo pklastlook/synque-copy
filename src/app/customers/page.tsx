@@ -74,7 +74,7 @@ export default function CustomersPage() {
             Teams that transformed their <span className="gold-text">social workflow</span>
           </h1>
           <p className="crystal-in mx-auto mt-4 max-w-2xl text-muted-foreground" style={{ animationDelay: "0.2s" }}>
-            From agencies to direct-to-consumer brands — here's what changes when SocialFlow runs your social stack.
+            From agencies to direct-to-consumer brands — here's what changes when SYNQUE runs your social stack.
           </p>
         </div>
       </section>

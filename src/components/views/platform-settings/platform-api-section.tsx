@@ -217,7 +217,7 @@ export function PlatformApiSection() {
   return (
     <div className="space-y-5">
       <HelpText module="platform-api">
-        <strong className="text-foreground">Platform API Keys</strong> connect SocialFlow to real social media APIs.
+        <strong className="text-foreground">Platform API Keys</strong> connect SYNQUE to real social media APIs.
         Enter your developer credentials here to enable <strong className="text-foreground">real posting</strong> and
         <strong className="text-foreground">automatic profile sync</strong>. Without these, the system can only store
         data you enter manually.

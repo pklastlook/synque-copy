@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   });
 
   // NOTE: Real mailbox provisioning on the mail server (cPanel API, Dovecot
-  // userdb, etc.) is not done here — this SocialFlow app stores the mailbox
+  // userdb, etc.) is not done here — this SYNQUE app stores the mailbox
   // record so the team can assign it + read mail. The actual IMAP account
   // must exist on the mail server already. The "creating" status is no
   // longer used because there's no async provisioning step.

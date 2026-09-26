@@ -21,7 +21,7 @@ export default function AboutPage() {
             We're building the <span className="gold-text">future</span> of social media management
           </h1>
           <p className="crystal-in mx-auto mt-4 max-w-2xl text-muted-foreground" style={{ animationDelay: "0.2s" }}>
-            SocialFlow was born from a simple frustration: managing 7+ social platforms is chaos. Teams waste hours copy-pasting, accounts get suspended, and nobody has a clear picture of what's working. We set out to fix that.
+            SYNQUE was born from a simple frustration: managing 7+ social platforms is chaos. Teams waste hours copy-pasting, accounts get suspended, and nobody has a clear picture of what's working. We set out to fix that.
           </p>
         </div>
       </section>
@@ -31,7 +31,7 @@ export default function AboutPage() {
         <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
           <h2 className="text-2xl font-bold tracking-tight">Our mission</h2>
           <p className="mt-4 text-muted-foreground leading-relaxed">
-            Every social media team deserves tools that work as hard as they do. We believe the future of social media management isn't about more features — it's about fewer tools doing more, intelligently. One platform that writes your content, protects your accounts, measures your impact, and keeps your entire team in sync. That's SocialFlow.
+            Every social media team deserves tools that work as hard as they do. We believe the future of social media management isn't about more features — it's about fewer tools doing more, intelligently. One platform that writes your content, protects your accounts, measures your impact, and keeps your entire team in sync. That's SYNQUE.
           </p>
           <p className="mt-4 text-muted-foreground leading-relaxed">
             We started with a simple question: what if you could write one brief and have AI generate distinct, platform-native captions for every account? What if those captions respected each platform's tone, length, and hashtag conventions? What if your accounts never got suspended because the platform itself prevented the patterns that trigger suspensions? That's what we built.
@@ -82,7 +82,7 @@ export default function AboutPage() {
       <section className="mx-auto max-w-4xl px-4 py-16 text-center">
         <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
           <h2 className="text-3xl font-bold tracking-tight">Join the <span className="gold-text">movement</span></h2>
-          <p className="mt-3 text-muted-foreground">Start your 15-day trial and see why teams switch to SocialFlow.</p>
+          <p className="mt-3 text-muted-foreground">Start your 15-day trial and see why teams switch to SYNQUE.</p>
           <div className="mt-6 mx-auto w-fit">
             <TrialCTA className="liquid-gold glow-ring" />
           </div>

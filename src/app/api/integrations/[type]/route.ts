@@ -83,7 +83,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ typ
       const res = await fetch(creds.webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: "✅ SocialFlow integration test — Slack is connected!" }),
+        body: JSON.stringify({ text: "✅ SYNQUE integration test — Slack is connected!" }),
         signal: AbortSignal.timeout(10000),
       });
       if (!res.ok) throw new Error(`Slack returned ${res.status}`);

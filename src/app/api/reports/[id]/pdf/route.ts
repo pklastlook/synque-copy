@@ -115,7 +115,7 @@ export async function GET(
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text(
-      `SocialFlow Report — ${report.name} — Page ${i} of ${pageCount}`,
+      `SYNQUE Report — ${report.name} — Page ${i} of ${pageCount}`,
       14,
       doc.internal.pageSize.height - 10
     );

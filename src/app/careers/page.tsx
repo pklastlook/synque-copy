@@ -11,7 +11,7 @@ const OPENINGS = [
 ];
 
 const BENEFITS = [
-  { icon: Heart, title: "Health, dental, vision", desc: "Premium coverage for you and your dependents, fully paid by SocialFlow.", accent: "oklch(0.68 0.22 145)" },
+  { icon: Heart, title: "Health, dental, vision", desc: "Premium coverage for you and your dependents, fully paid by SYNQUE.", accent: "oklch(0.68 0.22 145)" },
   { icon: Clock, title: "Flexible hours", desc: "Work when you do your best. Async by default across 9 time zones.", accent: "oklch(0.72 0.18 75)" },
   { icon: Users, title: "Remote-first", desc: "We've been distributed since day one. Twice-yearly team retreats.", accent: "oklch(0.55 0.2 255)" },
   { icon: TrendingUp, title: "Growth budget", desc: "$2,500/yr for courses, conferences, books, or coaching.", accent: "oklch(0.7 0.2 25)" },
@@ -113,9 +113,9 @@ export default function CareersPage() {
       <section className="mx-auto max-w-4xl px-4 py-16 text-center">
         <div className="crystal-in glass-strong rounded-3xl p-8 sm:p-12">
           <h2 className="text-3xl font-bold tracking-tight">Don't see your <span className="gold-text">role?</span></h2>
-          <p className="mt-3 text-muted-foreground">Email careers@socialflow.app — we hire from the inbound pile all the time.</p>
+          <p className="mt-3 text-muted-foreground">Email careers@synque.app — we hire from the inbound pile all the time.</p>
           <div className="mt-6 mx-auto w-fit">
-            <TrialCTA className="liquid-gold glow-ring" label="Try SocialFlow" />
+            <TrialCTA className="liquid-gold glow-ring" label="Try SYNQUE" />
           </div>
         </div>
       </section>

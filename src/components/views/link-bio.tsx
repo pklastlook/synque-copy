@@ -769,7 +769,7 @@ function PhonePreview({ page }: { page: LinkBioPage }) {
           {/* Footer brand */}
           <div className="px-4 pb-5 text-center">
             <div className="inline-flex items-center gap-1 text-[9px] font-medium text-white/60">
-              made with <Sparkles className="h-2.5 w-2.5" /> SocialFlow
+              made with <Sparkles className="h-2.5 w-2.5" /> SYNQUE
             </div>
           </div>
         </div>

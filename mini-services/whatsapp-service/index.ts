@@ -152,7 +152,7 @@ async function startWhatsApp() {
     auth: authState,
     printQRInTerminal: false, // we expose via HTTP instead
     logger,
-    browser: Browsers.ubuntu("SocialFlow"),
+    browser: Browsers.ubuntu("SYNQUE"),
   });
 
   // Bind store

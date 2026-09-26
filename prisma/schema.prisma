@@ -1,4 +1,4 @@
-// SocialFlow — Prisma schema
+// SYNQUE — Prisma schema
 // Social media team work management platform
 // Database: PostgreSQL (works with PGlite locally, Neon in production)
 
