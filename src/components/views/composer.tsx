@@ -1084,7 +1084,7 @@ export function ComposerView() {
     : null;
 
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-4 pb-4">
       {/* === Top progress + actions toolbar === */}
       <ProgressToolbar
         completion={completion}
@@ -1112,7 +1112,7 @@ export function ComposerView() {
       )}
 
       {/* === Two-column layout: main flow + sticky preview === */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         {/* MAIN FLOW */}
         <main className="min-w-0 space-y-4">
           {/* === Step 1: Accounts (horizontal scrollable row) === */}
@@ -1560,19 +1560,17 @@ export function ComposerView() {
                 >
                   <Copy className="h-3 w-3" /> Copy to all
                 </button>
-                {/* AI generate */}
+                {/* Clear all content */}
                 <button
-                  onClick={() => generate()}
-                  disabled={generating || !state.caption.trim() || selectedAccounts.length === 0}
-                  className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-                  title="Generate per-platform variants with AI"
+                  onClick={() => {
+                    setState((s) => ({ ...s, accountContent: {} }));
+                    toast.info("Cleared all content boxes");
+                  }}
+                  disabled={selectedAccounts.length === 0 || !hasAnyContent}
+                  className="flex items-center gap-1 rounded-xl border border-border/50 bg-muted/40 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  title="Clear all content boxes"
                 >
-                  {generating ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Wand2 className="h-3.5 w-3.5" />
-                  )}
-                  AI Generate
+                  <Undo2 className="h-3 w-3" /> Clear all
                 </button>
               </div>
             }
@@ -1588,7 +1586,7 @@ export function ComposerView() {
                   ref={captionTextareaRef}
                   value={state.caption}
                   onChange={(e) => update({ caption: e.target.value })}
-                  placeholder="Write a base brief here, then copy it to each platform's content box below and customize. Or click 'AI Generate' to auto-adapt it per platform."
+                  placeholder="Write a base brief here, then click 'Copy to all' to populate each platform's content box below. Customize each one as needed."
                   className="scroll-liquid min-h-[80px] w-full resize-y rounded-xl border border-border/50 bg-background/60 p-3 pr-10 text-sm outline-none transition focus:border-primary/50"
                 />
                 {/* Emoji + hashtag buttons */}
@@ -1758,17 +1756,8 @@ export function ComposerView() {
                         className="scroll-liquid min-h-[80px] w-full resize-y rounded-lg border border-border/40 bg-background/60 p-2.5 text-sm outline-none transition focus:border-primary/50"
                       />
 
-                      {/* Footer: AI regenerate + copy + clear */}
+                      {/* Footer: copy + clear + platform tip */}
                       <div className="mt-1.5 flex items-center gap-1.5">
-                        <button
-                          onClick={() => generate(a.id)}
-                          disabled={generating || !state.caption.trim()}
-                          className="flex items-center gap-1 rounded-lg bg-muted/40 px-2 py-1 text-[10px] font-medium text-primary transition hover:bg-primary/10 disabled:opacity-50"
-                          title="Regenerate this variant with AI"
-                        >
-                          {generating ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5" />}
-                          AI
-                        </button>
                         <button
                           onClick={async () => {
                             try {
@@ -1785,20 +1774,11 @@ export function ComposerView() {
                         </button>
                         <button
                           onClick={() => {
-                            const v = state.variants[a.id];
-                            if (v) {
-                              setState((s) => ({
-                                ...s,
-                                accountContent: { ...s.accountContent, [a.id]: v.content },
-                              }));
-                              toast.success(`Reset to AI variant`);
-                            } else {
-                              setState((s) => ({
-                                ...s,
-                                accountContent: { ...s.accountContent, [a.id]: state.caption },
-                              }));
-                              toast.success(`Reset to brief`);
-                            }
+                            setState((s) => ({
+                              ...s,
+                              accountContent: { ...s.accountContent, [a.id]: state.caption },
+                            }));
+                            toast.success(`Reset to brief`);
                           }}
                           disabled={!content.trim()}
                           className="flex items-center gap-1 rounded-lg bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
@@ -3099,8 +3079,8 @@ function StickyPublishBar({
   const isMac = typeof navigator !== "undefined" && navigator.platform.toLowerCase().includes("mac");
 
   return (
-    <div className="sticky bottom-0 z-30 -mx-4 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-      <div className="glass-strong glass-sheen flex items-center justify-between gap-3 rounded-2xl px-4 py-3 sm:px-5">
+    <div className="sticky bottom-0 z-30 -mx-4 px-3 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="glass-strong glass-sheen flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 sm:px-5">
         <div className="hidden min-w-0 flex-1 sm:block">
           <div className="flex items-center gap-2">
             {/* Mini completion ring */}
@@ -3138,8 +3118,8 @@ function StickyPublishBar({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Keyboard shortcut hint */}
+        {/* Compact publish button — NOT full width */}
+        <div className="flex shrink-0 items-center gap-2">
           {!disabled && !publishing && (
             <kbd className="hidden items-center gap-1 rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-[10px] font-mono text-muted-foreground md:flex">
               {isMac ? "⌘" : "Ctrl"} + ↵
@@ -3148,7 +3128,7 @@ function StickyPublishBar({
           <button
             onClick={onPublish}
             disabled={publishing || disabled}
-            className="liquid-pill glow-ring ml-auto flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+            className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50"
           >
             {publishing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
