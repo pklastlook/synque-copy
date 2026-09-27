@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, ShieldCheck, Check, Rocket, Lock, Mail as MailIcon, Users, Building2, PhoneCall, CreditCard, Loader2, Sparkles, Wifi, ShieldCheck as Shield, Zap } from "lucide-react";
-import { LogoWordmark } from "@/components/glass/logo";
+import { ArrowRight, ShieldCheck, Check, Rocket, Lock, Mail as MailIcon, Users, Building2, PhoneCall, CreditCard, Loader2, Sparkles, Wifi, ShieldCheck as Shield, Zap, Globe, MessageCircle, Send, Mail } from "lucide-react";
+import { Logo, LogoWordmark } from "@/components/glass/logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-store";
 import {
@@ -25,104 +25,267 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 
-/** Shared nav bar for all landing pages */
+/* ============================================================================
+   Unified Design Tokens — mirrors landing-page.tsx
+   ============================================================================ */
+
+const COLOR = {
+  bg:        "#0A0B0F",
+  surface:   "#111318",
+  footer:    "#08090C",
+  textHead:  "#F5F5F7",
+  textBody:  "#9999A0",
+  border:    "rgba(255,255,255,0.08)",
+  cardBg:    "rgba(255,255,255,0.04)",
+  accent:    "oklch(0.581 0.189 256)", // primary blue
+  accentA:   (a: number) => `oklch(0.581 0.189 256 / ${a})`,
+  gold:      "oklch(0.588 0.209 277)", // secondary gold
+  goldA:     (a: number) => `oklch(0.588 0.209 277 / ${a})`,
+  emerald:   "#34D399",
+} as const;
+
+/** Shared nav bar for all landing pages — floating pill, matches CinematicNav */
 export function LandingNav() {
   const [trialOpen, setTrialOpen] = React.useState(false);
+  const [scrolled, setScrolled] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  React.useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const links = [
+    { href: "/features", label: "Features" },
+    { href: "/workflow", label: "Workflow" },
+    { href: "/pricing", label: "Pricing" },
+    { href: "/about", label: "About" },
+  ];
+
   return (
     <>
-      <nav className="glass-topbar sticky top-0 z-50 mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-6xl items-center justify-between rounded-2xl px-5 py-3 sm:w-[calc(100%-3rem)]">
-        <Link href="/"><LogoWordmark size="text-[17px]" logoSize={26} /></Link>
-        <div className="hidden items-center gap-6 md:flex">
-          <Link href="/features" className="text-sm text-muted-foreground transition hover:text-foreground">Features</Link>
-          <Link href="/workflow" className="text-sm text-muted-foreground transition hover:text-foreground">Workflow</Link>
-          <Link href="/pricing" className="text-sm text-muted-foreground transition hover:text-foreground">Pricing</Link>
-          <Link href="/about" className="text-sm text-muted-foreground transition hover:text-foreground">About</Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/login" className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground sm:block">
-            Sign in
+      <nav
+        className={cn(
+          "fixed left-1/2 top-3 z-50 w-[calc(100%-1rem)] max-w-6xl -translate-x-1/2 rounded-2xl px-4 py-3 transition-all duration-300 sm:w-[calc(100%-2rem)] sm:px-5",
+          scrolled
+            ? "border shadow-[0_8px_40px_-8px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+            : "border border-transparent bg-transparent",
+        )}
+        style={scrolled ? { background: "rgba(10,11,15,0.8)", borderColor: COLOR.border } : undefined}
+      >
+        <div className="flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5">
+            <Logo size={26} withTile={false} />
+            <span className="text-base font-bold tracking-tight" style={{ color: COLOR.textHead }}>SYNQUE</span>
           </Link>
-          <button onClick={() => setTrialOpen(true)} className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold">
-            Start 15-day trial <ArrowRight className="h-3.5 w-3.5" />
-          </button>
+          <div className="hidden items-center gap-7 md:flex">
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="text-sm transition hover:text-white"
+                style={{ color: COLOR.textBody }}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="hidden min-h-10 items-center rounded-xl px-3 text-sm font-medium transition hover:text-white sm:flex"
+              style={{ color: COLOR.textBody }}
+            >
+              Sign in
+            </Link>
+            <button
+              onClick={() => setTrialOpen(true)}
+              className="group relative inline-flex items-center justify-center gap-1.5 overflow-hidden rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.98]"
+              style={{
+                background: COLOR.accent,
+                boxShadow: `0 1px 0 rgba(255,255,255,0.2) inset, 0 8px 30px -8px ${COLOR.accentA(0.6)}, 0 0 0 1px rgba(255,255,255,0.1)`,
+              }}
+            >
+              <Rocket className="h-3.5 w-3.5" /> Start trial <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="grid h-10 w-10 place-items-center rounded-xl border md:hidden"
+              style={{ borderColor: COLOR.border, color: COLOR.textHead }}
+              aria-label="Menu"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
         </div>
+        {/* Mobile dropdown */}
+        {mobileOpen && (
+          <div className="mt-3 flex flex-col gap-1 border-t pt-3 md:hidden" style={{ borderColor: COLOR.border }}>
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setMobileOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm transition hover:bg-white/5"
+                style={{ color: COLOR.textBody }}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        )}
       </nav>
+      {/* Spacer to offset fixed nav (so content below isn't hidden) */}
+      <div className="h-16" aria-hidden />
       <TrialDialog open={trialOpen} onOpenChange={setTrialOpen} />
     </>
   );
 }
 
-/** Shared footer for all landing pages */
+/** Shared footer — matches Act11Footer dark style */
 export function LandingFooter() {
   return (
-    <footer className="border-t border-border/40 px-4 py-10">
-      <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <LogoWordmark size="text-sm" logoSize={22} />
-          <p className="mt-2 text-xs text-muted-foreground">Sync Your Social. The enterprise command center for modern social teams.</p>
-          <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5 text-[var(--gold)]" /> Encrypted · 2FA · SOC2-ready
+    <footer
+      className="relative w-full overflow-hidden pt-20 pb-10"
+      style={{ background: COLOR.footer, color: COLOR.textHead }}
+    >
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{ background: "linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent)" }}
+      />
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <div className="flex items-center gap-2.5">
+              <Logo size={28} withTile={false} />
+              <span className="text-base font-bold tracking-tight" style={{ color: COLOR.textHead }}>SYNQUE</span>
+            </div>
+            <p className="mt-4 max-w-xs text-sm leading-relaxed" style={{ color: COLOR.textBody }}>
+              Sync Your Social. The enterprise command center for modern social teams.
+            </p>
+            <div
+              className="mt-5 flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px]"
+              style={{ borderColor: COLOR.border, background: COLOR.cardBg, color: COLOR.textBody }}
+            >
+              <ShieldCheck className="h-3.5 w-3.5" style={{ color: COLOR.accent }} />
+              Encrypted · 2FA · SOC2-ready
+            </div>
+            {/* Social icons */}
+            <div className="mt-6 flex gap-2">
+              {[Globe, MessageCircle, Send, Mail].map((Icon, i) => (
+                <a
+                  key={i}
+                  href="#"
+                  className="grid h-9 w-9 place-items-center rounded-xl border transition"
+                  style={{ borderColor: COLOR.border, background: COLOR.cardBg, color: COLOR.textBody }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLOR.accentA(0.4); e.currentTarget.style.color = COLOR.accent; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLOR.border; e.currentTarget.style.color = COLOR.textBody; }}
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
+            </div>
           </div>
+          <FooterCol title="Product" links={[
+            { label: "Features", href: "/features" },
+            { label: "Workflow", href: "/workflow" },
+            { label: "Pricing", href: "/pricing" },
+            { label: "AI Composer", href: "/ai-composer" },
+            { label: "Account Protection", href: "/protection" },
+          ]} />
+          <FooterCol title="Company" links={[
+            { label: "About", href: "/about" },
+            { label: "Blog", href: "/blog" },
+            { label: "Contact", href: "/contact" },
+            { label: "Careers", href: "/careers" },
+            { label: "Customers", href: "/customers" },
+          ]} />
+          <FooterCol title="Resources" links={[
+            { label: "Documentation", href: "/docs" },
+            { label: "API Reference", href: "/api-reference" },
+            { label: "Help Center", href: "/help" },
+            { label: "Status", href: "/status" },
+            { label: "Changelog", href: "/changelog" },
+          ]} />
         </div>
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-foreground">Product</div>
-          <ul className="mt-3 space-y-2">
-            <li><Link href="/features" className="text-xs text-muted-foreground transition hover:text-foreground">Features</Link></li>
-            <li><Link href="/workflow" className="text-xs text-muted-foreground transition hover:text-foreground">Workflow</Link></li>
-            <li><Link href="/pricing" className="text-xs text-muted-foreground transition hover:text-foreground">Pricing</Link></li>
-            <li><Link href="/ai-composer" className="text-xs text-muted-foreground transition hover:text-foreground">AI Composer</Link></li>
-            <li><Link href="/protection" className="text-xs text-muted-foreground transition hover:text-foreground">Account Protection</Link></li>
-          </ul>
-        </div>
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-foreground">Company</div>
-          <ul className="mt-3 space-y-2">
-            <li><Link href="/about" className="text-xs text-muted-foreground transition hover:text-foreground">About</Link></li>
-            <li><Link href="/blog" className="text-xs text-muted-foreground transition hover:text-foreground">Blog</Link></li>
-            <li><Link href="/contact" className="text-xs text-muted-foreground transition hover:text-foreground">Contact</Link></li>
-            <li><Link href="/careers" className="text-xs text-muted-foreground transition hover:text-foreground">Careers</Link></li>
-            <li><Link href="/customers" className="text-xs text-muted-foreground transition hover:text-foreground">Customers</Link></li>
-          </ul>
-        </div>
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-foreground">Resources</div>
-          <ul className="mt-3 space-y-2">
-            <li><Link href="/docs" className="text-xs text-muted-foreground transition hover:text-foreground">Documentation</Link></li>
-            <li><Link href="/api-reference" className="text-xs text-muted-foreground transition hover:text-foreground">API Reference</Link></li>
-            <li><Link href="/help" className="text-xs text-muted-foreground transition hover:text-foreground">Help Center</Link></li>
-            <li><Link href="/status" className="text-xs text-muted-foreground transition hover:text-foreground">Status</Link></li>
-            <li><Link href="/changelog" className="text-xs text-muted-foreground transition hover:text-foreground">Changelog</Link></li>
-          </ul>
-        </div>
-      </div>
-      <div className="mx-auto mt-8 flex max-w-6xl flex-col items-center justify-between gap-3 border-t border-border/40 pt-6 text-xs text-muted-foreground sm:flex-row">
-        <span>© 2026 SYNQUE · Sync Your Social</span>
-        <div className="flex gap-4">
-          <Link href="/privacy" className="transition hover:text-foreground">Privacy</Link>
-          <Link href="/terms" className="transition hover:text-foreground">Terms</Link>
-          <Link href="/protection" className="transition hover:text-foreground">Security</Link>
+        <div
+          className="mt-12 flex flex-col items-center justify-between gap-3 border-t pt-6 text-xs sm:flex-row"
+          style={{ borderColor: COLOR.border, color: COLOR.textBody }}
+        >
+          <span>© 2026 SYNQUE · Sync Your Social</span>
+          <div className="flex gap-4">
+            <Link href="/privacy" className="transition hover:text-white">Privacy</Link>
+            <Link href="/terms" className="transition hover:text-white">Terms</Link>
+            <Link href="/protection" className="transition hover:text-white">Security</Link>
+          </div>
         </div>
       </div>
     </footer>
   );
 }
 
-/** Shared background */
-export function LandingBg() {
+function FooterCol({ title, links }: { title: string; links: { label: string; href: string }[] }) {
   return (
-    <div className="retaina-bg" aria-hidden>
-      <div className="blob-3" />
+    <div>
+      <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: COLOR.textBody }}>{title}</div>
+      <ul className="mt-4 space-y-2.5">
+        {links.map((l) => (
+          <li key={l.label}>
+            <Link href={l.href} className="text-sm transition hover:text-white" style={{ color: COLOR.textBody }}>
+              {l.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-/** Trial CTA button — opens the trial dialog with card payment */
+/** Shared background — unified #0A0B0F, no colored blobs */
+export function LandingBg() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: -1,
+        overflow: "hidden",
+        background: COLOR.bg,
+      }}
+    />
+  );
+}
+
+/** Trial CTA button — opens the trial dialog with card payment.
+ *  Renders as a primary blue glowing button to match the landing design. */
 export function TrialCTA({ className, label = "Start your 15-day trial" }: { className?: string; label?: string }) {
   const [open, setOpen] = React.useState(false);
   return (
     <>
-      <button onClick={() => setOpen(true)} className={cn("flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold", className)}>
-        <Rocket className="h-4 w-4" /> {label} <ArrowRight className="h-4 w-4" />
+      <button
+        onClick={() => setOpen(true)}
+        className={cn(
+          "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl px-6 py-3 text-sm font-bold tracking-tight text-white transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.98]",
+          className,
+        )}
+        style={{
+          background: COLOR.accent,
+          boxShadow: `0 1px 0 rgba(255,255,255,0.2) inset, 0 8px 30px -8px ${COLOR.accentA(0.6)}, 0 0 0 1px rgba(255,255,255,0.1)`,
+        }}
+      >
+        {/* Sheen sweep */}
+        <span
+          className="pointer-events-none absolute inset-0 -translate-x-full transition-transform duration-700 group-hover:translate-x-full"
+          style={{ background: "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%)" }}
+        />
+        <span className="relative flex items-center gap-2">
+          <Rocket className="h-4 w-4" /> {label} <ArrowRight className="h-4 w-4" />
+        </span>
       </button>
       <TrialDialog open={open} onOpenChange={setOpen} />
     </>
@@ -135,26 +298,33 @@ function CardPreview({ name, number, expiry, cvc }: { name: string; number: stri
   const displayName = name || "YOUR NAME";
   const displayExp = expiry || "MM/YY";
   return (
-    <div className="crystal-in relative h-44 w-full max-w-sm overflow-hidden rounded-2xl bg-gradient-to-br from-[oklch(0.25_0.04_275)] via-[oklch(0.2_0.06_280)] to-[oklch(0.15_0.03_270)] p-5 shadow-2xl" style={{ animationDelay: "0.1s" }}>
+    <div
+      className="relative h-44 w-full max-w-sm overflow-hidden rounded-2xl p-5 shadow-2xl"
+      style={{
+        background: `linear-gradient(to bottom right, ${COLOR.surface}, ${COLOR.bg})`,
+        border: `1px solid ${COLOR.border}`,
+        animationDelay: "0.1s",
+      }}
+    >
       {/* Shimmer */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10" />
+      <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top right, transparent, rgba(255,255,255,0.05), rgba(255,255,255,0.1))" }} />
       {/* Chip */}
-      <div className="relative h-8 w-10 rounded-md bg-gradient-to-br from-[oklch(0.75_0.15_85)] to-[oklch(0.6_0.12_65)] shadow-inner">
+      <div className="relative h-8 w-10 rounded-md bg-gradient-to-br from-amber-300 to-amber-500 shadow-inner">
         <div className="absolute inset-1 grid grid-cols-3 grid-rows-3 gap-px opacity-40">
           {Array.from({ length: 9 }).map((_, i) => <div key={i} className="rounded-sm bg-amber-900/30" />)}
         </div>
       </div>
       {/* Number */}
-      <div className="relative mt-4 font-mono text-lg tracking-wider text-white/90">{displayNum}</div>
+      <div className="relative mt-4 font-mono text-lg tracking-wider" style={{ color: COLOR.textHead }}>{displayNum}</div>
       {/* Footer */}
       <div className="relative mt-4 flex items-end justify-between">
         <div>
-          <div className="text-[8px] uppercase tracking-wide text-white/40">Card Holder</div>
-          <div className="text-xs font-medium uppercase text-white/80">{displayName}</div>
+          <div className="text-[8px] uppercase tracking-wide" style={{ color: COLOR.textBody }}>Card Holder</div>
+          <div className="text-xs font-medium uppercase" style={{ color: COLOR.textHead }}>{displayName}</div>
         </div>
         <div>
-          <div className="text-[8px] uppercase tracking-wide text-white/40">Expires</div>
-          <div className="text-xs font-medium text-white/80">{displayExp}</div>
+          <div className="text-[8px] uppercase tracking-wide" style={{ color: COLOR.textBody }}>Expires</div>
+          <div className="text-xs font-medium" style={{ color: COLOR.textHead }}>{displayExp}</div>
         </div>
         {/* Card brand */}
         <div className="flex gap-1">
