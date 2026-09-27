@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { LandingPage } from "@/components/landing-page";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { SplashScreen } from "@/components/splash-screen";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
 export default function Home() {
   const { isAuthenticated } = useAuth();
@@ -16,6 +17,8 @@ export default function Home() {
       <SplashScreen />
       <ServiceWorkerRegister />
       {!isAuthenticated ? <LandingPage /> : <AppShell />}
+      {/* PWA install prompt — available on every page (landing + app) */}
+      <PWAInstallPrompt />
     </>
   );
 }
