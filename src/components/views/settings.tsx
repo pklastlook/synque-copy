@@ -52,6 +52,13 @@ import {
   UserX,
   ArrowLeftRight,
   Ban,
+  // Company
+  Briefcase,
+  Calendar,
+  FileText,
+  Linkedin,
+  Twitter,
+  Hash,
   // Generic
   Save,
   Eye,
@@ -261,6 +268,33 @@ const ACCENTS: { name: string; value: string }[] = [
 ];
 
 const DEFAULT_ACCENT = ACCENTS[0].value;
+
+// ===== Company profile constants =====
+const INDUSTRIES = [
+  "Technology",
+  "Marketing",
+  "E-commerce",
+  "Healthcare",
+  "Education",
+  "Finance",
+  "Media",
+  "Other",
+] as const;
+type Industry = (typeof INDUSTRIES)[number];
+
+const TEAM_SIZES = [
+  { value: "1-10", label: "1 – 10" },
+  { value: "11-50", label: "11 – 50" },
+  { value: "51-200", label: "51 – 200" },
+  { value: "201-500", label: "201 – 500" },
+  { value: "500+", label: "500+" },
+] as const;
+
+const CURRENT_YEAR = new Date().getFullYear();
+const FOUNDED_YEAR_OPTIONS = Array.from(
+  { length: CURRENT_YEAR - 1900 + 1 },
+  (_, i) => String(CURRENT_YEAR - i)
+);
 
 // ===== Sidebar groups — macOS-style grouping =====
 interface SidebarGroup {
@@ -703,6 +737,15 @@ function CompanySection() {
   const [country, setCountry] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [website, setWebsite] = React.useState("");
+  // New fields
+  const [industry, setIndustry] = React.useState<Industry | "">("");
+  const [companyEmail, setCompanyEmail] = React.useState("");
+  const [taxId, setTaxId] = React.useState("");
+  const [foundedYear, setFoundedYear] = React.useState("");
+  const [teamSize, setTeamSize] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [linkedin, setLinkedin] = React.useState("");
+  const [twitter, setTwitter] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [uploadingLogo, setUploadingLogo] = React.useState(false);
   const logoInputRef = React.useRef<HTMLInputElement>(null);
@@ -722,6 +765,15 @@ function CompanySection() {
       if (stored.country) setCountry(stored.country);
       if (stored.phone) setPhone(stored.phone);
       if (stored.website) setWebsite(stored.website);
+      // New fields — guarded so old localStorage entries don't crash
+      if (stored.industry) setIndustry(stored.industry);
+      if (stored.companyEmail) setCompanyEmail(stored.companyEmail);
+      if (stored.taxId) setTaxId(stored.taxId);
+      if (stored.foundedYear) setFoundedYear(String(stored.foundedYear));
+      if (stored.teamSize) setTeamSize(stored.teamSize);
+      if (stored.description) setDescription(stored.description);
+      if (stored.linkedin) setLinkedin(stored.linkedin);
+      if (stored.twitter) setTwitter(stored.twitter);
     } catch {}
   }, []);
 
@@ -758,11 +810,38 @@ function CompanySection() {
     finally { setUploadingLogo(false); if (logoInputRef.current) logoInputRef.current.value = ""; }
   }
 
+  function removeLogo() {
+    if (!companyLogo) return;
+    setCompanyLogo(null);
+    try {
+      const stored = JSON.parse(localStorage.getItem("socialflow-company") ?? "{}");
+      delete stored.companyLogo;
+      localStorage.setItem("socialflow-company", JSON.stringify(stored));
+    } catch {}
+    toast.success("Logo removed");
+  }
+
   const save = async () => {
     setSaving(true);
     try {
       // Save company info to localStorage (no Company model in schema yet)
-      const companyData = { companyName, companyLogo, address, city, country, phone, website };
+      const companyData = {
+        companyName,
+        companyLogo,
+        address,
+        city,
+        country,
+        phone,
+        website,
+        industry,
+        companyEmail,
+        taxId,
+        foundedYear,
+        teamSize,
+        description,
+        linkedin,
+        twitter,
+      };
       localStorage.setItem("socialflow-company", JSON.stringify(companyData));
 
       // Also update workspace name if changed
@@ -787,6 +866,14 @@ function CompanySection() {
     }
   };
 
+  // Letterhead preview helpers
+  const fullAddress = [address, city, country].filter(Boolean).join(", ");
+  const contactLine = [phone, companyEmail || website].filter(Boolean).join("  ·  ");
+  const socialLine = [
+    linkedin && `in/${linkedin}`,
+    twitter && `@${twitter}`,
+  ].filter(Boolean).join("  ·  ");
+
   return (
     <section className="glass rounded-xl crystal-in p-5">
       <SectionHeader
@@ -799,23 +886,65 @@ function CompanySection() {
         }
       />
 
-      {/* Logo */}
-      <div className="mb-5 flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
-        {companyLogo ? (
-          <img src={companyLogo} alt="Company logo" className="h-16 w-16 rounded-xl object-cover" />
-        ) : (
-          <div className="grid h-16 w-16 place-items-center rounded-xl bg-muted text-muted-foreground">
-            <Building2 className="h-7 w-7" />
+      {/* Logo + size previews */}
+      <div className="mb-5 rounded-2xl bg-muted/30 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {companyLogo ? (
+            <img src={companyLogo} alt="Company logo" className="h-16 w-16 rounded-xl object-cover ring-1 ring-border" />
+          ) : (
+            <div className="grid h-16 w-16 place-items-center rounded-xl bg-muted text-muted-foreground">
+              <Building2 className="h-7 w-7" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold">Company logo</div>
+            <div className="text-xs text-muted-foreground">PNG / JPG / SVG up to 1.5MB · square recommended</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+              <button
+                onClick={() => logoInputRef.current?.click()}
+                disabled={uploadingLogo}
+                className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+              >
+                {uploadingLogo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : companyLogo ? <Pencil className="h-3.5 w-3.5" /> : <Camera className="h-3.5 w-3.5" />}
+                {uploadingLogo ? "Uploading…" : companyLogo ? "Replace" : "Upload"}
+              </button>
+              {companyLogo && (
+                <button
+                  onClick={removeLogo}
+                  className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Remove
+                </button>
+              )}
+            </div>
           </div>
-        )}
-        <div>
-          <div className="text-sm font-semibold">Company logo</div>
-          <div className="text-xs text-muted-foreground">PNG / JPG up to 1.5MB</div>
+
+          {/* Size previews */}
+          {companyLogo && (
+            <div className="flex flex-col items-center gap-1 border-l border-border/60 pl-4">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Preview</div>
+              <div className="flex items-end gap-3">
+                {[16, 32, 64].map((size) => (
+                  <div key={size} className="flex flex-col items-center gap-1">
+                    <div className="grid h-16 place-items-center">
+                      <img
+                        src={companyLogo}
+                        alt={`Logo at ${size}px`}
+                        width={size}
+                        height={size}
+                        style={{ width: size, height: size }}
+                        className="rounded-md object-contain ring-1 ring-border/40"
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{size}px</span>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[9px] text-muted-foreground/70">Favicon · Sidebar · Print</div>
+            </div>
+          )}
         </div>
-        <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-        <button onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo} className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50">
-          {uploadingLogo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />} Upload
-        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -824,6 +953,12 @@ function CompanySection() {
         </Field>
         <Field label="Website">
           <input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://acme.com" className="settings-input" />
+        </Field>
+        <Field label="Company email" hint="Used on invoices and as a public contact">
+          <input value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} placeholder="hello@acme.com" type="email" className="settings-input" />
+        </Field>
+        <Field label="Phone">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 0100" className="settings-input" />
         </Field>
         <Field label="Address">
           <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" className="settings-input" />
@@ -834,9 +969,135 @@ function CompanySection() {
         <Field label="Country">
           <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="United States" className="settings-input" />
         </Field>
-        <Field label="Phone">
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 0100" className="settings-input" />
+        <Field label="Industry">
+          <Select value={industry} onValueChange={(v) => setIndustry(v as Industry)}>
+            <SelectTrigger className="w-full">
+              <span className="flex items-center gap-2">
+                <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue placeholder="Select industry" />
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              {INDUSTRIES.map((i) => (
+                <SelectItem key={i} value={i}>{i}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
+        <Field label="Tax ID / Registration #">
+          <input value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="US-12-3456789" className="settings-input" />
+        </Field>
+        <Field label="Founded year">
+          <Select value={foundedYear} onValueChange={setFoundedYear}>
+            <SelectTrigger className="w-full">
+              <span className="flex items-center gap-2">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue placeholder="Select year" />
+              </span>
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              {FOUNDED_YEAR_OPTIONS.map((y) => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Team size">
+          <Select value={teamSize} onValueChange={setTeamSize}>
+            <SelectTrigger className="w-full">
+              <span className="flex items-center gap-2">
+                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue placeholder="Select team size" />
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              {TEAM_SIZES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="LinkedIn" hint="Company handle (e.g. acme-inc)">
+          <input value={linkedin} onChange={(e) => setLinkedin(e.target.value.replace(/^https?:\/\/(www\.)?linkedin\.com\/(company\/)?/i, "").replace(/^\/+|\/+$/g, ""))} placeholder="acme-inc" className="settings-input" />
+        </Field>
+        <Field label="Twitter / X handle">
+          <input value={twitter} onChange={(e) => setTwitter(e.target.value.replace(/^@/, ""))} placeholder="acme" className="settings-input" />
+        </Field>
+      </div>
+
+      <Field label="Company description" hint={`${description.length} / 500`} className="mt-4">
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value.slice(0, 500))}
+          rows={3}
+          maxLength={500}
+          placeholder="A short paragraph describing what your company does, used in report footers and directory listings."
+          className="resize-none"
+        />
+      </Field>
+
+      {/* Report header preview */}
+      <div className="mt-5">
+        <div className="mb-2 flex items-center gap-2">
+          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-sm font-semibold">Report header preview</span>
+          <span className="text-[11px] text-muted-foreground">— how your company info renders on printed reports</span>
+        </div>
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-white text-[oklch(0.18_0.02_258)] shadow-sm dark:bg-[oklch(0.99_0.005_258)]">
+          <div className="flex items-start justify-between gap-4 border-b border-black/10 px-6 py-5">
+            <div className="flex items-start gap-3">
+              {companyLogo ? (
+                <img src={companyLogo} alt="logo" className="h-12 w-12 rounded-md object-contain" />
+              ) : (
+                <div className="grid h-12 w-12 place-items-center rounded-md bg-[oklch(0.94_0.02_258)] text-[oklch(0.45_0.15_258)]">
+                  <Building2 className="h-6 w-6" />
+                </div>
+              )}
+              <div>
+                <div className="text-lg font-bold leading-tight">{companyName || "Your Company Name"}</div>
+                {description && (
+                  <div className="mt-0.5 max-w-md text-[11px] leading-snug text-[oklch(0.4_0.02_258)]">
+                    {description}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="text-right text-[10px] leading-snug text-[oklch(0.4_0.02_258)]">
+              {industry && <div><strong>Industry:</strong> {industry}</div>}
+              {foundedYear && <div><strong>Founded:</strong> {foundedYear}</div>}
+              {teamSize && <div><strong>Team:</strong> {teamSize} people</div>}
+              {taxId && <div><strong>Tax ID:</strong> {taxId}</div>}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-3 text-[10px] text-[oklch(0.4_0.02_258)]">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+              {fullAddress && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3 opacity-60" /> {fullAddress}
+                </span>
+              )}
+              {contactLine && (
+                <span className="flex items-center gap-1">
+                  <Phone className="h-3 w-3 opacity-60" /> {contactLine}
+                </span>
+              )}
+            </div>
+            {socialLine && (
+              <div className="flex items-center gap-3 opacity-80">
+                {linkedin && (
+                  <span className="flex items-center gap-1">
+                    <Linkedin className="h-3 w-3" /> {linkedin}
+                  </span>
+                )}
+                {twitter && (
+                  <span className="flex items-center gap-1">
+                    <Twitter className="h-3 w-3" /> @{twitter}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -1030,6 +1291,9 @@ function WorkspaceSection() {
   const [brandVoice, setBrandVoice] = React.useState("");
   const [colors, setColors] = React.useState<string[]>(["#1B2A57", "#D4A24E", "#5BC0BE"]);
   const [saving, setSaving] = React.useState(false);
+  const [workspaceLogo, setWorkspaceLogo] = React.useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = React.useState(false);
+  const logoInputRef = React.useRef<HTMLInputElement>(null);
 
   // Load real workspace data from the database
   React.useEffect(() => {
@@ -1044,6 +1308,60 @@ function WorkspaceSection() {
     setBrandVoice(ws.brandVoice ?? "");
     if (ws.colors && Array.isArray(ws.colors) && ws.colors.length > 0) setColors(ws.colors);
   }, [ws]);
+
+  // Load workspace logo from localStorage (workspace-logo is purely cosmetic
+  // — not yet a column on WorkspaceSettings, so we persist it locally).
+  React.useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("socialflow-workspace") ?? "{}");
+      if (stored.logo) setWorkspaceLogo(stored.logo);
+    } catch {}
+  }, []);
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!user) { toast.error("You must be signed in to upload"); return; }
+    if (file.size > 1.5 * 1024 * 1024) { toast.error("Logo too large — max 1.5MB"); return; }
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("uploadedById", user.id);
+      formData.append("name", `${name || "Workspace"} logo`);
+      formData.append("folder", "workspace-logos");
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+      const res = await fetch("/api/media/upload", {
+        method: "POST",
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const json = await res.json();
+      if (res.ok && json.url) {
+        setWorkspaceLogo(json.url);
+        try {
+          const stored = JSON.parse(localStorage.getItem("socialflow-workspace") ?? "{}");
+          stored.logo = json.url;
+          localStorage.setItem("socialflow-workspace", JSON.stringify(stored));
+        } catch {}
+        toast.success("Workspace logo uploaded");
+      } else {
+        toast.error(json.error ?? "Upload failed");
+      }
+    } catch { toast.error("Network error"); }
+    finally { setUploadingLogo(false); if (logoInputRef.current) logoInputRef.current.value = ""; }
+  }
+
+  function removeLogo() {
+    if (!workspaceLogo) return;
+    setWorkspaceLogo(null);
+    try {
+      const stored = JSON.parse(localStorage.getItem("socialflow-workspace") ?? "{}");
+      delete stored.logo;
+      localStorage.setItem("socialflow-workspace", JSON.stringify(stored));
+    } catch {}
+    toast.success("Workspace logo removed");
+  }
 
   const updateColor = (i: number, v: string) =>
     setColors((prev) => prev.map((c, idx) => (idx === i ? v : c)));
@@ -1084,6 +1402,15 @@ function WorkspaceSection() {
     }
   };
 
+  // Derive a 1-2 letter monogram for the placeholder tile
+  const monogram = React.useMemo(() => {
+    const trimmed = (name || "WS").trim();
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "W";
+    if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }, [name]);
+
   return (
     <section className="glass rounded-xl crystal-in p-5">
       <SectionHeader
@@ -1097,19 +1424,40 @@ function WorkspaceSection() {
       />
 
       {/* Identity */}
-      <div className="mb-4 flex items-center gap-4 rounded-2xl bg-muted/30 p-4">
-        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-xl font-bold text-white shadow-lg">
-          P
-        </div>
-        <div>
+      <div className="mb-4 flex flex-wrap items-center gap-4 rounded-2xl bg-muted/30 p-4">
+        {workspaceLogo ? (
+          <img
+            src={workspaceLogo}
+            alt={`${name} logo`}
+            className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl object-cover ring-1 ring-border"
+          />
+        ) : (
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--gold)] text-xl font-bold text-white shadow-lg">
+            {monogram}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold">{name}</div>
-          <div className="text-xs text-muted-foreground">SVG / PNG · square recommended</div>
-          <button
-            onClick={() => toast.info("Logo upload — configure in Integrations")}
-            className="mt-2 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:bg-muted/60"
-          >
-            Upload logo
-          </button>
+          <div className="text-xs text-muted-foreground">SVG / PNG · square recommended · max 1.5MB</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+            <button
+              onClick={() => logoInputRef.current?.click()}
+              disabled={uploadingLogo}
+              className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition hover:bg-muted/60 disabled:opacity-50"
+            >
+              {uploadingLogo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : workspaceLogo ? <Pencil className="h-3.5 w-3.5" /> : <Camera className="h-3.5 w-3.5" />}
+              {uploadingLogo ? "Uploading…" : workspaceLogo ? "Replace logo" : "Upload logo"}
+            </button>
+            {workspaceLogo && (
+              <button
+                onClick={removeLogo}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Remove
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1208,13 +1556,50 @@ function WorkspaceSection() {
 }
 
 // ===== 3. Appearance =====
+const APPEARANCE_KEY = "socialflow-appearance";
+
+function loadAppearance() {
+  try {
+    return JSON.parse(localStorage.getItem(APPEARANCE_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
 function AppearanceSection() {
   const { theme, setTheme } = useTheme();
-  const [accent, setAccent] = React.useState(DEFAULT_ACCENT);
-  const [reduceMotion, setReduceMotion] = React.useState(false);
-  const [glassEffects, setGlassEffects] = React.useState(true);
-  const [compact, setCompact] = React.useState(false);
-  const [fontSize, setFontSize] = React.useState(14);
+  // Lazy-init from localStorage so accent/font size/etc. survive reload.
+  const [initial] = React.useState(loadAppearance);
+  const [accent, setAccent] = React.useState<string>(initial.accent ?? DEFAULT_ACCENT);
+  const [reduceMotion, setReduceMotion] = React.useState<boolean>(initial.reduceMotion ?? false);
+  const [glassEffects, setGlassEffects] = React.useState<boolean>(initial.glassEffects ?? true);
+  const [compact, setCompact] = React.useState<boolean>(initial.compact ?? false);
+  const [fontSize, setFontSize] = React.useState<number>(initial.fontSize ?? 14);
+
+  // Apply persisted accent + font-size on first mount so the page renders
+  // with the user's last saved appearance before they touch a control.
+  React.useEffect(() => {
+    if (accent && typeof document !== "undefined") {
+      document.documentElement.style.setProperty("--primary", accent);
+    }
+  }, [accent]);
+
+  React.useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.style.fontSize = `${fontSize}px`;
+    }
+  }, [fontSize]);
+
+  // Persist any change to the four toggles + accent + font size.
+  const persist = React.useCallback(
+    (patch: Record<string, unknown>) => {
+      try {
+        const next = { ...loadAppearance(), ...patch };
+        localStorage.setItem(APPEARANCE_KEY, JSON.stringify(next));
+      } catch {}
+    },
+    []
+  );
 
   const themeOptions = [
     { id: "light" as const, label: "Light", icon: Sun },
@@ -1227,6 +1612,7 @@ function AppearanceSection() {
     if (typeof document !== "undefined") {
       document.documentElement.style.setProperty("--primary", value);
     }
+    persist({ accent: value });
     toast.success(`Accent set to ${name}`);
   };
 
@@ -1312,6 +1698,7 @@ function AppearanceSection() {
           checked={reduceMotion}
           onChange={(v) => {
             setReduceMotion(v);
+            persist({ reduceMotion: v });
             toast.success(`Reduce motion ${v ? "on" : "off"}`);
           }}
         />
@@ -1321,6 +1708,7 @@ function AppearanceSection() {
           checked={glassEffects}
           onChange={(v) => {
             setGlassEffects(v);
+            persist({ glassEffects: v });
             toast.success(`Glass effects ${v ? "on" : "off"}`);
           }}
         />
@@ -1330,6 +1718,7 @@ function AppearanceSection() {
           checked={compact}
           onChange={(v) => {
             setCompact(v);
+            persist({ compact: v });
             toast.success(`Compact mode ${v ? "on" : "off"}`);
           }}
         />
@@ -1357,6 +1746,7 @@ function AppearanceSection() {
               if (typeof document !== "undefined") {
                 document.documentElement.style.fontSize = `${v[0]}px`;
               }
+              persist({ fontSize: v[0] });
             }}
           />
         </div>
@@ -3804,23 +4194,167 @@ function BillingSection() {
 }
 
 // ===== 10. Data & Privacy =====
+const DATA_PREFS_KEY = "socialflow-data-prefs";
+
+function loadPrivacyPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem(DATA_PREFS_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
 function DataSection() {
-  const [retention, setRetention] = React.useState({
-    analytics: "2-years",
-    media: "forever",
-    audit: "1-year",
-  });
-  const [toggles, setToggles] = React.useState<Record<string, boolean>>({
-    gdprExport: true,
-    anonymizeIp: true,
-    shareUsage: false,
-    optOutAI: false,
-  });
+  const { user } = useAuth();
+  const stored = loadPrivacyPrefs();
+  const [retention, setRetention] = React.useState<{ analytics: string; media: string; audit: string }>(
+    stored.retention ?? { analytics: "2-years", media: "forever", audit: "1-year" }
+  );
+  const [toggles, setToggles] = React.useState<Record<string, boolean>>(
+    stored.toggles ?? {
+      gdprExport: true,
+      anonymizeIp: true,
+      shareUsage: false,
+      optOutAI: false,
+    }
+  );
+  const [exporting, setExporting] = React.useState(false);
+  const [importing, setImporting] = React.useState(false);
+
+  const persist = React.useCallback(
+    (patch: Record<string, unknown>) => {
+      try {
+        const next = { ...loadPrivacyPrefs(), ...patch };
+        localStorage.setItem(DATA_PREFS_KEY, JSON.stringify(next));
+      } catch {}
+    },
+    []
+  );
 
   const flip = (k: string) => (v: boolean) => {
-    setToggles((prev) => ({ ...prev, [k]: v }));
+    const next = { ...toggles, [k]: v };
+    setToggles(next);
+    persist({ toggles: next });
     toast.success("Privacy setting updated");
   };
+
+  // Real data export — aggregates everything we have locally + the user/team
+  // info we can reach without server-side batching, then triggers a download.
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const token = typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token
+        : null;
+      const authed = (url: string, init: RequestInit = {}) =>
+        fetch(url, {
+          ...init,
+          headers: {
+            ...(init.headers ?? {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+      // Fetch every endpoint the user has access to. All failures are
+      // caught individually so a single 404 doesn't break the export.
+      const safeJson = async <T,>(res: Response): Promise<T | null> => {
+        if (!res.ok) return null;
+        try { return (await res.json()) as T; } catch { return null; }
+      };
+
+      const [users, accounts, workspace, invoices, posts] = await Promise.all([
+        safeJson<unknown[]>(await authed("/api/users")),
+        safeJson<unknown[]>(await authed("/api/accounts")),
+        safeJson<unknown>(await authed("/api/workspace")),
+        safeJson<unknown[]>(await authed("/api/invoices")),
+        safeJson<unknown[]>(await authed("/api/posts?limit=100")),
+      ]);
+
+      // Pull locally-persisted buckets too — these are settings the user
+      // has been editing in this very Settings panel.
+      const localBuckets: Record<string, unknown> = {};
+      for (const key of [
+        "socialflow-company",
+        "socialflow-workspace",
+        "socialflow-notif-prefs",
+        "socialflow-appearance",
+        "socialflow-data-prefs",
+      ]) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) localBuckets[key] = JSON.parse(raw);
+        } catch {}
+      }
+
+      const payload = {
+        meta: {
+          exportedAt: new Date().toISOString(),
+          schemaVersion: 1,
+          user: user ? { id: user.id, name: user.name, email: user.email } : null,
+        },
+        workspace,
+        users,
+        accounts,
+        posts: posts ?? [],
+        invoices,
+        localSettings: localBuckets,
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.download = `synque-export-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Export ready", {
+        description: "Workspace data downloaded as JSON.",
+      });
+    } catch {
+      toast.error("Export failed", { description: "Please try again or contact your admin." });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  // Best-effort import — accepts a previously exported JSON and merges the
+  // localSettings block back into localStorage. Server-backed records (users,
+  // accounts, etc.) are not auto-applied because they require server-side
+  // write permissions this UI does not have; we surface a clear note instead.
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as {
+        localSettings?: Record<string, unknown>;
+        meta?: Record<string, unknown>;
+      };
+      if (!parsed || typeof parsed !== "object" || !parsed.localSettings) {
+        toast.error("Invalid file", { description: "Expected a SYNQUE export JSON." });
+        return;
+      }
+      let restored = 0;
+      for (const [key, value] of Object.entries(parsed.localSettings)) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+          restored++;
+        } catch {}
+      }
+      toast.success(`Imported ${restored} local setting bucket${restored === 1 ? "" : "s"}`, {
+        description: "Reload the page to apply restored settings.",
+      });
+    } catch {
+      toast.error("Failed to read file");
+    } finally {
+      setImporting(false);
+      if (e.target) e.target.value = "";
+    }
+  }
 
   return (
     <section className="glass rounded-xl crystal-in p-5">
@@ -3829,29 +4363,31 @@ function DataSection() {
       {/* Export / Import */}
       <div className="grid gap-3 sm:grid-cols-2">
         <button
-          onClick={() => toast.info("Data export", { description: "Contact your admin to export workspace data. This feature requires a server-side export script." })}
-          className="flex items-center gap-3 rounded-2xl border border-border bg-background p-4 text-left transition hover:bg-muted/40"
+          onClick={handleExport}
+          disabled={exporting}
+          className="flex items-center gap-3 rounded-2xl border border-border bg-background p-4 text-left transition hover:bg-muted/40 disabled:opacity-60"
         >
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
-            <Download className="h-5 w-5" />
+            {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
           </div>
           <div>
             <div className="text-sm font-semibold">Export data</div>
-            <div className="text-xs text-muted-foreground">Posts, analytics, team, and inbox (JSON + CSV).</div>
+            <div className="text-xs text-muted-foreground">Workspace, users, accounts, posts + local settings as JSON.</div>
           </div>
         </button>
         <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-border bg-background p-4 text-left transition hover:bg-muted/40">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
-            <Upload className="h-5 w-5" />
+            {importing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
           </div>
           <div>
             <div className="text-sm font-semibold">Import data</div>
-            <div className="text-xs text-muted-foreground">Migrate from Buffer, Hootsuite, or CSV.</div>
+            <div className="text-xs text-muted-foreground">Restore local settings from a previous SYNQUE export.</div>
           </div>
           <input
             type="file"
+            accept="application/json,.json"
             className="hidden"
-            onChange={() => toast.info("File selected", { description: "Import requires a server-side parser. Contact your admin." })}
+            onChange={handleImport}
           />
         </label>
       </div>
@@ -3860,11 +4396,27 @@ function DataSection() {
 
       {/* Retention */}
       <div>
-        <div className="text-sm font-medium">Data retention</div>
-        <div className="text-xs text-muted-foreground">How long we keep different categories of data.</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium">Data retention</div>
+            <div className="text-xs text-muted-foreground">How long we keep different categories of data.</div>
+          </div>
+          <button
+            onClick={() => {
+              persist({ retention });
+              toast.success("Retention preferences saved");
+            }}
+            className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          >
+            <Save className="h-3.5 w-3.5" /> Save retention
+          </button>
+        </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Field label="Analytics">
-            <Select value={retention.analytics} onValueChange={(v) => setRetention((p) => ({ ...p, analytics: v }))}>
+            <Select
+              value={retention.analytics}
+              onValueChange={(v) => setRetention((p) => ({ ...p, analytics: v }))}
+            >
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="30-days">30 days</SelectItem>
@@ -3874,7 +4426,10 @@ function DataSection() {
             </Select>
           </Field>
           <Field label="Media assets">
-            <Select value={retention.media} onValueChange={(v) => setRetention((p) => ({ ...p, media: v }))}>
+            <Select
+              value={retention.media}
+              onValueChange={(v) => setRetention((p) => ({ ...p, media: v }))}
+            >
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="30-days">30 days</SelectItem>
@@ -3884,7 +4439,10 @@ function DataSection() {
             </Select>
           </Field>
           <Field label="Audit logs">
-            <Select value={retention.audit} onValueChange={(v) => setRetention((p) => ({ ...p, audit: v }))}>
+            <Select
+              value={retention.audit}
+              onValueChange={(v) => setRetention((p) => ({ ...p, audit: v }))}
+            >
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="30-days">30 days</SelectItem>
