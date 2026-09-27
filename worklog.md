@@ -7950,3 +7950,366 @@ Stage Summary:
 - Lint: 0 errors in composer.tsx
 - TypeScript: 0 errors in composer.tsx
 - Browser-verified interactive
+
+---
+Task ID: 2-calendar
+Agent: calendar-modernizer
+Task: Modernize Calendar view
+
+Work Log:
+- Read existing /home/z/my-project/src/components/views/calendar.tsx (532 lines, simple Month view + day detail sidebar + 4-metric strip)
+- Reviewed /home/z/my-project/src/components/glass/dense-ui.tsx (Sparkline, MetricRow, SectionHeader, ListRow, Pill primitives)
+- Reviewed /home/z/my-project/src/components/views/composer.tsx ProgressToolbar pattern (lines 2166-2264), CollapsibleSection pattern (lines 2269-2340), and device-toggle pill style (lines 1990-2010)
+- Reviewed /home/z/my-project/src/lib/platforms.tsx (7 platforms: instagram, facebook, x, linkedin, tiktok, youtube, threads — each with accent/charLimit/short)
+- Reviewed /home/z/my-project/src/app/api/posts/route.ts and [id]/route.ts to confirm PATCH (reschedule) + POST (duplicate) + DELETE shapes
+- Designed 12-feature modernization plan and wrote new /home/z/my-project/src/components/views/calendar.tsx (1766 lines, up from 532)
+- Implemented ProgressToolbar with completion ring (4 conditions × 25% each: month navigated away from current, filter applied, day selected, post hovered)
+- Implemented ViewSwitcher with 4 modes: Month / 2-Week / Week / Agenda using composer's device-toggle pill style
+- Implemented native HTML5 drag-and-drop rescheduling: draggable cards set text/plain payload of post id; DayCell and AgendaDay act as drop targets with dashed-border + primary-tint visual indicator; on drop, PATCH /api/posts/${id} with { scheduledAt, status: 'scheduled' } preserving original time-of-day; toast success/error; silent reload of /api/posts
+- Implemented platform color-coding: left accent stripe on every PostCard (border-left: 2px solid PLATFORMS[platform].accent) and on day-detail sidebar thumbnails (border-top with the same accent)
+- Implemented status pills for Scheduled / Draft / Published / Failed / Pending using existing STATUS_PILL_COLOR map extended with "pending" (amber). isPendingApproval() heuristic checks (post.status === 'draft' && post has approvalNote | pendingApproval | reviewerId field) — defensive cast so the UI lights up once the API starts returning those fields
+- Implemented quick actions on hover for every PostCard (Eye/Pencil/Copy/Trash2 lucide icons in a small floating toolbar that fades in on group-hover/post); sidebar day-detail rows also have explicit action buttons for View/Duplicate/Delete/Republish-or-Edit
+- Implemented PostDetailModal (View action) showing author + time, media, caption, all variants with per-variant likes/comments/shares, plus an "Edit in composer" CTA. ConfirmDeleteDialog with AlertTriangle icon and red destructive button for Delete confirmation
+- Implemented FilterPanel as a collapsible section with: (a) status pills incl. Failed, (b) platform multi-select chips showing PlatformBadge + name + count and turning into platform-color pills when active, (c) author <select> dropdown built from distinct authors in the dataset. "Clear" button resets all filters. Active count pill in header.
+- Implemented best-time-to-post indicators: local copy of composer's BEST_TIMES map (3 slots per platform, each tagged High/Peak). bestTimeHoursForDay() aggregates weights across all 7 platforms and renders up to 5 small green dots in the bottom-right of empty Week/2-Week day cells (Peak = solid emerald-500, High = emerald-400/50). Hovering shows "Best time: HH:00 (High/Peak)" tooltip.
+- Implemented mini-stats header as MetricRow with 5 metrics: Posts this month, Scheduled, Published, Drafts, Pending Approval (NEW, 5th). Each has its own sparkline + accent color.
+- Implemented two empty states: (a) day-level ("Nothing scheduled for this day. Compose your first post →" with CalendarDays icon and liquid-pill CTA), (b) month-level (fires only in Month view when the entire month has zero posts AND no filters are hiding things — shows a friendly "No posts in {Month}" card with a Compose CTA)
+- Implemented responsive design: (a) mobile (< md) shows a separate sticky view-switcher row + month nav buttons above the calendar, (b) view-switcher collapses to icons-only on small screens (label hidden, short code shown), (c) filter chips horizontally scrollable (overflow-x-auto + scroll-liquid), (d) sidebar stacks below calendar via lg:grid-cols-[1fr_340px] (single column below lg breakpoint), (e) Today button label hides on mobile but icon remains, New Post collapses to "New"
+- Fixed two TypeScript errors after first build: narrowed BEST_TIMES.reach type from "High" | "Medium" | "Peak" to "High" | "Peak" (no Medium entries in practice, removed an unassignable type cast); replaced postDate(original ?? null) with original ? postDate(original) : null to satisfy the Post-typed parameter
+- Verified bun run lint: 0 errors in calendar.tsx (the only project-wide lint error remains the pre-existing mini-services/whatsapp-service/index.js react-hooks/rules-of-hooks violation in the Baileys scaffold, which is unrelated and was present before this task)
+- Verified npx tsc --noEmit: 0 errors in calendar.tsx (the pre-existing TS errors in src/app/api/ai/assistant/route.ts, dashboard/route.ts, platform-credentials/[platform]/sync/route.ts, workspace/route.ts, and src/components/views/dashboard.tsx are unrelated and were present before this task)
+- All existing API integrations preserved: GET /api/posts (data + reload via useApi), PATCH /api/posts/${id} (drag-drop reschedule + status flip), DELETE /api/posts/${id} (delete action), POST /api/posts (duplicate action with copied title/caption/media/tone/variants). useNav().openComposer() and useNav().openComposerWithPost(p) both wired (Today/New Post buttons and Edit/Republish actions respectively)
+- Used only existing primitives (GlassCard, PlatformBadge, NameAvatar, HelpText, MetricRow, SectionHeader, ListRow, Pill, Dialog/DialogContent/DialogHeader/DialogTitle/DialogClose, useApi, useNav, useAuth, PLATFORMS/PLATFORM_LIST, cn, toast). No new npm packages added.
+
+Stage Summary:
+- Calendar module completely rewritten — grew from 532 to 1766 lines with 12 feature groups all implemented on top of (not replacing) the existing functionality
+- New top ProgressToolbar with animated completion ring (0-100% in 25% increments across 4 user-engagement conditions)
+- New 4-mode ViewSwitcher (Month / 2-Week / Week / Agenda) using composer's device-toggle pill style
+- New native HTML5 drag-and-drop rescheduling (no external libraries) with dashed-border drop-target indicator, time-of-day preservation on reschedule, and toast feedback
+- New platform color-coding via PLATFORMS.accent left-border stripe on every PostCard and sidebar thumbnail
+- Extended STATUS_PILL_COLOR map with synthetic "pending" status for drafts awaiting approval (defensive check on optional approvalNote/pendingApproval/reviewerId fields)
+- New hover-revealed quick-action toolbar (Eye/Pencil/Copy/Trash2) on every PostCard + explicit action buttons in the day-detail sidebar
+- New FilterPanel with status pills (incl. Failed), platform multi-select chips (badge + name + count, colored when active), and author dropdown
+- New best-time-to-post indicators (green dots) on Week/2-Week day cells, sourced from a local copy of composer's BEST_TIMES map
+- MetricRow extended to 5 metrics (added Pending Approval)
+- Two-level empty states: day-level ("Nothing scheduled for this day. Compose your first post →") and month-level ("No posts in {Month}")
+- Responsive: mobile view-switcher row, icons-only switcher on small screens, scrollable filter chips, stacked sidebar below lg breakpoint, "Today"/"New Post" labels collapse to icons on mobile
+- New PostDetailModal showing full post details (author, time, media, caption, all variants with engagement) + Edit-in-composer CTA
+- New ConfirmDeleteDialog with destructive styling and spinner during deletion
+- All API integrations preserved (GET/PATCH/DELETE/POST /api/posts) + useNav openComposer / openComposerWithPost
+- Files delivered: /home/z/my-project/src/components/views/calendar.tsx (1766 lines)
+- Lint: 0 errors in calendar.tsx
+- TypeScript: 0 errors in calendar.tsx
+
+---
+Task ID: 3-inbox
+Agent: inbox-modernizer
+Task: Modernize Inbox view
+
+Work Log:
+- Read context: worklog.md (recent composer + calendar modernizations), dense-ui.tsx primitives, composer.tsx ProgressToolbar + CollapsibleSection + StickyPublishBar patterns, calendar.tsx ProgressToolbar + ViewSwitcher + FilterPanel, platforms.tsx, existing inbox.tsx (690 lines, had a syntax error: `obileShowDetail` missing `[`).
+- Verified API surface: GET /api/inbox?filter=unread, GET /api/inbox, GET /api/team, POST /api/inbox/[id]/reply (saves replyText + sets repliedAt server-side), PATCH /api/inbox {id, replied, replyText, assigneeId}, DELETE /api/inbox/[id]. Confirmed Comment type (`replied: boolean` is the unanswered signal; `repliedAt`/`replyText` exist in Prisma schema but not on TS Comment type — read defensively via `InboxComment = Comment & { repliedAt?: string | null; replyText?: string | null }`).
+- Verified /api/ai/chat: takes `{messages: [{role, content}], tone, platforms, currentCaption}` and returns `{reply, suggestions: string[]}`. AI drafts auto-fetch when a conversation is selected; suggestions array is used directly; fallback splits `reply` by newline if no suggestions.
+- Wrote new /home/z/my-project/src/components/views/inbox.tsx (2137 lines) with the following architecture:
+  • ProgressToolbar (top sticky, glass-strong glass-sheen) — circular completion ring (SVG, strokeDasharray 97.4), "Inbox" mode badge, Mark-all-read + Refresh buttons. Completion % derived from replied ratio (60%) + engagement signals (filter/search/selection/advanced-filters each +10%, capped at 100).
+  • MetricRow (top dense metrics strip) — Unread / Replied / Positive (+delta) / Mentions, each with a tiny Sparkline from the dense-ui primitives.
+  • SentimentStream — horizontal stacked bar (emerald / blue / rose) above the conversation list showing sentiment pulse of visible comments with counts.
+  • FilterPanel (collapsible GlassCard, CollapsibleSection pattern) with vertical rows for: Sentiment pills, Platform multi-select chips (with platform color + count), Show-only toggles (Mentions of me, Unanswered), Priority pills (All / High / Normal — high = negative OR mention), Date range (24h / 7d / 30d / all), Sort (Newest / Oldest / Most engagement / Negative first). Active-count Pill + Clear button.
+  • ConversationRow — dense ListRow with PlatformBadge + sentiment dot, author + type icon + timeAgo, highlighted search match text (mark element), assignee pill, unread dot. Hover reveals 5 quick-action buttons: Mark read/unread (Circle/CheckCircle2), Archive, Assign (opens popover), React (opens emoji popover 👍 ❤️ 🎉 🔥), Delete (only when `!assigneeName || assigneeName === currentUser`).
+  • AssigneePopover + EmojiPopover — small absolute-positioned popovers with fixed overlay to close on outside click; AssigneePopover loads /api/team lazily, lists members with NameAvatar + Check on current.
+  • ThreadedTimeline — vertical timeline showing the original comment (avatar + sentiment pill + PlatformPill + body) and, when replyText exists, a "You replied" branch with repliedAt timestamp.
+  • AISuggestions — auto-fetches 3 reply drafts via /api/ai/chat when a comment is selected. Loading skeletons (3 shimmer tiles), error state with Retry button, Refresh button to regenerate. Clicking a draft fills the reply textarea + toast.
+  • BulkActionBar — sticky bottom bar (StickyPublishBar pattern) appearing when 2+ rows are checked: count pill, Mark read / Archive / Assign / Delete buttons + Clear (X). Bulk operations fan out parallel PATCH/DELETE calls with busy state + reload.
+  • Bulk selection — checkboxes appear on every row once any row is checked; selecting 2+ shows the sticky bar.
+  • Mobile responsive — master list fills width; tapping a row slides to detail (state-driven); Back button returns; FilterPanel becomes a "Filters" button (top-right of the search card) that opens a bottom sheet with default-open FilterPanel; bulk bar sticks to bottom; AI suggestions stack vertically via sm:grid-cols-3 (collapses to 1 column on mobile).
+  • Empty states — "No messages yet" (InboxIcon) when inbox is entirely empty, "No matches" (Search icon) with "Clear filters" CTA when filters return nothing.
+  • Search highlights — `<mark>` element wraps matching substrings in the comment text.
+  • HelpText module="inbox" preserved.
+  • InboxSkeleton — shimmer blocks matching the new layout.
+- Fixed pre-existing syntax error in old inbox.tsx (broken `const obileShowDetail, setMobileShowDetail] = React.useState(false);` line) — replaced with correct `const [mobileShowDetail, setMobileShowDetail] = React.useState(false);`.
+- Fixed one TS2774 error during dev: `onPick &&` was always-truthy since onPick is a non-optional `() => void`. Replaced with a static `cursor-pointer hover:bg-muted/40` class on the row.
+- All API integrations preserved: GET /api/inbox?filter=unread (server-side), GET /api/inbox (all), GET /api/team (lazy), POST /api/inbox/[id]/reply, PATCH /api/inbox {id, replied, replyText, assigneeId}, DELETE /api/inbox/[id]. useAuth selector for current user. useApi + reload for refetch.
+- Design constraints honored: dense-ui primitives (SectionHeader, MetricRow, Pill, ListRow, Sparkline) imported & used; GlassCard for cards; PlatformBadge / PlatformPill / VerifiedTick (VerifiedTick imported for completeness); NameAvatar; HelpText; sonner toast; cn util; useApi + reload; useAuth; lucide-react icons; no new npm packages; violet primary (no indigo/blue primary); mobile-first responsive.
+
+Stage Summary:
+- File delivered: /home/z/my-project/src/components/views/inbox.tsx (2137 lines).
+- Features: ProgressToolbar with completion ring; MetricRow with sparklines; SentimentStream pulse; Collapsible FilterPanel (sentiment / platform / mentions / unanswered / priority / date / sort); per-row hover quick actions (read toggle, archive, assign, react emoji, delete); threaded timeline with reply branch; AI reply drafts (3) via /api/ai/chat with loading/error/refresh states; bulk-action sticky bar with mark-read/archive/assign/delete; mobile responsive (master→detail, filter sheet, sticky bulk bar); search highlighting; friendly empty states; preserved all existing API + functionality.
+- Lint: `bun run lint 2>&1 | grep inbox.tsx` → 0 errors, 0 warnings in inbox.tsx (only pre-existing error is in mini-services/whatsapp-service/index.js, unrelated).
+- TypeScript: `npx tsc --noEmit 2>&1 | grep inbox.tsx` → 0 errors in inbox.tsx (pre-existing errors are in examples/, mini-services/, skills/, src/app/api/ai/assistant/, prisma.config.ts — all outside scope).
+
+---
+Task ID: 4-approvals
+Agent: approvals-modernizer
+Task: Modernize Approvals view
+
+Work Log:
+- Read context: worklog.md (composer-modernization, 2-calendar, 3-inbox entries showing the established design language — ProgressToolbar with circular completion ring, CollapsibleSection pattern, FilterPanel with vertical filter rows, sticky BulkActionBar, hover-revealed quick actions, friendly empty states).
+- Reviewed /home/z/my-project/src/components/glass/dense-ui.tsx (Sparkline, MetricRow, SectionHeader, ListRow, Pill, BentoGrid, BentoTile primitives).
+- Reviewed composer.tsx ProgressToolbar pattern (lines 2166-2264), CollapsibleSection pattern (lines 2269-2340), StickyPublishBar pattern (lines 3035-3143), TemplatesDialog (lines 3148-3193).
+- Reviewed inbox.tsx (just-modernized by sibling subagent) for BulkActionBar (lines 1107-1158), BulkButton (1160-1186), EmptyState (1191-1212), FilterPanel (348-549), ConversationRow with hover quick actions, mobile responsive pattern (master→detail, filter sheet, sticky bulk bar).
+- Reviewed existing approvals.tsx (597 lines — had kanban + create dialog + KPI MetricRow + filter pills + actOnApproval PATCH).
+- Verified API surface: GET /api/approvals (list, optional ?status=), POST /api/approvals (create with optional postId/comment/priority/dueAt), PATCH /api/approvals/[id] {status, comment, approverId} (auto-sets resolvedAt on terminal status), DELETE /api/approvals/[id], GET /api/team (assignee picker), GET /api/posts (linked-post picker for create dialog), GET /api/posts/[id] (post preview for version diff).
+- Verified useNav().openComposerWithPost(post: Post) is wired in /home/z/my-project/src/lib/store.ts.
+- Verified Post type in /home/z/my-project/src/lib/types.ts has caption, mediaUrl, mediaType, variants (with platform field).
+- Wrote new /home/z/my-project/src/components/views/approvals.tsx (2851 lines, up from 597) with the following architecture:
+
+  • ProgressToolbar (top sticky, glass-strong glass-sheen) — circular completion ring (SVG, strokeDasharray 97.4), "Approvals" mode badge with color: rose if any overdue exists, amber if any pending exists, emerald if all clear. Action buttons: "New Request" (liquid-pill) + "Refresh" (icon button with spinning state). Completion % derived from 4 conditions × 25% each: status filter applied, search active, has overdue items, has pending items.
+
+  • HelpText module="approvals" preserved (dismissed via existing localStorage bucket).
+
+  • SectionHeader with ListChecks icon.
+
+  • MetricRow with 8 metrics (extended from 7 — added Avg resolution time): Total, Pending, Changes, Approved, Rejected, Overdue, Approval % (with sparkline of last 7 resolved approvals — 1 if approved, 0 if rejected), Avg resolve (computed from resolvedAt − createdAt for terminal-status items, formatted as Xm / Xh / X.Xd).
+
+  • Search input (with X clear button) + "Filters" trigger button on mobile (hidden on lg+ where the panel is always expanded).
+
+  • FilterPanel (collapsible GlassCard, CollapsibleSection pattern from composer.tsx) with vertical rows for: Status (All/Pending/Changes Requested/Approved/Rejected — each with icon + count badge), Priority (All/Urgent/High/Normal/Low — each with priority icon + count), Assignee (Select dropdown: All assignees / Me / Unassigned / specific team member), Show only (Overdue toggle chip), Sort (Newest / Oldest / Due date / Priority). Active-count Pill in header + Clear button (visible when filters active).
+
+  • Status filter pills (always visible on mobile < lg) double as kanban navigation — selecting a status also sets the mobile column to display.
+
+  • Desktop: 4-column kanban (Pending / Changes Requested / Approved / Rejected) using lg:grid lg:grid-cols-4. Each column has a header (icon + label + Pill count) and a vertical card stack with a dashed "Empty" placeholder when no items.
+
+  • Mobile: single-column view that displays the selected mobileColumn status (defaults to pending). Filter pills at top switch both the status filter AND the visible mobile column.
+
+  • ApprovalCard (kanban card) — enhanced with:
+    - Post preview thumbnail (40×40 rounded-lg, lazy-loaded via usePostPreview hook with a module-level postCache Map to avoid refetching). Shows Loader2 spinner while fetching, FileBarChart placeholder if no mediaUrl.
+    - Platform badges (platformIds derived from post.variants, deduped; renders PlatformBadge for each up to all 7).
+    - Author avatar (NameAvatar 16px, colored by author.color) + "by {name}".
+    - Approver avatar (NameAvatar 16px, colored by approver.color) + name, only shown when assigned.
+    - Priority pill with icon (ShieldAlert for urgent, ArrowUp for high, ArrowRight for normal, ArrowDown for low).
+    - Due date with countdown ("3d left" / "5h left" / "Due today" / "Overdue 2d" / "Overdue 5h" — rose-colored + bold + "· action needed" when overdue; absolute date for resolved items).
+    - Comment preview (first 100 chars + "…" if longer, in a muted bg box with MessageCircle icon).
+    - Created time-ago + status meta icon at bottom.
+    - Hover-revealed quick actions (top-right floating toolbar, bg-background/90 backdrop-blur): Approve (emerald CheckCircle2), Request Changes (violet AlertCircle), Reject (rose XCircle) — only on pending/changes_requested. View Details (Eye) always. Edit (Pencil) only if postId exists. Delete (Trash2 rose) always.
+    - Inline action buttons always visible on pending/changes_requested (Approve / Changes / Reject with spinner when acting).
+    - Checkbox (left-positioned, accent-[var(--primary)]) appears when any card is selected; selecting toggles ring-2 ring-primary/40.
+
+  • ActionDialog (Approve/Reject/Request Changes modal) — replaces the previous instant-confirm. Shows:
+    - Action icon (colored by tone: emerald/violet/rose) + action label as DialogTitle.
+    - Approval summary box (NameAvatar + title + author + priority Pill).
+    - Textarea for "Reviewer note" (placeholder: "Add a note for the author (optional)").
+    - Submit button colored by action tone (emerald for approve, rose for reject, violet for changes) with spinner during submission.
+    - Submits PATCH /api/approvals/[id] { status, comment }.
+
+  • DetailDialog (full approval details modal) — shows:
+    - Status icon + approval title + submitted/resolved time-ago.
+    - Author + Approver cards (NameAvatar + name + title).
+    - Meta row: priority Pill, status Pill, due Pill (rose if overdue), linked-post Pill (only if postId).
+    - Last reviewer comment (if any) in a muted box.
+    - Version diff section (only if postId exists):
+      * If original caption is saved in localStorage (`socialflow-approval-originals:${postId}`) and current caption is available from /api/posts/[id], shows a "Compare with original" button that toggles a side-by-side diff view.
+      * Diff view: left = original (with removed lines highlighted rose-500/15 bg), right = current (with added lines highlighted emerald-500/15 bg). Uses simple line-based diffText() helper.
+      * If no original is saved, shows only the current caption with italic "No previous version saved." note.
+      * If post not yet loaded, shows spinner + "Loading post…".
+    - Footer actions: Close, Edit in composer (only if postId — calls useNav().openComposerWithPost(post)), Delete (rose), and on pending/changes_requested: Request changes (violet), Reject (rose), Approve (emerald).
+
+  • BulkActionBar (sticky bottom, StickyPublishBar pattern) — appears when 2+ cards selected. Shows count pill + "selected" label + buttons: Approve (emerald), Changes (violet), Reject (rose), Assign (default), Delete (rose), Clear (X icon). Each button triggers a confirmation flow.
+
+  • BulkConfirmDialog — confirmation modal for bulk actions. Adapts to the action kind:
+    - For approve/reject/changes: Textarea for reviewer note (optional, applies to all selected).
+    - For assign: Select dropdown of team members (required).
+    - For delete: red warning box ("This permanently deletes the selected approvals…").
+    - Submit fans out parallel PATCH/DELETE calls via Promise.all, then clears selection + reloads list.
+
+  • EmptyState component (icon + title + desc + action button) — reused for both empty states.
+
+  • ApprovalsSkeleton — shimmer placeholder blocks for the kanban during initial load.
+
+  • CreateApprovalDialog — preserved from old code with an added optional "Linked post" Select that loads from /api/posts. When a post is linked, the create flow saves the post's current caption to localStorage under `socialflow-approval-originals:${postId}` (only if not already saved — does not overwrite the original). This enables future version diffs to have a baseline.
+
+  • Mobile responsive:
+    - Top status filter pills (lg:hidden) for kanban navigation on mobile.
+    - Filter panel collapses to a "Filters" button on mobile (lg:hidden trigger button); on lg+ the panel is always expanded (hidden lg:block).
+    - Kanban collapses to single column on mobile (hidden lg:grid for the 4-column, lg:hidden for the single-column mobile view).
+    - Cards stack vertically with full width.
+    - Bulk action bar sticks to bottom (sticky bottom-0 z-30).
+    - "New Request" button label collapses to "New" on small screens.
+
+  • usePostPreview hook — module-level postCache (Map<string, Post | null>) shared across all cards and dialogs. Returns Post | null | undefined (undefined = loading). Dedupes concurrent fetches for the same postId.
+
+  • editLinkedPost() — uses cached post if available; otherwise fetches /api/posts/[postId] synchronously, caches it, then calls useNav().openComposerWithPost(post). Toasts "Linked post not found" / "Network error" on failure.
+
+  • Re-exports at bottom: `export type { Approval, TeamMember }` and `export { STATUS_META, PRIORITY_META }` — keeps the API surface stable in case other modules import these symbols.
+
+- Fixed one lint warning: removed an unused `// eslint-disable-next-line @next/next/no-img-element` directive on the post thumbnail <img> (the project doesn't enforce that rule).
+- All API integrations preserved and extended:
+  - GET /api/approvals (list) — via useApi, refetched on every mutation.
+  - POST /api/approvals (create — extended with optional postId + comment) — CreateApprovalDialog preserves all old fields and adds the optional Linked post picker.
+  - PATCH /api/approvals/[id] {status, comment, approverId} — extended for the comment field (existing API already accepts comment).
+  - DELETE /api/approvals/[id] — used for both single (with window.confirm) and bulk (with BulkConfirmDialog warning).
+  - GET /api/team — assignee picker in CreateApprovalDialog, assignee filter in FilterPanel, bulk assign in BulkConfirmDialog.
+  - GET /api/posts — linked-post picker in CreateApprovalDialog.
+  - GET /api/posts/[id] — post preview thumbnail + version diff in DetailDialog.
+  - useNav().openComposerWithPost(post) — Edit action on cards and detail dialog.
+- Design constraints honored:
+  - dense-ui primitives used: SectionHeader, MetricRow, Pill, Sparkline (via Metric spark field), ListRow (imported but the kanban doesn't need it — kept the import for future use).
+  - GlassCard for the FilterPanel; glass rounded-xl border for the ApprovalCard; glass-strong for sticky toolbar + bulk bar + detail dialog.
+  - PlatformBadge for post variants.
+  - NameAvatar for author + approver with color prop.
+  - HelpText module="approvals" preserved.
+  - sonner toast for all feedback.
+  - cn from @/lib/utils.
+  - useApi + reload from @/lib/hooks.
+  - shadcn Dialog, Input, Label, Textarea, Button, Select (with SelectContent/SelectItem/SelectTrigger/SelectValue).
+  - lucide-react for icons.
+  - No indigo or blue colors as primary — used violet, emerald, rose, amber, primary (which is violet).
+  - Mobile-first responsive (status pills, filter sheet, single-column kanban, sticky bulk bar).
+  - No new npm packages — all features built from existing primitives.
+
+Stage Summary:
+- File delivered: /home/z/my-project/src/components/views/approvals.tsx (2851 lines, up from 597).
+- Features implemented (all 10 required):
+  1. Top ProgressToolbar with circular completion ring + "Approvals" mode badge (rose if overdue exists) + "New Request" + "Refresh" action buttons.
+  2. Enhanced reviewer queue kanban (4 columns: Pending / Changes Requested / Approved / Rejected) with post preview thumbnail, platform badges, author/approver NameAvatars, priority pill with icon, due-date countdown, comment preview (100 chars + "…"), hover quick actions (Approve/Changes/Reject/View/Edit/Delete), inline action buttons on pending cards.
+  3. Approve/Reject/Request Changes modal with optional comment textarea; calls PATCH /api/approvals/[id] with { status, comment }.
+  4. Version diff in detail modal: side-by-side diff (left=original from localStorage `socialflow-approval-originals:${postId}`, right=current from /api/posts/[id]); line-based diff with rose (removed) + emerald (added) highlights; "No previous version saved" note when no baseline exists; "Compare with original" toggle button.
+  5. Filter enhancements: Status pills (All/Pending/Changes/Approved/Rejected with counts), Priority pills (All/Urgent/High/Normal/Low with counts), Assignee dropdown (All/Me/Unassigned/specific team member), Overdue toggle, Search by title or comment, Sort (Newest/Oldest/Due date/Priority).
+  6. Bulk actions: per-card checkboxes appear when any card is selected; sticky bottom bar appears with 2+ selected; bulk Approve/Reject/Changes/Assign/Delete each open a confirmation modal with optional comment field; bulk PATCH/DELETE calls fan out in parallel via Promise.all.
+  7. Enhanced KPI metrics: 8 metrics total (Total, Pending, Changes, Approved, Rejected, Overdue, Approval %, Avg resolve); Approval % has sparkline of last 7 resolved approvals; Avg resolve computed from (resolvedAt − createdAt) for terminal-status items, formatted as Xm / Xh / X.Xd.
+  8. Friendly empty states: "No approval requests yet" (ListChecks icon, "Create your first request" CTA) for truly empty list; "No matching approvals" (InboxIcon, "Clear filters" CTA) when filters return nothing.
+  9. Mobile responsive: kanban collapses to single column with status filter pills at top; cards stack vertically; filter panel collapses to a "Filters" button on mobile (always expanded on lg+); bulk action bar sticks to bottom; "New Request" label collapses to "New" on small screens.
+  10. All existing API integrations preserved and extended: GET /api/approvals, POST /api/approvals (with new optional postId + comment), PATCH /api/approvals/[id] (with comment), DELETE /api/approvals/[id], GET /api/team, GET /api/posts, GET /api/posts/[id], useNav().openComposerWithPost(post).
+- Lint: `bun run lint 2>&1 | grep approvals` → 0 errors, 0 warnings in approvals.tsx (only pre-existing error remains in mini-services/whatsapp-service/index.js Baileys scaffold, unrelated and present before this task).
+- TypeScript: `npx tsc --noEmit 2>&1 | grep approvals` → 0 errors in approvals.tsx.
+- Worklog: appended (yes).
+
+---
+Task ID: 5-analytics
+Agent: analytics-modernizer
+Task: Modernize Analytics view
+
+Work Log:
+- Read context: worklog.md (composer-modernization, 2-calendar, 3-inbox, 4-approvals entries establishing the design language — ProgressToolbar with circular completion ring, CollapsibleSection pattern, FilterPanel with vertical filter rows, hover-revealed quick actions, friendly empty states, mobile-first responsive).
+- Reviewed /home/z/my-project/src/components/glass/dense-ui.tsx (Sparkline, MetricRow, SectionHeader, Pill, ListRow, HeroChart, BentoGrid, BentoTile primitives).
+- Reviewed composer.tsx ProgressToolbar pattern (lines 2166-2264) — copied SVG completion ring (strokeDasharray 97.4, -rotate-90, transition-all duration-500), mode badge pattern, sticky top-0 z-20, quick action buttons.
+- Reviewed existing /home/z/my-project/src/components/views/analytics.tsx (1105 lines — had day selector, account filter, sync Twitter button, hero metric selector, Tabs with Growth/Engagement/Accounts, top content grid, AI insights card).
+- Verified API surface: GET /api/analytics?days=N&accountId=X (returns series, perAccount, topContent, followerSeries — interface preserved exactly); GET /api/accounts (for filter dropdown); POST /api/sync/twitter (syncFromTwitter preserved); GET /api/posts (for DayDetailModal — filter variants by publishedAt date).
+- Verified recharts 2.15.4 exports Brush, Legend, Cell, Pie, PieChart, RadialBar, RadialBarChart, Line, LineChart, PolarAngleAxis in addition to the existing Area/AreaChart/Bar/BarChart/CartesianGrid/ResponsiveContainer/Tooltip/XAxis/YAxis.
+- Verified date-fns 4.1.0 (startOfWeek, format, parseISO, isSameDay, subDays all available).
+- Verified shadcn Slider, Input, Label, Dialog components available.
+- Wrote new /home/z/my-project/src/components/views/analytics.tsx (3316 lines, up from 1105) with the following architecture:
+
+  • ProgressToolbar (top sticky, glass-strong glass-sheen, pattern copied from composer.tsx) — circular completion ring (SVG, strokeDasharray 97.4), "Analytics" mode badge (emerald "In sync" if sync completed within 5 min, else primary "Analytics"), action buttons: "Sync" (Twitter icon, spinning state) + "Export" (download icon, triggers CSV). Completion % derived from 4 conditions × 25% each: data loaded, account filter applied, day range != default (30), sync completed recently.
+
+  • HelpText module="analytics" preserved.
+
+  • FilterPanel (collapsible GlassCard, CollapsibleSection pattern) with: Day range pills (7/14/30/90), Account dropdown, Platform multi-select chips (7 platforms with accent dots + Short label + active state), Custom date range (two date inputs with clear button — overrides day selector by computing span), Compare-to-previous-period toggle (custom switch UI), active-count Pill + Clear button (visible when filters active). Header collapses with ChevronDown rotate transition.
+
+  • MetricRow (dense, 6 metrics) — preserved from existing, plus delta values when Compare mode is on (deltaPct computed vs previous-period totals). Sparklines preserved per metric.
+
+  • HeroChartSection (NEW, completely rewritten) — enhanced with:
+    - Chart type toggle (Area / Bar / Line) via CHART_TYPE_META (3 buttons with icons)
+    - Custom legend (clickable Pills for each HeroMetric — clicking a non-active metric switches the primary; clicking the active metric toggles visibility via hiddenSeries Set + `hide` prop on Area/Bar/Line)
+    - Recharts Brush (dataKey="date", height=22, travellerWidth=8) shown only when data.length > 14 (so 30d and 90d get brush)
+    - Comparison mode overlay — when compareMode is on, fetches `/api/analytics?days=${days*2}` and splits into older (previous period) + current; renders the previous period as a faded dashed line/bar (muted-foreground, opacity 0.55, strokeDasharray 4 4)
+    - Clickable data points — chart-level onClick captures activePayload[0].payload.date and opens DayDetailModal
+    - Hero metric toggle preserved (Followers / Impressions / Reach / Engagement pills)
+    - Responsive height: 240px on mobile, 320px on desktop (md:h-[320px])
+    - Hint text below chart with Target icon: "Click any data point to see the full day breakdown"
+
+  • DayDetailModal (NEW) — Dialog that opens when user clicks a hero-chart data point. Shows:
+    - Dialog title with CalendarDays icon + full formatted date (weekday, month, day, year)
+    - 6-metric grid (Followers / Impressions / Reach / Engagement / Posts / Eng Rate) with colored values
+    - "Posts published this day" section that fetches /api/posts once and filters variants by isSameDay(pubDate, targetDate); lists matched posts with thumbnail, platform badge, title, handle/author, likes/comments/shares breakdown, engagement count; "No posts were published on this day" empty state
+    - Loading spinner while fetching; cancellable via useEffect cleanup
+
+  • Tabs (Growth / Engagement / Accounts) — preserved, with enhancements:
+    - GrowthTab: same follower growth area chart + brush when > 14 days; per-account sparkline list (unchanged from original)
+    - EngagementTab: same engagement rate bar chart + NEW engagement mix donut chart (PieChart with innerRadius=42 outerRadius=70, Cell per breakdown type with native colors) + breakdown bars with action icons (Heart, MessageCircle, Share2, Bookmark) + per-platform Pills
+    - AccountsTab: NEW sortable columns (click any of Account/Followers/Impr./Reach/Engagement/Posts headers to toggle asc/desc with ChevronUp/Down/ChevronRight indicators) + NEW drill-down rows (click any row to expand and show top 4 posts for that account, filtered by handle) + NEW per-row mini bar chart (hidden h-1.5 w-16 rounded-full) showing that account's engagement as % of max + NEW % of total columns (impressions/engagement share shown as subtle subtext) + Share column with violet Pill
+    - SortHeaderCell extracted as module-level component (not inline) to satisfy eslint "Cannot create components during render" rule
+
+  • CohortCard (NEW) — weekly cohort analysis with heatmap:
+    - Groups daily series into ISO-week buckets via date-fns startOfWeek (weekStartsOn: 1)
+    - Each cohort shows: week-start date (CalendarDays icon), daily-engagement Sparkline (120×24), posts count, total engagement, avg engagement per post, heat indicator (Flame icon colored emerald/amber/rose based on ratio to max)
+    - Heatmap background color per row: emerald (top third), amber (middle third), rose (bottom third) — computed via cohortHeatColor() helper
+    - Border color matches heat tone
+    - Responsive: lg grid (140px / 1fr / 120px / 120px / 140px / 100px), mobile stacked list (2-col grid with labels)
+    - Header legend showing Low / Mid / High color dots
+
+  • ROICalculatorCard (NEW) — interactive ROI calculator:
+    - Inputs (left column on desktop, stacked on mobile): Cost per post (default $50), Posts published (auto-filled from totals.posts, editable), Avg engagement rate (auto-filled from data, editable), Conversion rate (Slider 0.1-10% step 0.1, default 2%), Average order value (default $80)
+    - useEffect auto-fills postCount + engagementRate from data on first load
+    - Results (right column): 5 ROIResultRow components showing label + formula + value with tone coloring (green for revenue, rose for cost, neutral otherwise): Estimated reach value (impressions × $0.003), Estimated engagement value (engagement × $0.05), Estimated conversions (impressions × conversionRate / 100), Estimated revenue (conversions × AOV), Content cost (posts × cost per post)
+    - ROI hero box: large ROI % colored emerald (positive) or rose (negative) with Target icon, contextual hint ("Excellent — your content is generating strong returns" / "Profitable — break-even is reached" / "Below break-even — adjust your strategy")
+    - Recalculate button (RefreshCw icon) — bumps recalcKey state which is in the useMemo dep list, forcing recompute. Inputs also live-update via useMemo dep tracking.
+
+  • TopContentSection (enhanced) — TopContentCard enhanced with:
+    - Larger thumbnails (4/3 aspect, hover-zoom scale-105)
+    - Hover-to-play video — content.mediaUrl is checked for video extensions (.mp4, .webm, .mov, .avi); if video, renders <video> element that autoPlays on hover, poster fallback to .jpg version
+    - Play icon badge (top-right) on video content
+    - Engagement breakdown mini stacked bar — likes (70%) / comments (20%) / shares (10%) estimated from total engagement (industry heuristic since topContent only has total engagement); each segment colored (primary for likes, green for comments, violet for shares)
+    - Per-engagement-type icons with counts (Heart/MessageCircle/Share2) below the stacked bar
+    - "View on {Platform}" button — opens platform URL in new tab (constructs URL from handle per platform: instagram.com/{handle}, x.com/{handle}, tiktok.com/@{handle}, etc.)
+    - Platform filter pills in SectionHeader action — All + each available platform as a chip with accent dot + Short label
+    - Hover GlassCard lift-hover effect preserved
+
+  • AIInsightsCard — preserved exactly from original (Generates data-driven recommendations via /api/analytics/insights, loading spinner, prose-styled output, empty state with Sparkles icon)
+
+  • Export functionality (NEW) — Export button in ProgressToolbar calls exportAnalyticsCsv() which builds a CSV with: header (SYNQUE Analytics Export, Generated timestamp, Days, AccountId), SUMMARY METRICS section (10 rows: Followers/Impressions/Reach/Engagement/Likes/Comments/Shares/Saves/Posts/Engagement Rate %), DAILY SERIES section (Date/Followers/Impressions/Reach/Engagement/Posts), PER-ACCOUNT BREAKDOWN section (14 columns), TOP CONTENT section (9 columns). Downloads as `analytics-{days}d-{accountId}-{yyyy-MM-dd}.csv` via Blob + URL.createObjectURL + anchor click. Toast confirmation.
+
+  • EmptyState (NEW) — friendly empty states:
+    - "No analytics yet" mode (no-accounts): BarChart3 icon, "Connect your first social media account" CTA button (toast hint)
+    - "No posts in this period" mode (no-posts): same icon, "Publish your first post" CTA button (toast hint)
+    - Centered min-h-[60vh] layout with primary/10 icon background
+
+  • AnalyticsSkeleton — enhanced shimmer placeholders matching new layout (sticky toolbar shimmer, h-14 metrics, h-24 filter panel, h-[380px] hero chart, h-9 tabs, h-[360px] section, h-64 footer)
+
+  • Responsive design — mobile-first:
+    - Hero chart: h-[240px] md:h-[320px] (reduced height on mobile)
+    - Engagement + Growth charts: h-[240px] md:h-[280px]
+    - Per-account table: min-w-[820px] in overflow-auto wrapper (horizontal scroll)
+    - FilterPanel: collapsible (closed by default on mobile — Filters button)
+    - ROI calculator: grid lg:grid-cols-2 (inputs and results stack on mobile)
+    - Cohort card: lg uses 6-col grid, mobile uses 2-col grid with labels
+    - Top content: grid sm:grid-cols-2 xl:grid-cols-4 (stacks on mobile)
+    - Filter chips: flex-wrap so they don't overflow on narrow viewports
+    - Tabs list: native shadcn TabsList (scrolls on mobile)
+
+  • API integrations preserved + extended:
+    - GET /api/analytics?days=N&accountId=X (existing) — preserved, called via useApi
+    - GET /api/analytics?days=N*2&accountId=X (NEW — for compare mode; only fetched when compareMode is on)
+    - GET /api/accounts (existing) — for filter dropdown
+    - POST /api/sync/twitter (existing syncFromTwitter) — preserved exactly, sets lastSyncAt on success for the ProgressToolbar "In sync" badge
+    - GET /api/posts (NEW — for DayDetailModal "posts published this day" feature; fetched on demand with cancellation)
+    - GET /api/analytics/insights (existing AIInsightsCard) — preserved
+
+  • Design constraints honored:
+    - dense-ui primitives used: SectionHeader, MetricRow, Pill, Sparkline, ListRow, HeroChart
+    - GlassCard for cards; glass-strong + glass-sheen for sticky ProgressToolbar
+    - PlatformBadge for platform indicators
+    - HelpText module="analytics" preserved
+    - sonner toast for all feedback
+    - cn from @/lib/utils
+    - useApi + reload from @/lib/hooks
+    - shadcn Tabs, Select, Dialog, Input, Label, Slider
+    - recharts (existing + new: Brush, Legend, Cell, Pie, PieChart, Line, LineChart, PolarAngleAxis imported)
+    - date-fns for date manipulation (startOfWeek, format, parseISO, isSameDay)
+    - lucide-react icons
+    - NO indigo or blue colors as primary — used violet (var(--primary)), emerald, rose, amber, primary
+    - Mobile-first responsive throughout
+    - NO new npm packages — all features built from existing primitives
+
+- Fixed 3 lint errors during development:
+  1. Parsing error at line 1760 — caused by broken fetch().then() chain in DayDetailModal that had an inline type annotation that broke the arrow function syntax. Fixed by extracting PostListItem interface and using `r.json() as Promise<PostListItem[]>` instead of inline arrow with type.
+  2. "Cannot create components during render" (8 errors) — caused by defining SortHeader as a function component INSIDE AccountsTab (creates a new component type on every render → React remounts). Fixed by extracting SortHeaderCell as a module-level component that receives sortKey/sortDir/onSort as props.
+  3. "React Hook useMemo called conditionally" — caused by heroCompareData useMemo being placed after the early-return guards (loading || !data → skeleton; empty → empty state). Fixed by replacing useMemo with a plain IIFE const (cheap O(days) computation, no memoization needed).
+- Fixed 1 lint warning: removed unused `// eslint-disable-next-line @typescript-eslint/no-unused-vars` directive above `void recalcKey;` (the rule is disabled in the project config, so the directive was unused).
+
+Stage Summary:
+- File delivered: /home/z/my-project/src/components/views/analytics.tsx (3316 lines, up from 1105).
+- Features implemented (all 11 required):
+  1. Top ProgressToolbar with circular completion ring (4 conditions × 25% each: data loaded, account filter applied, day range != default, sync completed recently) + "Analytics" mode badge (emerald "In sync" if recent sync) + "Sync" + "Export" action buttons.
+  2. Interactive charts enhancement — clickable data points (chart onClick → DayDetailModal), legend toggle (custom Pills + hide prop on series), Brush selector (when > 14 data points), comparison mode (fetches 2× days window, splits into older+current, renders previous period as faded dashed overlay), chart type toggle (Area / Bar / Line with icons).
+  3. Cohort analysis — NEW CohortCard grouping daily series by ISO week via date-fns startOfWeek; shows week-start date, posts count, total engagement, avg engagement per post, daily-engagement Sparkline, and heatmap background (emerald/amber/rose based on ratio to max).
+  4. ROI calculator — NEW ROICalculatorCard with 5 inputs (cost per post, post count auto-filled, engagement rate auto-filled, conversion rate slider 0.1-10%, AOV) computing 5 results (reach value, engagement value, conversions, revenue, content cost) + large ROI % hero with Target icon and contextual hint; live updates via useMemo + Recalculate button.
+  5. Platform breakdown enhancement — AccountsTab sortable columns (click any header to toggle asc/desc with chevron indicators), per-row mini bar chart showing engagement as % of max, drill-down (click row to expand and show top 4 posts for that account, filtered by handle), % of total for followers/impressions/engagement as subtext.
+  6. Top content enhancement — larger thumbnails with hover-to-play video (detects .mp4/.webm/.mov/.avi extensions, renders <video> with autoPlay on hover), engagement breakdown as mini stacked bar (likes/comments/shares with 70/20/10 industry heuristic split), "View on {Platform}" button opening handle URL in new tab, platform filter pills in section header.
+  7. Filter enhancements — beyond existing day selector + account dropdown, added: platform multi-select chips (7 platforms with accent dots), custom date range picker (two date inputs that override the day selector by computing span), compare-to-previous-period toggle (custom switch UI that triggers fetch of 2× window).
+  8. Export functionality — Export button downloads CSV with all metrics, series data, per-account breakdown (14 columns), and top content (9 columns); filename: `analytics-{days}d-{accountId}-{yyyy-MM-dd}.csv`; toast confirmation on success.
+  9. Empty-state friendly — EmptyState component with BarChart3 icon, "Connect your first account" CTA when no accounts, "Publish your first post" CTA when no posts in period.
+  10. Responsive — charts stack vertically on mobile, hero chart height reduces (240px mobile vs 320px desktop), table becomes horizontally scrollable (min-w-[820px] in overflow-auto), filter panel collapses to a Filters button (closed by default on mobile), ROI inputs stack vertically (grid lg:grid-cols-2), cohort becomes vertical list on mobile (2-col grid with labels instead of 6-col grid).
+  11. All existing API integrations preserved + extended: GET /api/analytics, GET /api/analytics?days=2× (for compare), GET /api/accounts, POST /api/sync/twitter, GET /api/posts (NEW for DayDetailModal), GET /api/analytics/insights. AnalyticsResponse interface shape preserved exactly.
+- Lint: `bun run lint 2>&1 | grep analytics` → 0 errors, 0 warnings in analytics.tsx (only pre-existing error remains in mini-services/whatsapp-service/index.js Baileys scaffold — unrelated and present before this task).
+- TypeScript: `npx tsc --noEmit 2>&1 | grep analytics` → 0 errors in analytics.tsx (pre-existing errors in examples/, mini-services/, skills/, src/app/api/ai/assistant/, prisma.config.ts — all outside scope).
+- Worklog: appended (yes).
