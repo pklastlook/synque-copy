@@ -13,6 +13,7 @@ import {
   ChevronDown, Save, ArrowUpDown, Award, Trophy, UserCheck, Grid3x3, Zap,
   Layers, CheckCircle2, XCircle, ListFilter, MessageCircle, Reply, LayoutGrid, List as ListIcon,
   DollarSign, Radio, Sparkles, Smile, Frown, Meh, CalendarDays, CalendarRange, CalendarClock,
+  Filter,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -20,6 +21,7 @@ import { GlassCard } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
+import { CustomReportView } from "@/components/views/custom-report";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { PLATFORMS, type PlatformId } from "@/lib/platforms";
@@ -224,7 +226,7 @@ const TEMPLATES: Template[] = [
 ];
 
 // 4 tabs that group the 17 templates into focused, related reports.
-type TabId = "performance" | "team" | "content" | "platforms";
+type TabId = "performance" | "team" | "content" | "platforms" | "custom";
 interface TabGroup {
   id: TabId; label: string; icon: LucideIcon; color: string;
   templates: TemplateId[]; default: TemplateId;
@@ -238,6 +240,8 @@ const TAB_GROUPS: TabGroup[] = [
     templates: ["content", "posts-performance", "account-user", "content-calendar"], default: "posts-performance" },
   { id: "platforms", label: "Platforms", icon: Globe, color: "oklch(0.6 0.2 220)",
     templates: ["platform", "audience", "engagement", "brand-monitoring"], default: "platform" },
+  { id: "custom", label: "Custom", icon: Filter, color: "oklch(0.72 0.2 75)",
+    templates: [], default: "custom" as TemplateId },
 ];
 
 // ============ Main view ============
@@ -637,23 +641,28 @@ export function ReportsView() {
         </div>
       </div>
 
-      {/* === Dense MetricRow (6 metrics, ~56px) === */}
-      <MetricRow metrics={metrics} />
+      {/* === Report Viewer OR Custom Report Builder === */}
+      {activeTab === "custom" ? (
+        <CustomReportView />
+      ) : (
+        <>
+          {/* === Dense MetricRow (6 metrics, ~56px) === */}
+          <MetricRow metrics={metrics} />
 
-      {/* === Report Viewer (one focused report) === */}
-      <ReportViewer
-        template={template}
-        analytics={analytics}
-        teamData={teamData}
-        reportData={reportData}
-        postsPerfData={postsPerfData}
-        listeningData={listeningData}
-        totals={totals}
-        loading={loading}
-        dateRangeLabel={DATE_RANGES.find(d => d.key === dateRange)?.label ?? "30 Days"}
-        chartMetric={chartMetric}
-        setChartMetric={setChartMetric}
-      />
+          {/* === Report Viewer (one focused report) === */}
+          <ReportViewer
+            template={template}
+            analytics={analytics}
+            teamData={teamData}
+            reportData={reportData}
+            postsPerfData={postsPerfData}
+            listeningData={listeningData}
+            totals={totals}
+            loading={loading}
+            dateRangeLabel={DATE_RANGES.find(d => d.key === dateRange)?.label ?? "30 Days"}
+            chartMetric={chartMetric}
+            setChartMetric={setChartMetric}
+          />
 
       {/* === Saved reports (compact ListRow list, collapsible) === */}
       <SavedReportsStrip
@@ -674,6 +683,8 @@ export function ReportsView() {
         listeningData={listeningData}
         totals={totals}
       />
+        </>
+      )}
     </div>
   );
 }
