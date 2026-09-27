@@ -1780,7 +1780,7 @@ function Act11Footer() {
               <span className="text-base font-bold tracking-tight" style={{ color: COLOR.textHead }}>SYNQUE</span>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed" style={{ color: COLOR.textBody }}>
-              Sync Your Social. The enterprise command center for modern social teams.
+              Orchestrate Your Social. The enterprise command center for modern social teams.
             </p>
             <div className="mt-5 flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: COLOR.border, background: COLOR.cardBg, color: COLOR.textBody }}>
               <ShieldCheck className="h-3.5 w-3.5" style={{ color: COLOR.accent }} />
@@ -1807,7 +1807,7 @@ function Act11Footer() {
           <FooterCol title="Resources" links={["Documentation|/docs", "API Reference|/api-reference", "Help Center|/help", "Status|/status", "Changelog|/changelog"]} />
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t pt-6 text-xs sm:flex-row" style={{ borderColor: COLOR.border, color: COLOR.textBody }}>
-          <span>© 2026 SYNQUE · Sync Your Social</span>
+          <span>© 2026 SYNQUE · Orchestrate Your Social</span>
           <div className="flex gap-5">
             <a href="/privacy" className="transition hover:text-white">Privacy</a>
             <a href="/terms" className="transition hover:text-white">Terms</a>
@@ -2251,8 +2251,8 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
             <div className="mb-6 flex justify-center">
               <div className="relative">
                 <div className="login-splash-ripple" />
-                <div className="login-splash-logo grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[oklch(0.55_0.2_280)] text-2xl font-extrabold text-white shadow-lg">
-                  SQ
+                <div className="login-splash-logo grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)]/15 to-[var(--gold)]/15 shadow-lg">
+                  <Logo size={40} withTile={false} />
                 </div>
               </div>
             </div>

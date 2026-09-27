@@ -165,7 +165,7 @@ export function LandingFooter() {
               <span className="text-base font-bold tracking-tight" style={{ color: COLOR.textHead }}>SYNQUE</span>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed" style={{ color: COLOR.textBody }}>
-              Sync Your Social. The enterprise command center for modern social teams.
+              Orchestrate Your Social. The enterprise command center for modern social teams.
             </p>
             <div
               className="mt-5 flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px]"
@@ -216,7 +216,7 @@ export function LandingFooter() {
           className="mt-12 flex flex-col items-center justify-between gap-3 border-t pt-6 text-xs sm:flex-row"
           style={{ borderColor: COLOR.border, color: COLOR.textBody }}
         >
-          <span>© 2026 SYNQUE · Sync Your Social</span>
+          <span>© 2026 SYNQUE · Orchestrate Your Social</span>
           <div className="flex gap-4">
             <Link href="/privacy" className="transition hover:text-white">Privacy</Link>
             <Link href="/terms" className="transition hover:text-white">Terms</Link>

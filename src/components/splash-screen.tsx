@@ -105,7 +105,7 @@ export function SplashScreen() {
         <div className="splash-screen-title">
           SYN<span className="splash-screen-title-accent">QUE</span>
         </div>
-        <div className="splash-screen-subtitle">Sync Your Social</div>
+        <div className="splash-screen-subtitle">Orchestrate Your Social</div>
 
         <div className="splash-screen-progress" aria-hidden="true">
           <div className="splash-screen-progress-fill" />

@@ -550,45 +550,46 @@
 }
 .glow-pulse { animation: glowPulse 2.5s ease-in-out infinite; }
 
-/* ===== Logo — SYNQUE "Sync Pulse" mark (radar pulse + gradient core) =====
-   Two outer rings expand outward and fade in sequence — the sync
-   signal radiating from the queue core. The inner gradient disc
-   gently breathes; the white "S" stroke shimmers in time. Subtle,
-   premium, never distracting. Hover speeds the signal up. */
-.sf-logo .sf-pulse-ring {
+/* ===== Logo — SYNQUE "Quantum Flow" mark (energy ribbons + diamond prism) =====
+   Three ribbons flow left→right in a sequential brightness pulse — data
+   packets streaming through a pipeline. The diamond prism breathes
+   gently and the center spark rotates. Hover speeds the flow up. */
+.sf-logo .sf-ribbon { will-change: opacity; }
+@keyframes sfRibbonFlow {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+.sf-logo .sf-ribbon-1 { animation: sfRibbonFlow 2.4s ease-in-out infinite; }
+.sf-logo .sf-ribbon-2 { animation: sfRibbonFlow 2.4s ease-in-out infinite 0.4s; }
+.sf-logo .sf-ribbon-3 { animation: sfRibbonFlow 2.4s ease-in-out infinite 0.8s; }
+
+@keyframes sfDiamondBreathe {
+  0%, 100% { transform: scale(1); opacity: 0.95; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}
+.sf-logo .sf-diamond {
   transform-origin: center;
   transform-box: fill-box;
-  will-change: transform, opacity;
+  animation: sfDiamondBreathe 3.2s ease-in-out infinite;
 }
-@keyframes sfPulse {
-  0%   { transform: scale(1);    opacity: 0.7; }
-  70%  { opacity: 0; }
-  100% { transform: scale(1.24); opacity: 0; }
-}
-.sf-logo .sf-pulse-1 { animation: sfPulse 2.6s ease-out infinite; }
-.sf-logo .sf-pulse-2 { animation: sfPulse 2.6s ease-out infinite 1.3s; }
 
-@keyframes sfDiscBreathe {
-  0%, 100% { opacity: 0.92; }
-  50%      { opacity: 1; }
+@keyframes sfSparkPulse {
+  0%, 100% { opacity: 0.6; r: 2.5; }
+  50%      { opacity: 1; r: 3; }
 }
-.sf-logo .sf-disc { animation: sfDiscBreathe 3.2s ease-in-out infinite; }
+.sf-logo .sf-spark { animation: sfSparkPulse 2s ease-in-out infinite; }
 
-@keyframes sfSFlow {
-  0%, 100% { opacity: 0.82; }
-  50%      { opacity: 1; }
-}
-.sf-logo .sf-s { animation: sfSFlow 3.2s ease-in-out infinite 0.6s; }
-
-/* Hover — speed up the sync signal. */
-.sf-logo:hover .sf-pulse-ring { animation-duration: 1.6s; }
-.sf-logo:hover .sf-disc,
-.sf-logo:hover .sf-s { animation-duration: 2.2s; }
+/* Hover — speed up the flow. */
+.sf-logo:hover .sf-ribbon-1 { animation-duration: 1.2s; }
+.sf-logo:hover .sf-ribbon-2 { animation-duration: 1.2s; }
+.sf-logo:hover .sf-ribbon-3 { animation-duration: 1.2s; }
+.sf-logo:hover .sf-diamond  { animation-duration: 2s; }
+.sf-logo:hover .sf-spark   { animation-duration: 1.2s; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sf-logo .sf-pulse-ring,
-  .sf-logo .sf-disc,
-  .sf-logo .sf-s {
+  .sf-logo .sf-ribbon,
+  .sf-logo .sf-diamond,
+  .sf-logo .sf-spark {
     animation: none !important;
   }
 }
