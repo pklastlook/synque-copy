@@ -56,6 +56,8 @@ import {
   Briefcase,
   Calendar,
   FileText,
+  FileBarChart2,
+  LayoutDashboard,
   Linkedin,
   Twitter,
   Hash,
@@ -136,7 +138,9 @@ export type SettingsTab =
   | "billing"
   | "bank"
   | "data"
-  | "danger";
+  | "danger"
+  | "report"
+  | "landing";
 
 export interface SettingsTabDef {
   id: SettingsTab;
@@ -164,6 +168,8 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
   { id: "bank", label: "Bank Details", icon: Landmark },
   { id: "data", label: "Data & Privacy", icon: Database },
   { id: "danger", label: "Danger Zone", icon: AlertTriangle },
+  { id: "report", label: "Report Settings", icon: FileBarChart2 },
+  { id: "landing", label: "Landing Page", icon: LayoutDashboard },
 ];
 
 const SECTION_DESC: Record<SettingsTab, string> = {
@@ -181,6 +187,8 @@ const SECTION_DESC: Record<SettingsTab, string> = {
   bank: "Bank account details for subscription payments.",
   data: "Control how your data is stored, shared, and exported.",
   danger: "Irreversible and destructive actions. Proceed with caution.",
+  report: "Customize how reports print — applies to all reports.",
+  landing: "Control your public-facing landing page and linked pages.",
 };
 
 // ===== Shared types & lookups =====
@@ -308,6 +316,7 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
   { label: "Integrations", tabs: ["platforms", "platform-api", "integrations"] },
   { label: "Billing", tabs: ["billing", "bank"] },
   { label: "Data", tabs: ["data", "danger"] },
+  { label: "Customization", tabs: ["report", "landing"] },
 ];
 
 // ===== Main component =====
@@ -406,6 +415,8 @@ export function SettingsView() {
           {tab === "bank" && <BankSection />}
           {tab === "data" && <DataSection />}
           {tab === "danger" && <DangerSection />}
+          {tab === "report" && <ReportSettingsSection />}
+          {tab === "landing" && <LandingSettingsSection />}
         </div>
       </main>
     </div>
@@ -4790,5 +4801,810 @@ function TeamSkeleton() {
       </div>
       <div className="shimmer h-64 rounded-3xl" />
     </div>
+  );
+}
+
+// ============================================================================
+// Report Settings — persisted to localStorage "socialflow-report-settings".
+// Read by ReportsView's PrintLayout (and any custom report print layout) to
+// customize how every printed report looks: header, footer, page setup,
+// accent color, watermark, table style, KPI strip, etc.
+// ============================================================================
+
+const REPORT_SETTINGS_KEY = "socialflow-report-settings";
+
+type LogoPosition = "left" | "right" | "center" | "hidden";
+type PaperSize = "letter" | "a4";
+type Orientation = "portrait" | "landscape";
+type ReportFontSize = "small" | "medium" | "large";
+type HeaderLayout = "banner" | "centered" | "minimal";
+type TableStyle = "striped" | "plain" | "bordered";
+
+interface ReportSettings {
+  showCompanyLogo: boolean;
+  logoPosition: LogoPosition;
+  showReportTitle: boolean;
+  showDateRange: boolean;
+  showExecutiveSummary: boolean;
+  showKpiStrip: boolean;
+  showFooter: boolean;
+  footerText: string;
+  showPageNumbers: boolean;
+  paperSize: PaperSize;
+  orientation: Orientation;
+  fontSize: ReportFontSize;
+  accentColor: string;
+  showWatermark: boolean;
+  watermarkText: string;
+  showCompanyAddress: boolean;
+  showCompanyContact: boolean;
+  headerLayout: HeaderLayout;
+  tableStyle: TableStyle;
+  showSentimentBadges: boolean;
+  showSparklines: boolean;
+}
+
+const DEFAULT_REPORT_SETTINGS: ReportSettings = {
+  showCompanyLogo: true,
+  logoPosition: "left",
+  showReportTitle: true,
+  showDateRange: true,
+  showExecutiveSummary: true,
+  showKpiStrip: true,
+  showFooter: true,
+  footerText: "Confidential — for internal use only",
+  showPageNumbers: true,
+  paperSize: "letter",
+  orientation: "portrait",
+  fontSize: "small",
+  accentColor: "#5856D6",
+  showWatermark: false,
+  watermarkText: "DRAFT",
+  showCompanyAddress: true,
+  showCompanyContact: true,
+  headerLayout: "banner",
+  tableStyle: "striped",
+  showSentimentBadges: true,
+  showSparklines: false,
+};
+
+function loadReportSettings(): ReportSettings {
+  try {
+    const raw = JSON.parse(localStorage.getItem(REPORT_SETTINGS_KEY) ?? "{}");
+    return { ...DEFAULT_REPORT_SETTINGS, ...raw };
+  } catch {
+    return { ...DEFAULT_REPORT_SETTINGS };
+  }
+}
+
+/**
+ * Public helper so the Reports view (and any custom report print layout) can
+ * read the persisted report settings without duplicating the localStorage key
+ * and default-filling logic. Imported as:
+ *   `import { loadReportSettings } from "@/components/views/settings";`
+ */
+export function getReportSettings(): ReportSettings {
+  if (typeof window === "undefined") return { ...DEFAULT_REPORT_SETTINGS };
+  return loadReportSettings();
+}
+
+function ReportSettingsSection() {
+  const [settings, setSettings] = React.useState<ReportSettings>(loadReportSettings);
+
+  function update<K extends keyof ReportSettings>(key: K, value: ReportSettings[K]) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  const save = () => {
+    try {
+      localStorage.setItem(REPORT_SETTINGS_KEY, JSON.stringify(settings));
+      toast.success("Report settings saved — applies to all reports");
+    } catch {
+      toast.error("Failed to save report settings");
+    }
+  };
+
+  const reset = () => {
+    setSettings({ ...DEFAULT_REPORT_SETTINGS });
+    try {
+      localStorage.removeItem(REPORT_SETTINGS_KEY);
+    } catch {}
+    toast.info("Report settings reset to defaults");
+  };
+
+  // Pull company info for the live preview header.
+  const company = React.useMemo(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("socialflow-company") ?? "{}");
+      return {
+        name: (stored.companyName as string) || "Your Company",
+        logo: (stored.companyLogo as string | null) ?? null,
+        address: (stored.address as string) || "123 Market Street",
+        city: (stored.city as string) || "San Francisco",
+        country: (stored.country as string) || "United States",
+        phone: (stored.phone as string) || "+1 (555) 014-2200",
+        website: (stored.website as string) || "example.com",
+      };
+    } catch {
+      return {
+        name: "Your Company",
+        logo: null,
+        address: "123 Market Street",
+        city: "San Francisco",
+        country: "United States",
+        phone: "+1 (555) 014-2200",
+        website: "example.com",
+      };
+    }
+  }, []);
+
+  const addressLine = [company.address, company.city, company.country].filter(Boolean).join(", ");
+  const contactLine = [company.phone, company.website].filter(Boolean).join(" · ");
+
+  const showLogo = settings.showCompanyLogo && settings.logoPosition !== "hidden";
+  const titleSize =
+    settings.fontSize === "large" ? "1.5rem" : settings.fontSize === "medium" ? "1.25rem" : "1.1rem";
+  const tableDemoRows = [
+    { label: "Instagram", value: "1.2M", delta: "+8.4%" },
+    { label: "TikTok", value: "847K", delta: "+12.1%" },
+    { label: "LinkedIn", value: "312K", delta: "+2.7%" },
+  ];
+
+  // Live preview — mirrors how PrintLayout will render with these settings.
+  const preview = (
+    <div
+      className="relative mx-auto overflow-hidden rounded-xl bg-white p-5 text-neutral-900 shadow-md"
+      style={{
+        width: settings.orientation === "landscape" ? "100%" : "78%",
+        maxWidth: settings.orientation === "landscape" ? 460 : 320,
+        borderColor: settings.accentColor + "55",
+        boxShadow: `inset 0 2px 0 0 ${settings.accentColor}, 0 6px 24px -8px rgba(0,0,0,0.18)`,
+        border: "1px solid " + settings.accentColor + "33",
+      }}
+    >
+      {settings.showWatermark && settings.watermarkText.trim() && (
+        <div
+          className="pointer-events-none absolute inset-0 grid place-items-center"
+          style={{
+            fontSize: "5rem",
+            fontWeight: 800,
+            letterSpacing: "0.2em",
+            color: settings.accentColor + "14",
+            transform: "rotate(-18deg)",
+            userSelect: "none",
+          }}
+        >
+          {settings.watermarkText}
+        </div>
+      )}
+
+      {/* Header */}
+      <div
+        className={cn(
+          "relative flex gap-3",
+          settings.headerLayout === "centered" && "flex-col items-center text-center",
+          settings.headerLayout === "minimal" && "items-center",
+          settings.headerLayout === "banner" && "items-start justify-between",
+          settings.headerLayout === "banner" && settings.logoPosition === "right" && "flex-row-reverse",
+          settings.headerLayout === "banner" && settings.logoPosition === "center" && "flex-col items-center text-center",
+        )}
+      >
+        {showLogo && (
+          <div className="flex shrink-0 items-center">
+            {company.logo ? (
+              <img src={company.logo} alt="" className="h-9 w-9 rounded-lg object-contain" />
+            ) : (
+              <div
+                className="grid h-9 w-9 place-items-center rounded-lg text-xs font-bold text-white"
+                style={{ background: settings.accentColor }}
+              >
+                {(company.name || "Y").slice(0, 1).toUpperCase()}
+              </div>
+            )}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          {settings.showReportTitle && (
+            <div
+              className="font-bold leading-tight"
+              style={{ fontSize: titleSize, color: settings.accentColor }}
+            >
+              Performance Report
+            </div>
+          )}
+          {settings.showDateRange && (
+            <div className="text-[11px] text-neutral-500">
+              {new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })} · Last 30 days
+            </div>
+          )}
+          {settings.showCompanyAddress && addressLine && (
+            <div className="mt-1 text-[10px] text-neutral-500">{addressLine}</div>
+          )}
+          {settings.showCompanyContact && contactLine && (
+            <div className="text-[10px] text-neutral-500">{contactLine}</div>
+          )}
+        </div>
+      </div>
+
+      {/* Executive summary */}
+      {settings.showExecutiveSummary && (
+        <div className="relative mt-4 rounded-lg bg-neutral-50 p-2 text-[10px] leading-snug text-neutral-600">
+          <span className="font-semibold" style={{ color: settings.accentColor }}>Executive summary.</span>{" "}
+          Across all accounts, impressions grew 8.4% week-over-week driven by TikTok (+12.1%). Engagement rate held at 4.2%.
+        </div>
+      )}
+
+      {/* KPI strip */}
+      {settings.showKpiStrip && (
+        <div
+          className="relative mt-3 grid grid-cols-4 gap-2 border-t pt-3"
+          style={{ borderColor: settings.accentColor + "33" }}
+        >
+          {[
+            { label: "Impressions", value: "1.24M" },
+            { label: "Reach", value: "847K" },
+            { label: "Engagement", value: "12.4%" },
+            { label: "Followers", value: "+4.2K" },
+          ].map((kpi) => (
+            <div key={kpi.label} className="rounded-lg bg-neutral-50 p-2">
+              <div className="text-[9px] uppercase tracking-wider text-neutral-500">{kpi.label}</div>
+              <div className="text-sm font-bold tabular-nums" style={{ color: settings.accentColor }}>
+                {kpi.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Mini table preview demonstrating tableStyle + sentiment + sparkline */}
+      <div className="relative mt-3">
+        <table className="w-full border-collapse text-[10px]">
+          <thead>
+            <tr style={{ background: settings.accentColor + "14" }}>
+              <th className="px-2 py-1 text-left font-semibold text-neutral-700">Account</th>
+              <th className="px-2 py-1 text-right font-semibold text-neutral-700">Reach</th>
+              <th className="px-2 py-1 text-right font-semibold text-neutral-700">Δ</th>
+              {settings.showSentimentBadges && (
+                <th className="px-2 py-1 text-center font-semibold text-neutral-700">Sentiment</th>
+              )}
+              {settings.showSparklines && (
+                <th className="px-2 py-1 text-center font-semibold text-neutral-700">Trend</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {tableDemoRows.map((row, i) => (
+              <tr
+                key={row.label}
+                className={
+                  settings.tableStyle === "striped" && i % 2 === 1
+                    ? "bg-neutral-50"
+                    : settings.tableStyle === "bordered"
+                      ? "border-b border-neutral-200"
+                      : ""
+                }
+              >
+                <td className="px-2 py-1 text-neutral-700">{row.label}</td>
+                <td className="px-2 py-1 text-right tabular-nums text-neutral-900">{row.value}</td>
+                <td className="px-2 py-1 text-right tabular-nums text-emerald-600">{row.delta}</td>
+                {settings.showSentimentBadges && (
+                  <td className="px-2 py-1 text-center">
+                    <span
+                      className="inline-block rounded-full px-1.5 py-0.5 text-[8px] font-bold"
+                      style={{
+                        background:
+                          row.label === "TikTok"
+                            ? "rgb(34 197 94 / 0.15)"
+                            : row.label === "LinkedIn"
+                              ? "rgb(234 179 8 / 0.15)"
+                              : "rgb(59 130 246 / 0.15)",
+                        color:
+                          row.label === "TikTok"
+                            ? "rgb(22 163 74)"
+                            : row.label === "LinkedIn"
+                              ? "rgb(161 98 7)"
+                              : "rgb(37 99 235)",
+                      }}
+                    >
+                      {row.label === "TikTok" ? "POS" : row.label === "LinkedIn" ? "NEU" : "POS"}
+                    </span>
+                  </td>
+                )}
+                {settings.showSparklines && (
+                  <td className="px-2 py-1 text-center">
+                    <svg width="36" height="12" viewBox="0 0 36 12" className="inline-block">
+                      <polyline
+                        points="0,9 6,7 12,8 18,5 24,6 30,3 36,4"
+                        fill="none"
+                        stroke={settings.accentColor}
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer */}
+      {settings.showFooter && (
+        <div
+          className="relative mt-4 flex items-center justify-between border-t pt-2 text-[9px] text-neutral-500"
+          style={{ borderColor: settings.accentColor + "22" }}
+        >
+          <span>{settings.footerText || "Confidential"}</span>
+          {settings.showPageNumbers && <span>Page 1 of 1</span>}
+        </div>
+      )}
+    </div>
+  );
+
+  const aspectStyle: React.CSSProperties = {
+    width: settings.orientation === "landscape" ? "100%" : "78%",
+    maxWidth: settings.orientation === "landscape" ? 460 : 320,
+  };
+
+  return (
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
+        title="Report Settings"
+        desc="Customize how reports print — applies to all reports."
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={reset}
+              className="flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Reset
+            </button>
+            <button
+              onClick={save}
+              className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+            >
+              <Save className="h-3.5 w-3.5" /> Save settings
+            </button>
+          </div>
+        }
+      />
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* LEFT COLUMN — settings controls */}
+        <div className="space-y-5">
+          {/* Header & branding */}
+          <div>
+            <div className="text-sm font-semibold">Header &amp; branding</div>
+            <div className="mt-2 space-y-0.5">
+              <ToggleRow label="Show company logo" desc="Display the workspace logo in the report header." checked={settings.showCompanyLogo} onChange={(v) => update("showCompanyLogo", v)} />
+              <ToggleRow label="Show report title" desc="Print the report name at the top." checked={settings.showReportTitle} onChange={(v) => update("showReportTitle", v)} />
+              <ToggleRow label="Show date range" desc="Print the period the report covers." checked={settings.showDateRange} onChange={(v) => update("showDateRange", v)} />
+              <ToggleRow label="Show company address" desc="Print the company address line." checked={settings.showCompanyAddress} onChange={(v) => update("showCompanyAddress", v)} />
+              <ToggleRow label="Show company contact" desc="Print phone and website." checked={settings.showCompanyContact} onChange={(v) => update("showCompanyContact", v)} />
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Logo position" compact>
+                <Select value={settings.logoPosition} onValueChange={(v) => update("logoPosition", v as LogoPosition)}>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="left">Left</SelectItem>
+                    <SelectItem value="right">Right</SelectItem>
+                    <SelectItem value="center">Center</SelectItem>
+                    <SelectItem value="hidden">Hidden</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Header layout" compact>
+                <Select value={settings.headerLayout} onValueChange={(v) => update("headerLayout", v as HeaderLayout)}>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="banner">Banner</SelectItem>
+                    <SelectItem value="centered">Centered</SelectItem>
+                    <SelectItem value="minimal">Minimal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <div className="mt-3">
+              <Field label="Accent color" hint="Used for headers, borders, KPI values, and table accents." compact>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.accentColor}
+                    onChange={(e) => update("accentColor", e.target.value)}
+                    className="h-9 w-12 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
+                    aria-label="Accent color"
+                  />
+                  <Input
+                    value={settings.accentColor}
+                    onChange={(e) => update("accentColor", e.target.value)}
+                    className="max-w-[10rem] font-mono text-xs"
+                    placeholder="#5856D6"
+                  />
+                  <button
+                    onClick={() => update("accentColor", DEFAULT_REPORT_SETTINGS.accentColor)}
+                    className="rounded-lg border border-border bg-muted/40 px-2 py-1.5 text-[10px] font-medium text-muted-foreground hover:bg-muted"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </Field>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Body content */}
+          <div>
+            <div className="text-sm font-semibold">Body content</div>
+            <div className="mt-2 space-y-0.5">
+              <ToggleRow label="Show executive summary" desc="One-paragraph overview at the top of the report." checked={settings.showExecutiveSummary} onChange={(v) => update("showExecutiveSummary", v)} />
+              <ToggleRow label="Show KPI strip" desc="Row of headline metrics below the header." checked={settings.showKpiStrip} onChange={(v) => update("showKpiStrip", v)} />
+              <ToggleRow label="Show sentiment badges" desc="Color-coded POS / NEU / NEG tags on table rows." checked={settings.showSentimentBadges} onChange={(v) => update("showSentimentBadges", v)} />
+              <ToggleRow label="Show sparklines" desc="Tiny inline trend lines next to numeric KPIs." checked={settings.showSparklines} onChange={(v) => update("showSparklines", v)} />
+            </div>
+            <div className="mt-3">
+              <Field label="Table style" hint="How data tables appear in printed reports." compact>
+                <Select value={settings.tableStyle} onValueChange={(v) => update("tableStyle", v as TableStyle)}>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="striped">Striped rows</SelectItem>
+                    <SelectItem value="plain">Plain</SelectItem>
+                    <SelectItem value="bordered">Bordered</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Footer & page setup */}
+          <div>
+            <div className="text-sm font-semibold">Footer &amp; page setup</div>
+            <div className="mt-2 space-y-0.5">
+              <ToggleRow label="Show footer" desc="Print a footer line at the bottom of every page." checked={settings.showFooter} onChange={(v) => update("showFooter", v)} />
+              <ToggleRow label="Show page numbers" desc="Print 'Page X of Y' in the footer." checked={settings.showPageNumbers} onChange={(v) => update("showPageNumbers", v)} />
+              <ToggleRow label="Show watermark" desc="Faint diagonal text behind every page." checked={settings.showWatermark} onChange={(v) => update("showWatermark", v)} />
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Footer text" compact>
+                <Input value={settings.footerText} onChange={(e) => update("footerText", e.target.value)} placeholder="Confidential — for internal use only" />
+              </Field>
+              <Field label="Watermark text" compact>
+                <Input value={settings.watermarkText} onChange={(e) => update("watermarkText", e.target.value)} placeholder="DRAFT" disabled={!settings.showWatermark} />
+              </Field>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <Field label="Paper size" compact>
+                <Select value={settings.paperSize} onValueChange={(v) => update("paperSize", v as PaperSize)}>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="letter">Letter</SelectItem>
+                    <SelectItem value="a4">A4</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Orientation" compact>
+                <Select value={settings.orientation} onValueChange={(v) => update("orientation", v as Orientation)}>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="portrait">Portrait</SelectItem>
+                    <SelectItem value="landscape">Landscape</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Font size" compact>
+                <Select value={settings.fontSize} onValueChange={(v) => update("fontSize", v as ReportFontSize)}>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="small">Small</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="large">Large</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN — live preview */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold">Print preview</div>
+            <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Live
+            </span>
+          </div>
+          <div
+            className="rounded-2xl bg-neutral-200 p-3 shadow-inner"
+            style={{
+              ...aspectStyle,
+              margin: "0 auto",
+              aspectRatio:
+                settings.orientation === "landscape"
+                  ? settings.paperSize === "a4" ? "297 / 210" : "11 / 8.5"
+                  : settings.paperSize === "a4" ? "210 / 297" : "8.5 / 11",
+            }}
+          >
+            {preview}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Preview shows the report header, summary, KPI strip, sample table, and footer with the current settings.
+            Switch paper size and orientation to see how the page canvas changes. Accent color, logo position, table style,
+            sentiment badges, and sparklines all reflect live changes.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// Landing Page Settings — persisted to localStorage "socialflow-landing-settings".
+// Read by src/app/page.tsx (to decide LandingPage vs login redirect when
+// disabled), the LandingNav/LandingFooter (linked-page visibility), and the
+// landing hero (custom headline / subheadline / accent).
+// ============================================================================
+
+const LANDING_SETTINGS_KEY = "socialflow-landing-settings";
+
+type LandingLinkKey =
+  | "showBlogLink"
+  | "showDocsLink"
+  | "showHelpLink"
+  | "showStatusLink"
+  | "showChangelogLink"
+  | "showCareersLink"
+  | "showCustomersLink"
+  | "showApiReferenceLink"
+  | "showAiComposerLink"
+  | "showProtectionLink";
+
+interface LandingSettings {
+  enabled: boolean;
+  showNavLinks: boolean;
+  showPricingSection: boolean;
+  showComparisonSection: boolean;
+  showTrialButton: boolean;
+  showLiveDemoButton: boolean;
+  customHeadline: string;
+  customSubheadline: string;
+  heroAccentColor: string;
+  showBlogLink: boolean;
+  showDocsLink: boolean;
+  showHelpLink: boolean;
+  showStatusLink: boolean;
+  showChangelogLink: boolean;
+  showCareersLink: boolean;
+  showCustomersLink: boolean;
+  showApiReferenceLink: boolean;
+  showAiComposerLink: boolean;
+  showProtectionLink: boolean;
+}
+
+const DEFAULT_LANDING_SETTINGS: LandingSettings = {
+  enabled: true,
+  showNavLinks: true,
+  showPricingSection: true,
+  showComparisonSection: true,
+  showTrialButton: true,
+  showLiveDemoButton: true,
+  customHeadline: "",
+  customSubheadline: "",
+  heroAccentColor: "",
+  showBlogLink: true,
+  showDocsLink: true,
+  showHelpLink: true,
+  showStatusLink: true,
+  showChangelogLink: true,
+  showCareersLink: true,
+  showCustomersLink: true,
+  showApiReferenceLink: true,
+  showAiComposerLink: true,
+  showProtectionLink: true,
+};
+
+function loadLandingSettings(): LandingSettings {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LANDING_SETTINGS_KEY) ?? "{}");
+    return { ...DEFAULT_LANDING_SETTINGS, ...raw };
+  } catch {
+    return { ...DEFAULT_LANDING_SETTINGS };
+  }
+}
+
+/**
+ * Public helper so the landing page (and any other component) can read the
+ * persisted landing settings without duplicating the localStorage key and
+ * default-filling logic. Imported as:
+ *   `import { getLandingSettings } from "@/components/views/settings";`
+ */
+export function getLandingSettings(): LandingSettings {
+  if (typeof window === "undefined") return { ...DEFAULT_LANDING_SETTINGS };
+  return loadLandingSettings();
+}
+
+const LANDING_LINK_DEFS: { key: LandingLinkKey; label: string; href: string; desc: string }[] = [
+  { key: "showBlogLink", label: "Blog", href: "/blog", desc: "Company blog posts and announcements." },
+  { key: "showDocsLink", label: "Documentation", href: "/docs", desc: "User-facing product documentation." },
+  { key: "showHelpLink", label: "Help Center", href: "/help", desc: "Support articles and contact form." },
+  { key: "showStatusLink", label: "Status", href: "/status", desc: "Live uptime and incident history." },
+  { key: "showChangelogLink", label: "Changelog", href: "/changelog", desc: "Release notes per version." },
+  { key: "showCareersLink", label: "Careers", href: "/careers", desc: "Open positions and company culture." },
+  { key: "showCustomersLink", label: "Customers", href: "/customers", desc: "Case studies and testimonials." },
+  { key: "showApiReferenceLink", label: "API Reference", href: "/api-reference", desc: "Developer API documentation." },
+  { key: "showAiComposerLink", label: "AI Composer", href: "/ai-composer", desc: "AI caption generation landing page." },
+  { key: "showProtectionLink", label: "Account Protection", href: "/protection", desc: "Security and account safety overview." },
+];
+
+function LandingSettingsSection() {
+  const [settings, setSettings] = React.useState<LandingSettings>(loadLandingSettings);
+
+  function update<K extends keyof LandingSettings>(key: K, value: LandingSettings[K]) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  const save = () => {
+    try {
+      localStorage.setItem(LANDING_SETTINGS_KEY, JSON.stringify(settings));
+      toast.success("Landing page settings saved");
+    } catch {
+      toast.error("Failed to save landing page settings");
+    }
+  };
+
+  const reset = () => {
+    setSettings({ ...DEFAULT_LANDING_SETTINGS });
+    try {
+      localStorage.removeItem(LANDING_SETTINGS_KEY);
+    } catch {}
+    toast.info("Landing page settings reset to defaults");
+  };
+
+  return (
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
+        title="Landing Page"
+        desc="Control your public-facing landing page and linked pages."
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={reset}
+              className="flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Reset
+            </button>
+            <button
+              onClick={save}
+              className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"
+            >
+              <Save className="h-3.5 w-3.5" /> Save settings
+            </button>
+          </div>
+        }
+      />
+
+      {/* Master toggle */}
+      <div
+        className={cn(
+          "rounded-2xl border p-4 transition",
+          settings.enabled
+            ? "border-emerald-500/30 bg-emerald-500/5"
+            : "border-amber-500/30 bg-amber-500/5"
+        )}
+      >
+        <ToggleRow
+          label={settings.enabled ? "Landing page enabled" : "Landing page disabled"}
+          desc={
+            settings.enabled
+              ? "Logged-out visitors to / see the public landing page."
+              : "Logged-out visitors to / are redirected to the login page instead."
+          }
+          checked={settings.enabled}
+          onChange={(v) => update("enabled", v)}
+        />
+      </div>
+
+      <Separator className="my-5" />
+
+      {/* Hero & navigation + marketing sections */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="space-y-0.5">
+          <div className="mb-1 text-sm font-semibold">Hero &amp; navigation</div>
+          <ToggleRow label="Show nav links" desc="Top navigation links on the landing page." checked={settings.showNavLinks} onChange={(v) => update("showNavLinks", v)} />
+          <ToggleRow label="Show trial button" desc="Primary 'Start trial' CTA in the nav and hero." checked={settings.showTrialButton} onChange={(v) => update("showTrialButton", v)} />
+          <ToggleRow label="Show live demo button" desc="Secondary CTA that opens an interactive demo." checked={settings.showLiveDemoButton} onChange={(v) => update("showLiveDemoButton", v)} />
+        </div>
+        <div className="space-y-0.5">
+          <div className="mb-1 text-sm font-semibold">Marketing sections</div>
+          <ToggleRow label="Show pricing section" desc="Plan comparison cards on the landing page." checked={settings.showPricingSection} onChange={(v) => update("showPricingSection", v)} />
+          <ToggleRow label="Show comparison section" desc="Side-by-side comparison with competitors." checked={settings.showComparisonSection} onChange={(v) => update("showComparisonSection", v)} />
+        </div>
+      </div>
+
+      <Separator className="my-5" />
+
+      {/* Custom hero text */}
+      <div>
+        <div className="text-sm font-semibold">Custom hero content</div>
+        <div className="text-xs text-muted-foreground">Leave blank to use the default headline and subheadline.</div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Field label="Custom headline" hint="Empty = use default ('Orchestrate Your Social')." compact>
+            <Input value={settings.customHeadline} onChange={(e) => update("customHeadline", e.target.value)} placeholder="Orchestrate Your Social" />
+          </Field>
+          <Field label="Custom subheadline" hint="Empty = use default subheadline." compact>
+            <Input value={settings.customSubheadline} onChange={(e) => update("customSubheadline", e.target.value)} placeholder="The enterprise command center for modern social teams." />
+          </Field>
+        </div>
+        <div className="mt-3">
+          <Field label="Hero accent color" hint="Empty = use the default blue accent." compact>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={settings.heroAccentColor || "#5856D6"}
+                onChange={(e) => update("heroAccentColor", e.target.value)}
+                className="h-9 w-12 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
+                aria-label="Hero accent color"
+              />
+              <Input
+                value={settings.heroAccentColor}
+                onChange={(e) => update("heroAccentColor", e.target.value)}
+                className="max-w-[10rem] font-mono text-xs"
+                placeholder="#5856D6"
+              />
+              <button
+                onClick={() => update("heroAccentColor", "")}
+                className="rounded-lg border border-border bg-muted/40 px-2 py-1.5 text-[10px] font-medium text-muted-foreground hover:bg-muted"
+              >
+                Clear
+              </button>
+            </div>
+          </Field>
+        </div>
+      </div>
+
+      <Separator className="my-5" />
+
+      {/* Linked pages visibility */}
+      <div>
+        <div className="text-sm font-semibold">Linked pages visibility</div>
+        <div className="text-xs text-muted-foreground">
+          Toggle individual footer pages on or off. Hidden pages return a 404.
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {LANDING_LINK_DEFS.map((def) => (
+            <div
+              key={def.key}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-background px-3 py-2"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  {def.label}
+                  <span className="font-mono text-[10px] text-muted-foreground">{def.href}</span>
+                </div>
+                <div className="truncate text-[11px] text-muted-foreground">{def.desc}</div>
+              </div>
+              <Switch
+                checked={settings[def.key] as boolean}
+                onCheckedChange={(v) => update(def.key, v)}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Separator className="my-5" />
+
+      <p className="flex items-start gap-2 text-[11px] text-muted-foreground">
+        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+        <span>
+          These settings apply to the landing page and all linked pages. Changes take effect immediately
+          for logged-out visitors on next page load.
+        </span>
+      </p>
+    </section>
   );
 }

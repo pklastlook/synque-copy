@@ -270,9 +270,9 @@ export function CustomReportView() {
                 <>
                   <button
                     onClick={downloadCSV}
-                    className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-600 transition hover:bg-emerald-500/20"
+                    className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
                   >
-                    <Download className="h-3 w-3" /> CSV
+                    <Download className="h-3 w-3" /> Save
                   </button>
                   <button
                     onClick={printReport}
