@@ -7108,3 +7108,267 @@ $ bun run lint 2>&1 | tail -5                              # → 1 pre-existing 
 - The 18 subpages that consume `<LandingNav />` / `<LandingFooter />` / `<LandingBg />` (about, features, pricing, workflow, blog, contact, docs, help, status, changelog, careers, customers, api-reference, ai-composer, protection, privacy, terms) still use their own section content with `glass-strong`, `crystal-in`, `gold-text`, `text-muted-foreground`, etc. Since the dark theme is the default (`ThemeProvider defaultTheme="dark"`), these tokens all resolve to dark-mode values, so the subpages look correct on the new `#0A0B0F` background. No edits were made to those pages — they inherit the new look automatically. If a subpage needs visual polish, it should be updated in its own task.
 - The pre-existing CSS typo `@key iosSheetUp {` (should be `@keyframes iosSheetUp {`) in `src/app/globals.css:657` was left untouched (out of scope). It produces a harmless CSS optimizer warning during `bun run build` but does not affect functionality or build exit code.
 - The pre-existing `react-hooks/rules-of-hooks` lint error in `mini-services/whatsapp-service/index.js:53` was left untouched (out of scope). It exists on `main` before this task and is unrelated to the landing page rebuild.
+
+---
+
+## Task ID: aurora-mystic-ocean — `aurora-mystic-ocean`
+
+**Task**: Replace the `AuroraHero` component (a simple blue glow + starfield) in `/home/z/my-project/src/components/landing-page.tsx` with a "Deep Mystic Ocean Cinematic Lights" effect — a `position: fixed`, page-wide background evoking looking into a deep abyssal ocean at night with drifting, hue-cycling bioluminescent light rays and rising plankton particles.
+
+### Files touched
+1. `/home/z/my-project/src/components/landing-page.tsx` — replaced `AuroraHero` with `MysticOceanBg`, added 6 new keyframes, made section backgrounds transparent, updated `COLOR.bg` / `COLOR.footer` to the abyssal `#04060A`.
+
+No other files modified. `src/app/globals.css` was inspected (has its own keyframes — `liquidRise`, `crystalIn`, `shimmer`, `glowPulse`, `iosSpring`, etc.) but none conflicted with the new `mysticRay1-4`, `planktonRise`, `mysticBreathe` names, so no edits were needed there.
+
+### What was built
+
+**`MysticOceanBg` component** (replaces `AuroraHero`, line 330) — a `position: fixed`, `inset-0`, `z-0`, `pointer-events-none` overlay with the following layers (bottom → top):
+
+1. **Abyssal base** — solid `#04060A` full-screen div (very dark blue-black, like the abyssal ocean).
+2. **4 light rays** — each a `border-radius: 50%` div with `filter: blur(70-90px)`, positioned in different screen corners:
+   - Ray 1 (top-left, 60vh × 55vw): deep blue `rgba(30,90,210,0.6)` → cyan via `hue-rotate(60deg)` → purple via `hue-rotate(-30deg)`, animated by `mysticRay1 24s`.
+   - Ray 2 (top-right, 55vh × 50vw): purple `rgba(150,55,210,0.5)` → green/teal via `hue-rotate(-120deg)`, animated by `mysticRay2 28s`.
+   - Ray 3 (bottom-left, 55vh × 50vw): teal `rgba(20,200,180,0.5)` drifting to scale 1.3, animated by `mysticRay3 22s`.
+   - Ray 4 (bottom-right, 45vh × 40vw): gold `rgba(245,180,60,0.42)` drifting to scale 1.4, animated by `mysticRay4 26s`.
+3. **48 bioluminescent plankton particles** — `<span>` 1–3px dots with glowing `box-shadow`, rising from the bottom of the screen via `planktonRise` (translateY(-100vh) + horizontal `--drift` sway), 18–34s cycles, 7 alternating colors (teal-cyan, violet, pink, emerald, amber, sky blue, light violet). Reduced to 22 on mobile (`max-width: 768px` via `window.matchMedia`) for performance.
+4. **Shimmer sweep** — `linear-gradient(115deg, transparent, rgba(140,200,255,0.12), transparent)` with `backgroundSize: 200% 200%`, animated by the existing `sfShimmerSweep 14s`, `opacity: 0.5`.
+5. **Breathing tint** — solid `#04060A` overlay pulsing opacity 0.15 → 0.35 via `mysticBreathe 9s` for the rhythmic "living ocean" feel.
+6. **Edge vignette** — `radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.55) 100%)` to darken corners/edges and keep foreground text readable.
+
+All animations are pure CSS — no JS `requestAnimationFrame` loops — for 60fps performance.
+
+### Keyframes added to `LANDING_KEYFRAMES` (lines 1822-1850)
+
+```css
+@keyframes mysticRay1   { 0%,100% { translate(0,0) scale(1);    opacity:.30; hue-rotate(0deg); }
+                          33%     { translate(10%,-5%) scale(1.2); opacity:.50; hue-rotate(60deg); }
+                          66%     { translate(-5%,8%) scale(0.9);  opacity:.20; hue-rotate(-30deg); } }
+@keyframes mysticRay2   { 0%,100% { translate(0,0) scale(1.1);   opacity:.25; hue-rotate(0deg); }
+                          50%     { translate(-8%,10%) scale(0.8); opacity:.45; hue-rotate(-120deg); } }
+@keyframes mysticRay3   { 0%,100% { translate(0,0) scale(0.9);   opacity:.20; }
+                          40%     { translate(12%,-8%) scale(1.3); opacity:.40; }
+                          80%     { translate(-6%,5%) scale(1);   opacity:.30; } }
+@keyframes mysticRay4   { 0%,100% { translate(0,0) scale(1);     opacity:.15; }
+                          50%     { translate(-10%,-12%) scale(1.4); opacity:.35; } }
+@keyframes planktonRise { 0%   { translateY(0) translateX(0); opacity:0; }
+                          10%  { opacity:1; } 90% { opacity:1; }
+                          100% { translateY(-100vh) translateX(var(--drift,30px)); opacity:0; } }
+@keyframes mysticBreathe{ 0%,100% { opacity:.15; } 50% { opacity:.35; } }
+```
+
+### Wiring changes in `Landing` (line 607-610) and `Act1Hero` (line 729-731)
+
+- **Before**: `Landing` had an inline fixed bg layer with 2 aurora glows + shimmer + `ParticleField`. `Act1Hero` had `<AuroraHero />` (section-scoped).
+- **After**: `Landing` renders a single `<MysticOceanBg />` as the page-wide fixed background. `<AuroraHero />` is removed from `Act1Hero` — the fixed MysticOceanBg already covers the hero section.
+
+### Section backgrounds made transparent
+
+To let the fixed MysticOceanBg show through ALL sections (not just Act1Hero), every `<section>` and the `<footer>` had their `background: COLOR.bg` / `background: COLOR.footer` replaced with `background: "transparent"`. Touchpoints:
+
+| Line | Element | Before | After |
+|------|---------|--------|-------|
+| 730  | `Act1Hero` `<section>` | `COLOR.bg` | `"transparent"` |
+| 826  | `Act2Problem` `<section>` | `COLOR.bg` | `"transparent"` |
+| 888  | `Act3Solution` `<section id="features">` | `COLOR.bg` | `"transparent"` |
+| (multi) | `Act4Workflow` `<section id="workflow">` | `COLOR.bg` | `"transparent"` |
+| (multi) | `Act5Protection` `<section>` | `COLOR.bg` | `"transparent"` |
+| (multi) | `Act6AIAssistant` `<section>` | `COLOR.bg` | `"transparent"` |
+| (multi) | `Act7Analytics` `<section>` | `COLOR.bg` | `"transparent"` |
+| (multi) | `Act8Comparison` `<section id="compare">` | `COLOR.bg` | `"transparent"` |
+| (multi) | `Act9Pricing` `<section id="pricing">` | `COLOR.bg` | `"transparent"` |
+| 1699 | `Act10FinalCTA` `<section>` | `COLOR.bg` | `"transparent"` |
+| 1770 | `Act11Footer` `<footer>` | `COLOR.footer` | `"transparent"` |
+
+Inner element uses of `background: COLOR.bg` (Act2 stat tile at line 869, Act4 icon tiles at lines 979 & 1020) were **intentionally left opaque** — those tiles need a solid backdrop to remain readable against the bright ray glows.
+
+### `COLOR` token updates (lines 79-95)
+
+```diff
+const COLOR = {
+-  bg:        "#0A0B0F",
+-  footer:    "#08090C",
++  bg:        "#04060A",  // abyssal ocean base — very dark blue-black (matches MysticOceanBg)
++  footer:    "#04060A",  // footer — same abyssal base as the rest of the page
+};
+```
+
+This keeps the fallback color (visible briefly before `MysticOceanBg` mounts, and used by the inner opaque tiles at lines 869/979/1020) consistent with the abyssal base inside `MysticOceanBg`.
+
+### Critical rules respected
+
+1. ✅ Replaced `AuroraHero` with `MysticOceanBg` and updated ALL references — `rg "AuroraHero" src/components/landing-page.tsx` returns no matches.
+2. ✅ Effect is `position: fixed` (`className="pointer-events-none fixed inset-0 z-0 overflow-hidden"`) so it persists throughout the whole page.
+3. ✅ Performance: pure CSS animations (`transform`, `opacity`, `filter: hue-rotate`, `background-position`) — no JS `requestAnimationFrame` loops. The only JS is a one-time `useMemo` to pre-compute plankton positions and a `useEffect` for the mobile media-query listener.
+4. ✅ Mobile: `window.matchMedia("(max-width: 768px)")` listener reduces plankton count from 48 → 22 on small screens. All ray sizes use `vh`/`vw` so they scale.
+5. ✅ Text readability: the edge vignette (`transparent 50% → rgba(0,0,0,0.55) 100%`) darkens screen corners where rays cluster, and the breathing tint pulses a subtle dark overlay. Cards use `rgba(255,255,255,0.04)` translucent white which still reads on top of the rays. Content sits at `z-10` above the `z-0` background.
+6. ✅ `bun run lint` — 0 new errors. (Only the pre-existing `react-hooks/rules-of-hooks` error in `mini-services/whatsapp-service/index.js:53` — unrelated, present on `main` before this task.)
+7. ✅ `npx tsc --noEmit` — 0 new errors in `src/components/landing-page.tsx`. (`rg "landing-page" <(npx tsc --noEmit 2>&1)` returns no matches. The 30+ pre-existing errors in `mini-services/*`, `examples/*`, `skills/*`, `prisma.config.ts`, `src/app/api/ai/assistant/route.ts`, `src/app/api/platform-credentials/[platform]/sync/route.ts`, `src/app/api/workspace/route.ts` are all unrelated and present on `main`.)
+8. ✅ `bun run build` — exit code 0. (`✓ Compiled successfully` · all 25 static + dynamic routes generated · EXIT: 0.)
+
+### Verification
+
+```bash
+$ rg "AuroraHero" src/components/landing-page.tsx                          # → no matches (clean rename)
+$ rg "MysticOceanBg" src/components/landing-page.tsx | head -5             # → definition at :330, usage at :609
+$ rg "landing-page" <(npx tsc --noEmit 2>&1)                               # → no matches (clean tsc for our file)
+$ bun run lint 2>&1 | tail -5                                              # → only pre-existing whatsapp-service error
+$ bun run build; echo "EXIT: $?"                                           # → EXIT: 0
+```
+
+### What's NOT done (out of scope / future work)
+
+- The 18 subpages under `src/app/(landing-shared)/*` still use `<LandingBg />` from `landing-shared.tsx`, which is a separate solid `#0A0B0F` background. Those pages do not get the new `MysticOceanBg` effect — they were not in scope for this task. If a subpage should also feature the mystic ocean background, `<LandingBg />` should be updated to render `<MysticOceanBg />` (or import it) in a follow-up task.
+- The pre-existing CSS typo `@key iosSheetUp {` in `src/app/globals.css:657` and the pre-existing `react-hooks/rules-of-hooks` lint error in `mini-services/whatsapp-service/index.js:53` were left untouched (out of scope, present on `main` before this task).
+
+---
+
+## Task ID: logo-animated-redesign
+
+**Task**: Redesign the SYNQUE logo — replace the old "convergence flow" mark (3 streams + prism arrowhead) with a new, distinctive, animated, modern "Sync Pulse" mark. User said the previous design was "not good".
+
+### Files updated
+1. `/home/z/my-project/src/components/glass/logo.tsx` — rewrote the `Logo` SVG; `LogoWordmark` body unchanged (props preserved).
+2. `/home/z/my-project/public/icon.svg` — rewrote the 512×512 PWA icon to match the new mark on a dark rounded-square tile.
+3. `/home/z/my-project/src/app/globals.css` — replaced the `.sf-bar` / `.sf-prism` / `.sf-prism-shine` animation block (lines 553-585) with new `.sf-pulse-ring` / `.sf-disc` / `.sf-s` animations.
+
+### Design — "Sync Pulse"
+A clean geometric mark built around the SYNC + QUEUE concept:
+
+- **Outer radar pulse rings** — two concentric circles (r=22) stroked in `--primary` and `--gold`. They scale `1.0 → 1.24` and fade `0.7 → 0` in sequence (2.6s loop, second ring delayed 1.3s) — the sync signal radiating outward.
+- **Static thin orbit ring** — frames the pulse at 22% opacity so the mark still reads at 16px when the pulse is faded.
+- **Inner gradient disc** (r=15) — filled with `linearGradient(0,0 → 1,1)` from `--primary` (top-left, Apple blue) → `--gold` (bottom-right, violet). A soft `radialGradient` overlay catches light at top-left for the "liquid glass" feel. Wrapped in a subtle `feGaussianBlur` glow filter.
+- **The "S" stroke** — a single continuous cubic-Bezier S drawn in white (`rgba(255,255,255,0.95)`, `stroke-width=3.2`, round caps) flows through the disc — the continuous sync motion. Path verified to stay within r=15 (max dist incl. half-stroke = 14.86).
+
+### Animation
+- `@keyframes sfPulse` — scale + fade for the two outer rings (staggered).
+- `@keyframes sfDiscBreathe` — disc opacity `0.92 ↔ 1.0`, 3.2s.
+- `@keyframes sfSFlow` — S-stroke opacity `0.82 ↔ 1.0`, 3.2s, delayed 0.6s.
+- Hover: `.sf-logo:hover` shortens pulse duration to 1.6s and core/S duration to 2.2s — signal visibly speeds up.
+- `prefers-reduced-motion: reduce` → all three animations set to `none !important`.
+- `transform-box: fill-box` + `transform-origin: center` ensures the pulse rings scale from their own center (not the SVG origin).
+
+### Why this is better than the old design
+- **Distinctive** — radar pulse + gradient disc + S-stroke is instantly recognizable; nothing else in the app looks like it.
+- **Animated** — visible motion at all times (old design's stream pulses were too subtle).
+- **Modern** — clean concentric geometry, single accent stroke, glass highlight.
+- **Scales** — at 16px the disc + thin orbit read clearly; at 512px the S and pulse rings shine.
+
+### Originality
+- Not a yin-yang (S-curve is a smooth cubic Bezier, not two semicircles; no dots; brand-color gradient + pulse rings around it).
+- Not a generic sync icon (radar pulse rings, not the standard "two circular arrows" motif).
+- Not a brand lift (no Apple/Slack/Stripe/etc. logo resemblance).
+
+### Color use
+- `var(--primary)` — oklch(0.581 0.189 256), Apple blue (top-left of disc + first pulse ring).
+- `var(--gold)` — oklch(0.588 0.209 277), Apple violet (bottom-right of disc + second pulse ring).
+- For the static `icon.svg` (no CSS vars available), hardcoded the dark-mode equivalents: `#0A84FF` (system blue) and `#5E5CE6` (system indigo) — matches the dark tile background.
+
+### Verification
+- `npx eslint src/components/glass/logo.tsx` → exit 0, 0 errors.
+- `npx tsc --noEmit 2>&1 | grep -iE "logo|glass"` → empty (no type errors).
+- `icon.svg` parsed as valid XML (`xml.etree.ElementTree`).
+- S path geometry programmatically verified: X∈[23.8, 40.2], Y∈[18.8, 45.3], max center-dist incl. stroke = 14.86 ≤ 15.
+- Props preserved exactly: `Logo({size, withTile, className, tileClassName})` and `LogoWordmark({className, size, showLogo, logoSize})`.
+- 5 existing importers (`landing-page`, `landing-shared`, `app-sidebar`, `activate/page`, `login/page`) unaffected — public API unchanged.
+
+### Next actions for the team
+- Visually QA the new logo in the sidebar (default 28px tile) and on the login/activate pages.
+- If the S stroke feels too thin at 16px favicon, bump `strokeWidth` from 3.2 → 3.6 in both `logo.tsx` and `icon.svg`.
+- Consider regenerating `public/icon-192.png` / `icon-512.png` from the new `icon.svg` if the PWA manifest references raster versions.
+
+---
+
+## Task ID: splash-screen
+
+**Task**: Add an animated splash screen that shows on app launch (first visit to `/` per browser session). Shows the SYNQUE text logo with an animation, then fades away to reveal the app/landing page underneath.
+
+### Files delivered / updated
+1. `/home/z/my-project/src/components/splash-screen.tsx` — **NEW** `SplashScreen` client component (animated intro overlay).
+2. `/home/z/my-project/src/components/pwa-splash.tsx` — rewrote `PwaSplashScreen` to share the same Logo + wordmark + progress bar + animation style as `SplashScreen` (consistency between PWA install-launch and regular visits). `onComplete` callback API preserved.
+3. `/home/z/my-project/src/app/page.tsx` — imported `SplashScreen` and rendered it at the top level (before `LandingPage` / `AppShell`).
+4. `/home/z/my-project/src/app/globals.css` — replaced the old PWA Splash CSS section (lines 1225–1396) with a unified section defining the four new task-mandated keyframes plus shared styles used by both `.splash-screen` and `.pwa-splash` classes.
+
+### What was built
+
+**`SplashScreen`** (`src/components/splash-screen.tsx`)
+- Full-screen overlay (fixed, `inset:0`, `z-index:9999`) with deep dark `#04060A` background — matches the landing page mystic ocean abyssal base.
+- Renders the `Logo` component (`size=128`, `withTile={false}`) so the new animated "Sync Pulse" mark plays on every launch — the radar pulse rings, gradient disc, and S-stroke all animate as defined in `glass/logo.tsx`.
+- "SYNQUE" wordmark in 36px / weight-800 / letter-spacing 6px; the "QUE" is a blue→gold gradient (`#7C8CFF → #C9A86A`) mirroring the logo disc.
+- "Sync Your Social" tagline below in 11px uppercase, 45% white.
+- Progress bar (160×2px) with a blue→gold gradient fill that grows 0→100% over 2.4s.
+- Two decorative `splashRipple` rings expanding outward behind the logo (decorative — `aria-hidden`).
+- Animation sequence (when motion is allowed):
+  1. `0ms`   — component mounts, `splashFadeIn` 0.5s (opacity 0→1 + scale 0.9→1, `cubic-bezier(0.22,1,0.36,1)`)
+  2. `500ms` — hold (logo `splashLogoPulse` 2.4s infinite, ripple rings, progress fill all play during the hold)
+  3. `2000ms` — `phase: "out"` → adds `.splash-screen--exit` → `splashFadeOut` 0.5s (opacity 1→0)
+  4. `2500ms` — `phase: "done"` → component returns `null` (unmounts from DOM)
+- **Session gating**: uses `sessionStorage` with key `"synque:splash-seen"`. On mount, an isomorphic layout effect (`useLayoutEffect` on client / `useEffect` on server — no SSR warning) reads sessionStorage:
+  - If already `"1"` → `setPhase("done")` immediately → splash never paints (no flash on subsequent visits / reloads in the same tab).
+  - If absent → runs the animation sequence and writes `"1"` to sessionStorage on completion.
+- **`sessionStorage` is intentionally used (not `localStorage`)** so the splash replays on each new tab/window, exactly as the task requires.
+- **Route-change safety**: the splash is mounted at the top of `page.tsx`, which only mounts once per browser session (single-route architecture, client-side view switching via Zustand `app-shell`). React never re-runs `useState`/`useEffect` for an already-mounted component, so the splash does NOT show on route changes — only on the initial page load.
+- **Reduced motion**: when `prefers-reduced-motion: reduce` is set, the component skips all animation timers, stays visible for 600ms, then unmounts. CSS also has a `@media (prefers-reduced-motion: reduce)` block that sets `animation: none !important` on every animated element, hides the ripple rings, and forces the progress bar to `width: 100%`.
+- **Non-blocking**: the splash is a purely visual overlay — `LandingPage` / `AppShell` render immediately underneath; the splash sits on top with `z-index: 9999` until it fades away. It does NOT gate data loading or block React from rendering the rest of the tree.
+- **Accessibility**: the root `div` has `aria-hidden="true"` and `role="presentation"`. Decorative elements (logo wrapper, progress bar) are also `aria-hidden`. The splash is the first paint, but never receives focus (it has no interactive children).
+- **`pointer-events: none` on the exit state** so once the fade-out begins, the user can start clicking on the page beneath without waiting the full 0.5s for unmount.
+
+**`PwaSplashScreen`** (`src/components/pwa-splash.tsx`)
+- Same DOM structure and same CSS classes (`.pwa-splash`, `.pwa-splash-content`, `.pwa-splash-logo`, `.pwa-splash-title`, `.pwa-splash-subtitle`, `.pwa-splash-bar`, `.pwa-splash-bar-fill`) so PWA install-launch and first-visit look identical.
+- Same Logo (`size=128, withTile={false}`), same wordmark with QUE gradient accent, same progress bar, same `splashFadeIn` + `splashLogoPulse` + `splashProgress` + `splashFadeOut` keyframes.
+- Replaced the old inline SVG "SF" monogram (which was out of sync with the redesigned `Logo`) with the actual `Logo` component.
+- Preserves the `onComplete: () => void` callback API. Calls `onComplete` after 2500ms (animated) or 600ms (reduced motion).
+- Internally manages an `exiting` state to add `.pwa-splash--exit` for the 0.5s fade-out before notifying the parent — previously the parent was called abruptly with no fade-out.
+
+**`page.tsx`** — added `<SplashScreen />` as the first child of the fragment, so it mounts with the page and renders above `ServiceWorkerRegister`, `LandingPage`, and `AppShell`. The splash component itself decides whether to render anything based on sessionStorage, so it's a no-op on subsequent visits.
+
+**`globals.css`** — replaced the entire old PWA splash CSS section (1225–1396) plus the trailing `.pwa-splash-logo-icon` block (1382–1396) with a new unified section. The four task-mandated keyframes are now present verbatim:
+
+```css
+@keyframes splashFadeIn      { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+@keyframes splashFadeOut      { from { opacity: 1; } to { opacity: 0; } }
+@keyframes splashLogoPulse    { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes splashProgress     { from { width: 0; } to { width: 100%; } }
+```
+
+Plus retained / refined:
+- `splashRipple` — kept (also used by `.login-splash-ripple`).
+- `splashTextFade` — simplified to a single 0→1 fade-in (was a 4-stop in/out combo in the old version).
+
+Removed obsolete keyframes (`splashLogoDraw`, `splashPulse`, `splashBarFill`) since their consuming classes (`.pwa-splash-logo-bg`, `.pwa-splash-logo-text`, `.pwa-splash-ripple`, `.pwa-splash-logo-icon`) were also removed when the PWA splash was rewritten to share classes with `SplashScreen`.
+
+### Critical-rule compliance
+1. ✅ Only shows ONCE per session — `sessionStorage.getItem("synque:splash-seen")` check in `useIsomorphicLayoutEffect`; flag written at the moment of unmount. sessionStorage (not localStorage) means a new tab/window replays the splash.
+2. ✅ Does NOT show on route changes — `SplashScreen` mounts at the top of `page.tsx`, which only mounts once. The single-route architecture (Zustand view-switching inside `AppShell`) means React never re-mounts `page.tsx` during navigation.
+3. ✅ Accessible — `prefers-reduced-motion: reduce` short-circuits all timers (visible for 600ms then unmounts) AND the CSS `@media (prefers-reduced-motion: reduce)` block forces `animation: none !important` and hides the decorative ripple rings.
+4. ✅ Does NOT block page loading — `SplashScreen` is purely visual; `LandingPage` / `AppShell` mount immediately underneath and run their own data fetching in parallel. The splash is a `position: fixed; z-index: 9999` overlay that fades away on a timer.
+5. ✅ Smooth 0.5s fade-out — `splashFadeOut` keyframe (`opacity 1 → 0`, 0.5s, `ease-in-out`, `forwards`).
+6. ✅ `bun run lint` — 0 new errors. The only lint error remaining is the pre-existing `react-hooks/rules-of-hooks` violation in `mini-services/whatsapp-service/index.js:53` (present on `main` before this task, unrelated). `npx eslint src/components/splash-screen.tsx src/components/pwa-splash.tsx src/app/page.tsx` → exit 0.
+7. ✅ `npx tsc --noEmit` — 0 new errors. `rg "splash|app/page|globals" <(npx tsc --noEmit 2>&1)` → no matches. Pre-existing errors in `mini-services/*`, `examples/*`, `skills/*`, `prisma.config.ts`, `src/app/api/ai/assistant/route.ts`, `src/app/api/platform-credentials/[platform]/sync/route.ts`, `src/app/api/workspace/route.ts` are unrelated and present on `main`.
+
+### Hydration / SSR safety
+- `useState<Phase>("in")` is the initial value on both server and client, so the first server-rendered HTML and the first client hydration render match (both render the splash container). No hydration mismatch warnings.
+- The `useIsomorphicLayoutEffect` (`useLayoutEffect` on client, `useEffect` on server) reads `sessionStorage` synchronously after commit but before paint — so on subsequent visits within the same session, the splash is removed from the DOM *before* the browser paints, eliminating any flash.
+- `sessionStorage` access is wrapped in `try/catch` so the splash degrades gracefully in private-mode / sandboxed-iframe contexts where `sessionStorage` throws (it just skips the splash entirely rather than trapping the user behind a frozen overlay).
+
+### Verification
+
+```bash
+$ bun run lint 2>&1 | tail -3
+# /home/z/my-project/mini-services/whatsapp-service/index.js
+#   53:51  error  React Hook "useMultiFileAuthState" is called in function "startBaileys" ...
+# ✖ 1 problem (1 error, 0 warnings)
+#   → only the pre-existing error, no splash-related errors.
+
+$ npx eslint src/components/splash-screen.tsx src/components/pwa-splash.tsx src/app/page.tsx
+#   → exit 0, 0 errors.
+
+$ npx tsc --noEmit 2>&1 | rg "splash|app/page|globals"
+#   → no matches (0 errors in our files).
+```
+
+### Next actions for the team
+- Visually QA the splash in dev (`bun run dev`) — confirm the SYNQUE wordmark, gradient accent, logo pulse, and progress bar all play correctly, and that on reload within the same tab the splash does NOT replay.
+- QA reduced-motion path (DevTools → Rendering → "Emulate CSS prefers-reduced-motion: reduce") — confirm the splash shows for ~600ms with no animation, then unmounts.
+- If the 2.5s total duration feels too long/short for the brand, adjust the two timer values in `splash-screen.tsx` (`2000` for fade-out start, `2500` for unmount) and the `animation-duration` of `splashProgress` (currently 2.4s) in `globals.css`.
+- The existing `PwaSplashScreen` is currently not imported by any component (verified via `rg "PwaSplashScreen" src/`). If the PWA install-launch flow is wired up later, the parent should `<PwaSplashScreen onComplete={() => setShowPwaSplash(false)} />` — the API is unchanged from before this task.
+

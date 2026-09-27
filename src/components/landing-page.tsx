@@ -77,9 +77,9 @@ type Mode = "landing" | "login" | "trial";
    ============================================================================ */
 
 const COLOR = {
-  bg:        "#0A0B0F", // base canvas — near-black with subtle blue tint
+  bg:        "#04060A", // abyssal ocean base — very dark blue-black (matches MysticOceanBg)
   surface:   "#111318", // raised section — very subtle elevation
-  footer:    "#08090C", // footer — slightly darker than sections
+  footer:    "#04060A", // footer — same abyssal base as the rest of the page
   textHead:  "#F5F5F7", // headings — Apple white
   textBody:  "#9999A0", // body — muted gray
   border:    "rgba(255,255,255,0.08)",
@@ -320,32 +320,140 @@ function GrowingBars({
   );
 }
 
-/* Animated aurora/nebula hero background — ONE subtle blue glow only */
-function AuroraHero() {
+/* === Deep Mystic Ocean Cinematic Lights ============================
+   A page-wide `position: fixed` background that evokes looking into a deep
+   abyssal ocean at night: very dark blue-black base, 4 slowly drifting and
+   hue-cycling blurred light rays (blue/cyan, purple/magenta, teal/emerald,
+   gold/amber), bioluminescent plankton particles rising upward, a periodic
+   shimmer sweep, and a soft breathing tint + edge vignette for depth.
+   Pure CSS animations for 60fps — no JS animation loops. */
+function MysticOceanBg() {
+  // Reduce particle count on small screens for mobile performance.
+  const [isMobile, setIsMobile] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // Bioluminescent plankton — deterministic seeded random so SSR/CSR match.
+  const plankton = React.useMemo(() => {
+    const colors = [
+      "rgba(94,234,212,0.95)",  // teal-cyan
+      "rgba(167,139,250,0.95)", // violet
+      "rgba(244,114,182,0.90)", // pink
+      "rgba(52,211,153,0.95)",  // emerald
+      "rgba(251,191,36,0.85)",  // amber
+      "rgba(125,211,252,0.95)", // sky blue
+      "rgba(196,181,253,0.90)", // light violet
+    ];
+    const seed = 7331;
+    const rand = (i: number) => {
+      const x = Math.sin(seed + i * 9.7531) * 43758.5453;
+      return x - Math.floor(x);
+    };
+    return Array.from({ length: 48 }).map((_, i) => ({
+      left: rand(i * 7 + 1) * 100,
+      size: 1 + rand(i * 11 + 3) * 2, // 1–3px
+      color: colors[i % colors.length],
+      delay: rand(i * 5 + 7) * -28,
+      dur: 18 + rand(i * 3 + 9) * 16, // 18–34s
+      drift: (rand(i * 13 + 2) - 0.5) * 80,
+    }));
+  }, []);
+
+  const visiblePlankton = plankton.slice(0, isMobile ? 22 : plankton.length);
+
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {/* Base — same as page bg, no per-section color */}
-      <div className="absolute inset-0" style={{ background: COLOR.bg }} />
-      {/* Single aurora glow — top center, blue-tinted */}
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
+      {/* Abyssal base — very dark blue-black */}
+      <div className="absolute inset-0" style={{ background: "#04060A" }} />
+
+      {/* Ray 1: Deep blue → cyan (ocean depths) */}
       <div
-        className="absolute -top-[15%] left-1/2 h-[55vh] w-[70vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
+        className="absolute left-[8%] top-[8%] h-[60vh] w-[55vw] rounded-full"
         style={{
-          background: `radial-gradient(circle, ${COLOR.accentA(0.55)}, transparent 65%)`,
-          animation: "sfAuroraDrift 22s ease-in-out infinite",
+          background: "radial-gradient(circle, rgba(30,90,210,0.60), transparent 65%)",
+          filter: "blur(80px)",
+          animation: "mysticRay1 24s ease-in-out infinite",
         }}
       />
-      {/* Subtle shimmer sweep */}
+      {/* Ray 2: Purple → magenta (bioluminescence) */}
       <div
-        className="absolute inset-0 opacity-10"
+        className="absolute right-[5%] top-[12%] h-[55vh] w-[50vw] rounded-full"
+        style={{
+          background: "radial-gradient(circle, rgba(150,55,210,0.50), transparent 65%)",
+          filter: "blur(90px)",
+          animation: "mysticRay2 28s ease-in-out infinite",
+        }}
+      />
+      {/* Ray 3: Teal → emerald (aurora borealis underwater) */}
+      <div
+        className="absolute bottom-[5%] left-[20%] h-[55vh] w-[50vw] rounded-full"
+        style={{
+          background: "radial-gradient(circle, rgba(20,200,180,0.50), transparent 65%)",
+          filter: "blur(85px)",
+          animation: "mysticRay3 22s ease-in-out infinite",
+        }}
+      />
+      {/* Ray 4: Gold → amber (sunlight piercing through) */}
+      <div
+        className="absolute bottom-[15%] right-[12%] h-[45vh] w-[40vw] rounded-full"
+        style={{
+          background: "radial-gradient(circle, rgba(245,180,60,0.42), transparent 65%)",
+          filter: "blur(70px)",
+          animation: "mysticRay4 26s ease-in-out infinite",
+        }}
+      />
+
+      {/* Bioluminescent plankton — small glowing dots rising upward */}
+      {visiblePlankton.map((p, i) => (
+        <span
+          key={i}
+          className="absolute bottom-[-5%] rounded-full"
+          style={{
+            left: `${p.left}%`,
+            width: p.size,
+            height: p.size,
+            background: p.color,
+            boxShadow: `0 0 ${p.size * 4}px ${p.color}, 0 0 ${p.size * 9}px ${p.color}`,
+            animation: `planktonRise ${p.dur}s linear ${p.delay}s infinite`,
+            ["--drift" as string]: `${p.drift}px`,
+          }}
+        />
+      ))}
+
+      {/* Subtle shimmer sweep — moves across the page periodically */}
+      <div
+        className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(115deg, transparent 30%, rgba(94,159,255,0.18) 50%, transparent 70%)",
+            "linear-gradient(115deg, transparent 30%, rgba(140,200,255,0.12) 50%, transparent 70%)",
           backgroundSize: "200% 200%",
-          animation: "sfShimmerSweep 9s ease-in-out infinite",
+          animation: "sfShimmerSweep 14s ease-in-out infinite",
+          opacity: 0.5,
         }}
       />
-      {/* Subtle starfield */}
-      <ParticleField count={32} colors={[COLOR.accent, COLOR.gold]} size={[1.5, 3]} />
+
+      {/* Breathing tint — subtle rhythmic darkening for the living-ocean feel */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: "#04060A",
+          animation: "mysticBreathe 9s ease-in-out infinite",
+        }}
+      />
+
+      {/* Edge vignette — darkens corners/edges so foreground text stays readable */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.55) 100%)",
+        }}
+      />
     </div>
   );
 }
@@ -497,36 +605,8 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       style={{ background: COLOR.bg, color: COLOR.textHead }}
     >
       <style>{LANDING_KEYFRAMES}</style>
-      {/* Page-wide background animations — fixed, stays throughout the whole page */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
-        {/* Aurora glow — top center, drifts slowly */}
-        <div
-          className="absolute -top-[10%] left-1/2 h-[50vh] w-[60vw] -translate-x-1/2 rounded-full opacity-20 blur-3xl"
-          style={{
-            background: `radial-gradient(circle, ${COLOR.accentA(0.5)}, transparent 65%)`,
-            animation: "sfAuroraDrift 22s ease-in-out infinite",
-          }}
-        />
-        {/* Second aurora — bottom right, offset timing */}
-        <div
-          className="absolute bottom-[20%] right-[5%] h-[40vh] w-[40vw] rounded-full opacity-15 blur-3xl"
-          style={{
-            background: `radial-gradient(circle, ${COLOR.goldA(0.4)}, transparent 65%)`,
-            animation: "sfAuroraDrift 28s ease-in-out -6s infinite reverse",
-          }}
-        />
-        {/* Shimmer sweep — covers whole page */}
-        <div
-          className="absolute inset-0 opacity-5"
-          style={{
-            background: "linear-gradient(115deg, transparent 30%, rgba(94,159,255,0.18) 50%, transparent 70%)",
-            backgroundSize: "200% 200%",
-            animation: "sfShimmerSweep 12s ease-in-out infinite",
-          }}
-        />
-        {/* Starfield — subtle, page-wide */}
-        <ParticleField count={48} colors={[COLOR.accent, COLOR.gold]} size={[1, 2.5]} />
-      </div>
+      {/* Page-wide mystic ocean background — fixed, persists throughout the whole page */}
+      <MysticOceanBg />
       {/* Content — above the fixed background */}
       <div className="relative z-10">
         <CinematicNav onTrial={onTrial} onSignIn={onSignIn} />
@@ -647,8 +727,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
   };
 
   return (
-    <section className="relative min-h-screen w-full overflow-hidden" style={{ background: COLOR.bg }}>
-      <AuroraHero />
+    <section className="relative min-h-screen w-full overflow-hidden" style={{ background: "transparent" }}>
       {/* Subtle bottom hairline into Act 2 (no color gradient) */}
       <div
         className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-px"
@@ -744,7 +823,7 @@ function Act2Problem() {
     { icon: MessageCircle, t: "Inbox chaos",       d: "Comments scattered across 10 accounts. Half of them go unanswered.",          accent: COLOR.rose },
   ];
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: COLOR.bg }}>
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
@@ -806,7 +885,7 @@ function Act3Solution() {
     <section
       id="features"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: COLOR.bg }}
+      style={{ background: "transparent" }}
     >
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
@@ -864,7 +943,7 @@ function Act4Workflow({ onTrial }: { onTrial: () => void }) {
     <section
       id="workflow"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: COLOR.bg }}
+      style={{ background: "transparent" }}
     >
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
@@ -978,7 +1057,7 @@ function Act5Protection() {
     { icon: KeyRound,      t: "2FA enforcement",         d: "Require two-factor auth for every team member. No exceptions." },
   ];
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: COLOR.bg }}>
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left — shield animation */}
@@ -1091,7 +1170,7 @@ function FloatingTag({
 
 function Act6AIAssistant() {
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: COLOR.bg }}>
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
       <ParticleField count={20} colors={[COLOR.accent, COLOR.gold]} size={[2, 3]} />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-2">
@@ -1259,7 +1338,7 @@ function Act6AIAssistant() {
 
 function Act7Analytics({ onTrial }: { onTrial: () => void }) {
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: COLOR.bg }}>
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
@@ -1389,7 +1468,7 @@ function Act8Comparison() {
     <section
       id="compare"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: COLOR.bg }}
+      style={{ background: "transparent" }}
     >
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
@@ -1488,7 +1567,7 @@ function Act9Pricing({ onTrial }: { onTrial: () => void }) {
     <section
       id="pricing"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: COLOR.bg }}
+      style={{ background: "transparent" }}
     >
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
@@ -1617,7 +1696,7 @@ function Act9Pricing({ onTrial }: { onTrial: () => void }) {
 
 function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
   return (
-    <section className="relative w-full overflow-hidden py-32 sm:py-40" style={{ background: COLOR.bg }}>
+    <section className="relative w-full overflow-hidden py-32 sm:py-40" style={{ background: "transparent" }}>
       {/* Single subtle blue glow at bottom — no multi-color aurora */}
       <div className="absolute inset-0" aria-hidden>
         <div
@@ -1688,7 +1767,7 @@ function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
 
 function Act11Footer() {
   return (
-    <footer className="relative w-full overflow-hidden pt-20 pb-10" style={{ background: COLOR.footer, color: COLOR.textHead }}>
+    <footer className="relative w-full overflow-hidden pt-20 pb-10" style={{ background: "transparent", color: COLOR.textHead }}>
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
         style={{ background: "linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent)" }}
@@ -1817,6 +1896,36 @@ const LANDING_KEYFRAMES = `
 @keyframes sfSpinSlow {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+/* === Deep Mystic Ocean Cinematic Lights === */
+@keyframes mysticRay1 {
+  0%, 100% { transform: translate(0, 0) scale(1);   opacity: 0.30; filter: hue-rotate(0deg); }
+  33%      { transform: translate(10%, -5%) scale(1.2); opacity: 0.50; filter: hue-rotate(60deg); }
+  66%      { transform: translate(-5%, 8%) scale(0.9); opacity: 0.20; filter: hue-rotate(-30deg); }
+}
+@keyframes mysticRay2 {
+  0%, 100% { transform: translate(0, 0) scale(1.1);   opacity: 0.25; filter: hue-rotate(0deg); }
+  50%      { transform: translate(-8%, 10%) scale(0.8); opacity: 0.45; filter: hue-rotate(-120deg); }
+}
+@keyframes mysticRay3 {
+  0%, 100% { transform: translate(0, 0) scale(0.9);   opacity: 0.20; }
+  40%      { transform: translate(12%, -8%) scale(1.3); opacity: 0.40; }
+  80%      { transform: translate(-6%, 5%) scale(1);   opacity: 0.30; }
+}
+@keyframes mysticRay4 {
+  0%, 100% { transform: translate(0, 0) scale(1);   opacity: 0.15; }
+  50%      { transform: translate(-10%, -12%) scale(1.4); opacity: 0.35; }
+}
+@keyframes planktonRise {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(-100vh) translateX(var(--drift, 30px)); opacity: 0; }
+}
+@keyframes mysticBreathe {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.35; }
 }
 `;
 

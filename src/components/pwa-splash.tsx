@@ -1,60 +1,70 @@
 "use client";
 
 import * as React from "react";
+import { Logo } from "@/components/glass/logo";
 
 /**
- * PWA Splash Screen — iOS/Android native app launch animation.
- * Shows the SYNQUE logo SVG with liquid glass ripple effects,
- * title, subtitle, and a loading bar. Fades out after 2s.
+ * PWA Splash Screen — shown when the app is launched as an installed PWA
+ * (iOS/Android native launch). Renders the same Logo + wordmark + progress
+ * bar as the first-visit `SplashScreen`, using the same CSS classes and
+ * keyframes — so install-launch and regular visits look identical.
+ *
+ * Animation sequence (matches SplashScreen):
+ *   0ms     → fade in  (0.5s, splashFadeIn)
+ *   500ms   → hold     (1.5s)
+ *   2000ms  → fade out (0.5s, splashFadeOut)
+ *   2500ms  → onComplete() — parent unmounts the splash
+ *
+ * With prefers-reduced-motion: visible for ~600ms, no animation, then
+ * onComplete() fires.
  */
 export function PwaSplashScreen({ onComplete }: { onComplete: () => void }) {
+  const [exiting, setExiting] = React.useState(false);
+
   React.useEffect(() => {
-    const timer = setTimeout(onComplete, 2000);
-    return () => clearTimeout(timer);
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReduced) {
+      // No animation — briefly visible, then hand control back to the parent.
+      const t = setTimeout(onComplete, 600);
+      return () => clearTimeout(t);
+    }
+
+    // Start the fade-out after 0.5s in + 1.5s hold = 2.0s.
+    const tExit = setTimeout(() => setExiting(true), 2000);
+    // Notify parent after the 0.5s fade-out completes (2.5s total).
+    const tDone = setTimeout(onComplete, 2500);
+
+    return () => {
+      clearTimeout(tExit);
+      clearTimeout(tDone);
+    };
   }, [onComplete]);
 
   return (
-    <div className="pwa-splash">
-      {/* Logo with liquid glass ripple effects */}
-      <div className="pwa-splash-logo">
-        {/* Expanding ripple rings */}
-        <div className="pwa-splash-ripple" />
-        <div className="pwa-splash-ripple" />
-
-        {/* Glass background with gradient */}
-        <div className="pwa-splash-logo-bg" />
-
-        {/* System logo SVG — rendered inline for crisp scaling */}
-        <div className="pwa-splash-logo-icon">
-          <svg viewBox="0 0 512 512" width="72" height="72" fill="none">
-            <defs>
-              <linearGradient id="splashLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#FFFFFF" />
-                <stop offset="100%" stop-color="#E0E0FF" />
-              </linearGradient>
-            </defs>
-            {/* SF monogram */}
-            <text
-              x="256" y="256"
-              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-              font-size="200" font-weight="800"
-              fill="url(#splashLogoGrad)"
-              text-anchor="middle" dominant-baseline="central"
-              letter-spacing="-8"
-            >
-              SF
-            </text>
-          </svg>
+    <div
+      className={["pwa-splash", exiting ? "pwa-splash--exit" : ""]
+        .filter(Boolean)
+        .join(" ")}
+      aria-hidden="true"
+      role="presentation"
+    >
+      <div className="pwa-splash-content">
+        <div className="pwa-splash-logo">
+          <Logo size={128} withTile={false} />
         </div>
-      </div>
 
-      {/* Title with staggered fade */}
-      <div className="pwa-splash-title">SYNQUE</div>
-      <div className="pwa-splash-subtitle">Sync Your Social</div>
+        <div className="pwa-splash-title">
+          SYN<span className="pwa-splash-title-accent">QUE</span>
+        </div>
+        <div className="pwa-splash-subtitle">Sync Your Social</div>
 
-      {/* Liquid glass loading bar */}
-      <div className="pwa-splash-bar">
-        <div className="pwa-splash-bar-fill" />
+        <div className="pwa-splash-bar" aria-hidden="true">
+          <div className="pwa-splash-bar-fill" />
+        </div>
       </div>
     </div>
   );

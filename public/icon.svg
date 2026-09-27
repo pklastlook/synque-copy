@@ -6,36 +6,21 @@
       <stop offset="100%" stop-color="#1a1a2e"/>
     </linearGradient>
 
-    <!-- Stream gradients (dark-mode brand colors: #0A84FF blue, #5E5CE6 indigo) -->
-    <linearGradient id="streamA" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.30"/>
-      <stop offset="100%" stop-color="#0A84FF"/>
-    </linearGradient>
-    <linearGradient id="streamB" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#5E5CE6" stop-opacity="0.30"/>
-      <stop offset="100%" stop-color="#5E5CE6"/>
-    </linearGradient>
-    <linearGradient id="streamC" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.30"/>
-      <stop offset="60%" stop-color="#5E5CE6" stop-opacity="0.85"/>
-      <stop offset="100%" stop-color="#5E5CE6"/>
-    </linearGradient>
-
-    <!-- Prism — vibrant diagonal blend of both brand colors -->
-    <linearGradient id="prismGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Disc gradient — Apple system blue → indigo (dark-mode brand pair) -->
+    <linearGradient id="discGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0A84FF"/>
-      <stop offset="55%" stop-color="#5E5CE6"/>
-      <stop offset="100%" stop-color="#0A84FF"/>
+      <stop offset="100%" stop-color="#5E5CE6"/>
     </linearGradient>
 
-    <!-- Glass highlight on the prism's upper facet -->
-    <linearGradient id="prismShine" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
-      <stop offset="60%" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
+    <!-- Radial highlight — "liquid glass" light catch on the disc -->
+    <radialGradient id="discShine" cx="32%" cy="28%" r="85%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.40"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
 
+    <!-- Outer bloom for the disc -->
     <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="3.5" result="blur"/>
+      <feGaussianBlur stdDeviation="2.4" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -46,22 +31,28 @@
   <!-- Dark rounded-square background — maskable PWA-safe -->
   <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
 
-  <!-- Subtle decorative ring inside the safe zone -->
+  <!-- Subtle decorative rings inside the safe zone -->
   <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(94,92,230,0.10)" stroke-width="2"/>
   <circle cx="256" cy="256" r="172" fill="none" stroke="rgba(10,132,255,0.06)" stroke-width="1.5"/>
 
-  <!-- SYNQUE convergence mark — centered, scaled to ~63% of canvas -->
-  <!-- Mark in local coords spans (7,13)-(56,51); center at (31.5, 32). -->
-  <g filter="url(#glow)" transform="translate(256 256) scale(6.3) translate(-31.5 -32)">
-    <!-- Three converging streams (multi-platform inputs) -->
-    <path d="M 7 13 C 22 13 26 23 32 30" stroke="url(#streamA)" stroke-width="4.2" stroke-linecap="round" fill="none"/>
-    <path d="M 7 32 L 32 32" stroke="url(#streamB)" stroke-width="4.2" stroke-linecap="round" fill="none"/>
-    <path d="M 7 51 C 22 51 26 41 32 34" stroke="url(#streamC)" stroke-width="4.2" stroke-linecap="round" fill="none"/>
+  <!-- SYNQUE "Sync Pulse" mark — centered, scaled to ~72% of canvas -->
+  <!-- Mark in local coords spans (8,8)-(56,56); center at (32,32). -->
+  <g transform="translate(256 256) scale(7.2) translate(-32 -32)">
+    <!-- Outer radar pulse rings (static in icon — animation is in the web app) -->
+    <circle cx="32" cy="32" r="22" fill="none" stroke="#0A84FF" stroke-width="0.55" stroke-opacity="0.55"/>
+    <circle cx="32" cy="32" r="25.4" fill="none" stroke="#5E5CE6" stroke-width="0.45" stroke-opacity="0.32"/>
 
-    <!-- Prism / arrowhead — unified queue node + forward tip -->
-    <path d="M 32 32 L 38 22 L 56 32 L 38 42 Z" fill="url(#prismGrad)"/>
+    <!-- Static thin orbit ring — frames the pulse -->
+    <circle cx="32" cy="32" r="22" fill="none" stroke="#0A84FF" stroke-width="0.9" stroke-opacity="0.22"/>
 
-    <!-- Glass highlight on upper facet -->
-    <path d="M 32 32 L 38 22 L 56 32 Z" fill="url(#prismShine)"/>
+    <!-- Inner gradient disc with glow + "S" overlay -->
+    <g filter="url(#glow)">
+      <circle cx="32" cy="32" r="15" fill="url(#discGrad)"/>
+      <circle cx="32" cy="32" r="15" fill="url(#discShine)"/>
+      <!-- The "S" — continuous sync flow stroke -->
+      <path d="M 38 24 C 38 16, 22 16, 24 32 C 24 36, 40 28, 40 32 C 42 48, 26 48, 26 40"
+            fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="3.2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
   </g>
 </svg>
