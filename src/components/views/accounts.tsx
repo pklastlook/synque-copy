@@ -45,6 +45,8 @@ import {
   Trash2,
   Image as ImageIcon,
   BarChart3,
+  RefreshCw,
+  MessageCircle,
 } from "lucide-react";
 import { useApi, fmt } from "@/lib/hooks";
 import {
@@ -197,6 +199,76 @@ export function AccountsView() {
   const [heroMetric, setHeroMetric] = React.useState<
     "followers" | "impressions" | "engagement"
   >("followers");
+  const [syncing, setSyncing] = React.useState(false);
+  const [refreshingHealth, setRefreshingHealth] = React.useState(false);
+
+  // Sync comments from all connected platforms + recalculate health
+  async function syncAllData() {
+    setSyncing(true);
+    try {
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      // Step 1: Classify existing comments (one-time backfill)
+      toast.info("Classifying existing comments with AI…");
+      await fetch("/api/comments/classify", { method: "POST", headers, body: "{}" });
+
+      // Step 2: Fetch real comments from connected platforms
+      toast.info("Fetching comments from social platforms…");
+      const syncRes = await fetch("/api/sync/comments", { method: "POST", headers, body: "{}" });
+      const syncData = await syncRes.json().catch(() => ({}));
+
+      // Step 3: Recalculate health for all accounts
+      toast.info("Recalculating account health…");
+      const healthRes = await fetch("/api/accounts/health/recalculate", { method: "POST", headers });
+      const healthData = await healthRes.json().catch(() => ({}));
+
+      // Reload accounts to show updated health + sentiment
+      await reload();
+
+      const totalNew = syncData?.totals?.new ?? 0;
+      const totalClassified = syncData?.totals?.classified ?? 0;
+      const accountsUpdated = healthData?.updated ?? 0;
+      toast.success("Sync complete", {
+        description: `${totalNew} new comments fetched · ${totalClassified} classified · ${accountsUpdated} accounts health updated`,
+      });
+    } catch {
+      toast.error("Sync failed — please try again");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  // Refresh health for a single account
+  async function refreshAccountHealth(accountId: string, accountName: string) {
+    setRefreshingHealth(true);
+    try {
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+      const res = await fetch(`/api/accounts/${accountId}/health`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        await reload();
+        toast.success(`${accountName} health updated`, {
+          description: `Risk: ${data.riskScore}/100 (${data.riskLevel}) · ${data.riskReasons?.length ?? 0} factors`,
+        });
+      } else {
+        toast.error("Failed to refresh health");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setRefreshingHealth(false);
+    }
+  }
 
   if (loading || !data) return <AccountsSkeleton />;
 
@@ -300,13 +372,24 @@ export function AccountsView() {
         desc={`${totalAccounts} accounts · ${presentPlatforms.length} platforms`}
         icon={Users}
         action={
-          <button
-            onClick={() => setConnectOpen(true)}
-            className="liquid-pill glow-ring flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
-          >
-            <Plus className="h-4 w-4" />
-            Connect account
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={syncAllData}
+              disabled={syncing}
+              className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-xs font-semibold transition hover:bg-muted/50 disabled:opacity-50"
+              title="Fetch real comments from social platforms, classify sentiment with AI, and recalculate account health"
+            >
+              {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{syncing ? "Syncing…" : "Sync & Refresh"}</span>
+            </button>
+            <button
+              onClick={() => setConnectOpen(true)}
+              className="liquid-pill glow-ring flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+            >
+              <Plus className="h-4 w-4" />
+              Connect account
+            </button>
+          </div>
         }
       />
 
@@ -610,6 +693,34 @@ function AccountListRow({ account }: { account: AccountData }) {
             aria-label="Account health"
           >
             <ShieldAlert className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+              try {
+                const res = await fetch(`/api/accounts/${account.id}/health`, {
+                  method: "POST",
+                  headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                  toast.success("Health recalculated", {
+                    description: `Risk: ${data.riskScore}/100 (${data.riskLevel})`,
+                  });
+                  window.location.reload();
+                } else {
+                  toast.error("Failed to refresh health");
+                }
+              } catch {
+                toast.error("Network error");
+              }
+            }}
+            className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-primary"
+            title="Recalculate health (real data)"
+            aria-label="Recalculate health"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={async (e) => {
