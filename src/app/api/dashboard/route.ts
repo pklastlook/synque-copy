@@ -42,6 +42,35 @@ const PLATFORMS_COLOR_MAP: Record<string, string> = {
  * - Team activity feed
  */
 export async function GET(req: NextRequest) {
+  // Range parameter: today | yesterday | week | month (default: week)
+  const rangeParam = req.nextUrl.searchParams.get("range") ?? "week";
+  const now = Date.now();
+  const day = 86400000;
+  let rangeStart: number;
+  let rangeEnd: number = now;
+  let seriesDays: number;
+  switch (rangeParam) {
+    case "today":
+      rangeStart = new Date().setHours(0, 0, 0, 0);
+      seriesDays = 1;
+      break;
+    case "yesterday":
+      const yStart = new Date();
+      yStart.setHours(0, 0, 0, 0);
+      rangeStart = yStart.getTime() - day;
+      rangeEnd = yStart.getTime();
+      seriesDays = 1;
+      break;
+    case "month":
+      rangeStart = now - 30 * day;
+      seriesDays = 30;
+      break;
+    default: // week
+      rangeStart = now - 7 * day;
+      seriesDays = 7;
+      break;
+  }
+
   // Get the authenticated user — managers/admins see overall, members see only their own data
   const authUser = getUserFromRequest(req);
   const userRole = authUser?.role ?? "member";
@@ -99,13 +128,26 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const now = Date.now();
-    const day = 86400000;
+    // 'now' and 'day' are already defined at the top of the function
     const sevenDaysAgo = new Date(now - 7 * day);
     const fourteenDaysAgo = new Date(now - 14 * day);
     const thirtyDaysAgo = new Date(now - 30 * day);
 
-    // === Followers + Reach totals ===
+    // === Filter posts, variants, comments by selected range ===
+    const rangePosts = posts.filter((p) => {
+      const t = new Date(p.createdAt).getTime();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+    const rangeVariants = variants.filter((v) => {
+      const t = v.publishedAt ? new Date(v.publishedAt).getTime() : new Date(v.createdAt).getTime();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+    const rangeComments = comments.filter((c) => {
+      const t = new Date(c.createdAt).getTime();
+      return t >= rangeStart && t <= rangeEnd;
+    });
+
+    // === Followers + Reach totals (use range-scoped analytics) ===
     const totalFollowers = accounts.reduce((s, a) => s + a.followers, 0);
     const totalReach = analytics.reduce((s, a) => s + a.reach, 0);
     const totalImpressions = analytics.reduce((s, a) => s + a.impressions, 0);
@@ -126,39 +168,30 @@ export async function GET(req: NextRequest) {
     const delta = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : a > 0 ? 100 : 0);
 
     // === Content pipeline counts ===
-    const publishedCount = posts.filter((p) => p.status === "published").length;
-    const scheduledCount = posts.filter((p) => p.status === "scheduled").length;
-    const draftCount = posts.filter((p) => p.status === "draft").length;
-    const failedCount = posts.filter((p) => p.status === "failed").length;
+    const publishedCount = rangePosts.filter((p) => p.status === "published").length;
+    const scheduledCount = rangePosts.filter((p) => p.status === "scheduled").length;
+    const draftCount = rangePosts.filter((p) => p.status === "draft").length;
+    const failedCount = rangePosts.filter((p) => p.status === "failed").length;
 
-    // === Comments tracking ===
-    const commentsReceived = comments.length;
-    const commentsReplied = comments.filter((c) => c.replied).length;
+    // === Comments tracking (range-scoped) ===
+    const commentsReceived = rangeComments.length;
+    const commentsReplied = rangeComments.filter((c) => c.replied).length;
     const commentsPending = commentsReceived - commentsReplied;
     const replyRate = commentsReceived > 0
       ? Math.round((commentsReplied / commentsReceived) * 100)
       : 0;
 
     // === Content activity deltas (7d vs prev 7d) ===
-    const postsLast7d = posts.filter((p) => new Date(p.createdAt) > sevenDaysAgo).length;
-    const postsPrev7d = posts.filter(
-      (p) => new Date(p.createdAt) > fourteenDaysAgo && new Date(p.createdAt) <= sevenDaysAgo
-    ).length;
-    const postsDelta = delta(postsLast7d, postsPrev7d);
-
-    const commentsLast7d = comments.filter((c) => new Date(c.createdAt) > sevenDaysAgo).length;
-    const commentsPrev7d = comments.filter(
-      (c) => new Date(c.createdAt) > fourteenDaysAgo && new Date(c.createdAt) <= sevenDaysAgo
-    ).length;
-    const commentsDelta = delta(commentsLast7d, commentsPrev7d);
-
-    const publishedLast7d = variants.filter(
-      (v) => v.publishedAt && new Date(v.publishedAt) > sevenDaysAgo
-    ).length;
-    const publishedPrev7d = variants.filter(
-      (v) => v.publishedAt && new Date(v.publishedAt) > fourteenDaysAgo && new Date(v.publishedAt) <= sevenDaysAgo
-    ).length;
-    const publishedDelta = delta(publishedLast7d, publishedPrev7d);
+    // Range-scoped deltas: current range vs previous equal-length range
+    const rangeMs = rangeEnd - rangeStart;
+    const prevRangeStart = rangeStart - rangeMs;
+    const prevRangeEnd = rangeStart;
+    const postsInPrev = posts.filter((p) => { const t = new Date(p.createdAt).getTime(); return t >= prevRangeStart && t < prevRangeEnd; }).length;
+    const commentsInPrev = comments.filter((c) => { const t = new Date(c.createdAt).getTime(); return t >= prevRangeStart && t < prevRangeEnd; }).length;
+    const publishedInPrev = variants.filter((v) => { const t = v.publishedAt ? new Date(v.publishedAt).getTime() : new Date(v.createdAt).getTime(); return t >= prevRangeStart && t < prevRangeEnd; }).length;
+    const postsDelta = delta(rangePosts.length, postsInPrev);
+    const commentsDelta = delta(rangeComments.length, commentsInPrev);
+    const publishedDelta = delta(rangeVariants.length, publishedInPrev);
 
     // === Today's activity — what's actually being POSTED to social media ===
     const todayStart = new Date();
@@ -208,7 +241,7 @@ export async function GET(req: NextRequest) {
       published: number;
       comments: number;
     }[] = [];
-    for (let d = 13; d >= 0; d--) {
+    for (let d = seriesDays - 1; d >= 0; d--) {
       const date = new Date(now - d * day);
       const dayKey = date.toISOString().slice(0, 10);
       const dayAnalytics = analytics.filter((a) => a.date.toISOString().slice(0, 10) === dayKey);
@@ -252,7 +285,7 @@ export async function GET(req: NextRequest) {
 
       // Sparkline (14-day followers)
       const sparkline: number[] = Array(14).fill(0);
-      for (let d = 13; d >= 0; d--) {
+      for (let d = seriesDays - 1; d >= 0; d--) {
         const date = new Date(now - d * day);
         const dayKey = date.toISOString().slice(0, 10);
         const dayA = accAnalytics.find((x) => x.date.toISOString().slice(0, 10) === dayKey);
@@ -606,13 +639,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       isManagerView,
       userRole,
+      range: rangeParam,
       kpis: {
         // Vanity metrics (with deltas)
         totalFollowers: { value: totalFollowers, display: fmt(totalFollowers), delta: delta(l7Follow, p7Follow) },
         totalReach: { value: totalReach, display: fmt(totalReach), delta: delta(l7Reach, p7Reach) },
         impressions: { value: totalImpressions, display: fmt(totalImpressions), delta: delta(l7Imp, p7Imp) },
         // Content activity (with deltas)
-        postsCreated: { value: posts.length, display: fmt(posts.length), delta: postsDelta },
+        postsCreated: { value: rangePosts.length, display: fmt(rangePosts.length), delta: postsDelta },
         published: { value: publishedCount, display: fmt(publishedCount), delta: publishedDelta },
         comments: { value: commentsReceived, display: fmt(commentsReceived), delta: commentsDelta },
         replyRate: { value: replyRate, display: `${replyRate}%`, delta: 0 },
@@ -622,7 +656,7 @@ export async function GET(req: NextRequest) {
         failed: failedCount,
         pendingInbox: commentsPending,
         accounts: accounts.length,
-        variantsPublished: variants.filter((v) => v.status === "published").length,
+        variantsPublished: rangeVariants.length,
         totalEngagement,
         // Today's activity — what's actually posted to social media
         today: {

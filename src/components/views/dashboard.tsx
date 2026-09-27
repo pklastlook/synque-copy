@@ -191,14 +191,15 @@ const QUICK_ACTIONS: { label: string; icon: LucideIcon; view: ViewId; accent: st
 // ============ Main view ============
 
 export function DashboardView() {
-  const { data, loading } = useApi<DashboardData>("/api/dashboard");
+  const [range, setRange] = React.useState<"today" | "yesterday" | "week" | "month">("week");
+  const { data, loading } = useApi<DashboardData>(`/api/dashboard?range=${range}`);
   const { setView, openComposerWithPost } = useNav();
   const { user } = useAuth();
   const firstName = user?.name?.split(" ")[0] || "there";
 
   const [chartMetric, setChartMetric] = React.useState<
     "followers" | "reach" | "postsCreated" | "comments"
-  >("followers");
+  >("postsCreated");
 
   if (loading || !data) return <DashboardSkeleton />;
 
@@ -215,21 +216,21 @@ export function DashboardView() {
   const commentsSpark = data.series.map((s) => s.comments);
   const engagementSpark = data.series.map((s) => s.impressions);
 
-  // Dense MetricRow — replaces the 4-card KPI strip + Today activity cards.
+  // Dense MetricRow — POSTING/SHARING/COMMENTING prioritized at top.
   const metrics: Metric[] = [
-    { label: "Followers", value: k.totalFollowers.display, delta: k.totalFollowers.delta, spark: followerSpark, color: "oklch(0.55 0.2 255)" },
-    { label: "Reach", value: k.totalReach.display, delta: k.totalReach.delta, spark: reachSpark, color: "oklch(0.62 0.22 300)" },
-    { label: "Posts", value: k.postsCreated.display, delta: k.postsCreated.delta, spark: postsSpark, color: "oklch(0.74 0.18 165)" },
-    { label: "Published", value: k.published.display, delta: k.published.delta, spark: publishedSpark, color: "oklch(0.74 0.18 165)" },
+    { label: "Total Posts", value: k.postsCreated.display, delta: k.postsCreated.delta, spark: postsSpark, color: "oklch(0.74 0.18 165)" },
+    { label: "Published", value: k.published.display, delta: k.published.delta, spark: publishedSpark, color: "oklch(0.68 0.2 145)" },
     { label: "Comments", value: k.comments.display, delta: k.comments.delta, spark: commentsSpark, color: "oklch(0.7 0.2 25)" },
-    { label: "Reply rate", value: k.replyRate.display, delta: k.replyRate.delta, spark: commentsSpark, color: "oklch(0.66 0.22 305)" },
+    { label: "Reply Rate", value: k.replyRate.display, delta: k.replyRate.delta, spark: commentsSpark, color: "oklch(0.66 0.22 305)" },
+    { label: "Shares", value: fmt(k.variantsPublished), spark: publishedSpark, color: "oklch(0.72 0.18 75)" },
+    { label: "Followers", value: k.totalFollowers.display, delta: k.totalFollowers.delta, spark: followerSpark, color: "oklch(0.55 0.2 255)" },
   ];
 
-  // Inline secondary KPIs for hero tile (varied sources — preserve all data).
+  // Inline secondary KPIs for hero tile — posting/sharing/commenting first.
   const heroSecondary: { label: string; value: string; delta?: number; spark: number[]; color: string }[] = [
-    { label: "Reach", value: k.totalReach.display, delta: k.totalReach.delta, spark: reachSpark, color: "oklch(0.62 0.22 300)" },
-    { label: "Engagement", value: fmt(k.totalEngagement), spark: engagementSpark, color: "oklch(0.7 0.2 25)" },
-    { label: "Posts", value: k.postsCreated.display, delta: k.postsCreated.delta, spark: postsSpark, color: "oklch(0.74 0.18 165)" },
+    { label: "Published", value: k.published.display, delta: k.published.delta, spark: publishedSpark, color: "oklch(0.68 0.2 145)" },
+    { label: "Comments", value: k.comments.display, delta: k.comments.delta, spark: commentsSpark, color: "oklch(0.7 0.2 25)" },
+    { label: "Shares", value: fmt(k.variantsPublished), spark: publishedSpark, color: "oklch(0.72 0.18 75)" },
   ];
 
   // Insights (max 2 visible — preserve action navigation).
@@ -237,13 +238,20 @@ export function DashboardView() {
     .filter((i) => i.type === "warning" || i.type === "info")
     .slice(0, 2);
 
-  // Chart metric config — preserves the chartMetric state toggle.
+  // Chart metric config — posts/comments prioritized.
   const CHART_METRICS = [
-    { key: "followers", label: "Followers", color: "oklch(0.55 0.2 255)" },
-    { key: "reach", label: "Reach", color: "oklch(0.62 0.22 300)" },
     { key: "postsCreated", label: "Posts", color: "oklch(0.74 0.18 165)" },
     { key: "comments", label: "Comments", color: "oklch(0.7 0.2 25)" },
+    { key: "published", label: "Published", color: "oklch(0.68 0.2 145)" },
+    { key: "followers", label: "Followers", color: "oklch(0.55 0.2 255)" },
   ] as const;
+
+  const RANGE_TABS: { id: typeof range; label: string }[] = [
+    { id: "today", label: "Today" },
+    { id: "yesterday", label: "Yesterday" },
+    { id: "week", label: "Week" },
+    { id: "month", label: "Month" },
+  ];
 
   return (
     <div className="space-y-4">
@@ -297,7 +305,25 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* === 2. MetricRow — dense KPI strip (was 4-card KPI strip ~480px → now ~56px) === */}
+      {/* === 2. Day range tabs + MetricRow — posting/sharing/commenting prioritized === */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-muted/30 p-1">
+          {RANGE_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setRange(tab.id)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-[11px] font-semibold transition",
+                range === tab.id
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <MetricRow metrics={metrics} />
 
       {/* === 3. AI Insights — compact conditional alerts (NOT bento tiles) === */}
