@@ -1091,7 +1091,7 @@ export function ComposerView() {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         {/* MAIN FLOW */}
         <main className="min-w-0 space-y-4">
-          {/* === Step 1: Accounts (enhanced with platform grouping + filters) === */}
+          {/* === Step 1: Accounts (horizontal scrollable row) === */}
           <CollapsibleSection
             id="accounts"
             index={1}
@@ -1123,8 +1123,9 @@ export function ComposerView() {
               </div>
             }
           >
-            {/* Filter pills + search */}
-            <div className="space-y-2.5">
+            {/* Top row: filter pills + search side by side */}
+            <div className="grid gap-2 sm:grid-cols-[auto_1fr] sm:items-center">
+              {/* Filter pills */}
               <div className="flex flex-wrap gap-1.5">
                 {(["all", "verified", "top"] as const).map((f) => (
                   <button
@@ -1143,101 +1144,116 @@ export function ComposerView() {
                     {f === "all" ? "All" : f === "verified" ? "Verified" : "Top 5"}
                   </button>
                 ))}
-                {/* Quick platform-select chips */}
-                {accountsByPlatform.slice(0, 4).map(([platform, list]) => (
-                  <button
-                    key={platform}
-                    onClick={() => selectPlatform(platform as PlatformId)}
-                    className="flex items-center gap-1 rounded-full bg-muted/40 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                    title={`Select all ${PLATFORMS[platform as PlatformId].name}`}
-                  >
-                    <PlatformBadge platform={platform as PlatformId} size={14} />
-                    <span>{list.length}</span>
-                  </button>
-                ))}
               </div>
 
-              {/* Search */}
+              {/* Search — inline, no separate row */}
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by name, handle, or platform…"
-                  className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+                  className="w-full rounded-xl border border-border/50 bg-muted/30 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
                 />
               </div>
             </div>
 
-            {/* Account list — grouped by platform */}
-            <div className="scroll-liquid max-h-[420px] space-y-3 overflow-y-auto pr-1">
+            {/* Horizontal scrollable account row — compact cards */}
+            <div className="scroll-liquid -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
               {filteredAccounts.length === 0 ? (
-                <div className="grid place-items-center py-12 text-center text-sm text-muted-foreground">
+                <div className="grid w-full place-items-center py-12 text-center text-sm text-muted-foreground">
                   No accounts match your search.
                 </div>
               ) : (
-                accountsByPlatform.map(([platform, list]) => (
-                  <div key={platform} className="space-y-1.5">
-                    {/* Platform group header */}
-                    <div className="flex items-center gap-2 px-1">
-                      <PlatformBadge platform={platform as PlatformId} size={18} />
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                        {PLATFORMS[platform as PlatformId].name}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground/70">
-                        · {list.length} account{list.length === 1 ? "" : "s"}
-                      </span>
-                      <button
-                        onClick={() => selectPlatform(platform as PlatformId)}
-                        className="ml-auto text-[10px] font-medium text-primary hover:underline"
-                      >
-                        + Add all
-                      </button>
-                    </div>
-                    {list.map((a) => {
-                      const on = state.selectedAccountIds.includes(a.id);
-                      return (
-                        <button
-                          key={a.id}
-                          onClick={() => toggleAccount(a.id)}
+                filteredAccounts.map((a) => {
+                  const on = state.selectedAccountIds.includes(a.id);
+                  const p = PLATFORMS[a.platform];
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => toggleAccount(a.id)}
+                      title={`${a.displayName} · ${a.handle} · ${fmt(a.followers)} followers`}
+                      className={cn(
+                        "group relative flex w-[180px] shrink-0 flex-col gap-2 rounded-2xl border p-3 text-left transition",
+                        on
+                          ? "border-primary/50 bg-primary/5 ring-1 ring-primary/30"
+                          : "border-border/40 bg-muted/20 hover:border-border hover:bg-muted/40"
+                      )}
+                    >
+                      {/* Top row: platform badge + check circle */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <PlatformBadge platform={a.platform} size={28} />
+                          <span
+                            className="text-[9px] font-bold uppercase tracking-wider"
+                            style={{ color: on ? p.color : "var(--muted-foreground)" }}
+                          >
+                            {p.short}
+                          </span>
+                        </div>
+                        <span
                           className={cn(
-                            "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition",
+                            "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
                             on
-                              ? "border-primary/40 bg-primary/10 ring-1 ring-primary/30"
-                              : "border-border/40 hover:border-border hover:bg-muted/40"
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border group-hover:border-primary/40"
                           )}
                         >
-                          <PlatformBadge platform={a.platform} size={32} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1">
-                              <span className="truncate text-sm font-semibold">
-                                {a.displayName}
-                              </span>
-                              {a.verified && <VerifiedTick className="text-primary" />}
-                            </div>
-                            <div className="truncate text-[11px] text-muted-foreground">
-                              {a.handle} · {fmt(a.followers)} followers
-                            </div>
-                          </div>
-                          <span
-                            className={cn(
-                              "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
-                              on
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-border"
-                            )}
-                          >
-                            {on && <Check className="h-3 w-3" />}
+                          {on && <Check className="h-3 w-3" />}
+                        </span>
+                      </div>
+
+                      {/* Middle: name + handle */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="truncate text-xs font-bold leading-tight">
+                            {a.displayName}
                           </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))
+                          {a.verified && <VerifiedTick className="h-3 w-3 shrink-0 text-primary" />}
+                        </div>
+                        <div className="truncate text-[10px] text-muted-foreground">
+                          {a.handle}
+                        </div>
+                      </div>
+
+                      {/* Bottom: follower count with accent color */}
+                      <div className="flex items-center justify-between border-t border-border/30 pt-1.5">
+                        <span className="text-[10px] text-muted-foreground">
+                          <b className="text-foreground">{fmt(a.followers)}</b> followers
+                        </span>
+                        {/* Platform color stripe */}
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: p.color }}
+                          aria-hidden
+                        />
+                      </div>
+                    </button>
+                  );
+                })
               )}
             </div>
 
-            {/* Inline summary */}
+            {/* Quick platform-select chips — horizontal too */}
+            {accountsByPlatform.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-medium text-muted-foreground">Quick add:</span>
+                {accountsByPlatform.map(([platform, list]) => (
+                  <button
+                    key={platform}
+                    onClick={() => selectPlatform(platform as PlatformId)}
+                    className="flex items-center gap-1 rounded-full bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                    title={`Select all ${PLATFORMS[platform as PlatformId].name} accounts`}
+                  >
+                    <PlatformBadge platform={platform as PlatformId} size={14} />
+                    <span>{PLATFORMS[platform as PlatformId].short}</span>
+                    <span className="text-[9px] opacity-70">{list.length}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Inline summary — selected count + combined reach + platform breakdown */}
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Pill color={selectedAccounts.length > 0 ? "green" : "neutral"}>
                 {selectedAccounts.length} selected
@@ -1248,7 +1264,6 @@ export function ComposerView() {
                     · combined reach{" "}
                     <b className="text-foreground">{fmt(combinedReach)}</b> followers
                   </span>
-                  {/* Platform breakdown pills */}
                   {Object.entries(
                     selectedAccounts.reduce<Record<string, number>>((acc, a) => {
                       acc[a.platform] = (acc[a.platform] || 0) + 1;
