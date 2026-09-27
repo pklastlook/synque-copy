@@ -550,36 +550,45 @@
 }
 .glow-pulse { animation: glowPulse 2.5s ease-in-out infinite; }
 
-/* ===== Logo — SYNQUE convergence mark (animated streams + prism) =====
-   Three streams pulse in sequence — data flowing toward the queue node.
-   Prism gently breathes — the "active queue" core. Glass highlight
-   catches the light with a subtle shimmer. Subtle, not distracting. */
-@keyframes sfFlow {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
+/* ===== Logo — SYNQUE "Sync Pulse" mark (radar pulse + gradient core) =====
+   Two outer rings expand outward and fade in sequence — the sync
+   signal radiating from the queue core. The inner gradient disc
+   gently breathes; the white "S" stroke shimmers in time. Subtle,
+   premium, never distracting. Hover speeds the signal up. */
+.sf-logo .sf-pulse-ring {
+  transform-origin: center;
+  transform-box: fill-box;
+  will-change: transform, opacity;
 }
-.sf-logo .sf-bar-1 { animation: sfFlow 2.4s ease-in-out infinite; }
-.sf-logo .sf-bar-2 { animation: sfFlow 2.4s ease-in-out infinite 0.3s; }
-.sf-logo .sf-bar-3 { animation: sfFlow 2.4s ease-in-out infinite 0.6s; }
+@keyframes sfPulse {
+  0%   { transform: scale(1);    opacity: 0.7; }
+  70%  { opacity: 0; }
+  100% { transform: scale(1.24); opacity: 0; }
+}
+.sf-logo .sf-pulse-1 { animation: sfPulse 2.6s ease-out infinite; }
+.sf-logo .sf-pulse-2 { animation: sfPulse 2.6s ease-out infinite 1.3s; }
 
-@keyframes sfPrismPulse {
-  0%, 100% { opacity: 0.9; }
+@keyframes sfDiscBreathe {
+  0%, 100% { opacity: 0.92; }
   50%      { opacity: 1; }
 }
-.sf-logo .sf-prism { animation: sfPrismPulse 3s ease-in-out infinite; }
+.sf-logo .sf-disc { animation: sfDiscBreathe 3.2s ease-in-out infinite; }
 
-@keyframes sfShine {
-  0%, 100% { opacity: 0.65; }
+@keyframes sfSFlow {
+  0%, 100% { opacity: 0.82; }
   50%      { opacity: 1; }
 }
-.sf-logo .sf-prism-shine { animation: sfShine 3s ease-in-out infinite 1.2s; }
+.sf-logo .sf-s { animation: sfSFlow 3.2s ease-in-out infinite 0.6s; }
+
+/* Hover — speed up the sync signal. */
+.sf-logo:hover .sf-pulse-ring { animation-duration: 1.6s; }
+.sf-logo:hover .sf-disc,
+.sf-logo:hover .sf-s { animation-duration: 2.2s; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sf-logo .sf-bar-1,
-  .sf-logo .sf-bar-2,
-  .sf-logo .sf-bar-3,
-  .sf-logo .sf-prism,
-  .sf-logo .sf-prism-shine {
+  .sf-logo .sf-pulse-ring,
+  .sf-logo .sf-disc,
+  .sf-logo .sf-s {
     animation: none !important;
   }
 }
@@ -1214,44 +1223,53 @@ html { scroll-behavior: smooth; }
 }
 
 /* ================================================================
-   PWA Splash Screen — iOS/Android native app launch animation
+   SPLASH SCREEN — animated SYNQUE intro overlay
+   Shared by:
+   - SplashScreen (src/components/splash-screen.tsx)
+     shown once per browser session on first visit (sessionStorage gated).
+   - PwaSplashScreen (src/components/pwa-splash.tsx)
+     shown when the app is launched as an installed PWA.
+   Both render the same Logo + wordmark + progress bar, using the same
+   keyframes, so install-launch and regular visits look identical.
    ================================================================ */
 
+/* --- Keyframes --- */
+
 @keyframes splashFadeIn {
-  0% { opacity: 0; transform: scale(0.8); }
-  30% { opacity: 1; transform: scale(1); }
-  70% { opacity: 1; transform: scale(1.02); }
-  100% { opacity: 0; transform: scale(1.1); }
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes splashLogoDraw {
-  0% { stroke-dashoffset: 300; opacity: 0; }
-  30% { opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 1; }
+@keyframes splashFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
-@keyframes splashPulse {
-  0%, 100% { transform: scale(1); opacity: 0.3; }
-  50% { transform: scale(1.15); opacity: 0.6; }
+@keyframes splashLogoPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 
+@keyframes splashProgress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* Staggered text entrance for title + subtitle. */
+@keyframes splashTextFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Radar ripple rings expanding outward from behind the logo. */
 @keyframes splashRipple {
   0% { transform: scale(0.5); opacity: 0.6; }
   100% { transform: scale(2); opacity: 0; }
 }
 
-@keyframes splashTextFade {
-  0% { opacity: 0; transform: translateY(10px); }
-  50% { opacity: 0; transform: translateY(10px); }
-  70% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-5px); }
-}
+/* --- Splash container (shared base for `.splash-screen` and `.pwa-splash`) --- */
 
-@keyframes splashBarFill {
-  0% { width: 0%; }
-  100% { width: 100%; }
-}
-
+.splash-screen,
 .pwa-splash {
   position: fixed;
   inset: 0;
@@ -1260,85 +1278,151 @@ html { scroll-behavior: smooth; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
-  animation: splashFadeIn 2s ease-in-out forwards;
-}
-
-.pwa-splash-logo {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pwa-splash-logo-bg {
-  position: absolute;
-  inset: 0;
-  border-radius: 28px;
-  background: linear-gradient(135deg, #5856D6, #7B68EE);
-  animation: splashPulse 1.5s ease-in-out infinite;
-}
-
-.pwa-splash-logo-text {
-  position: relative;
-  font-size: 48px;
-  font-weight: 800;
-  color: white;
-  letter-spacing: -2px;
-  animation: splashTextFade 2s ease-in-out forwards;
-}
-
-.pwa-splash-ripple {
-  position: absolute;
-  inset: 0;
-  border-radius: 28px;
-  border: 2px solid rgba(88, 86, 214, 0.4);
-  animation: splashRipple 1.5s ease-out infinite;
-}
-
-.pwa-splash-ripple:nth-child(2) {
-  animation-delay: 0.5s;
-}
-
-.pwa-splash-title {
-  margin-top: 24px;
-  font-size: 28px;
-  font-weight: 700;
-  color: white;
-  letter-spacing: -0.5px;
-  animation: splashTextFade 2s ease-in-out forwards;
-  animation-delay: 0.3s;
-  opacity: 0;
-}
-
-.pwa-splash-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  animation: splashTextFade 2s ease-in-out forwards;
-  animation-delay: 0.5s;
-  opacity: 0;
-}
-
-.pwa-splash-bar {
-  margin-top: 32px;
-  width: 180px;
-  height: 3px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  /* Matches the landing page mystic ocean abyssal base (#04060A). */
+  background: #04060A;
+  color: #fff;
+  /* Component mounts already-visible; fade-in animates opacity in. */
+  animation: splashFadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Allow children to out-scale the parent without clipping ripples. */
   overflow: hidden;
 }
 
+.splash-screen--exit,
+.pwa-splash--exit {
+  animation: splashFadeOut 0.5s ease-in-out forwards;
+  /* Let clicks pass through to the page beneath during the fade-out
+     so the user can start interacting with the app immediately. */
+  pointer-events: none;
+}
+
+/* Inner content wrapper — flex column, centered. */
+.splash-screen-content,
+.pwa-splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* --- Logo (radar pulse + decorative ripple rings behind) --- */
+
+.splash-screen-logo,
+.pwa-splash-logo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 160px;
+  height: 160px;
+  margin-bottom: 36px;
+  /* Gentle pulse on the whole logo, synced with the sync signal. */
+  animation: splashLogoPulse 2.4s ease-in-out infinite;
+}
+
+/* Two staggered ripple rings expanding outward behind the logo. */
+.splash-screen-logo::before,
+.splash-screen-logo::after,
+.pwa-splash-logo::before,
+.pwa-splash-logo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 122, 255, 0.35);
+  animation: splashRipple 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+.splash-screen-logo::after,
+.pwa-splash-logo::after {
+  animation-delay: 1.2s;
+}
+
+/* --- Title (SYNQUE wordmark) --- */
+
+.splash-screen-title,
+.pwa-splash-title {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(125, 122, 255, 0.45);
+  animation: splashTextFade 0.6s ease-out 0.15s both;
+}
+
+/* "QUE" gradient accent — blue → gold, mirroring the logo disc. */
+.splash-screen-title-accent,
+.pwa-splash-title-accent {
+  background: linear-gradient(135deg, #7C8CFF 0%, #C9A86A 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* --- Subtitle (tagline) --- */
+
+.splash-screen-subtitle,
+.pwa-splash-subtitle {
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  animation: splashTextFade 0.6s ease-out 0.3s both;
+}
+
+/* --- Progress bar --- */
+
+.splash-screen-progress,
+.pwa-splash-bar {
+  margin-top: 44px;
+  width: 160px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.splash-screen-progress-fill,
 .pwa-splash-bar-fill {
   height: 100%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #5856D6, #7B68EE);
-  animation: splashBarFill 2s ease-in-out forwards;
+  border-radius: 999px;
+  /* Gradient mirrors the logo disc: blue → gold. */
+  background: linear-gradient(90deg, #5856D6 0%, #7C8CFF 50%, #C9A86A 100%);
+  animation: splashProgress 2.4s ease-out 0.2s both;
+}
+
+/* --- Reduced motion: skip all animations, just show/hide --- */
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-screen,
+  .pwa-splash,
+  .splash-screen--exit,
+  .pwa-splash--exit {
+    animation: none !important;
+  }
+  .splash-screen-logo,
+  .pwa-splash-logo,
+  .splash-screen-logo::before,
+  .splash-screen-logo::after,
+  .pwa-splash-logo::before,
+  .pwa-splash-logo::after,
+  .splash-screen-title,
+  .pwa-splash-title,
+  .splash-screen-subtitle,
+  .pwa-splash-subtitle {
+    animation: none !important;
+  }
+  .splash-screen-logo::before,
+  .splash-screen-logo::after,
+  .pwa-splash-logo::before,
+  .pwa-splash-logo::after {
+    display: none;
+  }
+  .splash-screen-progress-fill,
+  .pwa-splash-bar-fill {
+    animation: none !important;
+    width: 100%;
+  }
 }
 
 /* === Login splash (shorter, appears on login form) === */
@@ -1368,22 +1452,6 @@ html { scroll-behavior: smooth; }
 .login-form-container {
   animation: loginFormSlideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: 0.2s;
-}
-
-/* === PWA Splash — logo icon container === */
-.pwa-splash-logo-icon {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  filter: drop-shadow(0 4px 20px rgba(255, 255, 255, 0.2));
-  animation: splashPulse 1.5s ease-in-out infinite;
-}
-
-.pwa-splash-logo-icon svg {
-  width: 72px;
-  height: 72px;
 }
 
 /* ============================================================================

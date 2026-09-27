@@ -4,20 +4,26 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * SYNQUE logo — a "convergence flow" mark.
+ * SYNQUE logo — the "Sync Pulse" mark.
  *
- * Three streams (representing multiple social platforms) converge from
- * the left into a single prism-arrowhead on the right — the unified
- * queue node, with its extended right tip suggesting forward flow /
- * publishing. The asymmetric diamond doubles as a rightward arrowhead.
+ * Two concentric radar rings expand outward and fade in sequence,
+ * broadcasting a continuous sync signal. The inner gradient disc
+ * (blue → gold) is the queue core; a single white "S" stroke flows
+ * through it — the continuous sync motion. A soft radial highlight
+ * on the disc adds the "liquid glass" feel.
  *
- * Concept: SYNC (multiple streams → one node) + QUEUE (sequential flow
- * core + direction) + MULTI-PLATFORM (three colored inputs).
+ * Concept: SYNC (radar pulse rings) + QUEUE (gradient core holding
+ * the S flow). Clean, geometric, premium — reads instantly from a
+ * 16px favicon to a 512px PWA splash, on both light (#F5F5F7) and
+ * dark (#0A0B0F) backgrounds. Uses CSS custom properties so the
+ * mark adapts to the active theme automatically.
  *
- * Designed to render crisply from 16px (favicon) to 512px (PWA splash),
- * on both light (#F5F5F7) and dark (#1D1D1F) backgrounds. Uses CSS
- * custom properties (`--primary`, `--gold`) so the mark adapts to the
- * active theme automatically.
+ * Animation:
+ *   - `.sf-pulse-1` / `.sf-pulse-2` — outer rings, scale + fade
+ *   - `.sf-disc`   — inner gradient disc, gentle breathe
+ *   - `.sf-s`      — the "S" stroke, soft shimmer
+ *   Hover speeds up the signal slightly. `prefers-reduced-motion`
+ *   disables all motion.
  */
 export function Logo({
   size = 36,
@@ -40,33 +46,19 @@ export function Logo({
       aria-hidden
     >
       <defs>
-        {/* Stream gradients — fade in left → right, suggesting flow toward the prism. */}
-        <linearGradient id="sf-stream-a" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.3} />
-          <stop offset="100%" stopColor="var(--primary)" />
-        </linearGradient>
-        <linearGradient id="sf-stream-b" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--gold)" stopOpacity={0.3} />
-          <stop offset="100%" stopColor="var(--gold)" />
-        </linearGradient>
-        <linearGradient id="sf-stream-c" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.3} />
-          <stop offset="60%" stopColor="var(--gold)" stopOpacity={0.85} />
-          <stop offset="100%" stopColor="var(--gold)" />
-        </linearGradient>
-        {/* Prism gradient — vibrant diagonal blend of both brand colors. */}
-        <linearGradient id="sf-prism" x1="0" y1="0" x2="1" y2="1">
+        {/* Disc gradient — blue (top-left) → gold/violet (bottom-right). */}
+        <linearGradient id="sf-disc" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="var(--primary)" />
-          <stop offset="55%" stopColor="var(--gold)" />
-          <stop offset="100%" stopColor="var(--primary)" />
+          <stop offset="100%" stopColor="var(--gold)" />
         </linearGradient>
-        {/* Glass highlight on the prism's upper facet — "liquid glass" feel. */}
-        <linearGradient id="sf-prism-shine" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity={0.55} />
-          <stop offset="60%" stopColor="#ffffff" stopOpacity={0} />
-        </linearGradient>
-        <filter id="sf-glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation={0.6} result="b" />
+        {/* Radial highlight — "liquid glass" light catch on the disc. */}
+        <radialGradient id="sf-disc-shine" cx="0.32" cy="0.28" r="0.85">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity={0.4} />
+          <stop offset="55%" stopColor="#ffffff" stopOpacity={0} />
+        </radialGradient>
+        {/* Subtle outer bloom for the disc. */}
+        <filter id="sf-glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation={0.7} result="b" />
           <feMerge>
             <feMergeNode in="b" />
             <feMergeNode in="SourceGraphic" />
@@ -74,41 +66,53 @@ export function Logo({
         </filter>
       </defs>
 
-      <g filter="url(#sf-glow)">
-        {/* Three converging streams — top, middle, bottom (multi-platform inputs). */}
-        <path
-          className="sf-bar sf-bar-1"
-          d="M 7 13 C 22 13 26 23 32 30"
-          stroke="url(#sf-stream-a)"
-          strokeWidth={4.2}
-          strokeLinecap="round"
-        />
-        <path
-          className="sf-bar sf-bar-2"
-          d="M 7 32 L 32 32"
-          stroke="url(#sf-stream-b)"
-          strokeWidth={4.2}
-          strokeLinecap="round"
-        />
-        <path
-          className="sf-bar sf-bar-3"
-          d="M 7 51 C 22 51 26 41 32 34"
-          stroke="url(#sf-stream-c)"
-          strokeWidth={4.2}
-          strokeLinecap="round"
-        />
+      {/* Outer radar pulse rings — sync signal radiating outward. */}
+      <circle
+        className="sf-pulse-ring sf-pulse-1"
+        cx="32"
+        cy="32"
+        r="22"
+        stroke="var(--primary)"
+        strokeWidth={1.3}
+      />
+      <circle
+        className="sf-pulse-ring sf-pulse-2"
+        cx="32"
+        cy="32"
+        r="22"
+        stroke="var(--gold)"
+        strokeWidth={1.3}
+      />
 
-        {/* Prism / arrowhead — the unified queue node + forward tip. */}
-        <path
-          className="sf-prism"
-          d="M 32 32 L 38 22 L 56 32 L 38 42 Z"
-          fill="url(#sf-prism)"
+      {/* Static thin orbit ring — frames the pulse. */}
+      <circle
+        className="sf-orbit"
+        cx="32"
+        cy="32"
+        r="22"
+        stroke="var(--primary)"
+        strokeOpacity={0.22}
+        strokeWidth={0.9}
+      />
+
+      {/* Inner gradient disc — the "queue core" with sync glow. */}
+      <g filter="url(#sf-glow)">
+        <circle
+          className="sf-disc"
+          cx="32"
+          cy="32"
+          r="15"
+          fill="url(#sf-disc)"
         />
-        {/* Glass highlight on the upper facet of the prism. */}
+        <circle cx="32" cy="32" r="15" fill="url(#sf-disc-shine)" />
+        {/* The "S" overlay — continuous sync flow stroke. */}
         <path
-          className="sf-prism-shine"
-          d="M 32 32 L 38 22 L 56 32 Z"
-          fill="url(#sf-prism-shine)"
+          className="sf-s"
+          d="M 38 24 C 38 16, 22 16, 24 32 C 24 36, 40 28, 40 32 C 42 48, 26 48, 26 40"
+          stroke="rgba(255,255,255,0.95)"
+          strokeWidth={3.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
       </g>
     </svg>
@@ -152,7 +156,9 @@ export function LogoWordmark({
         <div className={cn("font-bold tracking-tight", size)}>
           SYN<span className="retaina-text">QUE</span>
         </div>
-        <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Sync Your Social</div>
+        <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+          Sync Your Social
+        </div>
       </div>
     </div>
   );
