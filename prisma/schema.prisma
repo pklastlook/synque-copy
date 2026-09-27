@@ -35,6 +35,12 @@ model User {
   // null = super-admin (sees all tenants). Set when a user is created
   // by a manager/admin who belongs to a specific client.
   customerId  String?
+  // 2FA / Security
+  emailVerified  DateTime?  // when the user verified their email
+  totpSecret     String?    // TOTP secret for 2FA (base32 encoded)
+  twoFactorEnabled Boolean  @default(false) // whether 2FA is required on login
+  // Sessions + login history
+  sessions       Session[]
 
   accounts  Account[]
   posts     Post[]
@@ -753,4 +759,41 @@ model Designation {
   updatedAt   DateTime @updatedAt
 
   @@unique([name, customerId])
+}
+
+// ===== Session Tracking (login history + active sessions) =====
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String   @unique // JWT token (for revocation)
+  userAgent   String?  // browser + OS
+  ipAddress   String?  // last known IP
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime? // null = active, set when user logs out / revokes
+}
+
+// ===== Password Reset Tokens (DB-backed, not in-memory) =====
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String   // user email
+  token     String   @unique // the reset token
+  expiresAt DateTime // when the token expires (typically 1 hour)
+  usedAt    DateTime? // when the token was used (null = not used)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+// ===== Email Verification Tokens =====
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email])
 }

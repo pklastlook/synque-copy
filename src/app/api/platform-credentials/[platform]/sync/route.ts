@@ -137,6 +137,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           },
         });
 
+        // Create/update AnalyticsDaily row for today with real data
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const existingAnalytics = await db.analyticsDaily.findFirst({
+          where: { accountId, date: today },
+        });
+        if (existingAnalytics) {
+          await db.analyticsDaily.update({
+            where: { id: existingAnalytics.id },
+            data: { followers: json.followers_count ?? 0 },
+          });
+        } else {
+          await db.analyticsDaily.create({
+            data: {
+              accountId,
+              date: today,
+              followers: json.followers_count ?? 0,
+              impressions: 0, reach: 0, engagement: 0,
+              likes: 0, comments: 0, shares: 0, saves: 0, posts: 0,
+            },
+          });
+        }
+
         return NextResponse.json({
           ok: true,
           synced: {
@@ -167,16 +190,46 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
       const json = await res.json();
 
       if (res.ok) {
+        // Fetch follower count from LinkedIn API
+        const followerRes = await fetch(
+          `https://api.linkedin.com/v2/networkSizes/urn:li:person:${cred.profileId}?fields=elementCount`,
+          { headers: { Authorization: `Bearer ${cred.accessToken}` } }
+        );
+        const followerJson = await followerRes.json().catch(() => ({}));
+        const followers = followerJson.elementCount ?? account.followers;
+
         await db.account.update({
           where: { id: accountId },
           data: {
             displayName: json.localizedFirstName + " " + json.localizedLastName,
+            followers,
           },
         });
 
+        // Create/update AnalyticsDaily row for today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const existingAnalytics = await db.analyticsDaily.findFirst({
+          where: { accountId, date: today },
+        });
+        if (existingAnalytics) {
+          await db.analyticsDaily.update({
+            where: { id: existingAnalytics.id },
+            data: { followers },
+          });
+        } else {
+          await db.analyticsDaily.create({
+            data: {
+              accountId, date: today, followers,
+              impressions: 0, reach: 0, engagement: 0,
+              likes: 0, comments: 0, shares: 0, saves: 0, posts: 0,
+            },
+          });
+        }
+
         return NextResponse.json({
           ok: true,
-          synced: { name: json.localizedFirstName + " " + json.localizedLastName },
+          synced: { name: json.localizedFirstName + " " + json.localizedLastName, followers },
         });
       }
 
@@ -208,6 +261,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
             avatar: json.picture?.data?.url ?? null,
           },
         });
+
+        // Create/update AnalyticsDaily row for today with real data
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const existingAnalytics = await db.analyticsDaily.findFirst({
+          where: { accountId, date: today },
+        });
+        if (existingAnalytics) {
+          await db.analyticsDaily.update({
+            where: { id: existingAnalytics.id },
+            data: { followers: json.fan_count ?? 0 },
+          });
+        } else {
+          await db.analyticsDaily.create({
+            data: {
+              accountId, date: today, followers: json.fan_count ?? 0,
+              impressions: 0, reach: 0, engagement: 0,
+              likes: 0, comments: 0, shares: 0, saves: 0, posts: 0,
+            },
+          });
+        }
 
         return NextResponse.json({
           ok: true,

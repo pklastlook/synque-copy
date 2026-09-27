@@ -1,21 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { randomBytes } from "node:crypto";
+import { sendEmail, buildAppUrl } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
+
+const RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Build a password-reset URL using request headers (works behind Vercel
+ * proxy + locally). Format: {proto}://{host}/?reset={token}
+ */
+function buildResetUrl(req: NextRequest, token: string): string {
+  return buildAppUrl(req, `?reset=${token}`);
+}
 
 /**
  * POST /api/auth/forgot-password
  *
- * Generates a password reset token + stores it in the DB (on the User
- * model's `password` field is NOT used — we use the User's `title` field
- * temporarily, since we can't change the schema without a migration).
- *
- * In a production app, you'd add a `resetToken` + `resetExpires` column.
- * For now, we store the token hash in the User's `color` field (repurposed)
- * and send the reset link to the user's email.
+ * Generates a password reset token, stores it in the `PasswordResetToken`
+ * table with a 1-hour expiry, and emails a reset link to the user.
  *
  * Body: { email }
+ *
+ * Always returns 200 with the same response shape regardless of whether the
+ * email exists — to avoid account enumeration.
  */
 export async function POST(req: NextRequest) {
   const { email } = (await req.json()) as { email?: string };
@@ -24,7 +33,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
-  const user = await db.user.findUnique({ where: { email: email.trim() } }).catch(() => null);
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const user = await db.user.findUnique({ where: { email: normalizedEmail } }).catch(() => null);
 
   if (!user) {
     // Don't reveal whether the email exists — security best practice
@@ -34,54 +45,37 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Generate a secure reset token
+  // Generate a secure reset token + invalidate any prior unused tokens for
+  // this email (so only the most recent reset link is valid).
   const resetToken = randomBytes(32).toString("hex");
-  const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  const expiresAt = new Date(Date.now() + RESET_TTL_MS);
 
-  // Store the reset token hash in the user's `color` field (repurposed —
-  // in production, add a proper `resetToken` column to the schema)
-  await db.user.update({
-    where: { id: user.id },
-    data: {
-      color: `reset:${resetToken}:${resetExpires.toISOString()}`,
-    },
+  await db.passwordResetToken.updateMany({
+    where: { email: normalizedEmail, usedAt: null },
+    data: { usedAt: new Date() },
   }).catch(() => null);
 
-  // Build the reset URL
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "localhost:3000";
-  const proto = req.headers.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
-  const resetUrl = `${proto}://${host}/?reset=${resetToken}`;
+  await db.passwordResetToken.create({
+    data: {
+      email: normalizedEmail,
+      token: resetToken,
+      expiresAt,
+    },
+  });
 
-  // Try to send the email via the mail server (if configured)
-  try {
-    const mailServer = await db.mailServer.findFirst({ where: { status: "connected" } });
-    if (mailServer) {
-      const nodemailer = await import("nodemailer");
-      const transporter = nodemailer.createTransport({
-        host: mailServer.smtpHost,
-        port: mailServer.smtpPort,
-        secure: mailServer.smtpSecure,
-        auth: {
-          user: mailServer.username,
-          pass: Buffer.from(mailServer.passwordEnc.replace("enc:", ""), "base64").toString("utf-8"),
-        },
-      });
+  const resetUrl = buildResetUrl(req, resetToken);
+  const { sent } = await sendEmail({
+    to: user.email,
+    subject: "Reset your SYNQUE password",
+    text: `Hi ${user.name},\n\nClick the link below to reset your password:\n\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, ignore this email.`,
+  });
 
-      await transporter.sendMail({
-        from: `"${mailServer.fromName}" <${mailServer.fromEmail}>`,
-        to: user.email,
-        subject: "Reset your SYNQUE password",
-        text: `Hi ${user.name},\n\nClick the link below to reset your password:\n\n${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, ignore this email.`,
-      });
-
-      return NextResponse.json({
-        ok: true,
-        message: "If an account with that email exists, a reset link has been sent.",
-        sent: true,
-      });
-    }
-  } catch (e) {
-    console.error("[forgot-password] Failed to send email:", e);
+  if (sent) {
+    return NextResponse.json({
+      ok: true,
+      message: "If an account with that email exists, a reset link has been sent.",
+      sent: true,
+    });
   }
 
   // No mail server configured — return the reset URL in the response

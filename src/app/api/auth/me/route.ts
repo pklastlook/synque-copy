@@ -33,6 +33,8 @@ export async function GET(req: NextRequest) {
         timezone: true,
         language: true,
         customerId: true,
+        emailVerified: true,
+        twoFactorEnabled: true,
       },
     });
 

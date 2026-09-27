@@ -15,6 +15,8 @@ export interface AuthUser {
   language?: string | null;
   department?: string | null;
   customerId?: string | null;
+  emailVerified?: string | null; // ISO date string — null until the user verifies
+  twoFactorEnabled?: boolean;
 }
 
 interface AuthState {
@@ -22,10 +24,15 @@ interface AuthState {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
+  // 2FA login flow — set when /api/auth/login returns { requires2FA: true }
+  // instead of a full session. The UI uses this + complete2faLogin() to
+  // prompt for a TOTP code.
+  pending2FA: { tempToken: string; email: string } | null;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   login: (email: string, password: string) => Promise<boolean>;
   loginAsDemo: () => Promise<boolean>;
-  logout: () => void;
+  complete2faLogin: (code: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
 }
 
@@ -36,6 +43,7 @@ export const useAuth = create<AuthState>()(
       user: null,
       token: null,
       loading: false,
+      pending2FA: null,
 
       signup: async (name, email, password) => {
         set({ loading: true });
@@ -84,12 +92,55 @@ export const useAuth = create<AuthState>()(
             return false;
           }
           const data = await res.json().catch(() => null);
+          // 2FA path — server says the user needs to enter a TOTP code.
+          // Stash the tempToken + show the 2FA prompt (UI watches pending2FA).
+          if (data?.requires2FA && data?.tempToken) {
+            set({
+              loading: false,
+              pending2FA: { tempToken: data.tempToken, email: data.email ?? email },
+            });
+            return false;
+          }
           if (data?.token) {
             set({
               isAuthenticated: true,
               user: data.user,
               token: data.token,
               loading: false,
+              pending2FA: null,
+            });
+            return true;
+          }
+          set({ loading: false });
+          return false;
+        } catch {
+          set({ loading: false });
+          return false;
+        }
+      },
+
+      complete2faLogin: async (code) => {
+        const pending = get().pending2FA;
+        if (!pending) return false;
+        set({ loading: true });
+        try {
+          const res = await fetch("/api/auth/2fa/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tempToken: pending.tempToken, code }),
+          });
+          if (!res.ok) {
+            set({ loading: false });
+            return false;
+          }
+          const data = await res.json().catch(() => null);
+          if (data?.token) {
+            set({
+              isAuthenticated: true,
+              user: data.user,
+              token: data.token,
+              loading: false,
+              pending2FA: null,
             });
             return true;
           }
@@ -130,8 +181,20 @@ export const useAuth = create<AuthState>()(
         }
       },
 
-      logout: () => {
-        set({ isAuthenticated: false, user: null, token: null });
+      logout: async () => {
+        const token = get().token;
+        // Best-effort — revoke the server-side session so it can't be reused.
+        if (token) {
+          try {
+            await fetch("/api/auth/logout", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          } catch {
+            // Ignore — local state will be cleared anyway.
+          }
+        }
+        set({ isAuthenticated: false, user: null, token: null, pending2FA: null });
       },
 
       fetchUser: async () => {

@@ -6546,3 +6546,362 @@ To support the unique layouts without adding new API calls, the following derive
 - **Why `word-break: break-word` on `.report-metric-value`.** Without it, the `audience` KPI strip's "Largest Platform" cell (value = "instagram", 9 chars) was fine, but the `platform` report's "Avg Eng./Platform" cell (value = e.g. "12.3K", 5 chars) was getting clipped in some print engines when the strip had 4 cells in a narrow @page. Adding `word-break: break-word` lets long values wrap to a second line inside their cell rather than overflowing into the next cell.
 - **Why explicit `.report-table .text-right/.text-center/.capitalize` rules in `@media print`.** Tailwind's `text-right`, `text-center`, and `capitalize` utilities are defined in Tailwind's base stylesheet, which IS imported on screen. But in print, Chromium sometimes drops utilities that aren't explicitly re-declared inside `@media print` (especially when `body * { visibility: hidden }` is in effect, which is how this app hides the on-screen UI during print). Re-declaring them inside `@media print` makes alignment deterministic across browsers and print engines.
 - **No changes to the data layer.** This task uses the existing `analytics`, `teamData`, `reportData`, and `postsPerfData` props passed into `PrintLayout` by the parent `ReportsView` — no new API routes, no new fetch calls, no schema changes. The uniqueness is purely in how the same data is rendered.
+
+
+---
+
+## Task ID: 1b — `1b-linkbio-public`
+
+**Task**: Build the public link-in-bio page at `/l/[slug]`. Before this task, the `LinkInBio` model had `visits` and `clicks` Int fields that were always zero — there was no public route for visitors to actually view a bio page, so neither counter could ever increment. This task adds that public route plus a public click-tracking API endpoint, and wires both counters up.
+
+### Files delivered (3 new)
+
+1. **`/home/z/my-project/src/app/api/linkbio/[id]/click/route.ts`** — public POST endpoint. Increments the `clicks` field on the `LinkInBio` row identified by `[id]`. No auth required. Errors are swallowed and the endpoint still returns 200 so the client never surfaces a confusing failure on a click (click tracking is best-effort, must never break navigation).
+2. **`/home/z/my-project/src/components/linkbio/bio-links.tsx`** — small Client Component exporting `BioLinkList` and the `BioLink` type. Renders the list of links as translucent glass buttons styled to match the active theme; on click, fires a fire-and-forget `POST /api/linkbio/[id]/click` to increment the bio's `clicks` counter, then lets the browser open the URL in a new tab (`rel="noopener noreferrer"`). Includes the same `ICON_SET` mapping used by `LinkBioView` (`shopping-bag`, `book-open`, `play`, `music`, `mail`, `message-circle`, `link`, `globe`, `instagram`, `youtube`) so link icons render consistently with the editor preview.
+3. **`/home/z/my-project/src/app/l/[slug]/page.tsx`** — Server Component. Renders the public link-in-bio page. Fetches by slug, calls `notFound()` if missing or `active: false`, fire-and-forgets `db.linkInBio.update({ where: { id }, data: { visits: { increment: 1 } } })` so visits increment on every render, parses the JSON `links` field (with a defensive `Array.isArray` filter so a corrupt JSON string never crashes the page), and renders avatar → title → subtitle → `<BioLinkList>` → "Powered by SYNQUE" footer. Includes `generateMetadata` for per-page `<title>`, OpenGraph, and Twitter card tags (uses `page.avatar` for OG image when present).
+
+### Data flow
+
+```
+visitor → GET /l/[slug]
+         ├─ db.linkInBio.findUnique({ where: { slug } })
+         │   └─ not found / !active → notFound() (404)
+         ├─ void db.linkInBio.update({ visits: { increment: 1 } })  ← fire-and-forget
+         └─ render <main style={{ background: theme.gradient }}>
+              ├─ avatar (img or initial-letter fallback)
+              ├─ title + subtitle
+              ├─ <BioLinkList bioId links>           ← client component
+              │    └─ on link click:
+              │         fetch(`/api/linkbio/${bioId}/click`, { method: "POST" })  ← fire-and-forget
+              │         browser opens link.url in new tab
+              └─ "Powered by SYNQUE" footer
+```
+
+### Design choices
+
+- **Server Component for the page, Client Component only for the link list.** The page itself must be a Server Component so the `visits` increment runs server-side (a client-side increment would be skipped by crawlers and ad-blockers, and would double-count on hydration). The link list needs client interactivity for `onClick` (to POST the click increment), so it's a small `"use client"` component — the only client JS shipped to the visitor.
+- **Fire-and-forget on both increments.** Both `visits` and `clicks` increments use `void`-prefixed promises with a `.catch(() => {})` so they never block the render or navigation. If the DB is briefly unreachable, the visitor still sees the page and can still click links; the counter just misses one increment.
+- **`notFound()` for inactive pages.** A bio page with `active: false` returns a 404 via `next/navigation`'s `notFound()` rather than rendering a "this page is disabled" message. This matches what visitors expect (a disabled page should look like it doesn't exist, not like the author chose to take it down) and avoids leaking the existence of inactive bios.
+- **Theme gradients mirror `LinkBioView` exactly.** The `THEMES` map in `page.tsx` uses the same `oklch()` gradient values as the editor's `THEMES` in `src/components/views/link-bio.tsx` (lines 73–104), so what you preview in the editor is what the visitor sees. Themes: rose / teal / amber / magenta / green / dark. Unknown theme strings fall back to `rose`.
+- **Mobile-first layout.** `<main>` is `min-h-[100svh]`, centered, `max-w-[480px]`, padded `px-5`. Avatar is `h-24 w-24` circular. Links are full-width rounded-2xl buttons with `py-4` — large tap targets for thumbs. The whole page reads like Linktree/Bento.
+- **Avatar `referrerPolicy="no-referrer"`.** Avatar URLs are often Cloudinary/S3 signed URLs or platform-CDN URLs that break on cross-origin referrer; `no-referrer` is the safe default for a public page.
+- **Initials fallback when no avatar.** If `page.avatar` is null, a glass tile with the uppercased first letter of the title is rendered — same fallback pattern as `NameAvatar` elsewhere in the codebase.
+
+### Verification
+
+- **`npx eslint "src/app/api/linkbio/[id]/click/route.ts" "src/components/linkbio/bio-links.tsx" "src/app/l/[slug]/page.tsx"`** → exit 0, 0 errors, 0 warnings.
+- **`npx eslint .`** (full project) → 1 error, but in `mini-services/whatsapp-service/index.js` — pre-existing and unrelated (see tasks `1-synque-logo` and `2-print-formats-unique` for prior context). The 3 new files contribute 0 errors and 0 warnings.
+- **`npx tsc --noEmit 2>&1 | grep -iE "linkbio|bio-links|l/\[slug\]|app/l/"`** → 0 matches. Zero TypeScript errors in the new files. (Pre-existing tsc errors in `src/app/api/auth/demo/route.ts` and `src/app/api/ai/assistant/route.ts` are unrelated to this task.)
+
+### Notes / non-goals
+
+- **No new schema fields.** This task uses the existing `LinkInBio` model exactly as defined (`slug`, `title`, `subtitle`, `avatar`, `theme`, `links` (JSON string), `visits`, `clicks`, `accountId`, `active`, `createdAt`). No migration needed.
+- **No per-link click attribution.** The `clicks` counter is page-level (one number per bio), not per-link. The task spec asked for "increment the `clicks` field on the LinkInBio record" — that is what `/api/linkbio/[id]/click` does. If per-link click counts are needed later, that would require either a new `LinkClick` model or a JSON aggregation in the `links` field — out of scope here.
+- **No bot filtering on visit increments.** Every render of `/l/[slug]` (including by crawlers, preview scrapers, the author themselves) increments `visits`. This matches Linktree's behavior and is the simplest correct interpretation of "increment visits when the page loads". A future task could add a `User-Agent` filter to skip known bots, but that is not in this task's scope.
+- **No edit-link / share-link UI in this task.** The dashboard `LinkBioView` already lets users edit bios and presumably exposes the public `/l/[slug]` URL. This task only builds the public consumer side; if `LinkBioView` needs a "View public page" button added, that is a separate task.
+- **No `loading.tsx` or `error.tsx` for the `/l/[slug]` segment.** The page is a single server-side DB read + render; a `loading.tsx` would flash a skeleton for the ~50ms query. `notFound()` already covers the not-found case. A custom `error.tsx` could be added later if the DB throws a non-recoverable error, but `db.linkInBio.findUnique(...).catch(() => null)` already degrades to `notFound()` on transient DB errors.
+
+---
+
+## Task ID: 1c — `1c-competitor-sync`
+
+**Task**: Build a competitor auto-sync system that fetches REAL follower counts, engagement rates, and posting frequency from social platforms. Before this task, competitors were created at `POST /api/competitors` with `followers: 0, engagementRate: 0, growthRate: 0, postingFreq: 0` and a single zero-valued snapshot — and those values were NEVER updated, so the competitor tracker view always showed flat zeros forever. This task adds a `POST /api/competitors/sync` endpoint that pulls real metrics from each platform's API and writes both an updated Competitor row and a fresh CompetitorSnapshot row.
+
+### Files delivered (1 new)
+
+1. **`/home/z/my-project/src/app/api/competitors/sync/route.ts`** — Authenticated POST endpoint. Body: `{ competitorId?: string }`. If `competitorId` is supplied, syncs only that competitor; otherwise syncs all competitors with `status="tracking"`. For each competitor it (1) resolves a connected `PlatformCredential` for the platform (prefers the authenticated user's credentials, then falls back to any connected credential), (2) calls the platform's real metrics API, (3) updates the Competitor row's `followers`, `engagementRate`, `postingFreq` with real values, and (4) creates a `CompetitorSnapshot` row with `date=now`, the same followers/engagement/posts values. Returns the exact response shape the task spec required:
+
+   ```json
+   {
+     "ok": true,
+     "synced": [{ "name": "...", "platform": "...", "followers": 12345, "snapshots": 1 }],
+     "errors": ["Competitor X: no API credentials for platform Y"],
+     "total": 5, "updated": 3
+   }
+   ```
+
+### Platform-specific fetchers (all in the same file)
+
+- **Twitter/X** — `fetchTwitterStats()`. Uses `oauth2UserToken` → `accessToken` → `bearerToken` (in that priority order) for `Authorization: Bearer {token}`. Calls `GET https://api.twitter.com/2/users/by/username/{handle}?user.fields=public_metrics` → `data.public_metrics.{followers_count, tweet_count}`. Then calls `GET /2/users/{userId}/tweets?max_results=20&tweet.fields=public_metrics,created_at&exclude=retweets` to compute engagement rate as `((avg of like_count + reply_count + retweet_count + quote_count) / followers) * 100` and posting frequency as the count of tweets in the last 7 days. Engagement fetch failures are non-fatal — the followers + tweet_count are still returned.
+- **Instagram** — `fetchInstagramStats()`. Uses `cred.accessToken` + `cred.pageId` (the IG Business Account ID). Calls `GET https://graph.facebook.com/v19.0/{ig_business_id}?fields=followers_count,media_count&access_token={token}` for the profile metrics, then `GET /v19.0/{ig_business_id}/media?fields=id,like_count,comments_count,timestamp&limit=20` for engagement (avg `like_count + comments_count` per media divided by followers) and posting frequency (media count in last 7 days).
+- **Facebook** — `fetchFacebookStats()`. Uses `cred.accessToken` + `cred.pageId` (the FB Page ID). Calls `GET https://graph.facebook.com/v19.0/{page_id}?fields=fan_count,posts.limit(20){created_time,likes.limit(1).summary(true),comments.limit(1).summary(true)}&access_token={token}`. Engagement rate = avg `likes.summary.total_count + comments.summary.total_count` per post / `fan_count` * 100. Posting frequency = posts in last 7 days.
+- **LinkedIn** — `fetchLinkedInStats()`. Uses `cred.accessToken` + `cred.profileId` (LinkedIn URN). Calls `GET https://api.linkedin.com/v2/organizations/{orgId}?fields=followerCount` with `Authorization: Bearer {token}` + `X-Restli-Protocol-Version: 2.0.0`. LinkedIn v2 only exposes the follower count via this endpoint — post counts/engagement would require the Marketing API + an organization URN, so those are returned as zero for now (acknowledged as "limited" in the task spec).
+
+### Helper functions
+
+- `normalizePlatform(p)` — lowercases + maps `"x"` → `"twitter"` so both Account.platform values and Competitor.platform values match the PlatformCredential.platform values (which the schema documents as `"twitter"`).
+- `cleanHandle(h)` — strips leading `@` and trims whitespace (competitor handles are stored as `"@competitor1"`).
+- `hasUsableToken(cred)` — returns true if any of `accessToken`, `bearerToken`, `oauth2UserToken` is set, so we don't even attempt the API call when there's no usable token.
+- `computeEngagementRate(totalEng, postCount, followers)` — `(avg engagement / followers) * 100`, clamped to >= 0, guarded against `postCount <= 0 || followers <= 0`.
+- `countRecent(items)` — counts items with `timestamp` ISO strings within the last 7 days for the posting-frequency metric.
+
+### Data flow
+
+```
+POST /api/competitors/sync
+  │
+  ├─ requireAuth(req) → 401 if no JWT
+  ├─ body: { competitorId? }
+  │
+  ├─ db.competitor.findMany({ where: competitorId ? {id} : {status:"tracking"} })
+  │
+  └─ for each competitor:
+       ├─ normalizePlatform + cleanHandle
+       ├─ find PlatformCredential (userId-scoped first, then any connected)
+       │    └─ none? → push error "no API credentials for platform X" and continue
+       ├─ fetchPlatformStats() → platform-specific fetcher
+       │    └─ returns null on failure → push error "failed to fetch data from X"
+       ├─ db.competitor.update({ followers, engagementRate, postingFreq })
+       ├─ db.competitorSnapshot.create({ date: now, followers, engagement, posts })
+       └─ push { name, platform, followers, snapshots: 1 } to synced[]
+  │
+  └─ return { ok: true, synced, errors, total, updated }
+```
+
+### Design choices
+
+- **`requireAuth` (not `requireRole`).** The task spec said "auth required (use `requireAuth`)" so the endpoint uses `requireAuth` — any authenticated user (member+ can read) can trigger a sync. This matches the existing `POST /api/sync/comments` route, which also uses `requireAuth`. If we later want to restrict bulk syncs to managers/admins, that's a one-line swap to `requireRole(req, "manager")`.
+- **Per-competitor try/catch.** Each competitor's sync is wrapped in its own try/catch so a single API failure (rate limit, network, 4xx) doesn't abort the whole batch — the failure is pushed to `errors[]` and the loop continues. This matches the `comments` route's per-account pattern.
+- **Credential resolution: user-scoped first, then any.** The PlatformCredential model is per-user. The sync prefers the authenticated user's credentials (`userId: user.userId`), then falls back to ANY connected credential for that platform. This way: (a) if the user has connected their own Twitter/FB/IG, their credentials are used; (b) if not, but another team member connected the platform, those credentials are used; (c) if no one in the tenant has connected the platform, the competitor is skipped with an error message. This is the most useful behavior for a multi-user team workspace.
+- **Token priority for Twitter.** `oauth2UserToken` (OAuth 2.0 user-context, from "Login with X") is preferred over `accessToken` (OAuth 1.0a) over `bearerToken` (app-only), because the user-context token has the broadest read scope and is what the existing `sync/twitter` route uses. App-only Bearer tokens can read public user data but cannot fetch a user's recent tweets without elevated permissions, so it's the last resort.
+- **Engagement rate is computed, not directly returned.** None of the platform APIs return an "engagement rate" field — they return raw like/comment/retweet counts. We compute it as `(avg engagements per post / followers) * 100` to match the same definition used elsewhere in the app (e.g. the analytics dashboard's "Engagement Rate" KPI). This is a percentage in the range 0–100, stored directly in `engagementRate`.
+- **Posting frequency = posts in last 7 days.** The schema documents `postingFreq` as "posts/week", and the most accurate way to compute that from a single API call is to count the recent items (tweets/media/posts) whose timestamp falls within the last 7 days. This is approximate (Twitter's `max_results=20` may not include a full week if the competitor posts >20 times/week), but it's a real number derived from real data, not zero.
+- **Snapshots are always created, never updated.** Each sync creates a new `CompetitorSnapshot` row with `date=now` — the existing `GET /api/competitors` route already orders snapshots by `date asc` and exposes them as a `series` array for the chart. Adding a new row per sync is exactly what builds the historical trendline.
+- **No schema changes.** The Competitor model already had `followers`, `engagementRate`, `growthRate`, `postingFreq` fields — we only update three of them (growthRate is intentionally NOT touched here because it requires comparing today's follower count against a previous snapshot, which is a separate calculation that could be a follow-up task). CompetitorSnapshot already had `followers`, `engagement`, `posts` — all three are populated.
+- **No silent skips.** When we can't sync a competitor (no credential, API failure), the reason is pushed to `errors[]` so the client UI can show "Competitor X: no API credentials for platform Y" instead of the sync just silently doing nothing. The `errors` array is part of the documented response shape.
+
+### Verification
+
+- **`npx eslint "src/app/api/competitors/sync/route.ts"`** → exit 0, 0 errors, 0 warnings.
+- **`bun run lint`** → 1 error total, but in `mini-services/whatsapp-service/index.js` (pre-existing, unrelated — see tasks `1-synque-logo`, `2-print-formats-unique`, `1b-linkbio-public` for prior context). The new file contributes 0 errors.
+- **`npx tsc --noEmit`** → 53 errors total, ALL pre-existing and in unrelated files (`examples/websocket/*`, `mini-services/scheduler-service/*`, `mini-services/whatsapp-service/*`, `prisma.config.ts`, `skills/image-edit/*`, `skills/stock-analysis-skill/*`, `src/app/api/ai/assistant/route.ts`, `src/app/api/auth/demo/route.ts`). **Zero TypeScript errors in `src/app/api/competitors/sync/route.ts`** — confirmed by `grep -E "competitors" /tmp/tsc_out.txt` returning no matches.
+
+### Notes / non-goals
+
+- **No cron / scheduler.** This task adds the endpoint; calling it on a schedule (e.g. daily via the existing scheduler-service or a Vercel cron) is a separate concern. The endpoint is designed to be safe to call repeatedly — each call creates a new snapshot row, which is the intended behavior for a trendline.
+- **No growthRate computation.** The `growthRate` field on Competitor is intentionally left untouched. Computing it requires comparing the new follower count against the previous snapshot's follower count — a forward-looking enhancement, not in scope for this task.
+- **No UI changes.** The competitor tracker view (`src/components/views/competitors.tsx` or similar) presumably already has a "Sync" button or auto-polling — wiring that up to call `POST /api/competitors/sync` is a frontend task, not in scope here. The endpoint is ready to call as-is.
+- **No de-duplication of snapshots per day.** If `POST /api/competitors/sync` is called twice in the same day, two snapshot rows will be created for that day. This matches the existing seed pattern (the original `POST /api/competitors` creates one snapshot on creation) and is what the `series` array expects — one data point per sync, not one per day.
+- **LinkedIn post count + engagement is intentionally zero.** LinkedIn v2's `/organizations/{id}` endpoint only returns `followerCount` for organizations. Post counts and engagement require the Marketing API (`/v2/socialActions` / `/v2/ugcPosts`) plus an organization URN that the user has admin rights to — out of scope here, marked as "limited" in the task spec. The followerCount IS real, so LinkedIn competitors will at least show real follower counts.
+- **No retry / backoff.** The endpoint makes at most 2 API calls per competitor (1 for profile, 1 for recent posts/media). If either hits a rate limit (Twitter returns 429, Facebook returns 4 or 17 sub-codes), the catch-block pushes the error and moves on — no exponential backoff. For a small competitor list (typical: 5–20), this is fine; for a large list (100+), a queue with backoff would be needed and is out of scope.
+
+---
+
+## Task ID: 1d — `1d-mention-ingestion`
+
+**Task**: Build a mention ingestion system that actually searches social platforms for mentions matching the user's saved `ListeningQuery` records. The `Mention` table was always empty because nothing populated it. This task adds a real sync endpoint that fetches mentions from X/Twitter, Instagram, Reddit, and Google News, classifies sentiment via the existing LLM service, deduplicates by URL, and inserts the survivors into `Mention`.
+
+### Files delivered
+1. `/home/z/my-project/src/app/api/listening/sync/route.ts` — `POST /api/listening/sync` (auth required)
+
+### What was built
+
+**`POST /api/listening/sync`**
+- Auth required via `requireAuth(req)` — 401 if no JWT.
+- Body: `{ queryId?: string }`
+  - If `queryId` provided → sync only that single listening query.
+  - If omitted → sync ALL queries with `status: "active"`.
+- For each query, parses `keywords` (comma-separated), then searches FOUR sources per query:
+  1. **X / Twitter** — `GET https://api.twitter.com/2/tweets/search/recent?query=…&max_results=30` with `tweet.fields=created_at,public_metrics,author_id` and `expansions=author_id` + `user.fields=name,username,profile_image_url`. Requires a connected `PlatformCredential` for platform `twitter` or `x` (any team member's). Token priority: `oauth2UserToken` → `accessToken` (OAuth 1.0a) → `bearerToken` (app-only). Returns 30 tweets per query. Each tweet becomes a mention with `source="x"`, author = `@username`, `reach = impression_count`, `engagement = likes+replies+retweets+quotes`, `url = twitter.com/i/web/status/{id}`.
+  2. **Instagram** — two-step IG Graph API call: `GET /v19.0/ig_hashtag_search?user_id={ig_business_id}&q={keyword}` → resolves hashtag ID, then `GET /v19.0/{hashtag_id}/recent_media?user_id={ig_business_id}&fields=id,caption,permalink,like_count,comments_count,timestamp,username`. Requires IG Business account (`PlatformCredential` with `accessToken` + `pageId` = IG Business Account ID). Limited to first keyword only (IG hashtag search is single-tag). Each media item becomes a mention with `source="instagram"`, `engagement = likes+comments`.
+  3. **Facebook** — SKIPPED (Graph API does not support keyword search). Logged once to `errors[]`.
+  4. **Reddit** — `GET https://www.reddit.com/search.json?q={query}&sort=new&limit=25`. Public endpoint, no auth needed. A descriptive User-Agent (`SYNQUE-listening/1.0`) is set per Reddit's API policy. Each result becomes a mention with `source="reddit"`, author = `u/{username}`, `reach = score`, `engagement = num_comments`, `url = https://www.reddit.com{permalink}`.
+  5. **Google News** — `GET https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en`. Returns RSS XML — no auth needed. Parsed with a regex-based RSS parser (no XML library dependency). Each `<item>` becomes a mention with `source="news"`, author = the `<source>` tag's text (the publisher), text = title + description (HTML stripped, entities decoded), `url = <link>` content.
+
+**Deduplication**: Before insertion, all candidate mentions have their URLs collected into a Set. A single `db.mention.findMany({ where: { url: { in: [...] } }, select: { url: true } })` query checks which URLs already exist in the DB. Any candidate whose URL is in that set (or whose URL is null AND a duplicate of a null-URL candidate — though in practice this only filters null URLs by the second null pass, which we deliberately allow because null-URL mentions have no URL to dedup by) is filtered out.
+
+Wait — actually re-read the dedup logic: candidates with `url: null` are NOT filtered out (the filter is `!r.raw.url || !existingUrls.has(r.raw.url)`). That means null-URL mentions always pass through. This is intentional: Reddit and Google News almost always return a URL, and Twitter always returns one (`twitter.com/i/web/status/{id}`), so in practice null URLs are rare and represent mentions we can't dedup against anyway. We'd rather store them than silently drop them.
+
+**Sentiment classification**: All surviving candidates are batched into a single `classifySentimentBatch()` call (LLM with keyword fallback — never returns "unknown"). The batch function classifies ≤5 items individually, >5 items in a single LLM call with numbered lines. Each mention's classified sentiment (`positive` | `neutral` | `negative`) is stored in the `Mention.sentiment` column.
+
+**Insertion**: Each mention is inserted with a per-row try/catch so a single DB failure (e.g. constraint violation on a race) doesn't abort the whole batch — the failure is pushed to `errors[]` and the loop continues.
+
+**Response shape** (exactly matches the task spec):
+```json
+{
+  "ok": true,
+  "totalQueries": <number of ListeningQuery records processed>,
+  "totalFound": <raw mentions discovered across all platforms, before dedup>,
+  "newMentions": <number actually inserted into Mention table>,
+  "classified": <number for which sentiment was classified = newCandidates.length>,
+  "errors": [<per-query, per-platform, or one-time error strings>]
+}
+```
+
+### Data flow
+
+```
+POST /api/listening/sync
+  │
+  ├─ requireAuth(req) → 401 if no JWT
+  ├─ body: { queryId? }
+  │
+  ├─ db.listeningQuery.findMany({ where: queryId ? {id} : {status:"active"} })
+  │     → if 0 queries, early return { ok, totalQueries:0, … }
+  │
+  ├─ db.platformCredential.findFirst({ twitter|x, connected:true })  ← pre-fetch once
+  ├─ db.platformCredential.findFirst({ instagram, connected:true })   ← pre-fetch once
+  │
+  └─ for each query q:
+       ├─ parse keywords (split "," + trim + filter empties)
+       │    └─ if none → push error "Query X: no keywords defined" + continue
+       │
+       ├─ [Twitter] if cred:  searchTwitter(q.keywords JOIN " OR ", cred)
+       │     └─ catch → push error "Query X [twitter]: …"
+       ├─ [Instagram] if cred.accessToken + cred.pageId:  searchInstagramHashtag(firstKeyword, cred)
+       │     └─ catch → push error "Query X [instagram]: …"
+       ├─ [Facebook] skipped (note logged once after loop)
+       ├─ [Reddit]  searchReddit(q.keywords JOIN " ")
+       │     └─ catch → push error "Query X [reddit]: …"
+       └─ [News]    searchGoogleNews(q.keywords JOIN " ")
+             └─ catch → push error "Query X [news]: …"
+  │
+  ├─ errors.push("Facebook: skipped — Graph API does not support keyword search")
+  ├─ if !twitterCred: errors.push("Twitter: skipped — no connected PlatformCredential…")
+  ├─ if !igCred || !accessToken || !pageId: errors.push("Instagram: skipped — …")
+  │
+  ├─ collect allRaw[].url → deduped Set<string>
+  ├─ db.mention.findMany({ where: { url: { in: [...] } }, select: { url: true } })
+  │     → existingUrls Set
+  │
+  ├─ newCandidates = allRaw.filter(url is null OR url not in existingUrls)
+  │
+  ├─ classifySentimentBatch(newCandidates.map(text))  ← single LLM call (or keyword fallback)
+  │
+  ├─ for each newCandidate: db.mention.create({ … })  ← per-row try/catch
+  │     └─ catch → push error "Insert failed for {url|author}: …"
+  │
+  └─ return { ok:true, totalQueries, totalFound, newMentions, classified, errors }
+```
+
+### Design choices
+
+- **`requireAuth` (not `requireRole`).** Task spec explicitly said "Auth required (use `requireAuth`)". Any authenticated user can trigger a mention sync. Same pattern as the existing `POST /api/sync/comments` and `POST /api/competitors/sync` routes.
+- **Per-platform try/catch inside per-query try block.** Each `(query, platform)` pair is independently wrapped — a Twitter rate-limit, Instagram 403, Reddit 5xx, or News RSS hiccup pushes an entry to `errors[]` and the loop continues to the next platform. A single platform failure never aborts the whole sync.
+- **Credentials resolved ONCE, not per query.** `db.platformCredential.findFirst` is called once before the loop. The same Twitter/IG credential is reused across all queries (otherwise we'd issue N+ identical DB queries). This matches the `competitors/sync` route's pattern.
+- **First available credential (any team member's).** `findFirst` with `connected: true` — does NOT filter by the authenticated user's `userId`. This means if any team member has connected their Twitter account in Settings → Platform API Keys, that token is used. Same shared-credential philosophy as `competitors/sync`.
+- **Twitter token priority: oauth2UserToken → accessToken → bearerToken.** The OAuth 2.0 user-context token (from "Login with X") has the broadest read scope, including the recent search endpoint. The OAuth 1.0a access token is the next best. The app-only Bearer Token is the last resort (it can also call `tweets/search/recent` for public tweets, but with lower rate limits). All three work with this endpoint per Twitter API v2 docs.
+- **Keyword handling**: the `ListeningQuery.keywords` field is documented as "comma separated". We split on commas, trim, filter empties, then:
+  - **Twitter**: join with `" OR "` so each comma-separated keyword becomes an alternative match. Twitter's search syntax treats spaces as AND by default, so `"acme OR #brand"` matches tweets containing either "acme" or "#brand". Multi-word keywords within one comma-separated entry stay together (e.g. `"Acme Corp"` → matches tweets containing both "Acme" AND "Corp").
+  - **Reddit + Google News**: join with `" "` (space) since their search APIs treat spaces as natural separators. Reddit's `q` parameter is a simple full-text search; Google News RSS `q` accepts space-separated keywords.
+- **Instagram limited to first keyword only.** The IG hashtag search API (`ig_hashtag_search`) accepts a single `q` value (one hashtag, no spaces, no OR). So we strip leading `#` from `keywordsList[0]`, take the first whitespace-separated token, and search for just that one tag. The other keywords are silently ignored for IG. If a query has `keywords: "acme, #brand"`, IG searches only for "acme".
+- **Mention text truncated to 500 chars.** Tweet text, IG captions, Reddit `selftext`, and News descriptions are all `.slice(0, 500)` before storage. This keeps the DB rows small and the LLM sentiment classification fast (sentiment is usually determinable from the first sentence).
+- **Mention `source` values**: `"x"` for Twitter (matches schema comment `// instagram | x | facebook | web | reddit | news`), `"instagram"` for IG, `"reddit"` for Reddit, `"news"` for Google News. The existing `POST /api/listening/[id]/reply` route handles both `"x"` and `"twitter"` for Twitter reply routing.
+- **No XML library dependency.** Google News RSS is parsed with a regex-based `parseRssItems()` function — `<item>…</item>` blocks are extracted, then individual tags (`<title>`, `<link>`, `<pubDate>`, `<source>`, `<description>`) are extracted with a CDATA-aware regex. The `package.json` doesn't include `fast-xml-parser` or `xml2js`, so this avoids a new dependency. Decoding of the 5 core XML entities (`&amp; &lt; &gt; &quot; &apos;`) is handled by `decodeEntities()`. HTML in the `<description>` is stripped by `stripHtml()`.
+- **Batch sentiment classification.** `classifySentimentBatch()` from `@/lib/sentiment` is called once with all new candidates. For batches >5 it issues a single LLM call with a numbered list ("1. text\n2. text\n…"); for ≤5 it classifies individually. Either way it ALWAYS returns a sentiment per item (LLM with keyword fallback). This means `classified = newCandidates.length` (every candidate gets classified, even if classification falls back to keyword matching).
+- **`classified` ≠ `newMentions`**. The two are different on purpose: `classified` counts how many mentions had their sentiment determined (= `newCandidates.length`, since the batch always returns a result for every input). `newMentions` counts how many actually got inserted (= `inserted` counter, which can be lower if individual `db.mention.create` calls fail). This lets the UI distinguish "found N new mentions and tried to classify them all" from "successfully inserted M of N".
+- **Facebook skipped, not silent.** The Graph API does not support keyword search (only page-scoped post search with `page_access_token`). We log a single one-time note to `errors[]` explaining the skip — never per-query, to avoid spamming the array. Same treatment for missing Twitter/IG credentials: one note each, after the loop.
+- **`maxDuration = 60`.** Multi-platform sync with N queries × 4 platforms × network calls can easily exceed the default 10s serverless function limit. 60s is the same value used by `competitors/sync`.
+- **No schema changes.** The `Mention` model already had every field we need (`queryId, source, author, authorAvatar, text, url, sentiment, reach, engagement, date`). The `ListeningQuery` model already had `keywords` (comma-separated). The `PlatformCredential` model already had `accessToken`, `bearerToken`, `oauth2UserToken`, `pageId`. We only INSERT new Mention rows — never UPDATE existing ones.
+- **No UI changes.** The listening view (`src/components/views/listening.tsx` or similar) presumably already has a "Sync" button or polling interval — wiring that up to call `POST /api/listening/sync` is a frontend task, not in scope here. The endpoint is ready to call as-is.
+
+### Verification
+
+- **`npx eslint src/app/api/listening/sync/route.ts`** → exit 0, 0 errors, 0 warnings.
+- **`bun run lint`** → 1 error total, but in `mini-services/whatsapp-service/index.js` (pre-existing, unrelated — same as documented in tasks `1-synque-logo`, `2-print-formats-unique`, `1b-linkbio-public`, `1c-competitors-sync`). The new file contributes 0 errors.
+- **`npx tsc --noEmit`** → 53 errors total, ALL pre-existing in unrelated files (`examples/websocket/*`, `mini-services/scheduler-service/*`, `mini-services/whatsapp-service/*`, `prisma.config.ts`, `skills/image-edit/*`, `skills/stock-analysis-skill/*`, `src/app/api/ai/assistant/route.ts`, `src/app/api/auth/demo/route.ts`). **Zero TypeScript errors in `src/app/api/listening/sync/route.ts`** — verified by `npx tsc --noEmit 2>&1 | grep "listening/sync"` returning no matches. (Initial run flagged one type incompatibility on `Set<string | null>` vs `Set<string>` because `Mention.url` is nullable — fixed by filtering out nulls with `(u): u is string => Boolean(u)` before constructing the Set.)
+
+### Notes / non-goals
+
+- **No cron / scheduler.** This task adds the endpoint only. Calling it on a schedule (e.g. daily via the existing `scheduler-service`, Vercel cron, or a UI "Sync" button) is a separate concern. The endpoint is safe to call repeatedly — duplicates are deduplicated by URL, so a second sync won't double-insert.
+- **No pagination / infinite scroll.** Each platform returns a fixed cap per query: Twitter 30, IG 25, Reddit 25, News ~100 (Google News RSS doesn't paginate). For a typical 5-query listening dashboard, that's ~540 max mentions per sync — well within the 60s `maxDuration`. If a customer needs more, they should narrow their keywords or split into more granular queries.
+- **No keyword negation / advanced query syntax.** The user can manually include Twitter search operators in their `keywords` field (e.g. `"acme -spam"`, `"#acme since:2024-01-01"`) and Twitter will interpret them. Reddit + Google News ignore most operators. We don't validate or transform the query — we pass it through (after comma-splitting + OR-joining for Twitter).
+- **Instagram hashtag search needs IG Business approval.** The `ig_hashtag_search` endpoint requires App Review for the `instagram_manage_insights` permission (and the IG account must be a Business account, not Creator). If the user hasn't completed App Review, the API returns 403 / 10 sub-code, and we log the error and move on. Mention ingestion still works for Twitter + Reddit + News without IG.
+- **Twitter recent search only goes back 7 days.** The `tweets/search/recent` endpoint only returns tweets from the last 7 days. Historical search requires the academic / enterprise `tweets/search/all` endpoint (and a separate tier of API access). For ongoing listening, 7 days is fine — run the sync daily.
+- **Reddit `score` is not "reach".** Reddit's `score` is the upvote-minus-downvote net — it's a quality signal, not a view count. We store it as `reach` because the schema doesn't have a `score` field. Reddit doesn't expose view counts via the public API (only via the authenticated `r/{sub}/about/{post}/` endpoint). This is a reasonable approximation: high-score posts are more "visible" in the sense of reaching the front page.
+- **Google News `reach`/`engagement` are 0.** RSS doesn't expose view counts or social engagement metrics. We store 0 for both. The news mention's value is in the existence + sentiment + URL, not in impression numbers.
+- **No retry / backoff.** Each platform gets one fetch attempt per query. Twitter's recent search has a 450-req-per-15-min app-only rate limit (75 with user-context) — for 5–20 queries, well within limits. If a customer has 100+ queries, they should consider staggering the sync or splitting into batches. Out of scope here.
+- **No team-scoping of mentions.** Mentions are created against the global `ListeningQuery` table (not filtered by `customerId`). The existing `GET /api/listening` route also returns all mentions globally. Multi-tenant isolation of listening queries is a separate concern (the `ListeningQuery` model doesn't currently have a `customerId` field).
+
+---
+
+## Task ID: 2 — `2-security-features`
+
+**Task**: Implement the four missing security features end-to-end: (a) TOTP-based 2FA with login flow, (b) DB-backed session tracking with list/revoke/logout, (c) DB-backed password reset replacing the in-memory `color`-field hack, (d) DB-backed email verification replacing the in-memory `title`-field hack. The Prisma schema already had `User.emailVerified`, `User.totpSecret`, `User.twoFactorEnabled`, `User.sessions`, and the new `Session`, `PasswordResetToken`, `EmailVerificationToken` models — the task was to build the API surface that uses them.
+
+### Files delivered
+
+**New shared libraries (4)**
+1. `src/lib/totp.ts` — RFC 6238 / RFC 4648 implementation using only `node:crypto` (no `otplib` dependency). Exports `generateTotpSecret()`, `verifyTotp(token, secret, now?)`, `buildOtpAuthUri({ secret, email, issuer })`, plus `base32Encode`/`base32Decode` helpers. `verifyTotp` accepts ±1 window (±30s) for clock skew and uses constant-time comparison to defend against timing attacks.
+2. `src/lib/2fa-temp-token.ts` — short-lived (5-min) JWT used as the bridge between `/api/auth/login` (password verified, but 2FA pending) and `/api/auth/2fa/login` (TOTP verified, full session issued). The token has `type: "2fa-pending"` and `verify2faTempToken` rejects any token that isn't of this type — so a regular session JWT can't be reused as a temp token.
+3. `src/lib/auth-session.ts` — shared `issueSession({ user, req })` helper that signs the JWT, captures `userAgent` + `ipAddress` from request headers, creates the `Session` row, and returns `{ token, sessionExpiresAt, userPublic }`. Also exports `setAuthCookie`, `revokeSessionByToken`, `buildUserPublic`. Used by `/login`, `/2fa/login`, `/signup`, `/demo` so session creation logic lives in one place.
+4. `src/lib/email.ts` — `sendEmail({ to, subject, text })` wraps the `MailServer` row + nodemailer transport (extracted from the inline duplication in `forgot-password` + `verify-email`). `buildAppUrl(req, path)` resolves `proto://host/path` from `x-forwarded-host` / `x-forwarded-proto` headers (Vercel proxy aware). `sendVerificationEmail({ req, email, name })` creates an `EmailVerificationToken` row (invalidating prior unused ones for the same email first) + sends the email — used by both `/signup` (auto-send) and `/verify-email` (user-initiated resend).
+
+**New API routes (10)**
+5. `src/app/api/auth/2fa/setup/route.ts` (POST) — generates a 32-char base32 secret, stores it on `user.totpSecret`, sets `twoFactorEnabled = false` (must verify before enabling), returns `{ secret, otpauth, previouslyEnabled }`. The `otpauth` URI is `otpauth://totp/SYNQUE:email?secret=...&issuer=SYNQUE&algorithm=SHA1&digits=6&period=30` — drop-in for any QR code generator.
+6. `src/app/api/auth/2fa/verify/route.ts` (POST) — verifies a 6-digit code against the stored secret, enables 2FA on success. Rejects with a clear message if no secret has been set up yet.
+7. `src/app/api/auth/2fa/disable/route.ts` (POST) — clears `totpSecret` + sets `twoFactorEnabled = false`. If a `code` is supplied in the body, verifies it first (defends against a hijacked session disabling 2FA without the user's authenticator). Idempotent on already-disabled state.
+8. `src/app/api/auth/2fa/login/route.ts` (POST) — accepts `{ tempToken, code }`, verifies the temp token (5-min TTL, type-checked), looks up the user, rejects suspended accounts, verifies the TOTP code, then calls `issueSession` to issue the full session JWT + create the Session row.
+9. `src/app/api/auth/sessions/route.ts` (GET) — lists active (non-revoked, non-expired) sessions for the current user, newest first, with `current: true` on the one matching the request's token. Parses a friendly `{ device, browser, os }` from the User-Agent string (no external UA library).
+10. `src/app/api/auth/sessions/[id]/route.ts` (DELETE) — revokes a single session by setting `revokedAt = now()`. Scoped to `userId` (a user can't revoke another user's session by guessing ids). Returns `revokedCurrent: true` if the revoked session was the request's own — the UI uses this to log the user out.
+11. `src/app/api/auth/logout/route.ts` (POST + GET) — revokes the current session by token + clears the auth cookie. Idempotent (safe to call with no/invalid token). GET variant is a redirect-style logout for the cookie-based flow.
+12. `src/app/api/auth/verify-reset-token/route.ts` (GET) — checks if a reset token is valid (exists, not expired, not used). Returns `{ valid: true, email }` for good tokens, `{ valid: false, reason: "expired" | "used" }` for bad-but-known ones, 400 for unknown tokens. Used by the "enter new password" page to decide whether to show the form before the user types.
+13. `src/app/api/auth/verify-email/confirm/route.ts` (GET) — the email-link callback. Verifies the token, sets `user.emailVerified = now()`, marks the token as used (single transaction). Idempotent on already-verified state (returns `alreadyVerified: true`). Does NOT log the user in — they must authenticate separately so a stolen link can't be combined with an existing session.
+14. `src/app/api/auth/verify-email/route.ts` (POST, rewritten) — was previously a stub that stored the token in the user's `title` field as `verify:xxx`. Now uses `EmailVerificationToken` + `sendVerificationEmail`. Accepts the email from the authenticated user's record (preferred) or a body-supplied email (pre-login flow). Same response shape regardless of whether the email exists (no enumeration).
+
+**Modified files (8)**
+15. `src/app/api/auth/login/route.ts` — now selects `emailVerified`, `totpSecret`, `twoFactorEnabled`, `status` from the DB. After password verification, if `user.twoFactorEnabled && user.totpSecret`, returns `{ requires2FA: true, tempToken, email }` instead of issuing a session. Otherwise calls `issueSession({ user, req })` to create the JWT + Session row + cookie in one place. Also rejects suspended accounts (was previously allowed in).
+16. `src/app/api/auth/signup/route.ts` — normalizes email to lowercase, uses `issueSession` (so a Session row is created on signup too), auto-sends a verification email after user creation (best-effort — never fails signup if the mail server is down), surfaces `emailVerificationSent` + `verifyUrl` (the latter only when no mail server is configured, for dev/test) in the response, and includes `emailVerified` + `twoFactorEnabled` in the user object.
+17. `src/app/api/auth/demo/route.ts` — refactored to use `issueSession` (so the demo user gets a Session row too — previously demo sessions were invisible to `/sessions`). Split the DB lookup into a `findDemoUser()` helper so `let user` could be explicitly typed (TS was narrowing `let user = null` to `null`). Returns `emailVerified` + `twoFactorEnabled` in the user object.
+18. `src/app/api/auth/me/route.ts` — added `emailVerified` + `twoFactorEnabled` to the Prisma `select` so the `/api/auth/me` response (consumed by `fetchUser`) carries them.
+19. `src/app/api/auth/forgot-password/route.ts` — was storing the token in the user's `color` field as `reset:token:expires`. Now inserts a row into `PasswordResetToken` with a 1-hour `expiresAt`, invalidates prior unused tokens for the same email first (so only the newest link is valid), uses the shared `sendEmail` helper. Same response shape (no enumeration).
+20. `src/app/api/auth/reset-password/route.ts` — was scanning `User.color` for `startsWith("reset:token:")`. Now looks up the token in `PasswordResetToken`, checks `usedAt` + `expiresAt`, hashes the new password + marks the token as used in a `db.$transaction`. Also revokes all of the user's active sessions on password reset (so an attacker who already had a session can't keep using it after the user resets).
+21. `src/lib/auth-guard.ts` — added `getRawToken(req)` (extracts the JWT from Bearer header or cookie) and `requireAuthWithSession(req)` — an async variant of `requireAuth` that also looks up the `Session` row and rejects (401) if the session is revoked or expired. Falls back gracefully to JWT-only check if the DB lookup fails (don't lock users out during Neon cold-starts). Ordinary read routes keep using the sync `requireAuth` to avoid the extra round-trip.
+22. `src/lib/auth-store.ts` — `AuthUser` interface gained `emailVerified?: string | null` + `twoFactorEnabled?: boolean`. Added `pending2FA: { tempToken; email } | null` state + `complete2faLogin(code)` action so the client can drive the 2FA login flow. `login()` now detects `{ requires2FA: true }` from the server and stashes the temp token instead of completing login. `logout()` is now async and calls `POST /api/auth/logout` to revoke the server-side session before clearing local state.
+
+### Endpoints + behavior summary
+
+| Method | Route | Body / Query | Returns | Notes |
+|--------|-------|--------------|---------|-------|
+| POST | `/api/auth/login` | `{ email, password }` | `{ token, user }` OR `{ requires2FA: true, tempToken, email }` | 2FA-aware |
+| POST | `/api/auth/2fa/login` | `{ tempToken, code }` | `{ token, user }` | completes 2FA login |
+| POST | `/api/auth/2fa/setup` | (auth) | `{ secret, otpauth, previouslyEnabled }` | generates new TOTP secret |
+| POST | `/api/auth/2fa/verify` | `{ code }` (auth) | `{ ok, twoFactorEnabled }` | enables 2FA |
+| POST | `/api/auth/2fa/disable` | `{ code? }` (auth) | `{ ok, twoFactorEnabled: false }` | disables 2FA |
+| POST | `/api/auth/signup` | `{ name, email, password, company? }` | `{ token, user, emailVerificationSent, verifyUrl? }` | auto-sends verify email |
+| POST | `/api/auth/demo` | — | `{ token, user, demo: true }` | demo viewer login |
+| GET  | `/api/auth/me` | (auth) | `{ user }` | now includes `emailVerified` + `twoFactorEnabled` |
+| POST | `/api/auth/logout` | (auth optional) | `{ ok: true }` | revokes session + clears cookie |
+| GET  | `/api/auth/sessions` | (auth) | `{ sessions: [...] }` | list active sessions |
+| DELETE | `/api/auth/sessions/[id]` | (auth) | `{ ok, revokedCurrent }` | revoke a session |
+| POST | `/api/auth/forgot-password` | `{ email }` | `{ ok, message, sent?, resetUrl? }` | DB-backed token |
+| GET  | `/api/auth/verify-reset-token?token=` | — | `{ valid, email? }` or `{ valid: false, reason }` | for the reset-password page |
+| POST | `/api/auth/reset-password` | `{ token, newPassword }` | `{ ok, message }` | DB-backed + revokes sessions |
+| POST | `/api/auth/verify-email` | `{ email? }` (auth optional) | `{ ok, message, sent?, verifyUrl? }` | DB-backed token |
+| GET  | `/api/auth/verify-email/confirm?token=` | — | `{ ok, message, alreadyVerified? }` | the email-link callback |
+
+### Security decisions
+
+- **TOTP without external dependency.** `otplib` is not installed and adding a runtime dep just for one algorithm is wasteful. `src/lib/totp.ts` is a ~80-line RFC 6238 implementation using only `node:crypto` (HMAC-SHA1 + dynamic truncation). `verifyTotp` accepts the current ±1 30-second windows (so a user whose phone clock drifts slightly still succeeds) and uses constant-time comparison so an attacker can't timing-attack the comparison.
+- **2FA login flow uses a typed temp token.** The login route verifies the password, then if 2FA is enabled it returns a 5-minute JWT with `type: "2fa-pending"` and `userId`. `verify2faTempToken` rejects any token without that type — so a regular session JWT can't be substituted. This avoids persisting a "pending login" row in the DB and avoids the alternative of stashing the password in a cookie.
+- **Session table is the source of truth for revocation.** Every successful login (regular, 2FA, demo, signup) creates a `Session` row via `issueSession`. Logout + password reset + session revoke all set `revokedAt`. `requireAuthWithSession` is provided for sensitive routes (account deletion, billing) where revocation must take effect immediately; ordinary read routes keep the synchronous `requireAuth` to avoid the extra round-trip — the JWT signature check is sufficient for them. The auth-guard falls back to JWT-only if the session lookup DB query fails (don't lock users out during Neon cold-starts).
+- **Password reset revokes all active sessions for the user.** When a user successfully resets their password, `db.session.updateMany` sets `revokedAt` on every active session they had. This means an attacker who already had a valid session token can't keep using it after the victim resets — they're forced to re-authenticate with the new password.
+- **Password reset does NOT auto-login the user.** The endpoint returns `{ ok: true }` and tells the user to log in with their new password. This means a stolen reset link can't be combined with an existing session to silently take over an account — the attacker would need to also know the new password.
+- **Email verification does NOT auto-login.** Same reasoning — `/verify-email/confirm` just sets `user.emailVerified` and tells the user to log in.
+- **No account enumeration.** `/forgot-password` and `/verify-email` return the same response shape regardless of whether the email exists. `/verify-reset-token` returns `valid: false` with `reason: "invalid"` for unknown tokens, but `reason: "expired" | "used"` for known-but-bad ones — this is intentional because by the time the user has a token URL, they already know the email exists, so distinguishing "expired" vs "invalid" is a UX win without leaking anything.
+- **2FA setup re-running clears `twoFactorEnabled`.** If a user who already had 2FA on re-runs `/2fa/setup`, we set `twoFactorEnabled = false` until they verify a code with the new secret. This prevents a stale secret (e.g. from before they lost their phone) from being usable to log in.
+- **All new routes export `dynamic = "force-dynamic"`.** No caching — these endpoints are per-user / per-token.
+
+### Verification
+
+- **`npx eslint` on all 22 new/modified files** → exit 0, 0 errors, 0 warnings.
+- **`bun run lint`** → 1 error total (the pre-existing `react-hooks/rules-of-hooks` warning in `mini-services/whatsapp-service/index.js`, unrelated). New/modified files contribute 0 errors.
+- **`npx tsc --noEmit`** → 0 errors in any new/modified file. The 33 remaining errors are all in pre-existing files (`examples/websocket/*`, `mini-services/scheduler-service/*`, `mini-services/whatsapp-service/*`, `prisma.config.ts`, `skills/image-edit/*`, `skills/stock-analysis-skill/*`, `src/app/api/ai/assistant/route.ts`). Verified by grepping `tsc` output for `src/app/api/auth/` and `src/lib/(auth|totp|email|2fa)` — no matches.
+- **Smoke test (dev server, real HTTP requests)**:
+  - `GET /api/auth/verify-reset-token?token=invalid` → 400 `{"valid":false,"reason":"invalid"}` ✓
+  - `GET /api/auth/verify-email/confirm?token=invalid` → 400 `{"error":"Invalid or expired verification token"}` ✓
+  - `GET /api/auth/sessions` (no auth) → 401 `{"error":"Authentication required"}` ✓
+  - `POST /api/auth/2fa/setup` (no auth) → 401 `{"error":"Authentication required"}` ✓
+  - `POST /api/auth/logout` (no auth) → 200 `{"ok":true}` (idempotent) ✓
+  - `POST /api/auth/forgot-password` `{ email: "nonexistent@example.com" }` → 200 with the same non-revealing message as a known email ✓
+
+### Notes / non-goals
+
+- **No UI wiring.** The settings.tsx 2FA / sessions / login-history / API-keys / IP-allowlist cards currently render mock data or hard-coded text. Wiring them to the new endpoints is a frontend task — the API contract is documented above for whoever picks it up.
+- **No 2FA recovery codes.** If a user loses their authenticator, they can't currently recover their account via the API. The disable endpoint accepts an optional `code` for safety, but if they can't generate one, an admin would need to clear `totpSecret` + `twoFactorEnabled` directly in the DB. A `/api/auth/2fa/recover` flow with backup codes is a separate concern.
+- **No rate limiting on `/login`, `/2fa/login`, `/forgot-password`, `/verify-email`.** A determined attacker could brute-force TOTP codes (1 in 1,000,000 per attempt, ±1 window → ~1 in 333,333 effective) if there's no rate limit. The Neon DB is the bottleneck today, but adding a simple in-memory or Redis-backed rate limiter is recommended before launch.
+- **No IP geolocation for sessions.** The `ipAddress` is stored but not geo-resolved. The UI currently shows the raw IP; adding a MaxMind GeoIP lookup is a separate task.
+- **Sessions endpoint returns `lastActive = createdAt`.** The schema doesn't have a `lastActive` column on Session — we'd need to update it on every authenticated request, which is too expensive. The current `createdAt` is a reasonable approximation; if true last-active tracking is needed later, we can add the column + update it lazily (e.g. only every 5 minutes per session).
+- **`/verify-reset-token` is intentionally GET, not POST.** The frontend navigates to `/reset-password?token=xxx` (a fresh page load) and needs to check the token before showing the form. GET makes this trivial; the token is already in the URL anyway (it was emailed as a query string), so there's no additional exposure from GET vs POST here.
+- **`/verify-email/confirm` is GET because email clients don't follow POST links.** Standard practice — the link in the email is a GET.
+- **`/api/auth/logout` supports both POST and GET.** POST is the preferred path (called by the auth-store on `logout()`). GET is for the rare redirect-style logout (e.g. clicking a link). Both are idempotent.

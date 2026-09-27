@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import { issueSession, setAuthCookie } from "@/lib/auth-session";
+import { sign2faTempToken } from "@/lib/2fa-temp-token";
 
-// Use JWT_SECRET from env, or a known fallback. The fallback matches
-// the .env value so local + Vercel produce compatible tokens.
-// IMPORTANT: Set JWT_SECRET in Vercel env vars for production security.
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === "production") {
-  console.warn("[auth] WARNING: JWT_SECRET not set in production. Using fallback — set JWT_SECRET in Vercel env vars.");
-}
-const SECRET = JWT_SECRET || "REDACTED";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +18,27 @@ export async function POST(req: NextRequest) {
     let user;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        user = await db.user.findUnique({ where: { email } });
+        user = await db.user.findUnique({
+          where: { email },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            password: true,
+            role: true,
+            title: true,
+            avatar: true,
+            bio: true,
+            timezone: true,
+            language: true,
+            department: true,
+            customerId: true,
+            status: true,
+            emailVerified: true,
+            totpSecret: true,
+            twoFactorEnabled: true,
+          },
+        });
         break; // success
       } catch (dbErr) {
         console.error(`[auth/login] DB attempt ${attempt + 1} failed:`, dbErr instanceof Error ? dbErr.message : String(dbErr));
@@ -45,46 +59,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
-    // Update last active
+    // Reject suspended accounts (the password was valid, but they can't log in)
+    if (user.status === "suspended") {
+      return NextResponse.json(
+        { error: "This account has been suspended. Contact an administrator." },
+        { status: 403 }
+      );
+    }
+
+    // Update last active (best-effort — never block login on this)
     await db.user.update({
       where: { id: user.id },
       data: { lastActive: new Date() },
     }).catch(() => null);
 
-    // Generate JWT — includes customerId for multi-tenant data isolation
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role, customerId: user.customerId },
-      SECRET,
-      { expiresIn: "7d" }
-    );
-
-    const response = NextResponse.json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
+    // If 2FA is enabled, do NOT issue a full session yet. Return a short-lived
+    // temp token + a flag so the frontend can prompt for the TOTP code.
+    // The user verifies via /api/auth/2fa/login to complete the login.
+    if (user.twoFactorEnabled && user.totpSecret) {
+      const tempToken = sign2faTempToken(user.id);
+      return NextResponse.json({
+        requires2FA: true,
+        tempToken,
+        // email is returned so the UI can show "Enter the code from your
+        // authenticator for {email}" without leaking whether 2FA is on.
         email: user.email,
-        role: user.role,
-        title: user.title,
-        avatar: user.avatar,
-        bio: user.bio,
-        timezone: user.timezone,
-        language: user.language,
-        department: user.department,
-        customerId: user.customerId,
-      },
-    });
+      });
+    }
 
-    // Also set the token as a cookie so server-side API routes + the browser
-    // can authenticate without requiring a Bearer header on every request.
-    response.cookies.set("token", token, {
-      httpOnly: false, // needs to be readable by client-side JS too
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production", // required on Vercel HTTPS
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: "/",
-    });
+    // 2FA not enabled — issue the full session + create the Session row.
+    const { token, userPublic } = await issueSession({ user, req });
 
+    const response = NextResponse.json({ token, user: userPublic });
+    setAuthCookie(response, token);
     return response;
   } catch (error) {
     console.error("Login error:", error);
