@@ -123,9 +123,12 @@ interface ComposerState {
   sendForApproval: boolean;
   approvalNote: string;
   pinned: boolean;
+  // Per-account content + media (user can write different content for each platform)
+  accountContent: Record<string, string>;
+  accountMedia: Record<string, string>;
 }
 
-type SectionId = "accounts" | "brief" | "variants" | "media" | "schedule";
+type SectionId = "accounts" | "media" | "content" | "schedule";
 
 type DeviceMode = "phone" | "desktop" | "tablet";
 type PreviewTheme = "light" | "dark";
@@ -272,6 +275,8 @@ const DEFAULT_STATE: ComposerState = {
   sendForApproval: false,
   approvalNote: "",
   pinned: false,
+  accountContent: {},
+  accountMedia: {},
 };
 
 /* ============================================================
@@ -340,6 +345,7 @@ export function ComposerView() {
   const [improving, setImproving] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [uploadOpen, setUploadOpen] = React.useState(false);
+  const [uploadForAccountId, setUploadForAccountId] = React.useState<string | null>(null);
   const [urlInput, setUrlInput] = React.useState("");
   const [cropAspect, setCropAspect] = React.useState("1:1");
   const [previewAccountId, setPreviewAccountId] = React.useState<string>("");
@@ -717,11 +723,15 @@ export function ComposerView() {
         const v: Record<string, { content: string; hashtags?: string }> = {};
         for (const a of selectedAccounts) {
           const ex = state.variants[a.id];
-          v[a.id] = ex ?? { content: state.caption, hashtags: "" };
+          const perAccountContent = state.accountContent[a.id] ?? ex?.content ?? state.caption;
+          v[a.id] = { content: perAccountContent, hashtags: ex?.hashtags ?? "" };
         }
+        const firstContent = selectedAccounts.length > 0
+          ? (state.accountContent[selectedAccounts[0].id] ?? state.caption)
+          : state.caption;
         const payload = {
-          title: state.caption.slice(0, 50).trim() || "Untitled",
-          caption: state.caption,
+          title: firstContent.slice(0, 50).trim() || "Untitled",
+          caption: firstContent,
           mediaUrl: state.mediaUrl || null,
           tone: state.tone,
           scheduledAt: null,
@@ -763,7 +773,8 @@ export function ComposerView() {
       const v: Record<string, { content: string; hashtags?: string }> = {};
       for (const a of selectedAccounts) {
         const ex = state.variants[a.id];
-        v[a.id] = ex ?? { content: state.caption, hashtags: "" };
+        const perAccountContent = state.accountContent[a.id] ?? ex?.content ?? state.caption;
+        v[a.id] = { content: perAccountContent, hashtags: ex?.hashtags ?? "" };
       }
       const scheduledAt =
         state.scheduleEnabled && state.scheduledAt
@@ -771,9 +782,12 @@ export function ComposerView() {
           : null;
 
       const newStatus = scheduledAt ? "scheduled" : "published";
+      const firstContent = selectedAccounts.length > 0
+        ? (state.accountContent[selectedAccounts[0].id] ?? state.caption)
+        : state.caption;
       const postPayload = {
-        title: state.caption.slice(0, 50).trim() || "Untitled",
-        caption: state.caption,
+        title: firstContent.slice(0, 50).trim() || "Untitled",
+        caption: firstContent,
         mediaUrl: state.mediaUrl || null,
         tone: state.tone,
         scheduledAt,
@@ -1050,13 +1064,23 @@ export function ComposerView() {
   const hashtags = countHashtags(state.caption);
   const previewAccount = selectedAccounts.find((a) => a.id === previewAccountId) ?? selectedAccounts[0];
   const previewVariant = previewAccount ? state.variants[previewAccount.id] : undefined;
-  const previewContent = previewVariant?.content ?? state.caption;
+  const previewContent = previewAccount
+    ? (state.accountContent[previewAccount.id] ?? previewVariant?.content ?? state.caption)
+    : state.caption;
   const previewHashtags = previewVariant?.hashtags ?? "";
-  const canPublish = selectedAccounts.length > 0 && state.caption.trim().length > 0;
+  const previewMediaUrl = previewAccount
+    ? (state.accountMedia[previewAccount.id] ?? state.mediaUrl)
+    : state.mediaUrl;
+  // Can publish if at least one account has content
+  const hasAnyContent = selectedAccounts.some((a) => {
+    const content = state.accountContent[a.id] ?? state.variants[a.id]?.content ?? state.caption;
+    return content.trim().length > 0;
+  });
+  const canPublish = selectedAccounts.length > 0 && hasAnyContent;
   const publishDisabledLabel = !canPublish
     ? selectedAccounts.length === 0
       ? "Select at least one account"
-      : "Write a caption first"
+      : "Write content for at least one account"
     : null;
 
   return (
@@ -1280,522 +1304,524 @@ export function ComposerView() {
             </div>
           </CollapsibleSection>
 
-          {/* === Step 2: Brief (enhanced with emoji + hashtags + templates + AI improve) === */}
+          {/* === Step 2: Media (per-account — different file for each platform) === */}
           <CollapsibleSection
-            id="brief"
+            id="media"
             index={2}
-            title="Brief"
-            desc="Write your message — AI will adapt it per platform"
-            icon={Pencil}
+            title="Media"
+            desc="Select a different media file for each platform"
+            icon={ImageIcon}
             collapsed={collapsed}
             onToggle={toggleCollapse}
             badge={
-              state.caption.trim() ? (
-                <Pill color="green"><Check className="h-2.5 w-2.5" /> Written</Pill>
+              selectedAccounts.length > 0 && selectedAccounts.some((a) => state.accountMedia[a.id] || state.mediaUrl) ? (
+                <Pill color="green"><Check className="h-2.5 w-2.5" /> Added</Pill>
               ) : undefined
             }
             action={
               <button
-                onClick={aiImprove}
-                disabled={improving || !state.caption.trim()}
-                className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-                title="Rewrite this caption with AI"
+                onClick={() => setUploadOpen(true)}
+                disabled={selectedAccounts.length === 0}
+                className="liquid-pill flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
               >
-                {improving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Wand2 className="h-3.5 w-3.5" />
-                )}
-                AI Improve
+                <Upload className="h-3.5 w-3.5" /> Upload
               </button>
             }
           >
-            {/* Caption textarea + emoji picker overlay */}
-            <div className="relative">
-              <textarea
-                ref={captionTextareaRef}
-                value={state.caption}
-                onChange={(e) => update({ caption: e.target.value })}
-                placeholder="e.g. Introducing our new collection — designed for creators who move fast. Built to last, made to inspire."
-                className="scroll-liquid min-h-[160px] w-full resize-y rounded-2xl border border-border/50 bg-muted/30 p-4 pr-12 text-[15px] outline-none transition focus:border-primary/50 focus:bg-background/60"
-              />
-              {/* Emoji + hashtag suggest buttons */}
-              <div className="absolute right-2 top-2 flex flex-col gap-1">
-                <button
-                  onClick={() => {
-                    setEmojiPickerOpen((v) => !v);
-                    setHashtagSuggestOpen(false);
-                  }}
-                  className={cn(
-                    "grid h-8 w-8 place-items-center rounded-lg transition",
-                    emojiPickerOpen
-                      ? "bg-primary/15 text-primary"
-                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  title="Insert emoji"
-                  aria-label="Insert emoji"
-                >
-                  <Smile className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    setHashtagSuggestOpen((v) => !v);
-                    setEmojiPickerOpen(false);
-                  }}
-                  className={cn(
-                    "grid h-8 w-8 place-items-center rounded-lg transition",
-                    hashtagSuggestOpen
-                      ? "bg-primary/15 text-primary"
-                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  title="Suggest hashtags"
-                  aria-label="Suggest hashtags"
-                >
-                  <Hash className="h-4 w-4" />
-                </button>
+            {selectedAccounts.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+                Select accounts above to add media per platform.
               </div>
-
-              {/* Emoji picker popover */}
-              {emojiPickerOpen && (
-                <div className="absolute right-2 top-12 z-20 w-64 rounded-2xl border border-border/60 bg-background p-2 shadow-xl">
-                  <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
-                    {EMOJI_SETS.map((set) => (
-                      <button
-                        key={set.category}
-                        onClick={() => setEmojiCategory(set.category)}
-                        className={cn(
-                          "shrink-0 rounded-md px-2 py-1 text-[10px] font-medium transition",
-                          emojiCategory === set.category
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-muted"
-                        )}
-                      >
-                        {set.category}
-                      </button>
-                    ))}
+            ) : (
+              <>
+                {/* Global media (applies to all accounts that don't have their own) */}
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                    <ImageIcon className="h-3 w-3" />
+                    Default media (all platforms)
                   </div>
-                  <div className="grid grid-cols-8 gap-0.5">
-                    {EMOJI_SETS.find((s) => s.category === emojiCategory)?.emojis.map((e, i) => (
-                      <button
-                        key={i}
-                        onClick={() => insertEmoji(e)}
-                        className="grid h-7 w-7 place-items-center rounded-md text-lg transition hover:bg-muted"
-                      >
-                        {e}
-                      </button>
-                    ))}
+                  <button
+                    type="button"
+                    onClick={() => setUploadOpen(true)}
+                    className={cn(
+                      "group relative flex w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border/60 bg-muted/30 p-2 transition hover:border-primary/50 hover:bg-muted/40",
+                      state.mediaUrl ? "min-h-[140px]" : "min-h-[100px]"
+                    )}
+                  >
+                    {state.mediaUrl ? (
+                      <>
+                        <img
+                          src={state.mediaUrl}
+                          alt="Default media"
+                          className="max-h-[140px] w-full rounded-lg object-cover"
+                        />
+                        <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 via-transparent to-transparent p-2 opacity-0 transition group-hover:opacity-100">
+                          <span className="flex items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-lg backdrop-blur">
+                            <RefreshCw className="h-2.5 w-2.5" /> Replace
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="grid place-items-center py-3 text-center">
+                        <div className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary">
+                          <Upload className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="mt-1 text-xs font-medium">Upload default media</div>
+                        <div className="text-[10px] text-muted-foreground">Used for all platforms without their own media</div>
+                      </div>
+                    )}
+                  </button>
+                  {state.mediaUrl && (
+                    <button
+                      onClick={() => update({ mediaUrl: "" })}
+                      className="mt-1.5 flex items-center gap-1 text-[10px] font-medium text-muted-foreground transition hover:text-rose-500"
+                    >
+                      <X className="h-2.5 w-2.5" /> Clear default
+                    </button>
+                  )}
+                </div>
+
+                {/* Per-account media grid */}
+                <div>
+                  <div className="mb-2 text-[11px] font-medium text-muted-foreground">
+                    Per-platform media · upload a different file for each account
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {selectedAccounts.map((a) => {
+                      const p = PLATFORMS[a.platform];
+                      const mediaUrl = state.accountMedia[a.id] ?? "";
+                      return (
+                        <div
+                          key={a.id}
+                          className={cn(
+                            "rounded-xl border p-2.5 transition",
+                            mediaUrl
+                              ? "border-primary/40 bg-primary/5"
+                              : "border-border/40 bg-muted/20"
+                          )}
+                        >
+                          <div className="mb-1.5 flex items-center gap-1.5">
+                            <PlatformBadge platform={a.platform} size={18} />
+                            <span className="truncate text-[11px] font-semibold">{a.displayName}</span>
+                            <span className="ml-auto text-[9px] font-bold uppercase" style={{ color: p.color }}>
+                              {p.short}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUploadForAccountId(a.id);
+                              setUploadOpen(true);
+                            }}
+                            className="group relative flex w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-border/50 bg-background/60 p-1 transition hover:border-primary/40 hover:bg-primary/5"
+                            style={{ minHeight: mediaUrl ? "80px" : "60px" }}
+                          >
+                            {mediaUrl ? (
+                              <>
+                                <img
+                                  src={mediaUrl}
+                                  alt={`Media for ${a.displayName}`}
+                                  className="max-h-[80px] w-full rounded object-cover"
+                                />
+                                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+                                  <span className="flex items-center gap-1 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-medium text-foreground shadow-lg">
+                                    <RefreshCw className="h-2.5 w-2.5" /> Change
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="grid place-items-center py-2 text-center">
+                                <Upload className="h-4 w-4 text-muted-foreground" />
+                                <div className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+                                  Upload for {p.short}
+                                </div>
+                              </div>
+                            )}
+                          </button>
+                          {mediaUrl && (
+                            <button
+                              onClick={() =>
+                                setState((s) => ({
+                                  ...s,
+                                  accountMedia: { ...s.accountMedia, [a.id]: "" },
+                                }))
+                              }
+                              className="mt-1 flex items-center gap-1 text-[9px] font-medium text-muted-foreground transition hover:text-rose-500"
+                            >
+                              <X className="h-2.5 w-2.5" /> Remove
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
 
-              {/* Hashtag suggestions popover */}
-              {hashtagSuggestOpen && (
-                <div className="absolute right-2 top-12 z-20 w-56 rounded-2xl border border-border/60 bg-background p-2 shadow-xl">
-                  <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Suggested hashtags · click to insert
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {HASHTAG_SUGGESTIONS.map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => insertHashtag(tag)}
-                        className="rounded-full bg-muted/60 px-2 py-1 text-[10px] font-medium text-primary transition hover:bg-primary/15"
-                      >
-                        #{tag}
-                      </button>
-                    ))}
-                  </div>
+                {/* Alt text */}
+                <div>
+                  <Label className="mb-1 text-[11px] text-muted-foreground">
+                    Alt text (accessibility — applies to all media)
+                  </Label>
+                  <input
+                    value={state.altText}
+                    onChange={(e) => update({ altText: e.target.value })}
+                    placeholder="Describe the image"
+                    className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+                  />
                 </div>
-              )}
 
-              {/* Stats bar */}
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1 rounded-md bg-muted/40 px-2 py-1">
-                  <Pencil className="h-2.5 w-2.5" />
-                  {state.caption.length} chars
-                </span>
-                <span className="flex items-center gap-1 rounded-md bg-muted/40 px-2 py-1">
-                  <FileEdit className="h-2.5 w-2.5" />
-                  {words} words
-                </span>
-                <span className="flex items-center gap-1 rounded-md bg-muted/40 px-2 py-1">
-                  <Hash className="h-2.5 w-2.5" />
-                  {hashtags} hashtags
-                </span>
-                <span className="flex items-center gap-1 rounded-md bg-muted/40 px-2 py-1">
-                  <Clock className="h-2.5 w-2.5" />
-                  {readingTime(state.caption)}
-                </span>
-              </div>
-            </div>
+                {/* Media library (quick pick — applies to default media) */}
+                {mediaAssets.length > 0 && (
+                  <div>
+                    <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">
+                      Media library · click to set as default
+                    </div>
+                    <div className="scroll-liquid -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                      {mediaAssets.slice(0, 12).map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => update({ mediaUrl: m.url })}
+                          className={cn(
+                            "relative h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-2 transition",
+                            state.mediaUrl === m.url ? "ring-primary" : "ring-transparent hover:ring-border"
+                          )}
+                        >
+                          <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
+                          {state.mediaUrl === m.url && (
+                            <span className="absolute inset-0 grid place-items-center bg-primary/30">
+                              <Check className="h-3.5 w-3.5 text-white drop-shadow" />
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* Templates quick chips */}
-            <div>
-              <div className="mb-2 text-[11px] font-medium text-muted-foreground">
-                Quick templates
+                <UploadDialog
+                  open={uploadOpen}
+                  onOpenChange={setUploadOpen}
+                  onPick={(m) => {
+                    if (uploadForAccountId) {
+                      setState((s) => ({
+                        ...s,
+                        accountMedia: { ...s.accountMedia, [uploadForAccountId]: m },
+                      }));
+                      setUploadForAccountId(null);
+                    } else {
+                      update({ mediaUrl: m });
+                    }
+                    setUploadOpen(false);
+                  }}
+                  urlInput={urlInput}
+                  onUrlInput={setUrlInput}
+                  onUrlSubmit={submitUrl}
+                  current={uploadForAccountId ? (state.accountMedia[uploadForAccountId] ?? "") : state.mediaUrl}
+                  mediaAssets={mediaAssets}
+                  userId={user?.id}
+                />
+              </>
+            )}
+          </CollapsibleSection>
+
+          {/* === Step 3: Content (per-account text boxes) === */}
+          <CollapsibleSection
+            id="content"
+            index={3}
+            title="Content"
+            desc="Write or paste different text for each platform"
+            icon={Pencil}
+            collapsed={collapsed}
+            onToggle={toggleCollapse}
+            badge={
+              hasAnyContent ? (
+                <Pill color="green"><Check className="h-2.5 w-2.5" /> Ready</Pill>
+              ) : undefined
+            }
+            action={
+              <div className="flex items-center gap-1.5">
+                {/* Copy brief to all accounts */}
+                <button
+                  onClick={() => {
+                    if (!state.caption.trim()) {
+                      toast.error("Write a brief first, then copy to all");
+                      return;
+                    }
+                    const newContent: Record<string, string> = {};
+                    for (const a of selectedAccounts) {
+                      newContent[a.id] = state.caption;
+                    }
+                    setState((s) => ({ ...s, accountContent: newContent }));
+                    toast.success(`Copied brief to ${selectedAccounts.length} accounts`);
+                  }}
+                  disabled={selectedAccounts.length === 0 || !state.caption.trim()}
+                  className="flex items-center gap-1 rounded-xl border border-border/50 bg-muted/40 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  title="Copy the brief above to all content boxes"
+                >
+                  <Copy className="h-3 w-3" /> Copy to all
+                </button>
+                {/* AI generate */}
+                <button
+                  onClick={() => generate()}
+                  disabled={generating || !state.caption.trim() || selectedAccounts.length === 0}
+                  className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                  title="Generate per-platform variants with AI"
+                >
+                  {generating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5" />
+                  )}
+                  AI Generate
+                </button>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+            }
+          >
+            {/* Shared brief / base caption */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                <Pencil className="h-3 w-3" />
+                Brief · base text (optional)
+              </div>
+              <div className="relative">
+                <textarea
+                  ref={captionTextareaRef}
+                  value={state.caption}
+                  onChange={(e) => update({ caption: e.target.value })}
+                  placeholder="Write a base brief here, then copy it to each platform's content box below and customize. Or click 'AI Generate' to auto-adapt it per platform."
+                  className="scroll-liquid min-h-[80px] w-full resize-y rounded-xl border border-border/50 bg-background/60 p-3 pr-10 text-sm outline-none transition focus:border-primary/50"
+                />
+                {/* Emoji + hashtag buttons */}
+                <div className="absolute right-2 top-2 flex flex-col gap-1">
+                  <button
+                    onClick={() => {
+                      setEmojiPickerOpen((v) => !v);
+                      setHashtagSuggestOpen(false);
+                    }}
+                    className={cn(
+                      "grid h-7 w-7 place-items-center rounded-lg transition",
+                      emojiPickerOpen ? "bg-primary/15 text-primary" : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                    title="Insert emoji"
+                  >
+                    <Smile className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setHashtagSuggestOpen((v) => !v);
+                      setEmojiPickerOpen(false);
+                    }}
+                    className={cn(
+                      "grid h-7 w-7 place-items-center rounded-lg transition",
+                      hashtagSuggestOpen ? "bg-primary/15 text-primary" : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                    title="Suggest hashtags"
+                  >
+                    <Hash className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* Emoji picker */}
+                {emojiPickerOpen && (
+                  <div className="absolute right-2 top-10 z-20 w-64 rounded-2xl border border-border/60 bg-background p-2 shadow-xl">
+                    <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
+                      {EMOJI_SETS.map((set) => (
+                        <button
+                          key={set.category}
+                          onClick={() => setEmojiCategory(set.category)}
+                          className={cn(
+                            "shrink-0 rounded-md px-2 py-1 text-[10px] font-medium transition",
+                            emojiCategory === set.category
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          {set.category}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-8 gap-0.5">
+                      {EMOJI_SETS.find((s) => s.category === emojiCategory)?.emojis.map((e, i) => (
+                        <button
+                          key={i}
+                          onClick={() => insertEmoji(e)}
+                          className="grid h-7 w-7 place-items-center rounded-md text-lg transition hover:bg-muted"
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hashtag suggestions */}
+                {hashtagSuggestOpen && (
+                  <div className="absolute right-2 top-10 z-20 w-56 rounded-2xl border border-border/60 bg-background p-2 shadow-xl">
+                    <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Suggested hashtags · click to insert
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {HASHTAG_SUGGESTIONS.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => insertHashtag(tag)}
+                          className="rounded-full bg-muted/60 px-2 py-1 text-[10px] font-medium text-primary transition hover:bg-primary/15"
+                        >
+                          #{tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Templates + tone */}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {CAPTION_TEMPLATES.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => applyTemplate(t.text)}
-                    className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                    className="flex items-center gap-1 rounded-full border border-border/40 bg-background/60 px-2 py-0.5 text-[10px] font-medium text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
                     title={t.text}
                   >
-                    <t.icon className="h-3 w-3" />
+                    <t.icon className="h-2.5 w-2.5" />
                     {t.title}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Tone of voice — with icons */}
-            <div>
-              <div className="mb-2 text-xs font-medium text-muted-foreground">
-                Tone of voice
+            {/* Per-account content boxes */}
+            {selectedAccounts.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+                Select accounts above to write content for each platform.
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {TONES.map((t) => {
-                  const active = state.tone === t.id;
+            ) : (
+              <div className="space-y-2.5">
+                <div className="text-[11px] font-medium text-muted-foreground">
+                  Per-platform content · write or paste different text for each account
+                </div>
+                {selectedAccounts.map((a) => {
+                  const p = PLATFORMS[a.platform];
+                  const content = state.accountContent[a.id] ?? state.variants[a.id]?.content ?? "";
+                  const mediaUrl = state.accountMedia[a.id] ?? state.mediaUrl;
+                  const overLimit = content.length > p.charLimit;
                   return (
-                    <button
-                      key={t.id}
-                      onClick={() => update({ tone: t.id })}
-                      title={t.hint}
+                    <div
+                      key={a.id}
                       className={cn(
-                        "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
-                        active
-                          ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
-                          : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        "rounded-xl border p-3 transition",
+                        content.trim()
+                          ? "border-primary/30 bg-primary/5"
+                          : "border-border/40 bg-muted/20"
                       )}
                     >
-                      <t.icon className="h-3 w-3" />
-                      {t.id}
-                    </button>
+                      {/* Account header */}
+                      <div className="mb-2 flex items-center gap-2">
+                        <PlatformBadge platform={a.platform} size={22} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1 text-xs font-semibold">
+                            <span className="truncate">{a.displayName}</span>
+                            {a.verified && <VerifiedTick className="h-3 w-3 text-primary" />}
+                          </div>
+                          <div className="truncate text-[10px] text-muted-foreground">
+                            {a.handle} · {p.name} · {p.charLimit} char limit
+                          </div>
+                        </div>
+                        {/* Media thumbnail */}
+                        {mediaUrl && (
+                          <div className="h-8 w-8 shrink-0 overflow-hidden rounded-md border border-border/40">
+                            <img src={mediaUrl} alt="" className="h-full w-full object-cover" />
+                          </div>
+                        )}
+                        {/* Char count */}
+                        <span
+                          className={cn(
+                            "shrink-0 text-[10px] font-semibold tabular-nums",
+                            overLimit ? "text-rose-500" : "text-muted-foreground"
+                          )}
+                        >
+                          {content.length}/{p.charLimit}
+                        </span>
+                      </div>
+
+                      {/* Content textarea */}
+                      <textarea
+                        value={content}
+                        onChange={(e) =>
+                          setState((s) => ({
+                            ...s,
+                            accountContent: { ...s.accountContent, [a.id]: e.target.value },
+                          }))
+                        }
+                        placeholder={`Write or paste ${p.name} content here…`}
+                        className="scroll-liquid min-h-[80px] w-full resize-y rounded-lg border border-border/40 bg-background/60 p-2.5 text-sm outline-none transition focus:border-primary/50"
+                      />
+
+                      {/* Footer: AI regenerate + copy + clear */}
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <button
+                          onClick={() => generate(a.id)}
+                          disabled={generating || !state.caption.trim()}
+                          className="flex items-center gap-1 rounded-lg bg-muted/40 px-2 py-1 text-[10px] font-medium text-primary transition hover:bg-primary/10 disabled:opacity-50"
+                          title="Regenerate this variant with AI"
+                        >
+                          {generating ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <RefreshCw className="h-2.5 w-2.5" />}
+                          AI
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(content);
+                              toast.success(`Copied ${p.name} content`);
+                            } catch {
+                              toast.error("Couldn't copy");
+                            }
+                          }}
+                          disabled={!content.trim()}
+                          className="flex items-center gap-1 rounded-lg bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        >
+                          <Copy className="h-2.5 w-2.5" /> Copy
+                        </button>
+                        <button
+                          onClick={() => {
+                            const v = state.variants[a.id];
+                            if (v) {
+                              setState((s) => ({
+                                ...s,
+                                accountContent: { ...s.accountContent, [a.id]: v.content },
+                              }));
+                              toast.success(`Reset to AI variant`);
+                            } else {
+                              setState((s) => ({
+                                ...s,
+                                accountContent: { ...s.accountContent, [a.id]: state.caption },
+                              }));
+                              toast.success(`Reset to brief`);
+                            }
+                          }}
+                          disabled={!content.trim()}
+                          className="flex items-center gap-1 rounded-lg bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        >
+                          <Undo2 className="h-2.5 w-2.5" /> Reset
+                        </button>
+                        {/* Platform tip */}
+                        <span className="ml-auto flex items-center gap-1 text-[9px] text-muted-foreground">
+                          <Lightbulb className="h-2.5 w-2.5" />
+                          {PLATFORM_TIPS[a.platform]}
+                        </span>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
-            </div>
-
-            {/* AI Assistant toggle / panel */}
-            {!aiAssistantOpen ? (
-              <button
-                onClick={() => setAiAssistantOpen(true)}
-                className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-left transition hover:border-primary hover:bg-primary/10"
-              >
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold">
-                    Try the AI Assistant
-                    <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
-                      New
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    Chat conversationally to draft and refine your caption
-                  </div>
-                </div>
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold">
-                    <Bot className="h-3.5 w-3.5 text-primary" />
-                    AI Assistant
-                  </div>
-                  <button
-                    onClick={() => setAiAssistantOpen(false)}
-                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  >
-                    <X className="h-3 w-3" /> Collapse
-                  </button>
-                </div>
-                <AIChatPanel
-                  caption={state.caption}
-                  onApplyCaption={(text) => update({ caption: text })}
-                  tone={state.tone}
-                  platforms={selectedAccounts.map((a) => PLATFORMS[a.platform].name)}
-                />
-              </div>
             )}
           </CollapsibleSection>
 
-          {/* === Step 3: AI Variants (enhanced with engagement prediction + copy) === */}
-          <CollapsibleSection
-            id="variants"
-            index={3}
-            title="AI Variants"
-            desc="Per-platform native rewrites"
-            icon={Sparkles}
-            collapsed={collapsed}
-            onToggle={toggleCollapse}
-            badge={
-              hasVariants ? (
-                <Pill color="violet">
-                  <Sparkles className="h-2.5 w-2.5" />
-                  {Object.keys(state.variants).length}
-                </Pill>
-              ) : undefined
-            }
-            action={
-              <button
-                onClick={() => generate()}
-                disabled={generating || !state.caption.trim() || selectedAccounts.length === 0}
-                className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-              >
-                {generating ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Wand2 className="h-3.5 w-3.5" />
-                )}
-                {hasVariants ? "Regenerate all" : "Generate"}
-              </button>
-            }
-          >
-            {hasVariants ? (
-              <>
-                {/* Variant pills — pick which platform to edit/preview */}
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedAccounts.map((a) => {
-                    const active = previewAccountId === a.id;
-                    const has = !!state.variants[a.id];
-                    return (
-                      <button
-                        key={a.id}
-                        onClick={() => setPreviewAccountId(a.id)}
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition",
-                          active
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                      >
-                        <PlatformBadge platform={a.platform} size={16} />
-                        <span>{PLATFORMS[a.platform].short}</span>
-                        {has && (
-                          <span className="grid h-3 w-3 place-items-center rounded-full bg-emerald-500/40 text-emerald-500">
-                            <Check className="h-2 w-2" />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Inline editor for the selected variant */}
-                {previewAccount && (
-                  <EnhancedVariantEditor
-                    account={previewAccount}
-                    variant={state.variants[previewAccount.id]}
-                    onChange={(v) =>
-                      setState((s) => ({
-                        ...s,
-                        variants: { ...s.variants, [previewAccount.id]: v },
-                      }))
-                    }
-                    onRegenerate={() => generate(previewAccount.id)}
-                    generating={generating}
-                    fallbackContent={state.caption}
-                    onCopy={() => copyVariant(previewAccount.id)}
-                    copied={copiedVariant === previewAccount.id}
-                    onReset={() =>
-                      setState((s) => ({
-                        ...s,
-                        variants: {
-                          ...s.variants,
-                          [previewAccount.id]: { content: state.caption, hashtags: "" },
-                        },
-                      }))
-                    }
-                  />
-                )}
-
-                {/* Platform tips strip */}
-                {previewAccount && (
-                  <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 p-2.5 text-[11px] text-foreground/80">
-                    <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                    <span>
-                      <b className="text-foreground">{PLATFORMS[previewAccount.platform].name} tip:</b>{" "}
-                      {PLATFORM_TIPS[previewAccount.platform]}
-                    </span>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-                {selectedAccounts.length === 0
-                  ? "Select accounts above to enable AI generation."
-                  : state.caption.trim()
-                  ? "Click Generate to create per-platform variants."
-                  : "Write a brief first, then generate variants."}
-              </div>
-            )}
-          </CollapsibleSection>
-
-          {/* === Step 4: Media (enhanced with descriptions + better UX) === */}
-          <CollapsibleSection
-            id="media"
-            index={4}
-            title="Media"
-            desc="Add visuals"
-            icon={ImageIcon}
-            collapsed={collapsed}
-            onToggle={toggleCollapse}
-            badge={
-              state.mediaUrl ? (
-                <Pill color="green"><Check className="h-2.5 w-2.5" /> Added</Pill>
-              ) : undefined
-            }
-          >
-            {/* Media type toggle — with hint descriptions */}
-            <div className="grid grid-cols-3 gap-1.5">
-              {MEDIA_TYPE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => update({ mediaType: opt.id })}
-                  className={cn(
-                    "flex flex-col items-start gap-1 rounded-xl border p-2.5 text-left transition",
-                    state.mediaType === opt.id
-                      ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                      : "border-border/40 hover:bg-muted/40"
-                  )}
-                >
-                  <div className="flex w-full items-center justify-between">
-                    <opt.icon className={cn("h-4 w-4", state.mediaType === opt.id ? "text-primary" : "text-muted-foreground")} />
-                    {state.mediaType === opt.id && <Check className="h-3 w-3 text-primary" />}
-                  </div>
-                  <div className="text-xs font-bold">{opt.label}</div>
-                  <div className="text-[10px] text-muted-foreground">{opt.hint}</div>
-                </button>
-              ))}
-            </div>
-
-            {/* Drop zone / preview */}
-            <button
-              type="button"
-              onClick={() => setUploadOpen(true)}
-              className={cn(
-                "group relative flex w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border/60 bg-muted/30 p-2 transition hover:border-primary/50 hover:bg-muted/40",
-                state.mediaUrl ? "min-h-[200px]" : "min-h-[160px]"
-              )}
-            >
-              {state.mediaUrl ? (
-                <>
-                  <div
-                    className="flex items-center justify-center"
-                    style={{ aspectRatio: cropAspect.replace(":", "/") }}
-                  >
-                    <img
-                      src={state.mediaUrl}
-                      alt={state.altText || "Selected media"}
-                      className="max-h-[280px] w-full rounded-xl object-cover"
-                    />
-                  </div>
-                  <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 via-transparent to-transparent p-3 opacity-0 transition group-hover:opacity-100">
-                    <span className="flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg backdrop-blur">
-                      <RefreshCw className="h-3 w-3" /> Replace media
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <div className="grid place-items-center py-6 text-center">
-                  <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
-                    <Upload className="h-4 w-4" />
-                  </div>
-                  <div className="mt-2 text-sm font-medium">Click to browse or upload</div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">
-                    PNG, JPG, MP4 · up to 25MB
-                  </div>
-                </div>
-              )}
-            </button>
-
-            {/* Media library grid */}
-            {mediaAssets.length > 0 && (
-              <div>
-                <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">
-                  Media library
-                </div>
-                <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
-                  {mediaAssets.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => update({ mediaUrl: m.url })}
-                      className={cn(
-                        "relative aspect-square overflow-hidden rounded-lg ring-2 transition",
-                        state.mediaUrl === m.url
-                          ? "ring-primary"
-                          : "ring-transparent hover:ring-border"
-                      )}
-                    >
-                      <img src={m.url} alt={m.name} className="h-full w-full object-cover" />
-                      {state.mediaUrl === m.url && (
-                        <span className="absolute inset-0 grid place-items-center bg-primary/30">
-                          <Check className="h-3.5 w-3.5 text-white drop-shadow" />
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Alt text + crop aspect + location */}
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div>
-                <Label className="mb-1 text-[11px] text-muted-foreground">
-                  Alt text (accessibility)
-                </Label>
-                <input
-                  value={state.altText}
-                  onChange={(e) => update({ altText: e.target.value })}
-                  placeholder="Describe the image"
-                  className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
-                />
-              </div>
-              <div>
-                <Label className="mb-1 text-[11px] text-muted-foreground">Crop aspect</Label>
-                <div className="flex flex-wrap gap-1">
-                  {["1:1", "4:5", "16:9", "9:16"].map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setCropAspect(c)}
-                      className={cn(
-                        "rounded-lg border px-2.5 py-2 text-xs font-medium transition",
-                        cropAspect === c
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <UploadDialog
-              open={uploadOpen}
-              onOpenChange={setUploadOpen}
-              onPick={(m) => {
-                update({ mediaUrl: m });
-                setUploadOpen(false);
-              }}
-              urlInput={urlInput}
-              onUrlInput={setUrlInput}
-              onUrlSubmit={submitUrl}
-              current={state.mediaUrl}
-              mediaAssets={mediaAssets}
-              userId={user?.id}
-            />
-          </CollapsibleSection>
-
-          {/* === Step 5: Schedule (enhanced with best-time + presets + approval) === */}
+          {/* === Step 4: Schedule (enhanced with best-time + presets + approval) === */}
           <CollapsibleSection
             id="schedule"
-            index={5}
+            index={4}
             title="Schedule"
             desc="Publish now or pick a future time"
             icon={CalendarClock}
@@ -1985,7 +2011,7 @@ export function ComposerView() {
             <PrePublishChecklist
               accounts={selectedAccounts}
               caption={state.caption}
-              mediaUrl={state.mediaUrl}
+              mediaUrl={previewMediaUrl || state.mediaUrl}
               hasVariants={hasVariants}
             />
           </CollapsibleSection>
@@ -2062,7 +2088,7 @@ export function ComposerView() {
               <PhonePreview
                 account={previewAccount}
                 content={previewContent}
-                mediaUrl={state.mediaUrl}
+                mediaUrl={previewMediaUrl || state.mediaUrl}
                 hashtags={previewHashtags}
                 device={previewDevice}
                 theme={previewTheme}
@@ -2143,7 +2169,7 @@ export function ComposerView() {
           <PhonePreview
             account={previewAccount}
             content={previewContent}
-            mediaUrl={state.mediaUrl}
+            mediaUrl={previewMediaUrl || state.mediaUrl}
             hashtags={previewHashtags}
             device="phone"
             theme={previewTheme}
