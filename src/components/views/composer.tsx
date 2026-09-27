@@ -30,6 +30,31 @@ import {
   Bot,
   User as UserIcon,
   Eye,
+  ChevronDown,
+  ChevronRight,
+  Smile,
+  Copy,
+  TrendingUp,
+  Zap,
+  Clock,
+  ShieldCheck,
+  Megaphone,
+  Gift,
+  Camera,
+  Rocket,
+  Star,
+  Target,
+  Smartphone,
+  Monitor,
+  Tablet,
+  Sun,
+  Moon,
+  Save,
+  Undo2,
+  Crown,
+  Laugh,
+  GraduationCap,
+  Briefcase,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -93,22 +118,144 @@ interface ComposerState {
   variants: Record<string, Variant>;
   scheduledAt: string;
   scheduleEnabled: boolean;
+  // New modernized fields
+  location: string;
+  sendForApproval: boolean;
+  approvalNote: string;
+  pinned: boolean;
 }
 
-const TONES = [
-  "Professional",
-  "Friendly",
-  "Energetic",
-  "Inspirational",
-  "Witty",
-  "Educational",
-  "Luxurious",
+type SectionId = "accounts" | "brief" | "variants" | "media" | "schedule";
+
+type DeviceMode = "phone" | "desktop" | "tablet";
+type PreviewTheme = "light" | "dark";
+
+/* ============================================================
+   Constants — Tones with icons, emoji sets, templates,
+   best times per platform, hashtag suggestions
+   ============================================================ */
+const TONES: { id: string; icon: LucideIcon; hint: string }[] = [
+  { id: "Professional", icon: Briefcase, hint: "Polished, authoritative" },
+  { id: "Friendly", icon: Smile, hint: "Warm, approachable" },
+  { id: "Energetic", icon: Zap, hint: "Punchy, high-tempo" },
+  { id: "Inspirational", icon: Sparkles, hint: "Uplifting, motivational" },
+  { id: "Witty", icon: Laugh, hint: "Clever, playful" },
+  { id: "Educational", icon: GraduationCap, hint: "Informative, clear" },
+  { id: "Luxurious", icon: Crown, hint: "Premium, exclusive" },
 ];
 
-const MEDIA_TYPE_OPTIONS: { id: MediaType; label: string; icon: LucideIcon }[] = [
-  { id: "image", label: "Image", icon: ImageIcon },
-  { id: "video", label: "Video", icon: Video },
-  { id: "carousel", label: "Carousel", icon: Layers },
+const MEDIA_TYPE_OPTIONS: {
+  id: MediaType;
+  label: string;
+  icon: LucideIcon;
+  hint: string;
+}[] = [
+  { id: "image", label: "Image", icon: ImageIcon, hint: "Single photo" },
+  { id: "video", label: "Video", icon: Video, hint: "MP4 / MOV" },
+  { id: "carousel", label: "Carousel", icon: Layers, hint: "Multi-slide" },
+];
+
+const CAPTION_TEMPLATES: { id: string; title: string; icon: LucideIcon; text: string }[] = [
+  {
+    id: "launch",
+    title: "Product Launch",
+    icon: Rocket,
+    text: "Introducing [product] — designed for [audience] who [need]. Built to last, made to inspire. Available now. 🚀",
+  },
+  {
+    id: "promo",
+    title: "Promo / Sale",
+    icon: Gift,
+    text: "🎉 Limited-time offer! Get [discount]% off [product] this week only. Use code [CODE] at checkout. Don't miss out.",
+  },
+  {
+    id: "story",
+    title: "Behind the Scenes",
+    icon: Camera,
+    text: "Here's how we made [thing] — from the first sketch to the final cut. Swipe to see the journey. 👀",
+  },
+  {
+    id: "announce",
+    title: "Big Announcement",
+    icon: Megaphone,
+    text: "We're thrilled to share [news]! This marks a new chapter for us, and we couldn't have done it without you.",
+  },
+];
+
+const EMOJI_SETS: { category: string; emojis: string[] }[] = [
+  {
+    category: "Popular",
+    emojis: ["🚀", "✨", "🔥", "💡", "🎉", "💜", "💯", "👀", "🙌", "⚡", "🌟", "💫", "💎", "🎯", "📈", "✅"],
+  },
+  {
+    category: "Smileys",
+    emojis: ["😀", "😍", "🥳", "😎", "🤩", "😅", "😂", "🤔", "😇", "🤗", "😉", "😋", "😌", "🙂", "🙃", "😜"],
+  },
+  {
+    category: "Symbols",
+    emojis: ["✨", "💫", "⭐", "🌟", "💎", "🔮", "🎯", "🏆", "👑", "💝", "🌈", "☀️", "🌙", "🔥", "⚡", "💥"],
+  },
+];
+
+const HASHTAG_SUGGESTIONS = [
+  "marketing", "socialmedia", "content", "creator", "trending",
+  "growth", "brand", "community", "digitalmarketing", "smallbusiness",
+  "entrepreneur", "instagood", "love", "motivation", "inspiration",
+];
+
+const BEST_TIMES: Record<PlatformId, { time: string; reach: "High" | "Medium" | "Peak" }[]> = {
+  x: [
+    { time: "9:00 AM", reach: "High" },
+    { time: "12:00 PM", reach: "Peak" },
+    { time: "7:00 PM", reach: "High" },
+  ],
+  instagram: [
+    { time: "11:00 AM", reach: "High" },
+    { time: "1:00 PM", reach: "Peak" },
+    { time: "8:00 PM", reach: "High" },
+  ],
+  facebook: [
+    { time: "9:00 AM", reach: "High" },
+    { time: "1:00 PM", reach: "Peak" },
+    { time: "3:00 PM", reach: "High" },
+  ],
+  linkedin: [
+    { time: "8:00 AM", reach: "High" },
+    { time: "10:00 AM", reach: "Peak" },
+    { time: "12:00 PM", reach: "High" },
+  ],
+  tiktok: [
+    { time: "6:00 AM", reach: "High" },
+    { time: "10:00 AM", reach: "Peak" },
+    { time: "10:00 PM", reach: "High" },
+  ],
+  youtube: [
+    { time: "12:00 PM", reach: "High" },
+    { time: "3:00 PM", reach: "Peak" },
+    { time: "7:00 PM", reach: "High" },
+  ],
+  threads: [
+    { time: "9:00 AM", reach: "High" },
+    { time: "1:00 PM", reach: "Peak" },
+    { time: "6:00 PM", reach: "High" },
+  ],
+};
+
+const PLATFORM_TIPS: Record<PlatformId, string> = {
+  x: "First 2 lines matter most · 1–2 hashtags max · Post at 9AM or 7PM",
+  instagram: "5–10 hashtags optimal · Carousels get 3× engagement · Use line breaks",
+  facebook: "Questions get 2× comments · Video outperforms images · Avoid clickbait",
+  linkedin: "Tue–Thu best · Lead with insight · Avoid external links in body",
+  tiktok: "Hook in 3 seconds · Trending sounds boost reach · Vertical only",
+  youtube: "Thumbnail > title · First 30s retention critical · Use end screens",
+  threads: "Conversational tone · Reply to engage · Short and punchy wins",
+};
+
+const QUICK_DATE_PRESETS: { label: string; offset: number; hour: number; icon: LucideIcon }[] = [
+  { label: "Today 6PM", offset: 0, hour: 18, icon: Clock },
+  { label: "Tomorrow 9AM", offset: 1, hour: 9, icon: Sun },
+  { label: "This weekend", offset: 6 - new Date().getDay(), hour: 11, icon: Star },
+  { label: "Next Monday 8AM", offset: 8 - new Date().getDay(), hour: 8, icon: Briefcase },
 ];
 
 const DEFAULT_STATE: ComposerState = {
@@ -121,14 +268,50 @@ const DEFAULT_STATE: ComposerState = {
   variants: {},
   scheduledAt: "",
   scheduleEnabled: false,
+  location: "",
+  sendForApproval: false,
+  approvalNote: "",
+  pinned: false,
 };
 
 /* ============================================================
-   ComposerView — single-column workflow with sticky preview.
-   No wizard steps; the user reads top-to-bottom: accounts →
-   brief → AI variants → media → schedule → publish. The phone
-   preview floats in a sticky aside on desktop and stacks below
-   on mobile.
+   Helper: count words / estimate reading time
+   ============================================================ */
+function wordCount(text: string): number {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).length;
+}
+function readingTime(text: string): string {
+  const words = wordCount(text);
+  const seconds = Math.max(1, Math.round((words / 200) * 60));
+  if (seconds < 60) return `${seconds}s read`;
+  const minutes = Math.floor(seconds / 60);
+  const remSec = seconds % 60;
+  return `${minutes}m ${remSec}s read`;
+}
+function countHashtags(text: string): number {
+  return (text.match(/#\w+/g) || []).length;
+}
+
+/* ============================================================
+   ComposerView — modernized, enhanced, interactive.
+   Features:
+   - Top progress header (animated completion ring)
+   - Collapsible sections with chevron rotation
+   - Quick actions toolbar (Save draft, Templates, Reset)
+   - Enhanced Accounts: filter pills + platform grouping
+   - Enhanced Brief: stats bar + emoji picker + hashtag
+     suggestions + AI improve + template chips
+   - Enhanced Variants: engagement prediction + copy +
+     diff % + per-variant regenerate
+   - Enhanced Media: better drop zone with hover preview
+   - Enhanced Schedule: best time chips + quick presets +
+     send-for-approval toggle + mini calendar
+   - Sticky preview with device toggle (phone/desktop/
+     tablet) + theme toggle
+   - Sticky publish bar with completion ring + keyboard
+     shortcut hint
    ============================================================ */
 export function ComposerView() {
   const { composerSeed, clearComposerSeed, composerEditPost, clearComposerEditPost } = useNav();
@@ -136,13 +319,11 @@ export function ComposerView() {
   const currentUserId = user?.id ?? "";
   const { data: accounts } = useApi<AccountData[]>("/api/accounts");
   const { data: mediaData } = useApi<MediaLibraryResponse>("/api/media");
-  // Drafts (status=draft) + failed posts — eligible for republish.
   const { data: draftsData, reload: reloadDrafts } = useApi<Post[]>("/api/posts?status=draft");
   const { data: failedData } = useApi<Post[]>("/api/posts?status=failed");
   const draftsList = React.useMemo(() => {
     const drafts = draftsData ?? [];
     const failed = failedData ?? [];
-    // De-dupe by id (a post can't be both draft + failed, but be safe).
     const seen = new Set(drafts.map((p) => p.id));
     return [...drafts, ...failed.filter((p) => !seen.has(p.id))].slice(0, 12);
   }, [draftsData, failedData]);
@@ -155,25 +336,32 @@ export function ComposerView() {
   const [editingPostId, setEditingPostId] = React.useState<string | null>(null);
   const [generating, setGenerating] = React.useState(false);
   const [publishing, setPublishing] = React.useState(false);
+  const [savingDraft, setSavingDraft] = React.useState(false);
+  const [improving, setImproving] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const [urlInput, setUrlInput] = React.useState("");
   const [cropAspect, setCropAspect] = React.useState("1:1");
-  // Which account the sticky preview is showing.
   const [previewAccountId, setPreviewAccountId] = React.useState<string>("");
-  // Inline AI Assistant panel toggle.
   const [aiAssistantOpen, setAiAssistantOpen] = React.useState(false);
+  // New modern state
+  const [collapsed, setCollapsed] = React.useState<Set<SectionId>>(new Set());
+  const [accountFilter, setAccountFilter] = React.useState<"all" | "verified" | "top">("all");
+  const [emojiPickerOpen, setEmojiPickerOpen] = React.useState(false);
+  const [emojiCategory, setEmojiCategory] = React.useState("Popular");
+  const [hashtagSuggestOpen, setHashtagSuggestOpen] = React.useState(false);
+  const [templatesOpen, setTemplatesOpen] = React.useState(false);
+  const [previewDevice, setPreviewDevice] = React.useState<DeviceMode>("phone");
+  const [previewTheme, setPreviewTheme] = React.useState<PreviewTheme>("light");
+  const [copiedVariant, setCopiedVariant] = React.useState<string | null>(null);
 
   const initRef = React.useRef(false);
   const editHydrateRef = React.useRef<string | null>(null);
+  const captionTextareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   /* ----------------------------------------------------------
-     Effects — preselect accounts, seed caption, hydrate edit
+     Effects
      ---------------------------------------------------------- */
-  // Preselect the top 4 accounts by followers (the /api/accounts
-  // route already sorts by followers desc) so the composer opens
-  // with a sensible multi-platform default — without relying on
-  // hardcoded seeded IDs.
   React.useEffect(() => {
     if (initRef.current || !accounts || accounts.length === 0) return;
     initRef.current = true;
@@ -183,7 +371,6 @@ export function ComposerView() {
     }
   }, [accounts]);
 
-  // Composer seed prefill — set caption (no step jump, single flow).
   React.useEffect(() => {
     if (composerSeed) {
       setState((s) => ({ ...s, caption: composerSeed }));
@@ -191,11 +378,9 @@ export function ComposerView() {
     }
   }, [composerSeed, clearComposerSeed]);
 
-  // When openComposerWithPost(post) is called, hydrate the composer
-  // state from the post's data so the user can edit + regenerate.
   React.useEffect(() => {
     if (!composerEditPost) return;
-    if (editHydrateRef.current === composerEditPost.id) return; // already hydrated
+    if (editHydrateRef.current === composerEditPost.id) return;
     editHydrateRef.current = composerEditPost.id;
 
     const p = composerEditPost;
@@ -208,22 +393,18 @@ export function ComposerView() {
     }
     let selectedAccountIds = p.variants.map((v) => v.accountId);
 
-    // Some older drafts were saved without any variants (e.g. drafts
-    // created from a partial /api/posts POST that never made it to
-    // the publish step). If that's the case, preselect the top 4 user
-    // accounts so the user has somewhere to publish to — and let them know.
     const hadNoVariants = selectedAccountIds.length === 0;
     if (hadNoVariants && accounts && accounts.length > 0) {
       selectedAccountIds = accounts.slice(0, 4).map((a) => a.id);
     }
 
     setState({
+      ...DEFAULT_STATE,
       selectedAccountIds,
       caption: p.caption ?? "",
       tone: p.tone ?? "Friendly",
       mediaUrl: p.mediaUrl ?? "",
       mediaType: (p.mediaType === "video" ? "video" : p.mediaType === "carousel" ? "carousel" : "image"),
-      altText: "",
       variants: variantMap,
       scheduledAt: p.scheduledAt ?? "",
       scheduleEnabled: false,
@@ -236,9 +417,6 @@ export function ComposerView() {
     });
   }, [composerEditPost, accounts]);
 
-  // Keep previewAccountId valid as selection changes — auto-jump to
-  // the first selected account if the current preview target is no
-  // longer selected.
   const selectedAccounts = React.useMemo(
     () => (accounts ?? []).filter((a) => state.selectedAccountIds.includes(a.id)),
     [accounts, state.selectedAccountIds]
@@ -254,7 +432,21 @@ export function ComposerView() {
   }, [selectedAccounts, previewAccountId]);
 
   /* ----------------------------------------------------------
-     Actions — discard, load draft, generate, publish, url
+     Keyboard shortcut — Cmd/Ctrl+Enter to publish
+     ---------------------------------------------------------- */
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (canPublish && !publishing) publish();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [state, selectedAccounts, publishing, editingPostId]);
+
+  /* ----------------------------------------------------------
+     Actions
      ---------------------------------------------------------- */
   function discardEdit() {
     editHydrateRef.current = null;
@@ -263,13 +455,20 @@ export function ComposerView() {
     setState(DEFAULT_STATE);
     setPreviewAccountId("");
     setAiAssistantOpen(false);
-    // Re-run account preselect if accounts already loaded.
     initRef.current = false;
   }
 
   function loadDraft(post: Post) {
-    // Use the store so the same hydrate effect handles it.
     useNav.getState().openComposerWithPost(post);
+  }
+
+  function toggleCollapse(id: SectionId) {
+    setCollapsed((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   const update = React.useCallback((patch: Partial<ComposerState>) => {
@@ -277,15 +476,32 @@ export function ComposerView() {
   }, []);
 
   const accountsList = accounts ?? [];
-  const filteredAccounts = accountsList.filter((a) => {
+
+  // Apply account filter (verified / top by followers)
+  const filteredAccounts = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      a.displayName.toLowerCase().includes(q) ||
-      a.handle.toLowerCase().includes(q) ||
-      PLATFORMS[a.platform].name.toLowerCase().includes(q)
-    );
-  });
+    let list = accountsList.filter((a) => {
+      if (!q) return true;
+      return (
+        a.displayName.toLowerCase().includes(q) ||
+        a.handle.toLowerCase().includes(q) ||
+        PLATFORMS[a.platform].name.toLowerCase().includes(q)
+      );
+    });
+    if (accountFilter === "verified") list = list.filter((a) => a.verified);
+    if (accountFilter === "top") list = [...list].sort((a, b) => b.followers - a.followers).slice(0, 5);
+    return list;
+  }, [accountsList, search, accountFilter]);
+
+  // Group accounts by platform for the enhanced Accounts section
+  const accountsByPlatform = React.useMemo(() => {
+    const groups: Record<string, AccountData[]> = {};
+    for (const a of filteredAccounts) {
+      if (!groups[a.platform]) groups[a.platform] = [];
+      groups[a.platform].push(a);
+    }
+    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+  }, [filteredAccounts]);
 
   function toggleAccount(id: string) {
     setState((s) => {
@@ -299,6 +515,14 @@ export function ComposerView() {
   const selectAll = () =>
     setState((s) => ({ ...s, selectedAccountIds: accountsList.map((a) => a.id) }));
   const clearAll = () => setState((s) => ({ ...s, selectedAccountIds: [] }));
+  const selectPlatform = (platform: PlatformId) => {
+    const ids = accountsList.filter((a) => a.platform === platform).map((a) => a.id);
+    setState((s) => {
+      const next = new Set(s.selectedAccountIds);
+      ids.forEach((id) => next.add(id));
+      return { ...s, selectedAccountIds: Array.from(next) };
+    });
+  };
 
   async function generate(regenerateOnly?: string) {
     if (!state.caption.trim()) {
@@ -357,7 +581,6 @@ export function ComposerView() {
           }
         } else {
           setState((s) => ({ ...s, variants: normalized }));
-          // Auto-select the first variant for preview/editing.
           if (!previewAccountId && selectedAccounts.length > 0) {
             setPreviewAccountId(selectedAccounts[0].id);
           }
@@ -375,6 +598,109 @@ export function ComposerView() {
     }
   }
 
+  // AI Improve — inline rewrite of the current caption
+  async function aiImprove() {
+    if (!state.caption.trim()) {
+      toast.error("Write something to improve first");
+      return;
+    }
+    setImproving(true);
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "user",
+              content: `Rewrite this caption to be more engaging, in a ${state.tone} tone. Keep it concise and add 2-3 relevant hashtags at the end (comma-separated). Return ONLY the rewritten caption text, nothing else.\n\nOriginal: ${state.caption}`,
+            },
+          ],
+          tone: state.tone,
+          platforms: selectedAccounts.map((a) => PLATFORMS[a.platform].name),
+          currentCaption: state.caption,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (json.suggestions && Array.isArray(json.suggestions) && json.suggestions.length > 0) {
+        update({ caption: json.suggestions[0] });
+        toast.success("Caption improved");
+      } else if (json.reply) {
+        // Strip any leading label like "Here's..."
+        const cleaned = json.reply.replace(/^(here'?s|sure|okay|ok)[^:]*:\s*/i, "").trim();
+        update({ caption: cleaned });
+        toast.success("Caption improved");
+      } else {
+        toast.error("AI couldn't improve the caption");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setImproving(false);
+    }
+  }
+
+  async function saveDraftOnly() {
+    if (!user) {
+      toast.error("Your session is loading — please try again in a moment");
+      return;
+    }
+    if (!state.caption.trim()) {
+      toast.error("Write a caption first");
+      return;
+    }
+    setSavingDraft(true);
+    try {
+      const v: Record<string, { content: string; hashtags?: string }> = {};
+      for (const a of selectedAccounts) {
+        const ex = state.variants[a.id];
+        v[a.id] = ex ?? { content: state.caption, hashtags: "" };
+      }
+      const payload = {
+        title: state.caption.slice(0, 50).trim() || "Untitled",
+        caption: state.caption,
+        mediaUrl: state.mediaUrl || null,
+        tone: state.tone,
+        scheduledAt: null,
+        accountIds: selectedAccounts.map((a) => a.id),
+        variants: v,
+        authorId: currentUserId,
+        status: "draft",
+      };
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        toast.error("Failed to save draft");
+        return;
+      }
+      toast.success("Draft saved", {
+        description: "Find it later in the Drafts panel above.",
+      });
+      reloadDrafts();
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
+  function resetAll() {
+    editHydrateRef.current = null;
+    setEditingPostId(null);
+    clearComposerEditPost();
+    setState(DEFAULT_STATE);
+    setPreviewAccountId("");
+    setAiAssistantOpen(false);
+    setCollapsed(new Set());
+    setEmojiPickerOpen(false);
+    setHashtagSuggestOpen(false);
+    setTemplatesOpen(false);
+    toast.info("Composer reset");
+  }
+
   async function publish() {
     if (!user) {
       toast.error("Your session is loading — please try again in a moment");
@@ -384,9 +710,56 @@ export function ComposerView() {
       toast.error("Select accounts");
       return;
     }
+    // If send-for-approval is on, just save as draft with a note (no real publishing)
+    if (state.sendForApproval) {
+      setPublishing(true);
+      try {
+        const v: Record<string, { content: string; hashtags?: string }> = {};
+        for (const a of selectedAccounts) {
+          const ex = state.variants[a.id];
+          v[a.id] = ex ?? { content: state.caption, hashtags: "" };
+        }
+        const payload = {
+          title: state.caption.slice(0, 50).trim() || "Untitled",
+          caption: state.caption,
+          mediaUrl: state.mediaUrl || null,
+          tone: state.tone,
+          scheduledAt: null,
+          accountIds: selectedAccounts.map((a) => a.id),
+          variants: v,
+          authorId: currentUserId,
+          status: "draft",
+        };
+        const res = await fetch("/api/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          toast.error("Failed to submit for approval");
+          return;
+        }
+        toast.success("Sent for approval", {
+          description: state.approvalNote
+            ? `Note: "${state.approvalNote.slice(0, 80)}"`
+            : "A reviewer will be notified. The post is saved as a draft until approved.",
+        });
+        editHydrateRef.current = null;
+        setEditingPostId(null);
+        clearComposerEditPost();
+        setState(DEFAULT_STATE);
+        setPreviewAccountId("");
+        reloadDrafts();
+      } catch {
+        toast.error("Network error");
+      } finally {
+        setPublishing(false);
+      }
+      return;
+    }
+
     setPublishing(true);
     try {
-      // 1. Save the post to the database — POST for new, PATCH for republish/edit.
       const v: Record<string, { content: string; hashtags?: string }> = {};
       for (const a of selectedAccounts) {
         const ex = state.variants[a.id];
@@ -412,7 +785,6 @@ export function ComposerView() {
       let savedPostId: string | null = editingPostId;
 
       if (editingPostId) {
-        // Republish path — PATCH the existing draft/failed post.
         const res = await fetch(`/api/posts/${editingPostId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -431,7 +803,6 @@ export function ComposerView() {
           return;
         }
       } else {
-        // New post path — POST.
         const res = await fetch("/api/posts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -445,7 +816,6 @@ export function ComposerView() {
         savedPostId = json.id ?? null;
       }
 
-      // 2. If scheduled, skip real posting (will be posted later)
       if (state.scheduleEnabled && scheduledAt) {
         toast.success(editingPostId ? "Draft updated & scheduled" : "Post scheduled", {
           description: `Will be published on ${new Date(scheduledAt).toLocaleString()}`,
@@ -459,7 +829,6 @@ export function ComposerView() {
         return;
       }
 
-      // 3. Attempt REAL platform publishing for each selected account
       const results: { account: string; platform: string; success: boolean; message: string; url?: string }[] = [];
 
       for (const a of selectedAccounts) {
@@ -467,10 +836,7 @@ export function ComposerView() {
         const content = variant.hashtags
           ? `${variant.content}\n\n${variant.hashtags.split(",").map(t => `#${t.trim()}`).join(" ")}`
           : variant.content;
-
-        // Map platform id to API platform name
         const apiPlatform = a.platform === "x" ? "twitter" : a.platform;
-
         try {
           const pubRes = await fetch(`/api/publish/${apiPlatform}`, {
             method: "POST",
@@ -482,7 +848,6 @@ export function ComposerView() {
             }),
           });
           const pubJson = await pubRes.json();
-
           if (pubRes.ok && pubJson.ok) {
             results.push({
               account: a.displayName,
@@ -509,9 +874,6 @@ export function ComposerView() {
         }
       }
 
-      // 4. If every platform failed, flip the post status back to "failed"
-      //    so the user can retry from the drafts list (instead of leaving
-      //    it stranded as "published" with zero real delivery).
       const succeeded = results.filter((r) => r.success);
       const failed = results.filter((r) => !r.success);
 
@@ -523,7 +885,6 @@ export function ComposerView() {
         }).catch(() => null);
       }
 
-      // 5. Show results with iOS-style popups
       if (succeeded.length > 0 && failed.length === 0) {
         toast.success(editingPostId ? "Republished!" : "Published!", {
           description: `Posted to ${succeeded.length} account${succeeded.length > 1 ? "s" : ""}.`,
@@ -531,7 +892,7 @@ export function ComposerView() {
         succeeded.forEach((r) => {
           if (r.url) {
             toast.success(r.account, {
-              description: `View tweet: ${r.url}`,
+              description: `View post: ${r.url}`,
               duration: 6000,
             });
           }
@@ -548,35 +909,31 @@ export function ComposerView() {
           });
         });
       } else {
-        // All failed — check if it's a 402 (Free tier paywall)
         const firstError = failed[0];
         const is402 = firstError?.message.includes("Free tier") || firstError?.message.includes("doesn't allow posting");
-
         if (is402) {
-          // Copy content to clipboard for manual posting
           const contentToCopy = selectedAccounts.map(a => {
             const variant = v[a.id];
             return variant.hashtags
               ? `${variant.content}\n\n${variant.hashtags.split(",").map(t => `#${t.trim()}`).join(" ")}`
               : variant.content;
           }).join("\n\n---\n\n");
-
           try {
             await navigator.clipboard.writeText(contentToCopy);
             toast.warning("Post saved — copy to clipboard ready", {
-              description: "Twitter Free tier doesn't allow API posting. Content copied! Click 'Open X' to paste manually.",
+              description: "Free tier doesn't allow API posting. Content copied! Click 'Open' to paste manually.",
               duration: 10000,
               action: {
-                label: "Open X",
+                label: "Open",
                 onClick: () => window.open("https://x.com/compose/post", "_blank"),
               },
             });
           } catch {
             toast.warning("Post saved — manual posting required", {
-              description: "Twitter Free tier doesn't allow API posting. Upgrade to Basic ($100/mo) or post manually at x.com/compose/post",
+              description: "Free tier doesn't allow API posting. Upgrade or post manually.",
               duration: 10000,
               action: {
-                label: "Open X",
+                label: "Open",
                 onClick: () => window.open("https://x.com/compose/post", "_blank"),
               },
             });
@@ -589,8 +946,6 @@ export function ComposerView() {
         }
       }
 
-      // Reset composer state on any "completed" outcome (success/partial/failure
-      // with restored draft). User can re-load from the drafts list if needed.
       editHydrateRef.current = null;
       setEditingPostId(null);
       clearComposerEditPost();
@@ -615,24 +970,110 @@ export function ComposerView() {
     toast.success("Media URL added");
   }
 
+  // Insert emoji at cursor position
+  function insertEmoji(emoji: string) {
+    const ta = captionTextareaRef.current;
+    if (!ta) {
+      update({ caption: state.caption + emoji });
+      return;
+    }
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const newText = state.caption.slice(0, start) + emoji + state.caption.slice(end);
+    update({ caption: newText });
+    // Restore cursor after emoji
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = start + emoji.length;
+    });
+  }
+
+  function insertHashtag(tag: string) {
+    const ta = captionTextareaRef.current;
+    const tagStr = `#${tag}`;
+    if (!ta) {
+      update({ caption: `${state.caption} ${tagStr}`.trim() });
+      return;
+    }
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const insert = (start > 0 && state.caption[start - 1] !== " ") ? ` ${tagStr}` : tagStr;
+    const newText = state.caption.slice(0, start) + insert + state.caption.slice(end);
+    update({ caption: newText });
+    setHashtagSuggestOpen(false);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = start + insert.length;
+    });
+  }
+
+  function applyTemplate(text: string) {
+    update({ caption: text });
+    setTemplatesOpen(false);
+    toast.success("Template applied", { description: "Edit the [bracketed] placeholders." });
+  }
+
+  async function copyVariant(accountId: string) {
+    const variant = state.variants[accountId];
+    if (!variant) return;
+    const text = variant.hashtags
+      ? `${variant.content}\n\n${variant.hashtags.split(",").map(t => `#${t.trim()}`).join(" ")}`
+      : variant.content;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedVariant(accountId);
+      toast.success("Copied to clipboard");
+      setTimeout(() => setCopiedVariant(null), 1800);
+    } catch {
+      toast.error("Couldn't copy");
+    }
+  }
+
+  // Compute completion %
+  const completion = React.useMemo(() => {
+    let done = 0;
+    if (selectedAccounts.length > 0) done += 20;
+    if (state.caption.trim().length > 0) done += 25;
+    if (Object.keys(state.variants).length > 0) done += 20;
+    if (state.mediaUrl) done += 15;
+    if (state.scheduleEnabled ? !!state.scheduledAt : true) done += 10;
+    if (selectedAccounts.length > 0 && state.caption.trim().length > 0) done += 10;
+    return Math.min(100, done);
+  }, [selectedAccounts.length, state.caption, state.variants, state.mediaUrl, state.scheduledAt, state.scheduleEnabled]);
+
   /* ----------------------------------------------------------
      Derived view state
-     ---------------------------------------------------------- */
+   ---------------------------------------------------------- */
   const hasVariants = Object.keys(state.variants).length > 0;
   const combinedReach = selectedAccounts.reduce((s, a) => s + a.followers, 0);
-  const charCount = state.caption.length;
+  const words = wordCount(state.caption);
+  const hashtags = countHashtags(state.caption);
   const previewAccount = selectedAccounts.find((a) => a.id === previewAccountId) ?? selectedAccounts[0];
   const previewVariant = previewAccount ? state.variants[previewAccount.id] : undefined;
   const previewContent = previewVariant?.content ?? state.caption;
   const previewHashtags = previewVariant?.hashtags ?? "";
   const canPublish = selectedAccounts.length > 0 && state.caption.trim().length > 0;
+  const publishDisabledLabel = !canPublish
+    ? selectedAccounts.length === 0
+      ? "Select at least one account"
+      : "Write a caption first"
+    : null;
 
-  /* ----------------------------------------------------------
-     Render
-     ---------------------------------------------------------- */
   return (
     <div className="space-y-5 pb-24">
-      {/* Editing / republish banner — inline, not a card */}
+      {/* === Top progress + actions toolbar === */}
+      <ProgressToolbar
+        completion={completion}
+        editing={!!editingPostId}
+        scheduleEnabled={state.scheduleEnabled}
+        sendForApproval={state.sendForApproval}
+        onReset={resetAll}
+        onSaveDraft={saveDraftOnly}
+        savingDraft={savingDraft}
+        onTemplates={() => setTemplatesOpen(true)}
+      />
+
+      {/* Editing / republish banner */}
       {editingPostId && (
         <EditingBanner
           postId={editingPostId}
@@ -641,200 +1082,407 @@ export function ComposerView() {
         />
       )}
 
-      {/* Drafts / failed posts picker — only when NOT already editing */}
+      {/* Drafts / failed posts picker */}
       {!editingPostId && (
         <DraftsPanel drafts={draftsList} onLoad={loadDraft} />
       )}
 
       {/* === Two-column layout: main flow + sticky preview === */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
-        {/* MAIN FLOW (scrollable) */}
-        <main className="min-w-0 space-y-8">
-          {/* === Step 1: Accounts === */}
-          <section className="space-y-3">
-            <SectionHeader
-              title="1 · Accounts"
-              desc="Pick destination accounts"
-              icon={CheckCircle2}
-              action={
-                <div className="flex items-center gap-2 text-xs">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+        {/* MAIN FLOW */}
+        <main className="min-w-0 space-y-4">
+          {/* === Step 1: Accounts (enhanced with platform grouping + filters) === */}
+          <CollapsibleSection
+            id="accounts"
+            index={1}
+            title="Accounts"
+            desc="Pick destination accounts"
+            icon={CheckCircle2}
+            collapsed={collapsed}
+            onToggle={toggleCollapse}
+            badge={
+              <Pill color={selectedAccounts.length > 0 ? "green" : "neutral"}>
+                {selectedAccounts.length} selected
+              </Pill>
+            }
+            action={
+              <div className="flex items-center gap-2 text-xs">
+                <button
+                  onClick={selectAll}
+                  className="font-medium text-primary hover:underline"
+                >
+                  Select all
+                </button>
+                <span className="text-muted-foreground/60">·</span>
+                <button
+                  onClick={clearAll}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </button>
+              </div>
+            }
+          >
+            {/* Filter pills + search */}
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap gap-1.5">
+                {(["all", "verified", "top"] as const).map((f) => (
                   <button
-                    onClick={selectAll}
-                    className="font-medium text-primary hover:underline"
+                    key={f}
+                    onClick={() => setAccountFilter(f)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
+                      accountFilter === f
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
                   >
-                    Select all
+                    {f === "all" && <Check className="h-3 w-3" />}
+                    {f === "verified" && <ShieldCheck className="h-3 w-3" />}
+                    {f === "top" && <TrendingUp className="h-3 w-3" />}
+                    {f === "all" ? "All" : f === "verified" ? "Verified" : "Top 5"}
                   </button>
-                  <span className="text-muted-foreground/60">·</span>
+                ))}
+                {/* Quick platform-select chips */}
+                {accountsByPlatform.slice(0, 4).map(([platform, list]) => (
                   <button
-                    onClick={clearAll}
-                    className="text-muted-foreground hover:text-foreground"
+                    key={platform}
+                    onClick={() => selectPlatform(platform as PlatformId)}
+                    className="flex items-center gap-1 rounded-full bg-muted/40 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                    title={`Select all ${PLATFORMS[platform as PlatformId].name}`}
                   >
-                    Clear
+                    <PlatformBadge platform={platform as PlatformId} size={14} />
+                    <span>{list.length}</span>
                   </button>
-                </div>
-              }
-            />
+                ))}
+              </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, handle, or platform…"
-                className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
-              />
+              {/* Search */}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name, handle, or platform…"
+                  className="w-full rounded-xl border border-border/50 bg-muted/30 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+                />
+              </div>
             </div>
 
-            {/* Account list — single column, dense rows */}
-            <div className="scroll-liquid max-h-[420px] space-y-1.5 overflow-y-auto pr-1">
+            {/* Account list — grouped by platform */}
+            <div className="scroll-liquid max-h-[420px] space-y-3 overflow-y-auto pr-1">
               {filteredAccounts.length === 0 ? (
                 <div className="grid place-items-center py-12 text-center text-sm text-muted-foreground">
                   No accounts match your search.
                 </div>
               ) : (
-                filteredAccounts.map((a) => {
-                  const on = state.selectedAccountIds.includes(a.id);
-                  return (
-                    <button
-                      key={a.id}
-                      onClick={() => toggleAccount(a.id)}
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition",
-                        on
-                          ? "border-primary/40 bg-primary/10 ring-1 ring-primary/30"
-                          : "border-border/40 hover:border-border hover:bg-muted/40"
-                      )}
-                    >
-                      <PlatformBadge platform={a.platform} size={32} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1">
-                          <span className="truncate text-sm font-semibold">
-                            {a.displayName}
-                          </span>
-                          {a.verified && <VerifiedTick className="text-primary" />}
-                        </div>
-                        <div className="truncate text-[11px] text-muted-foreground">
-                          {a.handle} · {fmt(a.followers)} followers
-                        </div>
-                      </div>
-                      <span
-                        className={cn(
-                          "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
-                          on
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border"
-                        )}
-                      >
-                        {on && <Check className="h-3 w-3" />}
+                accountsByPlatform.map(([platform, list]) => (
+                  <div key={platform} className="space-y-1.5">
+                    {/* Platform group header */}
+                    <div className="flex items-center gap-2 px-1">
+                      <PlatformBadge platform={platform as PlatformId} size={18} />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        {PLATFORMS[platform as PlatformId].name}
                       </span>
-                    </button>
-                  );
-                })
+                      <span className="text-[10px] text-muted-foreground/70">
+                        · {list.length} account{list.length === 1 ? "" : "s"}
+                      </span>
+                      <button
+                        onClick={() => selectPlatform(platform as PlatformId)}
+                        className="ml-auto text-[10px] font-medium text-primary hover:underline"
+                      >
+                        + Add all
+                      </button>
+                    </div>
+                    {list.map((a) => {
+                      const on = state.selectedAccountIds.includes(a.id);
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => toggleAccount(a.id)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition",
+                            on
+                              ? "border-primary/40 bg-primary/10 ring-1 ring-primary/30"
+                              : "border-border/40 hover:border-border hover:bg-muted/40"
+                          )}
+                        >
+                          <PlatformBadge platform={a.platform} size={32} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1">
+                              <span className="truncate text-sm font-semibold">
+                                {a.displayName}
+                              </span>
+                              {a.verified && <VerifiedTick className="text-primary" />}
+                            </div>
+                            <div className="truncate text-[11px] text-muted-foreground">
+                              {a.handle} · {fmt(a.followers)} followers
+                            </div>
+                          </div>
+                          <span
+                            className={cn(
+                              "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
+                              on
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border"
+                            )}
+                          >
+                            {on && <Check className="h-3 w-3" />}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))
               )}
             </div>
 
             {/* Inline summary */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Pill color={selectedAccounts.length > 0 ? "green" : "neutral"}>
                 {selectedAccounts.length} selected
               </Pill>
               {selectedAccounts.length > 0 && (
-                <span>
-                  · combined reach{" "}
-                  <b className="text-foreground">{fmt(combinedReach)}</b> followers
-                </span>
+                <>
+                  <span>
+                    · combined reach{" "}
+                    <b className="text-foreground">{fmt(combinedReach)}</b> followers
+                  </span>
+                  {/* Platform breakdown pills */}
+                  {Object.entries(
+                    selectedAccounts.reduce<Record<string, number>>((acc, a) => {
+                      acc[a.platform] = (acc[a.platform] || 0) + 1;
+                      return acc;
+                    }, {})
+                  ).slice(0, 5).map(([platform, count]) => (
+                    <span key={platform} className="flex items-center gap-1 rounded-full bg-muted/40 px-2 py-0.5 text-[10px]">
+                      <PlatformBadge platform={platform as PlatformId} size={12} />
+                      {count}
+                    </span>
+                  ))}
+                </>
               )}
             </div>
-          </section>
+          </CollapsibleSection>
 
-          {/* === Step 2: Brief === */}
-          <section className="space-y-3">
-            <SectionHeader
-              title="2 · Brief"
-              desc="Write your message — AI will adapt it per platform"
-              icon={Pencil}
-            />
-
-            {/* Caption textarea */}
+          {/* === Step 2: Brief (enhanced with emoji + hashtags + templates + AI improve) === */}
+          <CollapsibleSection
+            id="brief"
+            index={2}
+            title="Brief"
+            desc="Write your message — AI will adapt it per platform"
+            icon={Pencil}
+            collapsed={collapsed}
+            onToggle={toggleCollapse}
+            badge={
+              state.caption.trim() ? (
+                <Pill color="green"><Check className="h-2.5 w-2.5" /> Written</Pill>
+              ) : undefined
+            }
+            action={
+              <button
+                onClick={aiImprove}
+                disabled={improving || !state.caption.trim()}
+                className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                title="Rewrite this caption with AI"
+              >
+                {improving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5" />
+                )}
+                AI Improve
+              </button>
+            }
+          >
+            {/* Caption textarea + emoji picker overlay */}
             <div className="relative">
               <textarea
+                ref={captionTextareaRef}
                 value={state.caption}
                 onChange={(e) => update({ caption: e.target.value })}
                 placeholder="e.g. Introducing our new collection — designed for creators who move fast. Built to last, made to inspire."
-                className="scroll-liquid min-h-[160px] w-full resize-y rounded-2xl border border-border/50 bg-muted/30 p-4 text-[15px] outline-none transition focus:border-primary/50 focus:bg-background/60"
+                className="scroll-liquid min-h-[160px] w-full resize-y rounded-2xl border border-border/50 bg-muted/30 p-4 pr-12 text-[15px] outline-none transition focus:border-primary/50 focus:bg-background/60"
               />
-              <div className="pointer-events-none absolute bottom-3 right-3">
-                <span
+              {/* Emoji + hashtag suggest buttons */}
+              <div className="absolute right-2 top-2 flex flex-col gap-1">
+                <button
+                  onClick={() => {
+                    setEmojiPickerOpen((v) => !v);
+                    setHashtagSuggestOpen(false);
+                  }}
                   className={cn(
-                    "rounded-full px-2 py-1 text-[10px] font-medium",
-                    charCount > 500
-                      ? "bg-rose-500/15 text-rose-500"
-                      : "bg-muted/70 text-muted-foreground"
+                    "grid h-8 w-8 place-items-center rounded-lg transition",
+                    emojiPickerOpen
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
+                  title="Insert emoji"
+                  aria-label="Insert emoji"
                 >
-                  {charCount} chars
+                  <Smile className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    setHashtagSuggestOpen((v) => !v);
+                    setEmojiPickerOpen(false);
+                  }}
+                  className={cn(
+                    "grid h-8 w-8 place-items-center rounded-lg transition",
+                    hashtagSuggestOpen
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                  title="Suggest hashtags"
+                  aria-label="Suggest hashtags"
+                >
+                  <Hash className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Emoji picker popover */}
+              {emojiPickerOpen && (
+                <div className="absolute right-2 top-12 z-20 w-64 rounded-2xl border border-border/60 bg-background p-2 shadow-xl">
+                  <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
+                    {EMOJI_SETS.map((set) => (
+                      <button
+                        key={set.category}
+                        onClick={() => setEmojiCategory(set.category)}
+                        className={cn(
+                          "shrink-0 rounded-md px-2 py-1 text-[10px] font-medium transition",
+                          emojiCategory === set.category
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {set.category}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-8 gap-0.5">
+                    {EMOJI_SETS.find((s) => s.category === emojiCategory)?.emojis.map((e, i) => (
+                      <button
+                        key={i}
+                        onClick={() => insertEmoji(e)}
+                        className="grid h-7 w-7 place-items-center rounded-md text-lg transition hover:bg-muted"
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Hashtag suggestions popover */}
+              {hashtagSuggestOpen && (
+                <div className="absolute right-2 top-12 z-20 w-56 rounded-2xl border border-border/60 bg-background p-2 shadow-xl">
+                  <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Suggested hashtags · click to insert
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {HASHTAG_SUGGESTIONS.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => insertHashtag(tag)}
+                        className="rounded-full bg-muted/60 px-2 py-1 text-[10px] font-medium text-primary transition hover:bg-primary/15"
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Stats bar */}
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1 rounded-md bg-muted/40 px-2 py-1">
+                  <Pencil className="h-2.5 w-2.5" />
+                  {state.caption.length} chars
+                </span>
+                <span className="flex items-center gap-1 rounded-md bg-muted/40 px-2 py-1">
+                  <FileEdit className="h-2.5 w-2.5" />
+                  {words} words
+                </span>
+                <span className="flex items-center gap-1 rounded-md bg-muted/40 px-2 py-1">
+                  <Hash className="h-2.5 w-2.5" />
+                  {hashtags} hashtags
+                </span>
+                <span className="flex items-center gap-1 rounded-md bg-muted/40 px-2 py-1">
+                  <Clock className="h-2.5 w-2.5" />
+                  {readingTime(state.caption)}
                 </span>
               </div>
             </div>
 
-            {/* Tone of voice — inline pills */}
+            {/* Templates quick chips */}
             <div>
-              <div className="mb-2 text-xs font-medium text-muted-foreground">
-                Tone of voice
+              <div className="mb-2 text-[11px] font-medium text-muted-foreground">
+                Quick templates
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {TONES.map((t) => (
+                {CAPTION_TEMPLATES.map((t) => (
                   <button
-                    key={t}
-                    onClick={() => update({ tone: t })}
-                    className={cn(
-                      "rounded-full px-3 py-1.5 text-xs font-medium transition",
-                      state.tone === t
-                        ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
-                        : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
+                    key={t.id}
+                    onClick={() => applyTemplate(t.text)}
+                    className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                    title={t.text}
                   >
-                    {t}
+                    <t.icon className="h-3 w-3" />
+                    {t.title}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Tip + AI Assistant toggle */}
+            {/* Tone of voice — with icons */}
+            <div>
+              <div className="mb-2 text-xs font-medium text-muted-foreground">
+                Tone of voice
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {TONES.map((t) => {
+                  const active = state.tone === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => update({ tone: t.id })}
+                      title={t.hint}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
+                        active
+                          ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
+                          : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <t.icon className="h-3 w-3" />
+                      {t.id}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* AI Assistant toggle / panel */}
             {!aiAssistantOpen ? (
-              <div className="space-y-2">
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-foreground/80">
-                  <div className="flex items-start gap-2">
-                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <span>
-                      <b className="text-foreground">Tip:</b> Front-load your hook in
-                      the first 1–2 lines. Mention the offer or emotion early — our
-                      AI will keep your angle but reshape length, hashtags, and tone
-                      per platform. Aim for 60–280 characters for best results.
+              <button
+                onClick={() => setAiAssistantOpen(true)}
+                className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-left transition hover:border-primary hover:bg-primary/10"
+              >
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold">
+                    Try the AI Assistant
+                    <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
+                      New
                     </span>
                   </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Chat conversationally to draft and refine your caption
+                  </div>
                 </div>
-                <button
-                  onClick={() => setAiAssistantOpen(true)}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-left transition hover:border-primary hover:bg-primary/10"
-                >
-                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-                    <Bot className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-bold">
-                      Try the AI Assistant
-                      <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
-                        New
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      Chat conversationally to draft and refine your caption
-                    </div>
-                  </div>
-                </button>
-              </div>
+              </button>
             ) : (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -857,30 +1505,40 @@ export function ComposerView() {
                 />
               </div>
             )}
-          </section>
+          </CollapsibleSection>
 
-          {/* === Step 3: AI Variants === */}
-          <section className="space-y-3">
-            <SectionHeader
-              title="3 · AI Variants"
-              desc="Per-platform native rewrites"
-              icon={Sparkles}
-              action={
-                <button
-                  onClick={() => generate()}
-                  disabled={generating || !state.caption.trim() || selectedAccounts.length === 0}
-                  className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-                >
-                  {generating ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Wand2 className="h-3.5 w-3.5" />
-                  )}
-                  {hasVariants ? "Regenerate all" : "Generate"}
-                </button>
-              }
-            />
-
+          {/* === Step 3: AI Variants (enhanced with engagement prediction + copy) === */}
+          <CollapsibleSection
+            id="variants"
+            index={3}
+            title="AI Variants"
+            desc="Per-platform native rewrites"
+            icon={Sparkles}
+            collapsed={collapsed}
+            onToggle={toggleCollapse}
+            badge={
+              hasVariants ? (
+                <Pill color="violet">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  {Object.keys(state.variants).length}
+                </Pill>
+              ) : undefined
+            }
+            action={
+              <button
+                onClick={() => generate()}
+                disabled={generating || !state.caption.trim() || selectedAccounts.length === 0}
+                className="liquid-gold glow-ring flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+              >
+                {generating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5" />
+                )}
+                {hasVariants ? "Regenerate all" : "Generate"}
+              </button>
+            }
+          >
             {hasVariants ? (
               <>
                 {/* Variant pills — pick which platform to edit/preview */}
@@ -913,7 +1571,7 @@ export function ComposerView() {
 
                 {/* Inline editor for the selected variant */}
                 {previewAccount && (
-                  <VariantEditor
+                  <EnhancedVariantEditor
                     account={previewAccount}
                     variant={state.variants[previewAccount.id]}
                     onChange={(v) =>
@@ -925,7 +1583,29 @@ export function ComposerView() {
                     onRegenerate={() => generate(previewAccount.id)}
                     generating={generating}
                     fallbackContent={state.caption}
+                    onCopy={() => copyVariant(previewAccount.id)}
+                    copied={copiedVariant === previewAccount.id}
+                    onReset={() =>
+                      setState((s) => ({
+                        ...s,
+                        variants: {
+                          ...s.variants,
+                          [previewAccount.id]: { content: state.caption, hashtags: "" },
+                        },
+                      }))
+                    }
                   />
+                )}
+
+                {/* Platform tips strip */}
+                {previewAccount && (
+                  <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 p-2.5 text-[11px] text-foreground/80">
+                    <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span>
+                      <b className="text-foreground">{PLATFORMS[previewAccount.platform].name} tip:</b>{" "}
+                      {PLATFORM_TIPS[previewAccount.platform]}
+                    </span>
+                  </div>
                 )}
               </>
             ) : (
@@ -937,31 +1617,42 @@ export function ComposerView() {
                   : "Write a brief first, then generate variants."}
               </div>
             )}
-          </section>
+          </CollapsibleSection>
 
-          {/* === Step 4: Media === */}
-          <section className="space-y-3">
-            <SectionHeader
-              title="4 · Media"
-              desc="Add visuals"
-              icon={ImageIcon}
-            />
-
-            {/* Media type toggle */}
-            <div className="flex flex-wrap gap-1.5">
+          {/* === Step 4: Media (enhanced with descriptions + better UX) === */}
+          <CollapsibleSection
+            id="media"
+            index={4}
+            title="Media"
+            desc="Add visuals"
+            icon={ImageIcon}
+            collapsed={collapsed}
+            onToggle={toggleCollapse}
+            badge={
+              state.mediaUrl ? (
+                <Pill color="green"><Check className="h-2.5 w-2.5" /> Added</Pill>
+              ) : undefined
+            }
+          >
+            {/* Media type toggle — with hint descriptions */}
+            <div className="grid grid-cols-3 gap-1.5">
               {MEDIA_TYPE_OPTIONS.map((opt) => (
                 <button
                   key={opt.id}
                   onClick={() => update({ mediaType: opt.id })}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
+                    "flex flex-col items-start gap-1 rounded-xl border p-2.5 text-left transition",
                     state.mediaType === opt.id
-                      ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
-                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                      : "border-border/40 hover:bg-muted/40"
                   )}
                 >
-                  <opt.icon className="h-3.5 w-3.5" />
-                  {opt.label}
+                  <div className="flex w-full items-center justify-between">
+                    <opt.icon className={cn("h-4 w-4", state.mediaType === opt.id ? "text-primary" : "text-muted-foreground")} />
+                    {state.mediaType === opt.id && <Check className="h-3 w-3 text-primary" />}
+                  </div>
+                  <div className="text-xs font-bold">{opt.label}</div>
+                  <div className="text-[10px] text-muted-foreground">{opt.hint}</div>
                 </button>
               ))}
             </div>
@@ -1036,7 +1727,7 @@ export function ComposerView() {
               </div>
             )}
 
-            {/* Alt text + crop aspect */}
+            {/* Alt text + crop aspect + location */}
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
                 <Label className="mb-1 text-[11px] text-muted-foreground">
@@ -1084,41 +1775,47 @@ export function ComposerView() {
               mediaAssets={mediaAssets}
               userId={user?.id}
             />
-          </section>
+          </CollapsibleSection>
 
-          {/* === Step 5: Schedule === */}
-          <section className="space-y-3">
-            <SectionHeader
-              title="5 · Schedule"
-              desc="Publish now or pick a future time"
-              icon={CalendarClock}
-            />
-
-            {/* Publish mode — two toggle buttons */}
-            <div className="grid gap-2 sm:grid-cols-2">
+          {/* === Step 5: Schedule (enhanced with best-time + presets + approval) === */}
+          <CollapsibleSection
+            id="schedule"
+            index={5}
+            title="Schedule"
+            desc="Publish now or pick a future time"
+            icon={CalendarClock}
+            collapsed={collapsed}
+            onToggle={toggleCollapse}
+            badge={
+              state.scheduleEnabled ? (
+                <Pill color="amber"><Clock className="h-2.5 w-2.5" /> Scheduled</Pill>
+              ) : state.sendForApproval ? (
+                <Pill color="violet"><ShieldCheck className="h-2.5 w-2.5" /> For approval</Pill>
+              ) : (
+                <Pill color="green"><Send className="h-2.5 w-2.5" /> Now</Pill>
+              )
+            }
+          >
+            {/* Publish mode — three toggle buttons (now / schedule / approval) */}
+            <div className="grid gap-2 sm:grid-cols-3">
               <button
-                onClick={() => update({ scheduleEnabled: false })}
+                onClick={() => update({ scheduleEnabled: false, sendForApproval: false })}
                 className={cn(
                   "rounded-xl border p-3 text-left transition",
-                  !state.scheduleEnabled
+                  !state.scheduleEnabled && !state.sendForApproval
                     ? "border-primary bg-primary/5 ring-1 ring-primary/30"
                     : "border-border/40 hover:bg-muted/40"
                 )}
               >
                 <div className="flex items-center justify-between">
                   <Send className="h-4 w-4 text-primary" />
-                  <Check
-                    className={cn(
-                      "h-3.5 w-3.5",
-                      !state.scheduleEnabled ? "text-primary" : "opacity-0"
-                    )}
-                  />
+                  <Check className={cn("h-3.5 w-3.5", !state.scheduleEnabled && !state.sendForApproval ? "text-primary" : "opacity-0")} />
                 </div>
                 <div className="mt-2 text-xs font-bold">Publish now</div>
                 <div className="text-[10px] text-muted-foreground">Send immediately</div>
               </button>
               <button
-                onClick={() => update({ scheduleEnabled: true })}
+                onClick={() => update({ scheduleEnabled: true, sendForApproval: false })}
                 className={cn(
                   "rounded-xl border p-3 text-left transition",
                   state.scheduleEnabled
@@ -1128,28 +1825,144 @@ export function ComposerView() {
               >
                 <div className="flex items-center justify-between">
                   <CalendarClock className="h-4 w-4 text-primary" />
-                  <Check
-                    className={cn(
-                      "h-3.5 w-3.5",
-                      state.scheduleEnabled ? "text-primary" : "opacity-0"
-                    )}
-                  />
+                  <Check className={cn("h-3.5 w-3.5", state.scheduleEnabled ? "text-primary" : "opacity-0")} />
                 </div>
-                <div className="mt-2 text-xs font-bold">Schedule for later</div>
+                <div className="mt-2 text-xs font-bold">Schedule</div>
                 <div className="text-[10px] text-muted-foreground">Pick a future date &amp; time</div>
+              </button>
+              <button
+                onClick={() => update({ sendForApproval: true, scheduleEnabled: false })}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition",
+                  state.sendForApproval
+                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                    : "border-border/40 hover:bg-muted/40"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  <Check className={cn("h-3.5 w-3.5", state.sendForApproval ? "text-primary" : "opacity-0")} />
+                </div>
+                <div className="mt-2 text-xs font-bold">Send for approval</div>
+                <div className="text-[10px] text-muted-foreground">Save as draft for review</div>
               </button>
             </div>
 
-            {/* DateTime picker */}
+            {/* Schedule: Quick date presets */}
             {state.scheduleEnabled && (
-              <div className="flex items-center gap-2">
-                <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+              <div className="space-y-2.5">
+                <div>
+                  <div className="mb-1.5 text-[11px] font-medium text-muted-foreground">Quick presets</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_DATE_PRESETS.map((p) => (
+                      <button
+                        key={p.label}
+                        onClick={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + (p.offset <= 0 && p.label.includes("Today") ? 0 : p.offset));
+                          d.setHours(p.hour, 0, 0, 0);
+                          const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                            .toISOString()
+                            .slice(0, 16);
+                          update({ scheduledAt: local });
+                        }}
+                        className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                      >
+                        <p.icon className="h-3 w-3" />
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* DateTime picker */}
+                <div className="flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+                  <input
+                    type="datetime-local"
+                    value={state.scheduledAt}
+                    onChange={(e) => update({ scheduledAt: e.target.value })}
+                    className="flex-1 rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-sm outline-none transition focus:border-primary/50"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Approval note */}
+            {state.sendForApproval && (
+              <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold">
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                  Send for approval
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  The post will be saved as a draft and a reviewer will be notified.
+                  No content will be published until approved.
+                </div>
                 <input
-                  type="datetime-local"
-                  value={state.scheduledAt}
-                  onChange={(e) => update({ scheduledAt: e.target.value })}
-                  className="flex-1 rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-sm outline-none transition focus:border-primary/50"
+                  value={state.approvalNote}
+                  onChange={(e) => update({ approvalNote: e.target.value })}
+                  placeholder="Optional note to reviewer (e.g. needs legal review)"
+                  className="w-full rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-sm outline-none transition focus:border-primary/50"
                 />
+              </div>
+            )}
+
+            {/* Best time to post — per selected platform */}
+            {!state.scheduleEnabled && !state.sendForApproval && selectedAccounts.length > 0 && (
+              <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <TrendingUp className="h-3 w-3" />
+                  Best times to post
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {selectedAccounts.slice(0, 4).map((a) => (
+                    <div key={a.id} className="flex items-center gap-2 rounded-lg bg-background/60 p-2">
+                      <PlatformBadge platform={a.platform} size={20} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[11px] font-semibold">
+                          {PLATFORMS[a.platform].name}
+                        </div>
+                        <div className="flex gap-1">
+                          {BEST_TIMES[a.platform].map((t) => (
+                            <span
+                              key={t.time}
+                              className={cn(
+                                "rounded px-1 py-0.5 text-[9px] font-semibold",
+                                t.reach === "Peak"
+                                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                  : "bg-muted/60 text-muted-foreground"
+                              )}
+                            >
+                              {t.time}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    // Use the first selected platform's peak time
+                    if (selectedAccounts.length === 0) return;
+                    const peakTime = BEST_TIMES[selectedAccounts[0].platform].find(t => t.reach === "Peak");
+                    if (!peakTime) return;
+                    const [h, m] = peakTime.time.split(/[:\s]/);
+                    const hour = peakTime.time.includes("PM") && h !== "12" ? parseInt(h) + 12 : parseInt(h);
+                    const d = new Date();
+                    d.setHours(hour, parseInt(m) || 0, 0, 0);
+                    if (d < new Date()) d.setDate(d.getDate() + 1);
+                    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                      .toISOString()
+                      .slice(0, 16);
+                    update({ scheduleEnabled: true, scheduledAt: local });
+                    toast.success("Suggested peak time applied");
+                  }}
+                  className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
+                >
+                  <Zap className="h-3 w-3" />
+                  Use suggested peak time
+                </button>
               </div>
             )}
 
@@ -1160,10 +1973,10 @@ export function ComposerView() {
               mediaUrl={state.mediaUrl}
               hasVariants={hasVariants}
             />
-          </section>
+          </CollapsibleSection>
         </main>
 
-        {/* STICKY PREVIEW — desktop only (lg:block) */}
+        {/* STICKY PREVIEW — desktop only */}
         {previewAccount && (
           <aside className="hidden lg:block">
             <div className="sticky top-20 space-y-3">
@@ -1171,6 +1984,40 @@ export function ComposerView() {
                 title="Live preview"
                 desc="Updates as you type"
                 icon={Eye}
+                action={
+                  <div className="flex items-center gap-1">
+                    {/* Device toggle */}
+                    <div className="flex gap-0.5 rounded-lg bg-muted/40 p-0.5">
+                      {([
+                        { id: "phone" as DeviceMode, icon: Smartphone, label: "Phone" },
+                        { id: "tablet" as DeviceMode, icon: Tablet, label: "Tablet" },
+                        { id: "desktop" as DeviceMode, icon: Monitor, label: "Desktop" },
+                      ]).map((d) => (
+                        <button
+                          key={d.id}
+                          onClick={() => setPreviewDevice(d.id)}
+                          title={d.label}
+                          className={cn(
+                            "grid h-6 w-6 place-items-center rounded-md transition",
+                            previewDevice === d.id
+                              ? "bg-background text-primary shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <d.icon className="h-3 w-3" />
+                        </button>
+                      ))}
+                    </div>
+                    {/* Theme toggle */}
+                    <button
+                      onClick={() => setPreviewTheme(t => t === "light" ? "dark" : "light")}
+                      className="grid h-6 w-6 place-items-center rounded-md bg-muted/40 text-muted-foreground transition hover:text-foreground"
+                      title="Toggle preview theme"
+                    >
+                      {previewTheme === "light" ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
+                    </button>
+                  </div>
+                }
               />
 
               {/* Platform switcher tabs */}
@@ -1196,40 +2043,66 @@ export function ComposerView() {
                 })}
               </div>
 
-              {/* Phone preview — the phone mockup frame */}
+              {/* Phone preview — device-aware */}
               <PhonePreview
                 account={previewAccount}
                 content={previewContent}
                 mediaUrl={state.mediaUrl}
                 hashtags={previewHashtags}
+                device={previewDevice}
+                theme={previewTheme}
               />
 
-              {/* Char-limit indicator */}
-              <div className="text-center text-[10px] text-muted-foreground">
-                <span
-                  className={cn(
-                    previewContent.length > PLATFORMS[previewAccount.platform].charLimit &&
-                      "font-semibold text-rose-500"
-                  )}
-                >
-                  {previewContent.length}
-                </span>
-                {" / "}
-                {PLATFORMS[previewAccount.platform].charLimit} chars on{" "}
-                {PLATFORMS[previewAccount.platform].name}
+              {/* Char-limit progress bar */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-muted-foreground">
+                    {PLATFORMS[previewAccount.platform].name} char limit
+                  </span>
+                  <span className={cn(
+                    "font-semibold tabular-nums",
+                    previewContent.length > PLATFORMS[previewAccount.platform].charLimit
+                      ? "text-rose-500"
+                      : "text-muted-foreground"
+                  )}>
+                    {previewContent.length} / {PLATFORMS[previewAccount.platform].charLimit}
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      previewContent.length > PLATFORMS[previewAccount.platform].charLimit
+                        ? "bg-rose-500"
+                        : "bg-primary"
+                    )}
+                    style={{
+                      width: `${Math.min(100, (previewContent.length / PLATFORMS[previewAccount.platform].charLimit) * 100)}%`,
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </aside>
         )}
       </div>
 
-      {/* === Mobile preview — below the flow, not sticky === */}
+      {/* === Mobile preview — below the flow === */}
       {previewAccount && (
         <section className="space-y-3 lg:hidden">
           <SectionHeader
             title="Live preview"
             desc="Tap a platform to switch"
             icon={Eye}
+            action={
+              <button
+                onClick={() => setPreviewTheme(t => t === "light" ? "dark" : "light")}
+                className="grid h-6 w-6 place-items-center rounded-md bg-muted/40 text-muted-foreground transition hover:text-foreground"
+                title="Toggle preview theme"
+              >
+                {previewTheme === "light" ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
+              </button>
+            }
           />
           <div className="scroll-liquid flex gap-1 overflow-x-auto pb-1">
             {selectedAccounts.map((a) => {
@@ -1257,21 +2130,212 @@ export function ComposerView() {
             content={previewContent}
             mediaUrl={state.mediaUrl}
             hashtags={previewHashtags}
+            device="phone"
+            theme={previewTheme}
           />
         </section>
       )}
 
-      {/* === Sticky publish bar — bottom of viewport === */}
+      {/* === Sticky publish bar — with completion ring + shortcut hint === */}
       <StickyPublishBar
         onPublish={publish}
         publishing={publishing}
         scheduleEnabled={state.scheduleEnabled}
+        sendForApproval={state.sendForApproval}
         editing={!!editingPostId}
         disabled={!canPublish}
+        disabledReason={publishDisabledLabel}
         accountCount={selectedAccounts.length}
         combinedReach={combinedReach}
+        completion={completion}
+      />
+
+      {/* Templates dropdown dialog */}
+      <TemplatesDialog
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
+        onApply={applyTemplate}
       />
     </div>
+  );
+}
+
+/* ============================================================
+   ProgressToolbar — top progress header with completion ring
+   ============================================================ */
+function ProgressToolbar({
+  completion,
+  editing,
+  scheduleEnabled,
+  sendForApproval,
+  onReset,
+  onSaveDraft,
+  savingDraft,
+  onTemplates,
+}: {
+  completion: number;
+  editing: boolean;
+  scheduleEnabled: boolean;
+  sendForApproval: boolean;
+  onReset: () => void;
+  onSaveDraft: () => void;
+  savingDraft: boolean;
+  onTemplates: () => void;
+}) {
+  const mode = sendForApproval ? "Approval" : scheduleEnabled ? "Scheduled" : editing ? "Republish" : "Compose";
+  const modeColor = sendForApproval
+    ? "text-violet-500"
+    : scheduleEnabled
+    ? "text-amber-500"
+    : editing
+    ? "text-blue-500"
+    : "text-primary";
+
+  return (
+    <div className="glass-strong glass-sheen sticky top-0 z-20 -mx-4 flex items-center gap-3 rounded-b-2xl px-4 py-2.5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      {/* Completion ring */}
+      <div className="relative grid h-10 w-10 shrink-0 place-items-center">
+        <svg viewBox="0 0 36 36" className="h-10 w-10 -rotate-90">
+          <circle
+            cx="18" cy="18" r="15.5"
+            fill="none"
+            stroke="var(--muted)"
+            strokeWidth="3"
+            opacity="0.5"
+          />
+          <circle
+            cx="18" cy="18" r="15.5"
+            fill="none"
+            stroke="var(--primary)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray={`${(completion / 100) * 97.4} 97.4`}
+            className="transition-all duration-500"
+          />
+        </svg>
+        <span className="absolute text-[9px] font-bold tabular-nums">
+          {completion}%
+        </span>
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold">Composer</span>
+          <span className={cn("rounded-full bg-muted/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider", modeColor)}>
+            {mode}
+          </span>
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          {completion === 100
+            ? "Ready to publish"
+            : `${100 - completion}% left to complete`}
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={onTemplates}
+          className="hidden items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:flex"
+          title="Caption templates"
+        >
+          <Star className="h-3.5 w-3.5" />
+          Templates
+        </button>
+        <button
+          onClick={onSaveDraft}
+          disabled={savingDraft}
+          className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+          title="Save as draft (no publish)"
+        >
+          {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          <span className="hidden sm:inline">Save draft</span>
+        </button>
+        <button
+          onClick={onReset}
+          className="grid h-8 w-8 place-items-center rounded-xl border border-border/50 bg-muted/40 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          title="Reset composer"
+        >
+          <Undo2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   CollapsibleSection — wrapper that animates expand/collapse
+   ============================================================ */
+function CollapsibleSection({
+  id,
+  index,
+  title,
+  desc,
+  icon: Icon,
+  collapsed,
+  onToggle,
+  badge,
+  action,
+  children,
+}: {
+  id: SectionId;
+  index: number;
+  title: string;
+  desc: string;
+  icon: LucideIcon;
+  collapsed: Set<SectionId>;
+  onToggle: (id: SectionId) => void;
+  badge?: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const isCollapsed = collapsed.has(id);
+  return (
+    <section className="space-y-3">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => onToggle(id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle(id);
+          }
+        }}
+        className="flex w-full cursor-pointer items-center gap-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
+      >
+        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {index}
+            </span>
+            <span className="text-sm font-bold">{title}</span>
+            {badge}
+          </div>
+          <div className="text-[11px] text-muted-foreground">{desc}</div>
+        </div>
+        {action && (
+          <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+            {action}
+          </div>
+        )}
+        <ChevronDown className={cn(
+          "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+          isCollapsed ? "" : "rotate-180"
+        )} />
+      </div>
+      <div className={cn(
+        "transition-all duration-300",
+        isCollapsed ? "max-h-0 overflow-hidden opacity-0" : "max-h-[5000px] opacity-100"
+      )}>
+        <div className="space-y-3 pl-1">
+          {children}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1316,7 +2380,6 @@ function EditingBanner({
 
 /* ============================================================
    Drafts panel — list of saved draft + failed posts.
-   Rendered as a card so it stands apart from the flow.
    ============================================================ */
 function DraftsPanel({
   drafts,
@@ -1408,12 +2471,10 @@ function DraftsPanel({
 
 /* ============================================================
    AI Chat Panel — ChatGPT-style conversational assistant.
-   Inline within the Brief section when expanded.
    ============================================================ */
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
-  /** Suggestions returned by the AI — each can be applied to the textbox. */
   suggestions?: string[];
 }
 
@@ -1433,7 +2494,6 @@ function AIChatPanel({
   const [sending, setSending] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
   React.useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -1508,7 +2568,6 @@ function AIChatPanel({
 
   return (
     <div className="flex h-[420px] flex-col rounded-2xl border border-border/50 bg-muted/20">
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-border/40 px-3 py-2">
         <div className="flex items-center gap-2">
           <div className="grid h-6 w-6 place-items-center rounded-lg bg-primary/15 text-primary">
@@ -1531,7 +2590,6 @@ function AIChatPanel({
         )}
       </div>
 
-      {/* Messages area */}
       <div
         ref={scrollRef}
         className="scroll-liquid flex-1 space-y-3 overflow-y-auto p-3"
@@ -1628,7 +2686,6 @@ function AIChatPanel({
         )}
       </div>
 
-      {/* Input area */}
       <div className="border-t border-border/40 p-2.5">
         <div className="flex items-end gap-2">
           <textarea
@@ -1662,17 +2719,19 @@ function AIChatPanel({
 }
 
 /* ============================================================
-   Variant editor — inline editor for the selected platform
-   variant. Shows below the variant pills in the AI Variants
-   section. Edits live-update the sticky preview.
+   Enhanced Variant editor — with engagement prediction,
+   copy button, diff indicator, reset button.
    ============================================================ */
-function VariantEditor({
+function EnhancedVariantEditor({
   account,
   variant,
   onChange,
   onRegenerate,
   generating,
   fallbackContent,
+  onCopy,
+  copied,
+  onReset,
 }: {
   account: AccountData;
   variant: Variant | undefined;
@@ -1680,15 +2739,37 @@ function VariantEditor({
   onRegenerate: () => void;
   generating: boolean;
   fallbackContent: string;
+  onCopy: () => void;
+  copied: boolean;
+  onReset: () => void;
 }) {
   const p = PLATFORMS[account.platform];
   const content = variant?.content ?? fallbackContent;
   const hashtags = variant?.hashtags ?? "";
   const overLimit = content.length > p.charLimit;
 
+  // Engagement prediction — simple heuristic
+  const tagCount = hashtags ? hashtags.split(",").filter(Boolean).length : 0;
+  const lengthScore = Math.min(1, content.length / Math.max(50, p.charLimit * 0.4));
+  const hashtagScore = Math.min(1, tagCount / 5);
+  const emojiCount = (content.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []).length;
+  const emojiScore = Math.min(1, emojiCount / 3);
+  const engagementScore = Math.round((lengthScore * 0.4 + hashtagScore * 0.35 + emojiScore * 0.25) * 100);
+  const engagementLabel = engagementScore >= 70 ? "High" : engagementScore >= 40 ? "Medium" : "Low";
+  const engagementColor = engagementScore >= 70 ? "emerald" : engagementScore >= 40 ? "amber" : "rose";
+
+  // Diff % vs original brief
+  const diffPct = variant && variant.content !== fallbackContent
+    ? Math.round(
+        Math.abs(variant.content.length - fallbackContent.length) /
+          Math.max(1, fallbackContent.length) *
+          100
+      )
+    : 0;
+
   return (
     <div className="rounded-2xl border border-border/40 bg-muted/20 p-3">
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <PlatformBadge platform={account.platform} size={22} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 text-xs font-semibold">
@@ -1699,10 +2780,42 @@ function VariantEditor({
             {account.handle} · {p.name}
           </div>
         </div>
+
+        {/* Engagement prediction badge */}
         {variant && (
-          <Pill color="violet">
-            <Sparkles className="h-2.5 w-2.5" /> AI
-          </Pill>
+          <span
+            className={cn(
+              "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
+              engagementColor === "emerald" && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+              engagementColor === "amber" && "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+              engagementColor === "rose" && "bg-rose-500/15 text-rose-500"
+            )}
+            title="Engagement prediction (heuristic)"
+          >
+            <Target className="h-2.5 w-2.5" />
+            {engagementLabel} · {engagementScore}%
+          </span>
+        )}
+
+        {/* Action buttons */}
+        <button
+          onClick={onCopy}
+          disabled={!variant}
+          className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-primary disabled:opacity-30"
+          title="Copy variant"
+          aria-label="Copy variant"
+        >
+          {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+        </button>
+        {variant && diffPct > 0 && (
+          <button
+            onClick={onReset}
+            className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-primary"
+            title="Reset to original brief"
+            aria-label="Reset to original brief"
+          >
+            <Undo2 className="h-3 w-3" />
+          </button>
         )}
         <button
           onClick={onRegenerate}
@@ -1714,6 +2827,23 @@ function VariantEditor({
           <RefreshCw className={cn("h-3 w-3", generating && "animate-spin")} />
         </button>
       </div>
+
+      {/* Diff indicator */}
+      {variant && diffPct > 0 && (
+        <div className="mb-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <TrendingUp className="h-2.5 w-2.5 text-primary" />
+          <span>{diffPct}% different from original brief</span>
+          <span className="ml-auto flex items-center gap-1">
+            <Hash className="h-2.5 w-2.5" /> {tagCount} tags
+            {emojiCount > 0 && (
+              <span className="flex items-center gap-1">
+                · <Smile className="h-2.5 w-2.5" /> {emojiCount} emoji
+              </span>
+            )}
+          </span>
+        </div>
+      )}
+
       <textarea
         value={content}
         onChange={(e) => onChange({ content: e.target.value, hashtags })}
@@ -1742,37 +2872,52 @@ function VariantEditor({
 }
 
 /* ============================================================
-   Phone preview — the only "card frame" in the view.
-   Floats in the sticky aside on desktop; stacks below on mobile.
+   Phone preview — device-aware (phone/tablet/desktop) + theme-aware
    ============================================================ */
 function PhonePreview({
   account,
   content,
   mediaUrl,
   hashtags,
+  device,
+  theme,
 }: {
   account: AccountData;
   content: string;
   mediaUrl: string;
   hashtags: string;
+  device: DeviceMode;
+  theme: PreviewTheme;
 }) {
   const tags = hashtags
     .split(/[,\s]+/)
     .map((t) => t.replace(/^#/, "").trim())
     .filter(Boolean);
+
+  const widthClass =
+    device === "phone" ? "max-w-[280px]" :
+    device === "tablet" ? "max-w-[380px]" :
+    "max-w-[480px]";
+
+  const isDark = theme === "dark";
+  const frameBg = isDark ? "bg-zinc-900" : "bg-background";
+  const textPrimary = isDark ? "text-zinc-100" : "text-foreground";
+  const textMuted = isDark ? "text-zinc-400" : "text-muted-foreground";
+  const borderClr = isDark ? "border-zinc-800" : "border-border/60";
+
   return (
-    <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-3xl border border-border/60 bg-background shadow-lg">
+    <div className={cn("mx-auto w-full overflow-hidden rounded-3xl border shadow-lg", widthClass, frameBg, borderClr)}>
       {/* Header */}
-      <div className="flex items-center gap-2 p-3">
+      <div className={cn("flex items-center gap-2 p-3", isDark && "bg-zinc-900")}>
         <PlatformBadge platform={account.platform} size={32} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1 text-xs font-semibold">
+          <div className={cn("flex items-center gap-1 text-xs font-semibold", textPrimary)}>
             <span className="truncate">{account.displayName}</span>
             {account.verified && <VerifiedTick className="text-primary" />}
           </div>
-          <div className="text-[10px] text-muted-foreground">{account.handle}</div>
+          <div className={cn("text-[10px]", textMuted)}>{account.handle}</div>
         </div>
-        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+        <MoreHorizontal className={cn("h-4 w-4", textMuted)} />
       </div>
 
       {/* Media */}
@@ -1783,17 +2928,17 @@ function PhonePreview({
       )}
 
       {/* Body */}
-      <div className="p-3">
-        <div className="mb-2 flex items-center gap-3 text-muted-foreground">
+      <div className={cn("p-3", isDark && "bg-zinc-900")}>
+        <div className={cn("mb-2 flex items-center gap-3", textMuted)}>
           <Heart className="h-4 w-4" />
           <MessageCircle className="h-4 w-4" />
           <Send className="h-4 w-4" />
           <Bookmark className="ml-auto h-4 w-4" />
         </div>
-        <div className="text-[10px] font-semibold">
+        <div className={cn("text-[10px] font-semibold", textPrimary)}>
           {fmt(account.followers)} followers
         </div>
-        <p className="mt-1 line-clamp-4 text-xs leading-relaxed text-foreground/90">
+        <p className={cn("mt-1 line-clamp-4 text-xs leading-relaxed", isDark ? "text-zinc-200" : "text-foreground/90")}>
           {content || "Your caption will appear here…"}
         </p>
         {tags.length > 0 && (
@@ -1803,8 +2948,8 @@ function PhonePreview({
             ))}
           </div>
         )}
-        <div className="mt-2 text-[9px] uppercase tracking-wide text-muted-foreground">
-          {PLATFORMS[account.platform].name}
+        <div className={cn("mt-2 text-[9px] uppercase tracking-wide", textMuted)}>
+          {PLATFORMS[account.platform].name} · {device} preview
         </div>
       </div>
     </div>
@@ -1812,7 +2957,7 @@ function PhonePreview({
 }
 
 /* ============================================================
-   Pre-publish checklist — inline summary in Schedule section
+   Pre-publish checklist — enhanced
    ============================================================ */
 function PrePublishChecklist({
   accounts,
@@ -1831,11 +2976,21 @@ function PrePublishChecklist({
     { label: "Media added", done: !!mediaUrl },
     { label: "AI variants ready", done: hasVariants },
   ];
-  const allDone = checklist.every((c) => c.done);
+  const doneCount = checklist.filter((c) => c.done).length;
+  const allDone = doneCount === checklist.length;
+  const pct = Math.round((doneCount / checklist.length) * 100);
 
   return (
     <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
-      <div className="label-caps mb-2 text-muted-foreground">Pre-publish checklist</div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="label-caps text-muted-foreground">Pre-publish checklist</div>
+        <span className={cn(
+          "rounded-full px-2 py-0.5 text-[10px] font-bold",
+          allDone ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"
+        )}>
+          {doneCount}/{checklist.length} · {pct}%
+        </span>
+      </div>
       <div className="space-y-1.5">
         {checklist.map((c) => (
           <div key={c.label} className="flex items-center gap-2 text-xs">
@@ -1875,67 +3030,165 @@ function PrePublishChecklist({
 }
 
 /* ============================================================
-   Sticky publish bar — bottom of viewport, always visible
+   Sticky publish bar — with completion ring + shortcut hint
    ============================================================ */
 function StickyPublishBar({
   onPublish,
   publishing,
   scheduleEnabled,
+  sendForApproval,
   editing,
   disabled,
+  disabledReason,
   accountCount,
   combinedReach,
+  completion,
 }: {
   onPublish: () => void;
   publishing: boolean;
   scheduleEnabled: boolean;
+  sendForApproval: boolean;
   editing: boolean;
   disabled: boolean;
+  disabledReason: string | null;
   accountCount: number;
   combinedReach: number;
+  completion: number;
 }) {
+  const isMac = typeof navigator !== "undefined" && navigator.platform.toLowerCase().includes("mac");
+
   return (
     <div className="sticky bottom-0 z-30 -mx-4 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       <div className="glass-strong glass-sheen flex items-center justify-between gap-3 rounded-2xl px-4 py-3 sm:px-5">
-        <div className="hidden min-w-0 sm:block">
-          <div className="text-xs font-semibold">
-            {accountCount > 0
-              ? `${accountCount} account${accountCount === 1 ? "" : "s"} · ${fmt(combinedReach)} reach`
-              : "Select accounts to publish"}
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            {scheduleEnabled ? "Will be scheduled for later" : "Will publish immediately"}
-            {editing ? " · republishing draft" : ""}
+        <div className="hidden min-w-0 flex-1 sm:block">
+          <div className="flex items-center gap-2">
+            {/* Mini completion ring */}
+            <div className="relative grid h-7 w-7 shrink-0 place-items-center">
+              <svg viewBox="0 0 36 36" className="h-7 w-7 -rotate-90">
+                <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--muted)" strokeWidth="3.5" opacity="0.5" />
+                <circle
+                  cx="18" cy="18" r="15.5"
+                  fill="none"
+                  stroke="var(--primary)"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(completion / 100) * 97.4} 97.4`}
+                  className="transition-all duration-500"
+                />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-xs font-semibold">
+                {accountCount > 0
+                  ? `${accountCount} account${accountCount === 1 ? "" : "s"} · ${fmt(combinedReach)} reach`
+                  : "Select accounts to publish"}
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                {disabledReason
+                  ? disabledReason
+                  : sendForApproval
+                  ? "Will be sent for approval"
+                  : scheduleEnabled
+                  ? "Will be scheduled for later"
+                  : "Will publish immediately"}
+                {editing ? " · republishing draft" : ""}
+              </div>
+            </div>
           </div>
         </div>
-        <button
-          onClick={onPublish}
-          disabled={publishing || disabled}
-          className="liquid-pill glow-ring ml-auto flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
-        >
-          {publishing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : scheduleEnabled ? (
-            <CalendarClock className="h-4 w-4" />
-          ) : editing ? (
-            <RotateCw className="h-4 w-4" />
-          ) : (
-            <Send className="h-4 w-4" />
+
+        <div className="flex items-center gap-2">
+          {/* Keyboard shortcut hint */}
+          {!disabled && !publishing && (
+            <kbd className="hidden items-center gap-1 rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-[10px] font-mono text-muted-foreground md:flex">
+              {isMac ? "⌘" : "Ctrl"} + ↵
+            </kbd>
           )}
-          {publishing
-            ? editing
-              ? "Republishing…"
-              : "Publishing…"
-            : scheduleEnabled
-            ? editing
-              ? "Update & schedule"
-              : "Schedule post"
-            : editing
-            ? "Republish now"
-            : "Publish now"}
-        </button>
+          <button
+            onClick={onPublish}
+            disabled={publishing || disabled}
+            className="liquid-pill glow-ring ml-auto flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+          >
+            {publishing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : sendForApproval ? (
+              <ShieldCheck className="h-4 w-4" />
+            ) : scheduleEnabled ? (
+              <CalendarClock className="h-4 w-4" />
+            ) : editing ? (
+              <RotateCw className="h-4 w-4" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            {publishing
+              ? editing
+                ? "Republishing…"
+                : sendForApproval
+                ? "Submitting…"
+                : "Publishing…"
+              : sendForApproval
+              ? "Send for approval"
+              : scheduleEnabled
+              ? editing
+                ? "Update & schedule"
+                : "Schedule post"
+              : editing
+              ? "Republish now"
+              : "Publish now"}
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+   Templates dialog — pick a pre-built caption template
+   ============================================================ */
+function TemplatesDialog({
+  open,
+  onOpenChange,
+  onApply,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onApply: (text: string) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="glass-strong max-w-xl" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Caption templates</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {CAPTION_TEMPLATES.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => onApply(t.text)}
+              className="group flex flex-col items-start gap-2 rounded-xl border border-border/40 bg-muted/20 p-3 text-left transition hover:border-primary/40 hover:bg-muted/40"
+            >
+              <div className="flex w-full items-center gap-2">
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <t.icon className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-sm font-bold">{t.title}</span>
+                <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" />
+              </div>
+              <div className="line-clamp-3 text-[11px] text-muted-foreground">
+                {t.text}
+              </div>
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 flex justify-end">
+          <DialogClose asChild>
+            <button className="rounded-xl border border-border/50 bg-muted/40 px-4 py-2 text-sm font-medium hover:bg-muted">
+              Close
+            </button>
+          </DialogClose>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2000,12 +3253,11 @@ function UploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-strong max-w-2xl">
+      <DialogContent className="glass-strong max-w-2xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Choose media</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {/* === Direct file upload (drag-and-drop) === */}
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
@@ -2048,14 +3300,12 @@ function UploadDialog({
             </div>
           </div>
 
-          {/* Divider */}
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <div className="h-px flex-1 bg-border/40" />
             or paste URL
             <div className="h-px flex-1 bg-border/40" />
           </div>
 
-          {/* URL input */}
           <div>
             <Label className="mb-2 text-xs text-muted-foreground">Image URL</Label>
             <div className="flex gap-2">
@@ -2074,7 +3324,6 @@ function UploadDialog({
             </div>
           </div>
 
-          {/* Media library grid */}
           {mediaAssets.length > 0 && (
             <>
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
