@@ -1480,51 +1480,14 @@ html { scroll-behavior: smooth; }
   }
 
   /* === PRINT LAYOUT ISOLATION ===
-     The problem: 'visibility: hidden' preserves layout space, so hidden
-     on-screen elements (sidebars, charts, tabs) still create blank pages.
+     PROVEN APPROACH: visibility:hidden on ALL elements, then
+     visibility:visible ONLY on .report-print-root and its children.
+     The print root is position:absolute at page origin so it escapes
+     the normal flow — hidden elements can't push it down or create
+     blank pages.
 
-     Solution: Use display:none on ALL top-level page containers, then
-     re-display only .report-print-root. This completely removes on-screen
-     elements from the print flow — no blank pages.
-
-     We can't just do 'body * { display: none }' because that would hide
-     the print root's ancestors too. Instead, we hide the React root's
-     direct children that are NOT the print root, and hide common app
-     chrome elements explicitly. */
-
-  /* Hide common app chrome that causes blank pages */
-  .glass-sidebar,
-  .glass-topbar,
-  .apple-tab-bar,
-  .apple-fab-gradient,
-  .fab-glow,
-  .retaina-bg,
-  .splash-screen,
-  nav,
-  .mobile-only,
-  [class*="apple-compose-tab"],
-  [class*="more-sheet"],
-  footer[class*="glass-topbar"] {
-    display: none !important;
-  }
-
-  /* Hide the React root's children EXCEPT the print root.
-     The print root is rendered inside the app, so we hide everything
-     at the top level of #root / main and re-show the print root. */
-  #root > *:not(.report-print-root),
-  main > *:not(.report-print-root),
-  body > *:not(.report-print-root):not(.print-area):not(style):not(script) {
-    display: none !important;
-  }
-
-  /* But the print root is nested deep inside React's tree, so we also
-     need to ensure its ancestor chain is visible. We do this by making
-     ALL elements visible (undoing display:none) and then using the
-     classic visibility approach for the final filter. */
-  /* Actually — simplest reliable approach: visibility:hidden on all,
-     visibility:visible on print root, AND position:absolute on print
-     root to take it out of normal flow so hidden elements don't push
-     it down and create blank pages. */
+     DO NOT use display:none on parent containers — it would hide
+     the print root too (since it's nested inside React's tree). */
   body * { visibility: hidden; }
   .report-print-root, .report-print-root *,
   .print-area, .print-area * { visibility: visible; }
