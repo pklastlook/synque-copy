@@ -32,6 +32,9 @@ import { OwnerView } from "@/components/views/owner";
 import { TeamPerformanceView } from "@/components/views/team-performance";
 import { AIAssistantPanel } from "@/components/ai-assistant";
 import { OrganizationView } from "@/components/views/organization";
+import { UTMBuilderView } from "@/components/views/utm-builder";
+import { ApprovalsView } from "@/components/views/approvals";
+import { InfluencersView } from "@/components/views/influencers";
 import {
   LayoutDashboard, PenSquare, Inbox as InboxIcon, BarChart3, MoreHorizontal,
   Calendar, MessageCircle as WhatsAppIcon, MessageSquare, CheckSquare,
@@ -158,6 +161,9 @@ export function AppShell() {
               {view === "owner" && <OwnerView />}
               {view === "team-performance" && <TeamPerformanceView />}
               {view === "organization" && <OrganizationView />}
+              {view === "utm" && <UTMBuilderView />}
+              {view === "approvals" && <ApprovalsView />}
+              {view === "influencers" && <InfluencersView />}
               {view === "settings" && <SettingsView />}
             </div>
           </main>

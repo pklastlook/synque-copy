@@ -66,9 +66,9 @@
 :root {
   --radius: 0.5rem; /* 8px — buttons, inputs, list rows. Cards use 12px via rounded-xl. */
 
-  /* Canvas — Apple off-white #F5F5F7 (NOT pure white).
+  /* Canvas — Apple off-white #ECECEE (NOT pure white, slightly darker so white cards pop).
      Crystal-solid, not splashed or washed out. */
-  --background: oklch(0.96 0.003 280);
+  --background: oklch(0.94 0.004 280);
   --foreground: oklch(0.22 0.003 280); /* #1D1D1F — Apple near-black */
 
   /* Cards — solid pure white, clearly elevated above the canvas.
@@ -88,12 +88,12 @@
   --gold-foreground: oklch(0.99 0 0);
   --accent-strong: oklch(0.54 0.21 277);
 
-  /* Secondary surfaces — solid Apple gray-6 #F2F2F7 */
-  --secondary: oklch(0.95 0.003 280);
+  /* Secondary surfaces — darker than canvas for clear layer separation. */
+  --secondary: oklch(0.92 0.004 280);
   --secondary-foreground: oklch(0.22 0.003 280);
 
-  --muted: oklch(0.95 0.003 280);
-  --muted-foreground: oklch(0.62 0.002 280); /* #86868B — Apple gray */
+  --muted: oklch(0.93 0.004 280);
+  --muted-foreground: oklch(0.52 0.003 280); /* #6E6E73 — darker gray, readable at 10-11px */
 
   --accent: oklch(0.94 0.005 258);
   --accent-foreground: oklch(0.36 0.13 258);
@@ -104,7 +104,7 @@
   --warning: oklch(0.737 0.165 55);      /* #FF9500 */
   --info: oklch(0.581 0.189 256);         /* #0071E3 */
 
-  --border: oklch(0.88 0.003 280 / 60%);  /* hairline rgba(0,0,0,0.06) */
+  --border: oklch(0.85 0.004 280 / 100%);  /* full-opacity hairline #D8D8DC — visible */
   --input: oklch(0.95 0.003 280);
   --ring: oklch(0.581 0.189 256 / 40%);
 
@@ -115,15 +115,15 @@
   --chart-4: oklch(0.635 0.217 17);   /* pink    */
   --chart-5: oklch(0.737 0.165 55);   /* orange  #FF9500 */
 
-  /* Sidebar — solid #F0F0F2 (slightly darker than canvas, like macOS sidebar).
+  /* Sidebar — solid #ECECEE (same as canvas — cards float above both).
      SOLID, not translucent — crystal clarity over vibrancy. */
-  --sidebar: oklch(0.945 0.003 280 / 100%);
+  --sidebar: oklch(0.94 0.004 280 / 100%);
   --sidebar-foreground: oklch(0.22 0.003 280);
   --sidebar-primary: oklch(0.581 0.189 256);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.93 0.005 280 / 100%);
   --sidebar-accent-foreground: oklch(0.22 0.003 280);
-  --sidebar-border: oklch(0.88 0.003 280 / 60%);
+  --sidebar-border: oklch(0.85 0.004 280 / 100%);
   --sidebar-ring: oklch(0.581 0.189 256 / 40%);
 
   /* Platform brand colors — solid */
@@ -249,11 +249,11 @@
 :root {
   /* .regularMaterial — solid card surface (pure #FFFFFF) */
   --glass-bg: oklch(1 0 0 / 100%);
-  --glass-border: oklch(0 0 0 / 6%); /* hairline rgba(0,0,0,0.06) */
+  --glass-border: oklch(0 0 0 / 10%); /* hairline rgba(0,0,0,0.10) — visible */
   --glass-highlight: oklch(1 0 0 / 100%);
-  --glass-shadow: oklch(0 0 0 / 6%);
-  --glass-shadow-soft: oklch(0 0 0 / 4%);
-  --glass-shadow-hover: oklch(0 0 0 / 8%);
+  --glass-shadow: oklch(0 0 0 / 8%);
+  --glass-shadow-soft: oklch(0 0 0 / 6%);
+  --glass-shadow-hover: oklch(0 0 0 / 12%);
   /* .thickMaterial — elevated (dialogs, popovers) — solid #FFFFFF */
   --glass-bg-strong: oklch(1 0 0 / 100%);
   /* Subtle accent tint for focus/hover states */
@@ -275,7 +275,7 @@
 .glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  /* Apple card shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06) */
+  /* Apple card shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.08) */
   box-shadow:
     0 1px 3px 0 var(--glass-shadow-soft),
     0 1px 2px 0 var(--glass-shadow);
@@ -303,7 +303,7 @@
   -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
-/* Sidebar — SOLID #F0F0F2 (light) / #1C1C1E (dark).
+/* Sidebar — SOLID #ECECEE (light, matches canvas) / #1C1C1E (dark).
    Crystal-solid like macOS sidebar — no translucency. */
 .glass-sidebar {
   background: var(--sidebar);
@@ -328,7 +328,7 @@
 }
 
 /* ============================================================================
-   Background — SOLID canvas (#F5F5F7 light / #1D1D1F dark)
+   Background — SOLID canvas (#ECECEE light / #1D1D1F dark)
    No splashed blobs. Crystal-solid, like macOS desktop wallpaper base.
    ============================================================================ */
 .retaina-bg {
@@ -413,7 +413,7 @@
 }
 .lift-hover:hover {
   transform: translateY(-1px);
-  /* Apple card hover shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.06) */
+  /* Apple card hover shadow: 0 4px 12px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08) */
   box-shadow:
     0 4px 12px 0 var(--glass-shadow-hover),
     0 2px 4px 0 var(--glass-shadow);

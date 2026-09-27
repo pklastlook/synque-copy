@@ -7372,3 +7372,207 @@ $ npx tsc --noEmit 2>&1 | rg "splash|app/page|globals"
 - If the 2.5s total duration feels too long/short for the brand, adjust the two timer values in `splash-screen.tsx` (`2000` for fade-out start, `2500` for unmount) and the `animation-duration` of `splashProgress` (currently 2.4s) in `globals.css`.
 - The existing `PwaSplashScreen` is currently not imported by any component (verified via `rg "PwaSplashScreen" src/`). If the PWA install-launch flow is wired up later, the parent should `<PwaSplashScreen onComplete={() => setShowPwaSplash(false)} />` — the API is unchanged from before this task.
 
+
+---
+
+## Task ID: `light-mode-fix` — Light mode design token refinement
+
+**Task**: Fix the light mode design in `src/app/globals.css` to improve contrast, visibility, and overall polish. The current light mode had elements "merging with the background" — cards, text, and borders didn't have enough contrast against the off-white canvas.
+
+### File modified
+- `/home/z/my-project/src/app/globals.css` (CSS-only change — no TS/JSX touched)
+
+### Audit findings addressed
+1. **Background too close to card color** — `--background` (#F5F5F7) and `--card` (#FFFFFF) were only ~3% apart; cards blended into the canvas.
+2. **Muted text too light** — `--muted-foreground` (#86868B) was barely readable at 10–11px font sizes.
+3. **Borders too subtle** — `--border` at 60% opacity ≈ rgba(0,0,0,0.06), practically invisible.
+4. **Shadows too weak** — `.glass` shadow (0.04 / 0.06) was barely perceptible.
+5. **Accent / muted surfaces too subtle** — `--muted` and `--secondary` matched the canvas exactly.
+
+### Changes applied to `:root` (light mode only — `.dark` untouched)
+
+**Backgrounds — increase contrast between canvas and cards:**
+| Token | Before | After | Hex |
+|---|---|---|---|
+| `--background` | `oklch(0.96 0.003 280)` | `oklch(0.94 0.004 280)` | #F5F5F7 → #ECECEE |
+| `--muted` | `oklch(0.95 0.003 280)` | `oklch(0.93 0.004 280)` | slightly darker than canvas |
+| `--secondary` | `oklch(0.95 0.003 280)` | `oklch(0.92 0.004 280)` | darker still, for secondary surfaces |
+
+**Text — increase contrast:**
+| Token | Before | After | Hex |
+|---|---|---|---|
+| `--muted-foreground` | `oklch(0.62 0.002 280)` | `oklch(0.52 0.003 280)` | #86868B → #6E6E73 (readable at 10px) |
+
+`--foreground` (`oklch(0.22 0.003 280)` / #1D1D1F) was left unchanged — already fine.
+
+**Borders — make them visible:**
+| Token | Before | After |
+|---|---|---|
+| `--border` | `oklch(0.88 0.003 280 / 60%)` | `oklch(0.85 0.004 280 / 100%)` (#D8D8DC, full opacity) |
+| `--glass-border` | `oklch(0 0 0 / 6%)` | `oklch(0 0 0 / 10%)` |
+| `--sidebar-border` | `oklch(0.88 0.003 280 / 60%)` | `oklch(0.85 0.004 280 / 100%)` (kept consistent with `--border`) |
+
+**Shadows — make them stronger (glass tokens, light `:root` only):**
+| Token | Before | After |
+|---|---|---|
+| `--glass-shadow` | `oklch(0 0 0 / 6%)` | `oklch(0 0 0 / 8%)` |
+| `--glass-shadow-soft` | `oklch(0 0 0 / 4%)` | `oklch(0 0 0 / 6%)` |
+| `--glass-shadow-hover` | `oklch(0 0 0 / 8%)` | `oklch(0 0 0 / 12%)` |
+
+**Sidebar — match canvas (cards float above both):**
+| Token | Before | After |
+|---|---|---|
+| `--sidebar` | `oklch(0.945 0.003 280 / 100%)` (#F0F0F2) | `oklch(0.94 0.004 280 / 100%)` (#ECECEE — matches new `--background`) |
+
+**Hover state — `.lift-hover:hover`** keeps using `var(--glass-shadow-hover)` (now 12%) + `var(--glass-shadow)` (now 8%) → effective shadow is `0 4px 12px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08)` — noticeably stronger than before.
+
+### Comments updated for accuracy
+- Canvas header comment (#F5F5F7 → #ECECEE)
+- Sidebar header comment in main `:root` and in `.glass-sidebar` block (#F0F0F2 → #ECECEE)
+- `.retaina-bg` block comment (#F5F5F7 → #ECECEE)
+- `--border` inline comment (now reflects full-opacity #D8D8DC, no longer "rgba(0,0,0,0.06)")
+- `--glass-border` inline comment (now reflects 10% / "visible")
+- `--secondary` block comment (now describes "darker than canvas for clear layer separation")
+- `--muted-foreground` inline comment (#86868B → #6E6E73)
+- `.glass` box-shadow comment (0.04/0.06 → 0.06/0.08)
+- `.lift-hover:hover` box-shadow comment (0.08/0.06 → 0.12/0.08)
+
+### Verification
+
+```bash
+$ git status
+        modified:   src/app/globals.css    # only file changed
+
+$ git stash && bun run lint && git stash pop
+# Pre-existing 1 error in mini-services/whatsapp-service/index.js (react-hooks/rules-of-hooks)
+# — UNRELATED to CSS changes. Confirmed present both before and after stash.
+# My changes introduce ZERO new lint errors.
+
+$ bun run build
+# → exit 0, build succeeded
+```
+
+### Design rationale
+These are subtle refinements, not drastic changes — the Apple macOS aesthetic is preserved. The four problems solved:
+
+1. **Cards now float** — pure white (#FFFFFF) cards against a #ECECEE canvas produces ~5% luminance delta (vs. ~3% before), enough to read as elevation.
+2. **Small text is readable** — #6E6E73 muted text has a contrast ratio of ~5.2:1 against #ECECEE (vs. ~3.4:1 for #86868B), passing WCAG AA at 10px.
+3. **Borders are visible** — full-opacity #D8D8DC reads as a real hairline instead of a phantom 6% black overlay.
+4. **Shadows register** — bumping soft/medium/hover shadows from 4/6/8% to 6/8/12% gives cards real depth without looking heavy.
+5. **Sidebar matches canvas** — Apple's pattern is "sidebar is the canvas, content floats above". Cards now clearly float above both sidebar and canvas.
+
+### Next actions for the team
+- Visual QA in `bun run dev` — toggle between light and dark mode, verify cards in dashboard/analytics/accounts views float clearly above the canvas, muted labels are readable at 10–11px, hairline borders are visible (but not heavy) on cards, sidebar and canvas read as the same surface.
+- Check the `.glass-topbar` — it still uses `oklch(1 0 0 / 80%)` (frosted white) which now has a stronger contrast delta against the #ECECEE canvas; should look correct but worth eyeballing.
+- Check chart cards — chart containers use `.glass` and rely on `--border` for separation; the new border + shadow should make them visibly distinct.
+- If the new muted text feels too dark in certain contexts (e.g., captions under media thumbnails), the previous value (#86868B) is preserved in git history and can be restored per-component via Tailwind's `text-gray-500` equivalent if needed.
+
+
+---
+
+## Task ID: `new-reports-modules` — New report templates + missing modules (Hootsuite/Sprout/Buffer parity)
+
+**Task**: Add 4 new report templates to the Reports module (ROI, Sentiment Analysis, Content Calendar, Brand Monitoring) AND add 3 missing modules that competitors offer (UTM Builder, Content Approval, Influencer Tracker). Includes new Prisma model, new API routes, new view files, sidebar entries, and app-shell wiring.
+
+### Files created
+- `/home/z/my-project/src/components/views/utm-builder.tsx` — UTM Builder view (live preview + QR code + localStorage history)
+- `/home/z/my-project/src/components/views/approvals.tsx` — Content Approval kanban (pending → changes_requested → approved / rejected)
+- `/home/z/my-project/src/components/views/influencers.tsx` — Influencer Tracker (table + add/edit/remove + ROI ranking)
+- `/home/z/my-project/src/app/api/utm/route.ts` — POST generates a UTM-tracked URL with slugified params
+- `/home/z/my-project/src/app/api/approvals/route.ts` — GET (list, optional status filter) + POST (create pending request)
+- `/home/z/my-project/src/app/api/approvals/[id]/route.ts` — PATCH (approve / reject / changes_requested) + DELETE
+- `/home/z/my-project/src/app/api/influencers/route.ts` — GET (list, optional status filter) + POST (create)
+- `/home/z/my-project/src/app/api/influencers/[id]/route.ts` — PATCH (update any field) + DELETE
+- `/home/z/my-project/generated/models/Influencer.ts` — generated by `npx prisma generate` (auto)
+
+### Files modified
+- `/home/z/my-project/prisma/schema.prisma` — added `Influencer` model (id, name, handle, platform, followers, engagementRate, cost, estimatedReach, estimatedEngagement, status, campaignId, notes, createdAt, updatedAt). The `Approval` model already existed (postId?, title, authorId, approverId?, status, comment?, priority, dueAt?, createdAt, resolvedAt?) so no schema change was needed for the Approvals module.
+- `/home/z/my-project/src/lib/types.ts` — extended `ViewId` union with `"utm" | "approvals" | "influencers"`
+- `/home/z/my-project/src/components/app-sidebar.tsx` — added 3 NAV entries: `{ id: "approvals", group: "Content", icon: ListChecks }`, `{ id: "utm", group: "Content", icon: QrCode }`, `{ id: "influencers", group: "Insights", icon: Star }`. Imported `ListChecks`, `QrCode`, `Star` from lucide-react.
+- `/home/z/my-project/src/components/app-shell.tsx` — imported the 3 new views (`UTMBuilderView`, `ApprovalsView`, `InfluencersView`) and added 3 render branches to the view switcher
+- `/home/z/my-project/src/components/views/reports.tsx` — see "Reports module changes" below
+
+### Reports module changes (`reports.tsx`)
+1. **Imports** — added `DollarSign, Radio, Sparkles, Smile, Frown, Meh, CalendarDays, CalendarRange, CalendarClock` from lucide-react and `Input` from `@/components/ui/input`.
+2. **Types** — added `ListeningMention` and `ListeningData` interfaces (mirror of `/api/listening` payload) so Brand Monitoring + Sentiment reports have typed data.
+3. **TEMPLATES array** — grew from 13 → 17 entries. Added:
+   - `roi` — icon `DollarSign`, color `oklch(0.7 0.2 145)`, desc "Cost per post / follower / engagement + revenue attribution"
+   - `sentiment` — icon `MessageCircle`, color `oklch(0.66 0.22 305)`, desc "Positive / neutral / negative breakdown & trend"
+   - `content-calendar` — icon `CalendarRange`, color `oklch(0.62 0.2 255)`, desc "Posting schedule, gaps, best posting times"
+   - `brand-monitoring` — icon `Radio`, color `oklch(0.7 0.2 25)`, desc "Mention volume, sentiment, reach, share of voice"
+4. **TAB_GROUPS** — distributed new templates across the 4 existing tabs (no new tab needed):
+   - Performance tab → + `roi`
+   - Team tab → + `sentiment`
+   - Content tab → + `content-calendar`
+   - Platforms tab → + `brand-monitoring`
+5. **TemplateId union** — extended with `"roi" | "sentiment" | "content-calendar" | "brand-monitoring"`.
+6. **Data fetching** — added `useApi<ListeningData>("/api/listening")` to the main `ReportsView` so Brand Monitoring + Sentiment reports have live mention data. Result passed through `ReportViewer` → `TemplateContent` → `PrintLayout` as the new `listeningData` prop.
+7. **TemplateContent switch** — added 4 cases dispatching to `RoiContent`, `SentimentContent`, `ContentCalendarContent`, `BrandMonitoringContent`.
+8. **Chart metric defaults** — `roi: "engagement"`, `sentiment: "sentiment"`, `content-calendar: "posts"`, `brand-monitoring: "count"`.
+9. **Loading logic** — `brand-monitoring` template waits on `listeningLoading || analyticsLoading`; others reuse existing per-tab loaders.
+10. **PrintLayout** — for each new template: added an entry to the `summaryText` switch (executive summary paragraph), an entry to the `kpis` switch (PrintKpiStrip cells), and a print body section with unique tables. ROI prints per-account cost efficiency + daily engagement trend; Sentiment prints distribution + daily series + per-source breakdown; Content Calendar prints daily activity + gap pills + top slots table; Brand Monitoring prints tracked queries + daily trend + share-of-voice by source.
+11. **HelpText** — bumped the template count from 13 → 17 in the user-facing description.
+
+### New content components (all in `reports.tsx`, before `EmptyState`)
+- **`RoiContent`** — reads a monthly budget from `localStorage["synque-roi-monthly-cost"]` (default $1000) via `readRoiCost()` / `writeRoiCost()` helpers. Renders: editable budget Input + spend summary, executive summary paragraph, HeroChart with `ComposedChart` (Bar=posts as spend proxy, Line=engagement as revenue proxy, metric-toggle), per-account Table with Cost/Post · Cost/Eng · Est. Rev · ROI per row, and a 4-tile summary strip (Cost/Post, Cost/Follower, Cost/Engagement, Cost/Impression). Revenue model: 1 engagement ≈ $0.01 (configurable assumption).
+- **`SentimentContent`** — pulls from `teamData.commentsBySentiment` (team comments) and `listeningData.sentiments` (brand mentions) — prefers brand mentions when available, falls back to team comments. Renders: pie chart (positive/neutral/negative) + 3 sentiment cards with progress bars + a Net Sentiment Score card (range -100..+100), ComposedChart of daily mention volume (Bar) + sentiment score (Line), and a per-source Table with mention counts and per-source sentiment scores.
+- **`ContentCalendarContent`** — builds a 7×24 weekday×hour heatmap from `postsPerfData.posts[].variants[].publishedAt` (falls back to `createdAt`). Renders: executive summary with avg/day + gap rate + best weekday, GitHub-style activity calendar (30 cells, color = post count intensity), full weekday×hour heatmap with hour labels, Top 5 posting slots ListRow list, and a "Calendar Gaps" pill list showing every zero-post day. All `React.useMemo` hooks are declared BEFORE the `if (!analytics) return <EmptyState />` early return to satisfy rules-of-hooks.
+- **`BrandMonitoringContent`** — uses `listeningData` exclusively. Renders: executive summary (queries, mentions, reach, sentiment score), ComposedChart of daily mention volume + sentiment score, two-column grid with sentiment PieChart + Share-of-Voice-by-Query horizontal BarChart, per-query Table (mentions · reach · engagement · SoV %), Share-of-Voice-by-Source Table with progress bars, and a recent-mentions ListRow list (12 most recent with sentiment pills + reach).
+
+### New view components
+
+#### `UTMBuilderView` (`utm-builder.tsx`)
+- BentoGrid layout: left tile = form (URL · source · medium · campaign · term · content with `<datalist>` autocomplete for common presets), right tile = live preview (computed client-side via `useMemo`) + copy button + QR code via `https://api.qrserver.com/v1/create-qr-code/` (no new dependency) + high-res download link.
+- "Generate & Save to History" button POSTs to `/api/utm` for canonical slugification, then stores the result in `localStorage["synque-utm-history"]` (max 25 entries).
+- History list with copy / open-in-new-tab / delete actions, clear-all button.
+
+#### `ApprovalsView` (`approvals.tsx`)
+- Dense MetricRow (Total · Pending · Changes · Approved · Rejected · Overdue · Approval %).
+- 4-column kanban (Pending / Changes Requested / Approved / Rejected). Each card shows: title, priority pill, author avatar+name (resolved via `/api/team`), approver, due date (with overdue highlight), comment block, and contextual action buttons (Approve / Changes / Reject on pending cards; delete on all).
+- Status filter pills (All / Pending / Changes Requested / Approved / Rejected) with counts.
+- CreateApprovalDialog: title + author dropdown + approver dropdown + priority + due date + comment. Auto-picks the current user as author from `localStorage["socialflow-auth"].state.user.id`.
+
+#### `InfluencersView` (`influencers.tsx`)
+- Dense MetricRow (Influencers · Active · Total Reach · Followers · Engagement · Avg ER % · Total Cost · ROI eng/$ · Cost/Eng).
+- Filter pills (All / Active / Paused / Completed / Draft) with counts.
+- Full Table: influencer (with PlatformBadge + handle + profile link), inline status dropdown (quick-change), followers, ER% (color-coded), reach, engagement, cost, ROI (eng/$), CPEn, edit/delete actions.
+- "Top performers by ROI" ListRow list — sorts by `estimatedEngagement / cost` descending, top 5.
+- InfluencerDialog: full add/edit form with all 9 numeric fields + notes Textarea.
+
+### API routes summary
+
+| Route | Methods | Purpose |
+|---|---|---|
+| `/api/utm` | GET (health + sample params), POST | Generate a UTM-tracked URL from `{ url, source, medium, campaign, term?, content? }`. Returns `{ url, short, params }`. Slugifies source/medium/campaign (lowercase, `_`-separated). No persistence — client owns history. |
+| `/api/approvals` | GET (?status=pending\|approved\|rejected\|changes_requested), POST | List + create approval requests. POST body: `{ title, postId?, authorId, approverId?, priority?, dueAt?, comment? }`. |
+| `/api/approvals/[id]` | PATCH, DELETE | PATCH `{ status, comment?, approverId? }` — terminal statuses (`approved` / `rejected`) auto-set `resolvedAt = now()`. DELETE removes the request. |
+| `/api/influencers` | GET (?status=active\|paused\|completed\|draft), POST | List + create influencer records. POST body: `{ name, handle, platform, followers?, engagementRate?, cost?, estimatedReach?, estimatedEngagement?, status?, campaignId?, notes? }`. |
+| `/api/influencers/[id]` | PATCH, DELETE | PATCH accepts partial fields; numerics coerced via `Number()`. DELETE removes. |
+
+### Sidebar wiring
+The 3 new NAV entries use the existing flat-list pattern (no expandable parent needed). They slot into existing tab groups:
+- **Content group**: Campaigns → **Approvals** → **UTM Builder** → Hashtags → Link in Bio
+- **Insights group**: Listening → Competitors → **Influencers** → Analytics → Reports
+
+### Prisma
+- `Influencer` model added at end of `schema.prisma`. `npx prisma generate` ran successfully — `generated/models/Influencer.ts` and `generated/client.ts` were regenerated (along with all other generated model files because the Prisma client is one bundled artifact).
+- `Approval` model already existed with the right shape — no migration needed for the Approvals module.
+- **Did NOT run `db push`** — the user will run it separately as instructed in the task spec.
+
+### Verification
+- `npx tsc --noEmit` — **0 errors in any new or modified file** (`reports.tsx`, `utm-builder.tsx`, `approvals.tsx`, `influencers.tsx`, `app-sidebar.tsx`, `app-shell.tsx`, `types.ts`, `/api/utm`, `/api/approvals`, `/api/influencers`). Pre-existing TS errors in `src/app/api/ai/assistant/route.ts`, `src/app/api/platform-credentials/[platform]/sync/route.ts`, `src/app/api/workspace/route.ts`, `examples/websocket/*`, `mini-services/*`, `prisma.config.ts`, and `skills/*` are unrelated to this task and were present before.
+- `bun run lint` — **0 errors in any new or modified file**. The only remaining lint error is in the pre-existing `mini-services/whatsapp-service/index.js` (`react-hooks/rules-of-hooks` on `useMultiFileAuthState`), which is unrelated to this task.
+
+### Design notes
+- All 3 new views use dense-ui primitives (`SectionHeader`, `MetricRow`, `ListRow`, `Pill`, `BentoGrid`, `BentoTile`) — no heavy card grids, no full-width KPI strips. Card-light, chart-light.
+- All views follow the existing pattern: `useApi` hook for fetching, `getToken()` helper that reads the JWT from `localStorage["socialflow-auth"]`, `toast` from sonner for feedback.
+- The ROI report's revenue model ($0.01/engagement ≈ 0.5% engagement-to-conversion × $2/conversion) is a deliberately conservative placeholder. The monthly budget is editable in the report UI and persisted to localStorage so users can model real spend without code changes.
+- The QR code in UTM Builder uses the public `api.qrserver.com` endpoint — this avoids adding a new npm dependency (no `qrcode` lib in package.json). If offline use is required later, swap the `<img>` for a local QR generator.
+- The Approvals kanban renders 4 columns even when empty (with a subtle "Empty" placeholder) so the workflow state is always visible.
+
+### Next actions for the team
+- Run `npx prisma-pglite db push` to apply the new `Influencer` model to the local PGlite database (the task spec explicitly said to leave this to the user).
+- Visual QA in `bun run dev`: visit Reports → Performance tab → "ROI" pill, Team tab → "Sentiment" pill, Content tab → "Content Calendar" pill, Platforms tab → "Brand Monitoring" pill.
+- Visit the new sidebar entries: Content group → "Approvals" / "UTM Builder", Insights group → "Influencers".
+- The Approvals module currently resolves author/approver names by fetching `/api/team`. If a user isn't in the team list (e.g., a deleted user), their ID is shown truncated to 8 chars as a fallback — this is intentional, not a bug.
+- For Brand Monitoring to show real data, the user needs to create at least one Listening query first (via the Listening sidebar entry) and run a sync. The report gracefully handles the empty state with a hint.

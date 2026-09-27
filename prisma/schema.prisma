@@ -797,3 +797,23 @@ model EmailVerificationToken {
 
   @@index([email])
 }
+
+// ===== Influencer Tracker =====
+// Track influencer partnerships — competitors like Hootsuite/Sprout offer
+// this as a creator-management module. Each row = one creator relationship.
+model Influencer {
+  id              String   @id @default(cuid())
+  name            String
+  handle          String
+  platform        String   // instagram | tiktok | youtube | x | linkedin | threads
+  followers       Int      @default(0)
+  engagementRate  Float    @default(0)   // % e.g. 3.5 = 3.5%
+  cost            Float    @default(0)   // cost per post/campaign (currency-agnostic)
+  estimatedReach  Int      @default(0)   // est. reach delivered
+  estimatedEngagement Int  @default(0)   // est. likes+comments+shares earned
+  status          String   @default("active") // active | paused | completed | draft
+  campaignId      String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

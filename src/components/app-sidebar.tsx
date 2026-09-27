@@ -40,6 +40,9 @@ import {
   Building2,
   BadgeCheck,
   Crown,
+  ListChecks,
+  QrCode,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
@@ -69,10 +72,13 @@ const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; 
   // Performance (team-wide metrics) — managers+ only
   { id: "team-performance", label: "Performance", icon: BarChart3, group: "Overview", accent: "oklch(0.55 0.2 255)", roles: ["admin", "manager"] },
   { id: "campaigns", label: "Campaigns", icon: Megaphone, group: "Content", accent: "oklch(0.7 0.2 25)" },
+  { id: "approvals", label: "Approvals", icon: ListChecks, group: "Content", accent: "oklch(0.74 0.18 165)" },
+  { id: "utm", label: "UTM Builder", icon: QrCode, group: "Content", accent: "oklch(0.66 0.18 200)" },
   { id: "hashtags", label: "Hashtags", icon: Hash, group: "Content", accent: "oklch(0.66 0.18 200)" },
   { id: "linkbio", label: "Link in Bio", icon: Link2, group: "Content", accent: "oklch(0.68 0.2 145)" },
   { id: "listening", label: "Listening", icon: Radio, group: "Insights", accent: "oklch(0.7 0.2 25)" },
   { id: "competitors", label: "Competitors", icon: Crosshair, group: "Insights", accent: "oklch(0.62 0.22 300)" },
+  { id: "influencers", label: "Influencers", icon: Star, group: "Insights", accent: "oklch(0.78 0.18 75)" },
   { id: "analytics", label: "Analytics", icon: BarChart3, group: "Insights", accent: "oklch(0.55 0.2 255)" },
   { id: "reports", label: "Reports", icon: FileBarChart, group: "Insights", accent: "oklch(0.72 0.18 75)" },
   { id: "accounts", label: "Accounts", icon: AtSign, group: "Workspace", accent: "oklch(0.68 0.2 145)" },

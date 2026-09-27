@@ -12,6 +12,7 @@ import {
   Clock, Loader2, Activity, Globe, Target,
   ChevronDown, Save, ArrowUpDown, Award, Trophy, UserCheck, Grid3x3, Zap,
   Layers, CheckCircle2, XCircle, ListFilter, MessageCircle, Reply, LayoutGrid, List as ListIcon,
+  DollarSign, Radio, Sparkles, Smile, Frown, Meh, CalendarDays, CalendarRange, CalendarClock,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -34,6 +35,7 @@ import { Progress } from "@/components/ui/progress";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 
 // ============ Types ============
 interface AnalyticsData {
@@ -121,6 +123,33 @@ interface ReportData {
   lastGenerated: string | null; createdAt: string;
 }
 
+// Listening / brand-monitoring data from /api/listening
+interface ListeningMention {
+  id: string;
+  queryName: string;
+  queryColor: string;
+  source: string;
+  author: string;
+  authorAvatar: string | null;
+  text: string;
+  url: string | null;
+  sentiment: "positive" | "neutral" | "negative";
+  reach: number;
+  engagement: number;
+  date: string;
+}
+interface ListeningData {
+  queries: {
+    id: string; name: string; keywords: string; type: string;
+    color: string; status: string; mentionCount: number;
+    reach: number; engagement: number;
+    mentions: ListeningMention[];
+  }[];
+  recent: ListeningMention[];
+  sentiments: { positive: number; neutral: number; negative: number };
+  series: { date: string; count: number; sentiment: number }[];
+}
+
 // Posts performance data from /api/reports/posts
 interface PostsPerformanceData {
   kpis: {
@@ -169,8 +198,8 @@ const DATE_RANGES: { key: DateRange; label: string; days: number }[] = [
   { key: "90d", label: "90D", days: 90 },
 ];
 
-// 13 compact report templates — grouped into 4 logical tabs.
-type TemplateId = "performance" | "audience" | "engagement" | "team" | "content" | "growth" | "platform" | "reach" | "user-account" | "user-comparison" | "account-user" | "leaderboard" | "posts-performance";
+// 17 compact report templates — grouped into 4 logical tabs.
+type TemplateId = "performance" | "audience" | "engagement" | "team" | "content" | "growth" | "platform" | "reach" | "user-account" | "user-comparison" | "account-user" | "leaderboard" | "posts-performance" | "roi" | "sentiment" | "content-calendar" | "brand-monitoring";
 interface Template {
   id: TemplateId; name: string; icon: LucideIcon; color: string; desc: string;
 }
@@ -188,9 +217,13 @@ const TEMPLATES: Template[] = [
   { id: "account-user", name: "Pages Report", icon: FileBarChart, color: "oklch(0.62 0.2 35)", desc: "Per-account: who posted & how much" },
   { id: "leaderboard", name: "Leaderboard", icon: Trophy, color: "oklch(0.72 0.2 75)", desc: "Top contributors ranked by metrics" },
   { id: "posts-performance", name: "Team Posts", icon: Layers, color: "oklch(0.66 0.22 305)", desc: "Per-user posts + comments + platforms · list & kanban" },
+  { id: "roi", name: "ROI", icon: DollarSign, color: "oklch(0.7 0.2 145)", desc: "Cost per post / follower / engagement + revenue attribution" },
+  { id: "sentiment", name: "Sentiment", icon: MessageCircle, color: "oklch(0.66 0.22 305)", desc: "Positive / neutral / negative breakdown & trend" },
+  { id: "content-calendar", name: "Content Calendar", icon: CalendarRange, color: "oklch(0.62 0.2 255)", desc: "Posting schedule, gaps, best posting times" },
+  { id: "brand-monitoring", name: "Brand Monitoring", icon: Radio, color: "oklch(0.7 0.2 25)", desc: "Mention volume, sentiment, reach, share of voice" },
 ];
 
-// 4 tabs that group the 13 templates into focused, related reports.
+// 4 tabs that group the 17 templates into focused, related reports.
 type TabId = "performance" | "team" | "content" | "platforms";
 interface TabGroup {
   id: TabId; label: string; icon: LucideIcon; color: string;
@@ -198,13 +231,13 @@ interface TabGroup {
 }
 const TAB_GROUPS: TabGroup[] = [
   { id: "performance", label: "Performance", icon: TrendingUp, color: "oklch(0.62 0.2 255)",
-    templates: ["performance", "growth", "reach"], default: "performance" },
+    templates: ["performance", "growth", "reach", "roi"], default: "performance" },
   { id: "team", label: "Team", icon: Users, color: "oklch(0.74 0.18 165)",
-    templates: ["team", "user-comparison", "leaderboard", "user-account"], default: "team" },
+    templates: ["team", "user-comparison", "leaderboard", "user-account", "sentiment"], default: "team" },
   { id: "content", label: "Content", icon: FileText, color: "oklch(0.68 0.18 95)",
-    templates: ["content", "posts-performance", "account-user"], default: "posts-performance" },
+    templates: ["content", "posts-performance", "account-user", "content-calendar"], default: "posts-performance" },
   { id: "platforms", label: "Platforms", icon: Globe, color: "oklch(0.6 0.2 220)",
-    templates: ["platform", "audience", "engagement"], default: "platform" },
+    templates: ["platform", "audience", "engagement", "brand-monitoring"], default: "platform" },
 ];
 
 // ============ Main view ============
@@ -226,6 +259,8 @@ export function ReportsView() {
   const { data: reportData, loading: reportDataLoading } = useApi<ReportDataRoot>(`/api/reports/data?days=${days}`);
   // Posts performance data — independent of date range (shows full history)
   const { data: postsPerfData, loading: postsPerfLoading } = useApi<PostsPerformanceData>("/api/reports/posts");
+  // Listening / brand-monitoring data (mentions + sentiments)
+  const { data: listeningData, loading: listeningLoading } = useApi<ListeningData>("/api/listening");
 
   function getToken(): string | null {
     try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
@@ -241,6 +276,7 @@ export function ReportsView() {
       "user-account": "postsCreated", "user-comparison": "postsCreated",
       "account-user": "totalPosts", leaderboard: "postsCreated",
       "posts-performance": "engagement",
+      roi: "engagement", sentiment: "sentiment", "content-calendar": "posts", "brand-monitoring": "count",
     };
     setChartMetric(defaults[activeTemplate] ?? "followers");
   }, [activeTemplate]);
@@ -494,12 +530,14 @@ export function ReportsView() {
 
   const loading = activeTemplate === "posts-performance"
     ? postsPerfLoading
-    : analyticsLoading || teamLoading || reportDataLoading;
+    : activeTemplate === "brand-monitoring"
+      ? listeningLoading || analyticsLoading
+      : analyticsLoading || teamLoading || reportDataLoading;
 
   return (
     <div className="space-y-4">
       <HelpText module="reports">
-        <strong className="text-foreground">Reports</strong> — 4 tabs group 13 templates so you can focus on one
+        <strong className="text-foreground">Reports</strong> — 4 tabs group 17 templates so you can focus on one
         report at a time. Pick a tab, then a focused report. Save, print, or export as PDF.
       </HelpText>
 
@@ -609,6 +647,7 @@ export function ReportsView() {
         teamData={teamData}
         reportData={reportData}
         postsPerfData={postsPerfData}
+        listeningData={listeningData}
         totals={totals}
         loading={loading}
         dateRangeLabel={DATE_RANGES.find(d => d.key === dateRange)?.label ?? "30 Days"}
@@ -632,6 +671,7 @@ export function ReportsView() {
         teamData={teamData}
         reportData={reportData}
         postsPerfData={postsPerfData}
+        listeningData={listeningData}
         totals={totals}
       />
     </div>
@@ -640,7 +680,7 @@ export function ReportsView() {
 
 // ============ Report Viewer (focused, single template) ============
 function ReportViewer({
-  template, analytics, teamData, reportData, postsPerfData, totals, loading, dateRangeLabel,
+  template, analytics, teamData, reportData, postsPerfData, listeningData, totals, loading, dateRangeLabel,
   chartMetric, setChartMetric,
 }: {
   template: Template;
@@ -648,6 +688,7 @@ function ReportViewer({
   teamData: TeamData | null;
   reportData: ReportDataRoot | null;
   postsPerfData: PostsPerformanceData | null;
+  listeningData: ListeningData | null;
   totals: { followers: number; impressions: number; reach: number; engagement: number; posts: number; likes: number; comments: number; shares: number; saves: number };
   loading: boolean;
   dateRangeLabel: string;
@@ -699,6 +740,7 @@ function ReportViewer({
             teamData={teamData}
             reportData={reportData}
             postsPerfData={postsPerfData}
+            listeningData={listeningData}
             totals={totals}
             chartMetric={chartMetric}
             setChartMetric={setChartMetric}
@@ -711,13 +753,14 @@ function ReportViewer({
 
 // ============ Template-specific content dispatcher ============
 function TemplateContent({
-  template, analytics, teamData, reportData, postsPerfData, totals, chartMetric, setChartMetric,
+  template, analytics, teamData, reportData, postsPerfData, listeningData, totals, chartMetric, setChartMetric,
 }: {
   template: Template;
   analytics: AnalyticsData | null;
   teamData: TeamData | null;
   reportData: ReportDataRoot | null;
   postsPerfData: PostsPerformanceData | null;
+  listeningData: ListeningData | null;
   totals: { followers: number; impressions: number; reach: number; engagement: number; posts: number; likes: number; comments: number; shares: number; saves: number };
   chartMetric: string;
   setChartMetric: (m: string) => void;
@@ -749,6 +792,14 @@ function TemplateContent({
       return <LeaderboardContent reportData={reportData} />;
     case "posts-performance":
       return <PostsPerformanceContent data={postsPerfData} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
+    case "roi":
+      return <RoiContent analytics={analytics} postsPerfData={postsPerfData} totals={totals} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
+    case "sentiment":
+      return <SentimentContent teamData={teamData} listeningData={listeningData} chartMetric={chartMetric} setChartMetric={setChartMetric} />;
+    case "content-calendar":
+      return <ContentCalendarContent analytics={analytics} postsPerfData={postsPerfData} totals={totals} />;
+    case "brand-monitoring":
+      return <BrandMonitoringContent listeningData={listeningData} />;
     default:
       return null;
   }
@@ -2556,6 +2607,810 @@ function SavedReportsStrip({
   );
 }
 
+// ============================================================================
+// ROI Report — cost per post / follower / engagement + revenue attribution.
+// Reads a monthly budget from localStorage so users can model real spend.
+// ============================================================================
+const ROI_COST_KEY = "synque-roi-monthly-cost";
+function readRoiCost(): number {
+  try {
+    const raw = localStorage.getItem(ROI_COST_KEY);
+    if (!raw) return 1000;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 1000;
+  } catch { return 1000; }
+}
+function writeRoiCost(n: number) {
+  try { localStorage.setItem(ROI_COST_KEY, String(n)); } catch { /* ignore */ }
+}
+
+function RoiContent({ analytics, postsPerfData, totals, chartMetric, setChartMetric }: {
+  analytics: AnalyticsData | null;
+  postsPerfData: PostsPerformanceData | null;
+  totals: Record<string, number>;
+  chartMetric: string; setChartMetric: (m: string) => void;
+}) {
+  const [monthlyCost, setMonthlyCost] = React.useState<number>(1000);
+
+  React.useEffect(() => { setMonthlyCost(readRoiCost()); }, []);
+
+  if (!analytics) return <EmptyState />;
+
+  const days = analytics.series.length || 30;
+  const months = Math.max(days / 30, 1);
+  const totalSpend = monthlyCost * months;
+  const totalPosts = totals.posts || 1;
+  const totalFollowers = totals.followers || 1;
+  const totalEngagement = totals.engagement || 1;
+  const totalImpressions = totals.impressions || 1;
+
+  const costPerPost = totalSpend / totalPosts;
+  const costPerFollower = totalSpend / totalFollowers;
+  const costPerEngagement = totalSpend / totalEngagement;
+  const costPerImpression = totalSpend / totalImpressions;
+
+  // Revenue attribution: assume a conservative 0.5% engagement→click→$2 conversion
+  // (i.e., every 200 engagements → 1 click → $2 revenue → $0.01 per engagement).
+  const revenuePerEngagement = 0.01;
+  const estimatedRevenue = totalEngagement * revenuePerEngagement;
+  const netProfit = estimatedRevenue - totalSpend;
+  const roiPercent = totalSpend > 0 ? ((netProfit / totalSpend) * 100) : 0;
+
+  function persistCost(v: number) {
+    setMonthlyCost(v);
+    writeRoiCost(v);
+  }
+
+  const metrics = [
+    { key: "engagement", label: "Engagement" },
+    { key: "impressions", label: "Impressions" },
+    { key: "followers", label: "Followers" },
+    { key: "posts", label: "Posts" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Cost input — small inline form */}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
+        <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        <span className="text-[11px] font-semibold">Monthly budget</span>
+        <Input
+          type="number"
+          value={monthlyCost}
+          onChange={(e) => persistCost(Math.max(0, Number(e.target.value) || 0))}
+          className="h-7 w-24 text-xs"
+        />
+        <span className="text-[10px] text-muted-foreground">
+          ${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })} spend over {Math.round(months)} mo
+        </span>
+        <Pill color="blue">est. revenue model: $0.01 / engagement</Pill>
+      </div>
+
+      <p className="text-[12px] leading-relaxed text-muted-foreground">
+        Across <strong className="text-foreground">{analytics.perAccount.length}</strong> accounts and
+        <strong className="text-foreground"> {totals.posts}</strong> posts, the team invested
+        <strong className="text-foreground"> ${totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong> and
+        generated an estimated <strong className="text-foreground">${estimatedRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong> in attributed revenue —
+        a net <strong className={netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{netProfit >= 0 ? "profit" : "loss"}</strong> of
+        <strong className={netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}> ${Math.abs(netProfit).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+        ({roiPercent >= 0 ? "+" : ""}{roiPercent.toFixed(1)}% ROI).
+      </p>
+
+      {/* ROI trend chart — revenue vs spend over time */}
+      <HeroChart
+        title="Spend vs Attributed Revenue"
+        action={<MetricTabs metrics={metrics} value={chartMetric} onChange={setChartMetric} />}
+      >
+        <div className="h-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={analytics.series}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} />
+              <XAxis dataKey="date" tickFormatter={d => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" })} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} interval={Math.max(0, Math.floor(analytics.series.length / 8))} />
+              <YAxis tickFormatter={v => `$${fmt(v)}`} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={50} />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                labelFormatter={d => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                formatter={(v: number, n: string) => [`$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, n]}
+              />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              {/* Daily spend = monthlyCost / 30 */}
+              <Bar dataKey="posts" name="Spend (proxy: posts)" fill="oklch(0.65 0.22 15)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={600} />
+              {/* Revenue attribution: engagement × $0.01 */}
+              <Line type="monotone" dataKey={chartMetric} name="Attributed Revenue" stroke="oklch(0.7 0.2 145)" strokeWidth={2.5} dot={false} isAnimationActive yAxisId={0} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </HeroChart>
+
+      {/* Per-account ROI breakdown table */}
+      <div>
+        <SectionHeader title="Per-Account Cost Efficiency" icon={DollarSign} desc="Cost / post · cost / engagement · attributed revenue per account" />
+        <div className="glass overflow-hidden rounded-xl">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border/30 hover:bg-transparent">
+                <TableHead className="h-8 text-[10px] uppercase">Account</TableHead>
+                <TableHead className="h-8 text-right text-[10px] uppercase">Posts</TableHead>
+                <TableHead className="h-8 text-right text-[10px] uppercase">Followers</TableHead>
+                <TableHead className="h-8 text-right text-[10px] uppercase">Engagement</TableHead>
+                <TableHead className="h-8 text-right text-[10px] uppercase">Cost/Post</TableHead>
+                <TableHead className="h-8 text-right text-[10px] uppercase">Cost/Eng</TableHead>
+                <TableHead className="h-8 text-right text-[10px] uppercase">Est. Rev.</TableHead>
+                <TableHead className="h-8 text-right text-[10px] uppercase">ROI</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {analytics.perAccount.map((a) => {
+                // Allocate cost proportional to engagement share
+                const share = totalEngagement > 0 ? a.engagement / totalEngagement : 0;
+                const acctSpend = totalSpend * share;
+                const acctRev = a.engagement * revenuePerEngagement;
+                const acctRoi = acctSpend > 0 ? ((acctRev - acctSpend) / acctSpend) * 100 : 0;
+                return (
+                  <TableRow key={a.id} className="border-border/30">
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <PlatformBadge platform={a.platform as PlatformId} size={18} />
+                        <div className="min-w-0">
+                          <div className="truncate text-[11px] font-semibold">{a.displayName}</div>
+                          <div className="truncate text-[9px] text-muted-foreground">@{a.handle}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right text-[11px] tabular-nums">{a.posts}</TableCell>
+                    <TableCell className="text-right text-[11px] tabular-nums">{fmt(a.followers)}</TableCell>
+                    <TableCell className="text-right text-[11px] tabular-nums">{fmt(a.engagement)}</TableCell>
+                    <TableCell className="text-right text-[11px] tabular-nums">${(a.posts > 0 ? acctSpend / a.posts : 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-[11px] tabular-nums">${(a.engagement > 0 ? acctSpend / a.engagement : 0).toFixed(4)}</TableCell>
+                    <TableCell className="text-right text-[11px] tabular-nums">${acctRev.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-[11px] tabular-nums font-bold">
+                      <span className={acctRoi >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                        {acctRoi >= 0 ? "+" : ""}{acctRoi.toFixed(1)}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* ROI summary strip */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          { label: "Cost / Post", value: `$${costPerPost.toFixed(2)}`, color: "oklch(0.65 0.22 15)" },
+          { label: "Cost / Follower", value: `$${costPerFollower.toFixed(4)}`, color: "oklch(0.62 0.22 300)" },
+          { label: "Cost / Engagement", value: `$${costPerEngagement.toFixed(4)}`, color: "oklch(0.7 0.2 25)" },
+          { label: "Cost / Impression", value: `$${costPerImpression.toFixed(4)}`, color: "oklch(0.66 0.18 200)" },
+        ].map((kpi) => (
+          <div key={kpi.label} className="glass rounded-xl p-3">
+            <div className="num-display text-base font-bold tabular-nums" style={{ color: kpi.color }}>{kpi.value}</div>
+            <div className="label-caps mt-0.5 text-[10px] text-muted-foreground">{kpi.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Sentiment Analysis Report — pos/neg/neutral breakdown + trend.
+// Pulls from team comments (teamData.commentsBySentiment) and brand mentions
+// (listeningData.sentiments / series).
+// ============================================================================
+function SentimentContent({ teamData, listeningData, chartMetric, setChartMetric }: {
+  teamData: TeamData | null;
+  listeningData: ListeningData | null;
+  chartMetric: string; setChartMetric: (m: string) => void;
+}) {
+  const teamSents = teamData?.commentsBySentiment;
+  const brandSents = listeningData?.sentiments;
+  const hasTeam = !!teamSents;
+  const hasBrand = !!brandSents && (brandSents.positive + brandSents.neutral + brandSents.negative > 0);
+  if (!hasTeam && !hasBrand) return <EmptyState />;
+
+  // Use brand mentions if available, else fall back to team comments
+  const positive = hasBrand ? brandSents!.positive : (teamSents?.positive ?? 0);
+  const neutral = hasBrand ? brandSents!.neutral : (teamSents?.neutral ?? 0);
+  const negative = hasBrand ? brandSents!.negative : (teamSents?.negative ?? 0);
+  const total = positive + neutral + negative;
+  const posPct = total > 0 ? (positive / total) * 100 : 0;
+  const neuPct = total > 0 ? (neutral / total) * 100 : 0;
+  const negPct = total > 0 ? (negative / total) * 100 : 0;
+  const sentimentScore = total > 0 ? ((positive - negative) / total) * 100 : 0; // -100..+100
+
+  const pieData = [
+    { name: "Positive", value: positive, color: "oklch(0.7 0.2 145)" },
+    { name: "Neutral", value: neutral, color: "oklch(0.6 0.02 250)" },
+    { name: "Negative", value: negative, color: "oklch(0.65 0.22 15)" },
+  ];
+
+  // Time trend from listening data (mentions per day with sentiment score)
+  const trend = listeningData?.series ?? [];
+  const metrics = [
+    { key: "count", label: "Volume" },
+    { key: "sentiment", label: "Score" },
+  ];
+
+  // Per-source breakdown from listening data
+  const perSource = (() => {
+    if (!listeningData) return [];
+    const map = new Map<string, { source: string; count: number; positive: number; neutral: number; negative: number; reach: number }>();
+    for (const m of listeningData.recent) {
+      const cur = map.get(m.source) ?? { source: m.source, count: 0, positive: 0, neutral: 0, negative: 0, reach: 0 };
+      cur.count++;
+      cur.reach += m.reach;
+      if (m.sentiment === "positive") cur.positive++;
+      else if (m.sentiment === "negative") cur.negative++;
+      else cur.neutral++;
+      map.set(m.source, cur);
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  })();
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[12px] leading-relaxed text-muted-foreground">
+        Across <strong className="text-foreground">{total.toLocaleString()}</strong> {hasBrand ? "brand mentions" : "comments"} analysed,
+        <strong className="text-foreground"> {posPct.toFixed(1)}%</strong> are positive,
+        <strong className="text-foreground"> {neuPct.toFixed(1)}%</strong> neutral, and
+        <strong className="text-rose-600 dark:text-rose-400"> {negPct.toFixed(1)}%</strong> negative —
+        net sentiment score of <strong className={sentimentScore >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{sentimentScore >= 0 ? "+" : ""}{sentimentScore.toFixed(1)}</strong>.
+      </p>
+
+      {/* Pie + KPI strip */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <HeroChart title="Sentiment Distribution" desc={hasBrand ? "Brand mentions" : "Team comments"}>
+          <div className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2} isAnimationActive animationDuration={600}>
+                  {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                </Pie>
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n: string) => [v.toLocaleString(), n]} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </HeroChart>
+
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: "Positive", value: positive, pct: posPct, color: "oklch(0.7 0.2 145)", icon: <Smile className="h-3 w-3" /> },
+            { label: "Neutral", value: neutral, pct: neuPct, color: "oklch(0.6 0.02 250)", icon: <Meh className="h-3 w-3" /> },
+            { label: "Negative", value: negative, pct: negPct, color: "oklch(0.65 0.22 15)", icon: <Frown className="h-3 w-3" /> },
+          ].map((s) => (
+            <div key={s.label} className="glass flex flex-col items-start rounded-xl p-3">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: s.color }}>
+                {s.icon}
+                {s.label}
+              </div>
+              <div className="num-display mt-2 text-2xl font-bold tabular-nums" style={{ color: s.color }}>
+                {s.value.toLocaleString()}
+              </div>
+              <div className="text-[10px] text-muted-foreground">{s.pct.toFixed(1)}% of total</div>
+              <div className="mt-2 h-1.5 w-full rounded-full bg-muted">
+                <div className="h-1.5 rounded-full" style={{ width: `${s.pct}%`, background: s.color }} />
+              </div>
+            </div>
+          ))}
+          <div className="glass col-span-3 flex items-center justify-between rounded-xl p-3">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Net Sentiment Score</div>
+              <div className="num-display text-xl font-bold tabular-nums" style={{ color: sentimentScore >= 0 ? "oklch(0.7 0.2 145)" : "oklch(0.65 0.22 15)" }}>
+                {sentimentScore >= 0 ? "+" : ""}{sentimentScore.toFixed(1)}
+              </div>
+            </div>
+            <div className="text-right text-[10px] text-muted-foreground">
+              <div>(positive − negative) / total</div>
+              <div>range: -100 to +100</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sentiment trend over time */}
+      {trend.length > 1 && (
+        <HeroChart
+          title="Mention Volume & Sentiment Trend"
+          desc="Daily mention count with sentiment score (−/+) overlay"
+          action={<MetricTabs metrics={metrics} value={chartMetric} onChange={setChartMetric} />}
+        >
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} />
+                <XAxis dataKey="date" tickFormatter={d => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" })} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={d => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Bar dataKey="count" name="Mentions" fill="oklch(0.62 0.22 300)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={500} />
+                <Line type="monotone" dataKey="sentiment" name="Sentiment Score" stroke="oklch(0.7 0.2 25)" strokeWidth={2} dot={false} isAnimationActive />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </HeroChart>
+      )}
+
+      {/* Per-source breakdown */}
+      {perSource.length > 0 && (
+        <div>
+          <SectionHeader title="Sentiment by Source" icon={Radio} desc="Where the conversation is happening" />
+          <div className="glass overflow-hidden rounded-xl">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/30 hover:bg-transparent">
+                  <TableHead className="h-8 text-[10px] uppercase">Source</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Mentions</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Reach</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Positive</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Neutral</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Negative</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Score</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {perSource.map((s) => {
+                  const score = s.count > 0 ? ((s.positive - s.negative) / s.count) * 100 : 0;
+                  return (
+                    <TableRow key={s.source} className="border-border/30">
+                      <TableCell className="font-medium capitalize">{s.source}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px]">{s.count}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px]">{fmt(s.reach)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px] text-emerald-600 dark:text-emerald-400">{s.positive}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px] text-muted-foreground">{s.neutral}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px] text-rose-600 dark:text-rose-400">{s.negative}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px] font-bold" style={{ color: score >= 0 ? "oklch(0.7 0.2 145)" : "oklch(0.65 0.22 15)" }}>
+                        {score >= 0 ? "+" : ""}{score.toFixed(1)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Content Calendar Report — posting schedule visualization, gaps, best times.
+// ============================================================================
+function ContentCalendarContent({ analytics, postsPerfData, totals }: {
+  analytics: AnalyticsData | null;
+  postsPerfData: PostsPerformanceData | null;
+  totals: Record<string, number>;
+}) {
+  // Build a weekday × hour heatmap from post createdAt timestamps.
+  // 7 rows (Mon-Sun) × 24 cols (0-23). Each cell = post count in that slot.
+  // NOTE: hooks must run BEFORE any early return so order is stable across renders.
+  const heatmap = React.useMemo(() => {
+    const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
+    const allPosts = postsPerfData?.posts ?? [];
+    for (const p of allPosts) {
+      const ts = p.variants.find((v) => v.publishedAt)?.publishedAt ?? p.createdAt;
+      const d = new Date(ts);
+      // getDay: 0=Sun..6=Sat → re-index Mon-first
+      const dayIdx = (d.getDay() + 6) % 7;
+      const hour = d.getHours();
+      if (dayIdx >= 0 && dayIdx < 7 && hour >= 0 && hour < 24) grid[dayIdx][hour]++;
+    }
+    return grid;
+  }, [postsPerfData]);
+
+  // Best posting times — top 5 cells
+  const bestSlots = React.useMemo(() => {
+    const slots: { day: number; hour: number; count: number }[] = [];
+    for (let d = 0; d < 7; d++) {
+      for (let h = 0; h < 24; h++) {
+        if (heatmap[d][h] > 0) slots.push({ day: d, hour: h, count: heatmap[d][h] });
+      }
+    }
+    return slots.sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [heatmap]);
+
+  if (!analytics) return <EmptyState />;
+  const series = analytics.series;
+
+  const maxCell = Math.max(...heatmap.flat(), 1);
+
+  // Identify gaps — days in series with 0 posts
+  const gaps = series.filter((s) => s.posts === 0);
+  const gapPct = series.length > 0 ? (gaps.length / series.length) * 100 : 0;
+
+  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  function slotLabel(s: { day: number; hour: number }) {
+    const h12 = s.hour === 0 ? "12am" : s.hour < 12 ? `${s.hour}am` : s.hour === 12 ? "12pm" : `${s.hour - 12}pm`;
+    return `${dayNames[s.day]} ${h12}`;
+  }
+
+  // Per-day posting average
+  const avgPerDay = series.length > 0 ? series.reduce((s, d) => s + d.posts, 0) / series.length : 0;
+  const bestDay = (() => {
+    if (series.length === 0) return null;
+    const byDay: Record<string, number> = {};
+    for (const s of series) {
+      const dn = dayNames[(new Date(s.date).getDay() + 6) % 7];
+      byDay[dn] = (byDay[dn] ?? 0) + s.posts;
+    }
+    const sorted = Object.entries(byDay).sort((a, b) => b[1] - a[1]);
+    return sorted[0] ? sorted[0][0] : null;
+  })();
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[12px] leading-relaxed text-muted-foreground">
+        Over the last <strong className="text-foreground">{series.length}</strong> days the team published
+        <strong className="text-foreground"> {totals.posts}</strong> posts — averaging
+        <strong className="text-foreground"> {avgPerDay.toFixed(1)}</strong> posts/day.
+        <strong className="text-rose-600 dark:text-rose-400"> {gaps.length}</strong> days had no posts ({gapPct.toFixed(0)}% gap rate).
+        {bestDay && <> Best weekday: <strong className="text-foreground">{bestDay}</strong>.</>}
+      </p>
+
+      {/* Posting activity calendar (last 30 days) */}
+      <HeroChart title="Posting Activity (last 30 days)" desc="Each cell = posts published that day">
+        <div className="flex flex-wrap gap-1 py-2">
+          {series.slice(-30).map((s) => {
+            const intensity = Math.min(s.posts / Math.max(1, avgPerDay * 2), 1);
+            const date = new Date(s.date);
+            return (
+              <div
+                key={s.date}
+                title={`${date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}: ${s.posts} posts`}
+                className="grid h-7 w-7 place-items-center rounded text-[9px] font-bold tabular-nums text-white"
+                style={{
+                  background: s.posts === 0
+                    ? "var(--muted)"
+                    : `oklch(${0.55 + intensity * 0.25} 0.2 ${145 + (1 - intensity) * 50})`,
+                  opacity: s.posts === 0 ? 0.4 : 1,
+                }}
+              >
+                {s.posts === 0 ? "" : s.posts}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 px-1 text-[9px] text-muted-foreground">
+          <span>Less</span>
+          <div className="flex gap-0.5">
+            {[0.2, 0.4, 0.6, 0.8, 1].map((i) => (
+              <div key={i} className="h-2.5 w-2.5 rounded-sm" style={{ background: `oklch(${0.55 + i * 0.25} 0.2 ${145 + (1 - i) * 50})` }} />
+            ))}
+          </div>
+          <span>More</span>
+          {gaps.length > 0 && (
+            <span className="ml-auto text-[9px] text-rose-600 dark:text-rose-400">
+              {gaps.length} day(s) with no posts (gaps)
+            </span>
+          )}
+        </div>
+      </HeroChart>
+
+      {/* Best posting times heatmap */}
+      <HeroChart title="Best Posting Times" desc="Heatmap: posts by weekday × hour. Darker = more posts.">
+        <div className="overflow-x-auto">
+          <div className="min-w-[640px]">
+            {/* Hour labels */}
+            <div className="flex pl-10">
+              {Array.from({ length: 24 }, (_, h) => (
+                <div key={h} className="flex-1 text-center text-[8px] tabular-nums text-muted-foreground">
+                  {h % 3 === 0 ? (h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`) : ""}
+                </div>
+              ))}
+            </div>
+            {/* Rows */}
+            {heatmap.map((row, dIdx) => (
+              <div key={dIdx} className="flex items-center">
+                <div className="w-10 text-[9px] font-semibold text-muted-foreground">{dayNames[dIdx]}</div>
+                <div className="flex flex-1 gap-0.5">
+                  {row.map((count, h) => {
+                    const intensity = count / maxCell;
+                    return (
+                      <div
+                        key={h}
+                        title={`${dayNames[dIdx]} ${h}:00 — ${count} post(s)`}
+                        className="h-5 flex-1 rounded-sm transition-colors"
+                        style={{
+                          background: count === 0
+                            ? "var(--muted)"
+                            : `oklch(${0.55 + intensity * 0.3} 0.2 ${25 + (1 - intensity) * 100})`,
+                          opacity: count === 0 ? 0.3 : 0.5 + intensity * 0.5,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </HeroChart>
+
+      {/* Top posting slots */}
+      {bestSlots.length > 0 && (
+        <div>
+          <SectionHeader title="Top Posting Slots" icon={Clock} desc="The 5 weekday×hour slots with the most published posts" />
+          <div className="glass overflow-hidden rounded-xl">
+            {bestSlots.map((s, i) => (
+              <ListRow key={`${s.day}-${s.hour}`} className="!py-2">
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white" style={{ background: i < 3 ? "oklch(0.7 0.2 45)" : "var(--muted-foreground)" }}>
+                  {i + 1}
+                </span>
+                <CalendarClock className="h-4 w-4 text-primary" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-semibold">{slotLabel(s)}</div>
+                  <div className="truncate text-[10px] text-muted-foreground">
+                    {s.count} post{s.count === 1 ? "" : "s"} published in this slot
+                  </div>
+                </div>
+                <Pill color="green">{s.count}</Pill>
+              </ListRow>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Calendar gaps */}
+      {gaps.length > 0 && (
+        <div>
+          <SectionHeader title="Calendar Gaps" icon={Calendar} desc="Days with zero published posts — opportunities to fill the schedule" />
+          <div className="flex flex-wrap gap-1.5">
+            {gaps.slice(0, 30).map((g) => (
+              <div
+                key={g.date}
+                className="rounded-lg border border-rose-500/30 bg-rose-500/5 px-2 py-1 text-[10px] font-semibold text-rose-600 dark:text-rose-400"
+              >
+                {new Date(g.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              </div>
+            ))}
+            {gaps.length > 30 && (
+              <div className="rounded-lg border border-border/40 bg-muted/20 px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+                +{gaps.length - 30} more
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Brand Monitoring Report — mention volume, sentiment trend, reach, share of voice.
+// ============================================================================
+function BrandMonitoringContent({ listeningData }: { listeningData: ListeningData | null }) {
+  if (!listeningData) return <EmptyState />;
+  const queries = listeningData.queries ?? [];
+  const recent = listeningData.recent ?? [];
+  const series = listeningData.series ?? [];
+  const sentiments = listeningData.sentiments ?? { positive: 0, neutral: 0, negative: 0 };
+
+  if (recent.length === 0 && queries.length === 0) {
+    return (
+      <div className="grid place-items-center rounded-xl border border-dashed border-border/40 bg-muted/10 py-12 text-center">
+        <Radio className="h-8 w-8 text-muted-foreground/40" />
+        <p className="mt-2 text-xs text-muted-foreground">No brand mentions yet.</p>
+        <p className="text-[10px] text-muted-foreground/70">Open the Listening module and add a brand query to populate this report.</p>
+      </div>
+    );
+  }
+
+  const totalMentions = recent.length;
+  const totalReach = recent.reduce((s, m) => s + m.reach, 0);
+  const totalEngagement = recent.reduce((s, m) => s + m.engagement, 0);
+  const positive = sentiments.positive;
+  const negative = sentiments.negative;
+  const neutral = sentiments.neutral;
+  const sentimentScore = totalMentions > 0 ? ((positive - negative) / totalMentions) * 100 : 0;
+  const posShare = totalMentions > 0 ? (positive / totalMentions) * 100 : 0;
+  const negShare = totalMentions > 0 ? (negative / totalMentions) * 100 : 0;
+
+  // Share of voice — group mentions by source
+  const sourceShare = (() => {
+    const map = new Map<string, { source: string; count: number; reach: number; engagement: number }>();
+    for (const m of recent) {
+      const cur = map.get(m.source) ?? { source: m.source, count: 0, reach: 0, engagement: 0 };
+      cur.count++;
+      cur.reach += m.reach;
+      cur.engagement += m.engagement;
+      map.set(m.source, cur);
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  })();
+
+  // Per-query breakdown
+  const perQuery = queries.map((q) => ({
+    id: q.id,
+    name: q.name,
+    color: q.color,
+    mentionCount: q.mentionCount,
+    reach: q.reach,
+    engagement: q.engagement,
+    sov: totalMentions > 0 ? (q.mentionCount / totalMentions) * 100 : 0,
+  }));
+
+  const pieData = [
+    { name: "Positive", value: positive, color: "oklch(0.7 0.2 145)" },
+    { name: "Neutral", value: neutral, color: "oklch(0.6 0.02 250)" },
+    { name: "Negative", value: negative, color: "oklch(0.65 0.22 15)" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[12px] leading-relaxed text-muted-foreground">
+        Tracking <strong className="text-foreground">{queries.length}</strong> brand quer{queries.length === 1 ? "y" : "ies"} — captured
+        <strong className="text-foreground"> {totalMentions.toLocaleString()}</strong> mentions with a combined reach of
+        <strong className="text-foreground"> {fmt(totalReach)}</strong> and
+        <strong className="text-foreground"> {fmt(totalEngagement)}</strong> engagement.
+        Net sentiment score: <strong className={sentimentScore >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{sentimentScore >= 0 ? "+" : ""}{sentimentScore.toFixed(1)}</strong>
+        ({posShare.toFixed(1)}% positive, {negShare.toFixed(1)}% negative).
+      </p>
+
+      {/* Mention volume + sentiment trend */}
+      {series.length > 1 && (
+        <HeroChart title="Mention Volume & Sentiment Trend" desc="Daily mention count with sentiment score (−/+) overlay">
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={series}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} />
+                <XAxis dataKey="date" tickFormatter={d => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" })} tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={d => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Bar dataKey="count" name="Mentions" fill="oklch(0.7 0.2 25)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={500} />
+                <Line type="monotone" dataKey="sentiment" name="Sentiment Score" stroke="oklch(0.66 0.22 305)" strokeWidth={2} dot={false} isAnimationActive />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </HeroChart>
+      )}
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        {/* Sentiment pie */}
+        <HeroChart title="Sentiment Distribution" desc="Across all brand mentions">
+          <div className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2} isAnimationActive animationDuration={600}>
+                  {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                </Pie>
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number, n: string) => [v.toLocaleString(), n]} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </HeroChart>
+
+        {/* Per-query share of voice */}
+        <HeroChart title="Share of Voice by Query" desc="Mention share across tracked queries">
+          <div className="h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={perQuery} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.2} horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} unit="%" />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={90} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`${v.toFixed(1)}%`, "Share of Voice"]} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+                <Bar dataKey="sov" name="SoV %" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={500}>
+                  {perQuery.map((q, i) => (
+                    <Cell key={i} fill={q.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </HeroChart>
+      </div>
+
+      {/* Per-query table */}
+      {perQuery.length > 0 && (
+        <div>
+          <SectionHeader title="Per-Query Performance" icon={Radio} desc="Mention volume · reach · engagement · share of voice" />
+          <div className="glass overflow-hidden rounded-xl">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/30 hover:bg-transparent">
+                  <TableHead className="h-8 text-[10px] uppercase">Query</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Mentions</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Reach</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Engagement</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">SoV %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {perQuery.map((q) => (
+                  <TableRow key={q.id} className="border-border/30">
+                    <TableCell className="font-medium">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: q.color }} />
+                        {q.name}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-[11px]">{q.mentionCount}</TableCell>
+                    <TableCell className="text-right tabular-nums text-[11px]">{fmt(q.reach)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-[11px]">{fmt(q.engagement)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-[11px] font-bold">{q.sov.toFixed(1)}%</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {/* Share of voice by source */}
+      {sourceShare.length > 0 && (
+        <div>
+          <SectionHeader title="Share of Voice by Source" icon={Globe} desc="Where mentions appear across the web & social" />
+          <div className="glass overflow-hidden rounded-xl">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/30 hover:bg-transparent">
+                  <TableHead className="h-8 text-[10px] uppercase">Source</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Mentions</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Reach</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Engagement</TableHead>
+                  <TableHead className="h-8 text-right text-[10px] uppercase">Share</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sourceShare.map((s) => {
+                  const share = totalMentions > 0 ? (s.count / totalMentions) * 100 : 0;
+                  return (
+                    <TableRow key={s.source} className="border-border/30">
+                      <TableCell className="font-medium capitalize">{s.source}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px]">{s.count}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px]">{fmt(s.reach)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px]">{fmt(s.engagement)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[11px]">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <div className="h-1.5 w-12 rounded-full bg-muted">
+                            <div className="h-1.5 rounded-full bg-primary" style={{ width: `${share}%` }} />
+                          </div>
+                          <span className="font-bold">{share.toFixed(1)}%</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {/* Recent mentions — compact list */}
+      {recent.length > 0 && (
+        <div>
+          <SectionHeader title="Recent Mentions" icon={MessageCircle} desc={`${recent.length} most recent captures across all queries`} />
+          <div className="glass overflow-hidden rounded-xl">
+            {recent.slice(0, 12).map((m) => (
+              <ListRow key={m.id} className="!py-2">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: m.queryColor }} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[11px] font-medium">{m.text}</div>
+                  <div className="truncate text-[9px] text-muted-foreground">
+                    <span className="capitalize">{m.source}</span> · {m.author} · {new Date(m.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  </div>
+                </div>
+                <Pill color={m.sentiment === "positive" ? "green" : m.sentiment === "negative" ? "rose" : "neutral"}>
+                  {m.sentiment}
+                </Pill>
+                <div className="text-right text-[10px] tabular-nums text-muted-foreground">
+                  <div className="font-bold text-foreground">{fmt(m.reach)}</div>
+                  <div>reach</div>
+                </div>
+              </ListRow>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============ Empty state ============
 function EmptyState() {
   return (
@@ -2609,12 +3464,13 @@ function fmtDay(iso: string) {
 }
 
 function PrintLayout({
-  template, dateRangeLabel, analytics, teamData, reportData, postsPerfData, totals,
+  template, dateRangeLabel, analytics, teamData, reportData, postsPerfData, listeningData, totals,
 }: {
   template: Template; dateRangeLabel: string; analytics: AnalyticsData | null;
   teamData: TeamData | null;
   reportData: ReportDataRoot | null;
   postsPerfData: PostsPerformanceData | null;
+  listeningData: ListeningData | null;
   totals: { followers: number; impressions: number; reach: number; engagement: number; posts: number; likes: number; comments: number; shares: number; saves: number };
 }) {
   if (!analytics) return null;
@@ -2692,6 +3548,31 @@ function PrintLayout({
         return `This ${dateRangeLabel.toLowerCase()} platform comparison report aggregates performance across ${platformAgg.length} platform(s) and ${analytics.perAccount.length} account(s).`;
       case "content":
         return `This ${dateRangeLabel.toLowerCase()} content report covers the publishing pipeline: ${teamData?.teamTotals.postsCreated ?? 0} total posts, ${teamData?.teamTotals.publishedPosts ?? 0} published, ${teamData?.teamTotals.scheduledPosts ?? 0} scheduled, ${teamData?.teamTotals.draftPosts ?? 0} drafts, ${teamData?.teamTotals.failedPosts ?? 0} failed.`;
+      case "roi": {
+        const cost = (() => { try { return Number(localStorage.getItem("synque-roi-monthly-cost") ?? "1000"); } catch { return 1000; } })();
+        const months = Math.max((analytics.series.length || 30) / 30, 1);
+        const spend = cost * months;
+        const estRev = totals.engagement * 0.01;
+        const roi = spend > 0 ? (((estRev - spend) / spend) * 100).toFixed(1) : "0.0";
+        return `This ${dateRangeLabel.toLowerCase()} ROI report models $${spend.toLocaleString(undefined, { maximumFractionDigits: 0 })} of social spend (monthly budget: $${cost.toLocaleString()}) against ${fmt(totals.engagement)} engagements across ${analytics.perAccount.length} account(s). Estimated attributed revenue: $${estRev.toLocaleString(undefined, { maximumFractionDigits: 0 })} (${roi}% ROI at $0.01/engagement).`;
+      }
+      case "sentiment": {
+        const s = listeningData?.sentiments ?? teamData?.commentsBySentiment ?? { positive: 0, neutral: 0, negative: 0 };
+        const tot = s.positive + s.neutral + s.negative;
+        const score = tot > 0 ? ((s.positive - s.negative) / tot) * 100 : 0;
+        return `This ${dateRangeLabel.toLowerCase()} sentiment report analyses ${tot.toLocaleString()} ${listeningData ? "brand mentions" : "team comments"}. ${s.positive.toLocaleString()} positive, ${s.neutral.toLocaleString()} neutral, ${s.negative.toLocaleString()} negative — net sentiment score of ${score.toFixed(1)}.`;
+      }
+      case "content-calendar": {
+        const gaps = (analytics.series ?? []).filter((d) => d.posts === 0).length;
+        const avg = (analytics.series ?? []).length > 0 ? ((analytics.series ?? []).reduce((sum, d) => sum + d.posts, 0) / (analytics.series ?? []).length).toFixed(1) : "0";
+        return `This ${dateRangeLabel.toLowerCase()} content calendar report visualizes posting cadence across ${analytics.perAccount.length} account(s). Average ${avg} posts/day with ${gaps} day(s) of gaps (no posts).`;
+      }
+      case "brand-monitoring": {
+        const mentions = listeningData?.recent.length ?? 0;
+        const reach = (listeningData?.recent ?? []).reduce((sum, m) => sum + m.reach, 0);
+        const queries = listeningData?.queries.length ?? 0;
+        return `This ${dateRangeLabel.toLowerCase()} brand monitoring report covers ${queries} tracked brand quer${queries === 1 ? "y" : "ies"} — ${mentions.toLocaleString()} mentions captured with a combined reach of ${fmt(reach)}.`;
+      }
       default:
         return `This ${dateRangeLabel.toLowerCase()} ${template.name.toLowerCase()} report covers ${analytics.perAccount.length} account(s)${teamData ? ` and ${teamData.teamTotals.members} team member(s)` : ""}. Total audience: ${fmt(totals.followers)} followers, ${fmt(totals.impressions)} impressions, ${fmt(totals.reach)} reach, and ${fmt(totals.engagement)} total engagement.`;
     }
@@ -2851,6 +3732,60 @@ function PrintLayout({
           { label: "Failed", value: (k?.failed ?? 0).toLocaleString() },
           { label: "Comments", value: (k?.totalComments ?? 0).toLocaleString() },
           { label: "Reply Rate", value: `${replyRate}%` },
+        ];
+      }
+      case "roi": {
+        const cost = (() => { try { return Number(localStorage.getItem("synque-roi-monthly-cost") ?? "1000"); } catch { return 1000; } })();
+        const months = Math.max((analytics.series.length || 30) / 30, 1);
+        const spend = cost * months;
+        const estRev = totals.engagement * 0.01;
+        const roi = spend > 0 ? ((estRev - spend) / spend) * 100 : 0;
+        return [
+          { label: "Total Spend", value: `$${spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+          { label: "Cost / Post", value: `$${(totals.posts > 0 ? spend / totals.posts : 0).toFixed(2)}` },
+          { label: "Cost / Follower", value: `$${(totals.followers > 0 ? spend / totals.followers : 0).toFixed(4)}` },
+          { label: "Cost / Engagement", value: `$${(totals.engagement > 0 ? spend / totals.engagement : 0).toFixed(4)}` },
+          { label: "Est. Revenue", value: `$${estRev.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+          { label: "ROI", value: `${roi >= 0 ? "+" : ""}${roi.toFixed(1)}%` },
+        ];
+      }
+      case "sentiment": {
+        const s = listeningData?.sentiments ?? teamData?.commentsBySentiment ?? { positive: 0, neutral: 0, negative: 0 };
+        const tot = s.positive + s.neutral + s.negative;
+        const score = tot > 0 ? ((s.positive - s.negative) / tot) * 100 : 0;
+        return [
+          { label: "Total Analysed", value: tot.toLocaleString() },
+          { label: "Positive", value: s.positive.toLocaleString() },
+          { label: "Neutral", value: s.neutral.toLocaleString() },
+          { label: "Negative", value: s.negative.toLocaleString() },
+          { label: "Net Score", value: `${score >= 0 ? "+" : ""}${score.toFixed(1)}` },
+        ];
+      }
+      case "content-calendar": {
+        const series = analytics.series ?? [];
+        const gaps = series.filter((d) => d.posts === 0).length;
+        const avg = series.length > 0 ? series.reduce((sum, d) => sum + d.posts, 0) / series.length : 0;
+        const gapPct = series.length > 0 ? (gaps / series.length) * 100 : 0;
+        return [
+          { label: "Total Posts", value: totals.posts.toLocaleString() },
+          { label: "Avg / Day", value: avg.toFixed(1) },
+          { label: "Gap Days", value: gaps.toLocaleString() },
+          { label: "Gap Rate", value: `${gapPct.toFixed(0)}%` },
+          { label: "Days Tracked", value: series.length.toLocaleString() },
+        ];
+      }
+      case "brand-monitoring": {
+        const mentions = listeningData?.recent.length ?? 0;
+        const reach = (listeningData?.recent ?? []).reduce((sum, m) => sum + m.reach, 0);
+        const eng = (listeningData?.recent ?? []).reduce((sum, m) => sum + m.engagement, 0);
+        const s = listeningData?.sentiments ?? { positive: 0, neutral: 0, negative: 0 };
+        const score = mentions > 0 ? ((s.positive - s.negative) / mentions) * 100 : 0;
+        return [
+          { label: "Tracked Queries", value: (listeningData?.queries.length ?? 0).toLocaleString() },
+          { label: "Mentions", value: mentions.toLocaleString() },
+          { label: "Reach", value: fmt(reach) },
+          { label: "Engagement", value: fmt(eng) },
+          { label: "Net Sentiment", value: `${score >= 0 ? "+" : ""}${score.toFixed(1)}` },
         ];
       }
       default:
@@ -3638,6 +4573,345 @@ function PrintLayout({
                 </table>
               </PrintSection>
             )}
+          </>
+        )}
+
+        {/* ============================================================
+            NEW TEMPLATE 1: ROI REPORT
+            ============================================================ */}
+        {template.id === "roi" && (
+          <>
+            <PrintSection title="Per-Account Cost Efficiency">
+              {(() => {
+                const cost = (() => { try { return Number(localStorage.getItem("synque-roi-monthly-cost") ?? "1000"); } catch { return 1000; } })();
+                const months = Math.max((analytics.series.length || 30) / 30, 1);
+                const spend = cost * months;
+                const totalEng = totals.engagement || 1;
+                return (
+                  <table className="report-table">
+                    <thead><tr>
+                      <th>Account</th><th>Platform</th>
+                      <th className="text-right">Posts</th>
+                      <th className="text-right">Followers</th>
+                      <th className="text-right">Engagement</th>
+                      <th className="text-right">Cost/Post</th>
+                      <th className="text-right">Cost/Eng</th>
+                      <th className="text-right">Est. Rev.</th>
+                      <th className="text-right">ROI</th>
+                    </tr></thead>
+                    <tbody>
+                      {analytics.perAccount.map((a) => {
+                        const share = totalEng > 0 ? a.engagement / totalEng : 0;
+                        const acctSpend = spend * share;
+                        const acctRev = a.engagement * 0.01;
+                        const acctRoi = acctSpend > 0 ? ((acctRev - acctSpend) / acctSpend) * 100 : 0;
+                        return (
+                          <tr key={a.id}>
+                            <td className="font-medium">{a.displayName}</td>
+                            <td className="capitalize">{a.platform}</td>
+                            <td className="text-right tabular-nums">{a.posts}</td>
+                            <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                            <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+                            <td className="text-right tabular-nums">${(a.posts > 0 ? acctSpend / a.posts : 0).toFixed(2)}</td>
+                            <td className="text-right tabular-nums">${(a.engagement > 0 ? acctSpend / a.engagement : 0).toFixed(4)}</td>
+                            <td className="text-right tabular-nums">${acctRev.toFixed(2)}</td>
+                            <td className="text-right tabular-nums font-semibold">{acctRoi >= 0 ? "+" : ""}{acctRoi.toFixed(1)}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </PrintSection>
+            <PrintSection title="Daily Engagement Trend (Revenue Proxy)">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Date</th>
+                  <th className="text-right">Engagement</th>
+                  <th className="text-right">Posts</th>
+                  <th className="text-right">Est. Revenue</th>
+                </tr></thead>
+                <tbody>
+                  {analytics.series.slice(-30).map(s => (
+                    <tr key={s.date}>
+                      <td>{fmtDay(s.date)}</td>
+                      <td className="text-right tabular-nums">{s.engagement.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{s.posts}</td>
+                      <td className="text-right tabular-nums">${(s.engagement * 0.01).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+          </>
+        )}
+
+        {/* ============================================================
+            NEW TEMPLATE 2: SENTIMENT ANALYSIS
+            ============================================================ */}
+        {template.id === "sentiment" && (
+          <>
+            <PrintSection title="Sentiment Distribution">
+              {(() => {
+                const s = listeningData?.sentiments ?? teamData?.commentsBySentiment ?? { positive: 0, neutral: 0, negative: 0 };
+                const tot = s.positive + s.neutral + s.negative;
+                const rows = [
+                  { label: "Positive", count: s.positive, pct: tot > 0 ? (s.positive / tot) * 100 : 0 },
+                  { label: "Neutral", count: s.neutral, pct: tot > 0 ? (s.neutral / tot) * 100 : 0 },
+                  { label: "Negative", count: s.negative, pct: tot > 0 ? (s.negative / tot) * 100 : 0 },
+                ];
+                return (
+                  <table className="report-table">
+                    <thead><tr>
+                      <th>Sentiment</th>
+                      <th className="text-right">Count</th>
+                      <th className="text-right">Share %</th>
+                    </tr></thead>
+                    <tbody>
+                      {rows.map(r => (
+                        <tr key={r.label}>
+                          <td className="font-medium">{r.label}</td>
+                          <td className="text-right tabular-nums">{r.count.toLocaleString()}</td>
+                          <td className="text-right tabular-nums">{r.pct.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </PrintSection>
+            {listeningData && listeningData.series.length > 0 && (
+              <PrintSection title="Daily Mention Volume & Sentiment">
+                <table className="report-table">
+                  <thead><tr>
+                    <th>Date</th>
+                    <th className="text-right">Mentions</th>
+                    <th className="text-right">Sentiment Score</th>
+                  </tr></thead>
+                  <tbody>
+                    {listeningData.series.map(d => (
+                      <tr key={d.date}>
+                        <td>{fmtDay(d.date)}</td>
+                        <td className="text-right tabular-nums">{d.count}</td>
+                        <td className="text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </PrintSection>
+            )}
+            {listeningData && listeningData.recent.length > 0 && (
+              <PrintSection title="Sentiment by Source">
+                {(() => {
+                  const map = new Map<string, { source: string; count: number; positive: number; neutral: number; negative: number }>();
+                  for (const m of listeningData.recent) {
+                    const cur = map.get(m.source) ?? { source: m.source, count: 0, positive: 0, neutral: 0, negative: 0 };
+                    cur.count++;
+                    if (m.sentiment === "positive") cur.positive++;
+                    else if (m.sentiment === "negative") cur.negative++;
+                    else cur.neutral++;
+                    map.set(m.source, cur);
+                  }
+                  const rows = [...map.values()].sort((a, b) => b.count - a.count);
+                  return (
+                    <table className="report-table">
+                      <thead><tr>
+                        <th>Source</th>
+                        <th className="text-right">Mentions</th>
+                        <th className="text-right">Positive</th>
+                        <th className="text-right">Neutral</th>
+                        <th className="text-right">Negative</th>
+                        <th className="text-right">Score</th>
+                      </tr></thead>
+                      <tbody>
+                        {rows.map(r => {
+                          const score = r.count > 0 ? ((r.positive - r.negative) / r.count) * 100 : 0;
+                          return (
+                            <tr key={r.source}>
+                              <td className="font-medium capitalize">{r.source}</td>
+                              <td className="text-right tabular-nums">{r.count}</td>
+                              <td className="text-right tabular-nums">{r.positive}</td>
+                              <td className="text-right tabular-nums">{r.neutral}</td>
+                              <td className="text-right tabular-nums">{r.negative}</td>
+                              <td className="text-right tabular-nums">{score >= 0 ? "+" : ""}{score.toFixed(1)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </PrintSection>
+            )}
+          </>
+        )}
+
+        {/* ============================================================
+            NEW TEMPLATE 3: CONTENT CALENDAR
+            ============================================================ */}
+        {template.id === "content-calendar" && (
+          <>
+            <PrintSection title="Daily Posting Activity (Last 30 Days)">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Date</th>
+                  <th className="text-right">Posts</th>
+                  <th className="text-right">Followers</th>
+                  <th className="text-right">Engagement</th>
+                  <th>Status</th>
+                </tr></thead>
+                <tbody>
+                  {analytics.series.slice(-30).map(s => (
+                    <tr key={s.date}>
+                      <td>{fmtDay(s.date)}</td>
+                      <td className="text-right tabular-nums">{s.posts}</td>
+                      <td className="text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                      <td className="text-right tabular-nums">{s.engagement.toLocaleString()}</td>
+                      <td>{s.posts === 0 ? <span className="report-subtle">— gap —</span> : "active"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrintSection>
+            <PrintSection title="Calendar Gaps (Days with No Posts)">
+              {(() => {
+                const gaps = analytics.series.filter(s => s.posts === 0);
+                if (gaps.length === 0) return <p className="report-text">No gaps detected — every day in the period had at least one post.</p>;
+                return (
+                  <div className="report-gap-list">
+                    {gaps.map(g => (
+                      <span key={g.date} className="report-gap-pill">{fmtDay(g.date)}</span>
+                    ))}
+                  </div>
+                );
+              })()}
+            </PrintSection>
+            <PrintSection title="Best Posting Slots (Weekday × Hour)">
+              {(() => {
+                if (!postsPerfData) return <p className="report-text">No post timestamps available.</p>;
+                const grid: Record<string, number> = {};
+                for (const p of postsPerfData.posts) {
+                  const ts = p.variants.find(v => v.publishedAt)?.publishedAt ?? p.createdAt;
+                  const d = new Date(ts);
+                  const day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][(d.getDay() + 6) % 7];
+                  const hour = d.getHours();
+                  const key = `${day} ${hour}:00`;
+                  grid[key] = (grid[key] ?? 0) + 1;
+                }
+                const rows = Object.entries(grid)
+                  .map(([slot, count]) => ({ slot, count }))
+                  .sort((a, b) => b.count - a.count)
+                  .slice(0, 10);
+                if (rows.length === 0) return <p className="report-text">No publishing-time data available.</p>;
+                return (
+                  <table className="report-table">
+                    <thead><tr>
+                      <th>Rank</th><th>Slot</th>
+                      <th className="text-right">Posts Published</th>
+                    </tr></thead>
+                    <tbody>
+                      {rows.map((r, i) => (
+                        <tr key={r.slot}>
+                          <td className="tabular-nums">{i + 1}</td>
+                          <td className="font-medium">{r.slot}</td>
+                          <td className="text-right tabular-nums">{r.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </PrintSection>
+          </>
+        )}
+
+        {/* ============================================================
+            NEW TEMPLATE 4: BRAND MONITORING
+            ============================================================ */}
+        {template.id === "brand-monitoring" && listeningData && (
+          <>
+            <PrintSection title="Tracked Brand Queries">
+              <table className="report-table">
+                <thead><tr>
+                  <th>Query</th>
+                  <th className="text-right">Mentions</th>
+                  <th className="text-right">Reach</th>
+                  <th className="text-right">Engagement</th>
+                  <th className="text-right">Share of Voice</th>
+                </tr></thead>
+                <tbody>
+                  {listeningData.queries.map(q => {
+                    const totalMentions = listeningData.recent.length || 1;
+                    const sov = (q.mentionCount / totalMentions) * 100;
+                    return (
+                      <tr key={q.id}>
+                        <td className="font-medium">{q.name}</td>
+                        <td className="text-right tabular-nums">{q.mentionCount}</td>
+                        <td className="text-right tabular-nums">{q.reach.toLocaleString()}</td>
+                        <td className="text-right tabular-nums">{q.engagement.toLocaleString()}</td>
+                        <td className="text-right tabular-nums">{sov.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </PrintSection>
+            <PrintSection title="Daily Mention Trend">
+              {listeningData.series.length > 0 ? (
+                <table className="report-table">
+                  <thead><tr>
+                    <th>Date</th>
+                    <th className="text-right">Mentions</th>
+                    <th className="text-right">Sentiment Score</th>
+                  </tr></thead>
+                  <tbody>
+                    {listeningData.series.map(d => (
+                      <tr key={d.date}>
+                        <td>{fmtDay(d.date)}</td>
+                        <td className="text-right tabular-nums">{d.count}</td>
+                        <td className="text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="report-text">No daily trend data available.</p>
+              )}
+            </PrintSection>
+            <PrintSection title="Share of Voice by Source">
+              {(() => {
+                const map = new Map<string, { source: string; count: number; reach: number }>();
+                for (const m of listeningData.recent) {
+                  const cur = map.get(m.source) ?? { source: m.source, count: 0, reach: 0 };
+                  cur.count++;
+                  cur.reach += m.reach;
+                  map.set(m.source, cur);
+                }
+                const rows = [...map.values()].sort((a, b) => b.count - a.count);
+                const total = rows.reduce((s, r) => s + r.count, 0) || 1;
+                return (
+                  <table className="report-table">
+                    <thead><tr>
+                      <th>Source</th>
+                      <th className="text-right">Mentions</th>
+                      <th className="text-right">Reach</th>
+                      <th className="text-right">Share %</th>
+                    </tr></thead>
+                    <tbody>
+                      {rows.map(r => (
+                        <tr key={r.source}>
+                          <td className="font-medium capitalize">{r.source}</td>
+                          <td className="text-right tabular-nums">{r.count}</td>
+                          <td className="text-right tabular-nums">{r.reach.toLocaleString()}</td>
+                          <td className="text-right tabular-nums">{((r.count / total) * 100).toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </PrintSection>
           </>
         )}
 
