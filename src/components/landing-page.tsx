@@ -497,18 +497,51 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       style={{ background: COLOR.bg, color: COLOR.textHead }}
     >
       <style>{LANDING_KEYFRAMES}</style>
-      <CinematicNav onTrial={onTrial} onSignIn={onSignIn} />
-      <Act1Hero onTrial={onTrial} onSignIn={onSignIn} />
-      <Act2Problem />
-      <Act3Solution />
-      <Act4Workflow onTrial={onTrial} />
-      <Act5Protection />
-      <Act6AIAssistant />
-      <Act7Analytics onTrial={onTrial} />
-      <Act8Comparison />
-      <Act9Pricing onTrial={onTrial} />
-      <Act10FinalCTA onTrial={onTrial} />
-      <Act11Footer />
+      {/* Page-wide background animations — fixed, stays throughout the whole page */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
+        {/* Aurora glow — top center, drifts slowly */}
+        <div
+          className="absolute -top-[10%] left-1/2 h-[50vh] w-[60vw] -translate-x-1/2 rounded-full opacity-20 blur-3xl"
+          style={{
+            background: `radial-gradient(circle, ${COLOR.accentA(0.5)}, transparent 65%)`,
+            animation: "sfAuroraDrift 22s ease-in-out infinite",
+          }}
+        />
+        {/* Second aurora — bottom right, offset timing */}
+        <div
+          className="absolute bottom-[20%] right-[5%] h-[40vh] w-[40vw] rounded-full opacity-15 blur-3xl"
+          style={{
+            background: `radial-gradient(circle, ${COLOR.goldA(0.4)}, transparent 65%)`,
+            animation: "sfAuroraDrift 28s ease-in-out -6s infinite reverse",
+          }}
+        />
+        {/* Shimmer sweep — covers whole page */}
+        <div
+          className="absolute inset-0 opacity-5"
+          style={{
+            background: "linear-gradient(115deg, transparent 30%, rgba(94,159,255,0.18) 50%, transparent 70%)",
+            backgroundSize: "200% 200%",
+            animation: "sfShimmerSweep 12s ease-in-out infinite",
+          }}
+        />
+        {/* Starfield — subtle, page-wide */}
+        <ParticleField count={48} colors={[COLOR.accent, COLOR.gold]} size={[1, 2.5]} />
+      </div>
+      {/* Content — above the fixed background */}
+      <div className="relative z-10">
+        <CinematicNav onTrial={onTrial} onSignIn={onSignIn} />
+        <Act1Hero onTrial={onTrial} onSignIn={onSignIn} />
+        <Act2Problem />
+        <Act3Solution />
+        <Act4Workflow onTrial={onTrial} />
+        <Act5Protection />
+        <Act6AIAssistant />
+        <Act7Analytics onTrial={onTrial} />
+        <Act8Comparison />
+        <Act9Pricing onTrial={onTrial} />
+        <Act10FinalCTA onTrial={onTrial} />
+        <Act11Footer />
+      </div>
     </div>
   );
 }
