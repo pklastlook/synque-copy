@@ -584,8 +584,80 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
     }
   }
 
+  // === THREADS (Meta Threads API) ===
+  if (platform === "threads") {
+    try {
+      const cred = await db.platformCredential.findFirst({
+        where: { userId, platform: "threads", connected: true },
+      });
+      if (!cred || !cred.accessToken) {
+        return NextResponse.json({
+          error: "Threads API credentials not configured. Add them in Settings → Platform API Keys.",
+          manualUrl: "https://www.threads.net",
+        }, { status: 400 });
+      }
+
+      // Threads API: create a media container, then publish
+      // Step 1: Create container
+      const containerRes = await fetch(
+        `https://graph.facebook.com/v19.0/${cred.pageId}/threads`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            media_type: "TEXT",
+            text: content,
+            access_token: cred.accessToken,
+          }),
+        }
+      );
+      const containerJson = await containerRes.json();
+
+      if (!containerRes.ok) {
+        return NextResponse.json({
+          error: `Threads API error: ${containerJson.error?.message ?? "Unknown"}`,
+          manualUrl: "https://www.threads.net",
+        }, { status: 502 });
+      }
+
+      const containerId = containerJson.id;
+
+      // Step 2: Publish the container
+      const publishRes = await fetch(
+        `https://graph.facebook.com/v19.0/${cred.pageId}/threads_publish`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            creation_id: containerId,
+            access_token: cred.accessToken,
+          }),
+        }
+      );
+      const publishJson = await publishRes.json();
+
+      if (!publishRes.ok) {
+        return NextResponse.json({
+          error: `Threads publish failed: ${publishJson.error?.message ?? "Unknown"}`,
+          manualUrl: "https://www.threads.net",
+        }, { status: 502 });
+      }
+
+      console.log(`[publish/threads] Published to Threads: ${publishJson.id}`);
+      return NextResponse.json({
+        ok: true,
+        platform: "threads",
+        postId: publishJson.id,
+        url: `https://www.threads.net/@${account.handle.replace("@", "")}`,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Threads API error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
   // === Unsupported platform ===
   return NextResponse.json({
-    error: `Platform '${platform}' is not yet supported for real posting. Supported: twitter, instagram, linkedin, facebook.`,
+    error: `Platform '${platform}' is not yet supported for real posting. Supported: twitter, instagram, linkedin, facebook, threads.`,
   }, { status: 501 });
 }

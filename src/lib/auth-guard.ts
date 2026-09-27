@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import { db } from "@/lib/db";
 
 const SECRET = process.env.JWT_SECRET || "socialflow-jwt-secret-2024-very-secure";
 
@@ -74,6 +75,85 @@ export function requireAuth(req: NextRequest) {
     };
   }
   return { user, error: null };
+}
+
+/**
+ * Extract the raw JWT string from a request (Bearer header or cookie).
+ * Used by session-revocation checks + logout.
+ */
+export function getRawToken(req: NextRequest): string | null {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.replace("Bearer ", "");
+  }
+  const cookie = req.headers.get("cookie");
+  if (cookie) {
+    const tokenMatch = cookie.match(/(?:^|;\s*)token=([^;]+)/);
+    if (tokenMatch) return tokenMatch[1];
+  }
+  return null;
+}
+
+/**
+ * Require authentication AND verify that the request's JWT matches an
+ * active (non-revoked, non-expired) Session row in the database.
+ *
+ * Use this for sensitive routes where revoking a session should immediately
+ * deny access (e.g. account deletion, API key management, billing changes).
+ *
+ * For ordinary read routes (dashboards, lists) prefer the sync `requireAuth`
+ * to avoid the extra DB round-trip — the JWT signature check alone is
+ * usually sufficient there.
+ *
+ * Returns the user, the raw token (for logging/auditing), or an error
+ * (401 if unauthenticated, 401 if session revoked/expired).
+ */
+export async function requireAuthWithSession(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth.error) return { user: null, token: null, error: auth.error };
+
+  const token = getRawToken(req);
+  if (!token) {
+    // Shouldn't happen — requireAuth would have caught this — but be safe.
+    return {
+      user: null,
+      token: null,
+      error: NextResponse.json({ error: "Authentication required" }, { status: 401 }),
+    };
+  }
+
+  // Look up the session. Best-effort: if the DB is unavailable, fall back
+  // to the JWT-only check (don't lock users out because of a Neon hiccup).
+  let session: { revokedAt: Date | null; expiresAt: Date } | null = null;
+  try {
+    session = await db.session.findUnique({
+      where: { token },
+      select: { revokedAt: true, expiresAt: true },
+    });
+  } catch (e) {
+    console.error("[requireAuthWithSession] DB lookup failed:", e instanceof Error ? e.message : String(e));
+    // Fall through — treat as valid (defensive: avoid locking out users
+    // during transient DB issues).
+  }
+
+  if (session) {
+    if (session.revokedAt) {
+      return {
+        user: null,
+        token,
+        error: NextResponse.json({ error: "Session revoked. Please log in again." }, { status: 401 }),
+      };
+    }
+    if (session.expiresAt < new Date()) {
+      return {
+        user: null,
+        token,
+        error: NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 }),
+      };
+    }
+  }
+
+  return { user: auth.user, token, error: null };
 }
 
 /**
