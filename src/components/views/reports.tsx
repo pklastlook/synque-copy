@@ -288,10 +288,11 @@ export function ReportsView() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${r.name.replace(/[^a-z0-9]/gi, "_")}.pdf`;
+      // Use the report's name as the filename (sanitized: replace non-alphanumeric with _)
+      a.download = `${r.name.replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "")}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("PDF downloaded");
+      toast.success("PDF downloaded", { description: r.name });
     } catch { toast.error("Failed to generate PDF"); }
   }
 
@@ -306,8 +307,88 @@ export function ReportsView() {
     reload();
   }
 
+  /** Export the current on-screen report data as a CSV file.
+   *  The filename uses the report title (not the generic site name). */
+  function downloadCSV() {
+    const reportName = `${template.name} Report — ${dateRangeLabel} — ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
+    const filename = `${reportName.replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "")}.csv`;
+
+    // Build CSV rows from the available data sources
+    const rows: string[][] = [];
+
+    // Header
+    rows.push(["SYNQUE Report"]);
+    rows.push([reportName]);
+    rows.push([`Generated: ${new Date().toLocaleString()}`]);
+    rows.push([`Date Range: ${dateRangeLabel} (Last ${days} days)`]);
+    rows.push([]);
+
+    // KPI strip
+    rows.push(["Executive Summary KPIs"]);
+    rows.push(["Metric", "Value"]);
+    for (const k of kpis) rows.push([k.label, k.value]);
+    rows.push([]);
+
+    // Per-account data (available in all templates via analytics)
+    if (analytics && analytics.perAccount.length > 0) {
+      rows.push(["Per-Account Summary"]);
+      rows.push(["Account", "Platform", "Followers", "Impressions", "Reach", "Engagement", "Posts"]);
+      for (const a of analytics.perAccount) {
+        rows.push([a.displayName, a.platform, a.followers.toString(), a.impressions.toString(), a.reach.toString(), a.engagement.toString(), a.posts.toString()]);
+      }
+      rows.push([]);
+    }
+
+    // Team member data (if available)
+    if (reportData && reportData.userComparison.length > 0) {
+      rows.push(["Team Member Comparison"]);
+      rows.push(["Member", "Title", "Posts Created", "Published", "Drafts", "Failed", "Comments Received", "Comments Replied", "Reply Rate", "7-Day Activity"]);
+      for (const u of reportData.userComparison) {
+        rows.push([u.name, u.title ?? u.role, u.postsCreated.toString(), u.postsPublished.toString(), u.postsDraft.toString(), u.postsFailed.toString(), u.commentsReceived.toString(), u.commentsReplied.toString(), `${u.replyRate}%`, u.postsLast7d.toString()]);
+      }
+      rows.push([]);
+    }
+
+    // Posts performance data (if available)
+    if (postsPerfData && postsPerfData.posts.length > 0) {
+      rows.push(["Posts Performance"]);
+      rows.push(["Title", "Author", "Status", "Platforms", "Engagement", "Comments"]);
+      for (const p of postsPerfData.posts) {
+        rows.push([p.title || "Untitled", p.authorName, p.status, p.platforms.join(", "), p.engagement.toString(), p.comments.toString()]);
+      }
+      rows.push([]);
+    }
+
+    // Convert to CSV string (escape quotes)
+    const csv = rows.map(row => row.map(cell => `"${(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    // Download
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV downloaded", { description: filename });
+  }
+
   function printReport() {
-    setTimeout(() => window.print(), 300);
+    // Temporarily set document.title to the report name so the browser's
+    // "Save as PDF" dialog uses it as the default filename instead of the
+    // generic site title ("SYNQUE — Sync Your Social").
+    const originalTitle = document.title;
+    const reportName = `${template.name} Report — ${dateRangeLabel} — ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
+    document.title = reportName;
+    // Restore the original title after printing (or after a delay)
+    const restore = () => { document.title = originalTitle; };
+    setTimeout(() => {
+      window.print();
+      // Restore after print dialog closes (most browsers fire 'afterprint')
+      window.addEventListener("afterprint", restore, { once: true });
+      // Fallback: restore after 5s in case afterprint doesn't fire
+      setTimeout(restore, 5000);
+    }, 300);
   }
 
   const allReports = savedReports ?? [];
@@ -492,6 +573,14 @@ export function ReportsView() {
           >
             {savingReport ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
             <span className="hidden sm:inline">Save</span>
+          </button>
+          <button
+            onClick={downloadCSV}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-600 transition hover:bg-emerald-500/20 dark:text-emerald-400"
+            title="Download as CSV (Excel-compatible)"
+          >
+            <Download className="h-3 w-3" />
+            <span className="hidden sm:inline">CSV</span>
           </button>
           <button
             onClick={printReport}
