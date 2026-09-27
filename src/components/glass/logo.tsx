@@ -6,13 +6,8 @@ import { cn } from "@/lib/utils";
 /**
  * SYNQUE Logo — text-only wordmark (no SVG icon).
  *
- * The `Logo` component now renders a stylized text mark instead of an
- * SVG graphic. "SYN" is solid, "QUE" uses a gradient. This is used
- * in the sidebar, header, splash, landing nav, and footer.
- *
- * Props are preserved for backward compatibility (size, withTile,
- * className, tileClassName) — withTile controls whether the text is
- * wrapped in a rounded tile container.
+ * Renders "SYNQUE" with "SYN" in solid color and "QUE" in gradient.
+ * This IS the logo — there is no separate icon mark.
  */
 export function Logo({
   size = 36,
@@ -25,7 +20,7 @@ export function Logo({
   className?: string;
   tileClassName?: string;
 }) {
-  // Map numeric size to font-size classes
+  // Map numeric size to font-size
   const fontSize =
     size <= 20 ? "text-[13px]" :
     size <= 28 ? "text-[15px]" :
@@ -69,8 +64,9 @@ export function Logo({
 }
 
 /**
- * SYNQUE wordmark — text logo + brand name + slogan.
- * No SVG icon — purely typographic.
+ * SYNQUE wordmark — the Logo text + slogan below it.
+ * Does NOT render a second "SYNQUE" — the Logo IS the wordmark text.
+ * showLogo controls whether the logo text is shown (default: true).
  */
 export function LogoWordmark({
   className,
@@ -85,9 +81,11 @@ export function LogoWordmark({
 }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      {showLogo && <Logo size={logoSize} />}
-      <div className="leading-tight">
-        <div className={cn("font-extrabold tracking-tight", size)}>
+      {showLogo && (
+        <div
+          className={cn("font-extrabold tracking-tight leading-none", size)}
+          aria-label="SYNQUE"
+        >
           <span className="text-foreground">SYN</span>
           <span
             className="bg-clip-text text-transparent"
@@ -98,6 +96,8 @@ export function LogoWordmark({
             QUE
           </span>
         </div>
+      )}
+      <div className="leading-tight">
         <div className="text-[9px] uppercase tracking-[0.25em] text-muted-foreground">
           Orchestrate Your Social
         </div>
