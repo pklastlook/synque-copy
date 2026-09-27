@@ -4,50 +4,22 @@
       <stop offset="0%" stop-color="#0A0B0F"/>
       <stop offset="100%" stop-color="#161823"/>
     </linearGradient>
-    <linearGradient id="ribbon-grad" x1="0" y1="0" x2="1" y2="0.3">
-      <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.4"/>
-      <stop offset="60%" stop-color="#0A84FF" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#5E5CE6" stop-opacity="1"/>
+    <linearGradient id="que-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0A84FF"/>
+      <stop offset="100%" stop-color="#5E5CE6"/>
     </linearGradient>
-    <linearGradient id="diamond-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#5E5CE6"/>
-      <stop offset="100%" stop-color="#0A84FF"/>
-    </linearGradient>
-    <radialGradient id="diamond-shine" cx="0.3" cy="0.25" r="0.7">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
-      <stop offset="60%" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="3" result="b"/>
-      <feMerge>
-        <feMergeNode in="b"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
   </defs>
 
   <!-- Rounded tile background -->
   <rect width="512" height="512" rx="112" fill="url(#bg-grad)"/>
 
-  <!-- Decorative ring -->
-  <circle cx="256" cy="256" r="200" stroke="rgba(255,255,255,0.03)" stroke-width="1.5"/>
-  <circle cx="256" cy="256" r="160" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+  <!-- SYNQUE text centered -->
+  <text x="256" y="280" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="72" font-weight="800" letter-spacing="-2">
+    <tspan fill="#F5F5F7">SYN</tspan><tspan fill="url(#que-grad)">QUE</tspan>
+  </text>
 
-  <!-- Scale the logo mark into the center (viewBox 0..64 → translate+scale) -->
-  <g transform="translate(256 256) scale(5.8) translate(-32 -32)">
-    <!-- Ribbon 1 (top) -->
-    <path d="M 4 20 C 16 20, 24 20, 36 28 L 44 32" stroke="url(#ribbon-grad)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
-    <!-- Ribbon 2 (middle, thickest) -->
-    <path d="M 2 32 C 14 32, 26 32, 40 32 L 44 32" stroke="url(#ribbon-grad)" stroke-width="3" stroke-linecap="round" fill="none"/>
-    <!-- Ribbon 3 (bottom) -->
-    <path d="M 4 44 C 16 44, 24 44, 36 36 L 44 32" stroke="url(#ribbon-grad)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
-
-    <!-- Diamond prism -->
-    <g filter="url(#glow)">
-      <path d="M 44 22 L 56 32 L 44 42 L 32 32 Z" fill="url(#diamond-grad)"/>
-      <path d="M 44 22 L 56 32 L 44 42 L 32 32 Z" fill="url(#diamond-shine)"/>
-      <path d="M 44 22 L 44 42 M 32 32 L 56 32" stroke="rgba(255,255,255,0.25)" stroke-width="0.7" stroke-linecap="round"/>
-      <circle cx="44" cy="32" r="2.5" fill="rgba(255,255,255,0.9)"/>
-    </g>
-  </g>
+  <!-- Slogan -->
+  <text x="256" y="320" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" letter-spacing="3" fill="#6E6E73">
+    ORCHESTRATE YOUR SOCIAL
+  </text>
 </svg>

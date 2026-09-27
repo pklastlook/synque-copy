@@ -99,13 +99,12 @@ export function SplashScreen() {
     >
       <div className="splash-screen-content">
         <div className="splash-screen-logo">
-          <Logo size={128} withTile={false} />
+          <Logo size={64} withTile={false} />
         </div>
 
-        <div className="splash-screen-title">
-          SYN<span className="splash-screen-title-accent">QUE</span>
+        <div className="splash-screen-subtitle" style={{ marginTop: "8px" }}>
+          Orchestrate Your Social
         </div>
-        <div className="splash-screen-subtitle">Orchestrate Your Social</div>
 
         <div className="splash-screen-progress" aria-hidden="true">
           <div className="splash-screen-progress-fill" />
