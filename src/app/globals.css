@@ -550,48 +550,18 @@
 }
 .glow-pulse { animation: glowPulse 2.5s ease-in-out infinite; }
 
-/* ===== Logo — SYNQUE "Quantum Flow" mark (energy ribbons + diamond prism) =====
-   Three ribbons flow left→right in a sequential brightness pulse — data
-   packets streaming through a pipeline. The diamond prism breathes
-   gently and the center spark rotates. Hover speeds the flow up. */
-.sf-logo .sf-ribbon { will-change: opacity; }
-@keyframes sfRibbonFlow {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
+/* ===== Logo — SYNQUE text logo animation =====
+   The logo is now text-only (no SVG). A subtle gradient shimmer
+   animates across the "QUE" gradient text. */
+@keyframes sfTextShimmer {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.15); }
 }
-.sf-logo .sf-ribbon-1 { animation: sfRibbonFlow 2.4s ease-in-out infinite; }
-.sf-logo .sf-ribbon-2 { animation: sfRibbonFlow 2.4s ease-in-out infinite 0.4s; }
-.sf-logo .sf-ribbon-3 { animation: sfRibbonFlow 2.4s ease-in-out infinite 0.8s; }
-
-@keyframes sfDiamondBreathe {
-  0%, 100% { transform: scale(1); opacity: 0.95; }
-  50%      { transform: scale(1.06); opacity: 1; }
-}
-.sf-logo .sf-diamond {
-  transform-origin: center;
-  transform-box: fill-box;
-  animation: sfDiamondBreathe 3.2s ease-in-out infinite;
-}
-
-@keyframes sfSparkPulse {
-  0%, 100% { opacity: 0.6; r: 2.5; }
-  50%      { opacity: 1; r: 3; }
-}
-.sf-logo .sf-spark { animation: sfSparkPulse 2s ease-in-out infinite; }
-
-/* Hover — speed up the flow. */
-.sf-logo:hover .sf-ribbon-1 { animation-duration: 1.2s; }
-.sf-logo:hover .sf-ribbon-2 { animation-duration: 1.2s; }
-.sf-logo:hover .sf-ribbon-3 { animation-duration: 1.2s; }
-.sf-logo:hover .sf-diamond  { animation-duration: 2s; }
-.sf-logo:hover .sf-spark   { animation-duration: 1.2s; }
+.sf-logo { animation: sfTextShimmer 3s ease-in-out infinite; }
+.sf-logo:hover { animation-duration: 1.5s; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sf-logo .sf-ribbon,
-  .sf-logo .sf-diamond,
-  .sf-logo .sf-spark {
-    animation: none !important;
-  }
+  .sf-logo { animation: none !important; }
 }
 
 /* Platform gradient utility classes — SOLID Apple-spectrum brand colors */
