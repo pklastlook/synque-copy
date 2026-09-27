@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Check for existing email
-  const existing = await db.user.findUnique({ where: { email } }).catch(() => null);
+  const existing = await db.user.findUnique({ where: { email } }).catch((e) => console.error("[api]", e));
   if (existing) {
     return NextResponse.json({ error: "A user with this email already exists" }, { status: 409 });
   }

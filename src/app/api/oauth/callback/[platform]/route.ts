@@ -20,9 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   const error = req.nextUrl.searchParams.get("error");
   const errorDescription = req.nextUrl.searchParams.get("error_description");
 
-  console.log(`[oauth/callback/${platform}] code=${code ? "present" : "MISSING"} state=${stateParam ? "present" : "MISSING"} error=${error || "none"}`);
   if (error) {
-    console.log(`[oauth/callback/${platform}] error_description=${errorDescription}`);
   }
 
   // User cancelled or platform returned an error
@@ -32,7 +30,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   }
 
   if (!code || !stateParam) {
-    console.log(`[oauth/callback/${platform}] MISSING code or state — Twitter likely rejected the redirect_uri mismatch`);
     return NextResponse.redirect(new URL("/?oauth_error=missing_code_or_state", req.url));
   }
 
@@ -40,7 +37,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   let state: { userId: string; platform: string; cv?: string };
   try {
     state = JSON.parse(Buffer.from(stateParam, "base64url").toString());
-    console.log(`[oauth/callback/${platform}] decoded state: userId=${state.userId}, has_cv=${!!state.cv}`);
   } catch {
     return NextResponse.redirect(new URL("/?oauth_error=invalid_state", req.url));
   }
@@ -104,7 +100,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
           // Check if this account already exists
           const existing = await db.account.findFirst({
             where: { platform: "facebook", handle: page.name },
-          }).catch(() => null);
+          }).catch((e) => console.error("[api]", e));
 
           if (!existing) {
             // Create the account with REAL data
@@ -134,7 +130,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
                 engagement: 0,
                 posts: page.posts?.data?.length ?? 0,
               },
-            }).catch(() => null);
+            }).catch((e) => console.error("[api]", e));
 
             // Log activity
             await db.activity.create({
@@ -143,7 +139,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
                 type: "account_connected",
                 description: `connected ${page.name} on Facebook`,
               },
-            }).catch(() => null);
+            }).catch((e) => console.error("[api]", e));
           } else {
             // Update existing with fresh data
             await db.account.update({
@@ -174,7 +170,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
             const existing = await db.account.findFirst({
               where: { platform: "instagram", handle: `@${igAccount.username}` },
-            }).catch(() => null);
+            }).catch((e) => console.error("[api]", e));
 
             if (!existing) {
               const account = await db.account.create({
@@ -202,7 +198,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
                   engagement: 0,
                   posts: igAccount.media_count ?? 0,
                 },
-              }).catch(() => null);
+              }).catch((e) => console.error("[api]", e));
 
               await db.activity.create({
                 data: {
@@ -210,7 +206,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
                   type: "account_connected",
                   description: `connected @${igAccount.username} on Instagram`,
                 },
-              }).catch(() => null);
+              }).catch((e) => console.error("[api]", e));
             }
           }
         }
@@ -236,13 +232,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
         }),
       });
       const tokenJson = await tokenRes.json();
-      console.log(`[oauth/callback/twitter] token response:`, JSON.stringify(tokenJson).slice(0, 300));
       if (!tokenJson.access_token) {
         const errMsg = tokenJson.error_description || tokenJson.error || "twitter_token_failed";
         return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(errMsg)}`, req.url));
       }
       accessToken = tokenJson.access_token;
-      console.log(`[oauth/callback/twitter] got access token, fetching profile...`);
 
       // Fetch real profile data using the OAuth 2.0 access token
       const meRes = await fetch("https://api.twitter.com/2/users/me?user.fields=public_metrics,verified,name,username,profile_image_url", {
@@ -251,9 +245,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
           "Content-Type": "application/json",
         },
       });
-      console.log(`[oauth/callback/twitter] profile response status: ${meRes.status}`);
       const meJson = await meRes.json();
-      console.log(`[oauth/callback/twitter] profile data:`, JSON.stringify(meJson).slice(0, 300));
 
       if (meJson.data) {
         const user = meJson.data;
@@ -261,7 +253,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
         const existing = await db.account.findFirst({
           where: { platform: "x", handle: `@${user.username}` },
-        }).catch(() => null);
+        }).catch((e) => console.error("[api]", e));
 
         if (!existing) {
           const account = await db.account.create({
@@ -289,7 +281,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
               engagement: 0,
               posts: metrics?.tweet_count ?? 0,
             },
-          }).catch(() => null);
+          }).catch((e) => console.error("[api]", e));
 
           await db.activity.create({
             data: {
@@ -297,7 +289,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
               type: "account_connected",
               description: `connected @${user.username} on X/Twitter`,
             },
-          }).catch(() => null);
+          }).catch((e) => console.error("[api]", e));
         } else {
           await db.account.update({
             where: { id: existing.id },
@@ -311,8 +303,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
       } else {
         // Profile fetch failed — but we still have the access token
         // Create the account with whatever handle we can, and store the token
-        console.log(`[oauth/callback/twitter] profile fetch failed, creating account with minimal data`);
-        console.log(`[oauth/callback/twitter] meJson:`, JSON.stringify(meJson));
       }
     }
 
@@ -347,7 +337,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
         const existing = await db.account.findFirst({
           where: { platform: "linkedin", handle: name },
-        }).catch(() => null);
+        }).catch((e) => console.error("[api]", e));
 
         if (!existing) {
           await db.account.create({
@@ -371,7 +361,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
               type: "account_connected",
               description: `connected ${name} on LinkedIn`,
             },
-          }).catch(() => null);
+          }).catch((e) => console.error("[api]", e));
         }
       }
     }
@@ -390,7 +380,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
         }),
       });
       const tokenJson = await tokenRes.json();
-      console.log(`[oauth/callback/tiktok] token response:`, JSON.stringify(tokenJson).slice(0, 300));
 
       if (tokenJson.data?.access_token) {
         accessToken = tokenJson.data.access_token;
@@ -406,13 +395,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
           body: JSON.stringify({ open_id: openId, fields: ["open_id", "union_id", "display_name", "avatar_url", "follower_count", "likes_count", "video_count"] }),
         });
         const userJson = await userRes.json();
-        console.log(`[oauth/callback/tiktok] profile:`, JSON.stringify(userJson).slice(0, 300));
 
         if (userJson.data?.user) {
           const u = userJson.data.user;
           const existing = await db.account.findFirst({
             where: { platform: "tiktok", handle: u.display_name ?? "TikTok User" },
-          }).catch(() => null);
+          }).catch((e) => console.error("[api]", e));
 
           if (!existing) {
             await db.account.create({
@@ -432,7 +420,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
             await db.activity.create({
               data: { userId, type: "account_connected", description: `connected ${u.display_name} on TikTok` },
-            }).catch(() => null);
+            }).catch((e) => console.error("[api]", e));
           }
         }
         pageId = openId;
@@ -455,7 +443,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
         }),
       });
       const tokenJson = await tokenRes.json();
-      console.log(`[oauth/callback/youtube] token response:`, JSON.stringify(tokenJson).slice(0, 300));
 
       if (tokenJson.access_token) {
         accessToken = tokenJson.access_token;
@@ -465,13 +452,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const channelJson = await channelRes.json();
-        console.log(`[oauth/callback/youtube] channel:`, JSON.stringify(channelJson).slice(0, 300));
 
         if (channelJson.items?.[0]) {
           const ch = channelJson.items[0];
           const existing = await db.account.findFirst({
             where: { platform: "youtube", handle: ch.snippet?.title ?? "YouTube Channel" },
-          }).catch(() => null);
+          }).catch((e) => console.error("[api]", e));
 
           if (!existing) {
             await db.account.create({
@@ -491,7 +477,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
             await db.activity.create({
               data: { userId, type: "account_connected", description: `connected ${ch.snippet?.title} on YouTube` },
-            }).catch(() => null);
+            }).catch((e) => console.error("[api]", e));
           }
           pageId = ch.id;
         }

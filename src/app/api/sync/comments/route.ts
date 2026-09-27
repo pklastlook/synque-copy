@@ -240,7 +240,6 @@ async function fetchTwitterComments(
       }
     }
 
-    console.log(`[sync/comments] Twitter @${handle}: fetched ${comments.length} comments from ${tweets.length} tweets`);
   } catch (err) {
     console.error(`[sync/comments] Twitter @${handle} error:`, err instanceof Error ? err.message : String(err));
   }
@@ -292,7 +291,6 @@ async function fetchInstagramComments(
       }
     }
 
-    console.log(`[sync/comments] Instagram @${account.handle}: fetched ${comments.length} comments from ${media.length} media`);
   } catch (err) {
     console.error(`[sync/comments] Instagram @${account.handle} error:`, err instanceof Error ? err.message : String(err));
   }
@@ -340,7 +338,6 @@ async function fetchFacebookComments(
       }
     }
 
-    console.log(`[sync/comments] Facebook @${account.handle}: fetched ${comments.length} comments from ${posts.length} posts`);
   } catch (err) {
     console.error(`[sync/comments] Facebook @${account.handle} error:`, err instanceof Error ? err.message : String(err));
   }
@@ -396,7 +393,6 @@ async function fetchLinkedInComments(
       }
     }
 
-    console.log(`[sync/comments] LinkedIn @${account.handle}: fetched ${comments.length} comments from ${posts.length} posts`);
   } catch (err) {
     console.error(`[sync/comments] LinkedIn @${account.handle} error:`, err instanceof Error ? err.message : String(err));
   }

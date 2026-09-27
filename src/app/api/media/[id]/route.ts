@@ -15,7 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
 
   // Verify the asset belongs to this tenant before editing
-  const existing = await targetDb.mediaAsset.findUnique({ where: { id } }).catch(() => null);
+  const existing = await targetDb.mediaAsset.findUnique({ where: { id } }).catch((e) => console.error("[api]", e));
   if (!existing || existing.customerId !== scope.customerId) {
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
   }
@@ -38,7 +38,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
 
-  const existing = await targetDb.mediaAsset.findUnique({ where: { id } }).catch(() => null);
+  const existing = await targetDb.mediaAsset.findUnique({ where: { id } }).catch((e) => console.error("[api]", e));
   if (!existing || existing.customerId !== scope.customerId) {
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
   }

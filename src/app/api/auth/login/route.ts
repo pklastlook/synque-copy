@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     await db.user.update({
       where: { id: user.id },
       data: { lastActive: new Date() },
-    }).catch(() => null);
+    }).catch((e) => console.error("[api]", e));
 
     // If 2FA is enabled, do NOT issue a full session yet. Return a short-lived
     // temp token + a flag so the frontend can prompt for the TOTP code.

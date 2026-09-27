@@ -95,7 +95,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           engagement: 0,
           posts: metrics?.tweet_count ?? 0,
         },
-      }).catch(() => null);
+      }).catch((e) => console.error("[api]", e));
 
       return NextResponse.json({
         ok: true,

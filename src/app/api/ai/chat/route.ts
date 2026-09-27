@@ -85,7 +85,6 @@ If the user is just chatting or asking a question (NOT requesting a caption), sk
   try {
     const result = await chatWithFallback(llmMessages);
     raw = result.content;
-    console.log("[ai/chat] LLM response received via", result.provider, "length:", raw.length);
   } catch (err) {
     console.error(
       "[ai/chat] All LLM providers failed:",

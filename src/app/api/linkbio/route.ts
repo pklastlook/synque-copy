@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   const baseSlug = baseSlugRaw.slice(0, 40);
   let uniqueSlug = baseSlug;
   let suffix = 1;
-  while (await db.linkInBio.findUnique({ where: { slug: uniqueSlug } }).catch(() => null)) {
+  while (await db.linkInBio.findUnique({ where: { slug: uniqueSlug } }).catch((e) => console.error("[api]", e))) {
     suffix += 1;
     uniqueSlug = `${baseSlug}-${suffix}`;
     if (suffix > 999) break;

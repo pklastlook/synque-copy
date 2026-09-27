@@ -20,6 +20,7 @@ import {
   Reply,
   ExternalLink,
   Hash,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -194,6 +195,69 @@ function SourceBadge({ source }: { source: string }) {
 export function ListeningView() {
   const { data, loading, reload } = useApi<ListeningData>("/api/listening");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [syncing, setSyncing] = React.useState(false);
+
+  function getToken(): string | null {
+    try {
+      return (
+        JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state
+          ?.token ?? null
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  async function handleSync() {
+    if (syncing) return;
+    setSyncing(true);
+    const toastId = toast.loading("Syncing mentions…");
+    try {
+      const token = getToken();
+      const res = await fetch("/api/listening/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(
+          (err as { error?: string })?.error ?? `HTTP ${res.status}`
+        );
+      }
+      const json = (await res.json()) as {
+        ok: boolean;
+        totalQueries: number;
+        totalFound: number;
+        newMentions: number;
+        classified: number;
+        errors: string[];
+      };
+      toast.success(
+        `Found ${json.totalFound} mentions · ${json.newMentions} new · ${json.classified} classified`,
+        { id: toastId }
+      );
+      if (json.errors && json.errors.length > 0) {
+        const preview = json.errors.slice(0, 3).join(" · ");
+        const extra =
+          json.errors.length > 3 ? ` (+${json.errors.length - 3} more)` : "";
+        toast.error(
+          `${json.errors.length} error${json.errors.length === 1 ? "" : "s"}: ${preview}${extra}`
+        );
+      }
+      reload();
+    } catch (err) {
+      toast.error(
+        `Sync failed: ${err instanceof Error ? err.message : String(err)}`,
+        { id: toastId }
+      );
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   if (loading || !data) return <ListeningSkeleton />;
 
@@ -258,7 +322,22 @@ export function ListeningView() {
         title="Listening"
         desc="Brand & competitor monitoring"
         icon={Radar}
-        action={<AddQueryDialog onCreated={() => reload()} />}
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="liquid-pill flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold disabled:opacity-60"
+              title="Search social platforms and the web for new mentions"
+            >
+              <RefreshCw
+                className={cn("h-4 w-4", syncing && "animate-spin")}
+              />
+              {syncing ? "Syncing…" : "Sync mentions"}
+            </button>
+            <AddQueryDialog onCreated={() => reload()} />
+          </div>
+        }
       />
 
       {/* Dense metric row */}

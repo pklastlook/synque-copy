@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
   const { customerId } = body;
   // Generate a unique key
   let key = genKey();
-  let existing = await db.serialKey.findUnique({ where: { key } }).catch(() => null);
-  while (existing) { key = genKey(); existing = await db.serialKey.findUnique({ where: { key } }).catch(() => null); }
+  let existing = await db.serialKey.findUnique({ where: { key } }).catch((e) => console.error("[api]", e));
+  while (existing) { key = genKey(); existing = await db.serialKey.findUnique({ where: { key } }).catch((e) => console.error("[api]", e)); }
   const serialKey = await db.serialKey.create({ data: { key, customerId: customerId ?? null } });
   return NextResponse.json({ id: serialKey.id, key: serialKey.key, ok: true });
 }

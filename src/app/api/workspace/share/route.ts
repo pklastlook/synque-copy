@@ -123,7 +123,7 @@ export async function PATCH(req: NextRequest) {
     await db.workspaceShare.update({
       where: { id: shareId, sharedWithUserId: user!.userId },
       data: { status: "accepted", acceptedAt: new Date() },
-    }).catch(() => null);
+    }).catch((e) => console.error("[api]", e));
     return NextResponse.json({ ok: true, accepted: true });
   }
 
@@ -131,7 +131,7 @@ export async function PATCH(req: NextRequest) {
     // Either the sharer or the receiver can revoke
     await db.workspaceShare.deleteMany({
       where: { id: shareId, OR: [{ sharedByUserId: user!.userId }, { sharedWithUserId: user!.userId }] },
-    }).catch(() => null);
+    }).catch((e) => console.error("[api]", e));
     return NextResponse.json({ ok: true, revoked: true });
   }
 

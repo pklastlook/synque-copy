@@ -190,7 +190,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
       // PRIORITY 1: OAuth 2.0 user-context token (from "Login with X" flow)
       // This is the user's own token — works with pay-per-use billing
       if (cred.oauth2UserToken) {
-        console.log("[publish/twitter] Trying OAuth 2.0 user token...");
         const tweetRes = await fetch("https://api.twitter.com/2/tweets", {
           method: "POST",
           headers: {
@@ -201,7 +200,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
         });
 
         const tweetJson = await tweetRes.json();
-        console.log("[publish/twitter] OAuth 2.0 response:", tweetRes.status, JSON.stringify(tweetJson).slice(0, 300));
 
         if (tweetRes.ok && tweetJson.data?.id) {
           await db.account.update({
@@ -215,7 +213,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
               type: "post_published",
               description: `published a tweet: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
             },
-          }).catch(() => null);
+          }).catch((e) => console.error("[api]", e));
 
           return NextResponse.json({
             ok: true,
@@ -235,7 +233,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
             manualUrl: "https://x.com/compose/post",
           }, { status: tweetRes.status || 500 });
         }
-        console.log("[publish/twitter] OAuth 2.0 token expired (401), trying OAuth 1.0a...");
       }
 
       // PRIORITY 2: OAuth 1.0a (from Settings form — app-level)
@@ -261,7 +258,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
               type: "post_published",
               description: `published a tweet: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
             },
-          }).catch(() => null);
+          }).catch((e) => console.error("[api]", e));
 
           return NextResponse.json({
             ok: true,
@@ -360,7 +357,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
             type: "post_published",
             description: `published to Instagram: "${content.slice(0, 50)}…"`,
           },
-        }).catch(() => null);
+        }).catch((e) => console.error("[api]", e));
 
         return NextResponse.json({
           ok: true,
@@ -419,7 +416,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
             type: "post_published",
             description: `published to LinkedIn: "${content.slice(0, 50)}…"`,
           },
-        }).catch(() => null);
+        }).catch((e) => console.error("[api]", e));
 
         return NextResponse.json({
           ok: true,
@@ -470,7 +467,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
             type: "post_published",
             description: `published to Facebook: "${content.slice(0, 50)}…"`,
           },
-        }).catch(() => null);
+        }).catch((e) => console.error("[api]", e));
 
         return NextResponse.json({
           ok: true,
@@ -526,7 +523,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
         await db.account.update({ where: { id: accountId }, data: { postsCount: { increment: 1 } } });
         await db.activity.create({
           data: { userId, type: "post_published", description: `published a TikTok video: "${content.slice(0, 50)}…"` },
-        }).catch(() => null);
+        }).catch((e) => console.error("[api]", e));
 
         return NextResponse.json({
           ok: true,
@@ -643,7 +640,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
         }, { status: 502 });
       }
 
-      console.log(`[publish/threads] Published to Threads: ${publishJson.id}`);
       return NextResponse.json({
         ok: true,
         platform: "threads",

@@ -77,6 +77,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "userId and platform required" }, { status: 400 });
   }
 
-  await db.platformCredential.deleteMany({ where: { userId, platform } }).catch(() => null);
+  await db.platformCredential.deleteMany({ where: { userId, platform } }).catch((e) => console.error("[api]", e));
   return NextResponse.json({ ok: true });
 }

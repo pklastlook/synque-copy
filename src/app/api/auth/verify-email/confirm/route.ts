@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     const user = await db.user.findUnique({
       where: { email: verifyRecord.email },
       select: { emailVerified: true },
-    }).catch(() => null);
+    }).catch((e) => console.error("[api]", e));
 
     if (user?.emailVerified) {
       return NextResponse.json({
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     await db.emailVerificationToken.update({
       where: { id: verifyRecord.id },
       data: { usedAt: new Date() },
-    }).catch(() => null);
+    }).catch((e) => console.error("[api]", e));
     return NextResponse.json(
       { error: "Invalid or expired verification token" },
       { status: 400 }
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
     await db.emailVerificationToken.update({
       where: { id: verifyRecord.id },
       data: { usedAt: new Date() },
-    }).catch(() => null);
+    }).catch((e) => console.error("[api]", e));
     return NextResponse.json({
       ok: true,
       alreadyVerified: true,

@@ -32,7 +32,6 @@ async function createTenantDatabase(dbName: string): Promise<string> {
     const check = await client.query("SELECT 1 FROM pg_database WHERE datname = $1", [safeName]);
     if (check.rows.length === 0) {
       await client.query(`CREATE DATABASE "${safeName}"`);
-      console.log(`[tenant-db] Created database: ${safeName}`);
     }
 
     // Build the connection URL for this database
@@ -57,7 +56,6 @@ async function pushSchemaToTenantDb(dbUrl: string): Promise<void> {
       stdio: "pipe",
       timeout: 90000,
     });
-    console.log("[tenant-db] Schema pushed successfully");
   } catch (e) {
     console.error("[tenant-db] Schema push failed:", e instanceof Error ? e.message : String(e));
     // Don't throw — the database is created, schema can be pushed later
@@ -99,7 +97,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, email, phone, company, address, city, country, plan, createDatabase } = body;
   if (!name || !email) return NextResponse.json({ error: "name and email required" }, { status: 400 });
-  const existing = await db.customer.findUnique({ where: { email } }).catch(() => null);
+  const existing = await db.customer.findUnique({ where: { email } }).catch((e) => console.error("[api]", e));
   if (existing) return NextResponse.json({ error: "Customer with this email exists" }, { status: 409 });
 
   const customer = await db.customer.create({

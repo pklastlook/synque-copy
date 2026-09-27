@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   const ownerId = account.ownerId;
   const cred = await db.platformCredential.findUnique({
     where: { userId_platform: { userId: ownerId, platform: "twitter" } },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   if (!cred?.oauth2UserToken) {
     return NextResponse.json({
@@ -58,7 +58,6 @@ export async function POST(req: NextRequest) {
 
   try {
     // Step 1: Fetch the user's recent tweets (last 100)
-    console.log("[sync/twitter] Fetching tweets from Twitter API v2...");
 
     // First get the user's Twitter ID from the account handle
     const handle = account.handle.replace("@", "");
@@ -87,7 +86,6 @@ export async function POST(req: NextRequest) {
       }, { status: 404 });
     }
 
-    console.log(`[sync/twitter] Found Twitter user ID: ${twitterUserId}`);
 
     // Fetch recent tweets with public metrics
     const tweetsRes = await fetch(
@@ -112,7 +110,6 @@ export async function POST(req: NextRequest) {
     const tweetsJson = await tweetsRes.json();
     const tweets = tweetsJson.data ?? [];
 
-    console.log(`[sync/twitter] Fetched ${tweets.length} tweets from Twitter API`);
 
     // Step 2: For each tweet, check if it exists in our DB (by matching content or created date)
     for (const tweet of tweets) {
@@ -180,7 +177,7 @@ export async function POST(req: NextRequest) {
             type: "post_published",
             description: `synced a tweet from Twitter: "${title}…"`,
           },
-        }).catch(() => null);
+        }).catch((e) => console.error("[api]", e));
 
         syncedPosts++;
       }
@@ -256,7 +253,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(`[sync/twitter] ✓ Synced ${syncedPosts} new posts, updated ${updatedPosts} existing`);
 
     return NextResponse.json({
       ok: true,

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Check if user already exists
-    const existing = await db.user.findUnique({ where: { email: normalizedEmail } }).catch(() => null);
+    const existing = await db.user.findUnique({ where: { email: normalizedEmail } }).catch((e) => console.error("[api]", e));
     if (existing) {
       return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
     }

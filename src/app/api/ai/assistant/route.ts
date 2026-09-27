@@ -458,7 +458,7 @@ async function executeTool(
         return { error: "commentId and text are required" };
       }
       // Verify the comment exists
-      const comment = await targetDb.comment.findUnique({ where: { id: commentId } }).catch(() => null);
+      const comment = await targetDb.comment.findUnique({ where: { id: commentId } }).catch((e) => console.error("[api]", e));
       if (!comment) return { error: "Comment not found" };
       // Mark as replied + store the reply
       const updated = await targetDb.comment.update({
@@ -592,7 +592,7 @@ async function executeTool(
       const userInfo = await targetDb.user.findUnique({
         where: { id: targetUserId },
         select: { name: true, email: true, role: true, title: true, department: true },
-      }).catch(() => null);
+      }).catch((e) => console.error("[api]", e));
 
       return {
         user: userInfo ?? { name: "Unknown" },
@@ -611,7 +611,7 @@ async function executeTool(
     case "delete_post": {
       const postId = params.postId as string;
       if (!postId) return { error: "postId is required" };
-      const post = await targetDb.post.findUnique({ where: { id: postId } }).catch(() => null);
+      const post = await targetDb.post.findUnique({ where: { id: postId } }).catch((e) => console.error("[api]", e));
       if (!post) return { error: "Post not found" };
       await targetDb.post.delete({ where: { id: postId } });
       return { ok: true, deletedPostId: postId, title: post.title };
@@ -658,7 +658,7 @@ async function executeTool(
             include: { account: { select: { handle: true, displayName: true } } },
           },
         },
-      }).catch(() => null);
+      }).catch((e) => console.error("[api]", e));
       if (!post) return { error: "Post not found" };
       const variants = post.variants.map((v) => ({
         platform: v.platform,

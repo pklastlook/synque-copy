@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     await db.passwordResetToken.update({
       where: { id: resetRecord.id },
       data: { usedAt: new Date() },
-    }).catch(() => null);
+    }).catch((e) => console.error("[api]", e));
     return NextResponse.json({ error: "Invalid or expired reset token" }, { status: 400 });
   }
 
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
   await db.session.updateMany({
     where: { userId: user.id, revokedAt: null },
     data: { revokedAt: new Date() },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   return NextResponse.json({
     ok: true,

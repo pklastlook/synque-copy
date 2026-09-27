@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const normalizedEmail = email.toLowerCase();
 
-  const user = await db.user.findUnique({ where: { email: normalizedEmail } }).catch(() => null);
+  const user = await db.user.findUnique({ where: { email: normalizedEmail } }).catch((e) => console.error("[api]", e));
 
   if (!user) {
     return NextResponse.json({

@@ -323,10 +323,10 @@ export function WhatsAppView() {
     () => last7DayHistogram(allMessages.filter((m) => m.status === "used")),
     [allMessages]
   );
-  // Connected spark — fake stable line based on connected state (1 if connected, 0 if not).
+  // Connected spark — uses real message volume when connected, flat line when not.
   const connectedSpark = React.useMemo(
-    () => allMessages.length > 0 ? messagesSpark.map((n) => Math.max(1, n)) : [0, 1, 0, 1, 0, 1, 1],
-    [messagesSpark, allMessages.length]
+    () => connection?.connected ? messagesSpark : [0, 0, 0, 0, 0, 0, 0],
+    [messagesSpark, connection?.connected]
   );
 
   const metrics: Metric[] = React.useMemo(() => [
