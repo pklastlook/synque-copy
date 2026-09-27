@@ -75,6 +75,10 @@ interface DashboardData {
   topContributors: {
     name: string; color: string | null; avatar: string | null;
     posts: number; published: number; comments: number;
+    recentPosts: {
+      id: string; title: string; status: string;
+      createdAt: string; platforms: PlatformId[];
+    }[];
   }[];
   recentPosts: {
     id: string; title: string; caption: string; mediaUrl: string | null;
@@ -198,8 +202,9 @@ export function DashboardView() {
   const firstName = user?.name?.split(" ")[0] || "there";
 
   const [chartMetric, setChartMetric] = React.useState<
-    "followers" | "reach" | "postsCreated" | "comments"
+    "followers" | "reach" | "postsCreated" | "comments" | "published"
   >("postsCreated");
+  const [expandedMembers, setExpandedMembers] = React.useState<Set<string>>(new Set());
 
   if (loading || !data) return <DashboardSkeleton />;
 
@@ -362,69 +367,164 @@ export function DashboardView() {
       {/* === 4. BentoGrid — 5 intentional tiles === */}
       <BentoGrid className="auto-rows-[minmax(150px,auto)]">
 
-        {/* ── Tile 1: HERO METRIC (2×2) — the visual anchor ── */}
-        <BentoTile span="2x2" className="flex flex-col gap-3 overflow-hidden">
+        {/* ── Tile 1: HERO METRIC (2×2) — Posts by members with details ── */}
+        <BentoTile span="2x2" className="flex flex-col gap-2 overflow-hidden">
           <SectionHeader
-            title="Total followers"
-            icon={Users}
+            title="Posts by members"
+            icon={FileText}
             action={
               <button
-                onClick={() => setView("analytics")}
+                onClick={() => setView("team-performance")}
                 className="flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline"
               >
-                Analytics <ArrowUpRight className="h-3 w-3" />
+                Team <ArrowUpRight className="h-3 w-3" />
               </button>
             }
           />
 
-          {/* Big number + delta */}
+          {/* Big number — total posts by all members + secondary stats */}
           <div className="flex items-end gap-3">
             <div className="num-display text-[44px] font-bold leading-none tracking-tight sm:text-[52px]">
-              {k.totalFollowers.display}
+              {data.topContributors.reduce((s, c) => s + c.posts, 0)}
             </div>
             <div className="mb-1.5 flex flex-col gap-1">
-              <DeltaBadge delta={k.totalFollowers.delta} />
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                {data.topContributors.reduce((s, c) => s + c.published, 0)} published
+              </span>
             </div>
           </div>
           <div className="text-[11px] text-muted-foreground">
-            across <span className="font-semibold text-foreground">{k.accounts}</span> connected {k.accounts === 1 ? "account" : "accounts"} ·{" "}
-            {k.today.activeMembers} member{k.today.activeMembers !== 1 ? "s" : ""} active today
+            across <span className="font-semibold text-foreground">{data.topContributors.length}</span> active {data.topContributors.length === 1 ? "member" : "members"} · last 30 days
           </div>
 
-          {/* Large sparkline — visual anchor for the trend */}
-          <div className="relative flex-1 min-h-[60px]">
-            <Sparkline
-              data={followerSpark}
-              color="var(--primary)"
-              width={460}
-              height={80}
-              strokeWidth={2}
-            />
-          </div>
-
-          {/* Inline secondary KPIs row — dense mini-stats with sparklines */}
-          <div className="grid grid-cols-3 gap-2 border-t border-border/40 pt-3">
-            {heroSecondary.map((s) => (
-              <div key={s.label} className="min-w-0">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="num-display text-sm font-bold leading-none tabular-nums">{s.value}</span>
-                  {s.delta !== undefined && (
-                    <span
-                      className={cn(
-                        "text-[10px] font-semibold tabular-nums",
-                        s.delta >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                      )}
-                    >
-                      {s.delta >= 0 ? "+" : ""}{s.delta}%
-                    </span>
-                  )}
-                </div>
-                <div className="label-caps mt-1 truncate text-[10px] text-muted-foreground">{s.label}</div>
-                <div className="mt-1">
-                  <Sparkline data={s.spark} color={s.color} width={120} height={18} />
-                </div>
+          {/* Members list with post bars + expandable post details */}
+          <div className="scroll-liquid -mx-1 flex-1 space-y-2 overflow-y-auto px-1 pb-1">
+            {data.topContributors.length === 0 ? (
+              <div className="grid place-items-center py-8 text-center text-xs text-muted-foreground">
+                <FileText className="h-6 w-6 mb-1 opacity-40" />
+                No posts yet this period.
               </div>
-            ))}
+            ) : (
+              data.topContributors.map((c, i) => {
+                const maxPosts = Math.max(...data.topContributors.map((x) => x.posts), 1);
+                const barPct = (c.posts / maxPosts) * 100;
+                const expanded = expandedMembers.has(c.name);
+                return (
+                  <div key={c.name + i} className="rounded-xl border border-border/40 bg-muted/20 p-2.5">
+                    {/* Member row */}
+                    <button
+                      onClick={() =>
+                        setExpandedMembers((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(c.name)) next.delete(c.name);
+                          else next.add(c.name);
+                          return next;
+                        })
+                      }
+                      className="flex w-full items-center gap-2 text-left"
+                    >
+                      <NameAvatar
+                        name={c.name}
+                        color={(c.color as any) ?? "blue"}
+                        src={c.avatar ?? undefined}
+                        className="h-7 w-7 shrink-0 text-[9px]"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-xs font-bold">{c.name}</span>
+                          <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                            {c.posts} {c.posts === 1 ? "post" : "posts"}
+                          </span>
+                          {c.published > 0 && (
+                            <span className="shrink-0 text-[9px] font-medium text-emerald-600 dark:text-emerald-400">
+                              · {c.published} live
+                            </span>
+                          )}
+                        </div>
+                        {/* Progress bar */}
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all"
+                            style={{ width: `${barPct}%` }}
+                          />
+                        </div>
+                      </div>
+                      <ChevronRight
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+                          expanded && "rotate-90"
+                        )}
+                      />
+                    </button>
+
+                    {/* Expanded: post details */}
+                    {expanded && (
+                      <div className="mt-2 space-y-1 border-t border-border/30 pt-2">
+                        {c.recentPosts.length === 0 ? (
+                          <div className="text-[10px] text-muted-foreground">No posts yet.</div>
+                        ) : (
+                          c.recentPosts.map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => openComposerWithPost({
+                                id: p.id,
+                                title: p.title,
+                                caption: "",
+                                mediaUrl: null,
+                                tone: "",
+                                status: p.status,
+                                scheduledAt: null,
+                                authorName: c.name,
+                                authorColor: c.color,
+                                createdAt: p.createdAt,
+                                updatedAt: p.createdAt,
+                                variants: p.platforms.map((platform, idx) => ({
+                                  id: p.id + "_" + idx,
+                                  postId: p.id,
+                                  accountId: "",
+                                  platform,
+                                  content: "",
+                                  hashtags: "",
+                                  publishedAt: null,
+                                  likes: 0,
+                                  comments: 0,
+                                  shares: 0,
+                                  engagement: 0,
+                                })),
+                              } as any)}
+                              className="flex w-full items-center gap-2 rounded-lg bg-background/60 px-2 py-1.5 text-left transition hover:bg-muted/40"
+                            >
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded px-1 py-0.5 text-[8px] font-bold uppercase",
+                                  p.status === "published" && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+                                  p.status === "draft" && "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+                                  p.status === "scheduled" && "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+                                  p.status === "failed" && "bg-rose-500/15 text-rose-500"
+                                )}
+                              >
+                                {p.status.slice(0, 4)}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
+                                {p.title || "Untitled"}
+                              </span>
+                              <div className="flex shrink-0 items-center gap-0.5">
+                                {p.platforms.slice(0, 3).map((pl, idx) => (
+                                  <PlatformBadge key={idx} platform={pl} size={11} />
+                                ))}
+                              </div>
+                              <span className="shrink-0 text-[9px] text-muted-foreground">
+                                {timeAgo(p.createdAt)}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </BentoTile>
 

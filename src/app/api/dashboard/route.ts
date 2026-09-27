@@ -352,7 +352,22 @@ export async function GET(req: NextRequest) {
     }
     const topContributors = Object.values(contributorMap)
       .sort((a, b) => b.posts - a.posts)
-      .slice(0, 5);
+      .slice(0, 5)
+      .map((c) => {
+        // Include this contributor's recent post titles for the dashboard chart
+        const memberPosts = posts
+          .filter((p) => p.authorId && p.author && p.author.name === c.name)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .slice(0, 5)
+          .map((p) => ({
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            createdAt: p.createdAt.toISOString(),
+            platforms: p.variants.map((v) => v.account.platform),
+          }));
+        return { ...c, recentPosts: memberPosts };
+      });
 
     // === Recent posts ===
     const recentPosts = [...posts]
