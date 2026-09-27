@@ -1695,105 +1695,116 @@ export function ComposerView() {
                 Select accounts above to write content for each platform.
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <div className="text-[11px] font-medium text-muted-foreground">
                   Per-platform content · write or paste different text for each account
                 </div>
-                {selectedAccounts.map((a) => {
-                  const p = PLATFORMS[a.platform];
-                  const content = state.accountContent[a.id] ?? state.variants[a.id]?.content ?? "";
-                  const mediaUrl = state.accountMedia[a.id] ?? state.mediaUrl;
-                  const overLimit = content.length > p.charLimit;
-                  return (
-                    <div
-                      key={a.id}
-                      className={cn(
-                        "rounded-xl border p-3 transition",
-                        content.trim()
-                          ? "border-primary/30 bg-primary/5"
-                          : "border-border/40 bg-muted/20"
-                      )}
-                    >
-                      {/* Account header */}
-                      <div className="mb-2 flex items-center gap-2">
-                        <PlatformBadge platform={a.platform} size={22} />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1 text-xs font-semibold">
-                            <span className="truncate">{a.displayName}</span>
-                            {a.verified && <VerifiedTick className="h-3 w-3 text-primary" />}
+                {/* Horizontal scrollable content boxes — same pattern as accounts */}
+                <div className="scroll-liquid -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+                  {selectedAccounts.map((a) => {
+                    const p = PLATFORMS[a.platform];
+                    const content = state.accountContent[a.id] ?? state.variants[a.id]?.content ?? "";
+                    const mediaUrl = state.accountMedia[a.id] ?? state.mediaUrl;
+                    const overLimit = content.length > p.charLimit;
+                    return (
+                      <div
+                        key={a.id}
+                        className={cn(
+                          "flex w-[280px] shrink-0 flex-col rounded-2xl border p-3 transition",
+                          content.trim()
+                            ? "border-primary/40 bg-primary/5"
+                            : "border-border/40 bg-muted/20"
+                        )}
+                      >
+                        {/* Account header */}
+                        <div className="mb-2 flex items-center gap-2">
+                          <PlatformBadge platform={a.platform} size={22} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1 text-xs font-semibold">
+                              <span className="truncate">{a.displayName}</span>
+                              {a.verified && <VerifiedTick className="h-3 w-3 text-primary" />}
+                            </div>
+                            <div className="truncate text-[10px] text-muted-foreground">
+                              {a.handle} · {p.charLimit} chars
+                            </div>
                           </div>
-                          <div className="truncate text-[10px] text-muted-foreground">
-                            {a.handle} · {p.name} · {p.charLimit} char limit
-                          </div>
+                          {/* Platform color dot */}
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: p.color }}
+                            aria-hidden
+                          />
                         </div>
-                        {/* Media thumbnail */}
+
+                        {/* Media thumbnail (if any) */}
                         {mediaUrl && (
-                          <div className="h-8 w-8 shrink-0 overflow-hidden rounded-md border border-border/40">
+                          <div className="mb-2 h-16 w-full overflow-hidden rounded-lg border border-border/40">
                             <img src={mediaUrl} alt="" className="h-full w-full object-cover" />
                           </div>
                         )}
-                        {/* Char count */}
-                        <span
-                          className={cn(
-                            "shrink-0 text-[10px] font-semibold tabular-nums",
-                            overLimit ? "text-rose-500" : "text-muted-foreground"
-                          )}
-                        >
-                          {content.length}/{p.charLimit}
-                        </span>
-                      </div>
 
-                      {/* Content textarea */}
-                      <textarea
-                        value={content}
-                        onChange={(e) =>
-                          setState((s) => ({
-                            ...s,
-                            accountContent: { ...s.accountContent, [a.id]: e.target.value },
-                          }))
-                        }
-                        placeholder={`Write or paste ${p.name} content here…`}
-                        className="scroll-liquid min-h-[80px] w-full resize-y rounded-lg border border-border/40 bg-background/60 p-2.5 text-sm outline-none transition focus:border-primary/50"
-                      />
-
-                      {/* Footer: copy + clear + platform tip */}
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <button
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(content);
-                              toast.success(`Copied ${p.name} content`);
-                            } catch {
-                              toast.error("Couldn't copy");
-                            }
-                          }}
-                          disabled={!content.trim()}
-                          className="flex items-center gap-1 rounded-lg bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
-                        >
-                          <Copy className="h-2.5 w-2.5" /> Copy
-                        </button>
-                        <button
-                          onClick={() => {
+                        {/* Content textarea */}
+                        <textarea
+                          value={content}
+                          onChange={(e) =>
                             setState((s) => ({
                               ...s,
-                              accountContent: { ...s.accountContent, [a.id]: state.caption },
-                            }));
-                            toast.success(`Reset to brief`);
-                          }}
-                          disabled={!content.trim()}
-                          className="flex items-center gap-1 rounded-lg bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
-                        >
-                          <Undo2 className="h-2.5 w-2.5" /> Reset
-                        </button>
-                        {/* Platform tip */}
-                        <span className="ml-auto flex items-center gap-1 text-[9px] text-muted-foreground">
-                          <Lightbulb className="h-2.5 w-2.5" />
-                          {PLATFORM_TIPS[a.platform]}
-                        </span>
+                              accountContent: { ...s.accountContent, [a.id]: e.target.value },
+                            }))
+                          }
+                          placeholder={`Write or paste ${p.name} content here…`}
+                          className="scroll-liquid min-h-[100px] w-full flex-1 resize-y rounded-lg border border-border/40 bg-background/60 p-2.5 text-sm outline-none transition focus:border-primary/50"
+                        />
+
+                        {/* Footer: char count + copy + reset */}
+                        <div className="mt-2 flex items-center gap-1.5 border-t border-border/30 pt-1.5">
+                          <span
+                            className={cn(
+                              "shrink-0 text-[10px] font-semibold tabular-nums",
+                              overLimit ? "text-rose-500" : "text-muted-foreground"
+                            )}
+                          >
+                            {content.length}/{p.charLimit}
+                          </span>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(content);
+                                toast.success(`Copied ${p.name} content`);
+                              } catch {
+                                toast.error("Couldn't copy");
+                              }
+                            }}
+                            disabled={!content.trim()}
+                            className="flex items-center gap-1 rounded-lg bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                          >
+                            <Copy className="h-2.5 w-2.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setState((s) => ({
+                                ...s,
+                                accountContent: { ...s.accountContent, [a.id]: state.caption },
+                              }));
+                              toast.success(`Reset to brief`);
+                            }}
+                            disabled={!content.trim()}
+                            className="flex items-center gap-1 rounded-lg bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                          >
+                            <Undo2 className="h-2.5 w-2.5" />
+                          </button>
+                          {/* Platform tip icon */}
+                          <span
+                            className="ml-auto text-[9px] text-muted-foreground"
+                            title={PLATFORM_TIPS[a.platform]}
+                          >
+                            <Lightbulb className="h-2.5 w-2.5" />
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             )}
           </CollapsibleSection>
