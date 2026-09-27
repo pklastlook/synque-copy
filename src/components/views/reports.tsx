@@ -219,6 +219,7 @@ export function ReportsView() {
   const { data: savedReports, reload } = useApi<ReportData[]>("/api/reports");
 
   const days = DATE_RANGES.find(d => d.key === dateRange)?.days ?? 30;
+  const dateRangeLabel = DATE_RANGES.find(d => d.key === dateRange)?.label ?? "30 Days";
   const analyticsUrl = `/api/analytics?days=${days}&accountId=all`;
   const { data: analytics, loading: analyticsLoading } = useApi<AnalyticsData>(analyticsUrl);
   const { data: teamData, loading: teamLoading } = useApi<TeamData>("/api/team-performance");
@@ -310,6 +311,10 @@ export function ReportsView() {
   /** Export the current on-screen report data as a CSV file.
    *  The filename uses the report title (not the generic site name). */
   function downloadCSV() {
+    if (!analytics) {
+      toast.error("Report data still loading — please wait a moment and try again");
+      return;
+    }
     const reportName = `${template.name} Report — ${dateRangeLabel} — ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
     const filename = `${reportName.replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "")}.csv`;
 
@@ -323,14 +328,16 @@ export function ReportsView() {
     rows.push([`Date Range: ${dateRangeLabel} (Last ${days} days)`]);
     rows.push([]);
 
-    // KPI strip
+    // KPI strip — use the `metrics` array (same data shown in the on-screen MetricRow)
     rows.push(["Executive Summary KPIs"]);
     rows.push(["Metric", "Value"]);
-    for (const k of kpis) rows.push([k.label, k.value]);
+    for (const m of metrics) {
+      rows.push([m.label, String(m.value)]);
+    }
     rows.push([]);
 
     // Per-account data (available in all templates via analytics)
-    if (analytics && analytics.perAccount.length > 0) {
+    if (analytics.perAccount.length > 0) {
       rows.push(["Per-Account Summary"]);
       rows.push(["Account", "Platform", "Followers", "Impressions", "Reach", "Engagement", "Posts"]);
       for (const a of analytics.perAccount) {
