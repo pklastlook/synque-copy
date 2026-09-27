@@ -77,7 +77,6 @@ export function LandingNav() {
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <Logo size={26} withTile={false} />
-            <span className="text-base font-bold tracking-tight" style={{ color: COLOR.textHead }}>SYNQUE</span>
           </Link>
           <div className="hidden items-center gap-7 md:flex">
             {links.map((l) => (
@@ -162,7 +161,6 @@ export function LandingFooter() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2.5">
               <Logo size={28} withTile={false} />
-              <span className="text-base font-bold tracking-tight" style={{ color: COLOR.textHead }}>SYNQUE</span>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed" style={{ color: COLOR.textBody }}>
               Orchestrate Your Social. The enterprise command center for modern social teams.
