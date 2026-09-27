@@ -271,3 +271,8 @@ export type PasswordResetToken = Prisma.PasswordResetTokenModel
  * 
  */
 export type EmailVerificationToken = Prisma.EmailVerificationTokenModel
+/**
+ * Model Influencer
+ * 
+ */
+export type Influencer = Prisma.InfluencerModel

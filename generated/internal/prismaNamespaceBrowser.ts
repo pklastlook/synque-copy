@@ -96,7 +96,8 @@ export const ModelName = {
   Designation: 'Designation',
   Session: 'Session',
   PasswordResetToken: 'PasswordResetToken',
-  EmailVerificationToken: 'EmailVerificationToken'
+  EmailVerificationToken: 'EmailVerificationToken',
+  Influencer: 'Influencer'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -887,6 +888,26 @@ export const EmailVerificationTokenScalarFieldEnum = {
 } as const
 
 export type EmailVerificationTokenScalarFieldEnum = (typeof EmailVerificationTokenScalarFieldEnum)[keyof typeof EmailVerificationTokenScalarFieldEnum]
+
+
+export const InfluencerScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  handle: 'handle',
+  platform: 'platform',
+  followers: 'followers',
+  engagementRate: 'engagementRate',
+  cost: 'cost',
+  estimatedReach: 'estimatedReach',
+  estimatedEngagement: 'estimatedEngagement',
+  status: 'status',
+  campaignId: 'campaignId',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type InfluencerScalarFieldEnum = (typeof InfluencerScalarFieldEnum)[keyof typeof InfluencerScalarFieldEnum]
 
 
 export const SortOrder = {

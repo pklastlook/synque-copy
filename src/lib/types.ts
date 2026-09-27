@@ -21,7 +21,11 @@ export type ViewId =
   | "admin"
   | "owner"
   | "team-performance"
-  | "organization";
+  | "organization"
+  // New modules (competitor-parity)
+  | "utm"
+  | "approvals"
+  | "influencers";
 
 export interface PlatformAccount {
   id: string;

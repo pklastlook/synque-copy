@@ -442,7 +442,8 @@ export const ModelName = {
   Designation: 'Designation',
   Session: 'Session',
   PasswordResetToken: 'PasswordResetToken',
-  EmailVerificationToken: 'EmailVerificationToken'
+  EmailVerificationToken: 'EmailVerificationToken',
+  Influencer: 'Influencer'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -458,7 +459,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken"
+    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken" | "influencer"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3866,6 +3867,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Influencer: {
+      payload: Prisma.$InfluencerPayload<ExtArgs>
+      fields: Prisma.InfluencerFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.InfluencerFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.InfluencerFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload>
+        }
+        findFirst: {
+          args: Prisma.InfluencerFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.InfluencerFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload>
+        }
+        findMany: {
+          args: Prisma.InfluencerFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload>[]
+        }
+        create: {
+          args: Prisma.InfluencerCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload>
+        }
+        createMany: {
+          args: Prisma.InfluencerCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.InfluencerCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload>[]
+        }
+        delete: {
+          args: Prisma.InfluencerDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload>
+        }
+        update: {
+          args: Prisma.InfluencerUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload>
+        }
+        deleteMany: {
+          args: Prisma.InfluencerDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.InfluencerUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.InfluencerUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload>[]
+        }
+        upsert: {
+          args: Prisma.InfluencerUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InfluencerPayload>
+        }
+        aggregate: {
+          args: Prisma.InfluencerAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateInfluencer>
+        }
+        groupBy: {
+          args: Prisma.InfluencerGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InfluencerGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.InfluencerCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InfluencerCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -4679,6 +4754,26 @@ export const EmailVerificationTokenScalarFieldEnum = {
 export type EmailVerificationTokenScalarFieldEnum = (typeof EmailVerificationTokenScalarFieldEnum)[keyof typeof EmailVerificationTokenScalarFieldEnum]
 
 
+export const InfluencerScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  handle: 'handle',
+  platform: 'platform',
+  followers: 'followers',
+  engagementRate: 'engagementRate',
+  cost: 'cost',
+  estimatedReach: 'estimatedReach',
+  estimatedEngagement: 'estimatedEngagement',
+  status: 'status',
+  campaignId: 'campaignId',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type InfluencerScalarFieldEnum = (typeof InfluencerScalarFieldEnum)[keyof typeof InfluencerScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -4968,6 +5063,7 @@ export type GlobalOmitConfig = {
   session?: Prisma.SessionOmit
   passwordResetToken?: Prisma.PasswordResetTokenOmit
   emailVerificationToken?: Prisma.EmailVerificationTokenOmit
+  influencer?: Prisma.InfluencerOmit
 }
 
 /* Types for Logging */
