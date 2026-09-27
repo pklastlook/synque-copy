@@ -1453,25 +1453,29 @@ html { scroll-behavior: smooth; }
   }
 
   /* === PRINT LAYOUT ISOLATION ===
-     Use display:none on body children except the print root.
-     This is cleaner than visibility:hidden (which still reserves space
-     and can cause extra pages). */
-  body > *:not(.report-print-root):not(.print-area-wrapper) { display: none !important; }
+     PROVEN APPROACH: visibility:hidden on ALL elements, then
+     visibility:visible ONLY on .report-print-root and its children.
+     The print root is position:absolute at page origin so it escapes
+     the normal flow — hidden elements can't push it down or create
+     blank pages.
+
+     DO NOT use display:none on body children — .report-print-root is
+     nested deep inside React's tree (not a direct child of body),
+     so display:none would hide it too. */
+  body * { visibility: hidden; }
   .report-print-root, .report-print-root *,
   .print-area, .print-area * { visibility: visible; }
 
-  /* Print root in NORMAL flow (not absolute) so the browser can paginate
-     content naturally across pages. Width 100% fills the @page content box.
-     overflow:hidden prevents any child from causing horizontal scroll/cutoff. */
+  /* Print root in NORMAL flow with position:absolute to escape hidden elements.
+     position:absolute takes it out of flow so visibility:hidden elements
+     don't create blank pages above or below it. */
   .report-print-root {
     display: block !important;
-    position: static !important;
-    left: auto !important;
-    top: auto !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
-    max-width: 100% !important;
-    overflow: hidden !important;
-    z-index: auto !important;
+    z-index: 9999 !important;
   }
 
   /* FORCE light mode colors inside print root — overrides .dark class vars.

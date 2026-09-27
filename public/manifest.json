@@ -1,12 +1,15 @@
 {
+  "id": "synque.app",
   "name": "SYNQUE — Orchestrate Your Social",
   "short_name": "SYNQUE",
   "description": "The enterprise platform for social media teams — publish, analyze, and manage across every platform in one flow.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
-  "orientation": "portrait-primary",
+  "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
+  "orientation": "any",
+  "lang": "en",
+  "dir": "ltr",
   "background_color": "#0a0a0f",
   "theme_color": "#5856D6",
   "categories": ["productivity", "business", "social"],
@@ -23,6 +26,35 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Post",
+      "short_name": "Compose",
+      "description": "Create a new social media post",
+      "url": "/?view=composer",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Inbox",
+      "short_name": "Inbox",
+      "description": "View your unified inbox",
+      "url": "/?view=inbox",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "description": "Open your dashboard",
+      "url": "/?view=dashboard",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
   ]
 }

@@ -31,6 +31,7 @@ import { AdminPanelView } from "@/components/views/admin-panel";
 import { OwnerView } from "@/components/views/owner";
 import { TeamPerformanceView } from "@/components/views/team-performance";
 import { AIAssistantPanel } from "@/components/ai-assistant";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { OrganizationView } from "@/components/views/organization";
 import { UTMBuilderView } from "@/components/views/utm-builder";
 import { ApprovalsView } from "@/components/views/approvals";
@@ -317,6 +318,9 @@ export function AppShell() {
 
       {/* AI Assistant — floating chat widget available on every page */}
       <AIAssistantPanel />
+
+      {/* PWA Install Prompt — cross-browser install notification */}
+      <PWAInstallPrompt />
     </div>
   );
 }
