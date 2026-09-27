@@ -7576,3 +7576,107 @@ The 3 new NAV entries use the existing flat-list pattern (no expandable parent n
 - Visit the new sidebar entries: Content group → "Approvals" / "UTM Builder", Insights group → "Influencers".
 - The Approvals module currently resolves author/approver names by fetching `/api/team`. If a user isn't in the team list (e.g., a deleted user), their ID is shown truncated to 8 chars as a fallback — this is intentional, not a bug.
 - For Brand Monitoring to show real data, the user needs to create at least one Listening query first (via the Listening sidebar entry) and run a sync. The report gracefully handles the empty state with a hint.
+
+---
+
+## Task ID: `enhance-settings` — Enhance Company module + audit all Settings sections
+
+**Task**: Audit and enhance every section of the Settings panel. Focus on the Company module (logo remove/replace, size previews, missing fields, report preview), then sweep the other 12 sections for missing features or stubbed-out behavior.
+
+### Files modified
+1. `/home/z/my-project/src/components/views/settings.tsx` — single-file edit covering CompanySection, WorkspaceSection, AppearanceSection, and DataSection.
+
+### What changed
+
+#### 1. `CompanySection` — comprehensive overhaul
+**Logo handling (CRITICAL fix):**
+- Added a **Remove** button next to the upload button that clears `companyLogo` and deletes the key from the persisted `socialflow-company` localStorage bucket.
+- Renamed "Upload" → "Replace" when a logo is already uploaded (button icon switches from `Camera` → `Pencil`); keeps the original "Upload" label when no logo exists. Same underlying file input — clearer affordance.
+- Added a **size preview row** (16px, 32px, 64px) showing how the logo will appear as favicon, sidebar icon, and print logo. Each preview uses real `<img width height>` so the actual pixel dimensions are rendered, not just visually scaled.
+
+**New fields added** (all stored under the same `socialflow-company` localStorage key — backward compatible, so existing entries still load the original `companyName`/`companyLogo`/`address`/etc.):
+- **Industry** — Select dropdown with 8 options (Technology, Marketing, E-commerce, Healthcare, Education, Finance, Media, Other). Uses the shared shadcn `Select` component, with a `Briefcase` icon in the trigger.
+- **Company email** — separate from the user's email; explicitly for invoices and public contact.
+- **Tax ID / Registration #** — free-text input.
+- **Founded year** — Select dropdown populated with every year from current year back to 1900.
+- **Team size** — Select dropdown with 5 buckets (1-10, 11-50, 51-200, 201-500, 500+).
+- **Company description** — Textarea capped at 500 chars with a live character counter in the Field hint.
+- **LinkedIn handle** — auto-strips full URLs (`https://www.linkedin.com/company/foo` → `foo`).
+- **Twitter / X handle** — strips leading `@` if pasted.
+
+**Report Header Preview:**
+- New bottom section in CompanySection. Renders a letterhead-style preview that simulates how the company info will appear on a printed report:
+  - White background (forced via `bg-white dark:bg-[oklch(0.99_0.005_258)]`) so the print look is consistent regardless of theme.
+  - Top row: logo (or Building2 placeholder) + company name (bold) + description (max-w-md).
+  - Right column of metadata: Industry / Founded / Team / Tax ID — only shown when populated.
+  - Footer row with MapPin + Phone icons and address/contact/social handles, conditionally rendered so empty fields don't leave gaps.
+
+**Constants added** at module scope:
+- `INDUSTRIES`, `Industry` type.
+- `TEAM_SIZES` (value/label pairs).
+- `FOUNDED_YEAR_OPTIONS` (computed from `new Date().getFullYear()` so it never goes stale).
+
+**New icon imports:** `Briefcase`, `Calendar`, `FileText`, `Linkedin`, `Twitter`, `Hash`.
+
+#### 2. `WorkspaceSection` — real logo upload (was a stub)
+- The previous "Upload logo" button only fired `toast.info("Logo upload — configure in Integrations")` — a dead end.
+- Replaced the static "P" monogram tile with a real `workspaceLogo` state, loaded from `localStorage["socialflow-workspace"].logo` on mount.
+- New `handleLogoUpload` uploads via `/api/media/upload` (folder `workspace-logos`) and persists the returned URL to localStorage immediately (no Save needed — logo is purely cosmetic, not in the WorkspaceSettings Prisma schema).
+- New `removeLogo` clears the URL from state + localStorage.
+- When no logo is uploaded, the placeholder tile now shows a **dynamic monogram** derived from the workspace name (first letter of first + last word, e.g. "Prism Studio" → "PS") instead of the hardcoded "P".
+- Layout now wraps on narrow screens (`flex-wrap`) so the new Replace / Remove buttons don't overflow.
+
+#### 3. `AppearanceSection` — settings now persist (were ephemeral)
+- Previously: changing accent color, toggling Reduce Motion / Glass Effects / Compact Mode, or moving the font-size slider updated the live UI but were lost on page reload. Theme was the only thing that persisted (via `next-themes`).
+- Now: added `socialflow-appearance` localStorage bucket. Every change to accent / `reduceMotion` / `glassEffects` / `compact` / `fontSize` is persisted immediately through a shared `persist(patch)` callback.
+- On mount, a `useEffect` re-applies the saved `--primary` CSS variable and the saved `font-size` on `document.documentElement`, so the page renders with the user's last-saved appearance before they touch any control.
+- A second `useEffect` keeps `--primary` in sync with the `accent` state (so toggling between saved vs. new accent reflects instantly).
+
+#### 4. `DataSection` — Export actually exports + privacy settings persist
+**Export (was a toast stub):**
+- The "Export data" button previously only fired `toast.info("Contact your admin…")`. Now it performs a real export:
+  - Fires 5 parallel authenticated fetches (`/api/users`, `/api/accounts`, `/api/workspace`, `/api/invoices`, `/api/posts?limit=100`) using the JWT from `localStorage["socialflow-auth"]`.
+  - Each fetch is wrapped in `safeJson<T>` so a single 404 (or any non-OK response) on one endpoint doesn't break the whole export — it just becomes `null` in the payload.
+  - Pulls 5 local-setting buckets (`socialflow-company`, `socialflow-workspace`, `socialflow-notif-prefs`, `socialflow-appearance`, `socialflow-data-prefs`) from localStorage.
+  - Assembles a single `{ meta, workspace, users, accounts, posts, invoices, localSettings }` payload.
+  - Triggers a browser download as `synque-export-YYYY-MM-DD.json` via `Blob` + `URL.createObjectURL` + a hidden `<a download>`.
+- **Import:** the Import card previously only fired a toast. Now it accepts a previously-exported JSON, parses the `localSettings` block, and restores each bucket to localStorage. Server-backed records (users, accounts, etc.) are intentionally NOT auto-applied because they require write permissions this UI doesn't have — the toast message explicitly says "Reload the page to apply restored settings".
+
+**Retention + GDPR toggles persistence:**
+- Added `socialflow-data-prefs` localStorage bucket.
+- `retention` and `toggles` state are lazy-initialized from localStorage so previously-saved values survive reloads.
+- GDPR toggles persist immediately on flip (the existing toast is preserved).
+- A new "Save retention" button (top-right of the retention block) persists retention dropdowns on demand — kept as an explicit action because changing retention policy is a deliberate decision, not a casual toggle.
+
+**Loading states:** Export and Import buttons show spinner (`Loader2 animate-spin`) during async work, with `disabled:opacity-60` to prevent double-clicks.
+
+### Sections audited — no changes needed (already complete)
+
+| Section | Audit result |
+|---|---|
+| **ProfileSection** | ✅ Already has avatar upload (via `/api/media/upload` + `/api/users` PATCH), avatar **Remove** button (`removeAvatar`), bio character counter (`{bio.length} / 280`), and "Title / Designation" field. No changes needed. |
+| **NotificationsSection** | ✅ Toggles persist to `localStorage["socialflow-notif-prefs"]` via the existing "Save preferences" button. Quiet hours + digest frequency are saved alongside the toggle groups. No changes needed. |
+| **SecuritySection** | ✅ 2FA setup (`/api/auth/2fa/setup` → `/verify` → `/disable`), session list (`/api/auth/sessions`), session revocation, API key generate/revoke/delete, IP allowlist UI — all working against real endpoints. No changes needed. |
+| **BillingSection** | ✅ Shows real `sub.plan`, `sub.status`, `sub.amount`, `sub.currency`, `sub.trialEnds` from `/api/subscriptions?limit=1`; invoices from `/api/invoices`. Payment method correctly notes "Stripe integration required". "Manage in Owner Panel" button switches view via `useNav().setView("owner")`. No changes needed. |
+
+### Critical rules — all respected
+1. **PRESERVE ALL EXISTING FUNCTIONALITY** — every existing field, save handler, API call, toast, and visual element in the four untouched sections is unchanged. The four enhanced sections (Company, Workspace, Appearance, Data) keep their original schemas and only add new behavior alongside the old.
+2. **`socialflow-company` localStorage key preserved** — new fields (industry, companyEmail, taxId, foundedYear, teamSize, description, linkedin, twitter) are added to the same JSON object. The load effect guards each new field with `if (stored.X)` so old entries without those fields don't crash; the save effect writes the full expanded object.
+3. **Same `Field` component pattern** — all new inputs use the existing `<Field label hint>` wrapper.
+4. **`toast` from sonner** — used for all feedback, including new "Logo removed", "Workspace logo uploaded", "Privacy setting updated", "Export ready", "Retention preferences saved".
+5. **`cn` from `@/lib/utils`** — used for all conditional classNames in new UI (logo preview badges, retention save button states, etc.).
+
+### Verification
+- `bunx eslint src/components/views/settings.tsx` — **0 errors, 0 warnings**.
+- `npx tsc --noEmit 2>&1 | grep settings` — **0 errors** (the 2 unrelated pre-existing TS errors in `src/app/api/workspace/route.ts` and `skills/stock-analysis-skill/src/analyzer.ts` are not settings-related and were present before this task).
+- The full `bun run lint` command still surfaces one pre-existing error in `mini-services/whatsapp-service/index.js` (a `react-hooks/rules-of-hooks` violation in a Baileys scaffold), which is unrelated to this task.
+
+### Backward compatibility notes
+- Old localStorage entries under `socialflow-company` (with only `companyName`, `companyLogo`, `address`, `city`, `country`, `phone`, `website`) will still load fine. The 8 new fields simply default to empty strings until the user fills them in.
+- The new `socialflow-appearance` and `socialflow-data-prefs` buckets are entirely additive — if they're missing on first load, the existing default values (`DEFAULT_ACCENT`, `fontSize=14`, `reduceMotion=false`, `glassEffects=true`, `compact=false`, retention defaults, GDPR toggle defaults) are used as before.
+- The workspace logo is persisted under a new `socialflow-workspace` key (not mixed into `socialflow-company`) so the two remain independently editable.
+
+### Next actions for the team
+- Visual QA in `bun run dev`: visit Settings → Company (verify logo remove/replace, size previews, new fields, report header preview); Settings → Workspace (verify logo upload + Remove button + dynamic monogram); Settings → Appearance (toggle accent + font size + 3 toggles, reload page, confirm they survived); Settings → Data & Privacy (click Export data — a `synque-export-YYYY-MM-DD.json` should download).
+- Consider adding a `logo` column to the `WorkspaceSettings` Prisma model in a future migration so workspace logos are shared across team members rather than per-browser.
+- Consider extending the export endpoint to also pull `/api/analytics`, `/api/comments`, `/api/team`, and `/api/integrations` once those endpoints are stabilized — the `safeJson` pattern in `handleExport` makes adding more endpoints a one-line change.
