@@ -7788,3 +7788,100 @@ SSR-safe reader. `src/app/page.tsx` can `import { getLandingSettings } from "@/c
   5. The landing hero — read `customHeadline`/`customSubheadline`/`heroAccentColor` and apply if non-empty.
 - Visual QA in `bun run dev`: Settings → Report Settings (toggle each control, watch the live preview update; switch paper size/orientation/header layout/logo position; pick a custom accent color; click Save and reload the page to confirm persistence). Settings → Landing Page (disable the master toggle, click Save, then open the app in an incognito window to confirm logged-out visitors hit `/login`; toggle individual linked pages off, Save, and visit them to confirm 404).
 - Consider persisting both buckets server-side (per workspace, not per-browser) in a future migration so admin-chosen report/landing settings apply to all team members on all devices.
+
+---
+
+## Task ID: custom-report-rebuild
+
+**Task**: Completely rebuild `/home/z/my-project/src/components/views/custom-report.tsx` to add a proper print layout matching the standard reports format, add more filters and fields, and make the report more advanced and interactive.
+
+### Files delivered
+1. `/home/z/my-project/src/components/views/custom-report.tsx` — fully rebuilt (`CustomReportView` + new `PrintLayout` sub-component), grew from ~550 lines to ~1100 lines.
+2. `/home/z/my-project/src/app/api/reports/custom/route.ts` — extended to accept 6 new filter params + compute 3 new summary fields (`engagementRate`, `avgEngagementPerPost`), a `bestPost` object, a `cadence` series, and aggregate the daily series by day/week/month.
+
+### What was built
+
+#### 1. Print Layout (NEW — matches standard reports format)
+Added a dedicated `PrintLayout` sub-component that renders `hidden print:block` (visible only when printing) and uses the SAME CSS classes defined in `src/app/globals.css` that the standard `reports.tsx` `PrintLayout` uses:
+- `.report-print-root` wrapper with `hidden print:block`
+- `.report-title-banner` + `.report-title-banner-left/right/brand/tagline/eyebrow/title/meta` — pulls company logo, name, and tagline from `localStorage.getItem("socialflow-company")` (the same key `Settings → Company` writes to)
+- `.report-title-accent` colored bar (oklch violet to match the report theme)
+- `.report-content` wrapper containing:
+  - Executive Summary paragraph (`report-text`) computed from actual report data (accounts, members, post counts, engagement, sentiment, reply rate)
+  - `.report-metric-row` with `.report-metric` cells (KPI strip built from selected metrics + Engagement Rate + Avg Eng/Post, capped at 8 cells)
+  - "Filters Applied" table using `.report-table` (Period, Group By, Sort By, Post Status, Sentiment, Min Engagement, Search, Metrics)
+  - "Activity Trend" `.report-table` for series (Period, Posts, Published, Likes, Comments, Shares, Engagement, Reach — last 30 rows)
+  - "Platform Breakdown" `.report-table`
+  - "Member Breakdown" `.report-table`
+  - "Post Details" `.report-table` (30 rows — Title, Author, Status, Platforms, Likes, Comments, Engagement)
+  - "Comment Details" `.report-table` (30 rows — Author, Comment, Sentiment, Replied, Platform, Account)
+  - "Best Performing Post" `.report-table`
+  - `.report-footer-company` with logo + name + address line + contact line + meta (`Generated on …`, `Custom Report`, `Confidential — for internal use only`)
+- Helper functions copied from reports.tsx to keep visual parity: `PrintKpiStrip`, `PrintSection`, `fmtDay`, and a `getCompany()` reader that's SSR-safe.
+
+#### 2. New Filters (in the filter panel)
+- **Post Status** multi-select pills (Published / Draft / Scheduled / Failed) with icons + Clear button — filters posts at the DB query level via `postWhere.status = { in: postStatusFilter }`.
+- **Sentiment** multi-select pills (Positive / Neutral / Negative) with Clear button — filters comments at the DB query level via `commentWhere.sentiment = { in: sentimentFilter }`.
+- **Sort By** dropdown (Date newest / Date oldest / Engagement high→low / Comments high→low) — applied to posts in the API.
+- **Group By** dropdown (Daily / Weekly / Monthly) — drives series aggregation. Weekly buckets use ISO Monday-of-week; monthly buckets use `YYYY-MM-01`. Daily followers use `max()` of the period's days so weekly/monthly rows show peak followers.
+- **Min Engagement** number input — filters out posts below the threshold (computed as `likes + comments + shares` summed across all variants).
+- **Search** text input — case-insensitive substring match in post `title` or `caption`, applied at the API layer (also restricts the variants list to surviving post IDs).
+
+All 6 new filters are sent in the POST body alongside the original 6 filters (userId, accountId, platform, startDate, endDate, metrics) — full backward compatibility preserved.
+
+#### 3. New Fields / Cards (in the report results)
+- **Sentiment Distribution** card — colored proportional bar (green/blue/rose) + 3 mini stat tiles with Pill badges showing count + percentage per sentiment.
+- **Posting Cadence** card — mini BarChart (recharts `BarChart` + `Bar` + `Cell`) showing posts per period (day/week/month). Cells colored oklch-green when posts > 0, oklch-grey when quiet. Below the chart: Total Posts, Avg per period, Quiet Periods count.
+- **Best Performing Post** highlighted card — the post with the highest engagement, shown in an amber-accented box with the title, caption (line-clamped), author, timeAgo, status Pill, platform badges, total engagement number (large amber text), and 3 sub-tiles for Likes / Comments / Shares.
+- **Engagement Rate** — calculated as `totalEngagement / totalImpressions * 100` (rounded to 1 decimal), displayed with a violet→fuchsia gradient progress bar in the "Efficiency" card.
+- **Average Engagement per Post** — `totalEngagement / totalPosts`, displayed with an emerald→teal gradient progress bar.
+- **Comment Reply Rate** — `commentsReplied / totalComments * 100` (existing `replyRate` field), displayed with a sky→indigo gradient progress bar showing `X / Y comments replied` caption.
+
+#### 4. More Interactivity
+- **Tab switcher** — Overview / Posts / Comments / Members tabs in a glass pill bar above the results.
+- **Sortable tables** — Posts tab and Comments tab both have clickable column headers (`SortHeader` component) that toggle asc/desc. The sort icon swaps between `ChevronUp`, `ChevronDown`, and a dimmed `ArrowUpDown`. Clicking a different column resets to desc.
+- **Expandable rows** — clicking a post row in the Posts tab expands it (chevron rotates 90°) to reveal per-platform variant details: platform badge, account name, handle, status Pill, likes / comments / shares / engagement per variant, plus a totals row at the bottom.
+- **Quick filter pills** — above the post list, "All (N)" + per-status count pills (Published, Draft, Scheduled, Failed with live counts). Clicking filters the visible posts on-screen without re-fetching.
+- Posts tab includes a "Variant totals" header row + bold totals row inside each expanded card showing per-variant breakdown of Likes / Comments / Shares / Engagement.
+
+#### 5. API Changes (`/api/reports/custom/route.ts`)
+- Added new body params: `postStatus?: string[]`, `sentiment?: string[]`, `sortBy?: string` (date-desc|date-asc|engagement-desc|comments-desc), `groupBy?: string` (day|week|month), `minEngagement?: number`, `search?: string`.
+- All filters are normalized (default `sortBy=date-desc`, `groupBy=day`, `minEngagement=0`, `search=null` if empty).
+- Post-level engagement is computed once into a `Map<postId, number>` so min-engagement filtering and sort-by-engagement share the same computation.
+- Search filters posts in JS (case-insensitive substring of `title` or `caption`) and restricts the variants list to surviving post IDs.
+- Series aggregation: daily series is computed first (capped at 365 days), then aggregated by week (ISO Monday) or month if `groupBy=week|month`. Followers uses `max()` per bucket (peak); all other metrics sum.
+- New response field `cadence: { period, posts, label }[]` for the cadence mini-chart (label is `MM-DD` for daily, `YYYY-MM` for week/month).
+- New response field `bestPost` — the single highest-engagement post (with title, caption, status, author, engagement, likes, comments, shares, platforms, createdAt). Null if no posts have engagement.
+- Summary extended with `engagementRate` (1-decimal %), `avgEngagementPerPost` (rounded int).
+- Empty-accounts response now echoes all the new filter values in `filters` so the client UI doesn't desync.
+- `postDetails` enriched with top-level `likes`, `comments`, `shares` totals (so the on-screen table can show per-post breakdown without recomputing from variants).
+- All existing fields preserved — `summary`, `series`, `posts`, `comments`, `members`, `accounts`, `filters` all still present with the same shape (just extended additively).
+
+### Critical rules — all respected
+1. ✅ **All existing functionality preserved** — original 6 filters (userId, accountId, platform, startDate, endDate, metrics) all still work; CSV export extended to include the new filter values + new summary fields but the original rows are unchanged; print button still works (now opens a proper PrintLayout).
+2. ✅ **Print layout uses the same CSS classes as standard reports** — `.report-print-root`, `.report-title-banner`, `.report-title-accent`, `.report-content`, `.report-metric-row` + `.report-metric`, `.report-section-title`, `.report-table`, `.report-footer-company` — all defined in `globals.css` and used by `reports.tsx`. No new CSS classes were invented.
+3. ✅ **Dense-ui primitives used** — `SectionHeader`, `MetricRow`, `Pill`, `ListRow` from `@/components/glass/dense-ui` for on-screen content. `PlatformBadge` and `NameAvatar` for branding.
+4. ✅ **`toast` from sonner** for all feedback (generate success/error, CSV downloaded).
+5. ✅ **`bun run lint` — 0 errors in `custom-report.tsx` + API route** (the only project-wide lint error is the pre-existing `mini-services/whatsapp-service/index.js` Baileys scaffold `react-hooks/rules-of-hooks` violation, which was present before this task).
+6. ✅ **`npx tsc --noEmit` — 0 errors in `custom-report.tsx` + API route** (the 40 pre-existing TS errors in `src/app/api/ai/assistant/route.ts`, `src/app/api/dashboard/route.ts`, `src/app/api/workspace/route.ts`, `src/app/api/platform-credentials/[platform]/sync/route.ts`, `src/components/views/dashboard.tsx`, `skills/stock-analysis-skill/src/analyzer.ts` are unrelated and were present before this task — verified by grep).
+
+### Backward compatibility notes
+- The API response is purely additive — every existing field keeps the same shape and the same value. New fields (`cadence`, `bestPost`, `engagementRate`, `avgEngagementPerPost`, post-level `likes`/`comments`/`shares`) are appended, never replacing.
+- The `filters` object in the response is extended with the 6 new keys; old clients reading only the original 6 keys will not break.
+- All 6 new filter params are optional in the request body; if absent, the API defaults match the original behavior (`postStatus=null` = all statuses, `sentiment=null` = all sentiments, `sortBy=date-desc` = newest first, `groupBy=day` = same as before, `minEngagement=0` = no threshold, `search=null` = no search).
+- The CSV export gained 4 new header rows (Post Status, Sentiment, Sort By, Group By, Min Engagement, Search) and 2 new summary rows (Engagement Rate, Avg Engagement / Post) and 3 new post-detail columns (Likes, Comments, Shares), but the original columns and rows remain in the same order — so any downstream parser that consumed the old CSV will still see the same leading columns.
+
+### Next actions for the team
+- Visual QA in `bun run dev`:
+  1. Open Reports → Custom Report Builder, set a 30-day range, click Generate Report — verify the 4 tabs render correctly (Overview / Posts / Comments / Members).
+  2. Click each sortable column header in the Posts and Comments tabs — verify the chevron direction toggles and the rows re-sort.
+  3. Click a post row — verify it expands to show per-platform variant details (likes/comments/shares per variant + totals row at the bottom).
+  4. Click the "Draft" quick-filter pill above the post list — verify only draft posts show.
+  5. Set the Post Status filter to "Published" only and the Sentiment filter to "Positive" only, click Generate — verify the API filters correctly and the empty-state shows on the Posts/Comments tabs if no data matches.
+  6. Set Min Engagement = 100, click Generate — verify low-engagement posts are filtered out.
+  7. Type a search term (e.g. "launch") in the Search box, click Generate — verify only posts with that term in title/caption appear.
+  8. Change Group By to Weekly / Monthly, click Generate — verify the trend chart x-axis compresses and the cadence chart shows weekly/monthly bars.
+  9. Click Print — verify the print dialog opens with the standard report layout (banner with company name + logo on the left, title on the right, accent bar, executive summary, KPI strip, all 5 tables, footer with company address/phone).
+  10. Click Save — verify the CSV downloads with all the new columns and the new filter rows at the top.
+- Consider exposing a "Save report configuration" preset so users can quickly reload a saved set of filters by name (would need a new localStorage bucket, e.g. `socialflow-custom-report-presets`).
+- Consider server-side persistence of generated reports (for sharing with team members or downloading later) — the current `POST /api/reports/custom` is stateless and recomputes on each click.
