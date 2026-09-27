@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SYNQUE — Sync Your Social",
+  title: "SYNQUE — Orchestrate Your Social",
   description:
     "SYNQUE is a liquid-retina social media team work management platform. Publish to multiple accounts in one flow, generate per-account AI content, and track advanced analytics.",
   keywords: [
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "SYNQUE",
-    title: "SYNQUE — Sync Your Social",
+    title: "SYNQUE — Orchestrate Your Social",
     description: "The enterprise platform for social media teams",
   },
 };

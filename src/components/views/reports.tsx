@@ -419,7 +419,7 @@ export function ReportsView() {
   function printReport() {
     // Temporarily set document.title to the report name so the browser's
     // "Save as PDF" dialog uses it as the default filename instead of the
-    // generic site title ("SYNQUE — Sync Your Social").
+    // generic site title ("SYNQUE — Orchestrate Your Social").
     const originalTitle = document.title;
     const reportName = `${template.name} Report — ${dateRangeLabel} — ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
     document.title = reportName;
@@ -3812,7 +3812,7 @@ function PrintLayout({
           ) : null}
           <div>
             <div className="report-title-banner-brand">{company.name || "SYNQUE"}</div>
-            <div className="report-title-banner-tagline">{company.name ? "Social Media Report" : "Sync Your Social"}</div>
+            <div className="report-title-banner-tagline">{company.name ? "Social Media Report" : "Orchestrate Your Social"}</div>
           </div>
         </div>
         <div className="report-title-banner-right">

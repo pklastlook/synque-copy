@@ -60,7 +60,7 @@ export function PwaSplashScreen({ onComplete }: { onComplete: () => void }) {
         <div className="pwa-splash-title">
           SYN<span className="pwa-splash-title-accent">QUE</span>
         </div>
-        <div className="pwa-splash-subtitle">Sync Your Social</div>
+        <div className="pwa-splash-subtitle">Orchestrate Your Social</div>
 
         <div className="pwa-splash-bar" aria-hidden="true">
           <div className="pwa-splash-bar-fill" />

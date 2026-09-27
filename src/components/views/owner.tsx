@@ -1503,7 +1503,7 @@ function InvoicePrintLayout({
                 SYNQUE
               </div>
               <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">
-                Sync Your Social.
+                Orchestrate Your Social.
               </div>
             </div>
           </div>

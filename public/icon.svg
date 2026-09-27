@@ -1,58 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Dark canvas — deep near-black with a slight indigo tint -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0a0a0f"/>
-      <stop offset="100%" stop-color="#1a1a2e"/>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A0B0F"/>
+      <stop offset="100%" stop-color="#161823"/>
     </linearGradient>
-
-    <!-- Disc gradient — Apple system blue → indigo (dark-mode brand pair) -->
-    <linearGradient id="discGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0A84FF"/>
-      <stop offset="100%" stop-color="#5E5CE6"/>
+    <linearGradient id="ribbon-grad" x1="0" y1="0" x2="1" y2="0.3">
+      <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.4"/>
+      <stop offset="60%" stop-color="#0A84FF" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#5E5CE6" stop-opacity="1"/>
     </linearGradient>
-
-    <!-- Radial highlight — "liquid glass" light catch on the disc -->
-    <radialGradient id="discShine" cx="32%" cy="28%" r="85%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.40"/>
-      <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
+    <linearGradient id="diamond-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5E5CE6"/>
+      <stop offset="100%" stop-color="#0A84FF"/>
+    </linearGradient>
+    <radialGradient id="diamond-shine" cx="0.3" cy="0.25" r="0.7">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
-
-    <!-- Outer bloom for the disc -->
-    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="2.4" result="blur"/>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
       <feMerge>
-        <feMergeNode in="blur"/>
+        <feMergeNode in="b"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Dark rounded-square background — maskable PWA-safe -->
-  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <!-- Rounded tile background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg-grad)"/>
 
-  <!-- Subtle decorative rings inside the safe zone -->
-  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(94,92,230,0.10)" stroke-width="2"/>
-  <circle cx="256" cy="256" r="172" fill="none" stroke="rgba(10,132,255,0.06)" stroke-width="1.5"/>
+  <!-- Decorative ring -->
+  <circle cx="256" cy="256" r="200" stroke="rgba(255,255,255,0.03)" stroke-width="1.5"/>
+  <circle cx="256" cy="256" r="160" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
 
-  <!-- SYNQUE "Sync Pulse" mark — centered, scaled to ~72% of canvas -->
-  <!-- Mark in local coords spans (8,8)-(56,56); center at (32,32). -->
-  <g transform="translate(256 256) scale(7.2) translate(-32 -32)">
-    <!-- Outer radar pulse rings (static in icon — animation is in the web app) -->
-    <circle cx="32" cy="32" r="22" fill="none" stroke="#0A84FF" stroke-width="0.55" stroke-opacity="0.55"/>
-    <circle cx="32" cy="32" r="25.4" fill="none" stroke="#5E5CE6" stroke-width="0.45" stroke-opacity="0.32"/>
+  <!-- Scale the logo mark into the center (viewBox 0..64 → translate+scale) -->
+  <g transform="translate(256 256) scale(5.8) translate(-32 -32)">
+    <!-- Ribbon 1 (top) -->
+    <path d="M 4 20 C 16 20, 24 20, 36 28 L 44 32" stroke="url(#ribbon-grad)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    <!-- Ribbon 2 (middle, thickest) -->
+    <path d="M 2 32 C 14 32, 26 32, 40 32 L 44 32" stroke="url(#ribbon-grad)" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <!-- Ribbon 3 (bottom) -->
+    <path d="M 4 44 C 16 44, 24 44, 36 36 L 44 32" stroke="url(#ribbon-grad)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
 
-    <!-- Static thin orbit ring — frames the pulse -->
-    <circle cx="32" cy="32" r="22" fill="none" stroke="#0A84FF" stroke-width="0.9" stroke-opacity="0.22"/>
-
-    <!-- Inner gradient disc with glow + "S" overlay -->
+    <!-- Diamond prism -->
     <g filter="url(#glow)">
-      <circle cx="32" cy="32" r="15" fill="url(#discGrad)"/>
-      <circle cx="32" cy="32" r="15" fill="url(#discShine)"/>
-      <!-- The "S" — continuous sync flow stroke -->
-      <path d="M 38 24 C 38 16, 22 16, 24 32 C 24 36, 40 28, 40 32 C 42 48, 26 48, 26 40"
-            fill="none" stroke="rgba(255,255,255,0.95)" stroke-width="3.2"
-            stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 44 22 L 56 32 L 44 42 L 32 32 Z" fill="url(#diamond-grad)"/>
+      <path d="M 44 22 L 56 32 L 44 42 L 32 32 Z" fill="url(#diamond-shine)"/>
+      <path d="M 44 22 L 44 42 M 32 32 L 56 32" stroke="rgba(255,255,255,0.25)" stroke-width="0.7" stroke-linecap="round"/>
+      <circle cx="44" cy="32" r="2.5" fill="rgba(255,255,255,0.9)"/>
     </g>
   </g>
 </svg>

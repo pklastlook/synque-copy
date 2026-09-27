@@ -217,7 +217,7 @@ export default async function BioPage({
             Powered by SYNQUE
           </a>
           <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-white/50">
-            Sync Your Social
+            Orchestrate Your Social
           </p>
         </footer>
       </div>
