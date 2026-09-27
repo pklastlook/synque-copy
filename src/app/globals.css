@@ -1446,96 +1446,64 @@ html { scroll-behavior: smooth; }
      REPORTS — .report-print-root
      =========================================================================== */
 
-  /* Cover page — fills the first page completely, then forces a break.
-     Use fixed mm height (Letter = 279mm tall, minus 12+16 = 28mm margins = 251mm usable).
-     DO NOT use 100vh — it doesn't work in print and causes gaps. */
-  .report-cover {
-    page-break-after: always;
-    break-after: page;
-    min-height: 245mm;
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    color: #1a1a1a;
-  }
-  .report-cover-spacer { flex: 1; min-height: 2mm; }
-  .report-cover-brand {
-    font-size: 26px;
-    font-weight: 800;
-    color: #5856D6;
-    letter-spacing: -0.8px;
-    line-height: 1;
-  }
-  .report-cover-tagline {
-    margin-top: 5px;
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: #777;
-  }
-  /* Accent bar — tight margins */
-  .report-cover-accent {
-    margin: 18px 0 14px;
-    height: 4px;
-    width: 56px;
-    border-radius: 2px;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .report-cover-eyebrow {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: #5856D6;
-    margin-bottom: 6px;
-  }
-  .report-cover-title {
-    font-size: 32px;
-    font-weight: 800;
-    color: #1a1a1a;
-    line-height: 1.1;
-    letter-spacing: -0.6px;
-    margin-bottom: 10px;
-  }
-  .report-cover-desc {
-    font-size: 11px;
-    color: #555;
-    max-width: 14cm;
-    line-height: 1.5;
-  }
-  /* Cover meta block */
-  .report-cover-meta {
-    margin-top: 14px;
-    border-top: 1px solid #e5e5e5;
-    padding-top: 10px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    font-size: 10px;
-  }
-  .report-cover-meta-label {
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-weight: 600;
-    font-size: 8px;
-    margin-bottom: 2px;
-  }
-  .report-cover-meta-value {
-    color: #1a1a1a;
-    font-weight: 600;
-    font-size: 10px;
-  }
-  .report-cover-footer {
-    margin-top: auto;
-    padding-top: 10px;
-    border-top: 1px solid #e5e5e5;
-    font-size: 8px;
-    color: #888;
+  /* Report title banner — compact header at top of page 1.
+     Replaces the old cover page (which caused "first page empty").
+     Brand on left, title + date on right, accent bar below. */
+  .report-title-banner {
     display: flex;
     justify-content: space-between;
+    align-items: flex-end;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #1a1a1a;
+  }
+  .report-title-banner-left {
+    display: flex;
+    flex-direction: column;
+  }
+  .report-title-banner-brand {
+    font-size: 22px;
+    font-weight: 800;
+    color: #5856D6;
+    letter-spacing: -0.6px;
+    line-height: 1;
+  }
+  .report-title-banner-tagline {
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #777;
+    margin-top: 3px;
+  }
+  .report-title-banner-right {
+    text-align: right;
+  }
+  .report-title-banner-eyebrow {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #5856D6;
+  }
+  .report-title-banner-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #1a1a1a;
+    line-height: 1.2;
+    margin-top: 2px;
+  }
+  .report-title-banner-meta {
+    font-size: 8px;
+    color: #777;
+    margin-top: 2px;
+  }
+  .report-title-accent {
+    height: 3px;
+    width: 100%;
+    margin: 0 0 6px;
+    border-radius: 1px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   /* Running header — appears at top of every content page (after cover).
