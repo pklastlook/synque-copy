@@ -55,6 +55,7 @@ import {
   Laugh,
   GraduationCap,
   Briefcase,
+  GripVertical,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -360,6 +361,67 @@ export function ComposerView() {
   const [previewDevice, setPreviewDevice] = React.useState<DeviceMode>("phone");
   const [previewTheme, setPreviewTheme] = React.useState<PreviewTheme>("light");
   const [copiedVariant, setCopiedVariant] = React.useState<string | null>(null);
+  // Drag-and-drop section reordering — persisted to localStorage per workspace
+  const [sectionOrder, setSectionOrder] = React.useState<SectionId[]>(() => {
+    if (typeof window === "undefined") return ["accounts", "media", "content", "schedule"];
+    try {
+      const saved = localStorage.getItem("socialflow-composer-section-order");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 4) return parsed as SectionId[];
+      }
+    } catch { /* ignore */ }
+    return ["accounts", "media", "content", "schedule"];
+  });
+  const [draggingId, setDraggingId] = React.useState<SectionId | null>(null);
+  const [dragOverId, setDragOverId] = React.useState<SectionId | null>(null);
+
+  function saveSectionOrder(order: SectionId[]) {
+    setSectionOrder(order);
+    try {
+      localStorage.setItem("socialflow-composer-section-order", JSON.stringify(order));
+    } catch { /* ignore */ }
+  }
+
+  function handleDragStart(id: SectionId) {
+    return (e: React.DragEvent) => {
+      setDraggingId(id);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", id);
+    };
+  }
+
+  function handleDragOver(id: SectionId) {
+    return (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (draggingId && draggingId !== id) {
+        setDragOverId(id);
+      }
+    };
+  }
+
+  function handleDrop(id: SectionId) {
+    return (e: React.DragEvent) => {
+      e.preventDefault();
+      if (!draggingId || draggingId === id) {
+        setDraggingId(null);
+        setDragOverId(null);
+        return;
+      }
+      const newOrder = [...sectionOrder];
+      const fromIdx = newOrder.indexOf(draggingId);
+      const toIdx = newOrder.indexOf(id);
+      if (fromIdx === -1 || toIdx === -1) return;
+      // Remove from old position, insert at new position
+      newOrder.splice(fromIdx, 1);
+      newOrder.splice(toIdx, 0, draggingId);
+      saveSectionOrder(newOrder);
+      setDraggingId(null);
+      setDragOverId(null);
+      toast.success(`Reordered sections`);
+    };
+  }
 
   const initRef = React.useRef(false);
   const editHydrateRef = React.useRef<string | null>(null);
@@ -1113,17 +1175,24 @@ export function ComposerView() {
 
       {/* === Two-column layout: main flow + sticky preview === */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
-        {/* MAIN FLOW */}
-        <main className="min-w-0 space-y-4">
-          {/* === Step 1: Accounts (horizontal scrollable row) === */}
+        {/* MAIN FLOW — flex column so sections can be reordered via CSS order */}
+        <main className="min-w-0 flex flex-col gap-4">
+          {/* === Accounts (horizontal scrollable row) === */}
+          <div style={{ order: sectionOrder.indexOf("accounts") }} className="min-h-0">
           <CollapsibleSection
             id="accounts"
-            index={1}
+            index={sectionOrder.indexOf("accounts") + 1}
             title="Accounts"
             desc="Pick destination accounts"
             icon={CheckCircle2}
             collapsed={collapsed}
             onToggle={toggleCollapse}
+            draggable
+            onDragStart={handleDragStart("accounts")}
+            onDragOver={handleDragOver("accounts")}
+            onDrop={handleDrop("accounts")}
+            isDragTarget={dragOverId === "accounts"}
+            isDragging={draggingId === "accounts"}
             badge={
               <Pill color={selectedAccounts.length > 0 ? "green" : "neutral"}>
                 {selectedAccounts.length} selected
@@ -1303,16 +1372,24 @@ export function ComposerView() {
               )}
             </div>
           </CollapsibleSection>
+          </div>
 
-          {/* === Step 2: Media (per-account — different file for each platform) === */}
+          {/* === Media (per-account — different file for each platform) === */}
+          <div style={{ order: sectionOrder.indexOf("media") }} className="min-h-0">
           <CollapsibleSection
             id="media"
-            index={2}
+            index={sectionOrder.indexOf("media") + 1}
             title="Media"
             desc="Select a different media file for each platform"
             icon={ImageIcon}
             collapsed={collapsed}
             onToggle={toggleCollapse}
+            draggable
+            onDragStart={handleDragStart("media")}
+            onDragOver={handleDragOver("media")}
+            onDrop={handleDrop("media")}
+            isDragTarget={dragOverId === "media"}
+            isDragging={draggingId === "media"}
             badge={
               selectedAccounts.length > 0 && selectedAccounts.some((a) => state.accountMedia[a.id] || state.mediaUrl) ? (
                 <Pill color="green"><Check className="h-2.5 w-2.5" /> Added</Pill>
@@ -1523,16 +1600,24 @@ export function ComposerView() {
               </>
             )}
           </CollapsibleSection>
+          </div>
 
-          {/* === Step 3: Content (per-account text boxes) === */}
+          {/* === Content (per-account text boxes) === */}
+          <div style={{ order: sectionOrder.indexOf("content") }} className="min-h-0">
           <CollapsibleSection
             id="content"
-            index={3}
+            index={sectionOrder.indexOf("content") + 1}
             title="Content"
             desc="Write or paste different text for each platform"
             icon={Pencil}
             collapsed={collapsed}
             onToggle={toggleCollapse}
+            draggable
+            onDragStart={handleDragStart("content")}
+            onDragOver={handleDragOver("content")}
+            onDrop={handleDrop("content")}
+            isDragTarget={dragOverId === "content"}
+            isDragging={draggingId === "content"}
             badge={
               hasAnyContent ? (
                 <Pill color="green"><Check className="h-2.5 w-2.5" /> Ready</Pill>
@@ -1808,16 +1893,24 @@ export function ComposerView() {
               </div>
             )}
           </CollapsibleSection>
+          </div>
 
-          {/* === Step 4: Schedule (enhanced with best-time + presets + approval) === */}
+          {/* === Schedule (enhanced with best-time + presets + approval) === */}
+          <div style={{ order: sectionOrder.indexOf("schedule") }} className="min-h-0">
           <CollapsibleSection
             id="schedule"
-            index={4}
+            index={sectionOrder.indexOf("schedule") + 1}
             title="Schedule"
             desc="Publish now or pick a future time"
             icon={CalendarClock}
             collapsed={collapsed}
             onToggle={toggleCollapse}
+            draggable
+            onDragStart={handleDragStart("schedule")}
+            onDragOver={handleDragOver("schedule")}
+            onDrop={handleDrop("schedule")}
+            isDragTarget={dragOverId === "schedule"}
+            isDragging={draggingId === "schedule"}
             badge={
               state.scheduleEnabled ? (
                 <Pill color="amber"><Clock className="h-2.5 w-2.5" /> Scheduled</Pill>
@@ -2006,6 +2099,7 @@ export function ComposerView() {
               hasVariants={hasVariants}
             />
           </CollapsibleSection>
+          </div>
         </main>
 
         {/* STICKY PREVIEW — desktop only */}
@@ -2309,6 +2403,12 @@ function CollapsibleSection({
   badge,
   action,
   children,
+  draggable = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  isDragTarget = false,
+  isDragging = false,
 }: {
   id: SectionId;
   index: number;
@@ -2320,10 +2420,27 @@ function CollapsibleSection({
   badge?: React.ReactNode;
   action?: React.ReactNode;
   children: React.ReactNode;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  isDragTarget?: boolean;
+  isDragging?: boolean;
 }) {
   const isCollapsed = collapsed.has(id);
   return (
-    <section className="space-y-3">
+    <section
+      className={cn(
+        "space-y-3 transition-all",
+        draggable && "cursor-grab active:cursor-grabbing",
+        isDragging && "opacity-40",
+        isDragTarget && "ring-2 ring-primary/40 ring-offset-2 ring-offset-background rounded-xl"
+      )}
+      draggable={draggable}
+      onDragStart={draggable ? onDragStart : undefined}
+      onDragOver={draggable ? onDragOver : undefined}
+      onDrop={draggable ? onDrop : undefined}
+    >
       <div
         role="button"
         tabIndex={0}
@@ -2336,6 +2453,16 @@ function CollapsibleSection({
         }}
         className="flex w-full cursor-pointer items-center gap-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg"
       >
+        {/* Drag handle — visible when draggable */}
+        {draggable && (
+          <div
+            className="grid h-7 w-4 shrink-0 place-items-center text-muted-foreground/40 hover:text-primary"
+            title="Drag to reorder"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </div>
+        )}
         <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
           <Icon className="h-3.5 w-3.5" />
         </div>

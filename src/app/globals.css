@@ -1512,21 +1512,17 @@ html { scroll-behavior: smooth; }
   .report-print-root .report-footer-meta { color: #888888 !important; }
   .report-print-root .report-footer-confidential { color: #999999 !important; }
 
-  /* === FOOTER: Stick to bottom of every printed page ===
-     Without this, the footer renders right after the last table content
-     (mid-page). With position:fixed + bottom:0, it stays at the page bottom
-     on every printed page, acting like a real page footer. */
+  /* === FOOTER: stays at end of content, avoids extra blank pages ===
+     Using position:fixed caused an extra blank page when content was short
+     (the browser allocates space for the fixed element on every page).
+     Instead, keep it in normal flow with page-break-inside:avoid so it
+     never splits across pages, and page-break-after:avoid so content
+     before it doesn't get orphaned. */
   .report-print-root .report-footer-company {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    background: #ffffff !important;
-    border-top: 1px solid #e0e0e0 !important;
-    padding: 4px 12px !important;
-    margin-top: 0 !important;
-    z-index: 9999 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    margin-top: 12px !important;
   }
   .report-print-root .report-cover-brand { color: #5856D6 !important; }
   .report-print-root .report-header-brand { color: #5856D6 !important; }
@@ -1573,6 +1569,22 @@ html { scroll-behavior: smooth; }
   /* ===========================================================================
      REPORTS — .report-print-root
      =========================================================================== */
+
+  /* === PRINT OPTIMIZATION: fit more content per page, prevent extra pages ===
+     Tighter spacing, smaller margins, reduced row heights. */
+  .report-print-root .report-content { gap: 6px !important; }
+  .report-print-root .report-section-title { margin-top: 6px !important; margin-bottom: 3px !important; }
+  .report-print-root .report-text { margin: 2px 0 !important; line-height: 1.35 !important; }
+  .report-print-root .report-metric-row { gap: 4px !important; margin: 4px 0 !important; }
+  .report-print-root .report-metric { padding: 4px 6px !important; }
+  .report-print-root .report-table { font-size: 8px !important; }
+  .report-print-root .report-table th { padding: 3px 4px !important; }
+  .report-print-root .report-table td { padding: 2px 4px !important; line-height: 1.2 !important; }
+  .report-print-root .report-table tbody tr { page-break-inside: avoid !important; }
+
+  /* Prevent any empty trailing elements from creating a new page */
+  .report-print-root > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+  .report-print-root .report-content > *:last-child { margin-bottom: 0 !important; }
 
   /* Report title banner — compact header at top of page 1.
      Replaces the old cover page (which caused "first page empty").
