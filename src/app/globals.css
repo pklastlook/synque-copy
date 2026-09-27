@@ -1478,13 +1478,59 @@ html { scroll-behavior: smooth; }
     }
   }
 
-  /* Hide everything by default; only print .report-print-root or .print-area */
+  /* Hide everything by default; only print .report-print-root or .print-area.
+     Use visibility:hidden (keeps layout but hides visual) and add display:none
+     on siblings of the print root to prevent empty pages from on-screen UI. */
   body * { visibility: hidden; }
   .report-print-root, .report-print-root *,
   .print-area, .print-area * { visibility: visible; }
 
   /* Ensure the print root is actually displayed (overrides Tailwind 'hidden' class) */
   .report-print-root { display: block !important; }
+
+  /* FORCE light mode colors inside print root — overrides .dark class vars.
+     Without this, dark mode users see invisible white text on white paper. */
+  .report-print-root {
+    --background: #ffffff !important;
+    --foreground: #1a1a1a !important;
+    --card: #ffffff !important;
+    --card-foreground: #1a1a1a !important;
+    --muted: #f5f5f7 !important;
+    --muted-foreground: #666666 !important;
+    --primary: #5856D6 !important;
+    --primary-foreground: #ffffff !important;
+    --border: #e0e0e0 !important;
+    --popover: #ffffff !important;
+    --popover-foreground: #1a1a1a !important;
+    --gold: oklch(0.588 0.209 277) !important;
+    color: #1a1a1a !important;
+    background: #ffffff !important;
+  }
+  /* Force ALL text inside print root to be dark (overrides dark mode inheritance) */
+  .report-print-root * {
+    color: #1a1a1a !important;
+  }
+  /* But keep specific colored elements colored (headers, accents, links) */
+  .report-print-root .report-section-title { color: #5856D6 !important; }
+  .report-print-root .report-title-banner-brand { color: #5856D6 !important; }
+  .report-print-root .report-title-banner-eyebrow { color: #5856D6 !important; }
+  .report-print-root .report-metric-label { color: #777777 !important; }
+  .report-print-root .report-text { color: #333333 !important; }
+  .report-print-root .report-subtle { color: #888888 !important; }
+  .report-print-root .report-table thead th { color: #ffffff !important; background: #5856D6 !important; }
+  .report-print-root .report-table tbody td { color: #1a1a1a !important; }
+  .report-print-root .report-table tbody tr:nth-child(even) td { background: #f9f9fb !important; }
+  .report-print-root .report-footer-company-name { color: #1a1a1a !important; }
+  .report-print-root .report-footer-company-line { color: #666666 !important; }
+  .report-print-root .report-footer-company-contact { color: #888888 !important; }
+  .report-print-root .report-footer-meta { color: #888888 !important; }
+  .report-print-root .report-footer-confidential { color: #999999 !important; }
+  .report-print-root .report-cover-brand { color: #5856D6 !important; }
+  .report-print-root .report-header-brand { color: #5856D6 !important; }
+  .report-print-root .report-podium-title { color: #5856D6 !important; }
+  .report-print-root .report-podium-rank { color: #888888 !important; }
+  .report-print-root .report-podium-name { color: #1a1a1a !important; }
+  .report-print-root .report-podium-value { color: #1a1a1a !important; }
 
   /* Print area — NO position:absolute (it breaks page flow and causes gaps).
      Just reset to static, full width, no chrome. */
@@ -1511,6 +1557,13 @@ html { scroll-behavior: smooth; }
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
+    color: #1a1a1a !important;
+  }
+  /* Also strip any dark-mode specific backgrounds */
+  .report-print-root [class*="dark"],
+  .report-print-root .dark {
+    background: transparent !important;
+    color: #1a1a1a !important;
   }
 
   /* ===========================================================================
