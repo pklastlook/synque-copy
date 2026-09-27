@@ -69,6 +69,31 @@ import { toast } from "sonner";
 
 type Mode = "landing" | "login" | "trial";
 
+/* ============================================================================
+   Unified Design Tokens
+   ----------------------------------------------------------------------------
+   ONE base background throughout. Sections differentiated by subtle elevation,
+   borders, and small accent icons — NOT by background color changes.
+   ============================================================================ */
+
+const COLOR = {
+  bg:        "#0A0B0F", // base canvas — near-black with subtle blue tint
+  surface:   "#111318", // raised section — very subtle elevation
+  footer:    "#08090C", // footer — slightly darker than sections
+  textHead:  "#F5F5F7", // headings — Apple white
+  textBody:  "#9999A0", // body — muted gray
+  border:    "rgba(255,255,255,0.08)",
+  cardBg:    "rgba(255,255,255,0.04)",
+  cardHover: "rgba(255,255,255,0.06)",
+  accent:    "oklch(0.581 0.189 256)", // primary blue (brand --primary)
+  accentA:   (a: number) => `oklch(0.581 0.189 256 / ${a})`,
+  gold:      "oklch(0.588 0.209 277)", // secondary gold (--gold)
+  goldA:     (a: number) => `oklch(0.588 0.209 277 / ${a})`,
+  rose:      "#FB7185", // rose-400 for problem icons
+  roseA:     (a: number) => `rgba(251,113,133,${a})`,
+  emerald:   "#34D399", // emerald-400 for "trust" check icons
+} as const;
+
 export function LandingPage() {
   const [mode, setMode] = React.useState<Mode>("landing");
 
@@ -88,11 +113,11 @@ export function LandingPage() {
 }
 
 /* ============================================================================
-   Cinematic Landing — Story Teller (11 Acts)
+   Cinematic Landing — Story Teller (11 Acts) — Unified Design
    ----------------------------------------------------------------------------
-   Each act is a full-bleed section with its own deep mystic background colour,
-   separated by short gradient "Transition" bands that blend one act's palette
-   into the next. Scroll-triggered reveals use a tiny IntersectionObserver hook.
+   Each act uses the same #0A0B0F background. Sections are separated by
+   1px hairlines or generous vertical padding — never by color shifts.
+   Scroll-triggered reveals use a tiny IntersectionObserver hook.
    ============================================================================ */
 
 /* ----------------------------- Hooks & primitives ----------------------- */
@@ -147,7 +172,7 @@ function Reveal({ children, className, delay = 0, y = 24, once = true }: RevealP
 /* CSS particle field — pure CSS animation, JS only generates the dots */
 function ParticleField({
   count = 28,
-  colors = ["#7DD3FC", "#22D3EE", "#5EEAD4", "#A78BFA"],
+  colors = [COLOR.accent, COLOR.gold],
   size = [2, 4],
 }: { count?: number; colors?: string[]; size?: [number, number] }) {
   const dots = React.useMemo(() => {
@@ -195,7 +220,7 @@ function ParticleField({
 /* Confetti — falling particles for the final CTA */
 function ConfettiField({ count = 36 }: { count?: number }) {
   const pieces = React.useMemo(() => {
-    const colors = ["#22D3EE", "#5EEAD4", "#A78BFA", "#FBBF24", "#F472B6", "#34D399"];
+    const colors = [COLOR.accent, COLOR.gold, "#5EEAD4", "#FBBF24", "#F472B6", "#34D399"];
     const seed = 9001;
     const rand = (i: number) => {
       const x = Math.sin(seed + i * 7.91) * 43758.5453;
@@ -249,7 +274,7 @@ function TypingBubble({
           maxWidth: "100%",
           overflow: "hidden",
           whiteSpace: "pre-wrap",
-          borderRight: "2px solid rgba(167,139,250,0.9)",
+          borderRight: `2px solid ${COLOR.accentA(0.9)}`,
           animation: inView
             ? `sfTyping ${durationMs}ms steps(${chars}, end) 0.2s both, sfBlink 0.9s step-end infinite`
             : "none",
@@ -268,7 +293,7 @@ function TypingBubble({
 /* Growing chart bars — animated height on inView */
 function GrowingBars({
   values,
-  color = "linear-gradient(to top, #14B8A6, #5EEAD4)",
+  color = `linear-gradient(to top, ${COLOR.accent}, ${COLOR.gold})`,
   className,
   barClassName,
 }: {
@@ -295,83 +320,48 @@ function GrowingBars({
   );
 }
 
-/* Animated aurora/nebula hero background — pure CSS drifting blobs */
+/* Animated aurora/nebula hero background — ONE subtle blue glow only */
 function AuroraHero() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {/* Deep base */}
+      {/* Base — same as page bg, no per-section color */}
+      <div className="absolute inset-0" style={{ background: COLOR.bg }} />
+      {/* Single aurora glow — top center, blue-tinted */}
       <div
-        className="absolute inset-0"
+        className="absolute -top-[15%] left-1/2 h-[55vh] w-[70vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
         style={{
-          background:
-            "radial-gradient(ellipse at 50% 0%, #0E2A4F 0%, #0A1A2F 35%, #050B16 75%, #03060C 100%)",
-        }}
-      />
-      {/* Aurora layers — drifting */}
-      <div
-        className="absolute -top-[20%] left-[5%] h-[60vh] w-[60vw] rounded-full opacity-50 blur-3xl"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(45,212,191,0.55), transparent 65%)",
+          background: `radial-gradient(circle, ${COLOR.accentA(0.55)}, transparent 65%)`,
           animation: "sfAuroraDrift 22s ease-in-out infinite",
         }}
       />
+      {/* Subtle shimmer sweep */}
       <div
-        className="absolute top-[10%] right-[0%] h-[55vh] w-[55vw] rounded-full opacity-40 blur-3xl"
+        className="absolute inset-0 opacity-10"
         style={{
           background:
-            "radial-gradient(circle, rgba(34,211,238,0.55), transparent 65%)",
-          animation: "sfAuroraDrift 28s ease-in-out -4s infinite reverse",
-        }}
-      />
-      <div
-        className="absolute bottom-[-10%] left-[30%] h-[50vh] w-[60vw] rounded-full opacity-35 blur-3xl"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(99,102,241,0.45), transparent 70%)",
-          animation: "sfAuroraDrift 26s ease-in-out -8s infinite",
-        }}
-      />
-      {/* Shimmer sweep */}
-      <div
-        className="absolute inset-0 opacity-20"
-        style={{
-          background:
-            "linear-gradient(115deg, transparent 30%, rgba(94,234,212,0.18) 50%, transparent 70%)",
+            "linear-gradient(115deg, transparent 30%, rgba(94,159,255,0.18) 50%, transparent 70%)",
           backgroundSize: "200% 200%",
           animation: "sfShimmerSweep 9s ease-in-out infinite",
         }}
       />
       {/* Subtle starfield */}
-      <ParticleField count={36} colors={["#7DD3FC", "#5EEAD4", "#A78BFA", "#E0F2FE"]} size={[1.5, 3]} />
+      <ParticleField count={32} colors={[COLOR.accent, COLOR.gold]} size={[1.5, 3]} />
     </div>
   );
 }
 
-/* Gradient transition band between two acts */
-function Transition({ from, to, height = 180 }: { from: string; to: string; height?: number }) {
-  return (
-    <div
-      aria-hidden
-      className="w-full"
-      style={{ height, background: `linear-gradient(to bottom, ${from} 0%, ${from} 20%, ${to} 80%, ${to} 100%)` }}
-    />
-  );
-}
-
-/* Eyebrow pill used at the top of each act */
+/* Eyebrow pill — single primary blue accent throughout */
 function Eyebrow({
   icon: Icon,
   label,
-  color,
-}: { icon: LucideIcon; label: string; color: string }) {
+}: { icon: LucideIcon; label: string }) {
   return (
     <span
       className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur-md"
       style={{
-        background: `${color}1A`,
-        borderColor: `${color}40`,
-        color,
+        background: COLOR.accentA(0.1),
+        borderColor: COLOR.accentA(0.3),
+        color: COLOR.accent,
       }}
     >
       <Icon className="h-3.5 w-3.5" /> {label}
@@ -379,14 +369,14 @@ function Eyebrow({
   );
 }
 
-/* A glass card with subtle accent glow + hover lift, themed per act */
+/* Unified card — subtle white tint + hairline border. No per-card accent glow. */
 function MysticCard({
   accent,
   children,
   className,
   glow = false,
 }: {
-  accent: string;
+  accent?: string;
   children: React.ReactNode;
   className?: string;
   glow?: boolean;
@@ -394,76 +384,76 @@ function MysticCard({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-white/15 bg-white/[0.08] backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-white/25",
+        "group relative overflow-hidden rounded-2xl border backdrop-blur-sm transition-all duration-500 hover:-translate-y-1 hover:border-white/15",
         className,
       )}
       style={{
-        boxShadow: `0 4px 24px -4px rgba(0,0,0,0.3), 0 0 0 1px ${accent}15`,
+        background: COLOR.cardBg,
+        borderColor: COLOR.border,
+        boxShadow: glow ? `0 4px 24px -4px rgba(0,0,0,0.4)` : undefined,
       }}
     >
-      <div
-        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-[0.2] blur-3xl transition-opacity duration-500 group-hover:opacity-40"
-        style={{ background: accent }}
-      />
+      {/* Subtle accent line at top-left when accent provided */}
+      {accent && (
+        <div
+          className="pointer-events-none absolute left-0 top-0 h-8 w-px"
+          style={{ background: accent }}
+        />
+      )}
       <div className="relative">{children}</div>
     </div>
   );
 }
 
-/* Icon tile with colored circle background — BRIGHTER colors for visibility */
+/* Icon tile with colored circle background — defaults to primary blue */
 function IconTile({
   icon: Icon,
-  color,
+  color = COLOR.accent,
   size = "md",
 }: {
   icon: LucideIcon;
-  color: string;
+  color?: string;
   size?: "sm" | "md" | "lg";
 }) {
   const dims = size === "lg" ? "h-14 w-14" : size === "sm" ? "h-10 w-10" : "h-12 w-12";
   const ic = size === "lg" ? "h-6 w-6" : size === "sm" ? "h-4 w-4" : "h-5 w-5";
+  // Parse the color into a soft tint background and brighter border
+  const tint = color.startsWith("oklch")
+    ? color.replace(")", " / 0.15)").replace("oklch(", "oklch(")
+    : color;
   return (
     <div
       className={cn("relative grid place-items-center rounded-xl", dims)}
-      style={{ background: `${color}30`, border: `1px solid ${color}50`, boxShadow: `0 4px 12px -4px ${color}40` }}
+      style={{
+        background: color.startsWith("oklch") ? tint : `${color}26`,
+        border: `1px solid ${color.startsWith("oklch") ? color.replace(")", " / 0.3)") : `${color}55`}`,
+      }}
     >
-      <Icon className={cn("relative", ic)} style={{ color, filter: `brightness(1.3)` }} />
+      <Icon className={cn("relative", ic)} style={{ color, filter: `brightness(1.15)` }} />
     </div>
   );
 }
 
-/* Shared glow CTA button — teal/cyan accent */
+/* Primary glow CTA button — single blue accent throughout */
 function GlowCTA({
   children,
   onClick,
   className,
-  tone = "teal",
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   className?: string;
-  tone?: "teal" | "violet" | "amber" | "rose" | "emerald" | "indigo";
 }) {
-  const tones: Record<string, { bg: string; glow: string; text: string }> = {
-    teal:    { bg: "linear-gradient(135deg, #14B8A6, #06B6D4)", glow: "rgba(45,212,191,0.65)", text: "#04181A" },
-    violet:  { bg: "linear-gradient(135deg, #8B5CF6, #6366F1)", glow: "rgba(139,92,246,0.65)", text: "#11081F" },
-    amber:   { bg: "linear-gradient(135deg, #F59E0B, #F97316)", glow: "rgba(251,191,36,0.6)",  text: "#1A1003" },
-    rose:    { bg: "linear-gradient(135deg, #F43F5E, #EC4899)", glow: "rgba(244,63,94,0.6)",  text: "#1F0710" },
-    emerald: { bg: "linear-gradient(135deg, #10B981, #059669)", glow: "rgba(16,185,129,0.6)", text: "#04140E" },
-    indigo:  { bg: "linear-gradient(135deg, #6366F1, #818CF8)", glow: "rgba(99,102,241,0.6)", text: "#0A0A1F" },
-  };
-  const t = tones[tone];
   return (
     <button
       onClick={onClick}
       className={cn(
-        "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl px-7 py-3.5 text-sm font-bold tracking-tight transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.98]",
+        "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl px-7 py-3.5 text-sm font-bold tracking-tight text-white transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.98]",
         className,
       )}
       style={{
-        background: t.bg,
-        color: t.text,
-        boxShadow: `0 1px 0 rgba(255,255,255,0.4) inset, 0 8px 30px -8px ${t.glow}, 0 0 0 1px rgba(255,255,255,0.1)`,
+        background: COLOR.accent,
+        boxShadow: `0 1px 0 rgba(255,255,255,0.2) inset, 0 8px 30px -8px ${COLOR.accentA(0.6)}, 0 0 0 1px rgba(255,255,255,0.1)`,
       }}
     >
       {/* Sheen sweep */}
@@ -486,9 +476,10 @@ function OutlineCTA({
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all duration-300 hover:border-white/40 hover:bg-white/10 hover:-translate-y-0.5",
+        "inline-flex items-center justify-center gap-2 rounded-2xl border bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/10",
         className,
       )}
+      style={{ borderColor: COLOR.border }}
     >
       {children}
     </button>
@@ -496,12 +487,15 @@ function OutlineCTA({
 }
 
 /* ============================================================================
-   Landing — 11 Cinematic Acts
+   Landing — 11 Cinematic Acts (Unified Design)
    ============================================================================ */
 
 function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#03060C] text-white antialiased selection:bg-cyan-400/30">
+    <div
+      className="relative min-h-screen overflow-x-hidden antialiased selection:bg-[var(--primary)]/30"
+      style={{ background: COLOR.bg, color: COLOR.textHead }}
+    >
       <style>{LANDING_KEYFRAMES}</style>
       <CinematicNav onTrial={onTrial} onSignIn={onSignIn} />
       <Act1Hero onTrial={onTrial} onSignIn={onSignIn} />
@@ -523,44 +517,81 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
 
 function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
   const [scrolled, setScrolled] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  const links = [
+    { href: "#features", label: "Features" },
+    { href: "#workflow", label: "Workflow" },
+    { href: "#pricing", label: "Pricing" },
+    { href: "#compare", label: "Compare" },
+  ];
   return (
     <nav
       className={cn(
         "fixed left-1/2 top-3 z-50 w-[calc(100%-1rem)] max-w-6xl -translate-x-1/2 rounded-2xl px-4 py-3 transition-all duration-300 sm:w-[calc(100%-2rem)] sm:px-5",
         scrolled
-          ? "border border-white/10 bg-[#03060C]/80 backdrop-blur-xl shadow-[0_8px_40px_-8px_rgba(0,0,0,0.6)]"
+          ? "border shadow-[0_8px_40px_-8px_rgba(0,0,0,0.6)] backdrop-blur-xl"
           : "border border-transparent bg-transparent",
       )}
+      style={scrolled ? { background: "rgba(10,11,15,0.8)", borderColor: COLOR.border } : undefined}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <Logo size={28} withTile={false} />
-          <span className="text-base font-bold tracking-tight">SYNQUE</span>
+          <span className="text-base font-bold tracking-tight" style={{ color: COLOR.textHead }}>SYNQUE</span>
         </div>
         <div className="hidden items-center gap-7 md:flex">
-          <a href="#features"  className="text-sm text-white/70 transition hover:text-white">Features</a>
-          <a href="#workflow"   className="text-sm text-white/70 transition hover:text-white">Workflow</a>
-          <a href="#pricing"    className="text-sm text-white/70 transition hover:text-white">Pricing</a>
-          <a href="#compare"    className="text-sm text-white/70 transition hover:text-white">Compare</a>
+          {links.map((l) => (
+            <a key={l.href} href={l.href} className="text-sm transition hover:text-white" style={{ color: COLOR.textBody }}>
+              {l.label}
+            </a>
+          ))}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={onSignIn}
-            className="hidden min-h-10 items-center rounded-xl px-3 text-sm font-medium text-white/70 transition hover:text-white sm:flex"
+            className="hidden min-h-10 items-center rounded-xl px-3 text-sm font-medium transition hover:text-white sm:flex"
+            style={{ color: COLOR.textBody }}
           >
             Sign in
           </button>
-          <GlowCTA onClick={onTrial} className="px-5 py-2.5 text-[13px]" tone="teal">
+          <GlowCTA onClick={onTrial} className="px-5 py-2.5 text-[13px]">
             <Rocket className="h-4 w-4" /> Start trial
           </GlowCTA>
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="grid h-10 w-10 place-items-center rounded-xl border md:hidden"
+            style={{ borderColor: COLOR.border, color: COLOR.textHead }}
+            aria-label="Menu"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
       </div>
+      {/* Mobile dropdown */}
+      {mobileOpen && (
+        <div className="mt-3 flex flex-col gap-1 border-t pt-3 md:hidden" style={{ borderColor: COLOR.border }}>
+          {links.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              onClick={() => setMobileOpen(false)}
+              className="rounded-lg px-3 py-2 text-sm transition hover:bg-white/5"
+              style={{ color: COLOR.textBody }}
+            >
+              {l.label}
+            </a>
+          ))}
+        </div>
+      )}
     </nav>
   );
 }
@@ -583,41 +614,48 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
   };
 
   return (
-    <section className="relative min-h-screen w-full overflow-hidden">
+    <section className="relative min-h-screen w-full overflow-hidden" style={{ background: COLOR.bg }}>
       <AuroraHero />
-      {/* Subtle bottom fade into Act 2 */}
+      {/* Subtle bottom hairline into Act 2 (no color gradient) */}
       <div
-        className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-40"
-        style={{ background: "linear-gradient(to bottom, transparent, #03060C)" }}
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-px"
+        style={{ background: COLOR.border }}
       />
 
       <div className="relative z-20 mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 pt-24 pb-32 text-center sm:px-6 lg:px-8">
         <Reveal>
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300 backdrop-blur-md">
+          <span
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] backdrop-blur-md"
+            style={{
+              borderColor: COLOR.accentA(0.3),
+              background: COLOR.accentA(0.08),
+              color: COLOR.accent,
+            }}
+          >
             <Sparkles className="h-3.5 w-3.5" />
             The enterprise command center for social teams
           </span>
         </Reveal>
 
         <Reveal delay={120}>
-          <h1 className="mt-8 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
-            <span className="block text-white">One flow.</span>
+          <h1 className="mt-8 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl" style={{ color: COLOR.textHead }}>
+            <span className="block">One flow.</span>
             <span
               className="mt-2 block bg-clip-text text-transparent"
               style={{
-                backgroundImage: "linear-gradient(120deg, #5EEAD4, #22D3EE 30%, #A78BFA 60%, #FBBF24 100%)",
+                backgroundImage: `linear-gradient(120deg, ${COLOR.accent}, ${COLOR.gold})`,
                 backgroundSize: "200% 200%",
                 animation: "sfGradientText 8s ease-in-out infinite",
               }}
             >
               Every platform.
             </span>
-            <span className="mt-2 block text-white/95">Zero chaos.</span>
+            <span className="mt-2 block" style={{ color: COLOR.textHead }}>Zero chaos.</span>
           </h1>
         </Reveal>
 
         <Reveal delay={240}>
-          <p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">
+          <p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: COLOR.textBody }}>
             Your team posts to 7+ platforms every day. Switching tabs, copy-pasting captions,
             praying nothing gets suspended. SYNQUE turns that chaos into one calm, AI-powered flow —
             so your team ships more, faster.
@@ -626,7 +664,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
 
         <Reveal delay={360}>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <GlowCTA onClick={onTrial} tone="teal" className="min-w-[260px]">
+            <GlowCTA onClick={onTrial} className="min-w-[260px]">
               <Rocket className="h-4 w-4" /> Start 15-day free trial
             </GlowCTA>
             <OutlineCTA onClick={startDemo} className="min-w-[200px]">
@@ -644,18 +682,18 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         </Reveal>
 
         <Reveal delay={480}>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-white/60">
-            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> No credit card required</span>
-            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Cancel anytime</span>
-            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> 25GB free media storage</span>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px]" style={{ color: COLOR.textBody }}>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> No credit card required</span>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> Cancel anytime</span>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> 25GB free media storage</span>
           </div>
         </Reveal>
 
         {/* Scroll indicator */}
         <div className="pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2">
           <ChevronDown
-            className="h-6 w-6 text-white/40"
-            style={{ animation: "sfChevronBounce 1.8s ease-in-out infinite" }}
+            className="h-6 w-6"
+            style={{ color: COLOR.textBody, animation: "sfChevronBounce 1.8s ease-in-out infinite" }}
           />
         </div>
       </div>
@@ -667,36 +705,25 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
 
 function Act2Problem() {
   const problems = [
-    { icon: Layers,       t: "7 tabs open",          d: "Instagram, X, LinkedIn, TikTok… each its own tab. Copy-paste fatigue is real.", accent: "#F87171" },
-    { icon: ShieldAlert,  t: "Accounts suspended",  d: "Your team posts too fast, uses banned hashtags, gets flagged — and gone.",         accent: "#FB7185" },
-    { icon: Clock,        t: "Content stuck",        d: "Drafts live in DMs and spreadsheets. Nobody knows what's ready to publish.",   accent: "#FBBF24" },
-    { icon: MessageCircle,t: "Inbox chaos",          d: "Comments scattered across 10 accounts. Half of them go unanswered.",          accent: "#C084FC" },
+    { icon: Layers,        t: "7 tabs open",       d: "Instagram, X, LinkedIn, TikTok… each its own tab. Copy-paste fatigue is real.", accent: COLOR.rose },
+    { icon: ShieldAlert,   t: "Accounts suspended", d: "Your team posts too fast, uses banned hashtags, gets flagged — and gone.",         accent: COLOR.rose },
+    { icon: Clock,          t: "Content stuck",    d: "Drafts live in DMs and spreadsheets. Nobody knows what's ready to publish.",   accent: COLOR.rose },
+    { icon: MessageCircle, t: "Inbox chaos",       d: "Comments scattered across 10 accounts. Half of them go unanswered.",          accent: COLOR.rose },
   ];
   return (
-    <section
-      className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #03060C 0%, #2A0A0A 50%, #0A1F1A 100%)" }}
-    >
-      {/* Faint red aurora */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-50"
-        style={{
-          background:
-            "radial-gradient(ellipse at 30% 20%, rgba(244,63,94,0.18), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(220,38,38,0.18), transparent 60%)",
-        }}
-      />
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: COLOR.bg }}>
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
-            <Eyebrow icon={ShieldAlert} label="The old way" color="#F87171" />
+            <Eyebrow icon={ShieldAlert} label="The old way" />
           </Reveal>
           <Reveal delay={100}>
-            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Social media management is <span className="text-rose-400">broken</span>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ color: COLOR.textHead }}>
+              Social media management is <span style={{ color: COLOR.rose }}>broken</span>
             </h2>
           </Reveal>
           <Reveal delay={200}>
-            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+            <p className="mx-auto mt-5 max-w-2xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
               Teams waste hours every day context-switching between tools. Accounts get suspended.
               Content gets lost. Here&apos;s what your team deals with right now:
             </p>
@@ -706,18 +733,10 @@ function Act2Problem() {
         <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {problems.map((p, i) => (
             <Reveal key={p.t} delay={i * 120}>
-              <MysticCard accent={p.accent} glow className="h-full p-6">
-                <div
-                  className="absolute inset-0 -z-10 rounded-3xl opacity-50"
-                  style={{
-                    background: `radial-gradient(circle at 50% 0%, ${p.accent}25, transparent 70%)`,
-                    animation: "sfPulseGlow 3s ease-in-out infinite",
-                    ["--glow" as string]: `${p.accent}40`,
-                  }}
-                />
+              <MysticCard accent={p.accent} className="h-full p-6">
                 <IconTile icon={p.icon} color={p.accent} size="lg" />
-                <h3 className="mt-5 text-lg font-bold text-white">{p.t}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-white/65">{p.d}</p>
+                <h3 className="mt-5 text-lg font-bold" style={{ color: COLOR.textHead }}>{p.t}</h3>
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: COLOR.textBody }}>{p.d}</p>
               </MysticCard>
             </Reveal>
           ))}
@@ -725,16 +744,19 @@ function Act2Problem() {
 
         {/* Pain stat strip */}
         <Reveal delay={500}>
-          <div className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/5 sm:grid-cols-4">
+          <div
+            className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-3xl border sm:grid-cols-4"
+            style={{ background: COLOR.border, borderColor: COLOR.border }}
+          >
             {[
               { v: "11 hrs",  l: "Lost weekly per teammate to tab-switching" },
               { v: "1 in 4",  l: "Accounts suspended in their first 90 days" },
               { v: "$3.2K",   l: "Average cost per missed campaign deadline" },
               { v: "62%",     l: "Of DMs go unanswered within 24 hours" },
             ].map((s) => (
-              <div key={s.l} className="bg-black/30 p-6 text-center">
-                <div className="text-3xl font-bold text-rose-400 sm:text-4xl">{s.v}</div>
-                <div className="mt-2 text-[11px] uppercase tracking-wider text-white/55">{s.l}</div>
+              <div key={s.l} className="p-6 text-center" style={{ background: COLOR.bg }}>
+                <div className="text-3xl font-bold sm:text-4xl" style={{ color: COLOR.rose }}>{s.v}</div>
+                <div className="mt-2 text-[11px] uppercase tracking-wider" style={{ color: COLOR.textBody }}>{s.l}</div>
               </div>
             ))}
           </div>
@@ -751,27 +773,20 @@ function Act3Solution() {
     <section
       id="features"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #0A1F1A 0%, #0D2820 50%, #1A1505 100%)" }}
+      style={{ background: COLOR.bg }}
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-60"
-        style={{
-          background:
-            "radial-gradient(ellipse at 20% 30%, rgba(16,185,129,0.18), transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(45,212,191,0.18), transparent 60%)",
-        }}
-      />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
-            <Eyebrow icon={Sparkles} label="The SYNQUE way" color="#34D399" />
+            <Eyebrow icon={Sparkles} label="The SYNQUE way" />
           </Reveal>
           <Reveal delay={100}>
-            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Everything your team needs to <span className="text-emerald-400">win social</span>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ color: COLOR.textHead }}>
+              Everything your team needs to <span style={{ color: COLOR.accent }}>win social</span>
             </h2>
           </Reveal>
           <Reveal delay={200}>
-            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+            <p className="mx-auto mt-5 max-w-2xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
               From ideation to publishing to protection — one premium platform, 9 integrated modules.
               Each built for teams that ship daily.
             </p>
@@ -781,17 +796,18 @@ function Act3Solution() {
         <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delay={(i % 3) * 100}>
-              <MysticCard accent={f.accent} className="h-full p-6">
+              <MysticCard accent={COLOR.accent} className="h-full p-6">
                 <div className="flex items-start justify-between">
-                  <IconTile icon={f.icon} color={f.accent} />
+                  <IconTile icon={f.icon} color={COLOR.accent} />
                   <span
-                    className="grid h-7 w-7 place-items-center rounded-full border border-white/10 text-white/40 transition group-hover:bg-white/10 group-hover:text-white/80"
+                    className="grid h-7 w-7 place-items-center rounded-full border transition group-hover:bg-white/10"
+                    style={{ borderColor: COLOR.border, color: COLOR.textBody }}
                   >
                     <ArrowRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
-                <h3 className="mt-5 text-lg font-bold text-white">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-white/65">{f.desc}</p>
+                <h3 className="mt-5 text-lg font-bold" style={{ color: COLOR.textHead }}>{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: COLOR.textBody }}>{f.desc}</p>
               </MysticCard>
             </Reveal>
           ))}
@@ -805,37 +821,30 @@ function Act3Solution() {
 
 function Act4Workflow({ onTrial }: { onTrial: () => void }) {
   const steps = [
-    { n: "01", icon: Edit3, t: "Write brief",       d: "One caption, tone, and goal — that's it.",       accent: "#FBBF24" },
-    { n: "02", icon: Wand2, t: "AI generates variants", d: "Distinct, platform-native captions per account.", accent: "#F59E0B" },
-    { n: "03", icon: ImageIcon, t: "Add media",     d: "Drop your image or video once. We adapt it.",    accent: "#F97316" },
-    { n: "04", icon: Eye,   t: "Review",            d: "Phone-style previews per platform before publish.", accent: "#FB923C" },
-    { n: "05", icon: Send,  t: "Publish",           d: "One click sends it everywhere — or queues it.",  accent: "#22D3EE" },
+    { n: "01", icon: Edit3,    t: "Write brief",            d: "One caption, tone, and goal — that's it.",        accent: COLOR.accent },
+    { n: "02", icon: Wand2,    t: "AI generates variants",  d: "Distinct, platform-native captions per account.", accent: COLOR.accent },
+    { n: "03", icon: ImageIcon, t: "Add media",              d: "Drop your image or video once. We adapt it.",    accent: COLOR.accent },
+    { n: "04", icon: Eye,      t: "Review",                  d: "Phone-style previews per platform before publish.", accent: COLOR.accent },
+    { n: "05", icon: Send,     t: "Publish",                 d: "One click sends it everywhere — or queues it.",  accent: COLOR.accent },
   ];
   return (
     <section
       id="workflow"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #1A1505 0%, #2A1F0A 50%, #1F0A15 100%)" }}
+      style={{ background: COLOR.bg }}
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-50"
-        style={{
-          background:
-            "radial-gradient(ellipse at 25% 30%, rgba(251,191,36,0.18), transparent 60%), radial-gradient(ellipse at 75% 80%, rgba(249,115,22,0.15), transparent 60%)",
-        }}
-      />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
-            <Eyebrow icon={Zap} label="The SYNQUE flow" color="#FBBF24" />
+            <Eyebrow icon={Zap} label="The SYNQUE flow" />
           </Reveal>
           <Reveal delay={100}>
-            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Write once. Publish <span className="text-amber-400">everywhere.</span>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ color: COLOR.textHead }}>
+              Write once. Publish <span style={{ color: COLOR.accent }}>everywhere.</span>
             </h2>
           </Reveal>
           <Reveal delay={200}>
-            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+            <p className="mx-auto mt-5 max-w-2xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
               Compose one brief. Our AI generates distinct, platform-native captions for every account —
               respecting each platform&apos;s tone, length, and hashtag conventions.
             </p>
@@ -846,31 +855,31 @@ function Act4Workflow({ onTrial }: { onTrial: () => void }) {
         <Reveal delay={300}>
           <div className="mt-16 hidden lg:block">
             <div className="relative">
-              {/* Connecting line */}
-              <div className="absolute left-0 right-0 top-7 h-px bg-gradient-to-r from-amber-500/10 via-amber-400/50 to-cyan-400/50" />
+              {/* Connecting line — subtle hairline */}
+              <div className="absolute left-0 right-0 top-7 h-px" style={{ background: "rgba(255,255,255,0.1)" }} />
               <div className="grid grid-cols-5 gap-3">
                 {steps.map((s, i) => (
                   <Reveal key={s.n} delay={i * 120}>
                     <div className="flex flex-col items-center text-center">
                       <div
-                        className="relative grid h-14 w-14 place-items-center rounded-2xl border backdrop-blur-md"
+                        className="relative grid h-14 w-14 place-items-center rounded-2xl border"
                         style={{
-                          background: `${s.accent}1F`,
-                          borderColor: `${s.accent}55`,
-                          boxShadow: `0 0 30px -8px ${s.accent}80`,
+                          background: COLOR.bg,
+                          borderColor: `${COLOR.accent}`,
+                          boxShadow: `0 0 24px -8px ${COLOR.accentA(0.6)}`,
                         }}
                       >
-                        <s.icon className="h-6 w-6" style={{ color: s.accent }} />
+                        <s.icon className="h-6 w-6" style={{ color: COLOR.accent }} />
                       </div>
-                      <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">{s.n}</div>
-                      <div className="mt-1 text-sm font-bold text-white">{s.t}</div>
-                      <div className="mt-1 text-xs text-white/60">{s.d}</div>
+                      <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: COLOR.textBody }}>{s.n}</div>
+                      <div className="mt-1 text-sm font-bold" style={{ color: COLOR.textHead }}>{s.t}</div>
+                      <div className="mt-1 text-xs" style={{ color: COLOR.textBody }}>{s.d}</div>
                       {/* Progress bar */}
-                      <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                      <div className="mt-3 h-1 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
                         <div
                           className="h-full rounded-full"
                           style={{
-                            background: s.accent,
+                            background: COLOR.accent,
                             animation: "sfBarGrow 1.2s cubic-bezier(0.34,1.56,0.64,1) both",
                             animationDelay: `${0.3 + i * 0.15}s`,
                             ["--target-w" as string]: `${(i + 1) * 20}%`,
@@ -889,24 +898,24 @@ function Act4Workflow({ onTrial }: { onTrial: () => void }) {
         {/* Mobile vertical step flow */}
         <div className="mt-12 lg:hidden">
           <div className="relative space-y-4 pl-8">
-            <div className="absolute left-[26px] top-2 bottom-2 w-px bg-gradient-to-b from-amber-400/50 via-amber-500/30 to-cyan-400/50" />
+            <div className="absolute left-[26px] top-2 bottom-2 w-px" style={{ background: "rgba(255,255,255,0.1)" }} />
             {steps.map((s, i) => (
               <Reveal key={s.n} delay={i * 100}>
                 <div className="relative flex items-start gap-4">
                   <div
-                    className="absolute -left-8 grid h-12 w-12 place-items-center rounded-2xl border backdrop-blur-md"
+                    className="absolute -left-8 grid h-12 w-12 place-items-center rounded-2xl border"
                     style={{
-                      background: `${s.accent}1F`,
-                      borderColor: `${s.accent}55`,
-                      boxShadow: `0 0 20px -6px ${s.accent}80`,
+                      background: COLOR.bg,
+                      borderColor: COLOR.accent,
+                      boxShadow: `0 0 20px -6px ${COLOR.accentA(0.6)}`,
                     }}
                   >
-                    <s.icon className="h-5 w-5" style={{ color: s.accent }} />
+                    <s.icon className="h-5 w-5" style={{ color: COLOR.accent }} />
                   </div>
-                  <div className="ml-4 flex-1 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">{s.n}</div>
-                    <div className="text-sm font-bold text-white">{s.t}</div>
-                    <div className="mt-1 text-xs text-white/60">{s.d}</div>
+                  <div className="ml-4 flex-1 rounded-2xl border p-4 backdrop-blur-sm" style={{ background: COLOR.cardBg, borderColor: COLOR.border }}>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: COLOR.textBody }}>{s.n}</div>
+                    <div className="text-sm font-bold" style={{ color: COLOR.textHead }}>{s.t}</div>
+                    <div className="mt-1 text-xs" style={{ color: COLOR.textBody }}>{s.d}</div>
                   </div>
                 </div>
               </Reveal>
@@ -916,7 +925,7 @@ function Act4Workflow({ onTrial }: { onTrial: () => void }) {
 
         <Reveal delay={500}>
           <div className="mt-14 flex justify-center">
-            <GlowCTA onClick={onTrial} tone="amber">
+            <GlowCTA onClick={onTrial}>
               <Wand2 className="h-4 w-4" /> Try the composer
             </GlowCTA>
           </div>
@@ -936,63 +945,61 @@ function Act5Protection() {
     { icon: KeyRound,      t: "2FA enforcement",         d: "Require two-factor auth for every team member. No exceptions." },
   ];
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #1F0A15 0%, #2A0F1F 50%, #150A1F 100%)" }}>
-      <div
-        className="pointer-events-none absolute inset-0 opacity-50"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 30%, rgba(244,63,94,0.2), transparent 60%), radial-gradient(ellipse at 80% 80%, rgba(236,72,153,0.18), transparent 60%)",
-        }}
-      />
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: COLOR.bg }}>
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left — shield animation */}
           <Reveal>
             <div className="relative mx-auto flex aspect-square max-w-md items-center justify-center">
-              {/* Pulsing rings */}
+              {/* Pulsing rings — primary blue */}
               {[0, 1, 2].map((r) => (
                 <div
                   key={r}
-                  className="absolute rounded-full border border-rose-400/30"
+                  className="absolute rounded-full border"
                   style={{
                     width: `${40 + r * 22}%`,
                     height: `${40 + r * 22}%`,
+                    borderColor: COLOR.accentA(0.25),
                     animation: `sfPulseRing 3s ease-out infinite ${r * 0.6}s`,
                   }}
                 />
               ))}
-              {/* Glow */}
+              {/* Glow — primary blue */}
               <div
-                className="absolute h-72 w-72 rounded-full opacity-60 blur-3xl"
-                style={{ background: "radial-gradient(circle, rgba(244,63,94,0.6), transparent 70%)" }}
+                className="absolute h-72 w-72 rounded-full opacity-50 blur-3xl"
+                style={{ background: `radial-gradient(circle, ${COLOR.accentA(0.5)}, transparent 70%)` }}
               />
-              {/* Shield */}
+              {/* Shield — primary blue */}
               <div
-                className="relative grid h-44 w-44 place-items-center rounded-[2.5rem] border border-rose-400/40 bg-rose-950/40 backdrop-blur-xl"
-                style={{ animation: "sfShieldPulse 3.5s ease-in-out infinite" }}
+                className="relative grid h-44 w-44 place-items-center rounded-[2.5rem] border backdrop-blur-xl"
+                style={{
+                  background: COLOR.cardBg,
+                  borderColor: COLOR.accentA(0.4),
+                  animation: "sfShieldPulse 3.5s ease-in-out infinite",
+                }}
               >
-                <ShieldCheck className="h-20 w-20 text-rose-300" strokeWidth={1.5} />
+                <ShieldCheck className="h-20 w-20" strokeWidth={1.5} style={{ color: COLOR.accent }} />
               </div>
-              {/* Floating tags */}
-              <FloatingTag className="left-2 top-10" icon={Hash} label="No shadowbans" color="#FB7185" delay={0} />
-              <FloatingTag className="right-2 top-24" icon={Gauge} label="Warm-up safe" color="#F472B6" delay={1} />
-              <FloatingTag className="bottom-8 left-6" icon={KeyRound} label="2FA enforced" color="#C084FC" delay={2} />
-              <FloatingTag className="bottom-12 right-4" icon={CalendarClock} label="Cadence cap" color="#F87171" delay={1.5} />
+              {/* Floating tags — primary blue family */}
+              <FloatingTag className="left-2 top-10"        icon={Hash}          label="No shadowbans" color={COLOR.accent} delay={0} />
+              <FloatingTag className="right-2 top-24"        icon={Gauge}         label="Warm-up safe"  color={COLOR.accent} delay={1} />
+              <FloatingTag className="bottom-8 left-6"       icon={KeyRound}      label="2FA enforced"  color={COLOR.accent} delay={2} />
+              <FloatingTag className="bottom-12 right-4"     icon={CalendarClock} label="Cadence cap"   color={COLOR.accent} delay={1.5} />
             </div>
           </Reveal>
 
           {/* Right — copy + features */}
           <div>
             <Reveal>
-              <Eyebrow icon={ShieldCheck} label="Account protection" color="#F87171" />
+              <Eyebrow icon={ShieldCheck} label="Account protection" />
             </Reveal>
             <Reveal delay={100}>
-              <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
-                Never get <span className="text-rose-400">suspended</span> again
+              <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl" style={{ color: COLOR.textHead }}>
+                Never get <span style={{ color: COLOR.accent }}>suspended</span> again
               </h2>
             </Reveal>
             <Reveal delay={200}>
-              <p className="mt-5 text-base text-white/70 sm:text-lg">
+              <p className="mt-5 text-base sm:text-lg" style={{ color: COLOR.textBody }}>
                 SYNQUE monitors every account&apos;s health in real time. When risk rises —
                 from spam flags, report spikes, or aggressive engagement — we tell you exactly what
                 to fix and auto-enforce guards so your team can&apos;t accidentally trigger a suspension.
@@ -1001,11 +1008,14 @@ function Act5Protection() {
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               {features.map((f, i) => (
                 <Reveal key={f.t} delay={i * 100}>
-                  <div className="group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md transition hover:border-rose-400/30 hover:bg-rose-950/20">
-                    <IconTile icon={f.icon} color="#F87171" size="sm" />
+                  <div
+                    className="group flex items-start gap-3 rounded-2xl border p-4 backdrop-blur-sm transition hover:border-white/20"
+                    style={{ background: COLOR.cardBg, borderColor: COLOR.border }}
+                  >
+                    <IconTile icon={f.icon} color={COLOR.accent} size="sm" />
                     <div>
-                      <div className="text-sm font-bold text-white">{f.t}</div>
-                      <div className="mt-0.5 text-xs text-white/60">{f.d}</div>
+                      <div className="text-sm font-bold" style={{ color: COLOR.textHead }}>{f.t}</div>
+                      <div className="mt-0.5 text-xs" style={{ color: COLOR.textBody }}>{f.d}</div>
                     </div>
                   </div>
                 </Reveal>
@@ -1048,29 +1058,22 @@ function FloatingTag({
 
 function Act6AIAssistant() {
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #150A1F 0%, #1F0A2A 50%, #0A1F1F 100%)" }}>
-      <div
-        className="pointer-events-none absolute inset-0 opacity-60"
-        style={{
-          background:
-            "radial-gradient(ellipse at 30% 30%, rgba(139,92,246,0.2), transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(168,85,247,0.18), transparent 60%)",
-        }}
-      />
-      <ParticleField count={24} colors={["#A78BFA", "#C4B5FD", "#7DD3FC"]} size={[2, 3]} />
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: COLOR.bg }}>
+      <ParticleField count={20} colors={[COLOR.accent, COLOR.gold]} size={[2, 3]} />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left — copy */}
           <div>
             <Reveal>
-              <Eyebrow icon={Bot} label="AI Assistant" color="#A78BFA" />
+              <Eyebrow icon={Bot} label="AI Assistant" />
             </Reveal>
             <Reveal delay={100}>
-              <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-                Your AI-powered <span className="text-violet-400">command center</span>
+              <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ color: COLOR.textHead }}>
+                Your AI-powered <span style={{ color: COLOR.accent }}>command center</span>
               </h2>
             </Reveal>
             <Reveal delay={200}>
-              <p className="mt-5 text-base text-white/70 sm:text-lg">
+              <p className="mt-5 text-base sm:text-lg" style={{ color: COLOR.textBody }}>
                 Ask SYNQUE anything about your accounts. Get instant answers — performance,
                 scheduling, recommendations. Your AI co-pilot lives right inside the dashboard.
               </p>
@@ -1082,13 +1085,16 @@ function Act6AIAssistant() {
                 { q: "Which account is at risk?", a: "@prismhq has elevated risk. Slow posting for 48h advised." },
               ].map((c, i) => (
                 <Reveal key={c.q} delay={i * 120}>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md transition hover:border-violet-400/30">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-violet-300">
+                  <div
+                    className="rounded-2xl border p-4 backdrop-blur-sm transition hover:border-white/20"
+                    style={{ background: COLOR.cardBg, borderColor: COLOR.border }}
+                  >
+                    <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: COLOR.accent }}>
                       <Bot className="h-3.5 w-3.5" /> You asked
-                      <span className="text-white/70">— “{c.q}”</span>
+                      <span style={{ color: COLOR.textBody }}>— “{c.q}”</span>
                     </div>
-                    <div className="mt-2 flex items-start gap-2 text-sm text-white/80">
-                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-400" />
+                    <div className="mt-2 flex items-start gap-2 text-sm" style={{ color: COLOR.textHead }}>
+                      <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: COLOR.accent }} />
                       <span>{c.a}</span>
                     </div>
                   </div>
@@ -1097,32 +1103,46 @@ function Act6AIAssistant() {
             </div>
           </div>
 
-          {/* Right — chat mockup */}
+          {/* Right — chat mockup (same card style) */}
           <Reveal delay={300}>
             <div className="relative">
               {/* Floating AI badge */}
-              <div className="absolute -right-4 -top-4 z-10 flex items-center gap-1.5 rounded-full border border-violet-400/40 bg-violet-950/60 px-3 py-1.5 text-[11px] font-bold text-violet-300 backdrop-blur-md">
+              <div
+                className="absolute -right-4 -top-4 z-10 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold backdrop-blur-md"
+                style={{
+                  borderColor: COLOR.accentA(0.4),
+                  background: COLOR.accentA(0.1),
+                  color: COLOR.accent,
+                }}
+              >
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-400" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: COLOR.accent }} />
+                  <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: COLOR.accent }} />
                 </span>
                 AI Online
               </div>
 
-              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#1B0F2E]/80 backdrop-blur-2xl shadow-[0_30px_80px_-20px_rgba(139,92,246,0.5)]">
+              <div
+                className="relative overflow-hidden rounded-3xl border backdrop-blur-xl"
+                style={{
+                  background: COLOR.cardBg,
+                  borderColor: COLOR.border,
+                  boxShadow: `0 30px 80px -20px ${COLOR.accentA(0.3)}`,
+                }}
+              >
                 {/* Header */}
-                <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white">
+                <div className="flex items-center gap-3 border-b px-5 py-4" style={{ borderColor: COLOR.border }}>
+                  <div className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: COLOR.accent }}>
                     <Bot className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-white">SYNQUE AI</div>
-                    <div className="text-[11px] text-white/50">Workspace · Prism Studio</div>
+                    <div className="text-sm font-bold" style={{ color: COLOR.textHead }}>SYNQUE AI</div>
+                    <div className="text-[11px]" style={{ color: COLOR.textBody }}>Workspace · Prism Studio</div>
                   </div>
                   <div className="ml-auto flex gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-rose-400/70" />
-                    <span className="h-2 w-2 rounded-full bg-amber-400/70" />
-                    <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
+                    <span className="h-2 w-2 rounded-full" style={{ background: COLOR.roseA(0.7) }} />
+                    <span className="h-2 w-2 rounded-full" style={{ background: "#FBBF24" }} />
+                    <span className="h-2 w-2 rounded-full" style={{ background: COLOR.emerald }} />
                   </div>
                 </div>
 
@@ -1130,16 +1150,22 @@ function Act6AIAssistant() {
                 <div className="space-y-4 p-5">
                   {/* User message */}
                   <div className="flex justify-end">
-                    <div className="max-w-[80%] rounded-2xl rounded-tr-sm border border-white/10 bg-white/10 px-4 py-2.5 text-sm text-white/90">
+                    <div
+                      className="max-w-[80%] rounded-2xl rounded-tr-sm border px-4 py-2.5 text-sm"
+                      style={{ background: "rgba(255,255,255,0.06)", borderColor: COLOR.border, color: COLOR.textHead }}
+                    >
                       How many posts did we publish this week?
                     </div>
                   </div>
                   {/* AI typing message */}
                   <div className="flex items-start gap-3">
-                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white">
+                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-white" style={{ background: COLOR.accent }}>
                       <Sparkles className="h-4 w-4" />
                     </div>
-                    <div className="max-w-[85%] rounded-2xl rounded-tl-sm border border-violet-400/20 bg-violet-950/40 px-4 py-3 text-sm text-violet-100">
+                    <div
+                      className="max-w-[85%] rounded-2xl rounded-tl-sm border px-4 py-3 text-sm"
+                      style={{ background: COLOR.accentA(0.08), borderColor: COLOR.accentA(0.2), color: COLOR.textHead }}
+                    >
                       <TypingBubble
                         text="You published 12 posts across 3 platforms this week — 7 on Instagram, 3 on X, 2 on LinkedIn. Engagement is up 18% vs. last week. Top performer: your Tuesday Reel."
                         durationMs={5200}
@@ -1150,7 +1176,11 @@ function Act6AIAssistant() {
                   {/* Suggested chips */}
                   <div className="flex flex-wrap gap-2 pt-1">
                     {["Show me chart", "Draft next week", "Flag risky account"].map((s) => (
-                      <span key={s} className="rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-[11px] font-medium text-violet-200">
+                      <span
+                        key={s}
+                        className="rounded-full border px-3 py-1 text-[11px] font-medium"
+                        style={{ borderColor: COLOR.accentA(0.3), background: COLOR.accentA(0.06), color: COLOR.accent }}
+                      >
                         {s}
                       </span>
                     ))}
@@ -1158,13 +1188,13 @@ function Act6AIAssistant() {
                 </div>
 
                 {/* Input */}
-                <div className="flex items-center gap-2 border-t border-white/10 p-3">
-                  <div className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/40">
+                <div className="flex items-center gap-2 border-t p-3" style={{ borderColor: COLOR.border }}>
+                  <div className="flex-1 rounded-xl border px-4 py-2.5 text-sm" style={{ background: "rgba(255,255,255,0.04)", borderColor: COLOR.border, color: COLOR.textBody }}>
                     Ask anything about your social presence…
                   </div>
                   <button
                     className="grid h-10 w-10 place-items-center rounded-xl text-white"
-                    style={{ background: "linear-gradient(135deg, #8B5CF6, #6366F1)" }}
+                    style={{ background: COLOR.accent }}
                   >
                     <Send className="h-4 w-4" />
                   </button>
@@ -1174,13 +1204,13 @@ function Act6AIAssistant() {
               {/* Floating KPI chips */}
               <div className="mt-4 grid grid-cols-3 gap-3">
                 {[
-                  { l: "Posts", v: "12", c: "#A78BFA" },
-                  { l: "Reach", v: "2.4M", c: "#22D3EE" },
-                  { l: "Engagement", v: "+18%", c: "#34D399" },
+                  { l: "Posts", v: "12",       c: COLOR.accent },
+                  { l: "Reach", v: "2.4M",     c: COLOR.gold },
+                  { l: "Engagement", v: "+18%", c: COLOR.emerald },
                 ].map((k) => (
-                  <div key={k.l} className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center backdrop-blur-md">
+                  <div key={k.l} className="rounded-2xl border p-3 text-center backdrop-blur-md" style={{ background: COLOR.cardBg, borderColor: COLOR.border }}>
                     <div className="text-lg font-bold" style={{ color: k.c }}>{k.v}</div>
-                    <div className="text-[10px] uppercase tracking-wider text-white/50">{k.l}</div>
+                    <div className="text-[10px] uppercase tracking-wider" style={{ color: COLOR.textBody }}>{k.l}</div>
                   </div>
                 ))}
               </div>
@@ -1196,26 +1226,19 @@ function Act6AIAssistant() {
 
 function Act7Analytics({ onTrial }: { onTrial: () => void }) {
   return (
-    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "linear-gradient(180deg, #0A1F1F 0%, #0D2525 50%, #0F1419 100%)" }}>
-      <div
-        className="pointer-events-none absolute inset-0 opacity-60"
-        style={{
-          background:
-            "radial-gradient(ellipse at 20% 30%, rgba(45,212,191,0.18), transparent 60%), radial-gradient(ellipse at 80% 70%, rgba(34,211,238,0.16), transparent 60%)",
-        }}
-      />
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: COLOR.bg }}>
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
-            <Eyebrow icon={Activity} label="Analytics" color="#2DD4BF" />
+            <Eyebrow icon={Activity} label="Analytics" />
           </Reveal>
           <Reveal delay={100}>
-            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              See your growth in <span className="text-teal-400">real-time</span>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ color: COLOR.textHead }}>
+              See your growth in <span style={{ color: COLOR.accent }}>real-time</span>
             </h2>
           </Reveal>
           <Reveal delay={200}>
-            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+            <p className="mx-auto mt-5 max-w-2xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
               Track followers, reach, and engagement across every platform — unified, beautiful, alive.
             </p>
           </Reveal>
@@ -1224,21 +1247,21 @@ function Act7Analytics({ onTrial }: { onTrial: () => void }) {
         {/* KPI cards */}
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { l: "Followers",   v: "1.62M", d: "+1.2%",  icon: Users,      color: "#2DD4BF" },
-            { l: "Reach",       v: "2.41M", d: "+18%",   icon: EyeIcon,    color: "#22D3EE" },
-            { l: "Engagement",  v: "191K",  d: "+4.5%",  icon: TrendingUp, color: "#34D399" },
-            { l: "Posts",       v: "342",   d: "+12",    icon: Layers,     color: "#5EEAD4" },
+            { l: "Followers",   v: "1.62M", d: "+1.2%",  icon: Users,      color: COLOR.accent },
+            { l: "Reach",       v: "2.41M", d: "+18%",   icon: EyeIcon,    color: COLOR.accent },
+            { l: "Engagement",  v: "191K",  d: "+4.5%",  icon: TrendingUp, color: COLOR.accent },
+            { l: "Posts",       v: "342",   d: "+12",    icon: Layers,     color: COLOR.accent },
           ].map((k, i) => (
             <Reveal key={k.l} delay={i * 100}>
-              <MysticCard accent={k.color} className="h-full p-5">
+              <MysticCard accent={COLOR.accent} className="h-full p-5">
                 <div className="flex items-center justify-between">
                   <IconTile icon={k.icon} color={k.color} size="sm" />
-                  <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                  <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: COLOR.accentA(0.15), color: COLOR.accent }}>
                     {k.d}
                   </span>
                 </div>
-                <div className="mt-4 text-3xl font-bold text-white tabular-nums">{k.v}</div>
-                <div className="mt-1 text-[11px] uppercase tracking-wider text-white/55">{k.l}</div>
+                <div className="mt-4 text-3xl font-bold tabular-nums" style={{ color: COLOR.textHead }}>{k.v}</div>
+                <div className="mt-1 text-[11px] uppercase tracking-wider" style={{ color: COLOR.textBody }}>{k.l}</div>
               </MysticCard>
             </Reveal>
           ))}
@@ -1246,20 +1269,22 @@ function Act7Analytics({ onTrial }: { onTrial: () => void }) {
 
         {/* Chart mockup */}
         <Reveal delay={400}>
-          <MysticCard accent="#2DD4BF" className="mt-6 p-6 sm:p-8">
+          <MysticCard accent={COLOR.accent} className="mt-6 p-6 sm:p-8">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-bold text-white">Performance trend</div>
-                <div className="text-[11px] text-white/55">Last 14 days · all platforms</div>
+                <div className="text-sm font-bold" style={{ color: COLOR.textHead }}>Performance trend</div>
+                <div className="text-[11px]" style={{ color: COLOR.textBody }}>Last 14 days · all platforms</div>
               </div>
               <div className="flex gap-2">
                 {["7d", "14d", "30d", "90d"].map((p, i) => (
                   <span
                     key={p}
-                    className={cn(
-                      "rounded-full px-3 py-1 text-[11px] font-semibold",
-                      i === 1 ? "bg-teal-400/20 text-teal-300" : "bg-white/5 text-white/50",
-                    )}
+                    className={cn("rounded-full px-3 py-1 text-[11px] font-semibold")}
+                    style={
+                      i === 1
+                        ? { background: COLOR.accentA(0.2), color: COLOR.accent }
+                        : { background: "rgba(255,255,255,0.05)", color: COLOR.textBody }
+                    }
                   >
                     {p}
                   </span>
@@ -1270,12 +1295,12 @@ function Act7Analytics({ onTrial }: { onTrial: () => void }) {
             <div className="mt-6 h-44">
               <GrowingBars
                 values={[35, 48, 42, 58, 65, 52, 70, 78, 68, 82, 75, 90, 85, 95]}
-                color="linear-gradient(to top, #0F766E, #2DD4BF, #5EEAD4)"
+                color={`linear-gradient(to top, ${COLOR.accent}, ${COLOR.gold})`}
                 className="h-full"
               />
             </div>
             {/* X-axis */}
-            <div className="mt-2 flex justify-between text-[10px] text-white/40">
+            <div className="mt-2 flex justify-between text-[10px]" style={{ color: COLOR.textBody }}>
               {["Mon", "Wed", "Fri", "Sun", "Tue", "Thu", "Sat"].map((d, i) => (
                 <span key={d + i}>{d}</span>
               ))}
@@ -1284,16 +1309,16 @@ function Act7Analytics({ onTrial }: { onTrial: () => void }) {
             {/* Platform breakdown */}
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {[
-                { l: "Instagram", v: "1.1M", c: "#F472B6", w: 78 },
-                { l: "X / Twitter", v: "620K", c: "#5EEAD4", w: 55 },
-                { l: "LinkedIn", v: "690K", c: "#22D3EE", w: 61 },
+                { l: "Instagram", v: "1.1M", c: COLOR.accent, w: 78 },
+                { l: "X / Twitter", v: "620K", c: COLOR.gold,  w: 55 },
+                { l: "LinkedIn", v: "690K",   c: COLOR.emerald, w: 61 },
               ].map((p) => (
-                <div key={p.l} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div key={p.l} className="rounded-2xl border p-4" style={{ background: COLOR.cardBg, borderColor: COLOR.border }}>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-white/80">{p.l}</span>
+                    <span className="font-semibold" style={{ color: COLOR.textHead }}>{p.l}</span>
                     <span className="font-bold tabular-nums" style={{ color: p.c }}>{p.v}</span>
                   </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
                     <div
                       className="h-full rounded-full"
                       style={{
@@ -1312,7 +1337,7 @@ function Act7Analytics({ onTrial }: { onTrial: () => void }) {
 
         <Reveal delay={600}>
           <div className="mt-10 flex justify-center">
-            <GlowCTA onClick={onTrial} tone="teal">
+            <GlowCTA onClick={onTrial}>
               <BarChart3 className="h-4 w-4" /> Explore your analytics
             </GlowCTA>
           </div>
@@ -1331,57 +1356,52 @@ function Act8Comparison() {
     <section
       id="compare"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #0F1419 0%, #151B22 50%, #0A0A2F 100%)" }}
+      style={{ background: COLOR.bg }}
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-50"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 20%, rgba(45,212,191,0.16), transparent 60%), radial-gradient(ellipse at 80% 90%, rgba(99,102,241,0.14), transparent 60%)",
-        }}
-      />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
-            <Eyebrow icon={Target} label="Competitor comparison" color="#5EEAD4" />
+            <Eyebrow icon={Target} label="Competitor comparison" />
           </Reveal>
           <Reveal delay={100}>
-            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Why settle for <span className="text-teal-400">less?</span>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ color: COLOR.textHead }}>
+              Why settle for <span style={{ color: COLOR.accent }}>less?</span>
             </h2>
           </Reveal>
           <Reveal delay={200}>
-            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+            <p className="mx-auto mt-5 max-w-2xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
               The only platform that combines AI content, multi-tenant isolation, and account protection in one workspace.
             </p>
           </Reveal>
         </div>
 
         <Reveal delay={300}>
-          <div className="mt-14 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl">
+          <div
+            className="mt-14 overflow-hidden rounded-3xl border backdrop-blur-xl"
+            style={{ background: COLOR.cardBg, borderColor: COLOR.border }}
+          >
             {/* Header row */}
-            <div className="grid grid-cols-5 border-b border-white/10 bg-white/[0.02]">
-              <div className="px-4 py-5 text-xs font-semibold uppercase tracking-wider text-white/55 sm:px-6">
+            <div className="grid grid-cols-5 border-b" style={{ background: "rgba(255,255,255,0.02)", borderColor: COLOR.border }}>
+              <div className="px-4 py-5 text-xs font-semibold uppercase tracking-wider sm:px-6" style={{ color: COLOR.textBody }}>
                 Capability
               </div>
               {competitors.map((c, i) => (
                 <div
                   key={c}
-                  className={cn(
-                    "px-2 py-5 text-center sm:px-6",
-                    i === 0 && "bg-gradient-to-b from-teal-500/15 to-transparent",
-                  )}
+                  className={cn("relative px-2 py-5 text-center sm:px-6")}
+                  style={i === 0 ? { borderColor: COLOR.accent, borderLeft: `1px solid ${COLOR.accent}`, borderRight: `1px solid ${COLOR.accent}` } : undefined}
                 >
                   <div
-                    className={cn(
-                      "text-xs font-bold sm:text-sm",
-                      i === 0 ? "text-teal-300" : "text-white/70",
-                    )}
+                    className={cn("text-xs font-bold sm:text-sm")}
+                    style={{ color: i === 0 ? COLOR.accent : COLOR.textHead }}
                   >
                     {c}
                   </div>
                   {i === 0 && (
-                    <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-teal-400/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-teal-300">
+                    <div
+                      className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                      style={{ background: COLOR.accentA(0.2), color: COLOR.accent }}
+                    >
                       <Star className="h-2.5 w-2.5" /> Best
                     </div>
                   )}
@@ -1392,34 +1412,30 @@ function Act8Comparison() {
             {rows.map((r, ri) => (
               <div
                 key={r.label}
-                className={cn(
-                  "grid grid-cols-5 items-center border-b border-white/5 last:border-b-0",
-                  ri % 2 === 0 ? "bg-white/[0.01]" : "",
-                )}
+                className="grid grid-cols-5 items-center border-b last:border-b-0"
+                style={{ background: ri % 2 === 0 ? "rgba(255,255,255,0.01)" : "transparent", borderColor: COLOR.border }}
               >
-                <div className="flex items-center gap-2 px-4 py-4 text-sm font-medium text-white/85 sm:px-6">
-                  <r.icon className="h-4 w-4 shrink-0 text-white/50" />
+                <div className="flex items-center gap-2 px-4 py-4 text-sm font-medium sm:px-6" style={{ color: COLOR.textHead }}>
+                  <r.icon className="h-4 w-4 shrink-0" style={{ color: COLOR.textBody }} />
                   <span className="hidden sm:inline">{r.label}</span>
                   <span className="sm:hidden">{r.short}</span>
                 </div>
                 {r.values.map((v, i) => (
                   <div
                     key={i}
-                    className={cn(
-                      "px-2 py-4 text-center sm:px-6",
-                      i === 0 && "bg-gradient-to-b from-teal-500/[0.06] to-transparent",
-                    )}
+                    className="px-2 py-4 text-center sm:px-6"
+                    style={i === 0 ? { background: COLOR.accentA(0.06), borderLeft: `1px solid ${COLOR.border}`, borderRight: `1px solid ${COLOR.border}` } : undefined}
                   >
                     {v === true ? (
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-teal-400/15 text-teal-300">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full" style={{ background: COLOR.accentA(0.15), color: COLOR.accent }}>
                         <Check className="h-4 w-4" strokeWidth={3} />
                       </span>
                     ) : v === false ? (
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/5 text-white/30">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.3)" }}>
                         <Minus className="h-3.5 w-3.5" />
                       </span>
                     ) : (
-                      <span className="text-xs text-white/50">{v}</span>
+                      <span className="text-xs" style={{ color: COLOR.textBody }}>{v}</span>
                     )}
                   </div>
                 ))}
@@ -1439,27 +1455,20 @@ function Act9Pricing({ onTrial }: { onTrial: () => void }) {
     <section
       id="pricing"
       className="relative w-full overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #0A0A2F 0%, #0F0F35 50%, #03060C 100%)" }}
+      style={{ background: COLOR.bg }}
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-60"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 30%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(ellipse at 30% 80%, rgba(139,92,246,0.18), transparent 60%)",
-        }}
-      />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
-            <Eyebrow icon={CreditCard} label="Pricing" color="#818CF8" />
+            <Eyebrow icon={CreditCard} label="Pricing" />
           </Reveal>
           <Reveal delay={100}>
-            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Start with a <span className="text-indigo-300">15-day free trial</span>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ color: COLOR.textHead }}>
+              Start with a <span style={{ color: COLOR.accent }}>15-day free trial</span>
             </h2>
           </Reveal>
           <Reveal delay={200}>
-            <p className="mx-auto mt-5 max-w-2xl text-base text-white/70 sm:text-lg">
+            <p className="mx-auto mt-5 max-w-2xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
               No card to explore. Pick a plan when you&apos;re ready. Cancel anytime.
             </p>
           </Reveal>
@@ -1473,46 +1482,57 @@ function Act9Pricing({ onTrial }: { onTrial: () => void }) {
                 <div
                   className={cn(
                     "group relative flex h-full flex-col overflow-hidden rounded-3xl border p-7 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5",
-                    featured
-                      ? "border-indigo-400/40 bg-gradient-to-b from-indigo-500/15 to-violet-500/5 shadow-[0_30px_80px_-30px_rgba(99,102,241,0.6)]"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/20",
                   )}
+                  style={
+                    featured
+                      ? {
+                          borderColor: COLOR.accent,
+                          background: `linear-gradient(to bottom, ${COLOR.accentA(0.1)}, ${COLOR.accentA(0.02)})`,
+                          boxShadow: `0 30px 80px -30px ${COLOR.accentA(0.5)}`,
+                        }
+                      : {
+                          borderColor: COLOR.border,
+                          background: COLOR.cardBg,
+                        }
+                  }
                 >
                   {featured && (
                     <>
                       <div
                         className="pointer-events-none absolute -inset-px rounded-3xl opacity-50 blur-2xl"
-                        style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.4), rgba(139,92,246,0.2))" }}
+                        style={{ background: `linear-gradient(135deg, ${COLOR.accentA(0.4)}, ${COLOR.accentA(0.1)})` }}
                       />
-                      <div className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full bg-indigo-400 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-950">
+                      <div
+                        className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
+                        style={{ background: COLOR.accent }}
+                      >
                         <Star className="h-3 w-3 fill-current" /> Most popular
                       </div>
                     </>
                   )}
                   <div className="relative flex h-full flex-col">
-                    <div className="text-sm font-semibold uppercase tracking-wider text-white/60">{p.name}</div>
+                    <div className="text-sm font-semibold uppercase tracking-wider" style={{ color: COLOR.textBody }}>{p.name}</div>
                     <div className="mt-4 flex items-baseline gap-1.5">
                       <span
-                        className={cn(
-                          "text-5xl font-bold tabular-nums transition-all duration-300 group-hover:scale-105",
-                          featured ? "text-white" : "text-white/95",
-                        )}
-                        style={{ textShadow: featured ? "0 0 30px rgba(129,140,248,0.5)" : undefined }}
+                        className="text-5xl font-bold tabular-nums transition-all duration-300 group-hover:scale-105"
+                        style={{ color: COLOR.textHead }}
                       >
                         {p.price}
                       </span>
-                      {p.price !== "Custom" && <span className="text-sm text-white/50">/mo</span>}
+                      {p.price !== "Custom" && <span className="text-sm" style={{ color: COLOR.textBody }}>/mo</span>}
                     </div>
-                    <p className="mt-3 text-sm text-white/60">{p.desc}</p>
+                    <p className="mt-3 text-sm" style={{ color: COLOR.textBody }}>{p.desc}</p>
 
                     <ul className="mt-6 flex-1 space-y-2.5">
                       {p.features.map((f) => (
-                        <li key={f} className="flex items-start gap-2.5 text-sm text-white/85">
+                        <li key={f} className="flex items-start gap-2.5 text-sm" style={{ color: COLOR.textHead }}>
                           <span
-                            className={cn(
-                              "mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full",
-                              featured ? "bg-indigo-400/20 text-indigo-300" : "bg-emerald-400/15 text-emerald-300",
-                            )}
+                            className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full"
+                            style={
+                              featured
+                                ? { background: COLOR.accentA(0.2), color: COLOR.accent }
+                                : { background: COLOR.accentA(0.15), color: COLOR.accent }
+                            }
                           >
                             <Check className="h-3 w-3" strokeWidth={3} />
                           </span>
@@ -1525,14 +1545,19 @@ function Act9Pricing({ onTrial }: { onTrial: () => void }) {
                       onClick={onTrial}
                       className={cn(
                         "mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5",
-                        featured
-                          ? "text-indigo-950 hover:brightness-110"
-                          : "border border-white/20 bg-white/5 text-white hover:bg-white/10",
                       )}
                       style={
                         featured
-                          ? { background: "linear-gradient(135deg, #818CF8, #6366F1)", boxShadow: "0 12px 30px -8px rgba(99,102,241,0.6)" }
-                          : undefined
+                          ? {
+                              background: COLOR.accent,
+                              color: "white",
+                              boxShadow: `0 12px 30px -8px ${COLOR.accentA(0.6)}`,
+                            }
+                          : {
+                              border: `1px solid ${COLOR.border}`,
+                              background: "rgba(255,255,255,0.04)",
+                              color: COLOR.textHead,
+                            }
                       }
                     >
                       Start 15-day trial <ArrowRight className="h-4 w-4" />
@@ -1545,9 +1570,9 @@ function Act9Pricing({ onTrial }: { onTrial: () => void }) {
         </div>
 
         <Reveal delay={500}>
-          <p className="mt-10 text-center text-xs text-white/50">
+          <p className="mt-10 text-center text-xs" style={{ color: COLOR.textBody }}>
             All plans include the full SYNQUE module suite during your 15-day trial.
-            <br className="sm:hidden" /> Need a custom plan? <button onClick={onTrial} className="font-semibold text-indigo-300 underline-offset-4 hover:underline">Talk to sales →</button>
+            <br className="sm:hidden" /> Need a custom plan? <button onClick={onTrial} className="font-semibold underline-offset-4 hover:underline" style={{ color: COLOR.accent }}>Talk to sales →</button>
           </p>
         </Reveal>
       </div>
@@ -1559,29 +1584,15 @@ function Act9Pricing({ onTrial }: { onTrial: () => void }) {
 
 function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
   return (
-    <section className="relative w-full overflow-hidden py-32 sm:py-40">
-      {/* Aurora finale background */}
+    <section className="relative w-full overflow-hidden py-32 sm:py-40" style={{ background: COLOR.bg }}>
+      {/* Single subtle blue glow at bottom — no multi-color aurora */}
       <div className="absolute inset-0" aria-hidden>
         <div
-          className="absolute inset-0"
+          className="absolute bottom-[-20%] left-1/2 h-[60vh] w-[80vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
           style={{
-            background:
-              "linear-gradient(120deg, #0A1A2F 0%, #0F2A4F 20%, #0E3A3D 40%, #1F0A2A 60%, #2A1F0A 80%, #0A1A2F 100%)",
-            backgroundSize: "300% 300%",
-            animation: "sfGradientText 14s ease-in-out infinite",
+            background: `radial-gradient(circle, ${COLOR.accentA(0.5)}, transparent 70%)`,
+            animation: "sfAuroraDrift 22s ease-in-out infinite",
           }}
-        />
-        <div
-          className="absolute -top-20 left-1/4 h-72 w-72 rounded-full opacity-50 blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(45,212,191,0.6), transparent 70%)" }}
-        />
-        <div
-          className="absolute top-1/3 right-1/4 h-80 w-80 rounded-full opacity-50 blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(168,85,247,0.5), transparent 70%)" }}
-        />
-        <div
-          className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full opacity-50 blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(251,191,36,0.5), transparent 70%)" }}
         />
         <ConfettiField count={48} />
       </div>
@@ -1589,7 +1600,12 @@ function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
       <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
         <Reveal>
           <span
-            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-md"
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] backdrop-blur-md"
+            style={{
+              borderColor: COLOR.accentA(0.3),
+              background: COLOR.accentA(0.08),
+              color: COLOR.accent,
+            }}
           >
             <Sparkles className="h-3.5 w-3.5" /> Aurora finale
           </span>
@@ -1599,7 +1615,7 @@ function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
             <span
               className="bg-clip-text text-transparent"
               style={{
-                backgroundImage: "linear-gradient(120deg, #5EEAD4, #22D3EE, #A78BFA, #FBBF24)",
+                backgroundImage: `linear-gradient(120deg, ${COLOR.accent}, ${COLOR.gold})`,
                 backgroundSize: "200% 200%",
                 animation: "sfGradientText 8s ease-in-out infinite",
               }}
@@ -1607,27 +1623,27 @@ function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
               Ready to simplify
             </span>
             <br />
-            <span className="text-white">your social team?</span>
+            <span style={{ color: COLOR.textHead }}>your social team?</span>
           </h2>
         </Reveal>
         <Reveal delay={240}>
-          <p className="mx-auto mt-6 max-w-xl text-base text-white/75 sm:text-lg">
+          <p className="mx-auto mt-6 max-w-xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
             Join the teams using SYNQUE to publish smarter, protect their accounts, and beat the competition.
             Start your 15-day trial — full access, no card to explore.
           </p>
         </Reveal>
         <Reveal delay={360}>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <GlowCTA onClick={onTrial} tone="teal" className="min-w-[280px] px-8 py-4 text-base">
+            <GlowCTA onClick={onTrial} className="min-w-[280px] px-8 py-4 text-base">
               <Rocket className="h-5 w-5" /> Start your 15-day trial
             </GlowCTA>
           </div>
         </Reveal>
         <Reveal delay={480}>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] text-white/70">
-            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> No credit card required</span>
-            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Cancel anytime</span>
-            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-400" /> Full access for 15 days</span>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px]" style={{ color: COLOR.textBody }}>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> No credit card required</span>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> Cancel anytime</span>
+            <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> Full access for 15 days</span>
           </div>
         </Reveal>
       </div>
@@ -1639,23 +1655,23 @@ function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
 
 function Act11Footer() {
   return (
-    <footer className="relative w-full overflow-hidden bg-[#0A0A0A] pt-20 pb-10 text-white">
+    <footer className="relative w-full overflow-hidden pt-20 pb-10" style={{ background: COLOR.footer, color: COLOR.textHead }}>
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{ background: "linear-gradient(to right, transparent, rgba(94,234,212,0.4), transparent)" }}
+        style={{ background: "linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent)" }}
       />
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2.5">
               <Logo size={28} withTile={false} />
-              <span className="text-base font-bold tracking-tight">SYNQUE</span>
+              <span className="text-base font-bold tracking-tight" style={{ color: COLOR.textHead }}>SYNQUE</span>
             </div>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/60">
+            <p className="mt-4 max-w-xs text-sm leading-relaxed" style={{ color: COLOR.textBody }}>
               Sync Your Social. The enterprise command center for modern social teams.
             </p>
-            <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/55">
-              <ShieldCheck className="h-3.5 w-3.5 text-teal-400" />
+            <div className="mt-5 flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px]" style={{ borderColor: COLOR.border, background: COLOR.cardBg, color: COLOR.textBody }}>
+              <ShieldCheck className="h-3.5 w-3.5" style={{ color: COLOR.accent }} />
               Encrypted · 2FA · SOC2-ready
             </div>
             {/* Social icons */}
@@ -1664,7 +1680,10 @@ function Act11Footer() {
                 <a
                   key={i}
                   href="#"
-                  className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition hover:border-teal-400/30 hover:bg-teal-400/10 hover:text-teal-300"
+                  className="grid h-9 w-9 place-items-center rounded-xl border transition"
+                  style={{ borderColor: COLOR.border, background: COLOR.cardBg, color: COLOR.textBody }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLOR.accentA(0.4); e.currentTarget.style.color = COLOR.accent; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLOR.border; e.currentTarget.style.color = COLOR.textBody; }}
                 >
                   <Icon className="h-4 w-4" />
                 </a>
@@ -1675,7 +1694,7 @@ function Act11Footer() {
           <FooterCol title="Company" links={["About|/about", "Customers|/customers", "Blog|/blog", "Careers|/careers", "Contact|/contact"]} />
           <FooterCol title="Resources" links={["Documentation|/docs", "API Reference|/api-reference", "Help Center|/help", "Status|/status", "Changelog|/changelog"]} />
         </div>
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row">
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t pt-6 text-xs sm:flex-row" style={{ borderColor: COLOR.border, color: COLOR.textBody }}>
           <span>© 2026 SYNQUE · Sync Your Social</span>
           <div className="flex gap-5">
             <a href="/privacy" className="transition hover:text-white">Privacy</a>
@@ -1691,13 +1710,13 @@ function Act11Footer() {
 function FooterCol({ title, links }: { title: string; links: string[] }) {
   return (
     <div>
-      <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/45">{title}</div>
+      <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: COLOR.textBody }}>{title}</div>
       <ul className="mt-4 space-y-2.5">
         {links.map((l) => {
           const [text, href] = l.includes("|") ? l.split("|") : [l, "#"];
           return (
             <li key={text}>
-              <a href={href} className="text-sm text-white/70 transition hover:text-teal-300">{text}</a>
+              <a href={href} className="text-sm transition hover:text-white" style={{ color: COLOR.textBody }}>{text}</a>
             </li>
           );
         })}
@@ -1733,12 +1752,12 @@ const LANDING_KEYFRAMES = `
   100% { transform: translate(var(--drift, 20px), -120vh); opacity: 0; }
 }
 @keyframes sfPulseGlow {
-  0%, 100% { box-shadow: 0 0 30px -10px var(--glow, rgba(244,63,94,0.4)); opacity: 0.6; }
-  50%      { box-shadow: 0 0 70px 0 var(--glow, rgba(244,63,94,0.7)); opacity: 1; }
+  0%, 100% { box-shadow: 0 0 30px -10px var(--glow, rgba(0,113,227,0.4)); opacity: 0.6; }
+  50%      { box-shadow: 0 0 70px 0 var(--glow, rgba(0,113,227,0.7)); opacity: 1; }
 }
 @keyframes sfShieldPulse {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 25px rgba(244,63,94,0.5)); }
-  50%      { transform: scale(1.04); filter: drop-shadow(0 0 50px rgba(244,63,94,0.8)); }
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 25px rgba(0,113,227,0.5)); }
+  50%      { transform: scale(1.04); filter: drop-shadow(0 0 50px rgba(0,113,227,0.8)); }
 }
 @keyframes sfPulseRing {
   0%   { transform: scale(0.8); opacity: 0.8; border-width: 1.5px; }
@@ -1769,7 +1788,7 @@ const LANDING_KEYFRAMES = `
 `;
 
 /* ============================================================================
-   Trial Activation Dialog (unchanged from previous build)
+   Trial Activation Dialog
    ============================================================================ */
 
 function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpenChange: (b: boolean) => void; onActivated: () => void }) {
@@ -1998,7 +2017,7 @@ function Field({ icon, label, value, onChange, placeholder, error, type = "text"
 }
 
 /* ============================================================================
-   Login Screen (unchanged from previous build)
+   Login Screen
    ============================================================================ */
 
 function LoginScreen({ onBack }: { onBack: () => void }) {
@@ -2199,15 +2218,15 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
    ============================================================================ */
 
 const FEATURES = [
-  { icon: Wand2,        title: "AI Composer",         desc: "Generate distinct, platform-native captions for every account from one brief — respecting tone, length & hashtag conventions.", accent: "#22D3EE" },
-  { icon: ShieldCheck,  title: "Account Protection",  desc: "Anti-suspension guards: posting cadence limits, banned-hashtag blocker, behavior caps, smart cooldowns, and a suspension advisor.", accent: "#34D399" },
-  { icon: BarChart3,   title: "Advanced Analytics",  desc: "Deep insights across every platform — impressions, reach, engagement, audience growth, per-account comparison.", accent: "#A78BFA" },
-  { icon: Users,       title: "Team & Roles",         desc: "Granular permissions per user — admin, manager, editor, member, viewer. Designations, departments, and access control.", accent: "#F472B6" },
-  { icon: Calendar,     title: "Content Calendar",    desc: "Plan and schedule your entire content pipeline with a visual month grid and drag-friendly scheduling.", accent: "#FBBF24" },
-  { icon: Server,       title: "Mail Server",         desc: "Host your team's email on your own domain — Hostinger, cPanel, Zoho or any provider. Create mailboxes, no Google needed.", accent: "#5EEAD4" },
-  { icon: MessageCircle,title: "Unified Inbox",       desc: "Comments and DMs from every account in one inbox. Sentiment-tagged, assignable, reply-ready.", accent: "#22D3EE" },
-  { icon: Target,       title: "Competitor Tracking", desc: "Benchmark rivals with follower-growth charts, engagement comparisons, and posting-frequency insights.", accent: "#818CF8" },
-  { icon: Hash,         title: "Hashtag Manager",     desc: "Save reusable hashtag groups per platform, track trending tags, and block shadowbanned hashtags.", accent: "#34D399" },
+  { icon: Wand2,        title: "AI Composer",         desc: "Generate distinct, platform-native captions for every account from one brief — respecting tone, length & hashtag conventions." },
+  { icon: ShieldCheck,  title: "Account Protection",  desc: "Anti-suspension guards: posting cadence limits, banned-hashtag blocker, behavior caps, smart cooldowns, and a suspension advisor." },
+  { icon: BarChart3,    title: "Advanced Analytics",  desc: "Deep insights across every platform — impressions, reach, engagement, audience growth, per-account comparison." },
+  { icon: Users,        title: "Team & Roles",        desc: "Granular permissions per user — admin, manager, editor, member, viewer. Designations, departments, and access control." },
+  { icon: Calendar,     title: "Content Calendar",    desc: "Plan and schedule your entire content pipeline with a visual month grid and drag-friendly scheduling." },
+  { icon: Server,       title: "Mail Server",         desc: "Host your team's email on your own domain — Hostinger, cPanel, Zoho or any provider. Create mailboxes, no Google needed." },
+  { icon: MessageCircle,title: "Unified Inbox",       desc: "Comments and DMs from every account in one inbox. Sentiment-tagged, assignable, reply-ready." },
+  { icon: Target,       title: "Competitor Tracking", desc: "Benchmark rivals with follower-growth charts, engagement comparisons, and posting-frequency insights." },
+  { icon: Hash,         title: "Hashtag Manager",     desc: "Save reusable hashtag groups per platform, track trending tags, and block shadowbanned hashtags." },
 ];
 
 const PLANS = [

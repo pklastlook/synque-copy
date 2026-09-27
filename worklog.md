@@ -6994,3 +6994,117 @@ POST /api/listening/sync
 - The sync buttons always sync ALL tracking competitors / ALL active queries (no per-row "Sync this competitor" button). The APIs accept an optional `competitorId` / `queryId` body, so a future enhancement could add a "Sync now" item to each row's dropdown menu.
 - The loading state is button-level only (spinner + "Syncing…" label). No global progress bar. If a sync takes longer than ~30s, consider adding a global progress toast or a polling-based status indicator.
 - Errors are shown as a separate `toast.error` after the success toast. If the team prefers a single combined toast, the success branch can be folded into the error branch.
+
+---
+
+## Task ID: `landing-rebuild` — Unified Landing Page Design
+
+**Task**: Completely rebuild `src/components/landing-page.tsx` (11 cinematic acts) and `src/components/landing-shared.tsx` (shared nav/footer/bg + TrialDialog) with a cohesive, professional, modern design. The previous design had 8 different dark section background colors (dark red, dark green, dark amber, dark pink, dark purple, dark cyan, dark blue, dark navy) which looked chaotic and unprofessional.
+
+### Files delivered
+1. `/home/z/my-project/src/components/landing-page.tsx` — full rebuild, ~1520 lines
+2. `/home/z/my-project/src/components/landing-shared.tsx` — full rebuild, ~530 lines
+
+### Design system applied — UNIFIED, not per-section
+
+A single shared `COLOR` token object is now defined in BOTH files (identical values):
+
+```ts
+const COLOR = {
+  bg:        "#0A0B0F",  // base canvas — near-black with subtle blue tint
+  surface:   "#111318",  // raised section — very subtle elevation
+  footer:    "#08090C",  // footer — slightly darker than sections
+  textHead:  "#F5F5F7",  // headings — Apple white
+  textBody:  "#9999A0",  // body — muted gray
+  border:    "rgba(255,255,255,0.08)",  // hairline borders, consistent throughout
+  cardBg:    "rgba(255,255,255,0.04)",  // card background — unified card style
+  accent:    "oklch(0.581 0.189 256)",  // primary blue (brand --primary)
+  gold:      "oklch(0.588 0.209 277)",  // secondary --gold (premium touches only)
+  rose:      "#FB7185",  // rose-400 — problem icons only
+  emerald:   "#34D399",  // emerald-400 — "trust" check marks only
+};
+```
+
+### What changed (visual)
+
+**Removed**:
+- The 8 different per-section gradient backgrounds (`linear-gradient(180deg, #03060C … #2A0A0A …)`, `…#0A1F1A…`, `…#1A1505…`, `…#1F0A15…`, `…#150A1F…`, `…#0A1F1F…`, `…#0F1419…`, `…#0A0A2F…`).
+- The 8 different per-section radial-gradient aurora overlays (red/green/amber/pink/purple/cyan/teal/indigo).
+- The `Transition` band component entirely (per directive §7 — no more color transitions needed since all sections share the same bg).
+- The per-card accent glow colors in the Solution section (previously each of the 9 cards had its own `accent: "#22D3EE" | "#34D399" | "#A78BFA" | "#F472B6" | "#FBBF24" | "#5EEAD4" | "#22D3EE" | "#818CF8" | "#34D399"` — now all use the unified primary blue).
+- The multi-color `tone` prop on `GlowCTA` (was `teal | violet | amber | rose | emerald | indigo` — now always primary blue).
+- The rainbow aurora finale in `Act10FinalCTA` (was 3 colored blobs in teal/purple/amber) — replaced with ONE subtle blue glow at the bottom.
+- The per-card purple/violet glow on the AI chat mockup.
+- The `retaina-bg` + `blob-3` dependency in `LandingBg` — now a single solid `#0A0B0F` background.
+
+**Kept (visual)**:
+- One subtle blue aurora glow in the Hero (`AuroraHero`), top-center, using `oklch(0.581 0.189 256 / 0.55)`.
+- Gradient text on hero headline (`linear-gradient(120deg, accent, gold)`) — same direction as before.
+- All section accent icons are now in primary blue (problem cards stay rose, trust check marks stay emerald — these are intentional semantic colors, not chaotic decoration).
+
+### What was PRESERVED (functionality — byte-for-byte identical behavior)
+
+1. **`LandingPage` mode state machine**: `"landing" | "login" | "trial"` — unchanged.
+2. **`useAuth` hook usage**: `loginAsDemo` in `Act1Hero` and `LoginScreen`, `login` in `LoginScreen`, `signup` in `TrialDialog` — unchanged.
+3. **`Act1Hero.startDemo()`**: async demo login with fallback to `/login` — unchanged.
+4. **`TrialDialog` (landing-page.tsx)**: 4-step flow (details → payment → activating → done), validates name/email/company/password/card, calls `signup()` — unchanged. Only button styling moved from `GlowCTA tone="teal"` to direct styling.
+5. **`TrialDialog` (landing-shared.tsx)**: Full API flow — `/api/customers` POST → `/api/subscriptions` POST → `signup()` → `/api/auth/me` GET → `/api/users` PATCH — unchanged. Step labels, `processingSteps`, success redirect to `/` — unchanged.
+6. **`LoginScreen`**: Email/password form, demo login button, "Forgot password?", "Sign up" link, password show/hide toggle — unchanged.
+7. **`CardPreview`**: Animated credit card mockup in `landing-shared.tsx` — unchanged structurally; only background swapped to use `COLOR.surface → COLOR.bg` gradient.
+8. **Animation components**: `Reveal`, `useInView`, `ParticleField`, `ConfettiField`, `TypingBubble`, `GrowingBars`, `AuroraHero` — all preserved with identical animation logic.
+9. **`LANDING_KEYFRAMES`**: Identical keyframes (only the default `--glow` color in `sfPulseGlow` and `sfShieldPulse` changed from rose-red to primary-blue rgba to match the new accent).
+10. **Eyebrow, MysticCard, IconTile, GlowCTA, OutlineCTA** components — preserved, just restyled to use the unified palette.
+11. **All 11 acts render in the same order** (`Act1Hero` → `Act2Problem` → `Act3Solution` → `Act4Workflow` → `Act5Protection` → `Act6AIAssistant` → `Act7Analytics` → `Act8Comparison` → `Act9Pricing` → `Act10FinalCTA` → `Act11Footer`).
+12. **`FEATURES`, `PLANS`, `COMPARE_ROWS` data**: Identical content (FEATURES lost its unused `accent` field since all icons are now blue; PLANS and COMPARE_ROWS byte-identical).
+13. **Mobile nav**: Added hamburger menu to `CinematicNav` and `LandingNav` (was a directive ask — "Mobile: hamburger menu or simplified links").
+
+### Per-section design
+
+| Act | Section | Background | Differentiator |
+|----|---------|------------|----------------|
+| 1 | Hero | `#0A0B0F` + one blue aurora glow | Gradient headline (blue → gold) |
+| 2 | Problem | `#0A0B0F` | Rose icons on cards (semantic red = warning) |
+| 3 | Solution | `#0A0B0F` | Blue icons on all 9 cards |
+| 4 | Workflow | `#0A0B0F` | Blue numbered circles + blue progress bars |
+| 5 | Protection | `#0A0B0F` | Blue shield (was rose), blue floating tags |
+| 6 | AI Assistant | `#0A0B0F` | Blue AI chat bubbles (was violet) |
+| 7 | Analytics | `#0A0B0F` | Blue KPI icons, blue→gold bar chart gradient |
+| 8 | Comparison | `#0A0B0F` | SYNQUE column with primary-blue border + faint blue tint |
+| 9 | Pricing | `#0A0B0F` | Featured (Growth) plan: blue border + blue glow + blue "Most popular" badge |
+| 10 | Final CTA | `#0A0B0F` + one blue glow at bottom | Gradient headline (blue → gold) + confetti |
+| 11 | Footer | `#08090C` (slightly darker) | Hairline top border, blue ShieldCheck icon |
+
+### Shared components (landing-shared.tsx)
+
+- **`LandingNav`**: Converted from `glass-topbar sticky` (which uses light-mode `oklch(1 0 0 / 80%)` in light mode) to a floating pill that mirrors the landing page's `CinematicNav`. Uses `rgba(10,11,15,0.8)` + `backdrop-blur-xl` when scrolled, transparent at top. Logo: bare SYNQUE logo + wordmark (no tile). Links: Features/Workflow/Pricing/About. CTA: blue "Start trial" button (matches `GlowCTA`). Mobile hamburger menu added. Added a 64px spacer div below the fixed nav so content below isn't hidden.
+- **`LandingFooter`**: Changed from `border-t border-border/40 px-4 py-10` to a full-bleed dark `#08090C` footer matching `Act11Footer`. Includes logo + wordmark, encrypted badge, 4 social icons (Globe/MessageCircle/Send/Mail), 3 footer columns (Product/Company/Resources) with all the same links as before, and bottom copyright bar with Privacy/Terms/Security.
+- **`LandingBg`**: Changed from `<div className="retaina-bg"><div className="blob-3" /></div>` to a single fixed-position `#0A0B0F` solid background (no colored blobs).
+- **`TrialCTA`**: Changed from default `liquid-gold` styling to the primary blue glowing button (matches `GlowCTA` on landing page) — consistent with the new "Start trial" button across all entry points.
+- **`TrialDialog`**: Logic preserved 100%. Visual styling for `CardPreview` updated to use `COLOR.surface → COLOR.bg` gradient + `COLOR.border` border. Other UI elements (StepDots, Fields, security badges) unchanged since they use existing app theme tokens which already work in dark mode.
+
+### Critical rules respected
+
+1. ✅ PRESERVED ALL FUNCTIONALITY — every button onClick handler, every animation hook, the TrialDialog multi-step API flow, the LoginScreen auth flow, the demo login, the particle/confetti effects.
+2. ✅ PRESERVED all 11 acts (sections) — same component names, same render order in `Landing()`, same content text. Only visual design changed.
+3. ✅ `Landing` function renders all acts in the same order (`Act1Hero` → … → `Act11Footer`).
+4. ✅ `useAuth` hook, `loginAsDemo`, `onTrial`, `onSignIn` props — all preserved.
+5. ✅ `LANDING_KEYFRAMES` CSS — preserved (only `--glow` default color in 2 keyframes updated from rose-red to primary-blue to match new accent).
+6. ✅ `Reveal`, `useInView`, `ParticleField`, `ConfettiField`, `TypingBubble`, `GrowingBars`, `AuroraHero`, `Eyebrow`, `MysticCard`, `IconTile`, `GlowCTA`, `OutlineCTA` — all preserved and restyled.
+7. ✅ `Transition` bands removed entirely (no more color transitions needed since all sections share `#0A0B0F`).
+8. ✅ `bun run lint` — 0 errors in our landing files. (One pre-existing error remains in `mini-services/whatsapp-service/index.js` line 53 — unrelated, exists on `main` before this task.)
+9. ✅ `npx tsc --noEmit` — 0 errors in our landing files. (34 lines of pre-existing errors remain in unrelated files: `mini-services/*`, `examples/*`, `skills/*`, `prisma.config.ts`, `src/app/api/ai/assistant/route.ts`, `src/app/api/platform-credentials/[platform]/sync/route.ts`, `src/app/api/workspace/route.ts` — all present on `main` before this task. Verified by stashing changes and re-running tsc — same 34 errors with or without our changes.)
+10. ✅ `bun run build` — exit code 0. (`✓ Compiled successfully in 28.9s` · `✓ Generating static pages using 1 worker (25/25) in 666.0ms` · EXIT: 0.)
+
+### Verification
+
+```bash
+$ rg "src/components/landing" <(npx tsc --noEmit 2>&1)   # → 0 matches (clean)
+$ bun run build; echo "EXIT: $?"                            # → EXIT: 0
+$ bun run lint 2>&1 | tail -5                              # → 1 pre-existing error in mini-services/whatsapp-service (unrelated)
+```
+
+### What's NOT done (out of scope / future work)
+
+- The 18 subpages that consume `<LandingNav />` / `<LandingFooter />` / `<LandingBg />` (about, features, pricing, workflow, blog, contact, docs, help, status, changelog, careers, customers, api-reference, ai-composer, protection, privacy, terms) still use their own section content with `glass-strong`, `crystal-in`, `gold-text`, `text-muted-foreground`, etc. Since the dark theme is the default (`ThemeProvider defaultTheme="dark"`), these tokens all resolve to dark-mode values, so the subpages look correct on the new `#0A0B0F` background. No edits were made to those pages — they inherit the new look automatically. If a subpage needs visual polish, it should be updated in its own task.
+- The pre-existing CSS typo `@key iosSheetUp {` (should be `@keyframes iosSheetUp {`) in `src/app/globals.css:657` was left untouched (out of scope). It produces a harmless CSS optimizer warning during `bun run build` but does not affect functionality or build exit code.
+- The pre-existing `react-hooks/rules-of-hooks` lint error in `mini-services/whatsapp-service/index.js:53` was left untouched (out of scope). It exists on `main` before this task and is unrelated to the landing page rebuild.
