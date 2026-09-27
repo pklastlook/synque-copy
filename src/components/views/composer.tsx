@@ -2318,7 +2318,7 @@ function ProgressToolbar({
     : "text-primary";
 
   return (
-    <div className="glass-strong glass-sheen sticky top-0 z-20 -mx-4 flex items-center gap-3 rounded-b-2xl px-4 py-2.5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <div className="glass-strong glass-sheen sticky top-0 z-20 flex items-center gap-3 rounded-2xl px-4 py-2.5 sm:px-6 lg:px-8">
       {/* Completion ring */}
       <div className="relative grid h-10 w-10 shrink-0 place-items-center">
         <svg viewBox="0 0 36 36" className="h-10 w-10 -rotate-90">
@@ -3217,7 +3217,7 @@ function StickyPublishBar({
   const isMac = typeof navigator !== "undefined" && navigator.platform.toLowerCase().includes("mac");
 
   return (
-    <div className="sticky bottom-0 z-30 -mx-4 px-3 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <div className="sticky bottom-0 z-30 px-0 py-2 sm:px-0 lg:px-0">
       <div className="glass-strong glass-sheen flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 sm:px-5">
         <div className="hidden min-w-0 flex-1 sm:block">
           <div className="flex items-center gap-2">
