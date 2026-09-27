@@ -7885,3 +7885,68 @@ All 6 new filters are sent in the POST body alongside the original 6 filters (us
   10. Click Save — verify the CSV downloads with all the new columns and the new filter rows at the top.
 - Consider exposing a "Save report configuration" preset so users can quickly reload a saved set of filters by name (would need a new localStorage bucket, e.g. `socialflow-custom-report-presets`).
 - Consider server-side persistence of generated reports (for sharing with team members or downloading later) — the current `POST /api/reports/custom` is stateless and recomputes on each click.
+
+---
+Task ID: composer-modernization
+Agent: main (Z.ai Code)
+Task: Modernize and enhance the Composer module — make it more enhanced, user-friendly, and interactive; modernize all sections.
+
+Work Log:
+- Read existing /home/z/my-project/src/components/views/composer.tsx (2120 lines, 5 sections: Accounts → Brief → AI Variants → Media → Schedule + sticky preview + publish bar)
+- Reviewed design primitives in /home/z/my-project/src/components/glass/dense-ui.tsx (Sparkline, MetricRow, SectionHeader, Pill, etc.)
+- Reviewed /home/z/my-project/src/lib/platforms.tsx (7 platforms: instagram, facebook, x, linkedin, tiktok, youtube, threads)
+- Designed comprehensive modernization plan covering all 5 sections + 2 new components (ProgressToolbar, CollapsibleSection)
+- Wrote new /home/z/my-project/src/components/views/composer.tsx (3362 lines, up from 2120)
+- Fixed parsing error in emoji regex (combined two character class ranges into one)
+- Replaced RotateLeft icon import with Undo2 (RotateLeft not exported from lucide-react)
+- Removed unused eslint-disable directive
+- Fixed nested <button> validation error in CollapsibleSection by switching outer element to <div role="button" tabIndex={0}> with proper onKeyDown handler
+- Added aria-describedby={undefined} to DialogContent components to suppress missing Description warning
+- Verified lint clean (only pre-existing whatsapp-service error remains)
+- Verified TypeScript clean (npx tsc --noEmit shows 0 errors in composer.tsx)
+- Verified with Agent Browser:
+  - Page loads, no runtime errors
+  - Top progress ring renders showing 10% completion initially
+  - Templates dialog opens with 4 caption templates
+  - Caption textarea accepts input
+  - Emoji picker opens, inserts emoji at cursor position (🚀 inserted correctly)
+  - Hashtag suggestion popover opens, inserts hashtag at cursor (#marketing inserted)
+  - Template chips apply text to caption (Product Launch applied)
+  - Tone pills selectable (Energetic selected)
+  - AI Improve button visible (disabled when no caption)
+  - Collapsible sections work (Media section collapsed/expanded)
+  - Schedule section shows 3 options: Publish now / Schedule / Send for approval
+  - Send for approval mode shows note field
+  - Pre-publish checklist shows progress (0/4 · 0%)
+  - Sticky publish bar shows "Select accounts to publish" + "Publish now" button (disabled)
+  - Reset button clears state
+  - No console errors after fixes
+  - No hydration errors
+
+Stage Summary:
+- Composer module completely modernized with comprehensive UX enhancements
+- All 5 sections enhanced with new features (filter pills, platform grouping, emoji picker, hashtag suggestions, caption templates, AI Improve, engagement predictions, copy button, diff indicator, device-toggle preview, theme toggle, best-time-to-post, send-for-approval, quick date presets, pre-publish checklist with % completion)
+- New top ProgressToolbar with animated completion ring (0-100%)
+- New CollapsibleSection wrapper (any section can collapse with smooth animation)
+- New TemplatesDialog with 4 caption templates (Launch, Promo, Behind the Scenes, Big Announcement)
+- New StickyPublishBar features: mini completion ring, keyboard shortcut hint (Cmd/Ctrl+Enter), disabled reason text
+- 3 schedule modes: Publish now / Schedule / Send for approval (with reviewer note)
+- Char-limit progress bar in preview
+- Device-aware preview (phone/tablet/desktop) with theme toggle (light/dark)
+- All existing API integrations preserved (no backend changes):
+  - /api/accounts (GET)
+  - /api/posts (POST/PATCH)
+  - /api/posts/:id (PATCH)
+  - /api/posts?status=draft|failed (GET)
+  - /api/media (GET), /api/media/upload (POST)
+  - /api/ai/generate (POST)
+  - /api/ai/chat (POST)
+  - /api/publish/:platform (POST)
+- ComposerState extended additively: added location, sendForApproval, approvalNote, pinned fields (all optional, backward compatible)
+- Save-draft-only feature (POST /api/posts with status=draft, no publishing)
+- Reset all feature (clears state + collapses sections + closes popovers)
+- Keyboard shortcut: Cmd/Ctrl+Enter triggers publish()
+- Files delivered: /home/z/my-project/src/components/views/composer.tsx (3362 lines)
+- Lint: 0 errors in composer.tsx
+- TypeScript: 0 errors in composer.tsx
+- Browser-verified interactive
