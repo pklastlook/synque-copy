@@ -12,7 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { db: targetDb } = await getDbForUser(user!);
   const { id } = await params;
 
-  const existing = await targetDb.role.findUnique({ where: { id } }).catch(() => null);
+  const existing = await targetDb.role.findUnique({ where: { id } }).catch((e) => console.error("[api]", e));
   if (!existing || existing.customerId !== scope.customerId) {
     return NextResponse.json({ error: "Role not found" }, { status: 404 });
   }
@@ -57,7 +57,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { db: targetDb } = await getDbForUser(user!);
   const { id } = await params;
 
-  const existing = await targetDb.role.findUnique({ where: { id } }).catch(() => null);
+  const existing = await targetDb.role.findUnique({ where: { id } }).catch((e) => console.error("[api]", e));
   if (!existing || existing.customerId !== scope.customerId) {
     return NextResponse.json({ error: "Role not found" }, { status: 404 });
   }

@@ -96,7 +96,6 @@ export async function POST(req: NextRequest) {
       text: body ?? "",
     });
 
-    console.log(`[mail/messages] ✓ Email sent: ${info.messageId}`);
 
     return NextResponse.json({
       id: msg.id,

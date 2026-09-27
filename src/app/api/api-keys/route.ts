@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
   const { name, permissions } = await req.json();
   if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
   let key = genApiKey();
-  let existing = await db.apiKey.findUnique({ where: { key } }).catch(() => null);
-  while (existing) { key = genApiKey(); existing = await db.apiKey.findUnique({ where: { key } }).catch(() => null); }
+  let existing = await db.apiKey.findUnique({ where: { key } }).catch((e) => console.error("[api]", e));
+  while (existing) { key = genApiKey(); existing = await db.apiKey.findUnique({ where: { key } }).catch((e) => console.error("[api]", e)); }
   const apiKey = await db.apiKey.create({ data: { name, key, permissions: JSON.stringify(permissions || ["*"]) } });
   return NextResponse.json({ id: apiKey.id, key: apiKey.key, ok: true });
 }

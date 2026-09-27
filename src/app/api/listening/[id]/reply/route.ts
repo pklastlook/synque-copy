@@ -38,7 +38,7 @@ export async function POST(
   // Try to find a matching account + credentials for the mention's platform
   const account = await db.account.findFirst({
     where: { platform: mention.source as string },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   if (!account) {
     // Store the reply text as a comment if no matching account exists
@@ -53,7 +53,7 @@ export async function POST(
         replyText: replyText.trim(),
         repliedAt: new Date(),
       },
-    }).catch(() => null);
+    }).catch((e) => console.error("[api]", e));
 
     return NextResponse.json({
       ok: true,
@@ -65,7 +65,7 @@ export async function POST(
   const credPlatform = mention.source === "x" || mention.source === "twitter" ? "twitter" : mention.source;
   const cred = await db.platformCredential.findUnique({
     where: { userId_platform: { userId: account.ownerId, platform: credPlatform } },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   let postedToPlatform = false;
   let platformError: string | null = null;
@@ -127,7 +127,7 @@ export async function POST(
       replyText: replyText.trim(),
       repliedAt: new Date(),
     },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   await db.activity.create({
     data: {
@@ -135,7 +135,7 @@ export async function POST(
       type: "comment_replied",
       description: `replied to mention from ${mention.author} on ${mention.source}${postedToPlatform ? "" : " (saved locally)"}`,
     },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   return NextResponse.json({
     ok: true,

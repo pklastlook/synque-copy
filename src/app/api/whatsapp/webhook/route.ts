@@ -61,7 +61,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  console.log(`[whatsapp/webhook] Saved live message from ${body.senderName}: "${body.content.slice(0, 50)}..."`);
 
   return NextResponse.json({ ok: true, id: msg.id });
 }

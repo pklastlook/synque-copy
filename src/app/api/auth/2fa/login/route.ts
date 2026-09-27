@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     await db.user.update({
       where: { id: user.id },
       data: { lastActive: new Date() },
-    }).catch(() => null);
+    }).catch((e) => console.error("[api]", e));
 
     const { token, userPublic } = await issueSession({ user, req });
 

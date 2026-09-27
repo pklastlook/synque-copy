@@ -1842,14 +1842,46 @@ interface SettingsApiKey {
   createdAt: string;
 }
 
+// Shape returned by GET /api/auth/sessions — see src/app/api/auth/sessions/route.ts
+interface SessionRow {
+  id: string;
+  current: boolean;
+  userAgent: string | null;
+  device: { device: string; browser: string; os: string };
+  ipAddress: string | null;
+  createdAt: string;
+  expiresAt: string;
+  lastActive: string;
+}
+
+// Read the JWT from the persisted Zustand store in localStorage so we can
+// attach it as a Bearer token to manual fetch calls (useApi does this
+// internally; this helper mirrors that for the 2FA / sessions endpoints).
+function getAuthToken(): string | null {
+  try {
+    return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function SecuritySection() {
-  const { user } = useAuth();
+  const { user, fetchUser, logout } = useAuth();
   const [current, setCurrent] = React.useState("");
   const [next, setNext] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [showPwd, setShowPwd] = React.useState(false);
-  const [twoFA, setTwoFA] = React.useState(false);
+
+  // 2FA — derived from the auth store so the UI reflects the server's truth
+  // (after fetchUser() it updates in place, no stale local copy).
+  const twoFA = !!user?.twoFactorEnabled;
   const [setup2FA, setSetup2FA] = React.useState(false);
+  const [setupBusy, setSetupBusy] = React.useState(false);
+  const [verifyBusy, setVerifyBusy] = React.useState(false);
+  const [disableBusy, setDisableBusy] = React.useState(false);
+  const [setupData, setSetupData] = React.useState<{ secret: string; otpauth: string } | null>(null);
+  const [verifyCode, setVerifyCode] = React.useState("");
+
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
   const [ipAllow, setIpAllow] = React.useState("");
   const [genName, setGenName] = React.useState("");
@@ -1860,6 +1892,15 @@ function SecuritySection() {
   const { data: apiKeys, loading: apiKeysLoading, reload: reloadKeys } =
     useApi<SettingsApiKey[]>("/api/api-keys");
   const keys = apiKeys ?? [];
+
+  // Sessions — fetched through useApi (it auto-attaches the Bearer token
+  // from localStorage so we don't need a manual header here).
+  const {
+    data: sessionsData,
+    loading: sessionsLoading,
+    reload: reloadSessions,
+  } = useApi<{ sessions: SessionRow[] }>("/api/auth/sessions");
+  const sessions = sessionsData?.sessions ?? [];
 
   const changePwd = async () => {
     if (!user) return;
@@ -1893,10 +1934,143 @@ function SecuritySection() {
     }
   };
 
-  // Sessions and login history are not yet tracked in the database.
-  // Honest empty states instead of fabricated device rows.
-  const sessions: { id: string; device: string; location: string; ip: string; last: string; current: boolean }[] = [];
+  // Login history is not yet tracked in the database — honest empty state
+  // instead of fabricated rows. (Sessions ARE real; see `sessions` above.)
   const history: { id: string; device: string; location: string; time: string; status: string }[] = [];
+
+  // ---- 2FA setup / verify / disable -------------------------------------
+  // Flow: 1) POST /api/auth/2fa/setup → returns { secret, otpauth }
+  //       2) user scans QR (rendered from otpauth) + enters 6-digit code
+  //       3) POST /api/auth/2fa/verify { code } → server enables 2FA
+  //       4) refresh the user object so the toggle reflects server truth
+  const startSetup = React.useCallback(async () => {
+    setVerifyCode("");
+    setSetupData(null);
+    setSetup2FA(true);
+    setSetupBusy(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch("/api/auth/2fa/setup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        secret?: string;
+        otpauth?: string;
+        previouslyEnabled?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !data.secret || !data.otpauth) {
+        throw new Error(data.error ?? "Failed to start 2FA setup");
+      }
+      setSetupData({ secret: data.secret, otpauth: data.otpauth });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to start 2FA setup");
+      setSetup2FA(false);
+    } finally {
+      setSetupBusy(false);
+    }
+  }, []);
+
+  const verify2FA = async () => {
+    const code = verifyCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      toast.error("Enter the 6-digit code from your authenticator");
+      return;
+    }
+    setVerifyBusy(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ code }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Invalid verification code");
+      }
+      toast.success(data.message ?? "Two-factor authentication enabled.");
+      await fetchUser();
+      setSetup2FA(false);
+      setSetupData(null);
+      setVerifyCode("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to verify code");
+    } finally {
+      setVerifyBusy(false);
+    }
+  };
+
+  const disable2FA = async () => {
+    if (!window.confirm("Disable two-factor authentication for this account?")) return;
+    setDisableBusy(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch("/api/auth/2fa/disable", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Failed to disable 2FA");
+      }
+      toast.success(data.message ?? "Two-factor authentication disabled.");
+      await fetchUser();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to disable 2FA");
+    } finally {
+      setDisableBusy(false);
+    }
+  };
+
+  // ---- Sessions ----------------------------------------------------------
+  const revokeSession = async (id: string) => {
+    if (!window.confirm("Revoke this session? The device will be signed out.")) return;
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/auth/sessions/${id}`, {
+        method: "DELETE",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        revokedCurrent?: boolean;
+        message?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Failed to revoke session");
+      }
+      if (data.revokedCurrent) {
+        toast.success(data.message ?? "You've been logged out of this device.");
+        await logout();
+        return;
+      }
+      toast.success(data.message ?? "Session revoked.");
+      reloadSessions();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to revoke session");
+    }
+  };
 
   const generateKey = async () => {
     if (!genName.trim()) return toast.error("Enter a name for the key");
@@ -2009,61 +2183,88 @@ function SecuritySection() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                if (!twoFA) setSetup2FA(true);
-                else toast.success("2FA disabled");
-                setTwoFA(!twoFA);
-              }}
+              onClick={() => (twoFA ? disable2FA() : startSetup())}
+              disabled={disableBusy}
               className={cn(
-                "rounded-xl px-3.5 py-1.5 text-xs font-semibold",
+                "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-60",
                 twoFA ? "border border-border bg-background text-foreground" : "liquid-gold"
               )}
             >
-              {twoFA ? "Disable" : "Set up"}
+              {disableBusy ? "Working…" : twoFA ? "Disable" : "Set up"}
             </button>
-            <Switch checked={twoFA} onCheckedChange={(v) => { setTwoFA(v); if (v) setSetup2FA(true); }} />
+            <Switch
+              checked={twoFA}
+              onCheckedChange={(v) => {
+                if (v) startSetup();
+                else disable2FA();
+              }}
+              disabled={disableBusy}
+            />
           </div>
         </div>
       </section>
 
       {/* Active sessions */}
       <section className="glass rounded-xl crystal-in p-5">
-        <SectionHeader title="Active sessions" desc="Devices currently signed in to your account." />
-        {sessions.length === 0 ? (
+        <SectionHeader
+          title="Active sessions"
+          desc="Devices currently signed in to your account."
+          action={
+            <button
+              onClick={() => reloadSessions()}
+              disabled={sessionsLoading}
+              className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" /> {sessionsLoading ? "Loading…" : "Refresh"}
+            </button>
+          }
+        />
+        {sessionsLoading && sessions.length === 0 ? (
+          <div className="space-y-2">
+            <div className="shimmer h-12 rounded-2xl" />
+            <div className="shimmer h-12 rounded-2xl" />
+          </div>
+        ) : sessions.length === 0 ? (
           <div className="py-6 text-center text-xs text-muted-foreground">
-            No session tracking yet. Active sessions will appear here once device
-            tracking is enabled.
+            No active sessions. Sign in again to create one.
           </div>
         ) : (
           <div className="space-y-2">
-            {sessions.map((s) => (
-              <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-muted/20 p-3">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                  {s.device.includes("iPhone") || s.device.includes("iPad") || s.device.includes("Pixel") ? (
-                    <Smartphone className="h-4 w-4" />
-                  ) : (
-                    <MonitorSmartphone className="h-4 w-4" />
+            {sessions.map((s) => {
+              const isMobile = s.device.device === "Mobile" || s.device.device === "Tablet";
+              const deviceLabel = [s.device.browser, s.device.os].filter(Boolean).join(" · ") || "Unknown device";
+              const created = timeAgo(s.createdAt);
+              const expires = new Date(s.expiresAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              return (
+                <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-muted/20 p-3">
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                    {isMobile ? <Smartphone className="h-4 w-4" /> : <MonitorSmartphone className="h-4 w-4" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-sm font-medium">{deviceLabel}</span>
+                      {s.current && <Badge className="bg-emerald-500/15 text-emerald-500">Current</Badge>}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {s.ipAddress ?? "Unknown IP"} · signed in {created} · expires {expires}
+                    </div>
+                  </div>
+                  {!s.current && (
+                    <button
+                      onClick={() => revokeSession(s.id)}
+                      className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
+                    >
+                      <LogOut className="h-3 w-3" /> Revoke
+                    </button>
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-sm font-medium">{s.device}</span>
-                    {s.current && <Badge className="bg-emerald-500/15 text-emerald-500">This device</Badge>}
-                  </div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {s.location} · {s.ip} · {s.last}
-                  </div>
-                </div>
-                {!s.current && (
-                  <button
-                    onClick={() => toast.success(`Session revoked (${s.device})`)}
-                    className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-500/10"
-                  >
-                    <LogOut className="h-3 w-3" /> Revoke
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -2209,32 +2410,90 @@ function SecuritySection() {
       </section>
 
       {/* 2FA setup dialog */}
-      <Dialog open={setup2FA} onOpenChange={setSetup2FA}>
+      <Dialog
+        open={setup2FA}
+        onOpenChange={(v) => {
+          setSetup2FA(v);
+          if (!v) {
+            setSetupData(null);
+            setVerifyCode("");
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Set up two-factor authentication</DialogTitle>
             <DialogDescription>
-              Two-factor authentication requires server-side TOTP setup. This is a placeholder — wire up a real OTP library (e.g. otpauth) + a /api/auth/2fa route to generate + verify secrets.
+              Scan the QR code with your authenticator app (Google Authenticator,
+              Authy, 1Password, etc.), then enter the 6-digit code it shows.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-2">
-            <div className="grid h-44 w-44 place-items-center rounded-2xl border border-dashed border-border bg-muted/30 p-3 text-center">
-              <div className="space-y-2">
-                <QrCode className="mx-auto h-8 w-8 text-muted-foreground" />
-                <div className="text-[10px] text-muted-foreground">
-                  TOTP secret generation<br />requires a backend route
+            {setupBusy || !setupData ? (
+              <div className="grid h-44 w-44 place-items-center rounded-2xl border border-dashed border-border bg-muted/30 p-3 text-center">
+                <div className="space-y-2">
+                  {setupBusy ? (
+                    <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  ) : (
+                    <QrCode className="mx-auto h-8 w-8 text-muted-foreground" />
+                  )}
+                  <div className="text-[10px] text-muted-foreground">
+                    {setupBusy ? "Generating secret…" : "Click Set up to begin"}
+                  </div>
                 </div>
               </div>
-            </div>
-            <Input placeholder="Enter 6-digit code" maxLength={6} className="text-center font-mono tracking-[0.4em]" disabled />
+            ) : (
+              <>
+                <div className="overflow-hidden rounded-2xl border border-border bg-white p-2">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setupData.otpauth)}`}
+                    alt="TOTP QR code"
+                    width={176}
+                    height={176}
+                    className="h-44 w-44"
+                  />
+                </div>
+                <div className="w-full space-y-1 text-center">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Or enter this code manually
+                  </div>
+                  <code className="block break-all rounded-lg bg-muted/40 px-2 py-1.5 font-mono text-[11px]">
+                    {setupData.secret}
+                  </code>
+                </div>
+              </>
+            )}
+            <Input
+              placeholder="Enter 6-digit code"
+              value={verifyCode}
+              onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              maxLength={6}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              disabled={setupBusy || !setupData}
+              className="text-center font-mono tracking-[0.4em]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !verifyBusy) verify2FA();
+              }}
+            />
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setSetup2FA(false)}>Cancel</Button>
-            <button
-              onClick={() => { toast.info("2FA requires backend TOTP setup — wire up /api/auth/2fa to enable"); setSetup2FA(false); }}
-              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSetup2FA(false);
+                setSetupData(null);
+                setVerifyCode("");
+              }}
             >
-              <ShieldCheck className="h-4 w-4" /> Verify & enable
+              Cancel
+            </Button>
+            <button
+              onClick={verify2FA}
+              disabled={verifyBusy || setupBusy || !setupData || !/^\d{6}$/.test(verifyCode.trim())}
+              className="liquid-gold flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+            >
+              <ShieldCheck className="h-4 w-4" /> {verifyBusy ? "Verifying…" : "Verify & enable"}
             </button>
           </DialogFooter>
         </DialogContent>

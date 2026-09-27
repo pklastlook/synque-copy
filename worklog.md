@@ -6905,3 +6905,92 @@ POST /api/listening/sync
 - **`/verify-reset-token` is intentionally GET, not POST.** The frontend navigates to `/reset-password?token=xxx` (a fresh page load) and needs to check the token before showing the form. GET makes this trivial; the token is already in the URL anyway (it was emailed as a query string), so there's no additional exposure from GET vs POST here.
 - **`/verify-email/confirm` is GET because email clients don't follow POST links.** Standard practice — the link in the email is a GET.
 - **`/api/auth/logout` supports both POST and GET.** POST is the preferred path (called by the auth-store on `logout()`). GET is for the rare redirect-style logout (e.g. clicking a link). Both are idempotent.
+
+---
+
+## Task ID: 4e — `4e-settings-security-ui`
+
+**Task**: Wire the existing Settings → Security section UI to the NEW auth/2fa + auth/sessions API endpoints that were just built. Replace the mock/static 2FA toggle, the placeholder QR setup dialog, and the "no session tracking yet" empty state with real API calls.
+
+### Files changed
+1. `/home/z/my-project/src/components/views/settings.tsx` — only the `SecuritySection` component (line ~1868) and its setup dialog (line ~2412) were touched. No other sections of the file were modified.
+
+### Endpoints wired
+| UI element | Method + URL | Result |
+|---|---|---|
+| 2FA "Set up" / Switch on | `POST /api/auth/2fa/setup` | Returns `{ secret, otpauth, previouslyEnabled }` → dialog shows QR + manual secret |
+| 2FA setup dialog "Verify & enable" | `POST /api/auth/2fa/verify { code }` | Server sets `user.twoFactorEnabled = true` → `fetchUser()` refreshes the toggle |
+| 2FA "Disable" / Switch off | `POST /api/auth/2fa/disable` | Server clears `totpSecret` + disables → `fetchUser()` refreshes the toggle |
+| Active sessions list | `GET /api/auth/sessions` (via `useApi`) | Each row: browser/OS label, IP, signed-in `timeAgo`, expiry date, "Current" badge, "Revoke" button |
+| Session "Revoke" button | `DELETE /api/auth/sessions/[id]` | If `revokedCurrent === true`, calls `logout()` from the auth store (client is logged out); otherwise `reloadSessions()` |
+| Password change form | unchanged | Still POSTs `/api/auth/login` to verify + PATCHes `/api/users` to set new password — verified still works |
+
+### Implementation notes
+- **2FA status is now derived, not local state.** `const twoFA = !!user?.twoFactorEnabled;` reads from the auth store. The `Set up`/`Disable` button, the `Switch`, and the status text all update automatically when `fetchUser()` refreshes the store after a successful verify/disable.
+- **Bearer token pattern** is the same one used elsewhere in this file (`getAuthToken()` reads from `localStorage["socialflow-auth"]` → `state.token`). `useApi` already does this internally for the GET, so the sessions list needs no manual header. The POST/DELETE calls (setup, verify, disable, revoke) attach `Authorization: Bearer <token>` manually since they bypass `useApi`.
+- **QR code rendering** uses the external service `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauth)}` (no client-side QR lib needed; `@next/next/no-img-element` is disabled in the project's eslint config). The raw secret is also shown for manual entry.
+- **Verify-code input** strips non-digits, caps at 6 chars, uses `inputMode="numeric"` + `autoComplete="one-time-code"` (iOS Safari auto-fills from SMS-less authenticators), and submits on Enter.
+- **Sessions list** uses `useApi<{ sessions: SessionRow[] }>("/api/auth/sessions")` — skeleton shimmer while loading, "No active sessions" empty state, Refresh button in the section header.
+- **Revoke flow** asks `window.confirm` before DELETE. If the server says `revokedCurrent: true` (i.e. the user revoked their own current session), it calls `logout()` from the auth store — the store then POSTs `/api/auth/logout`, clears the token, and the app routes back to the login screen.
+- **Login history** section was left as the honest empty state — there is no `GET /api/auth/login-history` endpoint yet (the task scope was 2FA + sessions + password only).
+- **Password change** form was left untouched — it already called the right endpoints (`/api/auth/login` to verify + `/api/users` PATCH). Verified no changes needed.
+- **API keys / IP allowlist** sections untouched (already wired / out of scope).
+
+### Verification
+- `npx eslint src/components/views/settings.tsx` → **0 errors, 0 warnings**
+- `npx tsc --noEmit 2>&1 | grep settings` → **0 errors** (the project has pre-existing TS errors in unrelated files: `mini-services/whatsapp-service`, `src/app/api/ai/assistant`, `src/app/api/platform-credentials/[platform]/sync` — none in `settings.tsx`, `auth-store.ts`, or `hooks.ts`)
+
+### What's NOT done (out of scope / future work)
+- Login history table still shows the empty state — needs a new `/api/auth/login-history` endpoint.
+- 2FA disable flow does not currently ask for a code (the server supports an optional `{ code }` body for extra defense; the UI skips it for simplicity since `requireAuth` already gates the call). Could add a "confirm with code" step if we want the extra defense.
+- The QR code is fetched from `api.qrserver.com` (external). If offline-only operation matters, swap in a client-side QR lib (e.g. `qrcode.react`) and pass the `otpauth` URI directly.
+
+---
+
+## Task ID: 4f — `4f-sync-buttons`
+
+**Task**: Add "Sync Now" / "Sync Mentions" toolbar buttons to the Competitors and Listening views so users can trigger the new sync APIs (`POST /api/competitors/sync` and `POST /api/listening/sync`) with one click.
+
+### Files modified
+1. `/home/z/my-project/src/components/views/competitors.tsx`
+2. `/home/z/my-project/src/components/views/listening.tsx`
+
+### What was added
+
+**Competitors view** (`CompetitorsView`)
+- Imported `RefreshCw` from `lucide-react`.
+- Added `syncing` state + `getToken()` helper (mirrors the pattern in `team.tsx` / `tasks.tsx`).
+- Added `handleSync()` that:
+  - POSTs `{}` to `/api/competitors/sync` with `Authorization: Bearer <token>` header (only sent when a token is present).
+  - Shows a `toast.loading("Syncing competitors…")` placeholder.
+  - On success: `toast.success("Synced {updated} of {total} competitors")` (replaces the loading toast via `{ id: toastId }`).
+  - On errors: `toast.error("{N} errors: <preview of up to 3> · (+M more)")` — emitted as a *separate* toast so the success message is still visible.
+  - On exception: `toast.error("Sync failed: <message>")`.
+  - Always calls `reload()` from `useApi` to refresh the table + KPIs.
+- Rendered a new "Sync now" button (with `RefreshCw` icon, `animate-spin` while `syncing`) in the `SectionHeader` `action`, alongside the existing "Add competitor" button — both wrapped in a `flex items-center gap-2` container. The original "Add competitor" button is unchanged.
+
+**Listening view** (`ListeningView`)
+- Imported `RefreshCw` from `lucide-react`.
+- Added `syncing` state + `getToken()` helper + `handleSync()`.
+- `handleSync()` POSTs `{}` to `/api/listening/sync` and on success shows:
+  `toast.success("Found {totalFound} mentions · {newMentions} new · {classified} classified")`
+- Errors handled identically to the competitors view.
+- Calls `reload()` from `useApi` afterwards.
+- Rendered a new "Sync mentions" button (RefreshCw icon, spinning while syncing) in the `SectionHeader` `action`, alongside the existing `<AddQueryDialog />` — both wrapped in a `flex items-center gap-2` container. The `AddQueryDialog` is unchanged.
+
+### Critical rules respected
+1. ✅ Existing functionality preserved — both `Add competitor` / `AddQueryDialog` flows are byte-for-byte identical to before. All KPI calculations, charts, lists, dialogs, and CRUD operations untouched.
+2. ✅ `toast` from `sonner` used for all feedback (loading → success/error swap via `{ id: toastId }`).
+3. ✅ Auth token fetched via `JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token` (wrapped in try/catch, same shape as `team.tsx`).
+4. ✅ `RefreshCw` imported from `lucide-react`.
+5. ✅ `bun run lint` on the modified files → **0 errors**. (One pre-existing error remains in `mini-services/whatsapp-service/index.js` — unrelated.)
+6. ✅ `npx tsc --noEmit` on the modified files → **0 errors** in `competitors.tsx` and `listening.tsx`. (Pre-existing TS errors remain in unrelated files: `mini-services/*`, `examples/*`, `src/app/api/ai/assistant/route.ts`, `src/app/api/platform-credentials/[platform]/sync/route.ts`, `skills/stock-analysis-skill`, `prisma.config.ts`.)
+
+### Verification
+- `npx eslint src/components/views/competitors.tsx src/components/views/listening.tsx` → 0 errors, 0 warnings.
+- `npx tsc --noEmit 2>&1 | rg "competitors\.tsx|listening\.tsx"` → no matches (clean).
+
+### What's NOT done (out of scope / future work)
+- The sync buttons always sync ALL tracking competitors / ALL active queries (no per-row "Sync this competitor" button). The APIs accept an optional `competitorId` / `queryId` body, so a future enhancement could add a "Sync now" item to each row's dropdown menu.
+- The loading state is button-level only (spinner + "Syncing…" label). No global progress bar. If a sync takes longer than ~30s, consider adding a global progress toast or a polling-based status indicator.
+- Errors are shown as a separate `toast.error` after the success toast. If the team prefers a single combined toast, the success branch can be folded into the error branch.

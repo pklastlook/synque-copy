@@ -43,7 +43,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   // Prevent self-deletion safety check is left to the client; here we just
   // enforce that the user exists.
-  const existing = await db.user.findUnique({ where: { id } }).catch(() => null);
+  const existing = await db.user.findUnique({ where: { id } }).catch((e) => console.error("[api]", e));
   if (!existing) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -60,7 +60,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         { status: 409 }
       );
     }
-    const newOwner = await db.user.findUnique({ where: { id: newOwnerId } }).catch(() => null);
+    const newOwner = await db.user.findUnique({ where: { id: newOwnerId } }).catch((e) => console.error("[api]", e));
     if (!newOwner) {
       return NextResponse.json({ error: "reassignTo user not found" }, { status: 404 });
     }

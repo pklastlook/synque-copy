@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const email = `${localPart}@${server.domain}`;
 
-  const existing = await db.mailbox.findUnique({ where: { email } }).catch(() => null);
+  const existing = await db.mailbox.findUnique({ where: { email } }).catch((e) => console.error("[api]", e));
   if (existing) return NextResponse.json({ error: "Email already exists" }, { status: 409 });
 
   const mailbox = await db.mailbox.create({

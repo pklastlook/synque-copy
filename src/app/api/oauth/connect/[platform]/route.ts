@@ -123,7 +123,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     const stateData = { userId, platform, cv: codeVerifier };
     const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString("base64url");
     authUrl.searchParams.set("state", stateEncoded);
-    console.log(`[oauth/connect/twitter] code_verifier length: ${codeVerifier.length}`);
   }
 
   // TikTok OAuth 2.0 with PKCE
@@ -143,8 +142,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     authUrl.searchParams.set("prompt", "consent");
   }
 
-  console.log(`[oauth/connect/${platform}] redirect_uri=${redirectUri}`);
-  console.log(`[oauth/connect/${platform}] auth_url=${authUrl.toString()}`);
 
   // Redirect the browser to the platform's login page
   return NextResponse.redirect(authUrl.toString());

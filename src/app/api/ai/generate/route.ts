@@ -70,7 +70,6 @@ The "index" MUST match the destination number above, in order. Include exactly o
     ];
     const result = await chatWithFallback(llmMessages);
     raw = result.content;
-    console.log("[ai/generate] LLM response received via", result.provider, "length:", raw.length);
   } catch (err) {
     console.error("[ai/generate] All LLM providers failed:", err instanceof Error ? err.message : String(err));
     return NextResponse.json(

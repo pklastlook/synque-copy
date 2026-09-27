@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  const user = await db.user.findUnique({ where: { email: normalizedEmail } }).catch(() => null);
+  const user = await db.user.findUnique({ where: { email: normalizedEmail } }).catch((e) => console.error("[api]", e));
 
   if (!user) {
     // Don't reveal whether the email exists — security best practice
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   await db.passwordResetToken.updateMany({
     where: { email: normalizedEmail, usedAt: null },
     data: { usedAt: new Date() },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   await db.passwordResetToken.create({
     data: {

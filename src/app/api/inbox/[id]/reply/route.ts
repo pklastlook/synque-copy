@@ -44,7 +44,7 @@ export async function POST(
   const credPlatform = platform === "x" ? "twitter" : platform;
   const cred = await db.platformCredential.findUnique({
     where: { userId_platform: { userId: ownerId, platform: credPlatform } },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   let postedToPlatform = false;
   let platformError: string | null = null;
@@ -122,7 +122,7 @@ export async function POST(
       type: "comment_replied",
       description: `replied to ${comment.author} on ${platform}${postedToPlatform ? "" : " (saved locally)"}`,
     },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   if (postedToPlatform) {
     return NextResponse.json({

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const { key, deviceName } = await req.json();
   if (!key) return NextResponse.json({ error: "Serial key required" }, { status: 400 });
 
-  const serialKey = await db.serialKey.findUnique({ where: { key } }).catch(() => null);
+  const serialKey = await db.serialKey.findUnique({ where: { key } }).catch((e) => console.error("[api]", e));
   if (!serialKey) return NextResponse.json({ error: "Invalid serial key" }, { status: 404 });
   if (serialKey.status === "activated") {
     // Check if this is the SAME device trying to re-activate

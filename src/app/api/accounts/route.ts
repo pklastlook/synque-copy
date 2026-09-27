@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
   // Check for duplicate handle on the same platform
   const existing = await db.account.findFirst({
     where: { platform, handle },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
   if (existing) {
     return NextResponse.json({ error: "An account with this handle already exists" }, { status: 409 });
   }
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
       engagement: realEngagement,
       posts: realPosts,
     },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   // Log the connection activity
   await db.activity.create({
@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
       type: "account_connected",
       description: `connected ${handle} on ${platform}`,
     },
-  }).catch(() => null);
+  }).catch((e) => console.error("[api]", e));
 
   return NextResponse.json({ id: account.id, ok: true });
 }

@@ -21,6 +21,7 @@ import {
   Trash2,
   ExternalLink,
   StickyNote,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
@@ -146,6 +147,66 @@ export function CompetitorsView() {
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [addOpen, setAddOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Competitor | null>(null);
+  const [syncing, setSyncing] = React.useState(false);
+
+  function getToken(): string | null {
+    try {
+      return (
+        JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state
+          ?.token ?? null
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  async function handleSync() {
+    if (syncing) return;
+    setSyncing(true);
+    const toastId = toast.loading("Syncing competitors…");
+    try {
+      const token = getToken();
+      const res = await fetch("/api/competitors/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(
+          (err as { error?: string })?.error ?? `HTTP ${res.status}`
+        );
+      }
+      const json = (await res.json()) as {
+        ok: boolean;
+        synced: unknown[];
+        errors: string[];
+        total: number;
+        updated: number;
+      };
+      toast.success(
+        `Synced ${json.updated} of ${json.total} competitors`,
+        { id: toastId }
+      );
+      if (json.errors && json.errors.length > 0) {
+        const preview = json.errors.slice(0, 3).join(" · ");
+        const extra =
+          json.errors.length > 3 ? ` (+${json.errors.length - 3} more)` : "";
+        toast.error(`${json.errors.length} error${json.errors.length === 1 ? "" : "s"}: ${preview}${extra}`);
+      }
+      reload();
+    } catch (err) {
+      toast.error(
+        `Sync failed: ${err instanceof Error ? err.message : String(err)}`,
+        { id: toastId }
+      );
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   if (loading || !data) return <CompetitorsSkeleton />;
 
@@ -264,13 +325,26 @@ export function CompetitorsView() {
         desc={`Tracking ${sorted.length} rival ${sorted.length === 1 ? "account" : "accounts"} across ${platformsTracked} ${platformsTracked === 1 ? "platform" : "platforms"}`}
         icon={Crosshair}
         action={
-          <button
-            onClick={() => setAddOpen(true)}
-            className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
-          >
-            <Plus className="h-4 w-4" />
-            Add competitor
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="liquid-pill flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold disabled:opacity-60"
+              title="Fetch real follower counts and engagement rates from platform APIs"
+            >
+              <RefreshCw
+                className={cn("h-4 w-4", syncing && "animate-spin")}
+              />
+              {syncing ? "Syncing…" : "Sync now"}
+            </button>
+            <button
+              onClick={() => setAddOpen(true)}
+              className="liquid-pill glow-ring flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+            >
+              <Plus className="h-4 w-4" />
+              Add competitor
+            </button>
+          </div>
         }
       />
 
