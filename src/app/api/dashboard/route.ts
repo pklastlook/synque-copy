@@ -508,6 +508,14 @@ export async function GET(req: NextRequest) {
         actionView: "composer",
       });
     }
+    // === Last 7 days metrics (for insights + goal tracking) ===
+    const last7dStart = now - 7 * day;
+    const postsLast7d = posts.filter((p) => new Date(p.createdAt).getTime() >= last7dStart).length;
+    const publishedLast7d = variants.filter((v) => {
+      const t = v.publishedAt ? new Date(v.publishedAt).getTime() : new Date(v.createdAt).getTime();
+      return t >= last7dStart;
+    }).length;
+
     if (postsLast7d > 0 && postsLast7d >= 3) {
       insights.push({
         type: "success",
