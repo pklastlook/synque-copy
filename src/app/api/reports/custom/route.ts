@@ -19,11 +19,17 @@ export const maxDuration = 30;
  *   startDate: string,      // ISO date
  *   endDate: string,        // ISO date
  *   metrics: string[],      // which metrics to include
+ *   postStatus?: string[],  // filter posts by status: published|draft|scheduled|failed
+ *   sentiment?: string[],   // filter comments by sentiment: positive|neutral|negative
+ *   sortBy?: string,        // 'date-desc' | 'date-asc' | 'engagement-desc' | 'comments-desc'
+ *   groupBy?: string,       // 'day' | 'week' | 'month' — series aggregation
+ *   minEngagement?: number, // minimum engagement threshold for posts
+ *   search?: string,        // search in post titles/captions
  * }
  *
  * Returns a structured report with:
  * - summary KPIs (computed from real DB data)
- * - daily breakdown series
+ * - aggregated breakdown series (day / week / month)
  * - post-level detail list
  * - comment-level detail list
  */
@@ -38,6 +44,12 @@ export async function POST(req: NextRequest) {
     startDate?: string;
     endDate?: string;
     metrics?: string[];
+    postStatus?: string[];
+    sentiment?: string[];
+    sortBy?: string;
+    groupBy?: string;
+    minEngagement?: number;
+    search?: string;
   };
 
   const startDate = body.startDate ? new Date(body.startDate) : new Date(Date.now() - 30 * 86400000);
@@ -49,6 +61,22 @@ export async function POST(req: NextRequest) {
     "posts", "published", "comments", "shares", "likes", "engagement",
     "followers", "reach", "impressions", "replyRate",
   ];
+
+  // === Normalize new filters ===
+  const postStatusFilter = Array.isArray(body.postStatus) && body.postStatus.length > 0
+    ? body.postStatus
+    : null;
+  const sentimentFilter = Array.isArray(body.sentiment) && body.sentiment.length > 0
+    ? body.sentiment
+    : null;
+  const sortBy = body.sortBy ?? "date-desc";
+  const groupBy = body.groupBy ?? "day";
+  const minEngagement = typeof body.minEngagement === "number" && !isNaN(body.minEngagement)
+    ? body.minEngagement
+    : 0;
+  const search = typeof body.search === "string" && body.search.trim().length > 0
+    ? body.search.trim().toLowerCase()
+    : null;
 
   // Build account filter
   const accountWhere: Record<string, unknown> = {};
@@ -70,6 +98,21 @@ export async function POST(req: NextRequest) {
       comments: [],
       members: [],
       accounts: [],
+      bestPost: null,
+      filters: {
+        userId: body.userId ?? null,
+        accountId: body.accountId ?? null,
+        platform: body.platform ?? null,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        metrics: requestedMetrics,
+        postStatus: postStatusFilter,
+        sentiment: sentimentFilter,
+        sortBy,
+        groupBy,
+        minEngagement,
+        search,
+      },
       message: "No accounts match the selected filters.",
     });
   }
@@ -81,6 +124,9 @@ export async function POST(req: NextRequest) {
   if (body.userId) postWhere.authorId = body.userId;
   if (body.accountId || body.platform) {
     postWhere.variants = { some: { accountId: { in: accountIds } } };
+  }
+  if (postStatusFilter) {
+    postWhere.status = { in: postStatusFilter };
   }
 
   // Build variant filter
@@ -94,6 +140,9 @@ export async function POST(req: NextRequest) {
     accountId: { in: accountIds },
     createdAt: { gte: startDate, lte: endDate },
   };
+  if (sentimentFilter) {
+    commentWhere.sentiment = { in: sentimentFilter };
+  }
 
   // Fetch all data in parallel
   const [posts, allVariants, comments, analytics, teamMembers] = await Promise.all([
@@ -127,15 +176,63 @@ export async function POST(req: NextRequest) {
   ]);
 
   // Filter variants by date range
-  const variants = allVariants.filter((v) => {
+  let variants = allVariants.filter((v) => {
     const d = v.publishedAt ?? v.createdAt;
     return d >= startDate && d <= endDate;
   });
 
   // Filter posts by user if specified (also filter via variant.accountId)
-  const filteredPosts = body.userId
+  let filteredPosts = body.userId
     ? posts.filter((p) => p.authorId === body.userId)
     : posts;
+
+  // === Apply search filter (post title/caption) ===
+  if (search) {
+    filteredPosts = filteredPosts.filter((p) =>
+      (p.title ?? "").toLowerCase().includes(search) ||
+      (p.caption ?? "").toLowerCase().includes(search)
+    );
+    // Restrict variants to those that belong to surviving posts
+    const survivingPostIds = new Set(filteredPosts.map((p) => p.id));
+    variants = variants.filter((v) => survivingPostIds.has(v.postId));
+  }
+
+  // === COMPUTE POST-LEVEL ENGAGEMENT (needed for min-engagement + sort) ===
+  const postEngagement = new Map<string, number>();
+  for (const p of filteredPosts) {
+    const eng = p.variants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0);
+    postEngagement.set(p.id, eng);
+  }
+  const postCommentCount = new Map<string, number>();
+  // Comments aren't linked to posts directly in the schema, so we approximate
+  // by checking if a post variant was published on the account the comment
+  // came from. We'll fall back to zero — used only as a sort key.
+  for (const p of filteredPosts) {
+    postCommentCount.set(p.id, p.variants.reduce((s, v) => s + v.comments, 0));
+  }
+
+  // === Apply min-engagement filter ===
+  if (minEngagement > 0) {
+    filteredPosts = filteredPosts.filter((p) => (postEngagement.get(p.id) ?? 0) >= minEngagement);
+  }
+
+  // === Apply sort ===
+  const sortedPosts = [...filteredPosts];
+  switch (sortBy) {
+    case "date-asc":
+      sortedPosts.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      break;
+    case "engagement-desc":
+      sortedPosts.sort((a, b) => (postEngagement.get(b.id) ?? 0) - (postEngagement.get(a.id) ?? 0));
+      break;
+    case "comments-desc":
+      sortedPosts.sort((a, b) => (postCommentCount.get(b.id) ?? 0) - (postCommentCount.get(a.id) ?? 0));
+      break;
+    case "date-desc":
+    default:
+      sortedPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      break;
+  }
 
   // === COMPUTE SUMMARY KPIs ===
   const totalPosts = filteredPosts.length;
@@ -159,6 +256,14 @@ export async function POST(req: NextRequest) {
   const commentsReplied = comments.filter((c) => c.replied).length;
   const replyRate = totalComments > 0 ? Math.round((commentsReplied / totalComments) * 100) : 0;
 
+  // Derived: engagement rate (engagement / impressions) + avg eng per post
+  const engagementRate = totalImpressions > 0
+    ? Math.round((totalEngagement / totalImpressions) * 1000) / 10
+    : 0;
+  const avgEngagementPerPost = totalPosts > 0
+    ? Math.round(totalEngagement / totalPosts)
+    : 0;
+
   // Sentiment breakdown
   const positive = comments.filter((c) => c.sentiment === "positive").length;
   const neutral = comments.filter((c) => c.sentiment === "neutral").length;
@@ -175,25 +280,47 @@ export async function POST(req: NextRequest) {
     platformBreakdown[p].engagement += accVariants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0);
   }
 
-  // === COMPUTE DAILY SERIES ===
+  // === COMPUTE BEST PERFORMING POST ===
+  let bestPost: {
+    id: string; title: string; caption: string; status: string;
+    authorName: string; engagement: number; likes: number; comments: number;
+    shares: number; platforms: string[]; createdAt: string;
+  } | null = null;
+  if (sortedPosts.length > 0) {
+    const top = [...sortedPosts].sort(
+      (a, b) => (postEngagement.get(b.id) ?? 0) - (postEngagement.get(a.id) ?? 0)
+    )[0];
+    const topEng = postEngagement.get(top.id) ?? 0;
+    if (topEng > 0) {
+      bestPost = {
+        id: top.id,
+        title: top.title,
+        caption: top.caption,
+        status: top.status,
+        authorName: top.author?.name ?? "Unknown",
+        engagement: topEng,
+        likes: top.variants.reduce((s, v) => s + v.likes, 0),
+        comments: top.variants.reduce((s, v) => s + v.comments, 0),
+        shares: top.variants.reduce((s, v) => s + v.shares, 0),
+        platforms: Array.from(new Set(top.variants.map((v) => v.account.platform))),
+        createdAt: top.createdAt.toISOString(),
+      };
+    }
+  }
+
+  // === COMPUTE SERIES (with groupBy aggregation) ===
+  // First compute the per-day series, then aggregate by week or month.
   const dayMs = 86400000;
   const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / dayMs);
-  const seriesDays = Math.min(totalDays + 1, 90); // cap at 90 data points
+  const dailySeriesDays = Math.min(totalDays + 1, 365);
 
-  const series: {
-    date: string;
-    postsCreated: number;
-    published: number;
-    comments: number;
-    shares: number;
-    likes: number;
-    engagement: number;
-    followers: number;
-    reach: number;
-    impressions: number;
+  const dailySeries: {
+    date: string; postsCreated: number; published: number; comments: number;
+    shares: number; likes: number; engagement: number; followers: number;
+    reach: number; impressions: number;
   }[] = [];
 
-  for (let d = 0; d < seriesDays; d++) {
+  for (let d = 0; d < dailySeriesDays; d++) {
     const date = new Date(startDate.getTime() + d * dayMs);
     const dayKey = date.toISOString().slice(0, 10);
 
@@ -205,7 +332,7 @@ export async function POST(req: NextRequest) {
     const dayComments = comments.filter((c) => c.createdAt.toISOString().slice(0, 10) === dayKey);
     const dayAnalytics = analytics.filter((a) => a.date.toISOString().slice(0, 10) === dayKey);
 
-    series.push({
+    dailySeries.push({
       date: dayKey,
       postsCreated: dayPosts.length,
       published: dayVariants.filter((v) => v.status === "published").length,
@@ -219,8 +346,56 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // === Aggregate by groupBy period (week / month) ===
+  const series = (() => {
+    if (groupBy === "day") return dailySeries;
+    const buckets = new Map<string, {
+      date: string; postsCreated: number; published: number; comments: number;
+      shares: number; likes: number; engagement: number; followers: number;
+      reach: number; impressions: number;
+    }>();
+    for (const d of dailySeries) {
+      const date = new Date(d.date);
+      let bucketKey: string;
+      if (groupBy === "week") {
+        // ISO week — find Monday of week
+        const tmp = new Date(date);
+        const day = (tmp.getUTCDay() + 6) % 7; // Mon=0, Sun=6
+        tmp.setUTCDate(tmp.getUTCDate() - day);
+        bucketKey = tmp.toISOString().slice(0, 10);
+      } else {
+        // month
+        bucketKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
+      }
+      const existing = buckets.get(bucketKey) ?? {
+        date: bucketKey,
+        postsCreated: 0, published: 0, comments: 0,
+        shares: 0, likes: 0, engagement: 0,
+        followers: 0, reach: 0, impressions: 0,
+      };
+      existing.postsCreated += d.postsCreated;
+      existing.published += d.published;
+      existing.comments += d.comments;
+      existing.shares += d.shares;
+      existing.likes += d.likes;
+      existing.engagement += d.engagement;
+      existing.followers = Math.max(existing.followers, d.followers); // peak followers
+      existing.reach += d.reach;
+      existing.impressions += d.impressions;
+      buckets.set(bucketKey, existing);
+    }
+    return [...buckets.values()].sort((a, b) => a.date.localeCompare(b.date));
+  })();
+
+  // === POSTING CADENCE (posts per period — used for the cadence mini-chart) ===
+  const cadence = series.map((s) => ({
+    period: s.date,
+    posts: s.postsCreated,
+    label: groupBy === "day" ? s.date.slice(5) : s.date.slice(0, 7),
+  }));
+
   // === POST DETAIL LIST ===
-  const postDetails = filteredPosts.slice(0, 50).map((p) => ({
+  const postDetails = sortedPosts.slice(0, 50).map((p) => ({
     id: p.id,
     title: p.title,
     caption: p.caption,
@@ -231,6 +406,9 @@ export async function POST(req: NextRequest) {
     scheduledAt: p.scheduledAt?.toISOString() ?? null,
     platforms: Array.from(new Set(p.variants.map((v) => v.account.platform))),
     engagement: p.variants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0),
+    likes: p.variants.reduce((s, v) => s + v.likes, 0),
+    comments: p.variants.reduce((s, v) => s + v.comments, 0),
+    shares: p.variants.reduce((s, v) => s + v.shares, 0),
     variants: p.variants.map((v) => ({
       id: v.id,
       platform: v.account.platform,
@@ -296,6 +474,12 @@ export async function POST(req: NextRequest) {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       metrics: requestedMetrics,
+      postStatus: postStatusFilter,
+      sentiment: sentimentFilter,
+      sortBy,
+      groupBy,
+      minEngagement,
+      search,
     },
     summary: {
       totalPosts,
@@ -315,14 +499,18 @@ export async function POST(req: NextRequest) {
       totalFollowers,
       replyRate,
       commentsReplied,
+      engagementRate,
+      avgEngagementPerPost,
       sentiment: { positive, neutral, negative },
       platformBreakdown: Object.entries(platformBreakdown).map(([platform, data]) => ({ platform, ...data })),
       activeAccounts: new Set(variants.map((v) => v.accountId)).size,
     },
     series,
+    cadence,
     posts: postDetails,
     comments: commentDetails,
     members: memberBreakdown,
+    bestPost,
     accounts: accounts.map((a) => ({
       id: a.id,
       platform: a.platform,
