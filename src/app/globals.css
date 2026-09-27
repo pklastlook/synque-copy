@@ -1458,7 +1458,14 @@ html { scroll-behavior: smooth; }
   }
   .report-title-banner-left {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .report-company-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    border-radius: 3px;
   }
   .report-title-banner-brand {
     font-size: 22px;
@@ -1770,6 +1777,55 @@ html { scroll-behavior: smooth; }
     padding-top: 4px;
     border-top: 1px dashed #ccc;
     text-align: center;
+  }
+
+  /* Report footer with company contact info */
+  .report-footer-company {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 6px;
+    border-top: 1px solid #e0e0e0;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .report-footer-logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .report-footer-company-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .report-footer-company-name {
+    font-size: 9px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  .report-footer-company-line {
+    font-size: 7.5px;
+    color: #666;
+    margin-top: 1px;
+  }
+  .report-footer-company-contact {
+    font-size: 7.5px;
+    color: #888;
+    margin-top: 1px;
+  }
+  .report-footer-meta {
+    text-align: right;
+    font-size: 7.5px;
+    color: #888;
+    line-height: 1.4;
+  }
+  .report-footer-confidential {
+    font-style: italic;
+    color: #999;
+    margin-top: 2px;
   }
 
   /* ===========================================================================
