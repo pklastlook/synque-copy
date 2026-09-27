@@ -50,6 +50,7 @@ async function startBaileys() {
     const { version, isLatest } = await fetchLatestBaileysVersion();
     console.log(`[whatsapp-service] Using WA v${version.join(".")} (latest: ${isLatest})`);
 
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const { state: authState, saveCreds } = await useMultiFileAuthState(join(SESSIONS_DIR, "auth"));
 
     let sock = null;
