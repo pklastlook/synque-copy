@@ -624,14 +624,6 @@ export function ReportsView() {
             <span className="hidden sm:inline">Save</span>
           </button>
           <button
-            onClick={downloadCSV}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-600 transition hover:bg-emerald-500/20 dark:text-emerald-400"
-            title="Download as CSV (Excel-compatible)"
-          >
-            <Download className="h-3 w-3" />
-            <span className="hidden sm:inline">CSV</span>
-          </button>
-          <button
             onClick={printReport}
             className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
           >
@@ -2596,7 +2588,7 @@ function SavedReportsStrip({
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); onDownload(r); }}
-                    title="Download PDF"
+                    title="Download"
                     className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary transition hover:bg-primary/20"
                   >
                     <Download className="h-3 w-3" />

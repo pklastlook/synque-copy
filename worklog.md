@@ -7680,3 +7680,111 @@ The 3 new NAV entries use the existing flat-list pattern (no expandable parent n
 - Visual QA in `bun run dev`: visit Settings → Company (verify logo remove/replace, size previews, new fields, report header preview); Settings → Workspace (verify logo upload + Remove button + dynamic monogram); Settings → Appearance (toggle accent + font size + 3 toggles, reload page, confirm they survived); Settings → Data & Privacy (click Export data — a `synque-export-YYYY-MM-DD.json` should download).
 - Consider adding a `logo` column to the `WorkspaceSettings` Prisma model in a future migration so workspace logos are shared across team members rather than per-browser.
 - Consider extending the export endpoint to also pull `/api/analytics`, `/api/comments`, `/api/team`, and `/api/integrations` once those endpoints are stabilized — the `safeJson` pattern in `handleExport` makes adding more endpoints a one-line change.
+
+---
+
+## Task ID: report-landing-settings
+
+**Task**: Add two new settings sections to the Settings module:
+1. **Report Settings** — persisted to `socialflow-report-settings` localStorage, customizes how ALL printed reports look (header, footer, accent, watermark, page setup, table style, KPI strip, sentiment badges, sparklines).
+2. **Landing Page Settings** — persisted to `socialflow-landing-settings` localStorage, controls landing page enable/disable, hero copy, marketing sections, and per-link footer visibility.
+
+### Files delivered
+1. `/home/z/my-project/src/components/views/settings.tsx` — added two new section components (`ReportSettingsSection`, `LandingSettingsSection`), two exported read-helpers (`getReportSettings`, `getLandingSettings`), two new `SettingsTab` IDs (`report`, `landing`), a new `Customization` sidebar group, plus default schemas/loaders.
+2. `/home/z/my-project/src/components/app-sidebar.tsx` — bumped the settings sub-nav `max-h-[640px]` cap to `max-h-[820px]` so all 16 settings tabs (was 14) fit without clipping when the Settings group is expanded.
+
+### What was built — Report Settings
+
+**Tab wiring:**
+- `SettingsTab` type extended with `"report" | "landing"`.
+- `SETTINGS_TABS` gets two new entries with `FileBarChart2` (Report Settings) and `LayoutDashboard` (Landing Page) icons (both newly added to the lucide-react import list).
+- `SECTION_DESC` extended for both tabs.
+- New `SIDEBAR_GROUPS` group `Customization: ["report", "landing"]` so the two new tabs sit together at the bottom of the Settings sidebar (both desktop sidebar and mobile dropdown automatically pick them up via `SETTINGS_TABS.map(...)`).
+- `SettingsView` switch gets two new branches: `{tab === "report" && <ReportSettingsSection />}` and `{tab === "landing" && <LandingSettingsSection />}`.
+
+**Report settings schema (persisted to `socialflow-report-settings`):**
+```ts
+{
+  showCompanyLogo, logoPosition: "left"|"right"|"center"|"hidden",
+  showReportTitle, showDateRange, showExecutiveSummary, showKpiStrip,
+  showFooter, footerText, showPageNumbers,
+  paperSize: "letter"|"a4", orientation: "portrait"|"landscape",
+  fontSize: "small"|"medium"|"large", accentColor: "#5856D6",
+  showWatermark, watermarkText, showCompanyAddress, showCompanyContact,
+  headerLayout: "banner"|"centered"|"minimal", tableStyle: "striped"|"plain"|"bordered",
+  showSentimentBadges, showSparklines
+}
+```
+
+**UI:**
+- SectionHeader with title "Report Settings" + desc "Customize how reports print — applies to all reports" + a Reset + Save button group on the right.
+- Two-column layout: left column = settings controls grouped into "Header & branding", "Body content", "Footer & page setup"; right column = a live print preview.
+- 12 toggles (`ToggleRow`), 6 dropdowns (`Select` inside `Field`), 1 color picker (`<input type="color">` + hex `Input` + Reset button), 2 text inputs.
+- Watermark text input is disabled (and dimmed) when `showWatermark` is false.
+- The live print preview is a styled `<div>` that mirrors exactly how the PrintLayout would render:
+  - Pulls company info from `socialflow-company` localStorage to show real logo/name/address/phone/website.
+  - Renders the header with the chosen layout (banner / centered / minimal), logo position (left / right / center / hidden), accent color (border, top-border-inset, KPI values, table accent), and toggles for title / date range / address / contact.
+  - Shows an "Executive summary" box, KPI strip (4 mini KPIs), and a sample table demonstrating `tableStyle` (striped / plain / bordered), `showSentimentBadges` (POS/NEU/NEG pills), and `showSparklines` (inline SVG `<polyline>`).
+  - Footer line shows `footerText` (or "Confidential") and "Page 1 of 1" when `showPageNumbers`.
+  - The outer canvas `<div>` swaps `aspectRatio` based on `paperSize` + `orientation` (8.5/11, 11/8.5, 210/297, 297/210).
+- Save persists to `socialflow-report-settings` and shows `toast.success("Report settings saved — applies to all reports")`.
+- Reset clears localStorage and restores `DEFAULT_REPORT_SETTINGS`, then `toast.info("Report settings reset to defaults")`.
+
+**Public helper exported for downstream use:**
+```ts
+export function getReportSettings(): ReportSettings
+```
+Reads and returns the persisted settings (with defaults filled in). SSR-safe (`typeof window === "undefined"` returns defaults). The Reports view's `PrintLayout` (and any custom report print layout) can `import { getReportSettings } from "@/components/views/settings";` to read these settings without duplicating the key string and default-merging logic.
+
+### What was built — Landing Page Settings
+
+**Landing settings schema (persisted to `socialflow-landing-settings`):**
+```ts
+{
+  enabled, showNavLinks, showPricingSection, showComparisonSection,
+  showTrialButton, showLiveDemoButton, customHeadline, customSubheadline,
+  heroAccentColor: "",
+  showBlogLink, showDocsLink, showHelpLink, showStatusLink, showChangelogLink,
+  showCareersLink, showCustomersLink, showApiReferenceLink, showAiComposerLink, showProtectionLink
+}
+```
+
+**UI:**
+- SectionHeader with title "Landing Page" + desc + Reset + Save buttons.
+- A prominent master "Enable Landing Page" toggle in a green/amber-tinted box that changes label + description based on state ("Landing page enabled" → "Logged-out visitors to / see the public landing page." vs "Landing page disabled" → "Logged-out visitors to / are redirected to the login page instead.").
+- Two-column block of toggles: "Hero & navigation" (showNavLinks, showTrialButton, showLiveDemoButton) and "Marketing sections" (showPricingSection, showComparisonSection).
+- "Custom hero content" group: two text inputs (customHeadline, customSubheadline with default placeholders) + a hero accent color picker (color swatch + hex input + Clear button to set back to empty string = use default).
+- "Linked pages visibility" group: 10 cards rendered from `LANDING_LINK_DEFS` (Blog, Docs, Help Center, Status, Changelog, Careers, Customers, API Reference, AI Composer, Account Protection) — each card shows the page label, href, and a one-line description, with a Switch on the right. Hidden pages will return 404.
+- Footer note with a `CheckCircle2` icon: "These settings apply to the landing page and all linked pages. Changes take effect immediately for logged-out visitors on next page load."
+- Save shows `toast.success("Landing page settings saved")`; Reset shows `toast.info("Landing page settings reset to defaults")`.
+
+**Public helper exported for downstream use:**
+```ts
+export function getLandingSettings(): LandingSettings
+```
+SSR-safe reader. `src/app/page.tsx` can `import { getLandingSettings } from "@/components/views/settings";` and check `getLandingSettings().enabled` to decide whether to render `<LandingPage />` or redirect logged-out visitors to `/login`. The `LandingNav`/`LandingFooter` in `landing-shared.tsx` can read the per-link flags and conditionally render their `FooterCol` entries; the hero can read `customHeadline` / `customSubheadline` / `heroAccentColor` and fall back to defaults when empty.
+
+### Critical rules — all respected
+1. ✅ **Both sections added to SIDEBAR_GROUPS and SETTINGS_TABS** — a new `Customization` group holds `[report, landing]`, and both tabs have `SETTINGS_TABS` entries with icons. The mobile dropdown (which also maps `SIDEBAR_GROUPS`) and the desktop `app-sidebar.tsx` (which maps `SETTINGS_TABS`) both automatically pick up the new tabs without further changes.
+2. ✅ **SettingsTab type extended** with `"report" | "landing"` (no ViewId changes needed — `useNav().settingsTab` is typed as `string`).
+3. ✅ **Same `Field`/`SectionHeader`/`ToggleRow` pattern** as existing sections.
+4. ✅ **`toast` from sonner** for all feedback (save, reset, error).
+5. ✅ **Settings persist to localStorage** — no API calls.
+6. ✅ **`bun run lint` — 0 errors in `settings.tsx` and `app-sidebar.tsx`** (the only project-wide lint error is the pre-existing `mini-services/whatsapp-service/index.js` Baileys scaffold `react-hooks/rules-of-hooks` violation, which was present before this task and is unrelated).
+7. ✅ **`npx tsc --noEmit` — 0 errors in `settings.tsx`** (the pre-existing TS errors in `src/app/api/ai/assistant/route.ts`, `src/app/api/dashboard/route.ts`, `src/app/api/workspace/route.ts`, `src/app/api/platform-credentials/[platform]/sync/route.ts`, `src/components/views/dashboard.tsx`, `examples/websocket/*`, `mini-services/*`, `prisma.config.ts`, `skills/*` are unrelated and were present before this task).
+
+### Backward compatibility
+- Both localStorage buckets are new — if absent on first load, `loadReportSettings()` / `loadLandingSettings()` spread `DEFAULT_*` so existing users get sensible defaults without any migration.
+- The `loadXxxSettings` functions use `{ ...DEFAULT, ...raw }` so partial JSON objects (e.g. only `enabled: false` saved) merge cleanly without losing other defaults.
+- All 14 existing `SETTINGS_TABS` entries are untouched — only two were appended. The five existing `SIDEBAR_GROUPS` entries are untouched — only one new group was appended.
+- The `app-sidebar.tsx` `max-h-[640px] → max-h-[820px]` change is purely a CSS-class cap increase and doesn't affect existing tabs.
+
+### Next actions for the team
+- **Wire up the consumers** (follow-up tasks, not in scope here):
+  1. `src/components/views/reports.tsx` `PrintLayout` — read `getReportSettings()` once at the top of the function and apply the toggles/dropdowns to the actual print layout (header rendering, footer line, watermark, accent color, table cell className, sentiment column, sparkline column, `@page` size/orientation via `<style>` injection).
+  2. `src/app/page.tsx` — `import { getLandingSettings }` and gate `<LandingPage />` on `settings.enabled` (else redirect logged-out visitors to `/login`).
+  3. `src/components/landing-shared.tsx` `LandingFooter` — filter each `FooterCol` link by the matching `showXxxLink` flag.
+  4. `src/components/landing-shared.tsx` `LandingNav` — gate the nav links row on `showNavLinks`, gate the trial button on `showTrialButton`.
+  5. The landing hero — read `customHeadline`/`customSubheadline`/`heroAccentColor` and apply if non-empty.
+- Visual QA in `bun run dev`: Settings → Report Settings (toggle each control, watch the live preview update; switch paper size/orientation/header layout/logo position; pick a custom accent color; click Save and reload the page to confirm persistence). Settings → Landing Page (disable the master toggle, click Save, then open the app in an incognito window to confirm logged-out visitors hit `/login`; toggle individual linked pages off, Save, and visit them to confirm 404).
+- Consider persisting both buckets server-side (per workspace, not per-browser) in a future migration so admin-chosen report/landing settings apply to all team members on all devices.

@@ -851,7 +851,7 @@ function SettingsGroup({
         id="settings-subnav"
         className={cn(
           "overflow-hidden transition-[max-height,opacity] duration-300 ease-out",
-          expanded ? "max-h-[640px] opacity-100" : "max-h-0 opacity-0"
+          expanded ? "max-h-[820px] opacity-100" : "max-h-0 opacity-0"
         )}
       >
         <div className="crystal-in mt-0.5 space-y-0.5 rounded-xl border border-border/30 bg-muted/20 p-1.5">
