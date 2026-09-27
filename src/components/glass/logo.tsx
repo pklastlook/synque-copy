@@ -80,7 +80,7 @@ export function LogoWordmark({
   logoSize?: number;
 }) {
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex flex-col items-start gap-0.5", className)}>
       {showLogo && (
         <div
           className={cn("font-extrabold tracking-tight leading-none", size)}
@@ -97,10 +97,8 @@ export function LogoWordmark({
           </span>
         </div>
       )}
-      <div className="leading-tight">
-        <div className="text-[9px] uppercase tracking-[0.25em] text-muted-foreground">
-          Orchestrate Your Social
-        </div>
+      <div className="text-[9px] uppercase tracking-[0.25em] text-muted-foreground">
+        Orchestrate Your Social
       </div>
     </div>
   );
