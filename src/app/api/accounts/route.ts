@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
         ownerName: a.owner.name,
         ownerAvatar: a.owner.avatar,
         ownerColor: a.owner.color,
+        createdAt: a.createdAt.toISOString(),
         postsCount: a.postsCount,
         followerGrowth,
         impressions,

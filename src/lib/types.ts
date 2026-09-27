@@ -25,7 +25,8 @@ export type ViewId =
   // New modules (competitor-parity)
   | "utm"
   | "approvals"
-  | "influencers";
+  | "influencers"
+  | "account-safety";
 
 export interface PlatformAccount {
   id: string;
