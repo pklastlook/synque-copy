@@ -2104,13 +2104,13 @@ export function ComposerView() {
           </div>
         </main>
 
-        {/* === PREVIEW — above the publish bar, full width === */}
-        {previewAccount && (
+        {/* === PREVIEW — above the publish bar, all accounts shown at once === */}
+        {selectedAccounts.length > 0 && (
           <aside className="block">
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-2xl border border-border/60 bg-card p-3">
               <SectionHeader
                 title="Live preview"
-                desc="Updates as you type"
+                desc="All platforms — updates as you type"
                 icon={Eye}
                 action={
                   <div className="flex items-center gap-1">
@@ -2148,72 +2148,39 @@ export function ComposerView() {
                 }
               />
 
-              {/* Platform switcher tabs + preview side by side on desktop */}
-              <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-start">
-                {/* Platform switcher */}
-                <div className="scroll-liquid flex gap-1 overflow-x-auto pb-1 sm:flex-col sm:overflow-visible sm:pb-0">
-                  {selectedAccounts.map((a) => {
-                    const active = previewAccountId === a.id;
-                    return (
-                      <button
-                        key={a.id}
-                        onClick={() => setPreviewAccountId(a.id)}
-                        title={a.displayName}
-                        className={cn(
-                          "flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition",
-                          active
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                      >
+              {/* All previews shown horizontally — no clicking needed */}
+              <div className="scroll-liquid flex gap-3 overflow-x-auto pb-2">
+                {selectedAccounts.map((a) => {
+                  const p = PLATFORMS[a.platform];
+                  const v = state.variants[a.id];
+                  const content = state.accountContent[a.id] ?? v?.content ?? state.caption;
+                  const hashtags = v?.hashtags ?? "";
+                  const mediaUrl = state.accountMedia[a.id] ?? state.mediaUrl;
+                  return (
+                    <div key={a.id} className="shrink-0 space-y-1.5">
+                      {/* Platform label */}
+                      <div className="flex items-center justify-center gap-1.5">
                         <PlatformBadge platform={a.platform} size={16} />
-                        <span>{PLATFORMS[a.platform].short}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Phone preview — device-aware */}
-                <div className="mx-auto sm:mx-0">
-                  <PhonePreview
-                    account={previewAccount}
-                    content={previewContent}
-                    mediaUrl={previewMediaUrl || state.mediaUrl}
-                    hashtags={previewHashtags}
-                    device={previewDevice}
-                    theme={previewTheme}
-                  />
-                </div>
-              </div>
-
-              {/* Char-limit progress bar */}
-              <div className="max-w-[400px] space-y-1">
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-muted-foreground">
-                    {PLATFORMS[previewAccount.platform].name} char limit
-                  </span>
-                  <span className={cn(
-                    "font-semibold tabular-nums",
-                    previewContent.length > PLATFORMS[previewAccount.platform].charLimit
-                      ? "text-rose-500"
-                      : "text-muted-foreground"
-                  )}>
-                    {previewContent.length} / {PLATFORMS[previewAccount.platform].charLimit}
-                  </span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      previewContent.length > PLATFORMS[previewAccount.platform].charLimit
-                        ? "bg-rose-500"
-                        : "bg-primary"
-                    )}
-                    style={{
-                      width: `${Math.min(100, (previewContent.length / PLATFORMS[previewAccount.platform].charLimit) * 100)}%`,
-                    }}
-                  />
-                </div>
+                        <span className="text-[10px] font-bold" style={{ color: p.color }}>
+                          {p.short}
+                        </span>
+                      </div>
+                      {/* Phone preview */}
+                      <PhonePreview
+                        account={a}
+                        content={content}
+                        mediaUrl={mediaUrl}
+                        hashtags={hashtags}
+                        device={previewDevice}
+                        theme={previewTheme}
+                      />
+                      {/* Char count */}
+                      <div className="text-center text-[9px] tabular-nums text-muted-foreground">
+                        {content.length}/{p.charLimit}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </aside>
