@@ -27,6 +27,98 @@ async function saveState() {
 // ─── Lazy-loaded Baileys ────────────────────────────────────
 let baileysStarted = false;
 
+// Sync recent chat history after QR scan connection
+async function syncChatHistory(sock) {
+  try {
+    console.log("[whatsapp-service] Syncing chat history...");
+    // Get all chats (conversations)
+    const chats = await sock.getChats?.() ?? [];
+    console.log(`[whatsapp-service] Found ${chats.length} chats`);
+
+    let syncedCount = 0;
+    for (const chat of chats.slice(0, 20)) { // Limit to 20 most recent chats
+      try {
+        // Fetch last 10 messages from each chat
+        const messages = await chat.fetchMessages?.({ limit: 10 }) ?? [];
+        for (const msg of messages) {
+          if (!msg.message || msg.key.fromMe) continue;
+          let content = "";
+          if (msg.message.conversation) content = msg.message.conversation;
+          else if (msg.message.extendedTextMessage?.text) content = msg.message.extendedTextMessage.text;
+          else if (msg.message.imageMessage?.caption) content = msg.message.imageMessage.caption;
+          else if (msg.message.videoMessage?.caption) content = msg.message.videoMessage.caption;
+          else continue;
+
+          const isGroup = msg.key.remoteJid?.endsWith("@g.us");
+          const payload = {
+            source: isGroup ? "group" : "chat",
+            senderName: msg.pushName ?? chat.name ?? "Unknown",
+            groupName: isGroup ? chat.name : null,
+            content,
+            senderPhone: msg.key.participant ?? msg.key.remoteJid,
+          };
+
+          if (state.webhookTarget) {
+            try {
+              await fetch(state.webhookTarget, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+              syncedCount++;
+            } catch {}
+          }
+        }
+        // Small delay between chats to avoid rate limiting
+        await new Promise(r => setTimeout(r, 200));
+      } catch (e) {
+        console.error(`[whatsapp-service] Failed to sync chat ${chat?.name}:`, e?.message);
+      }
+    }
+    console.log(`[whatsapp-service] Synced ${syncedCount} messages from ${chats.length} chats`);
+  } catch (e) {
+    console.error("[whatsapp-service] Chat history sync failed:", e?.message || String(e));
+    // Fallback: try using store if available
+    try {
+      console.log("[whatsapp-service] Trying store-based history fetch...");
+      const allMsgs = sock.store?.messages ?? {};
+      let count = 0;
+      for (const [jid, msgs] of Object.entries(allMsgs)) {
+        if (count > 200) break;
+        const recent = (Array.isArray(msgs) ? msgs : msgs?.array ?? []).slice(-10);
+        for (const msg of recent) {
+          if (!msg?.message || msg?.key?.fromMe) continue;
+          let content = "";
+          if (msg.message.conversation) content = msg.message.conversation;
+          else if (msg.message.extendedTextMessage?.text) content = msg.message.extendedTextMessage.text;
+          else continue;
+
+          const isGroup = jid.endsWith("@g.us");
+          if (state.webhookTarget && content) {
+            try {
+              await fetch(state.webhookTarget, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  source: isGroup ? "group" : "chat",
+                  senderName: msg.pushName ?? "Unknown",
+                  groupName: isGroup ? jid : null,
+                  content,
+                  senderPhone: msg.key?.participant ?? jid,
+                }),
+              });
+              count++;
+            } catch {}
+          }
+        }
+      }
+      console.log(`[whatsapp-service] Store-based sync: ${count} messages`);
+    } catch (e2) {
+      console.error("[whatsapp-service] Store sync also failed:", e2?.message);
+    }
+  }
+}
+
 async function startBaileys() {
   if (baileysStarted) return;
   baileysStarted = true;
@@ -78,6 +170,9 @@ async function startBaileys() {
           state.qr = null;
           state.phone = sock.user?.id?.split(":")[0] ?? null;
           console.log(`[whatsapp-service] Connected as ${state.phone}`);
+
+          // Sync recent chat history after connection
+          await syncChatHistory(sock);
         }
         if (connection === "close") {
           state.connected = false;
@@ -97,11 +192,19 @@ async function startBaileys() {
           let content = "";
           if (msg.message.conversation) content = msg.message.conversation;
           else if (msg.message.extendedTextMessage?.text) content = msg.message.extendedTextMessage.text;
+          else if (msg.message.imageMessage?.caption) content = msg.message.imageMessage.caption;
+          else if (msg.message.videoMessage?.caption) content = msg.message.videoMessage.caption;
           else continue;
+
+          // Detect if it's a group or direct chat
+          const isGroup = msg.key.remoteJid?.endsWith("@g.us");
+          const source = isGroup ? "group" : "chat";
+          const groupName = isGroup ? null : null; // Group name not available in message
+
           const payload = {
-            source: "group",
+            source,
             senderName: msg.pushName ?? "Unknown",
-            groupName: null,
+            groupName: isGroup ? msg.key.remoteJid : null,
             content,
             senderPhone: msg.key.participant ?? msg.key.remoteJid,
           };
@@ -112,7 +215,10 @@ async function startBaileys() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
               });
-            } catch {}
+              console.log(`[whatsapp-service] Forwarded message from ${payload.senderName}`);
+            } catch (e) {
+              console.error("[whatsapp-service] Webhook failed:", e?.message || String(e));
+            }
           }
         }
       });
