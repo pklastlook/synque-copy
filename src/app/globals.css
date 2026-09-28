@@ -2043,3 +2043,94 @@ html { scroll-behavior: smooth; }
   /* Notes & terms stay together */
   .print-area .notes-block { page-break-inside: avoid; break-inside: avoid; }
 }
+
+/* ============================================================
+   LOGO ANIMATIONS — SYNQUE wordmark
+   ============================================================ */
+
+/* Animated gradient text for "QUE" letters */
+.logo-gradient-text {
+  background-image: linear-gradient(
+    120deg,
+    var(--primary) 0%,
+    var(--gold) 50%,
+    var(--primary) 100%
+  );
+  background-size: 200% 100%;
+  animation: logoGradientShift 4s ease-in-out infinite;
+}
+
+@keyframes logoGradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Letter entrance animation — staggered fade-up */
+.logo-letter-enter {
+  opacity: 0;
+  animation: logoLetterEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes logoLetterEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Hover effect — letters scale slightly */
+.logo-animated:hover .logo-letter {
+  transition: transform 0.2s ease;
+}
+.logo-animated:hover .logo-letter:nth-child(1) { transform: translateY(-2px); transition-delay: 0ms; }
+.logo-animated:hover .logo-letter:nth-child(2) { transform: translateY(-2px); transition-delay: 40ms; }
+.logo-animated:hover .logo-letter:nth-child(3) { transform: translateY(-2px); transition-delay: 80ms; }
+.logo-animated:hover .logo-letter:nth-child(4) { transform: translateY(-2px); transition-delay: 120ms; }
+.logo-animated:hover .logo-letter:nth-child(5) { transform: translateY(-2px); transition-delay: 160ms; }
+.logo-animated:hover .logo-letter:nth-child(6) { transform: translateY(-2px); transition-delay: 200ms; }
+
+/* Shimmer sweep — light passes across the text every 4s */
+.logo-shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  animation: logoShimmer 4s ease-in-out infinite;
+  animation-delay: 1s;
+  pointer-events: none;
+}
+
+@keyframes logoShimmer {
+  0%, 70% { left: -100%; }
+  85% { left: 100%; }
+  100% { left: 100%; }
+}
+
+/* Reduced motion — disable all animations */
+@media (prefers-reduced-motion: reduce) {
+  .logo-gradient-text {
+    animation: none;
+    background-position: 0% 50%;
+  }
+  .logo-letter-enter {
+    opacity: 1;
+    animation: none;
+  }
+  .logo-shimmer {
+    display: none;
+  }
+  .logo-animated:hover .logo-letter {
+    transform: none;
+  }
+}

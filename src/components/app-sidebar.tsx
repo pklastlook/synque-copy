@@ -170,8 +170,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full w-full flex-col gap-2 p-3">
-      {/* Brand — logo + SYNQUE (logo on top, slogan underneath) */}
-      <div className="px-1 pb-1 pt-0">
+      {/* Brand — animated logo centered + slogan below */}
+      <div className="px-1 pb-1 pt-0 flex justify-center">
         <LogoWordmark size="text-[18px]" logoSize={30} />
       </div>
 
