@@ -2044,93 +2044,45 @@ html { scroll-behavior: smooth; }
   .print-area .notes-block { page-break-inside: avoid; break-inside: avoid; }
 }
 
+
 /* ============================================================
-   LOGO ANIMATIONS — SYNQUE wordmark
+   SYNQUE LOGO — creative font styling + gradient hover
    ============================================================ */
 
-/* Animated gradient text for "QUE" letters */
-.logo-gradient-text {
-  background-image: linear-gradient(
-    120deg,
-    var(--primary) 0%,
-    var(--gold) 50%,
-    var(--primary) 100%
-  );
-  background-size: 200% 100%;
-  animation: logoGradientShift 4s ease-in-out infinite;
+/* Container — creative font: italic, tight tracking, bold */
+.logo-creative {
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.03em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  cursor: default;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@keyframes logoGradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+/* "SYN" — solid foreground color */
+.logo-creative .logo-syn {
+  color: var(--foreground);
+  transition: color 0.3s ease;
 }
 
-/* Letter entrance animation — staggered fade-up */
-.logo-letter-enter {
-  opacity: 0;
-  animation: logoLetterEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+/* "QUE" — gradient (primary → gold) that shifts on hover */
+.logo-creative .logo-que {
+  background: linear-gradient(135deg, var(--primary), var(--gold));
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  transition: background-position 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@keyframes logoLetterEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(8px) scale(0.9);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+/* On hover — gradient shifts smoothly */
+.logo-creative:hover .logo-que {
+  background-position: 100% 50%;
 }
 
-/* Hover effect — letters scale slightly */
-.logo-animated:hover .logo-letter {
-  transition: transform 0.2s ease;
-}
-.logo-animated:hover .logo-letter:nth-child(1) { transform: translateY(-2px); transition-delay: 0ms; }
-.logo-animated:hover .logo-letter:nth-child(2) { transform: translateY(-2px); transition-delay: 40ms; }
-.logo-animated:hover .logo-letter:nth-child(3) { transform: translateY(-2px); transition-delay: 80ms; }
-.logo-animated:hover .logo-letter:nth-child(4) { transform: translateY(-2px); transition-delay: 120ms; }
-.logo-animated:hover .logo-letter:nth-child(5) { transform: translateY(-2px); transition-delay: 160ms; }
-.logo-animated:hover .logo-letter:nth-child(6) { transform: translateY(-2px); transition-delay: 200ms; }
-
-/* Shimmer sweep — light passes across the text every 4s */
-.logo-shimmer {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.15),
-    transparent
-  );
-  animation: logoShimmer 4s ease-in-out infinite;
-  animation-delay: 1s;
-  pointer-events: none;
-}
-
-@keyframes logoShimmer {
-  0%, 70% { left: -100%; }
-  85% { left: 100%; }
-  100% { left: 100%; }
-}
-
-/* Reduced motion — disable all animations */
-@media (prefers-reduced-motion: reduce) {
-  .logo-gradient-text {
-    animation: none;
-    background-position: 0% 50%;
-  }
-  .logo-letter-enter {
-    opacity: 1;
-    animation: none;
-  }
-  .logo-shimmer {
-    display: none;
-  }
-  .logo-animated:hover .logo-letter {
-    transform: none;
-  }
+/* On hover — subtle letter spacing tighten */
+.logo-creative:hover {
+  letter-spacing: -0.04em;
 }
