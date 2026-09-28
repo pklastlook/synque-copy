@@ -1431,10 +1431,10 @@ html { scroll-behavior: smooth; }
    ============================================================================ */
 
 @media print {
-  /* --- Page setup: Letter, margin:0 (print root handles width via mm) --- */
+  /* --- Page setup: Letter with proper margins --- */
   @page {
     size: letter;
-    margin: 0;
+    margin: 15mm 14mm 20mm 14mm;
 
     /* Page number — bottom right of every page (in the page margin) */
     @bottom-right {
@@ -1465,7 +1465,8 @@ html { scroll-behavior: smooth; }
   .report-print-root, .report-print-root *,
   .print-area, .print-area * { visibility: visible; }
 
-  /* Collapse hidden app chrome so it doesn't reserve space. */
+  /* Collapse hidden app chrome so it doesn't reserve space.
+     display:none removes them from flow entirely (no blank pages). */
   .glass-sidebar, .retina-bg, .apple-tab-bar, .premium-scrim,
   nav[aria-label], .mobile-only, .desktop-only,
   .app-header, header, aside, .glass-strong.sticky,
@@ -1475,38 +1476,54 @@ html { scroll-behavior: smooth; }
     display: none !important;
   }
 
-  /* Reset all ancestor containers. */
+  /* Reset all ancestor containers — collapse to 0 height so hidden
+     visibility:hidden elements don't create blank pages.
+     CRITICAL: don't touch .report-print-root or its children. */
   body, html {
     padding: 0 !important;
     margin: 0 !important;
     background: transparent !important;
   }
-  body > div, body > div > div,
-  body > div > div > div {
+  body > div:not(:has(.report-print-root)),
+  body > div > div:not(:has(.report-print-root)) {
+    height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  /* For containers that DO contain the print root, just reset padding/margin */
+  body > div:has(.report-print-root),
+  body > div > div:has(.report-print-root),
+  body > div > div > div:has(.report-print-root) {
     padding: 0 !important;
     margin: 0 !important;
     max-width: none !important;
     width: auto !important;
     min-height: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
-  /* Print root: position:absolute escapes hidden elements (no blank pages).
-     Width = 187.9mm (Letter 215.9mm minus 14mm margins each side).
-     Padding creates the internal margins (top:15mm, sides:14mm, bottom:20mm).
-     overflow-x:hidden prevents side cropping, overflow-y:visible for pagination. */
+  /* Print root: position:static so it flows within the @page content box.
+     @page margin (15mm 14mm 20mm 14mm) creates the page margins.
+     width:100% = 100% of the @page content box (which is already inside the margins).
+     overflow:hidden on x prevents any content from exceeding the content box width.
+     overflow:visible on y allows pagination. */
   .report-print-root {
     display: block !important;
-    position: absolute !important;
-    left: 14mm !important;
-    top: 0 !important;
-    width: 187.9mm !important;
-    max-width: 187.9mm !important;
-    padding: 15mm 0 20mm 0 !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
     margin: 0 !important;
     box-sizing: border-box !important;
     overflow-x: hidden !important;
     overflow-y: visible !important;
-    z-index: 9999 !important;
+    z-index: auto !important;
   }
 
   /* FORCE light mode colors inside print root — overrides .dark class vars.
