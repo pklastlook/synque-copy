@@ -5441,28 +5441,12 @@ function ReportPreviewCanvas({
   return (
     <div
       className="report-preview-root"
-      data-accent-scope
       style={{
-        ["--report-accent" as string]: accent,
+        ["--print-accent" as string]: accent,
         fontSize: `calc(10px * ${fontScale})`,
         position: "relative",
       }}
     >
-      {/* Accent color injection: re-style the report-* accent rules with the
-          user's chosen color via a scoped <style>. Uses !important so the live
-          color picker wins even in print mode (where @media print hardcodes
-          #5856D6 with !important). */}
-      <style>{`
-        [data-accent-scope] .report-title-banner-brand,
-        [data-accent-scope] .report-title-banner-eyebrow,
-        [data-accent-scope] .report-section-title { color: ${accent} !important; }
-        [data-accent-scope] .report-section-title { border-bottom-color: ${accent} !important; }
-        [data-accent-scope] .report-metric-row { border-left-color: ${accent} !important; }
-        [data-accent-scope] .report-kpi-card { border-left-color: ${accent} !important; }
-        [data-accent-scope] .report-podium-card { border-top-color: ${accent} !important; }
-        [data-accent-scope] .report-table thead th { background: ${accent} !important; }
-        [data-accent-scope] .report-title-accent { background: ${accent} !important; }
-      `}</style>
 
       {/* Watermark — diagonal faint text behind every page */}
       {settings.showWatermark && settings.watermarkText.trim() && (
