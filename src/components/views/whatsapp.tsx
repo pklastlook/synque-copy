@@ -419,28 +419,18 @@ export function WhatsAppView() {
   }
 
   // Manual sync button — triggers the Railway WhatsApp service to sync chat history
+  const [syncing, setSyncing] = React.useState(false);
   async function handleManualSync() {
-    setConnecting(true);
+    setSyncing(true);
     try {
-      // Set webhook target first (in case Railway restarted)
-      const host = typeof window !== "undefined" ? window.location.host : "localhost:3000";
-      const proto = typeof window !== "undefined" && window.location.protocol;
-      const webhookTarget = `${proto}//${host}/api/whatsapp/webhook?ownerId=${ownerId}`;
-      await fetch(`${connection?.serviceOffline ? "" : ""}/api/whatsapp/connection`, {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({ action: "start" }),
-      }).catch(() => {});
-
       // Call the Railway service /sync endpoint directly
-      const serviceUrl = process.env.NEXT_PUBLIC_WHATSAPP_SERVICE_URL || "https://whatsapp-production-ff54.up.railway.app";
+      const serviceUrl = "https://whatsapp-production-ff54.up.railway.app";
       const res = await fetch(`${serviceUrl}/sync`, { method: "POST" });
       const json = await res.json().catch(() => ({}));
       if (json.ok) {
         toast.success("Syncing chat history…", {
           description: "Messages will appear in a few seconds.",
         });
-        // Reload after a delay to let sync complete
         setTimeout(() => reload({ silent: true }), 5000);
         setTimeout(() => reload({ silent: true }), 10000);
         setTimeout(() => reload({ silent: true }), 15000);
@@ -449,9 +439,9 @@ export function WhatsAppView() {
         setTimeout(() => reload({ silent: true }), 5000);
       }
     } catch {
-      toast.error("Couldn't reach WhatsApp service for sync");
+      toast.error("WhatsApp service is offline. Please try again later.");
     } finally {
-      setConnecting(false);
+      setSyncing(false);
     }
   }
 
@@ -475,6 +465,7 @@ export function WhatsAppView() {
       <ConnectionStatusBar
         connection={connection}
         connecting={connecting}
+        syncing={syncing}
         onConnect={handleStartConnection}
         onDisconnect={handleLogout}
         onShowQR={() => setShowQR(true)}
@@ -838,16 +829,22 @@ function MessageBubble({
   onDelete: () => void;
 }) {
   const [expanded, setExpanded] = React.useState(false);
+  const [selected, setSelected] = React.useState(false);
   const statusMeta = STATUS_META[msg.status] ?? STATUS_META.new;
   const isNew = msg.status === "new";
 
   return (
-    <div className={cn(
-      "group rounded-2xl border p-3 transition",
-      isNew
-        ? "border-primary/30 bg-primary/5"
-        : "border-border/40 bg-muted/50"
-    )}>
+    <div
+      onClick={() => setSelected(!selected)}
+      className={cn(
+        "group cursor-pointer rounded-2xl border p-3 transition",
+        selected
+          ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
+          : isNew
+            ? "border-primary/30 bg-primary/5"
+            : "border-border/40 bg-muted/50 hover:border-border/60"
+      )}
+    >
       {/* Sender + meta */}
       <div className="mb-2 flex items-center gap-2">
         <NameAvatar name={msg.senderName} className="h-7 w-7 text-[10px]" />
@@ -874,14 +871,14 @@ function MessageBubble({
         "rounded-xl rounded-tl-sm p-2.5 text-xs leading-relaxed",
         isNew ? "bg-background/80 text-foreground" : "bg-background/60 text-foreground/80"
       )}>
-        <button
+        <div
           onClick={() => setExpanded(!expanded)}
           className="w-full text-left"
         >
           <div className={cn("whitespace-pre-wrap", !expanded && "line-clamp-4")}>
             {msg.content}
           </div>
-        </button>
+        </div>
         {expanded && (
           <div className="mt-1 border-t border-border/30 pt-1 text-[9px] text-muted-foreground">
             {msg.content.length} characters · {msg.content.split("\n").length} lines
@@ -896,38 +893,40 @@ function MessageBubble({
         </div>
       )}
 
-      {/* Action row */}
-      <div className="mt-2 flex items-center gap-1.5 opacity-100 transition lg:opacity-60 lg:group-hover:opacity-100">
-        <button
-          onClick={onSendToComposer}
-          className="liquid-pill flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold"
-        >
-          <Sparkles className="h-3 w-3" />
-          Send to Composer
-          <ChevronRight className="h-3 w-3" />
-        </button>
-        <button
-          onClick={onCopy}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          title="Copy content"
-        >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-        </button>
-        <button
-          onClick={onArchive}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          title="Archive"
-        >
-          <Archive className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={onDelete}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
-          title="Delete"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      {/* Action row — only visible when message is selected (clicked) */}
+      {selected && (
+        <div className="mt-2 flex items-center gap-1.5 border-t border-border/30 pt-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); onSendToComposer(); }}
+            className="liquid-pill flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold"
+          >
+            <Sparkles className="h-3 w-3" />
+            Send to Composer
+            <ChevronRight className="h-3 w-3" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onCopy(); }}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            title="Copy content"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onArchive(); }}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            title="Archive"
+          >
+            <Archive className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
+            title="Delete"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1132,6 +1131,7 @@ function PasteForm({
 function ConnectionStatusBar({
   connection,
   connecting,
+  syncing,
   onConnect,
   onDisconnect,
   onShowQR,
@@ -1139,6 +1139,7 @@ function ConnectionStatusBar({
 }: {
   connection: ConnectionStatus | null;
   connecting: boolean;
+  syncing: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
   onShowQR: () => void;
@@ -1235,12 +1236,20 @@ function ConnectionStatusBar({
             <>
               <button
                 onClick={onSync}
-                disabled={connecting}
-                className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
+                disabled={syncing}
+                className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-70"
                 title="Sync chat history from WhatsApp"
               >
-                {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                {connecting ? "Syncing…" : "Sync Chats"}
+                {syncing ? (
+                  <span className="flex items-end gap-0.5">
+                    <span className="h-2 w-0.5 animate-pulse rounded-full bg-primary" style={{ animationDelay: "0ms", animationDuration: "0.8s" }} />
+                    <span className="h-3 w-0.5 animate-pulse rounded-full bg-primary" style={{ animationDelay: "150ms", animationDuration: "0.8s" }} />
+                    <span className="h-4 w-0.5 animate-pulse rounded-full bg-primary" style={{ animationDelay: "300ms", animationDuration: "0.8s" }} />
+                  </span>
+                ) : (
+                  <Wifi className="h-3.5 w-3.5" />
+                )}
+                {syncing ? "Syncing…" : "Sync Chats"}
               </button>
               <button
                 onClick={onDisconnect}
