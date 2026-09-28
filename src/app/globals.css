@@ -1473,13 +1473,23 @@ html { scroll-behavior: smooth; }
     display: none !important;
   }
 
-  /* Also collapse the main content wrapper's padding/margin so print
-     content starts at the top of the page. */
-  main, .scroll-liquid, [class*="max-w"],
-  .flex.min-h-screen, .relative.flex.min-h-screen {
+  /* Reset ALL ancestor containers of the print root so they don't
+     constrain it with max-width, padding, or margin.
+     Use :not() to avoid affecting elements inside the print root. */
+  body, html {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+  /* Reset all top-level div wrappers that constrain the print root */
+  body > div, body > div > div,
+  body > div > div > div {
     padding: 0 !important;
     margin: 0 !important;
     max-width: none !important;
+    width: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   /* Print root in NORMAL flow (position:static) so the browser paginates
