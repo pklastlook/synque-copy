@@ -51,7 +51,7 @@ interface ConnectionStatus {
   dbStatus?: string;
 }
 
-type StatusFilter = "all" | "new" | "used" | "archived";
+type StatusFilter = "all" | "new" | "read" | "used" | "archived";
 
 const SOURCE_META: Record<string, { label: string; icon: LucideIcon; color: string; bg: string }> = {
   group: { label: "Group", icon: Users, color: "text-blue-500", bg: "bg-blue-500/15" },
@@ -60,8 +60,9 @@ const SOURCE_META: Record<string, { label: string; icon: LucideIcon; color: stri
   channel: { label: "Channel", icon: MessageCircle, color: "text-purple-500", bg: "bg-purple-500/15" },
 };
 
-const STATUS_META: Record<string, { label: string; color: "green" | "blue" | "neutral" }> = {
+const STATUS_META: Record<string, { label: string; color: "green" | "blue" | "neutral" | "amber" }> = {
   new: { label: "New", color: "green" },
+  read: { label: "Read", color: "blue" },
   used: { label: "Used", color: "blue" },
   archived: { label: "Archived", color: "neutral" },
 };
@@ -289,6 +290,7 @@ export function WhatsAppView() {
     return {
       total: allMessages.length,
       new: allMessages.filter((m) => m.status === "new").length,
+      read: allMessages.filter((m) => m.status === "read" || m.status === "used").length,
       used: allMessages.filter((m) => m.status === "used").length,
       archived: allMessages.filter((m) => m.status === "archived").length,
     };
@@ -370,14 +372,14 @@ export function WhatsAppView() {
   function handleSendToComposer(msg: WhatsAppMessage) {
     // Pre-fill the composer with the WhatsApp message content
     openComposer(msg.content);
-    // Mark as used
+    // Mark as used (sent to composer)
     fetch(`/api/whatsapp/${msg.id}`, {
       method: "PATCH",
       headers: authHeaders,
       body: JSON.stringify({ status: "used" }),
-    }).then(() => reload());
+    }).then(() => reload({ silent: true }));
     toast.success("Sent to Composer", {
-      description: "The message is now in your composer — generate AI variants & publish.",
+      description: "The message is now in your composer — customize and publish.",
     });
   }
 
@@ -387,7 +389,7 @@ export function WhatsAppView() {
       headers: authHeaders,
       body: JSON.stringify({ status: "archived" }),
     });
-    reload();
+    reload({ silent: true });
     toast.success("Archived");
   }
 
@@ -396,13 +398,61 @@ export function WhatsAppView() {
       method: "DELETE",
       headers: authHeaders,
     });
-    reload();
+    reload({ silent: true });
     toast.success("Deleted");
   }
 
   function selectConversation(convo: Conversation) {
     setSelectedConvoId(convo.id);
     setMobileShowDetail(true);
+    // Mark all "new" messages in this conversation as "read" (status → "used")
+    const newMessages = convo.messages.filter((m) => m.status === "new");
+    if (newMessages.length > 0) {
+      Promise.all(newMessages.map((m) =>
+        fetch(`/api/whatsapp/${m.id}`, {
+          method: "PATCH",
+          headers: authHeaders,
+          body: JSON.stringify({ status: "read" }),
+        }).catch(() => {})
+      )).then(() => reload({ silent: true }));
+    }
+  }
+
+  // Manual sync button — triggers the Railway WhatsApp service to sync chat history
+  async function handleManualSync() {
+    setConnecting(true);
+    try {
+      // Set webhook target first (in case Railway restarted)
+      const host = typeof window !== "undefined" ? window.location.host : "localhost:3000";
+      const proto = typeof window !== "undefined" && window.location.protocol;
+      const webhookTarget = `${proto}//${host}/api/whatsapp/webhook?ownerId=${ownerId}`;
+      await fetch(`${connection?.serviceOffline ? "" : ""}/api/whatsapp/connection`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ action: "start" }),
+      }).catch(() => {});
+
+      // Call the Railway service /sync endpoint directly
+      const serviceUrl = process.env.NEXT_PUBLIC_WHATSAPP_SERVICE_URL || "https://whatsapp-production-ff54.up.railway.app";
+      const res = await fetch(`${serviceUrl}/sync`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (json.ok) {
+        toast.success("Syncing chat history…", {
+          description: "Messages will appear in a few seconds.",
+        });
+        // Reload after a delay to let sync complete
+        setTimeout(() => reload({ silent: true }), 5000);
+        setTimeout(() => reload({ silent: true }), 10000);
+        setTimeout(() => reload({ silent: true }), 15000);
+      } else {
+        toast.info("Sync started — check back in a moment");
+        setTimeout(() => reload({ silent: true }), 5000);
+      }
+    } catch {
+      toast.error("Couldn't reach WhatsApp service for sync");
+    } finally {
+      setConnecting(false);
+    }
   }
 
   function backToList() {
@@ -428,6 +478,7 @@ export function WhatsAppView() {
         onConnect={handleStartConnection}
         onDisconnect={handleLogout}
         onShowQR={() => setShowQR(true)}
+        onSync={handleManualSync}
       />
 
       {/* === QR MODAL === */}
@@ -492,12 +543,15 @@ export function WhatsAppView() {
 
           {/* Status filter pills */}
           <div className="flex flex-wrap items-center gap-1.5 px-3 py-2.5">
-            {(["all", "new", "used", "archived"] as StatusFilter[]).map((f) => {
+            {(["all", "new", "read", "used", "archived"] as StatusFilter[]).map((f) => {
               const active = statusFilter === f;
               const meta = STATUS_META[f];
               const count = f === "all"
                 ? stats.total
-                : f === "new" ? stats.new : f === "used" ? stats.used : stats.archived;
+                : f === "new" ? stats.new
+                : f === "read" ? stats.read
+                : f === "used" ? stats.used
+                : stats.archived;
               return (
                 <button
                   key={f}
@@ -785,39 +839,55 @@ function MessageBubble({
 }) {
   const [expanded, setExpanded] = React.useState(false);
   const statusMeta = STATUS_META[msg.status] ?? STATUS_META.new;
+  const isNew = msg.status === "new";
 
   return (
-    <div className="group rounded-xl border border-border/40 bg-background/40 p-3 transition hover:border-border/60">
+    <div className={cn(
+      "group rounded-2xl border p-3 transition",
+      isNew
+        ? "border-primary/30 bg-primary/5"
+        : "border-border/40 bg-muted/50"
+    )}>
       {/* Sender + meta */}
       <div className="mb-2 flex items-center gap-2">
-        <NameAvatar name={msg.senderName} className="h-6 w-6 text-[10px]" />
-        <span className="truncate text-xs font-bold">{msg.senderName}</span>
-        {msg.isLive && (
-          <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-500">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-            Live
-          </span>
-        )}
-        <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-          {timeAgo(msg.createdAt)}
-        </span>
+        <NameAvatar name={msg.senderName} className="h-7 w-7 text-[10px]" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-xs font-bold">{msg.senderName}</span>
+            {msg.isLive && (
+              <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-500">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Live
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <span>{timeAgo(msg.createdAt)}</span>
+            {msg.senderPhone && <span className="truncate">· {msg.senderPhone}</span>}
+          </div>
+        </div>
         <Pill color={statusMeta.color}>{statusMeta.label}</Pill>
       </div>
 
-      {/* Content */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full text-left"
-      >
-        <div className={cn("whitespace-pre-wrap text-xs text-foreground/90", !expanded && "line-clamp-4")}>
-          {msg.content}
-        </div>
-      </button>
-      {expanded && (
-        <div className="mt-1 text-[10px] text-muted-foreground">
-          {msg.content.length} characters · {msg.content.split("\n").length} lines
-        </div>
-      )}
+      {/* Content — WhatsApp-style bubble */}
+      <div className={cn(
+        "rounded-xl rounded-tl-sm p-2.5 text-xs leading-relaxed",
+        isNew ? "bg-background/80 text-foreground" : "bg-background/60 text-foreground/80"
+      )}>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full text-left"
+        >
+          <div className={cn("whitespace-pre-wrap", !expanded && "line-clamp-4")}>
+            {msg.content}
+          </div>
+        </button>
+        {expanded && (
+          <div className="mt-1 border-t border-border/30 pt-1 text-[9px] text-muted-foreground">
+            {msg.content.length} characters · {msg.content.split("\n").length} lines
+          </div>
+        )}
+      </div>
 
       {/* Media preview */}
       {msg.mediaUrl && (
@@ -1065,12 +1135,14 @@ function ConnectionStatusBar({
   onConnect,
   onDisconnect,
   onShowQR,
+  onSync,
 }: {
   connection: ConnectionStatus | null;
   connecting: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
   onShowQR: () => void;
+  onSync: () => void;
 }) {
   const isOffline = connection?.serviceOffline;
   const isConnected = connection?.connected;
@@ -1160,12 +1232,23 @@ function ConnectionStatusBar({
             </>
           )}
           {isConnected && (
-            <button
-              onClick={onDisconnect}
-              className="flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/20 dark:text-rose-400"
-            >
-              <X className="h-3.5 w-3.5" /> Disconnect
-            </button>
+            <>
+              <button
+                onClick={onSync}
+                disabled={connecting}
+                className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
+                title="Sync chat history from WhatsApp"
+              >
+                {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                {connecting ? "Syncing…" : "Sync Chats"}
+              </button>
+              <button
+                onClick={onDisconnect}
+                className="flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/20 dark:text-rose-400"
+              >
+                <X className="h-3.5 w-3.5" /> Disconnect
+              </button>
+            </>
           )}
         </div>
       </div>
