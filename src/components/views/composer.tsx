@@ -1248,7 +1248,7 @@ export function ComposerView() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by name, handle, or platform…"
-                  className="w-full rounded-xl border border-border/50 bg-muted/30 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+                  className="w-full rounded-xl border border-border/50 bg-muted/50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
                 />
               </div>
             </div>
@@ -1272,7 +1272,7 @@ export function ComposerView() {
                         "group relative flex w-[180px] shrink-0 flex-col gap-2 rounded-2xl border p-3 text-left transition",
                         on
                           ? "border-primary/50 bg-primary/5 ring-1 ring-primary/30"
-                          : "border-border/40 bg-muted/20 hover:border-border hover:bg-muted/40"
+                          : "border-border/40 bg-muted/50 hover:border-border hover:bg-muted/40"
                       )}
                     >
                       {/* Top row: platform badge + check circle */}
@@ -1408,7 +1408,7 @@ export function ComposerView() {
             }
           >
             {selectedAccounts.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+              <div className="rounded-xl border border-dashed border-border/50 bg-muted/50 p-4 text-center text-xs text-muted-foreground">
                 Select accounts above to add media per platform.
               </div>
             ) : (
@@ -1423,7 +1423,7 @@ export function ComposerView() {
                     type="button"
                     onClick={() => setUploadOpen(true)}
                     className={cn(
-                      "group relative flex w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border/60 bg-muted/30 p-2 transition hover:border-primary/50 hover:bg-muted/40",
+                      "group relative flex w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border/60 bg-muted/50 p-2 transition hover:border-primary/50 hover:bg-muted/40",
                       state.mediaUrl ? "min-h-[140px]" : "min-h-[100px]"
                     )}
                   >
@@ -1476,7 +1476,7 @@ export function ComposerView() {
                             "rounded-xl border p-2.5 transition",
                             mediaUrl
                               ? "border-primary/40 bg-primary/5"
-                              : "border-border/40 bg-muted/20"
+                              : "border-border/40 bg-muted/50"
                           )}
                         >
                           <div className="mb-1.5 flex items-center gap-1.5">
@@ -1545,7 +1545,7 @@ export function ComposerView() {
                     value={state.altText}
                     onChange={(e) => update({ altText: e.target.value })}
                     placeholder="Describe the image"
-                    className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+                    className="w-full rounded-xl border border-border/50 bg-muted/50 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
                   />
                 </div>
 
@@ -1778,7 +1778,7 @@ export function ComposerView() {
 
             {/* Per-account content boxes */}
             {selectedAccounts.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border/50 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+              <div className="rounded-xl border border-dashed border-border/50 bg-muted/50 p-4 text-center text-xs text-muted-foreground">
                 Select accounts above to write content for each platform.
               </div>
             ) : (
@@ -1800,7 +1800,7 @@ export function ComposerView() {
                           "flex w-[280px] shrink-0 flex-col rounded-2xl border p-3 transition",
                           content.trim()
                             ? "border-primary/40 bg-primary/5"
-                            : "border-border/40 bg-muted/20"
+                            : "border-border/40 bg-muted/50"
                         )}
                       >
                         {/* Account header */}
@@ -1993,7 +1993,7 @@ export function ComposerView() {
                             .slice(0, 16);
                           update({ scheduledAt: local });
                         }}
-                        className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                        className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-foreground/80 transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
                       >
                         <p.icon className="h-3 w-3" />
                         {p.label}
@@ -2036,7 +2036,7 @@ export function ComposerView() {
 
             {/* Best time to post — per selected platform */}
             {!state.scheduleEnabled && !state.sendForApproval && selectedAccounts.length > 0 && (
-              <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+              <div className="rounded-xl border border-border/40 bg-muted/50 p-3">
                 <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   <TrendingUp className="h-3 w-3" />
                   Best times to post
@@ -2448,7 +2448,7 @@ function CollapsibleSection({
         "transition-all duration-300",
         isCollapsed ? "max-h-0 overflow-hidden opacity-0" : "max-h-[5000px] opacity-100"
       )}>
-        <div className="space-y-3 pl-1">
+        <div className="space-y-3 rounded-2xl border border-border/60 bg-card p-3 pl-4">
           {children}
         </div>
       </div>
@@ -2542,7 +2542,7 @@ function DraftsPanel({
             <button
               key={p.id}
               onClick={() => onLoad(p)}
-              className="group relative w-56 shrink-0 rounded-xl border border-border/40 bg-muted/20 p-2.5 text-left transition hover:border-primary/40 hover:bg-muted/40"
+              className="group relative w-56 shrink-0 rounded-xl border border-border/40 bg-muted/50 p-2.5 text-left transition hover:border-primary/40 hover:bg-muted/40"
             >
               <div className="mb-1.5 flex items-center gap-1">
                 {p.variants.slice(0, 4).map((v) => (
@@ -2684,7 +2684,7 @@ function AIChatPanel({
   ];
 
   return (
-    <div className="flex h-[420px] flex-col rounded-2xl border border-border/50 bg-muted/20">
+    <div className="flex h-[420px] flex-col rounded-2xl border border-border/50 bg-muted/50">
       <div className="flex items-center justify-between border-b border-border/40 px-3 py-2">
         <div className="flex items-center gap-2">
           <div className="grid h-6 w-6 place-items-center rounded-lg bg-primary/15 text-primary">
@@ -2885,7 +2885,7 @@ function EnhancedVariantEditor({
     : 0;
 
   return (
-    <div className="rounded-2xl border border-border/40 bg-muted/20 p-3">
+    <div className="rounded-2xl border border-border/40 bg-muted/50 p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <PlatformBadge platform={account.platform} size={22} />
         <div className="min-w-0 flex-1">
@@ -3098,7 +3098,7 @@ function PrePublishChecklist({
   const pct = Math.round((doneCount / checklist.length) * 100);
 
   return (
-    <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+    <div className="rounded-xl border border-border/40 bg-muted/50 p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="label-caps text-muted-foreground">Pre-publish checklist</div>
         <span className={cn(
@@ -3282,7 +3282,7 @@ function TemplatesDialog({
             <button
               key={t.id}
               onClick={() => onApply(t.text)}
-              className="group flex flex-col items-start gap-2 rounded-xl border border-border/40 bg-muted/20 p-3 text-left transition hover:border-primary/40 hover:bg-muted/40"
+              className="group flex flex-col items-start gap-2 rounded-xl border border-border/40 bg-muted/50 p-3 text-left transition hover:border-primary/40 hover:bg-muted/40"
             >
               <div className="flex w-full items-center gap-2">
                 <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -3430,7 +3430,7 @@ function UploadDialog({
                 value={urlInput}
                 onChange={(e) => onUrlInput(e.target.value)}
                 placeholder="https://example.com/image.jpg"
-                className="flex-1 rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+                className="flex-1 rounded-xl border border-border/50 bg-muted/50 px-3 py-2 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
               />
               <button
                 onClick={onUrlSubmit}
