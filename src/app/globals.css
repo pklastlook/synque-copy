@@ -137,58 +137,62 @@
 }
 
 .dark {
-  /* Dark background — deep #1D1D1F (NOT pure black). Rich, not washed. */
-  --background: oklch(0.18 0.003 280);
-  --foreground: oklch(0.96 0.003 280); /* #F5F5F7 */
+  /* ApparelFlow crystal dark mode — near-black canvas with deep slate surfaces.
+     Background base: #0A0B0E (near-black, high contrast with cards).
+     Surfaces: #161920 (dark slate cards) / #121418 (sidebar) / #0F1115 (topbar). */
+  --background: oklch(0.14 0.004 280);
+  --foreground: oklch(0.97 0.003 280); /* #F9FAFB */
 
-  /* Cards — solid #38383A, clearly elevated above background (was 0.32). */
-  --card: oklch(0.38 0.005 280 / 100%);
-  --card-foreground: oklch(0.96 0.003 280);
+  /* Cards — #161920 dark slate, clearly elevated above near-black canvas. */
+  --card: oklch(0.20 0.005 280 / 100%);
+  --card-foreground: oklch(0.97 0.003 280);
 
-  --popover: oklch(0.40 0.005 280 / 100%);
-  --popover-foreground: oklch(0.96 0.003 280);
+  --popover: oklch(0.22 0.005 280 / 100%);
+  --popover-foreground: oklch(0.97 0.003 280);
 
-  --primary: oklch(0.69 0.165 254);
-  --primary-foreground: oklch(0.14 0.02 250);
+  /* Primary — #3B82F6 (blue-500) — ApparelFlow accent. */
+  --primary: oklch(0.62 0.18 256);
+  --primary-foreground: oklch(0.99 0 0);
 
   --gold: oklch(0.72 0.209 277);
-  --gold-foreground: oklch(0.14 0.02 250);
-  --accent-strong: oklch(0.66 0.21 277);
+  --gold-foreground: oklch(0.99 0 0);
+  --accent-strong: oklch(0.58 0.20 256);
 
-  --secondary: oklch(0.42 0.005 280);
-  --secondary-foreground: oklch(0.96 0.003 280);
+  --secondary: oklch(0.26 0.005 280);
+  --secondary-foreground: oklch(0.97 0.003 280);
 
-  --muted: oklch(0.30 0.005 280);
-  --muted-foreground: oklch(0.78 0.005 280);
+  --muted: oklch(0.18 0.005 280);
+  --muted-foreground: oklch(0.62 0.005 280); /* #9CA3AF — ApparelFlow muted */
 
-  --accent: oklch(0.38 0.05 277);
-  --accent-foreground: oklch(0.90 0.04 277);
+  --accent: oklch(0.24 0.04 256);
+  --accent-foreground: oklch(0.78 0.13 256); /* #60A5FA — light blue accent text */
 
-  --destructive: oklch(0.696 0.195 22);
-  --success: oklch(0.76 0.178 142);
-  --warning: oklch(0.78 0.165 55);
-  --info: oklch(0.69 0.165 254);
+  --destructive: oklch(0.65 0.22 22); /* #EF4444 */
+  --success: oklch(0.70 0.17 162); /* #10B981 */
+  --warning: oklch(0.75 0.17 70); /* #F59E0B */
+  --info: oklch(0.62 0.18 230); /* #0EA5E9 */
 
-  /* Borders — 15% white opacity (was 8% — too faint, merging with bg). */
-  --border: oklch(1 0 0 / 15%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.69 0.165 254 / 40%);
+  /* Borders — #252A34 subtle dark gray. */
+  --border: oklch(0.30 0.006 280 / 60%);
+  --input: oklch(0.24 0.005 280 / 80%);
+  --ring: oklch(0.62 0.18 256 / 45%);
 
-  --chart-1: oklch(0.69 0.165 254);
-  --chart-2: oklch(0.72 0.209 277);
-  --chart-3: oklch(0.76 0.178 142);
-  --chart-4: oklch(0.69 0.217 17);
-  --chart-5: oklch(0.78 0.165 55);
+  --chart-1: oklch(0.62 0.18 256); /* blue */
+  --chart-2: oklch(0.65 0.20 295); /* purple */
+  --chart-3: oklch(0.70 0.17 162); /* emerald */
+  --chart-4: oklch(0.65 0.22 17); /* rose */
+  --chart-5: oklch(0.78 0.17 70); /* amber */
 
-  /* Sidebar — solid #161618 (darker than canvas for clear separation). */
-  --sidebar: oklch(0.16 0.003 280 / 100%);
+  /* Sidebar — #121418 deep charcoal (darker than cards, slightly lighter than canvas). */
+  --sidebar: oklch(0.15 0.004 280 / 100%);
   --sidebar-foreground: oklch(0.94 0.003 280);
-  --sidebar-primary: oklch(0.69 0.165 254);
-  --sidebar-primary-foreground: oklch(0.14 0.02 250);
-  --sidebar-accent: oklch(0.24 0.005 280 / 100%);
-  --sidebar-accent-foreground: oklch(0.94 0.003 280);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.69 0.165 254 / 40%);
+  --sidebar-primary: oklch(0.62 0.18 256);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  /* Active nav item: #1E3A5F deep royal blue tint. */
+  --sidebar-accent: oklch(0.32 0.06 256 / 100%);
+  --sidebar-accent-foreground: oklch(0.97 0.003 280);
+  --sidebar-border: oklch(0.28 0.006 280 / 50%);
+  --sidebar-ring: oklch(0.62 0.18 256 / 45%);
 }
 
 @layer base {
@@ -261,14 +265,15 @@
   --crystal-glow: oklch(0.581 0.189 256 / 4%);
 }
 .dark {
-  --glass-bg: oklch(0.32 0.005 280 / 100%); /* #2C2C2E */
-  --glass-border: oklch(1 0 0 / 8%);
-  --glass-highlight: oklch(1 0 0 / 6%);
-  --glass-shadow: oklch(0 0 0 / 30%);
-  --glass-shadow-soft: oklch(0 0 0 / 20%);
-  --glass-shadow-hover: oklch(0 0 0 / 40%);
-  --glass-bg-strong: oklch(0.34 0.005 280 / 100%);
-  --crystal-glow: oklch(0.69 0.165 254 / 8%);
+  /* ApparelFlow crystal glass — dark slate cards with subtle inner glow. */
+  --glass-bg: oklch(0.20 0.005 280 / 100%); /* #161920 dark slate */
+  --glass-border: oklch(0.30 0.006 280 / 50%); /* #252A34 */
+  --glass-highlight: oklch(1 0 0 / 4%);
+  --glass-shadow: oklch(0 0 0 / 40%);
+  --glass-shadow-soft: oklch(0 0 0 / 25%);
+  --glass-shadow-hover: oklch(0 0 0 / 50%);
+  --glass-bg-strong: oklch(0.22 0.005 280 / 100%); /* elevated popover */
+  --crystal-glow: oklch(0.62 0.18 256 / 10%); /* blue crystal glow */
 }
 
 /* Glass — the standard card surface. SOLID white, tight Apple shadow.
@@ -320,7 +325,9 @@
   border-bottom: 1px solid var(--glass-border);
 }
 .dark .glass-topbar {
-  background: oklch(0.32 0.005 280 / 80%);
+  background: oklch(0.13 0.004 280 / 85%); /* #0F1115 — darker than sidebar */
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
 }
 
 /* Liquid sheen — removed in Sonoma (cards are clean, no moving highlights) */
@@ -519,6 +526,48 @@
 }
 .crystal-card:hover::before {
   opacity: 0.8;
+}
+
+/* ============================================================================
+   ApparelFlow Crystal Dark Mode — retina-grade crystal surfaces.
+   Adds subtle blue inner glow + deeper lift shadows to glass cards in dark mode.
+   ============================================================================ */
+.dark .glass,
+.dark .glass-strong {
+  /* Crystal lift shadow — soft, large, lifts card from near-black canvas. */
+  box-shadow:
+    0 1px 3px 0 var(--glass-shadow-soft),
+    0 4px 12px -2px var(--glass-shadow),
+    inset 0 1px 0 0 oklch(1 0 0 / 3%);
+}
+.dark .glass-strong {
+  /* Elevated surfaces get a subtle blue crystal glow on the top edge. */
+  box-shadow:
+    0 8px 24px 0 var(--glass-shadow-hover),
+    0 2px 8px 0 var(--glass-shadow),
+    inset 0 1px 0 0 var(--crystal-glow);
+}
+.dark .crystal-card::before {
+  /* Crystal edge — blue-tinted gradient border for the retina crystal effect. */
+  background: linear-gradient(
+    135deg,
+    var(--crystal-glow),
+    transparent 40%,
+    transparent 60%,
+    var(--crystal-glow)
+  );
+  opacity: 0.6;
+}
+.dark .crystal-card:hover::before {
+  opacity: 1;
+}
+
+/* ApparelFlow sidebar crystal — active nav item gets a blue left-border + glow. */
+.dark .glass-sidebar {
+  background: oklch(0.15 0.004 280 / 100%);
+  border-right: 1px solid oklch(0.28 0.006 280 / 50%);
+  /* Subtle vertical crystal sheen on the right edge. */
+  box-shadow: inset -1px 0 0 0 oklch(1 0 0 / 2%);
 }
 
 /* Number count-up reveal */
@@ -967,8 +1016,11 @@ html { scroll-behavior: smooth; }
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 .dark .apple-glass {
-  background: rgba(44, 44, 46, 0.80);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: oklch(0.13 0.004 280 / 85%); /* #0F1115 — ApparelFlow topbar */
+  border: 1px solid oklch(0.30 0.006 280 / 50%);
+}
+.dark .apple-glass-heavy {
+  background: oklch(0.15 0.004 280 / 92%); /* #121418 — ApparelFlow sidebar */
 }
 
 /* Heavier frosted glass — solid #F0F0F2 with backdrop-blur-xl.
@@ -979,7 +1031,7 @@ html { scroll-behavior: smooth; }
   background: rgba(240, 240, 242, 0.92);
 }
 .dark .apple-glass-heavy {
-  background: rgba(28, 28, 30, 0.92);
+  /* Moved above — kept here as no-op for back-compat. */
 }
 
 /* NOTE: iMessage-style bubble tails REMOVED. Apple assistant panels use
