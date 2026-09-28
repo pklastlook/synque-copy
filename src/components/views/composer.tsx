@@ -1189,12 +1189,12 @@ export function ComposerView() {
             icon={CheckCircle2}
             collapsed={collapsed}
             onToggle={toggleCollapse}
-            draggable
-            onDragStart={handleDragStart("accounts")}
-            onDragOver={handleDragOver("accounts")}
-            onDrop={handleDrop("accounts")}
-            isDragTarget={dragOverId === "accounts"}
-            isDragging={draggingId === "accounts"}
+            
+            
+            
+            
+            
+            
             badge={
               <Pill color={selectedAccounts.length > 0 ? "green" : "neutral"}>
                 {selectedAccounts.length} selected
@@ -1386,12 +1386,12 @@ export function ComposerView() {
             icon={ImageIcon}
             collapsed={collapsed}
             onToggle={toggleCollapse}
-            draggable
-            onDragStart={handleDragStart("media")}
-            onDragOver={handleDragOver("media")}
-            onDrop={handleDrop("media")}
-            isDragTarget={dragOverId === "media"}
-            isDragging={draggingId === "media"}
+            
+            
+            
+            
+            
+            
             badge={
               selectedAccounts.length > 0 && selectedAccounts.some((a) => state.accountMedia[a.id] || state.mediaUrl) ? (
                 <Pill color="green"><Check className="h-2.5 w-2.5" /> Added</Pill>
@@ -1614,12 +1614,12 @@ export function ComposerView() {
             icon={Pencil}
             collapsed={collapsed}
             onToggle={toggleCollapse}
-            draggable
-            onDragStart={handleDragStart("content")}
-            onDragOver={handleDragOver("content")}
-            onDrop={handleDrop("content")}
-            isDragTarget={dragOverId === "content"}
-            isDragging={draggingId === "content"}
+            
+            
+            
+            
+            
+            
             badge={
               hasAnyContent ? (
                 <Pill color="green"><Check className="h-2.5 w-2.5" /> Ready</Pill>
@@ -1907,12 +1907,12 @@ export function ComposerView() {
             icon={CalendarClock}
             collapsed={collapsed}
             onToggle={toggleCollapse}
-            draggable
-            onDragStart={handleDragStart("schedule")}
-            onDragOver={handleDragOver("schedule")}
-            onDrop={handleDrop("schedule")}
-            isDragTarget={dragOverId === "schedule"}
-            isDragging={draggingId === "schedule"}
+            
+            
+            
+            
+            
+            
             badge={
               state.scheduleEnabled ? (
                 <Pill color="amber"><Clock className="h-2.5 w-2.5" /> Scheduled</Pill>
