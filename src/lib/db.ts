@@ -8,12 +8,9 @@ const globalForPrisma = globalThis as unknown as {
 /**
  * Resolve the database URL for the Neon WebSocket adapter.
  *
- * The OS env in this sandbox sometimes carries a stale SQLite path in
- * DATABASE_URL (which overrides .env). We therefore prefer DIRECT_URL
- * (which is NOT in the OS env, so .env values are used).
- *
- * Also strips `channel_binding=require` — the @neondatabase/serverless
- * WebSocket driver doesn't support it (it's a libpq feature).
+ * During `next build`, the database isn't available. We return a dummy URL
+ * so the Prisma client can be instantiated without crashing the build.
+ * The real URL is used at runtime (dev or production server).
  */
 function resolveDatabaseUrl(): string {
   // Try DIRECT_URL first (not overridden by OS env)
@@ -23,6 +20,13 @@ function resolveDatabaseUrl(): string {
   // Fall back to DATABASE_URL
   const db = process.env.DATABASE_URL;
   if (db && db.startsWith("postgresql://")) return cleanUrl(db);
+
+  // During build (next build), return a dummy URL so Prisma client
+  // can be instantiated without crashing. The real URL will be available
+  // at runtime when the server starts.
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return "postgresql://dummy:dummy@dummy.neon.tech/dummy?sslmode=require";
+  }
 
   throw new Error(
     "No PostgreSQL connection URL found. Set DATABASE_URL or DIRECT_URL in .env"
@@ -46,7 +50,8 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
 
 // Warm up the Neon connection on module load (prevents cold-start timeout
 // on the first login attempt). This runs once when the server starts.
-if (!globalForPrisma.prisma) {
+// Skip during build (no real database connection available).
+if (!globalForPrisma.prisma && process.env.NEXT_PHASE !== "phase-production-build") {
   db.user.count().then((n) => {
     if (process.env.NODE_ENV !== "production") {
       console.log(`[db] Neon warm-up OK — ${n} users`);
