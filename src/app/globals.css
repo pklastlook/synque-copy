@@ -1487,9 +1487,9 @@ html { scroll-behavior: smooth; }
 
   /* Print root: position:absolute escapes hidden elements (no blank pages).
      left:0 + right:0 stretches across the FULL page width.
-     padding creates balanced margins on ALL sides.
-     overflow:visible — let content flow naturally (no clipping).
-     Tables use table-layout:auto + word-break to fit within the width. */
+     padding: 8mm on ALL sides (top, right, bottom, left).
+     box-sizing:border-box ensures padding is INSIDE the width.
+     overflow:hidden clips any content wider than the padded area (no cropping). */
   .report-print-root {
     display: block !important;
     position: absolute !important;
@@ -1498,10 +1498,10 @@ html { scroll-behavior: smooth; }
     top: 0 !important;
     width: auto !important;
     max-width: none !important;
-    padding: 10mm 8mm 15mm 8mm !important;
+    padding: 8mm !important;
     margin: 0 !important;
     box-sizing: border-box !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     z-index: 9999 !important;
   }
 
@@ -1831,7 +1831,7 @@ html { scroll-behavior: smooth; }
     border-collapse: collapse;
     font-size: 9px;
     margin-bottom: 4px;
-    table-layout: auto;
+    table-layout: fixed;
     page-break-inside: auto;
     break-inside: auto;
   }
