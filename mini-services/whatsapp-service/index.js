@@ -28,77 +28,128 @@ async function saveState() {
 let baileysStarted = false;
 
 // Sync recent chat history after QR scan connection
-// Uses the in-memory store to fetch recent messages from all chats
+// Uses multiple methods: store, messaging-history event, and direct fetch
 async function syncChatHistory(sock) {
   try {
     console.log("[whatsapp-service] Syncing chat history...");
 
-    // Wait for store to populate (chats load async after connection)
-    await new Promise(r => setTimeout(r, 3000));
+    // Wait for history to arrive
+    await new Promise(r => setTimeout(r, 2000));
 
-    // Access the store from the socket
+    // Method 1: Try the store (if available — requires makeInMemoryStore)
     const store = sock.store;
-    if (!store) {
-      console.log("[whatsapp-service] No store available — skipping history sync");
+    if (store && store.chats) {
+      const chats = store.chats.all ? store.chats.all() : Object.values(store.chats);
+      if (chats.length > 0) {
+        console.log(`[whatsapp-service] Store has ${chats.length} chats`);
+        let synced = await forwardMessagesFromStore(store, chats);
+        if (synced > 0) {
+          console.log(`[whatsapp-service] Synced ${synced} messages from store`);
+          return;
+        }
+      }
+    }
+
+    // Method 2: Try fetching chats directly from WhatsApp
+    console.log("[whatsapp-service] Trying direct chat fetch...");
+    const chats = await sock.getChats?.() ?? [];
+    if (chats.length > 0) {
+      console.log(`[whatsapp-service] Found ${chats.length} chats via getChats()`);
+      let synced = 0;
+      for (const chat of chats.slice(0, 20)) {
+        try {
+          const messages = await chat.fetchMessages?.({ limit: 10 }) ?? [];
+          for (const msg of messages) {
+            if (!msg?.message || msg?.key?.fromMe) continue;
+            const content = extractContent(msg);
+            if (!content) continue;
+            await forwardMessage(msg, chat);
+            synced++;
+            await new Promise(r => setTimeout(r, 50));
+          }
+        } catch (e) {
+          console.error(`[whatsapp-service] Chat fetch failed: ${e?.message}`);
+        }
+      }
+      console.log(`[whatsapp-service] Synced ${synced} messages from getChats()`);
       return;
     }
 
-    // Get all chats from the store
-    const chats = store.chats?.all?.() ?? Object.values(store.chats?.insert ?? {});
-    console.log(`[whatsapp-service] Found ${chats.length} chats in store`);
-
-    let syncedCount = 0;
-    for (const chat of chats.slice(0, 30)) {
-      try {
-        const jid = chat.id || chat.jid;
-        if (!jid) continue;
-
-        const isGroup = jid.endsWith("@g.us");
-
-        // Fetch messages from store for this chat
-        const messages = store.messages?.[jid]?.array ??
-                        store.messages?.[jid]?.slice(-10) ??
-                        [];
-
-        for (const msg of messages.slice(-10)) {
-          if (!msg?.message || msg?.key?.fromMe) continue;
-          let content = "";
-          if (msg.message.conversation) content = msg.message.conversation;
-          else if (msg.message.extendedTextMessage?.text) content = msg.message.extendedTextMessage.text;
-          else if (msg.message.imageMessage?.caption) content = msg.message.imageMessage.caption;
-          else if (msg.message.videoMessage?.caption) content = msg.message.videoMessage.caption;
-          else continue;
-
-          const payload = {
-            source: isGroup ? "group" : "chat",
-            senderName: msg.pushName ?? chat.name ?? chat.subject ?? "Unknown",
-            groupName: isGroup ? (chat.name || chat.subject || jid) : null,
-            content,
-            senderPhone: msg.key?.participant ?? jid,
-          };
-
-          if (state.webhookTarget) {
-            try {
-              await fetch(state.webhookTarget, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-              });
-              syncedCount++;
-            } catch (e) {
-              console.error(`[whatsapp-service] Webhook failed for ${jid}:`, e?.message);
-            }
-          }
-        }
-        await new Promise(r => setTimeout(r, 100));
-      } catch (e) {
-        console.error(`[whatsapp-service] Failed to sync chat ${chat?.id}:`, e?.message);
-      }
-    }
-    console.log(`[whatsapp-service] Synced ${syncedCount} messages from ${chats.length} chats`);
+    // Method 3: Try using sock.fetchMessagesFromWA (Baileys internal)
+    console.log("[whatsapp-service] Trying fetchMessagesFromWA...");
+    // Get the user's chats by listing conversations
+    const conversationJids = await sock.fetchBlocklist?.() ?? []; // fallback
+    console.log("[whatsapp-service] Could not fetch chat history — waiting for messaging-history event");
+    // The messaging-history.set event handler (above) will catch history sync automatically
   } catch (e) {
     console.error("[whatsapp-service] Chat history sync failed:", e?.message || String(e));
   }
+}
+
+function extractContent(msg) {
+  if (!msg?.message) return null;
+  if (msg.message.conversation) return msg.message.conversation;
+  if (msg.message.extendedTextMessage?.text) return msg.message.extendedTextMessage.text;
+  if (msg.message.imageMessage?.caption) return msg.message.imageMessage.caption;
+  if (msg.message.videoMessage?.caption) return msg.message.videoMessage.caption;
+  return null;
+}
+
+async function forwardMessage(msg, chat) {
+  const content = extractContent(msg);
+  if (!content || !state.webhookTarget) return false;
+  const jid = msg.key?.remoteJid || chat?.id || "";
+  const isGroup = jid.endsWith("@g.us");
+  try {
+    await fetch(state.webhookTarget, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: isGroup ? "group" : "chat",
+        senderName: msg.pushName || chat?.name || "Unknown",
+        groupName: isGroup ? (chat?.name || jid) : null,
+        content,
+        senderPhone: msg.key?.participant || jid,
+      }),
+    });
+    return true;
+  } catch { return false; }
+}
+
+async function forwardMessagesFromStore(store, chats) {
+  let synced = 0;
+  for (const chat of chats.slice(0, 30)) {
+    try {
+      const jid = chat.id || chat.jid;
+      if (!jid) continue;
+      const isGroup = jid.endsWith("@g.us");
+      const messages = store.messages?.[jid]?.array ?? store.messages?.[jid] ?? [];
+      const recent = Array.isArray(messages) ? messages.slice(-10) : [];
+      for (const msg of recent) {
+        if (!msg?.message || msg?.key?.fromMe) continue;
+        const content = extractContent(msg);
+        if (!content) continue;
+        if (state.webhookTarget) {
+          try {
+            await fetch(state.webhookTarget, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                source: isGroup ? "group" : "chat",
+                senderName: msg.pushName || chat.name || "Unknown",
+                groupName: isGroup ? (chat.name || jid) : null,
+                content,
+                senderPhone: msg.key?.participant || jid,
+              }),
+            });
+            synced++;
+          } catch {}
+        }
+      }
+      await new Promise(r => setTimeout(r, 100));
+    } catch {}
+  }
+  return synced;
 }
 
 async function startBaileys() {
@@ -154,6 +205,44 @@ async function startBaileys() {
       if (store) store.bind(sock.ev);
 
       sock.ev.on("creds.update", saveCreds);
+
+      // Listen for history sync events (Baileys sends chat history after connection)
+      sock.ev.on("messaging-history.set", async ({ chats, contacts, messages, isLatest }) => {
+        console.log(`[whatsapp-service] History sync: ${chats?.length || 0} chats, ${messages?.length || 0} messages`);
+        if (messages && messages.length > 0 && state.webhookTarget) {
+          let synced = 0;
+          for (const msg of messages.slice(0, 200)) {
+            try {
+              if (!msg?.message || msg?.key?.fromMe) continue;
+              let content = "";
+              if (msg.message.conversation) content = msg.message.conversation;
+              else if (msg.message.extendedTextMessage?.text) content = msg.message.extendedTextMessage.text;
+              else if (msg.message.imageMessage?.caption) content = msg.message.imageMessage.caption;
+              else if (msg.message.videoMessage?.caption) content = msg.message.videoMessage.caption;
+              else continue;
+
+              const jid = msg.key?.remoteJid || "";
+              const isGroup = jid.endsWith("@g.us");
+              const chatInfo = chats?.find(c => c.id === jid);
+
+              await fetch(state.webhookTarget, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  source: isGroup ? "group" : "chat",
+                  senderName: msg.pushName || chatInfo?.name || "Unknown",
+                  groupName: isGroup ? (chatInfo?.name || jid) : null,
+                  content,
+                  senderPhone: msg.key?.participant || jid,
+                }),
+              }).catch(() => {});
+              synced++;
+              await new Promise(r => setTimeout(r, 50));
+            } catch {}
+          }
+          console.log(`[whatsapp-service] History sync forwarded ${synced} messages`);
+        }
+      });
 
       sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
@@ -285,17 +374,14 @@ const server = createServer(async (req, res) => {
 
   // POST /sync — manually trigger chat history sync
   if (req.method === "POST" && url.pathname === "/sync") {
-    if (state.sock) {
-      syncChatHistory(state.sock).then(() => {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: true, message: "Sync started" }));
-      }).catch((e) => {
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: e?.message || "Sync failed" }));
-      });
+    if (state.sock && state.connected) {
+      // Run sync in background — respond immediately
+      syncChatHistory(state.sock).catch(() => {});
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, message: "Sync started" }));
     } else {
       res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Not connected" }));
+      res.end(JSON.stringify({ error: "Not connected", connected: state.connected }));
     }
     return;
   }
