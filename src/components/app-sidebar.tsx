@@ -245,7 +245,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                     )}
                     <Icon
                       className={cn("relative h-[18px] w-[18px] shrink-0 transition-transform", !active && "group-hover:scale-110")}
-                      style={{ color: n.accent }}
+                      style={{ color: n.accent, opacity: active ? 1 : 0.85 }}
                     />
                     <span className="relative flex-1 min-w-0 truncate">{n.label}</span>
                     {n.badge && (

@@ -45,35 +45,35 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// === Mobile bottom tab bar items — iOS 18 SF Pro style ===
-const MOBILE_TABS: { id: string; label: string; icon: LucideIcon }[] = [
-  { id: "dashboard", label: "Home", icon: LayoutDashboard },
-  { id: "inbox", label: "Inbox", icon: InboxIcon },
-  { id: "composer", label: "Compose", icon: PenSquare },
-  { id: "analytics", label: "Stats", icon: BarChart3 },
-  { id: "settings", label: "More", icon: MoreHorizontal },
+// === Mobile bottom tab bar items — iOS 18 SF Pro style with accent colors ===
+const MOBILE_TABS: { id: string; label: string; icon: LucideIcon; accent: string }[] = [
+  { id: "dashboard", label: "Home", icon: LayoutDashboard, accent: "#5856D6" },
+  { id: "inbox", label: "Inbox", icon: InboxIcon, accent: "#34C759" },
+  { id: "composer", label: "Compose", icon: PenSquare, accent: "#FF9500" },
+  { id: "analytics", label: "Stats", icon: BarChart3, accent: "#007AFF" },
+  { id: "settings", label: "More", icon: MoreHorizontal, accent: "#8E8E93" },
 ];
 
-// === "More" sheet items — categorized, SF Pro style Lucide icons ===
-const MORE_NAV_ITEMS: { id: string; label: string; icon: LucideIcon }[] = [
-  { id: "calendar", label: "Calendar", icon: Calendar },
-  { id: "whatsapp", label: "WhatsApp", icon: WhatsAppIcon },
-  { id: "chat", label: "Chat", icon: MessageSquare },
-  { id: "tasks", label: "Tasks", icon: CheckSquare },
-  { id: "accounts", label: "Accounts", icon: Link2 },
-  { id: "media", label: "Media", icon: ImageIcon },
-  { id: "reports", label: "Reports", icon: FileBarChart },
-  { id: "campaigns", label: "Campaigns", icon: Megaphone },
+// === "More" sheet items — colorful iOS-style icons ===
+const MORE_NAV_ITEMS: { id: string; label: string; icon: LucideIcon; color: string }[] = [
+  { id: "calendar", label: "Calendar", icon: Calendar, color: "#FF3B30" },
+  { id: "whatsapp", label: "WhatsApp", icon: WhatsAppIcon, color: "#34C759" },
+  { id: "chat", label: "Chat", icon: MessageSquare, color: "#5856D6" },
+  { id: "tasks", label: "Tasks", icon: CheckSquare, color: "#FF9500" },
+  { id: "accounts", label: "Accounts", icon: Link2, color: "#007AFF" },
+  { id: "media", label: "Media", icon: ImageIcon, color: "#AF52DE" },
+  { id: "reports", label: "Reports", icon: FileBarChart, color: "#FF2D55" },
+  { id: "campaigns", label: "Campaigns", icon: Megaphone, color: "#FF6B00" },
 ];
 
-const MORE_ADMIN_ITEMS_MEMBER: { id: string; label: string; icon: LucideIcon }[] = [
-  { id: "settings", label: "Settings", icon: SettingsIcon },
-  { id: "organization", label: "Org", icon: Building2 },
-  { id: "team-performance", label: "Performance", icon: TrendingUp },
+const MORE_ADMIN_ITEMS_MEMBER: { id: string; label: string; icon: LucideIcon; color: string }[] = [
+  { id: "settings", label: "Settings", icon: SettingsIcon, color: "#8E8E93" },
+  { id: "organization", label: "Org", icon: Building2, color: "#5AC8FA" },
+  { id: "team-performance", label: "Performance", icon: TrendingUp, color: "#FF9500" },
 ];
 
-const MORE_ADMIN_ITEMS_OWNER: { id: string; label: string; icon: LucideIcon }[] = [
-  { id: "owner", label: "Owner", icon: Briefcase },
+const MORE_ADMIN_ITEMS_OWNER: { id: string; label: string; icon: LucideIcon; color: string }[] = [
+  { id: "owner", label: "Owner", icon: Briefcase, color: "#FFD60A" },
 ];
 
 export function AppShell() {
@@ -139,7 +139,7 @@ export function AppShell() {
           <main className="scroll-liquid flex-1 overflow-y-auto">
             <div
               key={view}
-              className="animate-ios-fade-scale mx-auto w-full max-w-[1400px] px-3 pt-4 pb-24 sm:px-6 lg:px-8 lg:pb-8 mobile-content"
+              className="animate-ios-fade-scale mx-auto w-full max-w-[1400px] px-4 pt-3 pb-28 sm:px-6 sm:pt-4 lg:px-8 lg:pb-8 mobile-content"
             >
               {view === "dashboard" && <DashboardView />}
               {view === "composer" && <ComposerView />}
@@ -202,8 +202,12 @@ export function AppShell() {
                   aria-label={tab.label}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <Icon className="tab-icon h-6 w-6" strokeWidth={isActive ? 2.4 : 2} />
-                  <span className="tab-label block leading-none">{tab.label}</span>
+                  <Icon
+                    className="tab-icon h-6 w-6"
+                    strokeWidth={isActive ? 2.4 : 2}
+                    style={{ color: isActive ? tab.accent : undefined }}
+                  />
+                  <span className="tab-label block leading-none" style={{ color: isActive ? tab.accent : undefined }}>{tab.label}</span>
                 </button>
               );
             })}
@@ -247,7 +251,7 @@ export function AppShell() {
               </button>
             </div>
 
-            {/* Primary navigation grid — Lucide icons, SF-styled */}
+            {/* Primary navigation grid — colorful iOS-style icons */}
             <div className="grid grid-cols-4 gap-2.5 px-4 pb-4">
               {MORE_NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -258,14 +262,14 @@ export function AppShell() {
                     onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
                     className={cn(
                       "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-xl p-3",
-                      active && "!border-[#0071E3]/50 dark:!border-[#0A84FF]/50",
+                      active && "!border-primary/50",
                     )}
                   >
                     <span
                       className="grid h-10 w-10 place-items-center rounded-xl"
                       style={{
-                        background: active ? "#0071E3" : "rgba(0,113,227,0.10)",
-                        color: active ? "#fff" : "#0071E3",
+                        background: active ? item.color : `${item.color}1A`,
+                        color: active ? "#fff" : item.color,
                       }}
                     >
                       <Icon className="h-5 w-5" strokeWidth={2.2} />
@@ -295,14 +299,14 @@ export function AppShell() {
                         onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
                         className={cn(
                           "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-xl p-3",
-                          active && "!border-[#0071E3]/50 dark:!border-[#0A84FF]/50",
+                          active && "!border-primary/50",
                         )}
                       >
                         <span
                           className="grid h-10 w-10 place-items-center rounded-xl"
                           style={{
-                            background: active ? "#0071E3" : "rgba(0,113,227,0.10)",
-                            color: active ? "#fff" : "#0071E3",
+                            background: active ? item.color : `${item.color}1A`,
+                            color: active ? "#fff" : item.color,
                           }}
                         >
                           <Icon className="h-5 w-5" strokeWidth={2.2} />
