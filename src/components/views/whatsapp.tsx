@@ -423,9 +423,12 @@ export function WhatsAppView() {
   async function handleManualSync() {
     setSyncing(true);
     try {
-      // Call the Railway service /sync endpoint directly
-      const serviceUrl = "https://whatsapp-production-ff54.up.railway.app";
-      const res = await fetch(`${serviceUrl}/sync`, { method: "POST" });
+      // Call through our own API (which proxies to Railway service)
+      // This avoids CORS issues + uses the app's auth
+      const res = await fetch("/api/whatsapp/sync", {
+        method: "POST",
+        headers: authHeaders,
+      });
       const json = await res.json().catch(() => ({}));
       if (json.ok) {
         toast.success("Syncing chat history…", {
@@ -435,11 +438,10 @@ export function WhatsAppView() {
         setTimeout(() => reload({ silent: true }), 10000);
         setTimeout(() => reload({ silent: true }), 15000);
       } else {
-        toast.info("Sync started — check back in a moment");
-        setTimeout(() => reload({ silent: true }), 5000);
+        toast.error(json.error || "Sync failed — is WhatsApp connected?");
       }
     } catch {
-      toast.error("WhatsApp service is offline. Please try again later.");
+      toast.error("Network error during sync");
     } finally {
       setSyncing(false);
     }
