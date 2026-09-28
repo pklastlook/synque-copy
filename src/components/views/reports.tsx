@@ -427,13 +427,34 @@ export function ReportsView() {
     const originalTitle = document.title;
     const reportName = `${template.name} Report — ${dateRangeLabel} — ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
     document.title = reportName;
-    // Restore the original title after printing (or after a delay)
-    const restore = () => { document.title = originalTitle; };
+
+    // Move the hidden .report-print-root to be a DIRECT child of <body>
+    // before printing. This escapes any ancestor containing blocks
+    // (transform, backdrop-filter, position:relative on glass cards) that
+    // would trap the absolute-positioned print root and cause extra top
+    // margin / blank second page.
+    const printRoot = document.querySelector(".report-print-root");
+    let originalParent: Node | null = null;
+    let originalNextSibling: Node | null = null;
+    if (printRoot && printRoot.parentElement !== document.body) {
+      originalParent = printRoot.parentElement;
+      originalNextSibling = printRoot.nextSibling;
+      document.body.appendChild(printRoot);
+    }
+
+    const restore = () => {
+      document.title = originalTitle;
+      if (printRoot && originalParent) {
+        if (originalNextSibling) {
+          (originalParent as HTMLElement).insertBefore(printRoot, originalNextSibling);
+        } else {
+          (originalParent as HTMLElement).appendChild(printRoot);
+        }
+      }
+    };
     setTimeout(() => {
       window.print();
-      // Restore after print dialog closes (most browsers fire 'afterprint')
       window.addEventListener("afterprint", restore, { once: true });
-      // Fallback: restore after 5s in case afterprint doesn't fire
       setTimeout(restore, 5000);
     }, 300);
   }

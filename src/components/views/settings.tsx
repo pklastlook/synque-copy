@@ -4950,19 +4950,43 @@ function ReportSettingsSection() {
     return () => ro.disconnect();
   }, [settings.orientation, settings.paperSize]);
 
-  // Print — uses the persistent hidden .report-print-root node that mirrors
-  // the current settings. We set document.title so the Save-as-PDF filename
-  // is meaningful, then restore it after.
+  // Print — moves the hidden .report-print-root to be a DIRECT child of
+  // <body> before printing. This escapes any ancestor containing blocks
+  // (transform, backdrop-filter, position:relative on glass cards) that
+  // would otherwise trap the absolute-positioned print root and cause extra
+  // top margin / blank second page. After printing, restores original position.
   const handlePrint = React.useCallback(() => {
     const originalTitle = document.title;
     const reportName = `Report Settings Preview — ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
     document.title = reportName;
-    const restore = () => { document.title = originalTitle; };
+
+    // Find the hidden print root and temporarily move it to body level.
+    const printRoot = document.querySelector(".report-print-root");
+    let originalParent: Node | null = null;
+    let originalNextSibling: Node | null = null;
+    if (printRoot && printRoot.parentElement !== document.body) {
+      originalParent = printRoot.parentElement;
+      originalNextSibling = printRoot.nextSibling;
+      document.body.appendChild(printRoot);
+    }
+
+    const restore = () => {
+      document.title = originalTitle;
+      // Move the print root back to its original position in the DOM.
+      if (printRoot && originalParent) {
+        if (originalNextSibling) {
+          (originalParent as HTMLElement).insertBefore(printRoot, originalNextSibling);
+        } else {
+          (originalParent as HTMLElement).appendChild(printRoot);
+        }
+      }
+    };
+
     setTimeout(() => {
       window.print();
       window.addEventListener("afterprint", restore, { once: true });
       setTimeout(restore, 6000);
-    }, 120);
+    }, 150);
   }, []);
 
   const canvasClass = React.useMemo(

@@ -1506,36 +1506,21 @@ html { scroll-behavior: smooth; }
   }
 
   /* === PRINT LAYOUT ISOLATION ===
-     visibility:hidden hides everything; visibility:visible shows only
-     the print root. position:absolute takes it out of flow so hidden
-     elements don't reserve space (no blank pages). */
+     The print root is moved to be a direct child of <body> by handlePrint()
+     in settings.tsx (and reports.tsx). This means we can reliably hide ALL
+     other body children — no ancestor containing blocks can trap it.
+     visibility:hidden is kept as a fallback for any print roots that
+     weren't moved (e.g. the Reports view's own print root). */
   body * { visibility: hidden; }
   .report-print-root, .report-print-root *,
   .print-area, .print-area * { visibility: visible; }
 
-  /* Collapse hidden app chrome. */
-  .glass-sidebar, .retina-bg, .apple-tab-bar, .premium-scrim,
-  nav[aria-label], .mobile-only, .desktop-only,
-  .app-header, header, aside, .glass-strong.sticky,
-  .ai-assistant, .pwa-install-prompt, [class*="splash"],
-  [class*="sheet"], [class*="modal"]:not(.report-print-root *),
-  [class*="dialog"]:not(.report-print-root *) {
+  /* Nuclear isolation: hide ALL body children except the print root.
+     This eliminates ALL space-reserving invisible elements (sidebar,
+     header, main content, dialogs, etc.) that would push the print
+     root down and create blank pages. */
+  body > *:not(.report-print-root):not(.print-area) {
     display: none !important;
-  }
-
-  /* Reset ALL ancestor containers. */
-  body, html {
-    padding: 0 !important;
-    margin: 0 !important;
-    background: transparent !important;
-  }
-  body > div, body > div > div, body > div > div > div {
-    padding: 0 !important;
-    margin: 0 !important;
-    max-width: none !important;
-    width: auto !important;
-    min-height: 0 !important;
-    overflow: visible !important;
   }
 
   /* Print root: position:absolute escapes hidden elements (no blank pages).
