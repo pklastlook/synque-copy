@@ -1,63 +1,142 @@
 import { PrismaClient } from "../../generated/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  prismaInitPromise: Promise<PrismaClient> | undefined;
 };
 
 /**
- * Resolve the database URL for the Neon WebSocket adapter.
+ * Database client — supports Neon (production) + PGlite (local dev).
  *
- * During `next build`, the database isn't available. We return a dummy URL
- * so the Prisma client can be instantiated without crashing the build.
- * The real URL is used at runtime (dev or production server).
+ * Initialization is async (PGlite requires async import). We use a pattern
+ * where `db` is a Proxy that forwards all calls to the real client once
+ * initialization completes. During build, a dummy client is returned.
  */
-function resolveDatabaseUrl(): string {
-  // Try DIRECT_URL first (not overridden by OS env)
-  const direct = process.env.DIRECT_URL;
-  if (direct && direct.startsWith("postgresql://")) return cleanUrl(direct);
-
-  // Fall back to DATABASE_URL
-  const db = process.env.DATABASE_URL;
-  if (db && db.startsWith("postgresql://")) return cleanUrl(db);
-
-  // During build (next build), return a dummy URL so Prisma client
-  // can be instantiated without crashing. The real URL will be available
-  // at runtime when the server starts.
-  if (process.env.NEXT_PHASE === "phase-production-build") {
-    return "postgresql://dummy:dummy@dummy.neon.tech/dummy?sslmode=require";
-  }
-
-  throw new Error(
-    "No PostgreSQL connection URL found. Set DATABASE_URL or DIRECT_URL in .env"
-  );
-}
 
 function cleanUrl(url: string): string {
-  // Strip channel_binding=require — the Neon WebSocket driver doesn't support it
   return url.replace(/&?channel_binding=require/g, "").replace(/\?$/, "");
 }
 
-function createPrismaClient() {
-  const connectionString = resolveDatabaseUrl();
-  const adapter = new PrismaNeon({ connectionString });
+function getNeonUrl(): string | null {
+  const direct = process.env.DIRECT_URL;
+  if (direct && direct.startsWith("postgresql://")) return cleanUrl(direct);
+  const db = process.env.DATABASE_URL;
+  if (db && db.startsWith("postgresql://")) return cleanUrl(db);
+  return null;
+}
+
+function isBuildPhase(): boolean {
+  return process.env.NEXT_PHASE === "phase-production-build";
+}
+
+function isPgliteMode(): boolean {
+  return !getNeonUrl() && !isBuildPhase();
+}
+
+async function createPrismaClientAsync(): Promise<PrismaClient> {
+  // Build phase — return dummy
+  if (isBuildPhase()) {
+    return createDummyClient();
+  }
+
+  // Neon (production)
+  const neonUrl = getNeonUrl();
+  if (neonUrl) {
+    const { PrismaNeon } = await import("@prisma/adapter-neon");
+    const adapter = new PrismaNeon({ connectionString: neonUrl });
+    return new PrismaClient({ adapter });
+  }
+
+  // PGlite (local dev)
+  const { createPgliteAdapter } = await import("prisma-pglite");
+  const dbUrl = process.env.DATABASE_URL;
+  const dbDirPath = dbUrl?.startsWith("file:")
+    ? dbUrl.replace("file:", "")
+    : undefined;
+  const adapter = await createPgliteAdapter(
+    dbDirPath ? { directDatabaseDirPath: dbDirPath } : {}
+  );
   return new PrismaClient({ adapter });
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
-
-// Warm up the Neon connection on module load (prevents cold-start timeout
-// on the first login attempt). This runs once when the server starts.
-// Skip during build (no real database connection available).
-if (!globalForPrisma.prisma && process.env.NEXT_PHASE !== "phase-production-build") {
-  db.user.count().then((n) => {
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`[db] Neon warm-up OK — ${n} users`);
-    }
-  }).catch(() => {
-    // Silent fail — the first real query will retry
+function createDummyClient(): PrismaClient {
+  const dummy = () => Promise.resolve(undefined);
+  const proxy: any = new Proxy(dummy, {
+    get() {
+      return proxy;
+    },
+    apply() {
+      return Promise.resolve(undefined);
+    },
   });
-  globalForPrisma.prisma = db;
+  return proxy as unknown as PrismaClient;
+}
+
+/**
+ * Get the real PrismaClient, initializing if needed.
+ * All db operations should use this.
+ */
+export async function getDb(): Promise<PrismaClient> {
+  if (globalForPrisma.prisma) return globalForPrisma.prisma;
+  if (!globalForPrisma.prismaInitPromise) {
+    globalForPrisma.prismaInitPromise = createPrismaClientAsync().then((client) => {
+      globalForPrisma.prisma = client;
+      // Warm up
+      client.user.count().then((n) => {
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`[db] Warm-up OK — ${n} users`);
+        }
+      }).catch(() => {});
+      return client;
+    });
+  }
+  return globalForPrisma.prismaInitPromise;
+}
+
+/**
+ * The `db` export. During build, this is a dummy. At runtime, it's a Proxy
+ * that forwards to the real client (initialized on first access).
+ *
+ * Usage in API routes:
+ *   import { db } from "@/lib/db"
+ *   const users = await db.user.findMany()
+ *
+ * The Proxy intercepts `db.user` → returns a sub-proxy → `db.user.findMany()`
+ * → calls the real client's `user.findMany()` once initialized.
+ */
+export const db: PrismaClient = isBuildPhase()
+  ? createDummyClient()
+  : createDbProxy();
+
+function createDbProxy(): PrismaClient {
+  // Create a function that, when called or property-accessed, delegates
+  // to the real client (once initialized)
+  const realGetter = () => globalForPrisma.prisma;
+
+  const makeProxy = (path: string[]): any => {
+    const fn = (...args: any[]) => {
+      const real = realGetter();
+      if (real) {
+        // Navigate the path on the real client
+        let target: any = real;
+        for (const p of path) target = target[p];
+        return target(...args);
+      }
+      // Not initialized yet — wait then call
+      return getDb().then((client) => {
+        let target: any = client;
+        for (const p of path) target = target[p];
+        return target(...args);
+      });
+    };
+
+    return new Proxy(fn, {
+      get(_, prop: string) {
+        // Return a deeper proxy
+        return makeProxy([...path, prop]);
+      },
+    });
+  };
+
+  return makeProxy([]) as unknown as PrismaClient;
 }
