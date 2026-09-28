@@ -66,20 +66,19 @@
 :root {
   --radius: 0.5rem; /* 8px — buttons, inputs, list rows. Cards use 12px via rounded-xl. */
 
-  /* Canvas — Apple off-white #ECECEE (NOT pure white, slightly darker so white cards pop).
-     Crystal-solid, not splashed or washed out. */
-  --background: oklch(0.94 0.004 280);
-  --foreground: oklch(0.22 0.003 280); /* #1D1D1F — Apple near-black */
+  /* Canvas — slightly darker off-white #F0F0F2 so white cards pop more.
+     Was 0.94 — too close to card (1.0), only 0.06 difference. */
+  --background: oklch(0.91 0.004 280);
+  --foreground: oklch(0.20 0.003 280); /* #1A1A1C — Apple near-black */
 
-  /* Cards — solid pure white, clearly elevated above the canvas.
-     Subtle 1px border separates them from the off-white background. */
+  /* Cards — solid pure white, clearly elevated above the canvas. */
   --card: oklch(1 0 0 / 100%);
-  --card-foreground: oklch(0.22 0.003 280);
+  --card-foreground: oklch(0.20 0.003 280);
 
   --popover: oklch(1 0 0 / 100%);
-  --popover-foreground: oklch(0.22 0.003 280);
+  --popover-foreground: oklch(0.20 0.003 280);
 
-  /* Brand — Apple system blue #0071E3 (slightly more saturated than #007AFF). */
+  /* Brand — Apple system blue #0071E3 */
   --primary: oklch(0.581 0.189 256);
   --primary-foreground: oklch(1 0 0);
 
@@ -89,11 +88,12 @@
   --accent-strong: oklch(0.54 0.21 277);
 
   /* Secondary surfaces — darker than canvas for clear layer separation. */
-  --secondary: oklch(0.92 0.004 280);
-  --secondary-foreground: oklch(0.22 0.003 280);
+  --secondary: oklch(0.88 0.004 280);
+  --secondary-foreground: oklch(0.20 0.003 280);
 
-  --muted: oklch(0.93 0.004 280);
-  --muted-foreground: oklch(0.52 0.003 280); /* #6E6E73 — darker gray, readable at 10-11px */
+  /* Muted — darker than card so containers are clearly distinct. */
+  --muted: oklch(0.90 0.004 280);
+  --muted-foreground: oklch(0.48 0.003 280); /* #6E6E73 — darker gray, readable */
 
   --accent: oklch(0.94 0.005 258);
   --accent-foreground: oklch(0.36 0.13 258);
@@ -104,26 +104,26 @@
   --warning: oklch(0.737 0.165 55);      /* #FF9500 */
   --info: oklch(0.581 0.189 256);         /* #0071E3 */
 
-  --border: oklch(0.85 0.004 280 / 100%);  /* full-opacity hairline #D8D8DC — visible */
-  --input: oklch(0.95 0.003 280);
+  /* Borders — darker for better visibility (was 0.85 — too faint). */
+  --border: oklch(0.80 0.004 280 / 100%);  /* #C8C8CC — visible hairline */
+  --input: oklch(0.93 0.003 280);
   --ring: oklch(0.581 0.189 256 / 40%);
 
-  /* Chart palette — Apple system colors (semantic, retina-ready) */
+  /* Chart palette — Apple system colors */
   --chart-1: oklch(0.581 0.189 256);  /* blue    #0071E3 */
   --chart-2: oklch(0.588 0.209 277);  /* indigo */
   --chart-3: oklch(0.723 0.178 142);  /* green   #34C759 */
   --chart-4: oklch(0.635 0.217 17);   /* pink    */
   --chart-5: oklch(0.737 0.165 55);   /* orange  #FF9500 */
 
-  /* Sidebar — solid #ECECEE (same as canvas — cards float above both).
-     SOLID, not translucent — crystal clarity over vibrancy. */
-  --sidebar: oklch(0.94 0.004 280 / 100%);
-  --sidebar-foreground: oklch(0.22 0.003 280);
+  /* Sidebar — slightly darker than canvas for clear separation. */
+  --sidebar: oklch(0.93 0.004 280 / 100%);
+  --sidebar-foreground: oklch(0.20 0.003 280);
   --sidebar-primary: oklch(0.581 0.189 256);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.93 0.005 280 / 100%);
-  --sidebar-accent-foreground: oklch(0.22 0.003 280);
-  --sidebar-border: oklch(0.85 0.004 280 / 100%);
+  --sidebar-accent: oklch(0.91 0.005 280 / 100%);
+  --sidebar-accent-foreground: oklch(0.20 0.003 280);
+  --sidebar-border: oklch(0.80 0.004 280 / 100%);
   --sidebar-ring: oklch(0.581 0.189 256 / 40%);
 
   /* Platform brand colors — solid */
