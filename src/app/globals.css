@@ -1487,10 +1487,9 @@ html { scroll-behavior: smooth; }
 
   /* Print root: position:absolute escapes hidden elements (no blank pages).
      left:0 + right:0 stretches across the FULL page width.
-     padding creates balanced margins on ALL sides:
-       top: 15mm, right: 14mm, bottom: 20mm, left: 14mm
-     box-sizing:border-box ensures padding is INSIDE the width (not added).
-     overflow-x:hidden clips any content wider than the padded area. */
+     padding creates balanced margins on ALL sides.
+     overflow:visible — let content flow naturally (no clipping).
+     Tables use table-layout:auto + word-break to fit within the width. */
   .report-print-root {
     display: block !important;
     position: absolute !important;
@@ -1502,8 +1501,7 @@ html { scroll-behavior: smooth; }
     padding: 10mm 8mm 15mm 8mm !important;
     margin: 0 !important;
     box-sizing: border-box !important;
-    overflow-x: hidden !important;
-    overflow-y: visible !important;
+    overflow: visible !important;
     z-index: 9999 !important;
   }
 
@@ -1611,7 +1609,7 @@ html { scroll-behavior: smooth; }
   .report-print-root .report-text { margin: 2px 0 !important; line-height: 1.35 !important; }
   .report-print-root .report-metric-row { gap: 4px !important; margin: 4px 0 !important; }
   .report-print-root .report-metric { padding: 4px 6px !important; }
-  .report-print-root .report-table { font-size: 8px !important; }
+  .report-print-root .report-table { font-size: 7px !important; }
   .report-print-root .report-table th { padding: 3px 4px !important; }
   .report-print-root .report-table td { padding: 2px 4px !important; line-height: 1.2 !important; }
   .report-print-root .report-table tbody tr { page-break-inside: avoid !important; }
@@ -1823,10 +1821,9 @@ html { scroll-behavior: smooth; }
   }
 
   /* Tables — header repeats on each page, rows don't split internally.
-     table-layout:fixed distributes columns evenly within the page width
-     (prevents wide tables from overflowing and getting cropped).
-     max-width:100% ensures tables never exceed the print root width.
-     tbody can break across pages so rows flow to the next page. */
+     table-layout:auto lets columns size to content (prevents narrow columns).
+     width:100% fills the available content area.
+     word-break:break-word on cells prevents text from overflowing. */
   .report-table {
     display: table !important;
     width: 100%;
@@ -1834,7 +1831,7 @@ html { scroll-behavior: smooth; }
     border-collapse: collapse;
     font-size: 9px;
     margin-bottom: 4px;
-    table-layout: fixed;
+    table-layout: auto;
     page-break-inside: auto;
     break-inside: auto;
   }
@@ -1844,7 +1841,7 @@ html { scroll-behavior: smooth; }
     color: #fff;
     font-weight: 600;
     text-align: left;
-    padding: 3px 5px;
+    padding: 3px 4px;
     border: none;
     font-size: 8px;
     text-transform: uppercase;
@@ -1852,6 +1849,9 @@ html { scroll-behavior: smooth; }
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     vertical-align: bottom;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
   .report-table thead th { page-break-after: avoid; break-after: avoid; }
   .report-table tbody { display: table-row-group; page-break-inside: auto; break-inside: auto; }
@@ -1860,12 +1860,13 @@ html { scroll-behavior: smooth; }
     break-inside: avoid;
   }
   .report-table tbody td {
-    padding: 2px 5px;
+    padding: 2px 4px;
     border-bottom: 1px solid #e8e8e8;
     vertical-align: top;
     word-wrap: break-word;
     overflow-wrap: break-word;
     word-break: break-word;
+    hyphens: auto;
   }
   /* Right-aligned numeric columns line up tabular-nums digits */
   .report-table .text-right { text-align: right; }
