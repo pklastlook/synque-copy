@@ -1431,10 +1431,10 @@ html { scroll-behavior: smooth; }
    ============================================================================ */
 
 @media print {
-  /* --- Page setup: Letter with proper margins for content + page numbers --- */
+  /* --- Page setup: Letter, margin:0 (print root handles width via mm) --- */
   @page {
     size: letter;
-    margin: 15mm 14mm 20mm 14mm;
+    margin: 0;
 
     /* Page number — bottom right of every page (in the page margin) */
     @bottom-right {
@@ -1453,17 +1453,19 @@ html { scroll-behavior: smooth; }
   }
 
   /* === PRINT LAYOUT ISOLATION ===
-     Strategy: 
-     1. visibility:hidden on ALL elements (keeps DOM, hides visually)
-     2. visibility:visible ONLY on .report-print-root + children
-     3. display:none on known app chrome containers (collapses space)
-     4. position:static on print root (natural pagination) */
+     visibility:hidden hides everything, visibility:visible shows only
+     the print root. position:absolute on the print root takes it OUT of
+     flow so hidden elements don't reserve space (no blank pages).
+     
+     CRITICAL: width must be set to the @page content box width, NOT 100%.
+     100% of position:absolute = full page width (including margins).
+     Letter = 215.9mm wide. Margins = 14mm each side. Content = 187.9mm.
+     We set width to the content width + padding to create internal margins. */
   body * { visibility: hidden; }
   .report-print-root, .report-print-root *,
   .print-area, .print-area * { visibility: visible; }
 
-  /* Collapse hidden app chrome so it doesn't reserve space.
-     Target ALL common app containers that wrap non-print content. */
+  /* Collapse hidden app chrome so it doesn't reserve space. */
   .glass-sidebar, .retina-bg, .apple-tab-bar, .premium-scrim,
   nav[aria-label], .mobile-only, .desktop-only,
   .app-header, header, aside, .glass-strong.sticky,
@@ -1473,42 +1475,38 @@ html { scroll-behavior: smooth; }
     display: none !important;
   }
 
-  /* Reset ALL ancestor containers of the print root so they don't
-     constrain it with max-width, padding, or margin.
-     Use :not() to avoid affecting elements inside the print root. */
+  /* Reset all ancestor containers. */
   body, html {
     padding: 0 !important;
     margin: 0 !important;
     background: transparent !important;
   }
-  /* Reset all top-level div wrappers that constrain the print root.
-     overflow:visible lets content flow across pages without clipping. */
   body > div, body > div > div,
   body > div > div > div {
     padding: 0 !important;
     margin: 0 !important;
-    max-width: 100% !important;
-    width: 100% !important;
+    max-width: none !important;
+    width: auto !important;
     min-height: 0 !important;
-    overflow: visible !important;
   }
 
-  /* Print root in NORMAL flow (position:static) so the browser paginates
-     content naturally across multiple pages.
-     overflow:visible allows content to flow across pages without clipping.
-     Tables handle their own overflow internally (overflow-x:auto). */
+  /* Print root: position:absolute escapes hidden elements (no blank pages).
+     Width = 187.9mm (Letter 215.9mm minus 14mm margins each side).
+     Padding creates the internal margins (top:15mm, sides:14mm, bottom:20mm).
+     overflow-x:hidden prevents side cropping, overflow-y:visible for pagination. */
   .report-print-root {
     display: block !important;
-    position: static !important;
-    left: auto !important;
-    top: auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 0 !important;
+    position: absolute !important;
+    left: 14mm !important;
+    top: 0 !important;
+    width: 187.9mm !important;
+    max-width: 187.9mm !important;
+    padding: 15mm 0 20mm 0 !important;
     margin: 0 !important;
     box-sizing: border-box !important;
-    overflow: visible !important;
-    z-index: auto !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    z-index: 9999 !important;
   }
 
   /* FORCE light mode colors inside print root — overrides .dark class vars.
@@ -1609,8 +1607,8 @@ html { scroll-behavior: smooth; }
      REPORTS — .report-print-root
      =========================================================================== */
 
-  /* === PRINT OPTIMIZATION: fit more content per page === */
-  .report-print-root .report-content { gap: 6px !important; max-width: 100% !important; overflow: visible !important; }
+  /* === PRINT OPTIMIZATION === */
+  .report-print-root .report-content { gap: 6px !important; max-width: 100% !important; }
   .report-print-root .report-section-title { margin-top: 6px !important; margin-bottom: 3px !important; }
   .report-print-root .report-text { margin: 2px 0 !important; line-height: 1.35 !important; }
   .report-print-root .report-metric-row { gap: 4px !important; margin: 4px 0 !important; }
@@ -1624,8 +1622,7 @@ html { scroll-behavior: smooth; }
   .report-print-root > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
   .report-print-root .report-content > *:last-child { margin-bottom: 0 !important; }
 
-  /* Report title banner — compact header at top of page 1.
-     max-width:100% keeps it within the page. overflow:visible prevents cropping. */
+  /* Report title banner — compact header at top of page 1. */
   .report-title-banner {
     display: flex !important;
     justify-content: space-between;
@@ -1633,7 +1630,6 @@ html { scroll-behavior: smooth; }
     padding-bottom: 6px;
     border-bottom: 2px solid #1a1a1a;
     max-width: 100% !important;
-    overflow: visible !important;
     flex-wrap: wrap !important;
     gap: 4px;
   }
