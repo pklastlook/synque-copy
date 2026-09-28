@@ -43,6 +43,9 @@ import {
   Minus,
   Edit3,
   Image as ImageIcon,
+  LayoutDashboard,
+  PenSquare,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
@@ -733,7 +736,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         style={{ background: COLOR.border }}
       />
 
-      <div className="relative z-20 mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 pt-24 pb-32 text-center sm:px-6 lg:px-8">
+      <div className="relative z-20 mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 pt-28 pb-20 text-center sm:px-6 lg:px-8">
         <Reveal>
           <span
             className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] backdrop-blur-md"
@@ -749,7 +752,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         </Reveal>
 
         <Reveal delay={120}>
-          <h1 className="mt-8 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl" style={{ color: COLOR.textHead }}>
+          <h1 className="mt-7 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl" style={{ color: COLOR.textHead }}>
             <span className="block">One flow.</span>
             <span
               className="mt-2 block bg-clip-text text-transparent"
@@ -766,7 +769,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         </Reveal>
 
         <Reveal delay={240}>
-          <p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: COLOR.textBody }}>
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: "#C5C5CC" }}>
             Your team posts to 7+ platforms every day. Switching tabs, copy-pasting captions,
             praying nothing gets suspended. SYNQUE turns that chaos into one calm, AI-powered flow —
             so your team ships more, faster.
@@ -774,7 +777,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         </Reveal>
 
         <Reveal delay={360}>
-          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <GlowCTA onClick={onTrial} className="min-w-[260px]">
               <Rocket className="h-4 w-4" /> Start 15-day free trial
             </GlowCTA>
@@ -792,16 +795,61 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
           </div>
         </Reveal>
 
-        <Reveal delay={480}>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px]" style={{ color: COLOR.textBody }}>
+        <Reveal delay={440}>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px]" style={{ color: "#B0B0B8" }}>
             <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> No credit card required</span>
             <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> Cancel anytime</span>
             <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> 25GB free media storage</span>
           </div>
         </Reveal>
 
+        {/* === Trust stats bar === */}
+        <Reveal delay={560}>
+          <div
+            className="mt-12 grid w-full max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-4"
+            style={{
+              borderColor: COLOR.border,
+              background: COLOR.border,
+            }}
+          >
+            {[
+              { value: "2,400+", label: "Teams onboarded" },
+              { value: "1.8M", label: "Posts published" },
+              { value: "7", label: "Platforms unified" },
+              { value: "99.9%", label: "Uptime SLA" },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="px-4 py-5 text-center backdrop-blur-md"
+                style={{ background: "rgba(10,11,15,0.6)" }}
+              >
+                <div className="text-2xl font-bold tabular-nums sm:text-3xl" style={{ color: COLOR.textHead }}>
+                  {s.value}
+                </div>
+                <div className="mt-1 text-[11px] font-medium uppercase tracking-wider" style={{ color: COLOR.textBody }}>
+                  {s.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+
+        {/* === Glassmorphic dashboard mockup === */}
+        <Reveal delay={680} y={40}>
+          <div className="relative mt-14 w-full max-w-5xl" style={{ perspective: "1400px" }}>
+            {/* Glow behind the mockup */}
+            <div
+              className="pointer-events-none absolute -inset-6 -z-10 rounded-[2rem] opacity-50 blur-3xl"
+              style={{
+                background: `radial-gradient(ellipse at 50% 0%, ${COLOR.accentA(0.18)}, transparent 60%)`,
+              }}
+            />
+            <HeroDashboardMockup />
+          </div>
+        </Reveal>
+
         {/* Scroll indicator */}
-        <div className="pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2">
+        <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2">
           <ChevronDown
             className="h-6 w-6"
             style={{ color: COLOR.textBody, animation: "sfChevronBounce 1.8s ease-in-out infinite" }}
@@ -809,6 +857,228 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         </div>
       </div>
     </section>
+  );
+}
+
+/* =================== Hero Dashboard Mockup ===================
+   A CSS/JSX-built mini dashboard that shows what the app looks like.
+   Glassmorphic crystal card with: sidebar, KPI row, chart, post grid. */
+
+function HeroDashboardMockup() {
+  const kpis = [
+    { label: "Followers", value: "48.2K", delta: "+4.2K", color: COLOR.accent },
+    { label: "Impressions", value: "1.24M", delta: "+8.4%", color: COLOR.gold },
+    { label: "Engagement", value: "12.4%", delta: "+0.3pp", color: COLOR.emerald },
+    { label: "Posts", value: "186", delta: "+24", color: COLOR.accent },
+  ];
+  // Chart bars — random-ish heights for the sparkline area chart
+  const bars = [38, 52, 41, 65, 58, 72, 49, 81, 63, 88, 74, 92, 68, 95];
+  const platforms = ["instagram", "tiktok", "linkedin", "twitter", "facebook"];
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border shadow-2xl"
+      style={{
+        borderColor: "rgba(255,255,255,0.10)",
+        background: "rgba(16,18,24,0.85)",
+        backdropFilter: "blur(24px) saturate(160%)",
+        WebkitBackdropFilter: "blur(24px) saturate(160%)",
+        boxShadow: "0 24px 64px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)",
+      }}
+    >
+      {/* Top bar — traffic lights + title */}
+      <div
+        className="flex items-center gap-2 border-b px-4 py-2.5"
+        style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}
+      >
+        <div className="flex gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#FF5F57" }} />
+          <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#FEBC2E" }} />
+          <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#28C840" }} />
+        </div>
+        <div className="mx-auto flex items-center gap-2 text-[11px] font-medium" style={{ color: COLOR.textBody }}>
+          <div className="h-3.5 w-3.5 rounded" style={{ background: `linear-gradient(135deg, ${COLOR.accent}, ${COLOR.gold})` }} />
+          SYNQUE — Command Center
+        </div>
+      </div>
+
+      <div className="flex">
+        {/* Mini sidebar */}
+        <div
+          className="hidden w-40 shrink-0 flex-col gap-1 border-r p-3 sm:flex"
+          style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.15)" }}
+        >
+          {[
+            { icon: LayoutDashboard, label: "Dashboard", active: true },
+            { icon: PenSquare, label: "Composer" },
+            { icon: Calendar, label: "Calendar" },
+            { icon: Inbox, label: "Inbox" },
+            { icon: BarChart3, label: "Analytics" },
+            { icon: Users, label: "Team" },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.label}
+                className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition"
+                style={{
+                  background: item.active ? COLOR.accentA(0.15) : "transparent",
+                  color: item.active ? COLOR.accent : COLOR.textBody,
+                }}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                {item.label}
+              </div>
+            );
+          })}
+          <div className="mt-auto rounded-lg p-2.5" style={{ background: "rgba(255,255,255,0.04)" }}>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: COLOR.textBody }}>
+              Storage
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+              <div className="h-full rounded-full" style={{ width: "62%", background: `linear-gradient(90deg, ${COLOR.accent}, ${COLOR.gold})` }} />
+            </div>
+            <div className="mt-1 text-[9px]" style={{ color: COLOR.textBody }}>15.5 / 25 GB</div>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1 p-4">
+          {/* Greeting */}
+          <div className="mb-4 flex items-center justify-between">
+            <div className="text-left">
+              <div className="text-sm font-bold" style={{ color: COLOR.textHead }}>Good day, Maya</div>
+              <div className="text-[10px]" style={{ color: COLOR.textBody }}>11 posts · 5 published this week</div>
+            </div>
+            <div
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold"
+              style={{ background: COLOR.accentA(0.15), color: COLOR.accent }}
+            >
+              <Sparkles className="h-3 w-3" /> Compose with AI
+            </div>
+          </div>
+
+          {/* KPI row */}
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {kpis.map((kpi) => (
+              <div
+                key={kpi.label}
+                className="rounded-xl border p-2.5 text-left"
+                style={{
+                  borderColor: "rgba(255,255,255,0.06)",
+                  background: "rgba(255,255,255,0.03)",
+                }}
+              >
+                <div className="text-[9px] font-medium uppercase tracking-wider" style={{ color: COLOR.textBody }}>
+                  {kpi.label}
+                </div>
+                <div className="mt-0.5 text-lg font-bold tabular-nums" style={{ color: COLOR.textHead }}>
+                  {kpi.value}
+                </div>
+                <div className="text-[10px] font-semibold" style={{ color: kpi.color }}>
+                  {kpi.delta}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Chart + side panel */}
+          <div className="mt-2.5 grid grid-cols-3 gap-2.5">
+            {/* Area chart */}
+            <div
+              className="col-span-2 rounded-xl border p-3"
+              style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-[10px] font-semibold" style={{ color: COLOR.textHead }}>
+                  Follower Growth
+                </div>
+                <div className="flex gap-1">
+                  {["7D", "30D", "90D"].map((t, i) => (
+                    <div
+                      key={t}
+                      className="rounded px-1.5 py-0.5 text-[8px] font-medium"
+                      style={{
+                        background: i === 1 ? COLOR.accentA(0.2) : "transparent",
+                        color: i === 1 ? COLOR.accent : COLOR.textBody,
+                      }}
+                    >
+                      {t}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* SVG area chart */}
+              <svg viewBox="0 0 280 80" className="w-full" preserveAspectRatio="none" style={{ height: 80 }}>
+                <defs>
+                  <linearGradient id="heroChartGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLOR.accent} stopOpacity="0.35" />
+                    <stop offset="100%" stopColor={COLOR.accent} stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {/* Area fill */}
+                <path
+                  d={`M0,${80 - bars[0]} ${bars.map((h, i) => `L${(i / (bars.length - 1)) * 280},${80 - h}`).join(" ")} L280,80 L0,80 Z`}
+                  fill="url(#heroChartGrad)"
+                />
+                {/* Line */}
+                <path
+                  d={`M0,${80 - bars[0]} ${bars.map((h, i) => `L${(i / (bars.length - 1)) * 280},${80 - h}`).join(" ")}`}
+                  fill="none"
+                  stroke={COLOR.accent}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {/* Last point dot */}
+                <circle cx={280} cy={80 - bars[bars.length - 1]} r="3" fill={COLOR.accent} />
+              </svg>
+            </div>
+
+            {/* Side: platforms */}
+            <div
+              className="rounded-xl border p-3"
+              style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
+            >
+              <div className="mb-2 text-[10px] font-semibold" style={{ color: COLOR.textHead }}>Connected</div>
+              <div className="space-y-1.5">
+                {platforms.map((p, i) => (
+                  <div key={p} className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="h-4 w-4 rounded"
+                        style={{ background: [COLOR.accent, COLOR.gold, COLOR.emerald, COLOR.rose, "#8B5CF6"][i] }}
+                      />
+                      <span className="text-[9px] font-medium capitalize" style={{ color: COLOR.textBody }}>{p}</span>
+                    </div>
+                    <div className="text-[9px] font-semibold tabular-nums" style={{ color: COLOR.textHead }}>
+                      {["24.1K", "14.8K", "9.3K", "7.2K", "5.1K"][i]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent posts strip */}
+          <div className="mt-2.5 flex gap-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex-1 overflow-hidden rounded-lg border"
+                style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
+              >
+                <div className="h-10" style={{ background: `linear-gradient(135deg, ${[COLOR.accent, COLOR.gold, COLOR.emerald, COLOR.rose][i]}40, transparent)` }} />
+                <div className="p-1.5">
+                  <div className="h-1 w-3/4 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+                  <div className="mt-1 h-1 w-1/2 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
