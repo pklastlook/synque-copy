@@ -1173,10 +1173,12 @@ export function ComposerView() {
         <DraftsPanel drafts={draftsList} onLoad={loadDraft} />
       )}
 
-      {/* === Two-column layout: main flow + sticky preview === */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
-        {/* MAIN FLOW — flex column so sections can be reordered via CSS order */}
-        <main className="min-w-0 flex flex-col gap-4">
+      {/* === Two-column layout: main flow + sticky preview ===
+           On desktop: main content is full-width, preview sits above publish bar.
+           Removed the narrow 2-column grid — content now matches topbar width. */}
+      <div className="space-y-4">
+        {/* MAIN FLOW — full width, aligned with topbar */}
+        <main className="min-w-0 space-y-4">
           {/* === Accounts (horizontal scrollable row) === */}
           <div style={{ order: sectionOrder.indexOf("accounts") }} className="min-h-0">
           <CollapsibleSection
@@ -2102,10 +2104,10 @@ export function ComposerView() {
           </div>
         </main>
 
-        {/* STICKY PREVIEW — desktop only */}
+        {/* === PREVIEW — above the publish bar, full width === */}
         {previewAccount && (
-          <aside className="hidden lg:block">
-            <div className="sticky top-20 space-y-3">
+          <aside className="block">
+            <div className="space-y-3">
               <SectionHeader
                 title="Live preview"
                 desc="Updates as you type"
@@ -2146,41 +2148,46 @@ export function ComposerView() {
                 }
               />
 
-              {/* Platform switcher tabs */}
-              <div className="scroll-liquid flex gap-1 overflow-x-auto pb-1">
-                {selectedAccounts.map((a) => {
-                  const active = previewAccountId === a.id;
-                  return (
-                    <button
-                      key={a.id}
-                      onClick={() => setPreviewAccountId(a.id)}
-                      title={a.displayName}
-                      className={cn(
-                        "flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition",
-                        active
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      <PlatformBadge platform={a.platform} size={16} />
-                      <span>{PLATFORMS[a.platform].short}</span>
-                    </button>
-                  );
-                })}
+              {/* Platform switcher tabs + preview side by side on desktop */}
+              <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-start">
+                {/* Platform switcher */}
+                <div className="scroll-liquid flex gap-1 overflow-x-auto pb-1 sm:flex-col sm:overflow-visible sm:pb-0">
+                  {selectedAccounts.map((a) => {
+                    const active = previewAccountId === a.id;
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => setPreviewAccountId(a.id)}
+                        title={a.displayName}
+                        className={cn(
+                          "flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition",
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <PlatformBadge platform={a.platform} size={16} />
+                        <span>{PLATFORMS[a.platform].short}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Phone preview — device-aware */}
+                <div className="mx-auto sm:mx-0">
+                  <PhonePreview
+                    account={previewAccount}
+                    content={previewContent}
+                    mediaUrl={previewMediaUrl || state.mediaUrl}
+                    hashtags={previewHashtags}
+                    device={previewDevice}
+                    theme={previewTheme}
+                  />
+                </div>
               </div>
 
-              {/* Phone preview — device-aware */}
-              <PhonePreview
-                account={previewAccount}
-                content={previewContent}
-                mediaUrl={previewMediaUrl || state.mediaUrl}
-                hashtags={previewHashtags}
-                device={previewDevice}
-                theme={previewTheme}
-              />
-
               {/* Char-limit progress bar */}
-              <div className="space-y-1">
+              <div className="max-w-[400px] space-y-1">
                 <div className="flex items-center justify-between text-[10px]">
                   <span className="text-muted-foreground">
                     {PLATFORMS[previewAccount.platform].name} char limit
@@ -2212,55 +2219,6 @@ export function ComposerView() {
           </aside>
         )}
       </div>
-
-      {/* === Mobile preview — below the flow === */}
-      {previewAccount && (
-        <section className="space-y-3 lg:hidden">
-          <SectionHeader
-            title="Live preview"
-            desc="Tap a platform to switch"
-            icon={Eye}
-            action={
-              <button
-                onClick={() => setPreviewTheme(t => t === "light" ? "dark" : "light")}
-                className="grid h-6 w-6 place-items-center rounded-md bg-muted/40 text-muted-foreground transition hover:text-foreground"
-                title="Toggle preview theme"
-              >
-                {previewTheme === "light" ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-              </button>
-            }
-          />
-          <div className="scroll-liquid flex gap-1 overflow-x-auto pb-1">
-            {selectedAccounts.map((a) => {
-              const active = previewAccountId === a.id;
-              return (
-                <button
-                  key={a.id}
-                  onClick={() => setPreviewAccountId(a.id)}
-                  title={a.displayName}
-                  className={cn(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <PlatformBadge platform={a.platform} size={16} />
-                  <span>{PLATFORMS[a.platform].short}</span>
-                </button>
-              );
-            })}
-          </div>
-          <PhonePreview
-            account={previewAccount}
-            content={previewContent}
-            mediaUrl={previewMediaUrl || state.mediaUrl}
-            hashtags={previewHashtags}
-            device="phone"
-            theme={previewTheme}
-          />
-        </section>
-      )}
 
       {/* === Sticky publish bar — with completion ring + shortcut hint === */}
       <StickyPublishBar
@@ -3217,8 +3175,8 @@ function StickyPublishBar({
   const isMac = typeof navigator !== "undefined" && navigator.platform.toLowerCase().includes("mac");
 
   return (
-    <div className="sticky bottom-0 z-30 px-0 py-2 sm:px-0 lg:px-0">
-      <div className="glass-strong glass-sheen flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 sm:px-5">
+    <div className="sticky bottom-0 z-30 py-2">
+      <div className="glass-strong glass-sheen flex items-center gap-3 rounded-2xl px-4 py-2.5 sm:px-5">
         <div className="hidden min-w-0 flex-1 sm:block">
           <div className="flex items-center gap-2">
             {/* Mini completion ring */}
