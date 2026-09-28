@@ -8313,3 +8313,72 @@ Stage Summary:
 - Lint: `bun run lint 2>&1 | grep analytics` → 0 errors, 0 warnings in analytics.tsx (only pre-existing error remains in mini-services/whatsapp-service/index.js Baileys scaffold — unrelated and present before this task).
 - TypeScript: `npx tsc --noEmit 2>&1 | grep analytics` → 0 errors in analytics.tsx (pre-existing errors in examples/, mini-services/, skills/, src/app/api/ai/assistant/, prisma.config.ts — all outside scope).
 - Worklog: appended (yes).
+
+---
+Task ID: 6-report-settings-preview
+Agent: report-settings-enhancer
+Task: Enhance Report Settings module with print preview + full-page live preview.
+
+Work Log:
+- Read context: worklog.md (prior entries for composer/calendar/inbox/approvals/analytics establishing design language), settings.tsx ReportSettingsSection (lines 4891-5349), reports.tsx PrintLayout (lines 3469-4939), globals.css @media print report styles (lines 1429-2098).
+- Reviewed existing ReportSettingsSection: had a small inline preview card (320×460px max) using inline styles + Tailwind — NOT the same DOM as the actual printed report. Settings controls on the left, tiny preview on the right.
+- Reviewed reports.tsx PrintLayout: uses `.report-print-root` + `.report-*` classes (report-title-banner, report-title-accent, report-section-title, report-text, report-metric-row, report-metric, report-table, report-footer-company, etc.) which are styled ONLY inside `@media print` in globals.css.
+- Reviewed globals.css @media print block: contains `.report-print-root` isolation rules (visibility:hidden everything else, position:absolute, forced light-mode colors, accent color hardcoded to #5856D6 with !important).
+- Added NEW CSS block to globals.css (appended after line 2088): `.report-preview-root` screen-mode mirror of all the @media print `.report-print-root` visual rules — title-banner, title-accent, section-title, text, metric-row, metric, kpi-grid, kpi-card, table, footer-company, watermark, podium, sentiment-pill, sent-pos/neu/neg. Plus page-canvas sizing classes (is-portrait-letter, is-landscape-letter, is-portrait-a4, is-landscape-a4) with native print dimensions (Letter=816×1056px, A4=794×1123px at 96dpi). Plus is-compact variant for the scaled-down side-panel preview. Plus report-compact-scaler wrapper. Plus @media print tweaks for watermark display + accent color overrides.
+- Added 5 new lucide-react icon imports to settings.tsx: Printer, Maximize2, ZoomIn, ZoomOut, ScanLine.
+- Replaced the entire ReportSettingsSection function (was lines 4897-5349, ~452 lines) with a new version (~750 lines) using a Python splice script (precise line-range replacement). The new section:
+  • State: settings (preserved), fullPreviewOpen (new — controls Dialog), zoom (new — 0.5–2× for full-page dialog), compactScale (new — auto-computed via ResizeObserver to fit the side panel), compactWrapperRef.
+  • Company info: now refreshes on window focus (so edits in the Company tab show up when returning).
+  • useLayoutEffect + ResizeObserver: measures the compact-preview wrapper width and computes compactScale = clamp(0.18, 0.85, wrapperWidth / nativeWidth) so the native-size sheet always fits.
+  • handlePrint: sets document.title to "Report Settings Preview — {date}", calls window.print() after 120ms, restores original title via afterprint event (with 6s fallback).
+  • Left column: ALL settings controls preserved exactly (Header & branding, Body content, Footer & page setup — same toggles, selects, color picker, inputs).
+  • Right column: NEW preview toolbar with "Print preview" label + animated green "Live" badge + paper-size/orientation indicator + "Full page" button (opens Dialog) + "Print" button (calls handlePrint).
+  • Compact preview: report-compact-scaler wrapper (height = nativeH × compactScale + 24) containing a report-page-canvas.is-compact div with transform:scale(compactScale) — renders the FULL native-size report sheet shrunk to fit the side panel.
+  • Full-page Dialog: DialogContent (max-w-1100px) with header containing title "Full-page live preview" + ScanLine icon + paper/orientation/zoom meta + zoom controls (ZoomOut button, percentage display, ZoomIn button, 100% reset button, Print button). Body: overflow-auto container with the report-page-canvas at native size + transform:scale(zoom) + transformOrigin top-center. Scrollable for multi-page inspection.
+  • Hidden print root: `<div className="report-print-root hidden print:block">` always mounted at the bottom of the section — contains the same ReportPreviewCanvas. When window.print() fires, the @media print CSS hides everything else and shows only this element.
+- Added module-level ReportPreviewCanvas component (defined AFTER ReportSettingsSection, ~230 lines) — renders a faithful, print-ready report sheet using the SAME .report-* classes the Reports view uses. Structure:
+  • Root: div.report-preview-root with data-accent-scope attribute, --report-accent CSS var, fontSize scaled by settings.fontSize (small=0.88×, medium=1×, large=1.12×).
+  • Injected <style> tag: scoped [data-accent-scope] rules that set the accent color on .report-title-banner-brand, .report-section-title, .report-metric-row border, .report-kpi-card border, .report-table thead background, .report-title-accent background — all with !important so the live color picker wins even in print mode (overriding the hardcoded #5856D6).
+  • Watermark: div.report-watermark with diagonal rotated text (color = accent + "14" for 8% opacity) — shown when settings.showWatermark && watermarkText is non-empty.
+  • Title banner: div.report-title-banner with flexbox layout that honors headerLayout (banner/centered/minimal) and logoPosition (left/right/center/hidden). Logo is the company logo image or a colored square with the company initial. Brand name, tagline, eyebrow, title, date-range meta all toggleable via settings.
+  • Accent bar: div.report-title-accent (3px tall, accent-colored).
+  • Executive summary: h2.report-section-title + p.report-text (shown when settings.showExecutiveSummary).
+  • KPI strip: div.report-metric-row with 6 .report-metric children (Followers, Impressions, Reach, Engagement, Posts, Eng. Rate) — shown when settings.showKpiStrip.
+  • Per-Account Summary table: table.report-table with 5 sample rows (Instagram/TikTok/LinkedIn/Twitter/Facebook). Columns: Account, Platform, Followers, Impressions, Reach, Eng., Sentiment (optional), 7-day sparkline (optional). Row backgrounds honor tableStyle (striped/plain/bordered). Sentiment pills use sent-pos/sent-neu/sent-neg classes. Sparklines are inline SVG polylines colored with the accent.
+  • Top Engaged Posts table: table.report-table with 4 sample rows (Post Title, Author, Platform, Engagement).
+  • Footer: div.report-footer-company with logo, company name, address line, contact line, generated-on date, report title, footer text, page numbers — all toggleable via settings.
+- Added helper functions at module scope:
+  • loadCompanyForPreview(): reads socialflow-company from localStorage, returns {name, logo, address, city, country, phone, website} with sensible defaults.
+  • sentimentClass(s) / sentimentLabel(s): map "pos"/"neu"/"neg" to CSS class + label.
+  • ReportSparkline({points, color}): inline SVG polyline sparkline (36×12px) — normalizes points to fit, strokes with accent color.
+- Added 3 module-level const arrays for sample data: PREVIEW_KPI_ROWS (6 KPIs), PREVIEW_TABLE_ROWS (5 accounts with sentiment + 7-day trend arrays), PREVIEW_TOP_POSTS (4 posts).
+- Verified ReportPreviewCanvas is defined at module scope (not inside ReportSettingsSection) so React doesn't recreate the component type on every parent render (avoids eslint "Cannot create components during render" rule violation).
+- The canvas is mounted in 3 contexts, all sharing the same component:
+  1. Compact preview — scaled down via transform:scale in the side panel
+  2. Full-page Dialog — at native Letter/A4 dimensions with zoom
+  3. Hidden .report-print-root — emitted by window.print()
+  Whatever renders here is exactly what prints (WYSIWYG).
+- Lint: `bun run lint 2>&1 | grep settings` → 0 errors, 0 warnings.
+- TypeScript: `npx tsc --noEmit 2>&1 | grep settings` → 0 errors.
+- Agent Browser verification:
+  • Navigated to Report Settings (had to use `document.querySelector('button[aria-label=Settings]').click()` via eval because agent-browser's click command doesn't fire React onClick handlers on custom ListRow components — a known agent-browser limitation, not an app bug).
+  • Confirmed "Print preview", "Full page", "Header & branding" text all present in DOM.
+  • Confirmed 3 .report-preview-root elements mounted (compact + dialog + hidden print root).
+  • Confirmed .report-page-canvas.is-compact, .report-title-banner, .report-metric-row, .report-table all exist in DOM.
+  • VLM screenshot analysis confirmed: left panel with toggle switches ✓, white report sheet preview on right ✓, Print + Full page buttons ✓, green Live badge ✓.
+  • Opened full-page Dialog via .click() — confirmed dialog opened with title "Full-page live preview", desc "what you see is what prints", zoom controls, native canvas at 816×1056px (Letter portrait).
+  • VLM confirmed dialog contents: large white report sheet with header banner + executive summary + KPI strip + data table + footer ✓, zoom controls ✓, Print button ✓.
+  • Tested live preview toggle: turned OFF "Show KPI strip" → .report-metric-row count went from 2 to 0 (removed from both compact + print canvases instantly). Turned back ON → count returned to 2. ✓
+  • Tested accent color picker: changed hex from #5856D6 (violet) to #10b981 (emerald) via the text input → computed style of .report-title-banner-brand changed from rgb(88,86,214) to rgb(16,185,129). VLM confirmed "header text and table header are emerald/green". ✓
+- No console errors during any interaction.
+
+Stage Summary:
+- Files modified:
+  1. /home/z/my-project/src/app/globals.css — appended ~410 lines of .report-preview-root screen CSS mirroring the @media print .report-print-root styles, plus .report-page-canvas sizing classes (Letter/A4, portrait/landscape, compact), .report-compact-scaler wrapper, .report-watermark, .sentiment-pill, .sent-pos/neu/neg, and @media print tweaks for watermark + accent overrides.
+  2. /home/z/my-project/src/components/views/settings.tsx — added 5 icon imports (Printer, Maximize2, ZoomIn, ZoomOut, ScanLine); replaced ReportSettingsSection (~452 lines → ~750 lines) with new version featuring 3-mode preview (compact/full-page/print); added module-level ReportPreviewCanvas component (~230 lines) + helpers (loadCompanyForPreview, sentimentClass, sentimentLabel, ReportSparkline) + 3 sample-data consts (PREVIEW_KPI_ROWS, PREVIEW_TABLE_ROWS, PREVIEW_TOP_POSTS).
+- Features delivered (all requested):
+  1. Print preview — a "Print" button in both the section header and the preview toolbar that calls window.print() with a meaningful document.title (restored after). A persistent hidden .report-print-root div (always mounted, hidden on screen via Tailwind's `hidden` class, shown only in print via `print:block`) contains the same ReportPreviewCanvas, so the printed output is byte-for-byte what the preview shows. The existing @media print CSS isolates this element (visibility:hidden everything else, position:absolute, forced light-mode colors).
+  2. Full-page live preview — a "Full page" button opens a Dialog (max-w-1100px) rendering the report at native print dimensions (Letter=816×1056px or A4=794×1123px at 96dpi) inside an overflow-auto scroll container. Zoom controls (50%–200% via ZoomIn/ZoomOut buttons + 100% reset) scale the sheet via transform:scale. A "Print" button inside the dialog triggers the same handlePrint. The dialog shows paper size, orientation, and current zoom % in the header.
+  3. Compact live preview — the right-column preview now renders the FULL native-size report sheet (same DOM as print) shrunk via CSS transform:scale to fit the side panel. A ResizeObserver auto-computes the scale factor so it always fits the available width. All settings (toggles, color picker, selects) update the preview instantly — verified with KPI strip toggle (count 2→0→2) and accent color change (violet→emerald confirmed via computed style + VLM).
+- Design constraints honored: glass card section, SectionHeader with action buttons, ToggleRow/Field/Select reused, liquid-pill for primary Save button, emerald Live badge with pulse dot, shadcn Dialog/Separator, lucide-react icons, cn utility, sonner toast, no indigo/blue primary (default accent is violet #5856D6, user-configurable), responsive (grid lg:grid-cols-2, flex-wrap toolbar, mobile-friendly dialog), no new npm packages.
+- Worklog: appended (yes).

@@ -2086,3 +2086,420 @@ html { scroll-behavior: smooth; }
 .logo-creative:hover {
   letter-spacing: -0.04em;
 }
+
+/* ============================================================================
+   REPORT PREVIEW — on-screen mirror of the @media print .report-print-root
+   styles. Used by the Report Settings live preview + full-page preview dialog
+   + the actual print sheet. Renders the EXACT same DOM as the printed report
+   so what you see on screen is what you get on paper.
+   ============================================================================ */
+
+.report-preview-root {
+  /* Force light-mode ink palette (matches @media print overrides) */
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --muted: #f5f5f7;
+  --muted-foreground: #666666;
+  --border: #e0e0e0;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  color: #1a1a1a;
+  background: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  box-sizing: border-box;
+}
+.report-preview-root *,
+.report-preview-root *::before,
+.report-preview-root *::after { box-sizing: border-box; }
+
+/* Title banner — brand left, report title + date right */
+.report-preview-root .report-title-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #1a1a1a;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.report-preview-root .report-title-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.report-preview-root .report-company-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+.report-preview-root .report-title-banner-brand {
+  font-size: 22px;
+  font-weight: 800;
+  color: #5856D6;
+  letter-spacing: -0.6px;
+  line-height: 1;
+}
+.report-preview-root .report-title-banner-tagline {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #777;
+  margin-top: 3px;
+}
+.report-preview-root .report-title-banner-right { text-align: right; }
+.report-preview-root .report-title-banner-eyebrow {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #5856D6;
+}
+.report-preview-root .report-title-banner-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+.report-preview-root .report-title-banner-meta {
+  font-size: 8px;
+  color: #777;
+  margin-top: 2px;
+}
+.report-preview-root .report-title-accent {
+  height: 3px;
+  width: 100%;
+  margin: 0 0 6px;
+  border-radius: 1px;
+}
+
+/* Content + section titles */
+.report-preview-root .report-content {
+  display: block;
+  color: #1a1a1a;
+}
+.report-preview-root .report-section-title {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #5856D6;
+  margin: 8px 0 3px;
+  padding-bottom: 2px;
+  border-bottom: 1.5px solid #5856D6;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.report-preview-root .report-section-title:first-child { margin-top: 0; }
+.report-preview-root .report-text {
+  font-size: 10px;
+  line-height: 1.45;
+  color: #333;
+  margin-bottom: 4px;
+}
+.report-preview-root .report-subtle { color: #888; font-weight: 400; font-size: 8px; }
+.report-preview-root .report-subsection { margin-top: 4px; }
+.report-preview-root .report-subhead {
+  font-size: 9px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+/* KPI metric strip */
+.report-preview-root .report-metric-row {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #e0e0e0;
+  border-left: 3px solid #5856D6;
+  border-radius: 3px;
+  margin: 4px 0 6px;
+}
+.report-preview-root .report-metric {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border-right: 1px solid #e0e0e0;
+}
+.report-preview-root .report-metric:last-child { border-right: none; }
+.report-preview-root .report-metric-label {
+  font-size: 8px;
+  font-weight: 600;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+.report-preview-root .report-metric-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.1;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+/* Legacy KPI grid (kept for parity) */
+.report-preview-root .report-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.report-preview-root .report-kpi-card {
+  border: 1px solid #e0e0e0;
+  border-left: 3px solid #5856D6;
+  border-radius: 3px;
+  padding: 4px 6px;
+  background: #fafafa;
+}
+.report-preview-root .report-kpi-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1;
+}
+.report-preview-root .report-kpi-label {
+  font-size: 8px;
+  font-weight: 600;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+/* Data tables */
+.report-preview-root .report-table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+  margin-bottom: 4px;
+  table-layout: fixed;
+}
+.report-preview-root .report-table thead { display: table-header-group; }
+.report-preview-root .report-table thead th {
+  background: #5856D6;
+  color: #fff;
+  font-weight: 600;
+  text-align: left;
+  padding: 3px 4px;
+  border: none;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: bottom;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.report-preview-root .report-table tbody tr { page-break-inside: avoid; }
+.report-preview-root .report-table tbody td {
+  padding: 2px 4px;
+  border-bottom: 1px solid #e8e8e8;
+  vertical-align: top;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  color: #1a1a1a;
+}
+.report-preview-root .report-table .text-right { text-align: right; }
+.report-preview-root .report-table .text-center { text-align: center; }
+.report-preview-root .report-table .capitalize { text-transform: capitalize; }
+.report-preview-root .report-table tbody tr:nth-child(even) td { background: #f9f9fb; }
+.report-preview-root .report-table tbody tr:hover { background: transparent !important; }
+.report-preview-root .report-matrix th,
+.report-preview-root .report-matrix td { font-size: 8px; padding: 2px 4px; }
+.report-preview-root .report-sub-table thead th {
+  background: #f0f0f5;
+  color: #333;
+}
+
+/* Sentiment badges inside preview tables */
+.report-preview-root .sent-pos { color: rgb(22 163 74); background: rgb(34 197 94 / 0.15); }
+.report-preview-root .sent-neu { color: rgb(161 98 7); background: rgb(234 179 8 / 0.15); }
+.report-preview-root .sent-neg { color: rgb(190 18 60); background: rgb(244 63 94 / 0.15); }
+.report-preview-root .sentiment-pill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Footer with company contact */
+.report-preview-root .report-footer-company {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid #e0e0e0;
+}
+.report-preview-root .report-footer-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.report-preview-root .report-footer-company-info { flex: 1; min-width: 0; }
+.report-preview-root .report-footer-company-name {
+  font-size: 9px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.report-preview-root .report-footer-company-line {
+  font-size: 7.5px;
+  color: #666;
+  margin-top: 1px;
+}
+.report-preview-root .report-footer-company-contact {
+  font-size: 7.5px;
+  color: #888;
+  margin-top: 1px;
+}
+.report-preview-root .report-footer-meta {
+  text-align: right;
+  font-size: 7.5px;
+  color: #888;
+  line-height: 1.4;
+}
+.report-preview-root .report-footer-confidential {
+  font-style: italic;
+  color: #999;
+  margin-top: 2px;
+}
+.report-preview-root .report-footer-note {
+  font-size: 8px;
+  color: #888;
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px dashed #ccc;
+  text-align: center;
+}
+
+/* Watermark — diagonal faint text behind the page */
+.report-preview-root .report-watermark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  user-select: none;
+  font-size: 5rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  transform: rotate(-18deg);
+  z-index: 0;
+}
+
+/* Leaderboard podium (kept for parity) */
+.report-preview-root .report-podium {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.report-preview-root .report-podium-card {
+  border: 1px solid #e0e0e0;
+  border-top: 3px solid #5856D6;
+  border-radius: 3px;
+  padding: 4px 6px;
+}
+.report-preview-root .report-podium-title {
+  font-size: 8px;
+  font-weight: 700;
+  color: #5856D6;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #e8e8e8;
+}
+.report-preview-root .report-podium-list { list-style: none; margin: 0; padding: 0; }
+.report-preview-root .report-podium-item {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 1px 0;
+  font-size: 8px;
+}
+.report-preview-root .report-podium-rank {
+  font-weight: 700;
+  color: #888;
+  min-width: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.report-preview-root .report-podium-name {
+  flex: 1;
+  font-weight: 600;
+  color: #1a1a1a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.report-preview-root .report-podium-value {
+  font-weight: 700;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* When the preview-root is also the print-root (actual print), inherit the
+   print-mode layout overrides from @media print automatically. */
+
+/* Page-canvas sizing for the full-page preview dialog.
+   Letter @ 96dpi = 816 × 1056 px; A4 = 794 × 1123 px.
+   We render at native print size inside an overflow:auto scroll container. */
+.report-page-canvas {
+  position: relative;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 12px 32px -8px rgba(0,0,0,0.18);
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+.report-page-canvas.is-portrait-letter { width: 816px; min-height: 1056px; padding: 48px 56px; }
+.report-page-canvas.is-landscape-letter { width: 1056px; min-height: 816px; padding: 48px 56px; }
+.report-page-canvas.is-portrait-a4 { width: 794px; min-height: 1123px; padding: 48px 56px; }
+.report-page-canvas.is-landscape-a4 { width: 1123px; min-height: 794px; padding: 48px 56px; }
+
+/* Compact thumbnail — scaled-down sheet that fits the settings side panel.
+   We render at native print size then visually shrink via CSS transform. */
+.report-page-canvas.is-compact {
+  width: 816px;
+  min-height: 1056px;
+  padding: 48px 56px;
+  transform-origin: top left;
+}
+.report-page-canvas.is-compact.is-landscape { width: 1056px; min-height: 816px; }
+.report-page-canvas.is-compact.is-a4 { width: 794px; min-height: 1123px; }
+.report-page-canvas.is-compact.is-a4.is-landscape { width: 1123px; min-height: 794px; }
+
+/* Scaling wrapper for compact preview — sets the visual box that the
+   transformed sheet occupies (so flex/grid layout below it isn't broken). */
+.report-compact-scaler {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #e9e9ee;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* Print-specific @page tweaks for the report-settings print sheet.
+   Only the title needs overriding; the rest is inherited from the shared
+   @media print block above. */
+@media print {
+  .report-print-root .report-watermark { display: grid; }
+  .report-print-root .report-title-accent { background: #5856D6 !important; }
+  .report-print-root .report-metric-row { border-left-color: #5856D6 !important; }
+  .report-print-root .report-kpi-card { border-left-color: #5856D6 !important; }
+  .report-print-root .report-podium-card { border-top-color: #5856D6 !important; }
+}

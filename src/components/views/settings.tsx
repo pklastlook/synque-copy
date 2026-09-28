@@ -81,6 +81,12 @@ import {
   X,
   Bot,
   Sparkles,
+  // Report preview / print
+  Printer,
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
+  ScanLine,
 } from "lucide-react";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PlatformBadge } from "@/components/glass/platform-badge";
@@ -4890,6 +4896,10 @@ export function getReportSettings(): ReportSettings {
 
 function ReportSettingsSection() {
   const [settings, setSettings] = React.useState<ReportSettings>(loadReportSettings);
+  const [fullPreviewOpen, setFullPreviewOpen] = React.useState(false);
+  const [zoom, setZoom] = React.useState(1);
+  const [compactScale, setCompactScale] = React.useState(0.45);
+  const compactWrapperRef = React.useRef<HTMLDivElement | null>(null);
 
   function update<K extends keyof ReportSettings>(key: K, value: ReportSettings[K]) {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -4912,241 +4922,76 @@ function ReportSettingsSection() {
     toast.info("Report settings reset to defaults");
   };
 
-  // Pull company info for the live preview header.
-  const company = React.useMemo(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("socialflow-company") ?? "{}");
-      return {
-        name: (stored.companyName as string) || "Your Company",
-        logo: (stored.companyLogo as string | null) ?? null,
-        address: (stored.address as string) || "123 Market Street",
-        city: (stored.city as string) || "San Francisco",
-        country: (stored.country as string) || "United States",
-        phone: (stored.phone as string) || "+1 (555) 014-2200",
-        website: (stored.website as string) || "example.com",
-      };
-    } catch {
-      return {
-        name: "Your Company",
-        logo: null,
-        address: "123 Market Street",
-        city: "San Francisco",
-        country: "United States",
-        phone: "+1 (555) 014-2200",
-        website: "example.com",
-      };
-    }
+  // Pull company info for the live preview header (refresh on focus so edits
+  // in the Company tab show up when the user returns).
+  const [company, setCompany] = React.useState(() => loadCompanyForPreview());
+  React.useEffect(() => {
+    const refresh = () => setCompany(loadCompanyForPreview());
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
   }, []);
 
-  const addressLine = [company.address, company.city, company.country].filter(Boolean).join(", ");
-  const contactLine = [company.phone, company.website].filter(Boolean).join(" · ");
+  // Measure the compact-preview wrapper width and compute a scale factor that
+  // fits the native-size sheet (Letter = 816px wide) inside it.
+  React.useLayoutEffect(() => {
+    const el = compactWrapperRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const compute = () => {
+      const w = el.clientWidth - 24; // subtract inner padding
+      const nativeW =
+        settings.orientation === "landscape"
+          ? settings.paperSize === "a4" ? 1123 : 1056
+          : settings.paperSize === "a4" ? 794 : 816;
+      setCompactScale(Math.max(0.18, Math.min(0.85, w / nativeW)));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [settings.orientation, settings.paperSize]);
 
-  const showLogo = settings.showCompanyLogo && settings.logoPosition !== "hidden";
-  const titleSize =
-    settings.fontSize === "large" ? "1.5rem" : settings.fontSize === "medium" ? "1.25rem" : "1.1rem";
-  const tableDemoRows = [
-    { label: "Instagram", value: "1.2M", delta: "+8.4%" },
-    { label: "TikTok", value: "847K", delta: "+12.1%" },
-    { label: "LinkedIn", value: "312K", delta: "+2.7%" },
-  ];
+  // Print — uses the persistent hidden .report-print-root node that mirrors
+  // the current settings. We set document.title so the Save-as-PDF filename
+  // is meaningful, then restore it after.
+  const handlePrint = React.useCallback(() => {
+    const originalTitle = document.title;
+    const reportName = `Report Settings Preview — ${new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
+    document.title = reportName;
+    const restore = () => { document.title = originalTitle; };
+    setTimeout(() => {
+      window.print();
+      window.addEventListener("afterprint", restore, { once: true });
+      setTimeout(restore, 6000);
+    }, 120);
+  }, []);
 
-  // Live preview — mirrors how PrintLayout will render with these settings.
-  const preview = (
-    <div
-      className="relative mx-auto overflow-hidden rounded-xl bg-white p-5 text-neutral-900 shadow-md"
-      style={{
-        width: settings.orientation === "landscape" ? "100%" : "78%",
-        maxWidth: settings.orientation === "landscape" ? 460 : 320,
-        borderColor: settings.accentColor + "55",
-        boxShadow: `inset 0 2px 0 0 ${settings.accentColor}, 0 6px 24px -8px rgba(0,0,0,0.18)`,
-        border: "1px solid " + settings.accentColor + "33",
-      }}
-    >
-      {settings.showWatermark && settings.watermarkText.trim() && (
-        <div
-          className="pointer-events-none absolute inset-0 grid place-items-center"
-          style={{
-            fontSize: "5rem",
-            fontWeight: 800,
-            letterSpacing: "0.2em",
-            color: settings.accentColor + "14",
-            transform: "rotate(-18deg)",
-            userSelect: "none",
-          }}
-        >
-          {settings.watermarkText}
-        </div>
-      )}
-
-      {/* Header */}
-      <div
-        className={cn(
-          "relative flex gap-3",
-          settings.headerLayout === "centered" && "flex-col items-center text-center",
-          settings.headerLayout === "minimal" && "items-center",
-          settings.headerLayout === "banner" && "items-start justify-between",
-          settings.headerLayout === "banner" && settings.logoPosition === "right" && "flex-row-reverse",
-          settings.headerLayout === "banner" && settings.logoPosition === "center" && "flex-col items-center text-center",
-        )}
-      >
-        {showLogo && (
-          <div className="flex shrink-0 items-center">
-            {company.logo ? (
-              <img src={company.logo} alt="" className="h-9 w-9 rounded-lg object-contain" />
-            ) : (
-              <div
-                className="grid h-9 w-9 place-items-center rounded-lg text-xs font-bold text-white"
-                style={{ background: settings.accentColor }}
-              >
-                {(company.name || "Y").slice(0, 1).toUpperCase()}
-              </div>
-            )}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          {settings.showReportTitle && (
-            <div
-              className="font-bold leading-tight"
-              style={{ fontSize: titleSize, color: settings.accentColor }}
-            >
-              Performance Report
-            </div>
-          )}
-          {settings.showDateRange && (
-            <div className="text-[11px] text-neutral-500">
-              {new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })} · Last 30 days
-            </div>
-          )}
-          {settings.showCompanyAddress && addressLine && (
-            <div className="mt-1 text-[10px] text-neutral-500">{addressLine}</div>
-          )}
-          {settings.showCompanyContact && contactLine && (
-            <div className="text-[10px] text-neutral-500">{contactLine}</div>
-          )}
-        </div>
-      </div>
-
-      {/* Executive summary */}
-      {settings.showExecutiveSummary && (
-        <div className="relative mt-4 rounded-lg bg-neutral-50 p-2 text-[10px] leading-snug text-neutral-600">
-          <span className="font-semibold" style={{ color: settings.accentColor }}>Executive summary.</span>{" "}
-          Across all accounts, impressions grew 8.4% week-over-week driven by TikTok (+12.1%). Engagement rate held at 4.2%.
-        </div>
-      )}
-
-      {/* KPI strip */}
-      {settings.showKpiStrip && (
-        <div
-          className="relative mt-3 grid grid-cols-4 gap-2 border-t pt-3"
-          style={{ borderColor: settings.accentColor + "33" }}
-        >
-          {[
-            { label: "Impressions", value: "1.24M" },
-            { label: "Reach", value: "847K" },
-            { label: "Engagement", value: "12.4%" },
-            { label: "Followers", value: "+4.2K" },
-          ].map((kpi) => (
-            <div key={kpi.label} className="rounded-lg bg-neutral-50 p-2">
-              <div className="text-[9px] uppercase tracking-wider text-neutral-500">{kpi.label}</div>
-              <div className="text-sm font-bold tabular-nums" style={{ color: settings.accentColor }}>
-                {kpi.value}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Mini table preview demonstrating tableStyle + sentiment + sparkline */}
-      <div className="relative mt-3">
-        <table className="w-full border-collapse text-[10px]">
-          <thead>
-            <tr style={{ background: settings.accentColor + "14" }}>
-              <th className="px-2 py-1 text-left font-semibold text-neutral-700">Account</th>
-              <th className="px-2 py-1 text-right font-semibold text-neutral-700">Reach</th>
-              <th className="px-2 py-1 text-right font-semibold text-neutral-700">Δ</th>
-              {settings.showSentimentBadges && (
-                <th className="px-2 py-1 text-center font-semibold text-neutral-700">Sentiment</th>
-              )}
-              {settings.showSparklines && (
-                <th className="px-2 py-1 text-center font-semibold text-neutral-700">Trend</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {tableDemoRows.map((row, i) => (
-              <tr
-                key={row.label}
-                className={
-                  settings.tableStyle === "striped" && i % 2 === 1
-                    ? "bg-neutral-50"
-                    : settings.tableStyle === "bordered"
-                      ? "border-b border-neutral-200"
-                      : ""
-                }
-              >
-                <td className="px-2 py-1 text-neutral-700">{row.label}</td>
-                <td className="px-2 py-1 text-right tabular-nums text-neutral-900">{row.value}</td>
-                <td className="px-2 py-1 text-right tabular-nums text-emerald-600">{row.delta}</td>
-                {settings.showSentimentBadges && (
-                  <td className="px-2 py-1 text-center">
-                    <span
-                      className="inline-block rounded-full px-1.5 py-0.5 text-[8px] font-bold"
-                      style={{
-                        background:
-                          row.label === "TikTok"
-                            ? "rgb(34 197 94 / 0.15)"
-                            : row.label === "LinkedIn"
-                              ? "rgb(234 179 8 / 0.15)"
-                              : "rgb(59 130 246 / 0.15)",
-                        color:
-                          row.label === "TikTok"
-                            ? "rgb(22 163 74)"
-                            : row.label === "LinkedIn"
-                              ? "rgb(161 98 7)"
-                              : "rgb(37 99 235)",
-                      }}
-                    >
-                      {row.label === "TikTok" ? "POS" : row.label === "LinkedIn" ? "NEU" : "POS"}
-                    </span>
-                  </td>
-                )}
-                {settings.showSparklines && (
-                  <td className="px-2 py-1 text-center">
-                    <svg width="36" height="12" viewBox="0 0 36 12" className="inline-block">
-                      <polyline
-                        points="0,9 6,7 12,8 18,5 24,6 30,3 36,4"
-                        fill="none"
-                        stroke={settings.accentColor}
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Footer */}
-      {settings.showFooter && (
-        <div
-          className="relative mt-4 flex items-center justify-between border-t pt-2 text-[9px] text-neutral-500"
-          style={{ borderColor: settings.accentColor + "22" }}
-        >
-          <span>{settings.footerText || "Confidential"}</span>
-          {settings.showPageNumbers && <span>Page 1 of 1</span>}
-        </div>
-      )}
-    </div>
+  const canvasClass = React.useMemo(
+    () =>
+      cn(
+        "report-page-canvas report-preview-root",
+        `is-${settings.orientation}-${settings.paperSize}`,
+      ),
+    [settings.orientation, settings.paperSize],
   );
 
-  const aspectStyle: React.CSSProperties = {
-    width: settings.orientation === "landscape" ? "100%" : "78%",
-    maxWidth: settings.orientation === "landscape" ? 460 : 320,
-  };
+  const compactCanvasClass = React.useMemo(
+    () =>
+      cn(
+        "report-page-canvas report-preview-root is-compact",
+        settings.paperSize === "a4" && "is-a4",
+        settings.orientation === "landscape" && "is-landscape",
+      ),
+    [settings.paperSize, settings.orientation],
+  );
+
+  const nativeW =
+    settings.orientation === "landscape"
+      ? settings.paperSize === "a4" ? 1123 : 1056
+      : settings.paperSize === "a4" ? 794 : 816;
+  const nativeH =
+    settings.orientation === "landscape"
+      ? settings.paperSize === "a4" ? 794 : 816
+      : settings.paperSize === "a4" ? 1123 : 1056;
 
   return (
     <section className="glass rounded-xl crystal-in p-5">
@@ -5160,6 +5005,13 @@ function ReportSettingsSection() {
               className="flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted"
             >
               <RefreshCw className="h-3.5 w-3.5" /> Reset
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted"
+              title="Open the browser print dialog with these settings applied"
+            >
+              <Printer className="h-3.5 w-3.5" /> Print
             </button>
             <button
               onClick={save}
@@ -5312,33 +5164,484 @@ function ReportSettingsSection() {
 
         {/* RIGHT COLUMN — live preview */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">Print preview</div>
-            <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Live
-            </span>
+          {/* Preview toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-semibold">Print preview</div>
+              <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="hidden sm:inline rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {settings.paperSize.toUpperCase()} · {settings.orientation === "landscape" ? "Land" : "Port"}
+              </span>
+              <button
+                onClick={() => setFullPreviewOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium transition hover:bg-muted"
+                title="Open the full-page live preview"
+              >
+                <Maximize2 className="h-3.5 w-3.5" /> Full page
+              </button>
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium transition hover:bg-muted"
+                title="Open the browser print dialog"
+              >
+                <Printer className="h-3.5 w-3.5" /> Print
+              </button>
+            </div>
           </div>
+
+          {/* Compact scaled preview — renders the full native-size sheet and
+              shrinks it via transform:scale to fit the side panel. */}
           <div
-            className="rounded-2xl bg-neutral-200 p-3 shadow-inner"
-            style={{
-              ...aspectStyle,
-              margin: "0 auto",
-              aspectRatio:
-                settings.orientation === "landscape"
-                  ? settings.paperSize === "a4" ? "297 / 210" : "11 / 8.5"
-                  : settings.paperSize === "a4" ? "210 / 297" : "8.5 / 11",
-            }}
+            ref={compactWrapperRef}
+            className="report-compact-scaler"
+            style={{ padding: "12px", height: nativeH * compactScale + 24 }}
           >
-            {preview}
+            <div
+              className={compactCanvasClass}
+              style={{
+                transform: `scale(${compactScale})`,
+                width: nativeW,
+                minHeight: nativeH,
+              }}
+            >
+              <ReportPreviewCanvas settings={settings} company={company} />
+            </div>
           </div>
+
           <p className="text-[11px] text-muted-foreground">
-            Preview shows the report header, summary, KPI strip, sample table, and footer with the current settings.
-            Switch paper size and orientation to see how the page canvas changes. Accent color, logo position, table style,
-            sentiment badges, and sparklines all reflect live changes.
+            This preview renders the exact same DOM the printer sees — header banner, executive summary, KPI strip,
+            sample data table with sentiment badges and sparklines, and the company footer. Toggle any setting on the
+            left and the sheet updates instantly. Click <span className="font-semibold">Full page</span> for a
+            native-size print-fidelity preview, or <span className="font-semibold">Print</span> to send it to the
+            browser print dialog (Save as PDF works too).
           </p>
         </div>
       </div>
+
+      {/* ============================================================
+          FULL-PAGE LIVE PREVIEW DIALOG
+          Renders the report at native print dimensions with zoom
+          controls so the user can inspect every pixel before printing.
+         ============================================================ */}
+      <Dialog open={fullPreviewOpen} onOpenChange={setFullPreviewOpen}>
+        <DialogContent className="max-w-[95vw] overflow-hidden p-0 sm:max-w-[1100px]">
+          <DialogHeader className="border-b border-border bg-muted/40 px-5 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <DialogTitle className="flex items-center gap-2 text-sm">
+                  <ScanLine className="h-4 w-4 text-primary" />
+                  Full-page live preview
+                </DialogTitle>
+                <DialogDescription className="text-[11px]">
+                  {settings.paperSize.toUpperCase()} · {settings.orientation} · {Math.round(zoom * 100)}% · what you see is what prints
+                </DialogDescription>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-background transition hover:bg-muted"
+                  title="Zoom out"
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </button>
+                <span className="w-12 text-center text-xs font-semibold tabular-nums">{Math.round(zoom * 100)}%</span>
+                <button
+                  onClick={() => setZoom((z) => Math.min(2, +(z + 0.25).toFixed(2)))}
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-background transition hover:bg-muted"
+                  title="Zoom in"
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </button>
+                <Separator orientation="vertical" className="mx-1 h-6" />
+                <button
+                  onClick={() => setZoom(1)}
+                  className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium transition hover:bg-muted"
+                  title="Reset zoom to 100%"
+                >
+                  100%
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="ml-1 flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground transition hover:opacity-90"
+                >
+                  <Printer className="h-3.5 w-3.5" /> Print
+                </button>
+              </div>
+            </div>
+          </DialogHeader>
+          <div
+            className="max-h-[75vh] overflow-auto bg-neutral-200 p-6 dark:bg-neutral-900"
+            style={{ scrollbarGutter: "stable" }}
+          >
+            <div
+              className={canvasClass}
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: "top center",
+                width: nativeW,
+                minHeight: nativeH,
+              }}
+            >
+              <ReportPreviewCanvas settings={settings} company={company} />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============================================================
+          HIDDEN PRINT ROOT — the actual element window.print() emits.
+          Always mounted, hidden on screen, shown only in print mode.
+          Mirrors the live settings so the printed output matches the
+          on-screen preview exactly.
+         ============================================================ */}
+      <div className="report-print-root hidden print:block">
+        <ReportPreviewCanvas settings={settings} company={company} />
+      </div>
     </section>
+  );
+}
+
+// ============================================================================
+// ReportPreviewCanvas — renders a faithful, print-ready report sheet using the
+// same .report-* classes the Reports view uses for printing. Mounted in three
+// contexts:
+//   1. Compact preview — scaled down via transform:scale in the side panel
+//   2. Full-page Dialog — at native Letter/A4 dimensions with zoom
+//   3. Hidden .report-print-root — emitted by window.print()
+// Whatever renders here is exactly what prints. Defined at module scope so
+// React doesn't recreate the component type on every parent render.
+// ============================================================================
+
+const PREVIEW_KPI_ROWS = [
+  { label: "Followers", value: "48.2K", delta: "+4.2K" },
+  { label: "Impressions", value: "1.24M", delta: "+8.4%" },
+  { label: "Reach", value: "847K", delta: "+6.1%" },
+  { label: "Engagement", value: "12.4%", delta: "+0.3pp" },
+  { label: "Posts", value: "186", delta: "+24" },
+  { label: "Eng. Rate", value: "4.2%", delta: "+0.1pp" },
+];
+
+const PREVIEW_TABLE_ROWS: { account: string; platform: string; followers: string; impressions: string; reach: string; engagement: string; sentiment: "pos" | "neu" | "neg"; trend: number[] }[] = [
+  { account: "@synquehq", platform: "instagram", followers: "24.1K", impressions: "612K", reach: "418K", engagement: "9.2%", sentiment: "pos", trend: [3, 5, 4, 7, 6, 9, 12] },
+  { account: "@synque", platform: "tiktok", followers: "14.8K", impressions: "487K", reach: "312K", engagement: "11.7%", sentiment: "pos", trend: [2, 4, 3, 6, 8, 7, 11] },
+  { account: "Synque Inc.", platform: "linkedin", followers: "9.3K", impressions: "142K", reach: "117K", engagement: "3.1%", sentiment: "neu", trend: [4, 4, 5, 5, 6, 6, 7] },
+  { account: "@synque", platform: "twitter", followers: "7.2K", impressions: "98K", reach: "71K", engagement: "2.8%", sentiment: "neu", trend: [3, 3, 4, 3, 4, 5, 5] },
+  { account: "@synque.shop", platform: "facebook", followers: "5.1K", impressions: "62K", reach: "44K", engagement: "1.9%", sentiment: "neg", trend: [5, 4, 4, 3, 3, 2, 2] },
+];
+
+const PREVIEW_TOP_POSTS = [
+  { title: "Spring drop teaser — behind the scenes", author: "Maya R.", platform: "instagram", engagement: "8.2K" },
+  { title: "How we built Synque in 30 days", author: "Devon L.", platform: "linkedin", engagement: "4.1K" },
+  { title: "POV: scheduling while asleep", author: "Priya K.", platform: "tiktok", engagement: "12.7K" },
+  { title: "Weekly roundup — March wk3", author: "Maya R.", platform: "twitter", engagement: "2.3K" },
+];
+
+function loadCompanyForPreview() {
+  try {
+    const stored = JSON.parse(localStorage.getItem("socialflow-company") ?? "{}");
+    return {
+      name: (stored.companyName as string) || "Your Company",
+      logo: (stored.companyLogo as string | null) ?? null,
+      address: (stored.address as string) || "123 Market Street",
+      city: (stored.city as string) || "San Francisco",
+      country: (stored.country as string) || "United States",
+      phone: (stored.phone as string) || "+1 (555) 014-2200",
+      website: (stored.website as string) || "example.com",
+    };
+  } catch {
+    return {
+      name: "Your Company",
+      logo: null,
+      address: "123 Market Street",
+      city: "San Francisco",
+      country: "United States",
+      phone: "+1 (555) 014-2200",
+      website: "example.com",
+    };
+  }
+}
+
+function sentimentClass(s: "pos" | "neu" | "neg") {
+  return s === "pos" ? "sent-pos" : s === "neg" ? "sent-neg" : "sent-neu";
+}
+function sentimentLabel(s: "pos" | "neu" | "neg") {
+  return s === "pos" ? "POS" : s === "neg" ? "NEG" : "NEU";
+}
+
+function ReportSparkline({ points, color }: { points: number[]; color: string }) {
+  const w = 36, h = 12;
+  const max = Math.max(...points), min = Math.min(...points);
+  const range = max - min || 1;
+  const step = w / (points.length - 1);
+  const pts = points
+    .map((p, i) => `${(i * step).toFixed(1)},${(h - ((p - min) / range) * (h - 2) - 1).toFixed(1)}`)
+    .join(" ");
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="inline-block align-middle">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ReportPreviewCanvas({
+  settings,
+  company,
+}: {
+  settings: ReportSettings;
+  company: { name: string; logo: string | null; address: string; city: string; country: string; phone: string; website: string };
+}) {
+  const now = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const dateRangeLabel = "Last 30 days";
+  const reportTitle = "Performance Report";
+  const addressLine = [company.address, company.city, company.country].filter(Boolean).join(", ");
+  const contactLine = [company.phone, company.website].filter(Boolean).join(" · ");
+
+  const showLogo = settings.showCompanyLogo && settings.logoPosition !== "hidden";
+  const accent = settings.accentColor;
+
+  // Header layout variants — banner (default), centered, minimal.
+  const bannerLayout = settings.headerLayout;
+  const logoOnRight = settings.logoPosition === "right" && bannerLayout === "banner";
+  const logoCentered = settings.logoPosition === "center" || bannerLayout === "centered";
+  const isMinimal = bannerLayout === "minimal";
+
+  // Font-size scaling for the whole sheet (small/medium/large).
+  const fontScale =
+    settings.fontSize === "large" ? 1.12 : settings.fontSize === "small" ? 0.88 : 1;
+
+  return (
+    <div
+      className="report-preview-root"
+      data-accent-scope
+      style={{
+        ["--report-accent" as string]: accent,
+        fontSize: `calc(10px * ${fontScale})`,
+        position: "relative",
+      }}
+    >
+      {/* Accent color injection: re-style the report-* accent rules with the
+          user's chosen color via a scoped <style>. Uses !important so the live
+          color picker wins even in print mode (where @media print hardcodes
+          #5856D6 with !important). */}
+      <style>{`
+        [data-accent-scope] .report-title-banner-brand,
+        [data-accent-scope] .report-title-banner-eyebrow,
+        [data-accent-scope] .report-section-title { color: ${accent} !important; }
+        [data-accent-scope] .report-section-title { border-bottom-color: ${accent} !important; }
+        [data-accent-scope] .report-metric-row { border-left-color: ${accent} !important; }
+        [data-accent-scope] .report-kpi-card { border-left-color: ${accent} !important; }
+        [data-accent-scope] .report-podium-card { border-top-color: ${accent} !important; }
+        [data-accent-scope] .report-table thead th { background: ${accent} !important; }
+        [data-accent-scope] .report-title-accent { background: ${accent} !important; }
+      `}</style>
+
+      {/* Watermark — diagonal faint text behind every page */}
+      {settings.showWatermark && settings.watermarkText.trim() && (
+        <div
+          className="report-watermark"
+          style={{ color: accent + "14" }}
+          aria-hidden
+        >
+          {settings.watermarkText}
+        </div>
+      )}
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        {/* === TITLE BANNER === */}
+        <div
+          className="report-title-banner"
+          style={{
+            flexDirection: logoCentered ? "column" : "row",
+            alignItems: logoCentered ? "center" : "flex-end",
+            textAlign: logoCentered ? "center" : undefined,
+            gap: isMinimal ? 10 : 4,
+          }}
+        >
+          <div
+            className="report-title-banner-left"
+            style={{
+              flexDirection: logoOnRight ? "row-reverse" : "row",
+              justifyContent: logoCentered ? "center" : "flex-start",
+            }}
+          >
+            {showLogo && (
+              company.logo ? (
+                <img src={company.logo} alt={company.name} className="report-company-logo" />
+              ) : (
+                <div
+                  className="report-company-logo"
+                  style={{
+                    display: "grid",
+                    placeItems: "center",
+                    background: accent,
+                    color: "#fff",
+                    fontWeight: 800,
+                    fontSize: 14,
+                  }}
+                >
+                  {(company.name || "Y").slice(0, 1).toUpperCase()}
+                </div>
+              )
+            )}
+            <div>
+              {settings.showReportTitle && (
+                <div className="report-title-banner-brand" style={{ fontSize: isMinimal ? 14 : undefined }}>
+                  {company.name || "Your Company"}
+                </div>
+              )}
+              <div className="report-title-banner-tagline">
+                {isMinimal ? reportTitle : "Social Media Report"}
+              </div>
+            </div>
+          </div>
+          {!isMinimal && (
+            <div className="report-title-banner-right" style={{ textAlign: logoCentered ? "center" : "right" }}>
+              {settings.showReportTitle && (
+                <div className="report-title-banner-eyebrow">{dateRangeLabel} Report</div>
+              )}
+              <div className="report-title-banner-title">{reportTitle}</div>
+              {settings.showDateRange && (
+                <div className="report-title-banner-meta">{now} · {dateRangeLabel}</div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="report-title-accent" style={{ background: accent }} />
+
+        {/* === EXECUTIVE SUMMARY === */}
+        {settings.showExecutiveSummary && (
+          <>
+            <h2 className="report-section-title">Executive Summary</h2>
+            <p className="report-text">
+              Across all accounts, impressions grew 8.4% week-over-week driven by TikTok (+12.1%). Engagement rate held
+              at 4.2% with {PREVIEW_TABLE_ROWS.length} active accounts publishing 186 posts. Top performer
+              <strong> @synque</strong> on TikTok reached 312K unique users.
+            </p>
+          </>
+        )}
+
+        {/* === KPI STRIP === */}
+        {settings.showKpiStrip && (
+          <div className="report-metric-row">
+            {PREVIEW_KPI_ROWS.map((k) => (
+              <div key={k.label} className="report-metric">
+                <div className="report-metric-value">{k.value}</div>
+                <div className="report-metric-label">{k.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* === PER-ACCOUNT SUMMARY TABLE === */}
+        <h2 className="report-section-title">Per-Account Summary</h2>
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Platform</th>
+              <th className="text-right">Followers</th>
+              <th className="text-right">Impressions</th>
+              <th className="text-right">Reach</th>
+              <th className="text-right">Eng.</th>
+              {settings.showSentimentBadges && <th className="text-center">Sentiment</th>}
+              {settings.showSparklines && <th className="text-center">7-day</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {PREVIEW_TABLE_ROWS.map((row, i) => (
+              <tr
+                key={row.account + row.platform}
+                style={{
+                  background: settings.tableStyle === "striped" && i % 2 === 1 ? "#f9f9fb" : undefined,
+                  borderBottom: settings.tableStyle === "bordered" ? "1px solid #d4d4d8" : undefined,
+                }}
+              >
+                <td className="font-medium">{row.account}</td>
+                <td className="capitalize">{row.platform}</td>
+                <td className="text-right tabular-nums">{row.followers}</td>
+                <td className="text-right tabular-nums">{row.impressions}</td>
+                <td className="text-right tabular-nums">{row.reach}</td>
+                <td className="text-right tabular-nums">{row.engagement}</td>
+                {settings.showSentimentBadges && (
+                  <td className="text-center">
+                    <span className={`sentiment-pill ${sentimentClass(row.sentiment)}`}>
+                      {sentimentLabel(row.sentiment)}
+                    </span>
+                  </td>
+                )}
+                {settings.showSparklines && (
+                  <td className="text-center">
+                    <ReportSparkline points={row.trend} color={accent} />
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* === TOP ENGAGED POSTS === */}
+        <h2 className="report-section-title">Top Engaged Posts</h2>
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th>Post Title</th>
+              <th>Author</th>
+              <th>Platform</th>
+              <th className="text-right">Engagement</th>
+            </tr>
+          </thead>
+          <tbody>
+            {PREVIEW_TOP_POSTS.map((p, i) => (
+              <tr
+                key={p.title}
+                style={{
+                  background: settings.tableStyle === "striped" && i % 2 === 1 ? "#f9f9fb" : undefined,
+                  borderBottom: settings.tableStyle === "bordered" ? "1px solid #d4d4d8" : undefined,
+                }}
+              >
+                <td className="font-medium" style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</td>
+                <td>{p.author}</td>
+                <td className="capitalize">{p.platform}</td>
+                <td className="text-right tabular-nums">{p.engagement}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* === FOOTER === */}
+        {settings.showFooter && (
+          <div className="report-footer-company">
+            {showLogo && (
+              company.logo ? (
+                <img src={company.logo} alt={company.name} className="report-footer-logo" />
+              ) : null
+            )}
+            <div className="report-footer-company-info">
+              <div className="report-footer-company-name">{company.name || "Your Company"}</div>
+              {settings.showCompanyAddress && addressLine && (
+                <div className="report-footer-company-line">{addressLine}</div>
+              )}
+              {settings.showCompanyContact && contactLine && (
+                <div className="report-footer-company-contact">{contactLine}</div>
+              )}
+            </div>
+            <div className="report-footer-meta">
+              <div>Generated on {now}</div>
+              <div>{reportTitle} · {dateRangeLabel}</div>
+              {settings.footerText && (
+                <div className="report-footer-confidential">{settings.footerText}</div>
+              )}
+              {settings.showPageNumbers && <div>Page 1 of 1</div>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
