@@ -4,34 +4,27 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * SYNQUE Logo — animated, interactive text wordmark.
+ * SYNQUE Logo — creative, interactive text wordmark.
  *
- * Features:
+ * Design:
  * - "SYN" in solid foreground color
- * - "QUE" in animated gradient (primary → gold → primary, shifts on hover)
- * - Letter-by-letter entrance animation (staggered fade-up on mount)
- * - Hover: each letter scales slightly + gradient shifts
- * - Shimmer effect: a light sweep passes across the text every 4s
- * - Center-aligned by default
+ * - "QUE" in gradient (primary → gold)
+ * - On hover: gradient animates (shifts) — subtle, smooth
+ * - Creative font styling: italic + tight tracking + bold weight
+ * - Center-aligned
+ * - No entrance animations, no shimmer, no letter-by-letter effects
  */
-
-// Letter data for staggered animation
-const LETTERS = ["S", "Y", "N", "Q", "U", "E"];
-// First 3 letters (SYN) are solid, last 3 (QUE) are gradient
-const GRADIENT_START = 3;
 
 export function Logo({
   size = 36,
   withTile = true,
   className,
   tileClassName,
-  animated = true,
 }: {
   size?: number;
   withTile?: boolean;
   className?: string;
   tileClassName?: string;
-  animated?: boolean;
 }) {
   const fontSize =
     size <= 20 ? "text-[13px]" :
@@ -43,28 +36,11 @@ export function Logo({
 
   const mark = (
     <div
-      className={cn("sf-logo flex items-center font-extrabold tracking-tight leading-none", fontSize, animated && "logo-animated", className)}
+      className={cn("sf-logo flex items-center leading-none", fontSize, "logo-creative", className)}
       aria-label="SYNQUE"
     >
-      {LETTERS.map((letter, i) => (
-        <span
-          key={i}
-          className={cn("logo-letter inline-block", animated && "logo-letter-enter")}
-          style={animated ? { animationDelay: `${i * 80}ms` } : undefined}
-        >
-          {i >= GRADIENT_START ? (
-            <span
-              className="bg-clip-text text-transparent logo-gradient-text"
-            >
-              {letter}
-            </span>
-          ) : (
-            <span className="text-foreground">{letter}</span>
-          )}
-        </span>
-      ))}
-      {/* Shimmer sweep overlay */}
-      {animated && <span className="logo-shimmer" />}
+      <span className="logo-syn">SYN</span>
+      <span className="logo-que">QUE</span>
     </div>
   );
 
@@ -86,45 +62,29 @@ export function Logo({
 }
 
 /**
- * SYNQUE wordmark — animated logo text + slogan below it.
- * Center-aligned, with staggered letter animation + gradient shimmer.
+ * SYNQUE wordmark — creative logo text + slogan below it.
+ * Center-aligned, gradient hover animation.
  */
 export function LogoWordmark({
   className,
   size = "text-base",
   showLogo = true,
   logoSize = 28,
-  animated = true,
 }: {
   className?: string;
   size?: string;
   showLogo?: boolean;
   logoSize?: number;
-  animated?: boolean;
 }) {
   return (
     <div className={cn("flex flex-col items-center gap-0.5 text-center", className)}>
       {showLogo && (
         <div
-          className={cn("flex items-center justify-center font-extrabold tracking-tight leading-none", size, animated && "logo-animated")}
+          className={cn("flex items-center justify-center leading-none", size, "logo-creative")}
           aria-label="SYNQUE"
         >
-          {LETTERS.map((letter, i) => (
-            <span
-              key={i}
-              className={cn("logo-letter inline-block", animated && "logo-letter-enter")}
-              style={animated ? { animationDelay: `${i * 80}ms` } : undefined}
-            >
-              {i >= GRADIENT_START ? (
-                <span className="bg-clip-text text-transparent logo-gradient-text">
-                  {letter}
-                </span>
-              ) : (
-                <span className="text-foreground">{letter}</span>
-              )}
-            </span>
-          ))}
-          {animated && <span className="logo-shimmer" />}
+          <span className="logo-syn">SYN</span>
+          <span className="logo-que">QUE</span>
         </div>
       )}
       <div className="text-[9px] uppercase tracking-[0.25em] text-muted-foreground">
