@@ -1481,19 +1481,23 @@ html { scroll-behavior: smooth; }
     margin: 0 !important;
     background: transparent !important;
   }
-  /* Reset all top-level div wrappers that constrain the print root */
+  /* Reset all top-level div wrappers that constrain the print root.
+     overflow:hidden prevents content from overflowing the page width. */
   body > div, body > div > div,
   body > div > div > div {
     padding: 0 !important;
     margin: 0 !important;
-    max-width: none !important;
-    width: auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
     min-height: 0 !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   /* Print root in NORMAL flow (position:static) so the browser paginates
-     content naturally across multiple pages. */
+     content naturally across multiple pages.
+     overflow:hidden clips any content that exceeds the page width
+     (prevents side cropping — content wraps instead of overflowing).
+     width:100% fills the @page content box (which has the margins). */
   .report-print-root {
     display: block !important;
     position: static !important;
@@ -1504,7 +1508,7 @@ html { scroll-behavior: smooth; }
     padding: 0 !important;
     margin: 0 !important;
     box-sizing: border-box !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     z-index: auto !important;
   }
 
@@ -1604,9 +1608,8 @@ html { scroll-behavior: smooth; }
      REPORTS — .report-print-root
      =========================================================================== */
 
-  /* === PRINT OPTIMIZATION: fit more content per page, prevent extra pages ===
-     Tighter spacing, smaller margins, reduced row heights. */
-  .report-print-root .report-content { gap: 6px !important; }
+  /* === PRINT OPTIMIZATION: fit more content per page, prevent side cropping === */
+  .report-print-root .report-content { gap: 6px !important; max-width: 100% !important; overflow: hidden !important; }
   .report-print-root .report-section-title { margin-top: 6px !important; margin-bottom: 3px !important; }
   .report-print-root .report-text { margin: 2px 0 !important; line-height: 1.35 !important; }
   .report-print-root .report-metric-row { gap: 4px !important; margin: 4px 0 !important; }
@@ -1621,14 +1624,15 @@ html { scroll-behavior: smooth; }
   .report-print-root .report-content > *:last-child { margin-bottom: 0 !important; }
 
   /* Report title banner — compact header at top of page 1.
-     Replaces the old cover page (which caused "first page empty").
-     Brand on left, title + date on right, accent bar below. */
+     max-width:100% + overflow:hidden prevents side cropping. */
   .report-title-banner {
     display: flex !important;
     justify-content: space-between;
     align-items: flex-end;
     padding-bottom: 6px;
     border-bottom: 2px solid #1a1a1a;
+    max-width: 100% !important;
+    overflow: hidden !important;
   }
   .report-title-banner-left {
     display: flex;
@@ -1822,10 +1826,10 @@ html { scroll-behavior: smooth; }
   }
 
   /* Tables — header repeats on each page, rows don't split internally.
-     table-layout: auto lets columns size to content.
-     max-width:100% prevents tables from exceeding the print root width.
-     tbody can break across pages (page-break-inside: auto) so rows flow
-     naturally to the next page instead of being cut. */
+     table-layout:fixed distributes columns evenly within the page width
+     (prevents wide tables from overflowing and getting cropped).
+     max-width:100% ensures tables never exceed the print root width.
+     tbody can break across pages so rows flow to the next page. */
   .report-table {
     display: table !important;
     width: 100%;
@@ -1833,7 +1837,7 @@ html { scroll-behavior: smooth; }
     border-collapse: collapse;
     font-size: 9px;
     margin-bottom: 4px;
-    table-layout: auto;
+    table-layout: fixed;
     page-break-inside: auto;
     break-inside: auto;
   }
@@ -1864,7 +1868,9 @@ html { scroll-behavior: smooth; }
     vertical-align: top;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    word-break: break-word;
+    word-break: break-all;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   /* Right-aligned numeric columns line up tabular-nums digits */
   .report-table .text-right { text-align: right; }
