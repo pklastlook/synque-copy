@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   Plus, Pencil, Trash2, Loader2, Star, TrendingUp,
-  DollarSign, Users, Sparkles, ExternalLink, Briefcase,
+  DollarSign, Users, Sparkles, ExternalLink, Briefcase, Search, Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,16 @@ import {
 // ============================================================================
 // Types
 // ============================================================================
+interface InfluencerSearchResult {
+  name: string;
+  handle: string;
+  platform: string;
+  followers: string;
+  niche: string;
+  bio: string;
+  profileUrl: string;
+}
+
 interface Influencer {
   id: string;
   name: string;
@@ -95,10 +105,87 @@ export function InfluencersView() {
   const [editing, setEditing] = React.useState<Influencer | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
 
+  // Online search state
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [searchPlatform, setSearchPlatform] = React.useState<string>("all");
+  const [searchResults, setSearchResults] = React.useState<InfluencerSearchResult[] | null>(null);
+  const [searching, setSearching] = React.useState(false);
+
   function getToken(): string | null {
     try {
       return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null;
     } catch { return null; }
+  }
+
+  async function handleOnlineSearch() {
+    if (!searchQuery.trim()) {
+      toast.error("Enter a search term (e.g. 'fashion influencers', 'tech YouTubers')");
+      return;
+    }
+    setSearching(true);
+    setSearchResults(null);
+    try {
+      const token = getToken();
+      const res = await fetch("/api/influencers/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ query: searchQuery, platform: searchPlatform }),
+      });
+      const json = await res.json();
+      if (json.results && json.results.length > 0) {
+        setSearchResults(json.results);
+        toast.success(`Found ${json.results.length} influencers`);
+      } else {
+        toast.info("No influencers found — try a different search term");
+        setSearchResults([]);
+      }
+    } catch {
+      toast.error("Search failed — please try again");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function addFromSearch(result: InfluencerSearchResult) {
+    const token = getToken();
+    // Parse follower count (e.g. "1.2M" → 1200000, "450K" → 450000)
+    let followers = 0;
+    const fMatch = result.followers?.match(/([\d.]+)\s*([KM]?)/i);
+    if (fMatch) {
+      const num = parseFloat(fMatch[1]);
+      const mult = fMatch[2]?.toUpperCase() === "M" ? 1000000 : fMatch[2]?.toUpperCase() === "K" ? 1000 : 1;
+      followers = Math.round(num * mult);
+    }
+
+    try {
+      const res = await fetch("/api/influencers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: result.name,
+          handle: result.handle.replace(/^@/, ""),
+          platform: result.platform || "instagram",
+          followers,
+          niche: result.niche || "",
+          notes: result.bio || "",
+          status: "draft",
+        }),
+      });
+      if (res.ok) {
+        toast.success(`Added ${result.name} to your influencer list`);
+        reload();
+      } else {
+        toast.error("Failed to add influencer");
+      }
+    } catch {
+      toast.error("Network error");
+    }
   }
 
   async function removeInfluencer(id: string, name: string) {
@@ -187,6 +274,101 @@ export function InfluencersView() {
       />
 
       <MetricRow metrics={metrics} />
+
+      {/* === Online influencer search === */}
+      <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Globe className="h-4 w-4 text-primary" />
+          <span className="text-sm font-bold">Search Influencers Online</span>
+          <span className="text-[10px] text-muted-foreground">— find real creators from the web</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleOnlineSearch()}
+              placeholder="e.g. fashion influencers, tech YouTubers, food bloggers..."
+              className="w-full rounded-xl border border-border/50 bg-muted/50 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary/50 focus:bg-background/60"
+            />
+          </div>
+          <select
+            value={searchPlatform}
+            onChange={(e) => setSearchPlatform(e.target.value)}
+            className="rounded-xl border border-border/50 bg-muted/50 px-3 py-2 text-xs outline-none focus:border-primary/50"
+          >
+            <option value="all">All Platforms</option>
+            <option value="instagram">Instagram</option>
+            <option value="youtube">YouTube</option>
+            <option value="tiktok">TikTok</option>
+            <option value="x">X (Twitter)</option>
+          </select>
+          <Button
+            onClick={handleOnlineSearch}
+            disabled={searching || !searchQuery.trim()}
+            className="liquid-pill h-9 gap-1.5 px-4 text-xs font-semibold"
+          >
+            {searching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+            {searching ? "Searching..." : "Search"}
+          </Button>
+        </div>
+
+        {/* Search results */}
+        {searchResults && searchResults.length > 0 && (
+          <div className="scroll-liquid max-h-[400px] space-y-2 overflow-y-auto">
+            {searchResults.map((result, i) => {
+              const platId = (result.platform || "instagram") as PlatformId;
+              const p = PLATFORMS[platId] ?? PLATFORMS.instagram;
+              return (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-xl border border-border/40 bg-muted/50 p-3 transition hover:border-primary/40"
+                >
+                  <PlatformBadge platform={platId} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-bold">{result.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{result.handle}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      {result.followers && <span><b className="text-foreground">{result.followers}</b> followers</span>}
+                      {result.niche && <span>· {result.niche}</span>}
+                    </div>
+                    {result.bio && (
+                      <div className="mt-0.5 line-clamp-1 text-[10px] text-muted-foreground">{result.bio}</div>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => addFromSearch(result)}
+                    className="liquid-pill h-7 gap-1 px-2.5 text-[10px] font-semibold"
+                  >
+                    <Plus className="h-3 w-3" /> Add
+                  </Button>
+                  {result.profileUrl && (
+                    <a
+                      href={result.profileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="grid h-7 w-7 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                      title="View profile"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {searchResults && searchResults.length === 0 && (
+          <div className="grid place-items-center py-8 text-center text-sm text-muted-foreground">
+            <Globe className="mb-2 h-6 w-6 opacity-40" />
+            No influencers found. Try a different search term.
+          </div>
+        )}
+      </div>
 
       {/* Filter row */}
       <div className="flex flex-wrap items-center gap-1.5">
