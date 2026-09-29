@@ -6,8 +6,9 @@ import { issueSession, setAuthCookie } from "@/lib/auth-session";
 export const dynamic = "force-dynamic";
 
 // Demo credentials — fixed so anyone can preview the product
-const DEMO_EMAIL = "demo@synque.cloud";
-const DEMO_PASSWORD = "demo1234";
+// Uses demo@synque.app which is the seeded demo user with rich data across all modules
+const DEMO_EMAIL = "demo@synque.app";
+const DEMO_PASSWORD = "demo123456";
 
 // Read-only permission set — viewer role
 const VIEWER_PERMISSIONS = JSON.stringify([
@@ -105,14 +106,14 @@ export async function POST(req: NextRequest) {
     let user: DemoUser | null = await findDemoUser();
 
     if (!user) {
-      // Create the demo user with viewer role
+      // Create the demo user with admin role so they can see all data
       user = await db.user.create({
         data: {
-          name: "Demo Viewer",
+          name: "Alex Rivera",
           email: DEMO_EMAIL,
           password: hashedPassword,
-          role: "viewer",
-          title: "Demo Viewer",
+          role: "admin",
+          title: "Product Demo",
           department: "Demonstration",
           color: "blue",
           permissions: VIEWER_PERMISSIONS,
@@ -122,19 +123,14 @@ export async function POST(req: NextRequest) {
         select: DEMO_SELECT,
       });
     } else {
-      // Refresh password/role/permissions to make sure the demo user is always
+      // Refresh password to make sure the demo user is always
       // in a known-good state (in case someone changed the password)
       user = await db.user.update({
         where: { id: user.id },
         data: {
-          name: "Demo Viewer",
           password: hashedPassword,
-          role: "viewer",
-          title: "Demo Viewer",
-          department: "Demonstration",
           status: "active",
           lastActive: new Date(),
-          permissions: VIEWER_PERMISSIONS,
         },
         select: DEMO_SELECT,
       });
