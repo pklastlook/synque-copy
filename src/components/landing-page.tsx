@@ -2948,6 +2948,64 @@ function Field({ icon, label, value, onChange, placeholder, error, type = "text"
    Login Screen — KEPT UNCHANGED
    ============================================================================ */
 
+/* ============================================================================
+   LoginAuroraBg — animated gradient mesh background for the login screen.
+   Same aesthetic as the landing page AuroraBg but simplified — 3 drifting
+   blobs + a subtle grid overlay for depth. Theme-aware (softer in light mode).
+   ============================================================================ */
+
+function LoginAuroraBg() {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme !== "light";
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
+      {/* 3 drifting gradient blobs */}
+      <div
+        className="absolute rounded-full blur-[100px]"
+        style={{
+          width: "40rem",
+          height: "40rem",
+          top: "-10%",
+          left: "-5%",
+          background: `radial-gradient(circle, ${isDark ? "rgba(59,130,246,0.35)" : "rgba(59,130,246,0.20)"}, transparent 70%)`,
+          animation: "auroraDrift1 25s ease-in-out infinite alternate",
+        }}
+      />
+      <div
+        className="absolute rounded-full blur-[120px]"
+        style={{
+          width: "35rem",
+          height: "35rem",
+          bottom: "-10%",
+          right: "-5%",
+          background: `radial-gradient(circle, ${isDark ? "rgba(139,92,246,0.30)" : "rgba(139,92,246,0.18)"}, transparent 70%)`,
+          animation: "auroraDrift2 30s ease-in-out infinite alternate",
+        }}
+      />
+      <div
+        className="absolute rounded-full blur-[90px]"
+        style={{
+          width: "28rem",
+          height: "28rem",
+          top: "40%",
+          left: "40%",
+          background: `radial-gradient(circle, ${isDark ? "rgba(6,182,212,0.20)" : "rgba(6,182,212,0.12)"}, transparent 70%)`,
+          animation: "auroraDrift3 28s ease-in-out infinite alternate",
+        }}
+      />
+      {/* Subtle vignette for depth */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: isDark
+            ? "radial-gradient(ellipse at center, transparent 30%, rgba(3,3,8,0.6) 100%)"
+            : "radial-gradient(ellipse at center, transparent 30%, rgba(250,251,252,0.4) 100%)",
+        }}
+      />
+    </div>
+  );
+}
+
 function LoginScreen({ onBack }: { onBack: () => void }) {
   const { login, loginAsDemo } = useAuth();
   const [email, setEmail] = React.useState("");
@@ -2994,11 +3052,14 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <div className="retaina-bg" aria-hidden>
+      {/* Animated aurora gradient background — matches landing page aesthetic */}
+      <LoginAuroraBg />
+      {/* Legacy retaina-bg kept for fallback */}
+      <div className="retaina-bg" aria-hidden style={{ display: "none" }}>
         <div className="blob-3" />
       </div>
 
-      <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl lg:grid-cols-2">
           {/* Left — brand panel */}
           <div className="glass-strong crystal-in relative hidden flex-col justify-between p-10 lg:flex">
