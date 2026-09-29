@@ -149,7 +149,7 @@ async function seedUsers(): Promise<void> {
       emailVerified: new Date(),
     },
     create: {
-      name: "Alex Rivera",
+      name: "Ahsan Khan",
       email: "demo@synque.app",
       password: hashedPassword,
       role: "admin",
@@ -157,7 +157,7 @@ async function seedUsers(): Promise<void> {
       department: "Marketing",
       color: "violet",
       avatar:
-        "https://res.cloudinary.com/l8ytrxsv/image/upload/v1/socialflow/avatars/alex-rivera.jpg",
+        "https://res.cloudinary.com/l8ytrxsv/image/upload/v1790686292/socialflow/avatars/team/pak-male1.jpg",
       permissions: JSON.stringify(["*"]),
       status: "active",
       bio: "Building SYNQUE — the future of social media management. Coffee enthusiast ☕.",
@@ -174,31 +174,34 @@ async function seedUsers(): Promise<void> {
 
   const teamMembers = [
     {
-      name: "Sarah Chen",
+      name: "Ayesha Malik",
       email: "sarah@synque.app",
       role: "manager",
       title: "Social Media Manager",
       department: "Content",
       color: "pink",
       gender: "female",
+      avatar: "https://res.cloudinary.com/l8ytrxsv/image/upload/v1790686306/socialflow/avatars/team/pak-female1.jpg",
     },
     {
-      name: "Marcus Johnson",
+      name: "Bilal Ahmed",
       email: "marcus@synque.app",
       role: "editor",
       title: "Content Editor",
       department: "Content",
       color: "blue",
       gender: "male",
+      avatar: "https://res.cloudinary.com/l8ytrxsv/image/upload/v1790686307/socialflow/avatars/team/pak-male2.jpg",
     },
     {
-      name: "Priya Patel",
+      name: "Fatima Riaz",
       email: "priya@synque.app",
       role: "viewer",
       title: "Analytics Viewer",
       department: "Analytics",
       color: "amber",
       gender: "female",
+      avatar: "https://res.cloudinary.com/l8ytrxsv/image/upload/v1790686309/socialflow/avatars/team/pak-female2.jpg",
     },
   ];
 
@@ -216,7 +219,7 @@ async function seedUsers(): Promise<void> {
         department: m.department,
         color: m.color,
         gender: m.gender,
-        avatar: `https://res.cloudinary.com/l8ytrxsv/image/upload/v1/socialflow/avatars/${m.name
+        avatar: m.avatar ?? `https://res.cloudinary.com/l8ytrxsv/image/upload/v1/socialflow/avatars/${m.name
           .toLowerCase()
           .replace(/\s+/g, "-")}.jpg`,
         permissions: JSON.stringify([]),
@@ -1338,7 +1341,7 @@ async function seedActivities(): Promise<void> {
     },
     {
       type: "team_joined",
-      description: "Marcus Johnson joined the team as Content Editor",
+      description: "Bilal Ahmed joined the team as Content Editor",
       meta: JSON.stringify({ role: "editor", department: "Content" }),
       hoursAgo: 1440,
     },
