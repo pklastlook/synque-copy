@@ -8382,3 +8382,69 @@ Stage Summary:
   3. Compact live preview — the right-column preview now renders the FULL native-size report sheet (same DOM as print) shrunk via CSS transform:scale to fit the side panel. A ResizeObserver auto-computes the scale factor so it always fits the available width. All settings (toggles, color picker, selects) update the preview instantly — verified with KPI strip toggle (count 2→0→2) and accent color change (violet→emerald confirmed via computed style + VLM).
 - Design constraints honored: glass card section, SectionHeader with action buttons, ToggleRow/Field/Select reused, liquid-pill for primary Save button, emerald Live badge with pulse dot, shadcn Dialog/Separator, lucide-react icons, cn utility, sonner toast, no indigo/blue primary (default accent is violet #5856D6, user-configurable), responsive (grid lg:grid-cols-2, flex-wrap toolbar, mobile-friendly dialog), no new npm packages.
 - Worklog: appended (yes).
+
+---
+
+## Task ID: landing-rebuild — `landing-rebuild-cinematic-aurora-builder`
+
+**Task**: Completely rebuild `/home/z/my-project/src/components/landing-page.tsx` with a cinematic, futuristic, story-driven design vision named **"Cinematic Aurora"**. Replace the old 11-act Mystic Ocean layout with a tighter 10-section aurora mesh, new color palette (electric blue / violet / teal / pink / emerald / gold / rose on a near-black void), and pure-CSS animated background.
+
+### Files delivered
+1. `/home/z/my-project/src/components/landing-page.tsx` — full rewrite (~1,500 lines, down from 2,685)
+
+### What was built
+
+**1. New `COLOR` constant (cinematic palette)**
+- `bg: #030308` near-black void · `surface: #0A0C14` · `surface2: #11142A`
+- `textHead: #F8FAFC` crisp white · `textBody: #94A3B8` slate-400 · `textMuted: #64748B` slate-500
+- `border: rgba(148,163,184,0.12)` · `cardBg: rgba(148,163,184,0.04)` · `cardHover: rgba(148,163,184,0.08)`
+- Accents (each with `A(alpha)` helper): `accent #3B82F6` electric blue · `violet #8B5CF6` · `teal #06B6D4` · `pink #EC4899` · `emerald #10B981` · `gold #F59E0B` · `rose #F43F5E`
+
+**2. `AuroraBg` component (replaces `MysticOceanBg`)**
+- Fixed full-screen `position: fixed` animated gradient mesh
+- 4 slowly-drifting radial-gradient blobs (blue top-left, violet top-right, teal bottom-left, pink bottom-right) at 0.4–0.55 opacity, blurred 80–95px
+- Each blob drifts via `transform: translate()` over 22–28s, `ease-in-out infinite alternate`
+- Inline SVG `feTurbulence` grain overlay at 3.5% opacity, `mix-blend-mode: overlay`
+- Edge vignette: `radial-gradient(ellipse at center, transparent 45%, rgba(3,3,8,0.85) 100%)`
+
+**3. `LANDING_KEYFRAMES` (rewritten)**
+Animations for: `auroraDrift1/2/3/4` (blob movement), `orbDrift1/2/3` (final CTA orbs), `gradientShift` + `heroGradientShift` (gradient text 8s), `floatY` (hero mockup 6s), `pulseGlow` (CTA 3s), `shimmer` (card hover sweep 2s), `scrollDown` (scroll indicator 2s), `dotConverge` + `flowDash` (Act3 visualization), `lineShimmer` (workflow connector 4s), `pulseRing` (workflow step badges), `statGlow` (stat numbers 4s).
+
+**4. New 10 sections** (story-driven, cinematic)
+1. `CinematicNav` — floating glass pill nav, scroll-reactive (transparent → `backdrop-blur-xl` + border + shadow), mobile hamburger dropdown
+2. `Act1Hero` — full-screen hero with Sparkles pill badge, massive headline "One flow. / Every platform. (gradient blue→violet) / Zero chaos.", GlowCTA + OutlineCTA (Live Demo via `loginAsDemo()`), trust badges, 4-stat glass grid, `HeroDashboardMockup` (kept + `floatY` animation + radial glow behind), scroll-down indicator
+3. `Act2Problem` — "Social media is broken" with 3 pain point cards (7 tabs open / Accounts suspended / Content stuck, all rose accent) + 4-stat pain strip
+4. `Act3Solution` — "Turn chaos into flow" gradient text, split layout: left bullets (emerald Check icons), right converging-dots visualization (12 dots converging from random positions into a central Sparkles tile with pulsing ring, dashed flow line SVG)
+5. `Act4Features` — bento grid (2-col / 1-col spans): AI Composer (violet) · Account Safety (emerald) · Advanced Analytics (blue) · Content Calendar (teal) · Unified Inbox (pink) · Team Workflow (gold)
+6. `Act5Workflow` — "From idea to published in 4 steps" — Create → Approve → Publish → Analyze, horizontal flow with animated gradient connector line (desktop) + vertical stack (mobile)
+7. `Act6SocialProof` — 4 stat cards (2,400+ teams, 1.8M posts, 48M impressions, 99.9% uptime), 3 testimonial cards with 5-star ratings, 6 company logos row
+8. `Act7Pricing` — 3-tier glass cards (Starter $0, Pro $49 with gradient border + "Most popular" badge, Enterprise Custom)
+9. `Act8FinalCTA` — dramatic closing with 3 vibrant animated orbs (blue, violet, teal), gradient headline "Ready to orchestrate your social?", big GlowCTA, trust badges
+10. `Act9Footer` — 4 link columns (Product / Company / Resources / Legal) + LogoWordmark + tagline + social icons (Twitter / Linkedin / Github / Mail via lucide-react)
+
+**5. Components kept EXACTLY as-is**
+`LandingPage` export, `useInView` hook, `Reveal` component, `GlowCTA` (only updated to gradient blue→violet background to match new palette), `OutlineCTA`, `Eyebrow`, `HeroDashboardMockup` (only added `animation: floatY 6s ease-in-out infinite` to root div), `TrialDialog`, `StepDot`, `Field`, `LoginScreen`, `FooterCol`.
+
+**6. Components removed (no longer needed)**
+`ParticleField`, `ConfettiField`, `TypingBubble`, `GrowingBars`, `MysticOceanBg`, `MysticCard`, `IconTile` (rewrote simpler version), `FloatingTag`, all old `Act1`–`Act11` section components, `FEATURES` and `COMPARE_ROWS` data constants (no longer referenced).
+
+**7. New shared helpers**
+- `GlassCard` — glassmorphic card with optional top accent hairline + shimmer sweep on hover (`group-hover:translate-x-full` translate animation, 1s duration)
+- `IconTile` — colored circle icon container (sm/md/lg sizes, gradient-tinted background)
+
+### Design rules followed
+1. All sections use `Reveal` for scroll-triggered fade-in animations (staggered delays)
+2. Glassmorphism everywhere: `rgba(148,163,184,0.04)` bg + `backdrop-blur-xl` + `rgba(148,163,184,0.12)` border
+3. Gradient text for key headlines: `linear-gradient(120deg, accent, violet)`, `bg-clip-text text-transparent`
+4. No section has a different background color — aurora bg is fixed behind everything; sections separated by `py-24 sm:py-32` + 1px hairlines
+5. Hover effects: cards lift `-translate-y-1` + shimmer sweep pseudo-element
+6. Responsive: mobile-first, grids collapse to single column, sidebar in mockup hidden on mobile, workflow stacks vertically
+7. Smooth scrolling: `scroll-behavior: smooth` on root Landing div
+8. `pulseRing` keyframe reused for workflow step pulse halo
+
+### Verification
+- `bun run lint` — clean (no errors)
+- `npx tsc --noEmit` — no errors in `src/components/landing-page.tsx` (other pre-existing TS errors in api routes / mini-services / examples are unrelated and out of scope)
+- Dev server (`bun run dev` on port 3000) — page returns HTTP 200, render time ~150-180ms, all new section headings verified in HTML output ("Zero chaos", "Turn chaos into", "Everything your team needs", "From idea to published", "Loved by teams", "Simple, transparent pricing", "Ready to orchestrate")
+- `auroraDrift` keyframe name present in rendered HTML (confirms `<style>` block injection works)
+
