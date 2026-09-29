@@ -438,7 +438,7 @@ export function SettingsView() {
 
 // ===== 1. Profile =====
 function ProfileSection() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { data, reload } = useApi<ApiUser[]>("/api/users");
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -506,29 +506,11 @@ function ProfileSection() {
         if (patchRes.ok) {
           const patchJson = await patchRes.json();
           setAvatarUrl(json.url);
-          // Keep the persisted auth store in sync so the sidebar/header
-          // avatar updates without a full page reload.
-          try {
-            const raw = localStorage.getItem("socialflow-auth");
-            if (raw) {
-              const parsed = JSON.parse(raw);
-              if (parsed?.state?.user) {
-                parsed.state.user = { ...parsed.state.user, avatar: json.url };
-                localStorage.setItem("socialflow-auth", JSON.stringify(parsed));
-              }
-            }
-          } catch {}
-          if (patchJson?.user && typeof window !== "undefined") {
-            try {
-              const raw = localStorage.getItem("socialflow-auth");
-              if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed?.state?.user) {
-                  parsed.state.user = { ...parsed.state.user, ...patchJson.user };
-                  localStorage.setItem("socialflow-auth", JSON.stringify(parsed));
-                }
-              }
-            } catch {}
+          // Update the auth store so the sidebar/header avatar updates
+          // instantly without a full page reload.
+          updateUser({ avatar: json.url });
+          if (patchJson?.user) {
+            updateUser(patchJson.user);
           }
           toast.success("Avatar updated");
           reload();
