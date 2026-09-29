@@ -398,6 +398,18 @@ const LANDING_KEYFRAMES = `
   100% { transform: scaleY(1); }
 }
 
+/* Section divider — animated gradient sweep across hairlines */
+@keyframes dividerSweep {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Glow trail pulse — for orbit badge halos */
+@keyframes glowTrail {
+  0%, 100% { opacity: 0.3; transform: scale(2.2); }
+  50%      { opacity: 0.6; transform: scale(2.8); }
+}
+
 /* Animated line draw — SVG stroke-dashoffset for path drawing */
 @keyframes lineDraw {
   0%   { stroke-dashoffset: 1000; }
@@ -816,7 +828,7 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
       style={scrolled ? { background: COLOR.navBg, borderColor: COLOR.border } : undefined}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 transition-transform duration-300 hover:scale-105">
           <Logo size={28} withTile={false} />
         </div>
         <div className="hidden items-center gap-7 md:flex">
@@ -988,19 +1000,18 @@ function PlatformOrbit() {
           animation: "breathe 3s ease-in-out infinite",
         }}
       />
-      {/* Central hub — SYNQUE logo tile with breathing scale */}
+      {/* Central hub — SYNQUE logo with breathing scale + glow */}
       <div
-        className="absolute z-10 grid h-16 w-16 place-items-center rounded-2xl border backdrop-blur-xl"
+        className="absolute z-10 grid h-20 w-20 place-items-center rounded-2xl border backdrop-blur-xl"
         style={{
           background: `linear-gradient(135deg, ${COLOR.accent}20, ${COLOR.violet}20)`,
-          borderColor: `${COLOR.accent}40`,
-          boxShadow: `0 0 40px -8px ${COLOR.accent}80`,
+          borderColor: `${COLOR.accent}60`,
+          boxShadow: `0 0 50px -8px ${COLOR.accent}80, inset 0 0 20px -4px ${COLOR.violet}40`,
           animation: "breathe 4s ease-in-out infinite",
-          // Custom property used by breathe keyframe via box-shadow glow
           ["--glow" as string]: `${COLOR.accent}80`,
         }}
       >
-        <span className="text-lg font-bold" style={{ color: COLOR.textHead }}>S</span>
+        <Logo size={32} withTile={false} />
       </div>
       {/* Orbit rings — now more visible */}
       <div
@@ -1028,19 +1039,28 @@ function PlatformOrbit() {
               transform: "translate(-50%, -50%)",
             }}
           >
+            {/* Glow trail behind badge — larger, softer colored halo */}
             <div
-              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 backdrop-blur-md"
+              className="absolute inset-0 rounded-full opacity-50 blur-lg"
+              style={{
+                background: `radial-gradient(circle, ${p.color}80, transparent 70%)`,
+                transform: "scale(2.5)",
+                animation: "glowTrail 3s ease-in-out infinite",
+              }}
+            />
+            <div
+              className="relative flex items-center gap-1.5 rounded-full border px-3 py-1.5 backdrop-blur-md transition-transform duration-300 hover:scale-110"
               style={{
                 background: `${p.color}1f`,
-                borderColor: `${p.color}55`,
+                borderColor: `${p.color}66`,
                 animation: "floatY 4s ease-in-out infinite",
                 animationDelay: p.delay,
-                boxShadow: `0 4px 14px -4px ${p.color}40`,
+                boxShadow: `0 4px 14px -4px ${p.color}60, 0 0 20px -6px ${p.color}80`,
               }}
             >
               <div
                 className="h-2 w-2 rounded-full"
-                style={{ background: p.color, boxShadow: `0 0 8px ${p.color}` }}
+                style={{ background: p.color, boxShadow: `0 0 10px ${p.color}, 0 0 16px ${p.color}80` }}
               />
               <span className="text-[11px] font-semibold" style={{ color: COLOR.textHead }}>{p.label}</span>
             </div>
@@ -1499,7 +1519,7 @@ function Act2Problem() {
   return (
     <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
       {/* Top hairline */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(to right, transparent, ${COLOR.accent}40, ${COLOR.violet}40, transparent)`, backgroundSize: "200% 100%", animation: "dividerSweep 8s linear infinite" }} />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
@@ -1579,7 +1599,7 @@ function Act3Solution() {
       className="relative w-full overflow-hidden py-24 sm:py-32"
       style={{ background: "transparent" }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(to right, transparent, ${COLOR.accent}40, ${COLOR.violet}40, transparent)`, backgroundSize: "200% 100%", animation: "dividerSweep 8s linear infinite" }} />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left — copy */}
@@ -1798,7 +1818,7 @@ function Act4Features() {
   ];
   return (
     <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(to right, transparent, ${COLOR.accent}40, ${COLOR.violet}40, transparent)`, backgroundSize: "200% 100%", animation: "dividerSweep 8s linear infinite" }} />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
@@ -1857,7 +1877,7 @@ function Act5Workflow({ onTrial }: { onTrial: () => void }) {
       className="relative w-full overflow-hidden py-24 sm:py-32"
       style={{ background: "transparent" }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(to right, transparent, ${COLOR.accent}40, ${COLOR.violet}40, transparent)`, backgroundSize: "200% 100%", animation: "dividerSweep 8s linear infinite" }} />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
@@ -2064,7 +2084,7 @@ function Act6SocialProof() {
       className="relative w-full overflow-hidden py-24 sm:py-32"
       style={{ background: "transparent" }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(to right, transparent, ${COLOR.accent}40, ${COLOR.violet}40, transparent)`, backgroundSize: "200% 100%", animation: "dividerSweep 8s linear infinite" }} />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* Big stats */}
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -2211,7 +2231,7 @@ function Act7Compare() {
   }
   return (
     <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(to right, transparent, ${COLOR.accent}40, ${COLOR.violet}40, transparent)`, backgroundSize: "200% 100%", animation: "dividerSweep 8s linear infinite" }} />
       <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal><Eyebrow icon={Layers} label="The Difference" /></Reveal>
@@ -2305,7 +2325,7 @@ function Act8Pricing({ onTrial }: { onTrial: () => void }) {
       className="relative w-full overflow-hidden py-24 sm:py-32"
       style={{ background: "transparent" }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(to right, transparent, ${COLOR.accent}40, ${COLOR.violet}40, transparent)`, backgroundSize: "200% 100%", animation: "dividerSweep 8s linear infinite" }} />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
@@ -2456,7 +2476,7 @@ function Act9FAQ() {
   ];
   return (
     <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(to right, transparent, ${COLOR.accent}40, ${COLOR.violet}40, transparent)`, backgroundSize: "200% 100%", animation: "dividerSweep 8s linear infinite" }} />
       <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal><Eyebrow icon={MessageCircle} label="Questions" /></Reveal>
