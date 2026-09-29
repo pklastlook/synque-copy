@@ -279,6 +279,31 @@ const LANDING_KEYFRAMES = `
   0%   { opacity: 0; transform: scale(0.95); }
   100% { opacity: 1; transform: scale(1); }
 }
+
+/* Orbit ring rotation */
+@keyframes spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Animated bar chart — bars grow from bottom on scroll into view */
+@keyframes barGrow {
+  0%   { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
+
+/* Animated line draw — SVG stroke-dashoffset for path drawing */
+@keyframes lineDraw {
+  0%   { stroke-dashoffset: 1000; }
+  100% { stroke-dashoffset: 0; }
+}
+
+/* Number ticker for problem stats */
+@keyframes ticker {
+  0%   { transform: translateY(100%); opacity: 0; }
+  50%  { opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
 `;
 
 /* ============================================================================
@@ -789,6 +814,81 @@ function CountUpStat({ target, suffix, label }: { target: number; suffix: string
   );
 }
 
+/* ============================================================================
+   PlatformOrbit — 7 animated platform badges orbiting in a circle.
+   Each badge floats + the whole ring slowly rotates. Pure CSS animations.
+   ============================================================================ */
+
+function PlatformOrbit() {
+  const platforms = [
+    { label: "Instagram", color: "#E1306C", delay: "0s" },
+    { label: "TikTok", color: "#00F2EA", delay: "0.8s" },
+    { label: "LinkedIn", color: "#0A66C2", delay: "1.6s" },
+    { label: "X", color: "#1DA1F2", delay: "2.4s" },
+    { label: "Facebook", color: "#1877F2", delay: "3.2s" },
+    { label: "YouTube", color: "#FF0000", delay: "4.0s" },
+    { label: "Threads", color: "#94A3B8", delay: "4.8s" },
+  ];
+  return (
+    <div className="relative mt-16 flex h-72 w-full items-center justify-center sm:h-80" aria-hidden>
+      {/* Central glow pulse */}
+      <div
+        className="absolute h-24 w-24 rounded-full opacity-40 blur-2xl"
+        style={{
+          background: `radial-gradient(circle, ${COLOR.accent}, transparent 70%)`,
+          animation: "pulseGlow 3s ease-in-out infinite",
+        }}
+      />
+      {/* Central hub — SYNQUE logo tile */}
+      <div
+        className="absolute z-10 grid h-16 w-16 place-items-center rounded-2xl border backdrop-blur-xl"
+        style={{
+          background: `linear-gradient(135deg, ${COLOR.accent}20, ${COLOR.violet}20)`,
+          borderColor: `${COLOR.accent}40`,
+          boxShadow: `0 0 40px -8px ${COLOR.accent}80`,
+        }}
+      >
+        <span className="text-lg font-bold" style={{ color: COLOR.textHead }}>S</span>
+      </div>
+      {/* Orbit ring — invisible track */}
+      <div
+        className="absolute h-64 w-64 rounded-full border sm:h-72 sm:w-72"
+        style={{ borderColor: `${COLOR.border}`, animation: "spin 40s linear infinite" }}
+      />
+      <div
+        className="absolute h-48 w-48 rounded-full border sm:h-56 sm:w-56"
+        style={{ borderColor: `${COLOR.border}60`, animation: "spin 30s linear infinite reverse" }}
+      />
+      {/* Platform badges positioned around the orbit */}
+      {platforms.map((p, i) => {
+        const angle = (i / platforms.length) * Math.PI * 2;
+        const radius = 128; // px from center
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        return (
+          <div
+            key={p.label}
+            className="absolute flex items-center gap-1.5 rounded-full border px-3 py-1.5 backdrop-blur-md"
+            style={{
+              transform: `translate(${x}px, ${y}px)`,
+              background: `${p.color}15`,
+              borderColor: `${p.color}40`,
+              animation: `floatY 4s ease-in-out infinite`,
+              animationDelay: p.delay,
+            }}
+          >
+            <div
+              className="h-2 w-2 rounded-full"
+              style={{ background: p.color, boxShadow: `0 0 8px ${p.color}` }}
+            />
+            <span className="text-[11px] font-semibold" style={{ color: COLOR.textHead }}>{p.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ----------------------------- Act 1: Hero ------------------------------ */
 
 function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
@@ -957,18 +1057,9 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
           </div>
         </Reveal>
 
-        {/* === Glassmorphic dashboard mockup === */}
+        {/* === Animated platform orbit — 7 floating platform badges === */}
         <Reveal delay={680} y={40}>
-          <div className="relative mt-14 w-full max-w-5xl" style={{ perspective: "1400px" }}>
-            {/* Glow behind the mockup */}
-            <div
-              className="pointer-events-none absolute -inset-6 -z-10 rounded-[2rem] opacity-60 blur-3xl"
-              style={{
-                background: `radial-gradient(ellipse at 50% 0%, ${COLOR.accentA(0.25)}, ${COLOR.violetA(0.15)} 40%, transparent 65%)`,
-              }}
-            />
-            <HeroDashboardMockup />
-          </div>
+          <PlatformOrbit />
         </Reveal>
 
         {/* Scroll indicator */}
@@ -1264,20 +1355,27 @@ function Act2Problem() {
           ))}
         </div>
 
-        {/* Pain stat strip */}
+        {/* Pain stat strip — animated count-up style */}
         <Reveal delay={500}>
           <div
             className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-3xl border sm:grid-cols-4"
             style={{ background: COLOR.border, borderColor: COLOR.border }}
           >
             {[
-              { v: "11 hrs", l: "Lost weekly per teammate to tab-switching" },
-              { v: "1 in 4",  l: "Accounts suspended in their first 90 days" },
-              { v: "$3.2K",   l: "Average cost per missed campaign deadline" },
-              { v: "62%",     l: "Of DMs go unanswered within 24 hours" },
+              { v: "11 hrs", l: "Lost weekly per teammate to tab-switching", num: 11, suffix: " hrs" },
+              { v: "1 in 4",  l: "Accounts suspended in their first 90 days", num: 0, suffix: "" },
+              { v: "$3.2K",   l: "Average cost per missed campaign deadline", num: 0, suffix: "" },
+              { v: "62%",     l: "Of DMs go unanswered within 24 hours", num: 62, suffix: "%" },
             ].map((s) => (
-              <div key={s.l} className="p-6 text-center backdrop-blur-md" style={{ background: "rgba(10,12,20,0.6)" }}>
-                <div className="text-3xl font-bold sm:text-4xl" style={{ color: COLOR.rose }}>{s.v}</div>
+              <div
+                key={s.l}
+                className="p-6 text-center backdrop-blur-md"
+                style={{
+                  background: "rgba(10,12,20,0.6)",
+                  animation: "ticker 0.8s cubic-bezier(0.22, 1, 0.36, 1) both",
+                }}
+              >
+                <div className="text-3xl font-bold sm:text-4xl" style={{ color: COLOR.rose, textShadow: `0 0 30px ${COLOR.rose}40` }}>{s.v}</div>
                 <div className="mt-2 text-[11px] uppercase tracking-wider" style={{ color: COLOR.textBody }}>{s.l}</div>
               </div>
             ))}
@@ -1296,25 +1394,9 @@ function Act3Solution() {
     "AI-powered per-account captions respecting tone, length & hashtags",
     "Never miss a comment — unified inbox across every platform",
   ];
-  // Scattered dot starting positions for the converging visualization
-  const dots = React.useMemo(() => {
-    const colors = [COLOR.accent, COLOR.violet, COLOR.teal, COLOR.pink, COLOR.emerald, COLOR.gold];
-    const seed = 4242;
-    const rand = (i: number) => {
-      const x = Math.sin(seed + i * 9.13) * 43758.5453;
-      return x - Math.floor(x);
-    };
-    return Array.from({ length: 12 }).map((_, i) => {
-      const angle = rand(i) * Math.PI * 2;
-      const radius = 60 + rand(i + 30) * 50;
-      return {
-        x: Math.cos(angle) * radius,
-        y: Math.sin(angle) * radius,
-        color: colors[i % colors.length],
-        delay: rand(i + 7) * 2,
-      };
-    });
-  }, []);
+  // Platform icons for the chaos→flow visualization
+  const platforms = ["IG", "TT", "LI", "X", "FB", "YT"];
+  const platformColors = ["#E1306C", "#00F2EA", "#0A66C2", "#1DA1F2", "#1877F2", "#FF0000"];
 
   return (
     <section
@@ -1377,68 +1459,124 @@ function Act3Solution() {
             </Reveal>
           </div>
 
-          {/* Right — converging dots visualization */}
+          {/* Right — Chaos → Flow transformation visualization.
+              Shows scattered platform icons (chaos) transforming into
+              a clean horizontal flow line (organized). */}
           <Reveal delay={300} y={40}>
-            <div className="relative mx-auto flex aspect-square w-full max-w-md items-center justify-center">
-              {/* Glow behind */}
+            <div className="relative mx-auto w-full max-w-md">
               <div
-                className="absolute h-64 w-64 rounded-full opacity-40 blur-3xl"
-                style={{ background: `radial-gradient(circle, ${COLOR.violetA(0.5)}, transparent 70%)` }}
-              />
-              {/* Converging dots + flow line */}
-              <div className="relative h-full w-full">
-                {/* Flow line SVG */}
-                <svg className="absolute inset-0 h-full w-full" viewBox="0 0 200 200" fill="none">
-                  <defs>
-                    <linearGradient id="solutionFlow" x1="0" y1="1" x2="1" y2="0">
-                      <stop offset="0%" stopColor={COLOR.accent} stopOpacity="0" />
-                      <stop offset="50%" stopColor={COLOR.violet} stopOpacity="0.9" />
-                      <stop offset="100%" stopColor={COLOR.teal} stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M20,180 Q60,140 100,100 T180,20"
-                    stroke="url(#solutionFlow)"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeDasharray="6 4"
-                    style={{ animation: "flowDash 4s linear infinite" }}
-                  />
-                </svg>
-                {/* Center target — pulsing ring */}
-                <div
-                  className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border"
-                  style={{ borderColor: COLOR.accentA(0.3), animation: "pulseRing 3s ease-out infinite" }}
-                />
-                <div
-                  className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-2xl border backdrop-blur-xl"
-                  style={{
-                    background: COLOR.cardBg,
-                    borderColor: COLOR.accentA(0.4),
-                    boxShadow: `0 0 40px -8px ${COLOR.accentA(0.6)}`,
-                  }}
-                >
-                  <Sparkles className="h-7 w-7" style={{ color: COLOR.accent }} />
+                className="relative overflow-hidden rounded-3xl border backdrop-blur-xl"
+                style={{
+                  background: COLOR.cardBg,
+                  borderColor: COLOR.border,
+                }}
+              >
+                {/* === BEFORE: Chaos — scattered, overlapping, jittery icons === */}
+                <div className="relative h-44 overflow-hidden border-b p-4" style={{ borderColor: COLOR.border }}>
+                  <div className="absolute left-3 top-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: COLOR.rose }}>
+                    ✕ Chaos
+                  </div>
+                  {/* Scattered platform icons with jitter animation */}
+                  <div className="relative h-full w-full">
+                    {platforms.map((p, i) => {
+                      const positions = [
+                        { x: "15%", y: "20%", rot: "-12deg" },
+                        { x: "55%", y: "15%", rot: "8deg" },
+                        { x: "30%", y: "50%", rot: "-5deg" },
+                        { x: "70%", y: "45%", rot: "15deg" },
+                        { x: "10%", y: "65%", rot: "22deg" },
+                        { x: "60%", y: "68%", rot: "-18deg" },
+                      ];
+                      const pos = positions[i];
+                      return (
+                        <div
+                          key={p}
+                          className="absolute grid h-9 w-9 place-items-center rounded-lg border text-[10px] font-bold"
+                          style={{
+                            left: pos.x,
+                            top: pos.y,
+                            transform: `rotate(${pos.rot})`,
+                            background: `${platformColors[i]}20`,
+                            borderColor: `${platformColors[i]}50`,
+                            color: platformColors[i],
+                            animation: `chaosJitter${i} 3s ease-in-out infinite`,
+                          }}
+                        >
+                          {p}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                {/* Converging dots */}
-                {dots.map((d, i) => (
-                  <span
-                    key={i}
-                    className="absolute left-1/2 top-1/2 h-2 w-2 rounded-full"
+
+                {/* === Arrow: transformation indicator === */}
+                <div className="relative flex items-center justify-center py-3">
+                  <div
+                    className="flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11px] font-semibold"
                     style={{
-                      background: d.color,
-                      boxShadow: `0 0 10px ${d.color}, 0 0 20px ${d.color}`,
-                      ["--from-x" as string]: `${d.x}px`,
-                      ["--from-y" as string]: `${d.y}px`,
-                      animation: `dotConverge 4s ease-in-out ${d.delay}s infinite`,
+                      background: `linear-gradient(90deg, ${COLOR.accent}15, ${COLOR.violet}15)`,
+                      borderColor: `${COLOR.accent}40`,
+                      color: COLOR.accent,
                     }}
-                  />
-                ))}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    SYNQUE transforms it
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </div>
+                </div>
+
+                {/* === AFTER: Flow — organized horizontal stream === */}
+                <div className="relative h-32 overflow-hidden p-4">
+                  <div className="absolute left-3 top-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: COLOR.emerald }}>
+                    ✓ Flow
+                  </div>
+                  {/* Flow line */}
+                  <svg className="absolute inset-x-0 bottom-8 h-1 w-full" viewBox="0 0 400 4" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="flowLine" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor={COLOR.accent} stopOpacity="0" />
+                        <stop offset="20%" stopColor={COLOR.accent} stopOpacity="0.8" />
+                        <stop offset="80%" stopColor={COLOR.violet} stopOpacity="0.8" />
+                        <stop offset="100%" stopColor={COLOR.violet} stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <line x1="0" y1="2" x2="400" y2="2" stroke="url(#flowLine)" strokeWidth="2" strokeDasharray="4 4" style={{ animation: "flowDash 2s linear infinite" }} />
+                  </svg>
+                  {/* Organized platform icons flowing in a line */}
+                  <div className="relative flex h-full items-center justify-center gap-2 pt-3">
+                    {platforms.map((p, i) => (
+                      <div
+                        key={p}
+                        className="grid h-8 w-8 place-items-center rounded-lg border text-[9px] font-bold"
+                        style={{
+                          background: `${platformColors[i]}20`,
+                          borderColor: `${platformColors[i]}60`,
+                          color: platformColors[i],
+                          animation: `flowFloat 3s ease-in-out infinite`,
+                          animationDelay: `${i * 0.2}s`,
+                        }}
+                      >
+                        {p}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </Reveal>
         </div>
       </div>
+
+      {/* Chaos jitter keyframes — each icon gets its own subtle random movement */}
+      <style>{`
+        @keyframes chaosJitter0 { 0%,100%{transform:rotate(-12deg)translate(0,0)} 50%{transform:rotate(-8deg)translate(3px,-2px)} }
+        @keyframes chaosJitter1 { 0%,100%{transform:rotate(8deg)translate(0,0)} 50%{transform:rotate(12deg)translate(-2px,3px)} }
+        @keyframes chaosJitter2 { 0%,100%{transform:rotate(-5deg)translate(0,0)} 50%{transform:rotate(-2deg)translate(4px,1px)} }
+        @keyframes chaosJitter3 { 0%,100%{transform:rotate(15deg)translate(0,0)} 50%{transform:rotate(10deg)translate(-3px,-2px)} }
+        @keyframes chaosJitter4 { 0%,100%{transform:rotate(22deg)translate(0,0)} 50%{transform:rotate(18deg)translate(2px,3px)} }
+        @keyframes chaosJitter5 { 0%,100%{transform:rotate(-18deg)translate(0,0)} 50%{transform:rotate(-22deg)translate(-4px,-1px)} }
+        @keyframes flowFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+      `}</style>
     </section>
   );
 }
@@ -1581,15 +1719,28 @@ function Act5Workflow({ onTrial }: { onTrial: () => void }) {
                 {steps.map((s, i) => (
                   <Reveal key={s.n} delay={i * 120}>
                     <div className="flex flex-col items-center text-center">
-                      <div
-                        className="relative grid h-14 w-14 place-items-center rounded-2xl border backdrop-blur-xl"
-                        style={{
-                          background: "rgba(10,12,20,0.9)",
-                          borderColor: `${s.accent}`,
-                          boxShadow: `0 0 28px -8px ${s.accent}80`,
-                        }}
-                      >
-                        <s.icon className="h-6 w-6" style={{ color: s.accent }} />
+                      <div className="relative">
+                        {/* Pulse ring — expands and fades continuously */}
+                        <span
+                          className="absolute inset-0 rounded-2xl"
+                          style={{
+                            border: `1px solid ${s.accent}`,
+                            animation: "pulseRing 2.5s ease-out infinite",
+                            animationDelay: `${i * 0.5}s`,
+                          }}
+                        />
+                        <div
+                          className="relative grid h-14 w-14 place-items-center rounded-2xl border backdrop-blur-xl"
+                          style={{
+                            background: "rgba(10,12,20,0.9)",
+                            borderColor: `${s.accent}`,
+                            boxShadow: `0 0 28px -8px ${s.accent}80`,
+                            animation: "floatY 4s ease-in-out infinite",
+                            animationDelay: `${i * 0.3}s`,
+                          }}
+                        >
+                          <s.icon className="h-6 w-6" style={{ color: s.accent }} />
+                        </div>
                       </div>
                       <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: s.accent }}>{s.n}</div>
                       <div className="mt-1 text-sm font-bold" style={{ color: COLOR.textHead }}>{s.t}</div>
