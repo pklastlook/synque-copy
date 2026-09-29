@@ -366,7 +366,15 @@ class CloudinaryAdapter implements StorageAdapter {
         storageKey: publicId,
       };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      // Cloudinary errors can be objects — stringify them properly
+      let msg: string;
+      if (err instanceof Error) {
+        msg = err.message;
+      } else if (typeof err === "object" && err !== null) {
+        msg = JSON.stringify(err);
+      } else {
+        msg = String(err);
+      }
       console.error("[storage/cloudinary] upload failed:", msg);
       throw new Error(`Cloudinary upload failed: ${msg}`);
     }
