@@ -217,6 +217,68 @@ const LANDING_KEYFRAMES = `
   0%, 100% { text-shadow: 0 0 30px -10px rgba(59,130,246,0.4); }
   50%      { text-shadow: 0 0 50px -5px rgba(59,130,246,0.7); }
 }
+
+/* Scroll progress bar — fills from left to right as user scrolls */
+@keyframes scrollProgress {
+  0%   { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+
+/* Marquee for the logo strip — infinite horizontal scroll */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* FAQ accordion content expand — max-height + opacity */
+@keyframes faqOpen {
+  0%   { max-height: 0; opacity: 0; }
+  100% { max-height: 400px; opacity: 1; }
+}
+
+/* Glow border for feature cards on hover — rotates slowly */
+@keyframes glowRotate {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Parallax float for hero orbs — different speeds than floatY */
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(0, 0); }
+  33%      { transform: translate(30px, -40px); }
+  66%      { transform: translate(-20px, 30px); }
+}
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(0, 0); }
+  33%      { transform: translate(-40px, 20px); }
+  66%      { transform: translate(30px, -30px); }
+}
+
+/* Count-up reveal for big stats */
+@keyframes countReveal {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Gradient border rotation for highlighted pricing card */
+@keyframes borderSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Staggered hero entrance — clip-path reveal for headline, fade-up for others */
+@keyframes heroEntrance {
+  0%   { opacity: 0; transform: translateY(40px); clip-path: inset(100% 0 0 0); }
+  100% { opacity: 1; transform: translateY(0); clip-path: inset(0 0 0 0); }
+}
+@keyframes fadeUp {
+  0%   { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  0%   { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
 `;
 
 /* ============================================================================
@@ -437,7 +499,7 @@ function GlassCard({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border backdrop-blur-xl transition-all duration-500 hover:-translate-y-1",
+        "group relative overflow-hidden rounded-2xl border backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:border-white/20",
         className,
       )}
       style={{
@@ -449,8 +511,15 @@ function GlassCard({
       {/* Top accent hairline */}
       {accent && (
         <div
-          className="pointer-events-none absolute left-0 right-0 top-0 h-px opacity-70"
+          className="pointer-events-none absolute left-0 right-0 top-0 h-px opacity-70 transition-opacity duration-500 group-hover:opacity-100"
           style={{ background: `linear-gradient(to right, transparent, ${accent}, transparent)` }}
+        />
+      )}
+      {/* Accent glow that appears on hover — radiates from the accent hairline */}
+      {accent && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-32 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+          style={{ background: `radial-gradient(ellipse at top, ${accent}15, transparent 70%)` }}
         />
       )}
       {/* Shimmer sweep on hover */}
@@ -489,7 +558,48 @@ function IconTile({
 }
 
 /* ============================================================================
-   Landing — 10 Cinematic Acts
+   Scroll Progress Bar — thin gradient bar at the very top that fills as the
+   user scrolls. Cinematic touch that gives a sense of progression through the
+   story. Uses requestAnimationFrame for 60fps smooth updates.
+   ============================================================================ */
+
+function ScrollProgressBar() {
+  const [progress, setProgress] = React.useState(0);
+  React.useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = docHeight > 0 ? Math.min(1, scrollTop / docHeight) : 0;
+      setProgress(pct);
+      raf = 0;
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    update();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+  return (
+    <div className="fixed inset-x-0 top-0 z-[60] h-0.5 pointer-events-none">
+      <div
+        className="h-full origin-left transition-transform duration-100 ease-out"
+        style={{
+          transform: `scaleX(${progress})`,
+          background: `linear-gradient(90deg, ${COLOR.accent}, ${COLOR.violet}, ${COLOR.teal})`,
+          boxShadow: `0 0 12px ${COLOR.accent}80`,
+        }}
+      />
+    </div>
+  );
+}
+
+/* ============================================================================
+   Landing — 12 Cinematic Acts
    ============================================================================ */
 
 function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
@@ -501,6 +611,8 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
       <style>{LANDING_KEYFRAMES}</style>
       {/* Page-wide aurora background — fixed, persists throughout the whole page */}
       <AuroraBg />
+      {/* Scroll progress bar — thin gradient at the very top */}
+      <ScrollProgressBar />
       {/* Content — above the fixed background */}
       <div className="relative z-10">
         <CinematicNav onTrial={onTrial} onSignIn={onSignIn} />
@@ -510,9 +622,11 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
         <Act4Features />
         <Act5Workflow onTrial={onTrial} />
         <Act6SocialProof />
-        <Act7Pricing onTrial={onTrial} />
-        <Act8FinalCTA onTrial={onTrial} />
-        <Act9Footer />
+        <Act7Compare />
+        <Act8Pricing onTrial={onTrial} />
+        <Act9FAQ />
+        <Act10FinalCTA onTrial={onTrial} />
+        <Act11Footer />
       </div>
     </div>
   );
@@ -607,11 +721,81 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
   );
 }
 
+/* ============================================================================
+   CountUpStat — a stat number that animates from 0 to target when it scrolls
+   into view. Uses IntersectionObserver + requestAnimationFrame for 60fps.
+   ============================================================================ */
+
+function CountUpStat({ target, suffix, label }: { target: number; suffix: string; label: string }) {
+  const [val, setVal] = React.useState(0);
+  const [started, setStarted] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      // Fallback: just show the target immediately.
+      setVal(target);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting && !started) {
+            setStarted(true);
+            const duration = 1800; // ms
+            const startTime = performance.now();
+            const tick = (now: number) => {
+              const elapsed = now - startTime;
+              const t = Math.min(1, elapsed / duration);
+              // easeOutCubic — starts fast, slows at the end.
+              const eased = 1 - Math.pow(1 - t, 3);
+              setVal(target * eased);
+              if (t < 1) requestAnimationFrame(tick);
+              else setVal(target);
+            };
+            requestAnimationFrame(tick);
+            io.disconnect();
+          }
+        });
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [target, started]);
+
+  // Format: integers get commas, decimals get 1 decimal place.
+  const formatted = target % 1 === 0
+    ? Math.round(val).toLocaleString()
+    : val.toFixed(1);
+
+  return (
+    <div
+      ref={ref}
+      className="px-4 py-5 text-center backdrop-blur-md"
+      style={{ background: "rgba(10,12,20,0.7)" }}
+    >
+      <div
+        className="text-2xl font-bold tabular-nums sm:text-3xl"
+        style={{ color: COLOR.textHead, textShadow: `0 0 30px ${COLOR.accent}30` }}
+      >
+        {formatted}{suffix}
+      </div>
+      <div className="mt-1 text-[11px] font-medium uppercase tracking-wider" style={{ color: COLOR.textBody }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------- Act 1: Hero ------------------------------ */
 
 function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
   const { loginAsDemo } = useAuth();
   const [demoLoading, setDemoLoading] = React.useState(false);
+  const [parallax, setParallax] = React.useState({ x: 0, y: 0 });
+  const heroRef = React.useRef<HTMLElement | null>(null);
 
   const startDemo = async () => {
     setDemoLoading(true);
@@ -622,8 +806,57 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
     }
   };
 
+  // Parallax mouse-tracking — orbs drift opposite to the cursor for depth.
+  React.useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 2; // -1..1
+      const y = (e.clientY / window.innerHeight - 0.5) * 2;
+      setParallax({ x, y });
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
   return (
-    <section className="relative min-h-screen w-full overflow-hidden" style={{ background: "transparent" }}>
+    <section ref={heroRef} className="relative min-h-screen w-full overflow-hidden" style={{ background: "transparent" }}>
+      {/* Signature futuristic moment — 3 parallax floating gradient orbs that
+          drift opposite to the cursor, creating a 3D depth effect. */}
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+        <div
+          className="absolute h-[28rem] w-[28rem] rounded-full opacity-50 blur-[80px]"
+          style={{
+            background: `radial-gradient(circle, ${COLOR.accent}, transparent 70%)`,
+            top: "8%",
+            left: "10%",
+            transform: `translate(${parallax.x * -30}px, ${parallax.y * -20}px)`,
+            transition: "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
+            animation: "orbFloat1 12s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute h-[32rem] w-[32rem] rounded-full opacity-45 blur-[100px]"
+          style={{
+            background: `radial-gradient(circle, ${COLOR.violet}, transparent 70%)`,
+            top: "30%",
+            right: "5%",
+            transform: `translate(${parallax.x * 40}px, ${parallax.y * 30}px)`,
+            transition: "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
+            animation: "orbFloat2 15s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute h-[24rem] w-[24rem] rounded-full opacity-40 blur-[70px]"
+          style={{
+            background: `radial-gradient(circle, ${COLOR.teal}, transparent 70%)`,
+            bottom: "5%",
+            left: "35%",
+            transform: `translate(${parallax.x * -20}px, ${parallax.y * -35}px)`,
+            transition: "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
+            animation: "orbFloat1 18s ease-in-out infinite reverse",
+          }}
+        />
+      </div>
+
       {/* Bottom hairline */}
       <div
         className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-px"
@@ -646,7 +879,14 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         </Reveal>
 
         <Reveal delay={120}>
-          <h1 className="mt-7 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl" style={{ color: COLOR.textHead }}>
+          <h1
+            className="mt-7 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl"
+            style={{
+              color: COLOR.textHead,
+              animation: "heroEntrance 0.9s cubic-bezier(0.22, 1, 0.36, 1) both",
+              animationDelay: "0.15s",
+            }}
+          >
             <span className="block">One flow.</span>
             <span
               className="mt-2 block bg-clip-text text-transparent"
@@ -697,7 +937,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
           </div>
         </Reveal>
 
-        {/* === Trust stats bar === */}
+        {/* === Trust stats bar — with count-up animation === */}
         <Reveal delay={560}>
           <div
             className="mt-12 grid w-full max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-4"
@@ -707,23 +947,12 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
             }}
           >
             {[
-              { value: "2,400+", label: "Teams onboarded" },
-              { value: "1.8M", label: "Posts published" },
-              { value: "7", label: "Platforms unified" },
-              { value: "99.9%", label: "Uptime SLA" },
+              { value: 2400, suffix: "+", label: "Teams onboarded" },
+              { value: 1.8, suffix: "M", label: "Posts published" },
+              { value: 7, suffix: "", label: "Platforms unified" },
+              { value: 99.9, suffix: "%", label: "Uptime SLA" },
             ].map((s) => (
-              <div
-                key={s.label}
-                className="px-4 py-5 text-center backdrop-blur-md"
-                style={{ background: "rgba(10,12,20,0.7)" }}
-              >
-                <div className="text-2xl font-bold tabular-nums sm:text-3xl" style={{ color: COLOR.textHead }}>
-                  {s.value}
-                </div>
-                <div className="mt-1 text-[11px] font-medium uppercase tracking-wider" style={{ color: COLOR.textBody }}>
-                  {s.label}
-                </div>
-              </div>
+              <CountUpStat key={s.label} target={s.value} suffix={s.suffix} label={s.label} />
             ))}
           </div>
         </Reveal>
@@ -1525,22 +1754,27 @@ function Act6SocialProof() {
           ))}
         </div>
 
-        {/* Company logos row */}
+        {/* Company logos row — marquee scroll */}
         <Reveal delay={300}>
           <div className="mt-20 text-center">
             <div className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: COLOR.textMuted }}>
               Trusted by teams at
             </div>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-              {logos.map((l) => (
-                <span
-                  key={l}
-                  className="text-lg font-bold tracking-tight transition hover:text-white"
-                  style={{ color: COLOR.textMuted, opacity: 0.7 }}
-                >
-                  {l}
-                </span>
-              ))}
+            <div className="relative mt-6 overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)", WebkitMaskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)" }}>
+              <div
+                className="flex items-center gap-x-10 gap-y-4"
+                style={{ animation: "marquee 25s linear infinite", width: "max-content" }}
+              >
+                {[...logos, ...logos, ...logos].map((l, i) => (
+                  <span
+                    key={i}
+                    className="text-lg font-bold tracking-tight transition hover:text-white"
+                    style={{ color: COLOR.textMuted, opacity: 0.7 }}
+                  >
+                    {l}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </Reveal>
@@ -1549,9 +1783,114 @@ function Act6SocialProof() {
   );
 }
 
-/* ----------------------------- Act 7: Pricing -------------------------- */
+/* -------------------------- Act 7: Compare ----------------------------- */
 
-function Act7Pricing({ onTrial }: { onTrial: () => void }) {
+function Act7Compare() {
+  const competitors = ["SYNQUE", "Hootsuite", "Buffer", "Sprout Social"];
+  const features: { label: string; synque: string | boolean; hootsuite: string | boolean; buffer: string | boolean; sprout: string | boolean; }[] = [
+    { label: "AI per-account caption generation", synque: true, hootsuite: false, buffer: false, sprout: false },
+    { label: "Anti-suspension account safety", synque: true, hootsuite: "Partial", buffer: false, sprout: "Partial" },
+    { label: "Unified inbox + sentiment tagging", synque: true, hootsuite: true, buffer: false, sprout: true },
+    { label: "Multi-platform publishing", synque: "7 platforms", hootsuite: "7 platforms", buffer: "5 platforms", sprout: "7 platforms" },
+    { label: "Team roles + approval workflow", synque: true, hootsuite: "Premium only", buffer: false, sprout: true },
+    { label: "Content calendar (drag & drop)", synque: true, hootsuite: true, buffer: true, sprout: true },
+    { label: "Media storage (free tier)", synque: "25 GB", hootsuite: "0 GB", buffer: "0 GB", sprout: "0 GB" },
+    { label: "Starting price", synque: "$0/mo", hootsuite: "$99/mo", buffer: "$6/mo", sprout: "$249/mo" },
+  ];
+  function Check({ value }: { value: string | boolean }) {
+    if (value === true) return <span className="text-lg font-bold" style={{ color: COLOR.emerald }}>✓</span>;
+    if (value === false) return <span className="text-muted-foreground/40">—</span>;
+    return <span className="text-xs font-medium" style={{ color: COLOR.textBody }}>{value}</span>;
+  }
+  return (
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <Reveal><Eyebrow icon={Layers} label="The Difference" /></Reveal>
+          <Reveal delay={100}>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl" style={{ color: COLOR.textHead }}>
+              Why teams switch to <span style={{ backgroundImage: `linear-gradient(120deg, ${COLOR.accent}, ${COLOR.violet})`, backgroundSize: "200% 200%", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent", animation: "gradientShift 6s ease-in-out infinite" }}>SYNQUE</span>
+            </h2>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-5 max-w-2xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
+              The same capabilities — minus the chaos, minus the bloated price tag.
+            </p>
+          </Reveal>
+        </div>
+
+        <Reveal delay={300}>
+          <div className="mt-14 overflow-x-auto">
+            <table className="w-full border-collapse text-left text-sm" style={{ minWidth: 640 }}>
+              <thead>
+                <tr>
+                  <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider" style={{ color: COLOR.textBody }}>Feature</th>
+                  {competitors.map((c, i) => (
+                    <th
+                      key={c}
+                      className="px-4 py-4 text-center text-xs font-bold uppercase tracking-wider"
+                      style={i === 0 ? {
+                        color: COLOR.textHead,
+                        background: `linear-gradient(135deg, ${COLOR.accent}15, ${COLOR.violet}15)`,
+                        borderLeft: `2px solid ${COLOR.accent}`,
+                        borderRight: `2px solid ${COLOR.accent}`,
+                        borderTop: `1px solid ${COLOR.accent}40`,
+                        borderTopLeftRadius: i === 0 ? 12 : 0,
+                        borderTopRightRadius: i === 0 ? 12 : 0,
+                      } : { color: COLOR.textBody }}
+                    >
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {features.map((row, i) => (
+                  <tr
+                    key={row.label}
+                    className="transition-colors hover:bg-white/[0.02]"
+                    style={{ borderBottom: `1px solid ${COLOR.border}` }}
+                  >
+                    <td className="px-4 py-3.5 font-medium" style={{ color: COLOR.textHead }}>{row.label}</td>
+                    <td
+                      className="px-4 py-3.5 text-center"
+                      style={{
+                        background: `linear-gradient(135deg, ${COLOR.accent}08, ${COLOR.violet}08)`,
+                        borderLeft: `2px solid ${COLOR.accent}40`,
+                        borderRight: `2px solid ${COLOR.accent}40`,
+                      }}
+                    >
+                      <Check value={row.synque} />
+                    </td>
+                    <td className="px-4 py-3.5 text-center"><Check value={row.hootsuite} /></td>
+                    <td className="px-4 py-3.5 text-center"><Check value={row.buffer} /></td>
+                    <td className="px-4 py-3.5 text-center"><Check value={row.sprout} /></td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={5} style={{ height: 0, borderTop: "none", borderBottom: "none", padding: 0 }}>
+                    <div
+                      style={{
+                        height: 2,
+                        background: `linear-gradient(to right, transparent, ${COLOR.accent}, ${COLOR.violet}, transparent)`,
+                        opacity: 0.4,
+                      }}
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ----------------------------- Act 8: Pricing -------------------------- */
+
+function Act8Pricing({ onTrial }: { onTrial: () => void }) {
   return (
     <section
       id="pricing"
@@ -1692,9 +2031,93 @@ function Act7Pricing({ onTrial }: { onTrial: () => void }) {
   );
 }
 
-/* --------------------------- Act 8: Final CTA --------------------------- */
+/* ------------------------------ Act 9: FAQ ------------------------------ */
 
-function Act8FinalCTA({ onTrial }: { onTrial: () => void }) {
+function Act9FAQ() {
+  const [open, setOpen] = React.useState<number | null>(0);
+  const faqs = [
+    { q: "How is SYNQUE different from Hootsuite or Buffer?", a: "SYNQUE is built for teams, not solo creators. We include AI per-account caption generation (no other tool does this), anti-suspension account safety guards, a unified inbox with sentiment tagging, and a full approval workflow — all in one calm interface. Hootsuite charges $99/mo for features we include free." },
+    { q: "Do I need a credit card to start the trial?", a: "No. The 15-day trial gives you full access to every module — composer, calendar, inbox, analytics, approvals, team roles — without a credit card. We'll send you a reminder before it expires, and you can downgrade to the free Starter plan anytime." },
+    { q: "Which social platforms are supported?", a: "Seven platforms: Instagram, TikTok, LinkedIn, X (Twitter), Facebook, YouTube, and Threads. Each gets its own optimized caption via AI — respecting tone, length, and hashtag conventions per platform." },
+    { q: "How does the anti-suspension protection work?", a: "SYNQUE monitors your posting cadence, blocks banned hashtags, enforces smart cooldowns between posts, and flags risky content before you publish. It's like having a compliance officer built into your scheduler — so your accounts stay safe." },
+    { q: "Can my team collaborate on content?", a: "Yes. SYNQUE includes full team workflow: roles (Owner, Manager, Member), approval queues with phone-style previews, comment assignment, and per-member activity tracking. Everyone sees what they need to — nothing more." },
+    { q: "What happens to my data if I cancel?", a: "You can export all your posts, analytics, and media at any time via CSV/JSON. If you cancel, your data stays accessible for 30 days, then is permanently deleted. No lock-in, ever." },
+    { q: "Is there a free plan?", a: "Yes — the Starter plan is free forever. It includes 1 social account, 25 GB media storage, and core publishing features. Upgrade to Pro ($49/mo) for unlimited accounts, AI composer, and team workflow." },
+  ];
+  return (
+    <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: COLOR.border }} />
+      <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <Reveal><Eyebrow icon={MessageCircle} label="Questions" /></Reveal>
+          <Reveal delay={100}>
+            <h2 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl" style={{ color: COLOR.textHead }}>
+              Frequently asked questions
+            </h2>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="mx-auto mt-5 max-w-xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
+              Everything you need to know before you start.
+            </p>
+          </Reveal>
+        </div>
+
+        <div className="mt-14 space-y-3">
+          {faqs.map((faq, i) => {
+            const isOpen = open === i;
+            return (
+              <Reveal key={i} delay={i * 60}>
+                <div
+                  className="overflow-hidden rounded-2xl border backdrop-blur-xl transition-all duration-300"
+                  style={{
+                    background: isOpen ? `linear-gradient(135deg, ${COLOR.accent}08, ${COLOR.violet}08)` : COLOR.cardBg,
+                    borderColor: isOpen ? `${COLOR.accent}40` : COLOR.border,
+                  }}
+                >
+                  <button
+                    onClick={() => setOpen(isOpen ? null : i)}
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                  >
+                    <span className="text-base font-semibold sm:text-lg" style={{ color: COLOR.textHead }}>
+                      {faq.q}
+                    </span>
+                    <span
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full border transition-transform duration-300"
+                      style={{
+                        borderColor: isOpen ? COLOR.accent : COLOR.border,
+                        color: isOpen ? COLOR.accent : COLOR.textBody,
+                        transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    </span>
+                  </button>
+                  <div
+                    className="overflow-hidden transition-all duration-300 ease-out"
+                    style={{
+                      maxHeight: isOpen ? 400 : 0,
+                      opacity: isOpen ? 1 : 0,
+                    }}
+                  >
+                    <p className="px-5 pb-5 text-sm leading-relaxed sm:text-base" style={{ color: COLOR.textBody }}>
+                      {faq.a}
+                    </p>
+                  </div>
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- Act 10: Final CTA --------------------------- */
+
+function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
   return (
     <section className="relative w-full overflow-hidden py-32 sm:py-40" style={{ background: "transparent" }}>
       {/* Vibrant aurora orbs — more intense than the page bg */}
@@ -1781,7 +2204,7 @@ function Act8FinalCTA({ onTrial }: { onTrial: () => void }) {
 
 /* ------------------------------ Act 9: Footer -------------------------- */
 
-function Act9Footer() {
+function Act11Footer() {
   return (
     <footer
       className="relative w-full overflow-hidden pt-20 pb-10"
