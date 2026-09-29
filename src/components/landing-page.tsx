@@ -37,8 +37,11 @@ import {
   Twitter,
   Linkedin,
   Github,
+  Sun,
+  Moon,
   type LucideIcon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { Logo, LogoWordmark } from "@/components/glass/logo";
@@ -64,38 +67,109 @@ import { toast } from "sonner";
 type Mode = "landing" | "login" | "trial";
 
 /* ============================================================================
-   Cinematic Aurora — Unified Design Tokens
+   Cinematic Aurora 2.0 — Theme-aware Design Tokens
    ----------------------------------------------------------------------------
-   Near-black void base. Electric blue / violet / teal aurora mesh behind.
+   Near-black void base (dark) / soft cloud white (light).
+   Electric blue / violet / teal aurora mesh behind.
    Sections separated by generous padding + hairlines — never by color shifts.
    ============================================================================ */
 
-const COLOR = {
-  bg:        "#030308",      // near-black void
-  surface:   "#0A0C14",      // raised card surface
-  surface2:  "#11142A",      // elevated card
+const DARK_COLORS = {
+  bg:        "#030308",
+  surface:   "#0A0C14",
+  surface2:  "#11142A",
   footer:    "#030308",
-  textHead:  "#F8FAFC",      // crisp white
-  textBody:  "#94A3B8",      // slate-400
-  textMuted: "#64748B",      // slate-500
-  border:    "rgba(148,163,184,0.12)",
+  textHead:  "#F8FAFC",
+  textBody:  "#94A3B8",
+  textMuted: "#64748B",
+  border:    "rgba(148,163,184,0.14)",
   cardBg:    "rgba(148,163,184,0.04)",
   cardHover: "rgba(148,163,184,0.08)",
-  accent:    "#3B82F6",      // electric blue
+  accent:    "#3B82F6",
   accentA:   (a: number) => `rgba(59,130,246,${a})`,
-  violet:    "#8B5CF6",      // violet
+  violet:    "#8B5CF6",
   violetA:   (a: number) => `rgba(139,92,246,${a})`,
-  teal:      "#06B6D4",      // cyan
+  teal:      "#06B6D4",
   tealA:     (a: number) => `rgba(6,182,212,${a})`,
-  pink:      "#EC4899",      // pink
+  pink:      "#EC4899",
   pinkA:     (a: number) => `rgba(236,72,153,${a})`,
-  emerald:   "#10B981",      // emerald
+  emerald:   "#10B981",
   emeraldA:  (a: number) => `rgba(16,185,129,${a})`,
-  gold:      "#F59E0B",      // amber
+  gold:      "#F59E0B",
   goldA:     (a: number) => `rgba(245,158,11,${a})`,
-  rose:      "#F43F5E",      // rose
+  rose:      "#F43F5E",
   roseA:     (a: number) => `rgba(244,63,94,${a})`,
-} as const;
+  // Surface variants for nav / cards / mockups
+  navBg:       "rgba(10,12,20,0.78)",
+  statBg:      "rgba(10,12,20,0.7)",
+  stepBg:      "rgba(10,12,20,0.9)",
+  mockupBg:    "rgba(16,18,24,0.85)",
+  mockupDark:  "rgba(0,0,0,0.2)",
+  mockupSide:  "rgba(0,0,0,0.15)",
+  mockupBorder:"rgba(255,255,255,0.10)",
+  mockupSubtle:"rgba(255,255,255,0.06)",
+  mockupSurf:  "rgba(255,255,255,0.03)",
+  mockupSkel1: "rgba(255,255,255,0.15)",
+  mockupSkel2: "rgba(255,255,255,0.08)",
+  vignette:    "rgba(3,3,8,0.85)",
+  hoverText:   "#ffffff",
+  orbOpacity:  0.65,
+};
+
+const LIGHT_COLORS = {
+  bg:        "#FAFBFC",
+  surface:   "#FFFFFF",
+  surface2:  "#F1F5F9",
+  footer:    "#F8FAFC",
+  textHead:  "#0F172A",
+  textBody:  "#475569",
+  textMuted: "#94A3B8",
+  border:    "rgba(15,23,42,0.10)",
+  cardBg:    "rgba(255,255,255,0.85)",
+  cardHover: "rgba(255,255,255,0.95)",
+  accent:    "#3B82F6",
+  accentA:   (a: number) => `rgba(59,130,246,${a})`,
+  violet:    "#8B5CF6",
+  violetA:   (a: number) => `rgba(139,92,246,${a})`,
+  teal:      "#06B6D4",
+  tealA:     (a: number) => `rgba(6,182,212,${a})`,
+  pink:      "#EC4899",
+  pinkA:     (a: number) => `rgba(236,72,153,${a})`,
+  emerald:   "#10B981",
+  emeraldA:  (a: number) => `rgba(16,185,129,${a})`,
+  gold:      "#F59E0B",
+  goldA:     (a: number) => `rgba(245,158,11,${a})`,
+  rose:      "#F43F5E",
+  roseA:     (a: number) => `rgba(244,63,94,${a})`,
+  navBg:       "rgba(255,255,255,0.85)",
+  statBg:      "rgba(255,255,255,0.75)",
+  stepBg:      "rgba(255,255,255,0.95)",
+  mockupBg:    "rgba(255,255,255,0.9)",
+  mockupDark:  "rgba(241,245,249,0.5)",
+  mockupSide:  "rgba(241,245,249,0.4)",
+  mockupBorder:"rgba(15,23,42,0.08)",
+  mockupSubtle:"rgba(15,23,42,0.06)",
+  mockupSurf:  "rgba(15,23,42,0.025)",
+  mockupSkel1: "rgba(15,23,42,0.10)",
+  mockupSkel2: "rgba(15,23,42,0.06)",
+  vignette:    "rgba(250,251,252,0.55)",
+  hoverText:   "#0F172A",
+  orbOpacity:  0.5,
+};
+
+type ColorTokens = typeof DARK_COLORS;
+
+/**
+ * useColors — returns the active color palette based on resolvedTheme.
+ * Defaults to dark until mounted to avoid SSR/hydration mismatch.
+ */
+function useColors(): ColorTokens {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+  const isDark = !mounted || resolvedTheme !== "light";
+  return isDark ? DARK_COLORS : LIGHT_COLORS;
+}
 
 export function LandingPage() {
   const [mode, setMode] = React.useState<Mode>("landing");
@@ -116,7 +190,7 @@ export function LandingPage() {
 }
 
 /* ============================================================================
-   Cinematic Aurora — Inline Keyframes
+   Cinematic Aurora 2.0 — Inline Keyframes
    ============================================================================ */
 
 const LANDING_KEYFRAMES = `
@@ -162,6 +236,38 @@ const LANDING_KEYFRAMES = `
 @keyframes floatY {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-12px); }
+}
+
+/* Subtle floating for cards — very subtle ±2px */
+@keyframes cardFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+
+/* Breathing scale pulse for the central hub */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+
+/* Light sweep that crosses the hero periodically (8s) */
+@keyframes shimmerSweep {
+  0%   { transform: translateX(-120%) skewX(-12deg); opacity: 0; }
+  10%  { opacity: 0.7; }
+  90%  { opacity: 0.7; }
+  100% { transform: translateX(120%) skewX(-12deg); opacity: 0; }
+}
+
+/* 360° rotation for icon tiles on hover */
+@keyframes iconSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Animated bar chart — bars grow from bottom when scrolled into view */
+@keyframes barGrowScroll {
+  0%   { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
 }
 
 /* Pulsing glow for CTA buttons */
@@ -310,9 +416,10 @@ const LANDING_KEYFRAMES = `
    Aurora Background — fixed full-screen animated gradient mesh
    ----------------------------------------------------------------------------
    4 slowly-drifting radial-gradient blobs (blue / violet / teal / pink) at
-   very low opacity, a subtle SVG noise overlay, and an edge vignette.
+   elevated opacity for visible cinematic motion. Adapts to light/dark mode.
    Pure CSS animations — 60fps, no JS animation loops. */
 function AuroraBg() {
+  const COLOR = useColors();
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
       {/* Deep void base */}
@@ -324,9 +431,9 @@ function AuroraBg() {
         style={{
           left: "-20%", top: "-15%",
           width: "65vw", height: "65vh",
-          background: `radial-gradient(circle, ${COLOR.accentA(0.35)}, transparent 65%)`,
-          filter: "blur(90px)",
-          opacity: 0.55,
+          background: `radial-gradient(circle, ${COLOR.accentA(0.42)}, transparent 65%)`,
+          filter: "blur(70px)",
+          opacity: 0.7,
           animation: "auroraDrift1 22s ease-in-out infinite alternate",
         }}
       />
@@ -336,9 +443,9 @@ function AuroraBg() {
         style={{
           right: "-18%", top: "-5%",
           width: "60vw", height: "60vh",
-          background: `radial-gradient(circle, ${COLOR.violetA(0.32)}, transparent 65%)`,
-          filter: "blur(95px)",
-          opacity: 0.5,
+          background: `radial-gradient(circle, ${COLOR.violetA(0.38)}, transparent 65%)`,
+          filter: "blur(75px)",
+          opacity: 0.65,
           animation: "auroraDrift2 28s ease-in-out infinite alternate",
         }}
       />
@@ -348,9 +455,9 @@ function AuroraBg() {
         style={{
           left: "-12%", bottom: "-20%",
           width: "58vw", height: "58vh",
-          background: `radial-gradient(circle, ${COLOR.tealA(0.28)}, transparent 65%)`,
-          filter: "blur(85px)",
-          opacity: 0.45,
+          background: `radial-gradient(circle, ${COLOR.tealA(0.34)}, transparent 65%)`,
+          filter: "blur(65px)",
+          opacity: 0.6,
           animation: "auroraDrift3 25s ease-in-out infinite alternate",
         }}
       />
@@ -360,9 +467,9 @@ function AuroraBg() {
         style={{
           right: "-15%", bottom: "-18%",
           width: "55vw", height: "55vh",
-          background: `radial-gradient(circle, ${COLOR.pinkA(0.22)}, transparent 65%)`,
-          filter: "blur(80px)",
-          opacity: 0.4,
+          background: `radial-gradient(circle, ${COLOR.pinkA(0.28)}, transparent 65%)`,
+          filter: "blur(60px)",
+          opacity: 0.55,
           animation: "auroraDrift4 26s ease-in-out infinite alternate",
         }}
       />
@@ -383,7 +490,7 @@ function AuroraBg() {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse at center, transparent 45%, rgba(3,3,8,0.85) 100%)",
+            `radial-gradient(ellipse at center, transparent 45%, ${COLOR.vignette} 100%)`,
         }}
       />
     </div>
@@ -443,6 +550,7 @@ function Reveal({ children, className, delay = 0, y = 24, once = true }: RevealP
 
 /* Eyebrow pill — small uppercase label with icon */
 function Eyebrow({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  const COLOR = useColors();
   return (
     <span
       className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur-md"
@@ -467,6 +575,7 @@ function GlowCTA({
   onClick?: () => void;
   className?: string;
 }) {
+  const COLOR = useColors();
   return (
     <button
       onClick={onClick}
@@ -495,33 +604,41 @@ function OutlineCTA({
   onClick,
   className,
 }: { children: React.ReactNode; onClick?: () => void; className?: string }) {
+  const COLOR = useColors();
   return (
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-2xl border bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/10",
+        "inline-flex items-center justify-center gap-2 rounded-2xl border bg-white/5 px-6 py-3.5 text-sm font-semibold backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/10",
         className,
       )}
-      style={{ borderColor: COLOR.border }}
+      style={{ borderColor: COLOR.border, color: COLOR.textHead }}
     >
       {children}
     </button>
   );
 }
 
-/* Glassmorphic card with hover lift + shimmer sweep */
+/* Glassmorphic card with hover lift + shimmer sweep.
+   Optional `float` prop adds a continuous subtle floating animation via
+   an inner wrapper — avoids transform conflicts with the hover lift. */
 function GlassCard({
   children,
   className,
   accent,
   glow = false,
+  float = false,
+  floatDelay = 0,
 }: {
   children: React.ReactNode;
   className?: string;
   accent?: string;
   glow?: boolean;
+  float?: boolean;
+  floatDelay?: number;
 }) {
-  return (
+  const COLOR = useColors();
+  const card = (
     <div
       className={cn(
         "group relative overflow-hidden rounded-2xl border backdrop-blur-xl transition-all duration-500 hover:-translate-y-1.5 hover:border-white/20",
@@ -555,9 +672,17 @@ function GlassCard({
       <div className="relative">{children}</div>
     </div>
   );
+  if (!float) return card;
+  // Wrap in a floating container — the inner card keeps its hover lift.
+  return (
+    <div style={{ animation: "cardFloat 6s ease-in-out infinite", animationDelay: `${floatDelay}s` }}>
+      {card}
+    </div>
+  );
 }
 
-/* Icon tile with colored gradient circle background */
+/* Icon tile with colored gradient circle background.
+   Rotates 360° on hover (group-hover) for a playful interaction. */
 function IconTile({
   icon: Icon,
   color,
@@ -571,7 +696,7 @@ function IconTile({
   const ic = size === "lg" ? "h-6 w-6" : size === "sm" ? "h-4 w-4" : "h-5 w-5";
   return (
     <div
-      className={cn("relative grid place-items-center rounded-xl", dims)}
+      className={cn("relative grid place-items-center rounded-xl transition-transform duration-500 group-hover:rotate-[360deg]", dims)}
       style={{
         background: `${color}1f`,
         border: `1px solid ${color}55`,
@@ -589,6 +714,7 @@ function IconTile({
    ============================================================================ */
 
 function ScrollProgressBar() {
+  const COLOR = useColors();
   const [progress, setProgress] = React.useState(0);
   React.useEffect(() => {
     let raf = 0;
@@ -624,10 +750,11 @@ function ScrollProgressBar() {
 }
 
 /* ============================================================================
-   Landing — 12 Cinematic Acts
+   Landing — Cinematic Acts
    ============================================================================ */
 
 function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+  const COLOR = useColors();
   return (
     <div
       className="relative min-h-screen overflow-x-hidden antialiased selection:bg-[var(--primary)]/30"
@@ -660,9 +787,13 @@ function Landing({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => v
 /* --------------------------------- Nav ---------------------------------- */
 
 function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+  const COLOR = useColors();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   React.useEffect(() => {
+    setMounted(true);
     const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -682,7 +813,7 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
           ? "border shadow-[0_8px_40px_-8px_rgba(0,0,0,0.6)] backdrop-blur-xl"
           : "border border-transparent bg-transparent",
       )}
-      style={scrolled ? { background: "rgba(10,12,20,0.75)", borderColor: COLOR.border } : undefined}
+      style={scrolled ? { background: COLOR.navBg, borderColor: COLOR.border } : undefined}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -690,15 +821,33 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
         </div>
         <div className="hidden items-center gap-7 md:flex">
           {links.map((l) => (
-            <a key={l.href} href={l.href} className="text-sm transition hover:text-white" style={{ color: COLOR.textBody }}>
+            <a
+              key={l.href}
+              href={l.href}
+              className="text-sm transition hover:opacity-80"
+              style={{ color: COLOR.textBody }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = COLOR.textHead)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = COLOR.textBody)}
+            >
               {l.label}
             </a>
           ))}
         </div>
         <div className="flex items-center gap-2">
+          {/* Theme toggle */}
+          {mounted && (
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="grid h-9 w-9 place-items-center rounded-xl border transition hover:bg-white/5"
+              style={{ borderColor: COLOR.border, color: COLOR.textBody }}
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+          )}
           <button
             onClick={onSignIn}
-            className="hidden min-h-10 items-center rounded-xl px-3 text-sm font-medium transition hover:text-white sm:flex"
+            className="hidden min-h-10 items-center rounded-xl px-3 text-sm font-medium transition hover:opacity-80 sm:flex"
             style={{ color: COLOR.textBody }}
           >
             Sign in
@@ -752,6 +901,7 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
    ============================================================================ */
 
 function CountUpStat({ target, suffix, label }: { target: number; suffix: string; label: string }) {
+  const COLOR = useColors();
   const [val, setVal] = React.useState(0);
   const [started, setStarted] = React.useState(false);
   const ref = React.useRef<HTMLDivElement | null>(null);
@@ -759,7 +909,6 @@ function CountUpStat({ target, suffix, label }: { target: number; suffix: string
   React.useEffect(() => {
     const el = ref.current;
     if (!el || typeof IntersectionObserver === "undefined") {
-      // Fallback: just show the target immediately.
       setVal(target);
       return;
     }
@@ -768,12 +917,11 @@ function CountUpStat({ target, suffix, label }: { target: number; suffix: string
         entries.forEach((e) => {
           if (e.isIntersecting && !started) {
             setStarted(true);
-            const duration = 1800; // ms
+            const duration = 1800;
             const startTime = performance.now();
             const tick = (now: number) => {
               const elapsed = now - startTime;
               const t = Math.min(1, elapsed / duration);
-              // easeOutCubic — starts fast, slows at the end.
               const eased = 1 - Math.pow(1 - t, 3);
               setVal(target * eased);
               if (t < 1) requestAnimationFrame(tick);
@@ -790,7 +938,6 @@ function CountUpStat({ target, suffix, label }: { target: number; suffix: string
     return () => io.disconnect();
   }, [target, started]);
 
-  // Format: integers get commas, decimals get 1 decimal place.
   const formatted = target % 1 === 0
     ? Math.round(val).toLocaleString()
     : val.toFixed(1);
@@ -799,7 +946,7 @@ function CountUpStat({ target, suffix, label }: { target: number; suffix: string
     <div
       ref={ref}
       className="px-4 py-5 text-center backdrop-blur-md"
-      style={{ background: "rgba(10,12,20,0.7)" }}
+      style={{ background: COLOR.statBg }}
     >
       <div
         className="text-2xl font-bold tabular-nums sm:text-3xl"
@@ -816,10 +963,12 @@ function CountUpStat({ target, suffix, label }: { target: number; suffix: string
 
 /* ============================================================================
    PlatformOrbit — 7 animated platform badges orbiting in a circle.
-   Each badge floats + the whole ring slowly rotates. Pure CSS animations.
-   ============================================================================ */
-
+   FIXED: outer div handles positioning (left/top + translate(-50%, -50%)),
+   inner div handles the floatY animation so transforms don't conflict.
+   Central hub now has a continuous "breathe" pulse.
+   Orbit rings made more visible (border opacity 0.25+). */
 function PlatformOrbit() {
+  const COLOR = useColors();
   const platforms = [
     { label: "Instagram", color: "#E1306C", delay: "0s" },
     { label: "TikTok", color: "#00F2EA", delay: "0.8s" },
@@ -831,57 +980,70 @@ function PlatformOrbit() {
   ];
   return (
     <div className="relative mt-16 flex h-72 w-full items-center justify-center sm:h-80" aria-hidden>
-      {/* Central glow pulse */}
+      {/* Central glow pulse — continuous breathing */}
       <div
-        className="absolute h-24 w-24 rounded-full opacity-40 blur-2xl"
+        className="absolute h-24 w-24 rounded-full opacity-50 blur-2xl"
         style={{
           background: `radial-gradient(circle, ${COLOR.accent}, transparent 70%)`,
-          animation: "pulseGlow 3s ease-in-out infinite",
+          animation: "breathe 3s ease-in-out infinite",
         }}
       />
-      {/* Central hub — SYNQUE logo tile */}
+      {/* Central hub — SYNQUE logo tile with breathing scale */}
       <div
         className="absolute z-10 grid h-16 w-16 place-items-center rounded-2xl border backdrop-blur-xl"
         style={{
           background: `linear-gradient(135deg, ${COLOR.accent}20, ${COLOR.violet}20)`,
           borderColor: `${COLOR.accent}40`,
           boxShadow: `0 0 40px -8px ${COLOR.accent}80`,
+          animation: "breathe 4s ease-in-out infinite",
+          // Custom property used by breathe keyframe via box-shadow glow
+          ["--glow" as string]: `${COLOR.accent}80`,
         }}
       >
         <span className="text-lg font-bold" style={{ color: COLOR.textHead }}>S</span>
       </div>
-      {/* Orbit ring — invisible track */}
+      {/* Orbit rings — now more visible */}
       <div
         className="absolute h-64 w-64 rounded-full border sm:h-72 sm:w-72"
-        style={{ borderColor: `${COLOR.border}`, animation: "spin 40s linear infinite" }}
+        style={{ borderColor: `${COLOR.accent}40`, animation: "spin 40s linear infinite" }}
       />
       <div
         className="absolute h-48 w-48 rounded-full border sm:h-56 sm:w-56"
-        style={{ borderColor: `${COLOR.border}60`, animation: "spin 30s linear infinite reverse" }}
+        style={{ borderColor: `${COLOR.violet}40`, animation: "spin 30s linear infinite reverse" }}
       />
-      {/* Platform badges positioned around the orbit */}
+      {/* Platform badges positioned around the orbit.
+          Outer div = positioning; inner div = floatY animation. */}
       {platforms.map((p, i) => {
         const angle = (i / platforms.length) * Math.PI * 2;
-        const radius = 128; // px from center
+        const radius = 128;
         const x = Math.cos(angle) * radius;
         const y = Math.sin(angle) * radius;
         return (
           <div
             key={p.label}
-            className="absolute flex items-center gap-1.5 rounded-full border px-3 py-1.5 backdrop-blur-md"
+            className="absolute"
             style={{
-              transform: `translate(${x}px, ${y}px)`,
-              background: `${p.color}15`,
-              borderColor: `${p.color}40`,
-              animation: `floatY 4s ease-in-out infinite`,
-              animationDelay: p.delay,
+              left: `calc(50% + ${x}px)`,
+              top: `calc(50% + ${y}px)`,
+              transform: "translate(-50%, -50%)",
             }}
           >
             <div
-              className="h-2 w-2 rounded-full"
-              style={{ background: p.color, boxShadow: `0 0 8px ${p.color}` }}
-            />
-            <span className="text-[11px] font-semibold" style={{ color: COLOR.textHead }}>{p.label}</span>
+              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 backdrop-blur-md"
+              style={{
+                background: `${p.color}1f`,
+                borderColor: `${p.color}55`,
+                animation: "floatY 4s ease-in-out infinite",
+                animationDelay: p.delay,
+                boxShadow: `0 4px 14px -4px ${p.color}40`,
+              }}
+            >
+              <div
+                className="h-2 w-2 rounded-full"
+                style={{ background: p.color, boxShadow: `0 0 8px ${p.color}` }}
+              />
+              <span className="text-[11px] font-semibold" style={{ color: COLOR.textHead }}>{p.label}</span>
+            </div>
           </div>
         );
       })}
@@ -892,6 +1054,7 @@ function PlatformOrbit() {
 /* ----------------------------- Act 1: Hero ------------------------------ */
 
 function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => void }) {
+  const COLOR = useColors();
   const { loginAsDemo } = useAuth();
   const [demoLoading, setDemoLoading] = React.useState(false);
   const [parallax, setParallax] = React.useState({ x: 0, y: 0 });
@@ -909,7 +1072,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
   // Parallax mouse-tracking — orbs drift opposite to the cursor for depth.
   React.useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * 2; // -1..1
+      const x = (e.clientX / window.innerWidth - 0.5) * 2;
       const y = (e.clientY / window.innerHeight - 0.5) * 2;
       setParallax({ x, y });
     };
@@ -920,39 +1083,52 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
   return (
     <section ref={heroRef} className="relative min-h-screen w-full overflow-hidden" style={{ background: "transparent" }}>
       {/* Signature futuristic moment — 3 parallax floating gradient orbs that
-          drift opposite to the cursor, creating a 3D depth effect. */}
+          drift opposite to the cursor. Opacity bumped to 0.6-0.7, blur reduced
+          to 60px so the orbs are clearly visible against the void. */}
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
         <div
-          className="absolute h-[28rem] w-[28rem] rounded-full opacity-50 blur-[80px]"
+          className="absolute h-[28rem] w-[28rem] rounded-full blur-[60px]"
           style={{
             background: `radial-gradient(circle, ${COLOR.accent}, transparent 70%)`,
-            top: "8%",
-            left: "10%",
+            top: "8%", left: "10%",
+            opacity: 0.7,
             transform: `translate(${parallax.x * -30}px, ${parallax.y * -20}px)`,
             transition: "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
             animation: "orbFloat1 12s ease-in-out infinite",
           }}
         />
         <div
-          className="absolute h-[32rem] w-[32rem] rounded-full opacity-45 blur-[100px]"
+          className="absolute h-[32rem] w-[32rem] rounded-full blur-[70px]"
           style={{
             background: `radial-gradient(circle, ${COLOR.violet}, transparent 70%)`,
-            top: "30%",
-            right: "5%",
+            top: "30%", right: "5%",
+            opacity: 0.65,
             transform: `translate(${parallax.x * 40}px, ${parallax.y * 30}px)`,
             transition: "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
             animation: "orbFloat2 15s ease-in-out infinite",
           }}
         />
         <div
-          className="absolute h-[24rem] w-[24rem] rounded-full opacity-40 blur-[70px]"
+          className="absolute h-[24rem] w-[24rem] rounded-full blur-[55px]"
           style={{
             background: `radial-gradient(circle, ${COLOR.teal}, transparent 70%)`,
-            bottom: "5%",
-            left: "35%",
+            bottom: "5%", left: "35%",
+            opacity: 0.6,
             transform: `translate(${parallax.x * -20}px, ${parallax.y * -35}px)`,
             transition: "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)",
             animation: "orbFloat1 18s ease-in-out infinite reverse",
+          }}
+        />
+      </div>
+
+      {/* Periodic shimmer sweep — a soft light band that crosses the hero every 8s */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+        <div
+          className="absolute inset-y-0 -left-1/3 w-1/3"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${COLOR.accent}14, transparent)`,
+            filter: "blur(30px)",
+            animation: "shimmerSweep 8s ease-in-out infinite",
           }}
         />
       </div>
@@ -1003,7 +1179,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         </Reveal>
 
         <Reveal delay={240}>
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: "#C5C5CC" }}>
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: COLOR.textBody }}>
             Your team posts to 7+ platforms every day. Switching tabs, copy-pasting captions,
             praying nothing gets suspended. SYNQUE turns that chaos into one calm, AI-powered flow —
             so your team ships more, faster.
@@ -1030,7 +1206,7 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         </Reveal>
 
         <Reveal delay={440}>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px]" style={{ color: "#B0B0B8" }}>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px]" style={{ color: COLOR.textBody }}>
             <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> No credit card required</span>
             <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> Cancel anytime</span>
             <span className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5" style={{ color: COLOR.emerald }} /> 25GB free media storage</span>
@@ -1077,16 +1253,17 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
 /* =================== Hero Dashboard Mockup ===================
    A CSS/JSX-built mini dashboard that shows what the app looks like.
    Glassmorphic crystal card with: sidebar, KPI row, chart, post grid.
-   KEPT — only added the floatY animation on the root div. */
+   Currently unused in the hero (the orbit takes its place) but kept for
+   potential future use. Theme-aware. */
 
 function HeroDashboardMockup() {
+  const COLOR = useColors();
   const kpis = [
     { label: "Followers", value: "48.2K", delta: "+4.2K", color: COLOR.accent },
     { label: "Impressions", value: "1.24M", delta: "+8.4%", color: COLOR.gold },
     { label: "Engagement", value: "12.4%", delta: "+0.3pp", color: COLOR.emerald },
     { label: "Posts", value: "186", delta: "+24", color: COLOR.accent },
   ];
-  // Chart bars — random-ish heights for the sparkline area chart
   const bars = [38, 52, 41, 65, 58, 72, 49, 81, 63, 88, 74, 92, 68, 95];
   const platforms = ["instagram", "tiktok", "linkedin", "twitter", "facebook"];
 
@@ -1094,8 +1271,8 @@ function HeroDashboardMockup() {
     <div
       className="relative overflow-hidden rounded-2xl border shadow-2xl"
       style={{
-        borderColor: "rgba(255,255,255,0.10)",
-        background: "rgba(16,18,24,0.85)",
+        borderColor: COLOR.mockupBorder,
+        background: COLOR.mockupBg,
         backdropFilter: "blur(24px) saturate(160%)",
         WebkitBackdropFilter: "blur(24px) saturate(160%)",
         boxShadow: "0 24px 64px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)",
@@ -1105,7 +1282,7 @@ function HeroDashboardMockup() {
       {/* Top bar — traffic lights + title */}
       <div
         className="flex items-center gap-2 border-b px-4 py-2.5"
-        style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)" }}
+        style={{ borderColor: COLOR.mockupSubtle, background: COLOR.mockupDark }}
       >
         <div className="flex gap-1.5">
           <div className="h-2.5 w-2.5 rounded-full" style={{ background: "#FF5F57" }} />
@@ -1122,7 +1299,7 @@ function HeroDashboardMockup() {
         {/* Mini sidebar — hidden on mobile */}
         <div
           className="hidden w-40 shrink-0 flex-col gap-1 border-r p-3 sm:flex"
-          style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.15)" }}
+          style={{ borderColor: COLOR.mockupSubtle, background: COLOR.mockupSide }}
         >
           {[
             { icon: LayoutDashboard, label: "Dashboard", active: true },
@@ -1181,8 +1358,8 @@ function HeroDashboardMockup() {
                 key={kpi.label}
                 className="rounded-xl border p-2.5 text-left"
                 style={{
-                  borderColor: "rgba(255,255,255,0.06)",
-                  background: "rgba(255,255,255,0.03)",
+                  borderColor: COLOR.mockupSubtle,
+                  background: COLOR.mockupSurf,
                 }}
               >
                 <div className="text-[9px] font-medium uppercase tracking-wider" style={{ color: COLOR.textBody }}>
@@ -1203,7 +1380,7 @@ function HeroDashboardMockup() {
             {/* Area chart */}
             <div
               className="col-span-2 rounded-xl border p-3"
-              style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
+              style={{ borderColor: COLOR.mockupSubtle, background: COLOR.mockupSurf }}
             >
               <div className="mb-2 flex items-center justify-between">
                 <div className="text-[10px] font-semibold" style={{ color: COLOR.textHead }}>
@@ -1232,12 +1409,10 @@ function HeroDashboardMockup() {
                     <stop offset="100%" stopColor={COLOR.accent} stopOpacity="0" />
                   </linearGradient>
                 </defs>
-                {/* Area fill */}
                 <path
                   d={`M0,${80 - bars[0]} ${bars.map((h, i) => `L${(i / (bars.length - 1)) * 280},${80 - h}`).join(" ")} L280,80 L0,80 Z`}
                   fill="url(#heroChartGrad)"
                 />
-                {/* Line */}
                 <path
                   d={`M0,${80 - bars[0]} ${bars.map((h, i) => `L${(i / (bars.length - 1)) * 280},${80 - h}`).join(" ")}`}
                   fill="none"
@@ -1246,7 +1421,6 @@ function HeroDashboardMockup() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-                {/* Last point dot */}
                 <circle cx={280} cy={80 - bars[bars.length - 1]} r="3" fill={COLOR.accent} />
               </svg>
             </div>
@@ -1254,7 +1428,7 @@ function HeroDashboardMockup() {
             {/* Side: platforms */}
             <div
               className="rounded-xl border p-3"
-              style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
+              style={{ borderColor: COLOR.mockupSubtle, background: COLOR.mockupSurf }}
             >
               <div className="mb-2 text-[10px] font-semibold" style={{ color: COLOR.textHead }}>Connected</div>
               <div className="space-y-1.5">
@@ -1282,12 +1456,12 @@ function HeroDashboardMockup() {
               <div
                 key={i}
                 className="flex-1 overflow-hidden rounded-lg border"
-                style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}
+                style={{ borderColor: COLOR.mockupSubtle, background: COLOR.mockupSurf }}
               >
                 <div className="h-10" style={{ background: `linear-gradient(135deg, ${[COLOR.accent, COLOR.violet, COLOR.emerald, COLOR.teal][i]}40, transparent)` }} />
                 <div className="p-1.5">
-                  <div className="h-1 w-3/4 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
-                  <div className="mt-1 h-1 w-1/2 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+                  <div className="h-1 w-3/4 rounded-full" style={{ background: COLOR.mockupSkel1 }} />
+                  <div className="mt-1 h-1 w-1/2 rounded-full" style={{ background: COLOR.mockupSkel2 }} />
                 </div>
               </div>
             ))}
@@ -1301,6 +1475,7 @@ function HeroDashboardMockup() {
 /* --------------------------- Act 2: Problem ----------------------------- */
 
 function Act2Problem() {
+  const COLOR = useColors();
   const problems = [
     {
       icon: Layers,
@@ -1346,7 +1521,7 @@ function Act2Problem() {
         <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {problems.map((p, i) => (
             <Reveal key={p.t} delay={i * 120}>
-              <GlassCard accent={p.accent} className="h-full p-6">
+              <GlassCard accent={p.accent} float floatDelay={i * 0.5} className="h-full p-6">
                 <IconTile icon={p.icon} color={p.accent} size="lg" />
                 <h3 className="mt-5 text-lg font-bold" style={{ color: COLOR.textHead }}>{p.t}</h3>
                 <p className="mt-2 text-sm leading-relaxed" style={{ color: COLOR.textBody }}>{p.d}</p>
@@ -1371,7 +1546,7 @@ function Act2Problem() {
                 key={s.l}
                 className="p-6 text-center backdrop-blur-md"
                 style={{
-                  background: "rgba(10,12,20,0.6)",
+                  background: COLOR.statBg,
                   animation: "ticker 0.8s cubic-bezier(0.22, 1, 0.36, 1) both",
                 }}
               >
@@ -1389,12 +1564,12 @@ function Act2Problem() {
 /* --------------------------- Act 3: Solution ---------------------------- */
 
 function Act3Solution() {
+  const COLOR = useColors();
   const bullets = [
     "Write once, publish everywhere — one brief, 7 platform-native posts",
     "AI-powered per-account captions respecting tone, length & hashtags",
     "Never miss a comment — unified inbox across every platform",
   ];
-  // Platform icons for the chaos→flow visualization
   const platforms = ["IG", "TT", "LI", "X", "FB", "YT"];
   const platformColors = ["#E1306C", "#00F2EA", "#0A66C2", "#1DA1F2", "#1877F2", "#FF0000"];
 
@@ -1459,9 +1634,7 @@ function Act3Solution() {
             </Reveal>
           </div>
 
-          {/* Right — Chaos → Flow transformation visualization.
-              Shows scattered platform icons (chaos) transforming into
-              a clean horizontal flow line (organized). */}
+          {/* Right — Chaos → Flow transformation visualization. */}
           <Reveal delay={300} y={40}>
             <div className="relative mx-auto w-full max-w-md">
               <div
@@ -1584,6 +1757,7 @@ function Act3Solution() {
 /* --------------------------- Act 4: Features ---------------------------- */
 
 function Act4Features() {
+  const COLOR = useColors();
   const features = [
     {
       icon: Wand2,         title: "AI Composer",
@@ -1646,7 +1820,7 @@ function Act4Features() {
         <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => (
             <Reveal key={f.title} delay={(i % 3) * 100} className={f.span}>
-              <GlassCard accent={f.accent} className="h-full p-6">
+              <GlassCard accent={f.accent} float floatDelay={i * 0.6} className="h-full p-6">
                 <div className="flex items-start justify-between">
                   <IconTile icon={f.icon} color={f.accent} size="lg" />
                   <span
@@ -1670,6 +1844,7 @@ function Act4Features() {
 /* --------------------------- Act 5: Workflow ---------------------------- */
 
 function Act5Workflow({ onTrial }: { onTrial: () => void }) {
+  const COLOR = useColors();
   const steps = [
     { n: "01", icon: PenSquare,    t: "Create",  d: "Drop your media. Write one brief — that's it.",                accent: COLOR.accent },
     { n: "02", icon: CheckCircle2, t: "Approve", d: "Team review with phone-style previews per platform.",          accent: COLOR.violet },
@@ -1732,7 +1907,7 @@ function Act5Workflow({ onTrial }: { onTrial: () => void }) {
                         <div
                           className="relative grid h-14 w-14 place-items-center rounded-2xl border backdrop-blur-xl"
                           style={{
-                            background: "rgba(10,12,20,0.9)",
+                            background: COLOR.stepBg,
                             borderColor: `${s.accent}`,
                             boxShadow: `0 0 28px -8px ${s.accent}80`,
                             animation: "floatY 4s ease-in-out infinite",
@@ -1776,7 +1951,7 @@ function Act5Workflow({ onTrial }: { onTrial: () => void }) {
                   <div
                     className="absolute -left-8 grid h-12 w-12 place-items-center rounded-2xl border backdrop-blur-xl"
                     style={{
-                      background: "rgba(10,12,20,0.9)",
+                      background: COLOR.stepBg,
                       borderColor: s.accent,
                       boxShadow: `0 0 24px -6px ${s.accent}80`,
                     }}
@@ -1806,9 +1981,56 @@ function Act5Workflow({ onTrial }: { onTrial: () => void }) {
   );
 }
 
+/* ============================================================================
+   AnimatedBarChart — bars grow from 0 height to target when scrolled into
+   view. Pure CSS transition (no JS animation loop), staggered via delay.
+   ============================================================================ */
+
+function AnimatedBarChart({
+  data,
+  color,
+  height = 140,
+  labels,
+}: {
+  data: number[];
+  color: string;
+  height?: number;
+  labels?: string[];
+}) {
+  const { ref, inView } = useInView<HTMLDivElement>();
+  const maxVal = Math.max(...data);
+  return (
+    <div ref={ref} className="flex w-full items-end gap-2" style={{ height }}>
+      {data.map((val, i) => {
+        const h = (val / maxVal) * 100;
+        return (
+          <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1.5">
+            <div
+              className="w-full rounded-t-md"
+              style={{
+                height: inView ? `${h}%` : "0%",
+                background: `linear-gradient(to top, ${color}, ${color}66)`,
+                transition: `height 1.2s cubic-bezier(0.22, 1, 0.36, 1) ${i * 80}ms`,
+                transformOrigin: "bottom",
+                boxShadow: `0 -2px 12px -4px ${color}66`,
+              }}
+            />
+            {labels && (
+              <div className="text-[9px] font-medium uppercase tracking-wider opacity-70">
+                {labels[i]}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ------------------------- Act 6: Social Proof ------------------------- */
 
 function Act6SocialProof() {
+  const COLOR = useColors();
   const stats = [
     { v: "2,400+",    l: "Teams onboarded",  icon: Users,       accent: COLOR.accent },
     { v: "1.8M",      l: "Posts published",  icon: Send,        accent: COLOR.violet },
@@ -1833,6 +2055,9 @@ function Act6SocialProof() {
     },
   ];
   const logos = ["Northwind", "PRISM", "Brightwave", "LUMEN", "Vertex", "Quanta"];
+  // Growth chart data — impressions growth over the last 12 months
+  const growthData = [22, 28, 35, 42, 48, 58, 64, 72, 80, 88, 94, 100];
+  const monthLabels = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
   return (
     <section
       id="social-proof"
@@ -1845,7 +2070,7 @@ function Act6SocialProof() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((s, i) => (
             <Reveal key={s.l} delay={i * 100}>
-              <GlassCard accent={s.accent} className="h-full p-6 text-center">
+              <GlassCard accent={s.accent} float floatDelay={i * 0.5} className="h-full p-6 text-center">
                 <div className="mx-auto mb-4 w-fit">
                   <IconTile icon={s.icon} color={s.accent} />
                 </div>
@@ -1863,6 +2088,34 @@ function Act6SocialProof() {
           ))}
         </div>
 
+        {/* Animated growth chart — bars grow when scrolled into view */}
+        <Reveal delay={200}>
+          <div className="mt-12">
+            <GlassCard accent={COLOR.accent} glow className="p-6 sm:p-8">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: COLOR.textBody }}>
+                    Customer growth · last 12 months
+                  </div>
+                  <div className="mt-1 text-2xl font-bold sm:text-3xl" style={{ color: COLOR.textHead }}>
+                    +3,400<span style={{ color: COLOR.accent }}>%</span> reach growth
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: COLOR.accent, boxShadow: `0 0 8px ${COLOR.accent}` }} />
+                  <span className="text-xs font-medium" style={{ color: COLOR.textBody }}>Monthly active teams</span>
+                </div>
+              </div>
+              <AnimatedBarChart
+                data={growthData}
+                color={COLOR.accent}
+                height={160}
+                labels={monthLabels}
+              />
+            </GlassCard>
+          </div>
+        </Reveal>
+
         {/* Testimonials */}
         <div className="mt-20 text-center">
           <Reveal>
@@ -1874,7 +2127,7 @@ function Act6SocialProof() {
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {testimonials.map((t, i) => (
             <Reveal key={t.name} delay={i * 120}>
-              <GlassCard accent={t.accent} className="h-full p-6">
+              <GlassCard accent={t.accent} float floatDelay={i * 0.7} className="h-full p-6">
                 {/* Stars */}
                 <div className="flex gap-0.5">
                   {Array.from({ length: 5 }).map((_, s) => (
@@ -1919,8 +2172,10 @@ function Act6SocialProof() {
                 {[...logos, ...logos, ...logos].map((l, i) => (
                   <span
                     key={i}
-                    className="text-lg font-bold tracking-tight transition hover:text-white"
+                    className="text-lg font-bold tracking-tight transition"
                     style={{ color: COLOR.textMuted, opacity: 0.7 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = COLOR.textHead; e.currentTarget.style.opacity = "1"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = COLOR.textMuted; e.currentTarget.style.opacity = "0.7"; }}
                   >
                     {l}
                   </span>
@@ -1937,6 +2192,7 @@ function Act6SocialProof() {
 /* -------------------------- Act 7: Compare ----------------------------- */
 
 function Act7Compare() {
+  const COLOR = useColors();
   const competitors = ["SYNQUE", "Hootsuite", "Buffer", "Sprout Social"];
   const features: { label: string; synque: string | boolean; hootsuite: string | boolean; buffer: string | boolean; sprout: string | boolean; }[] = [
     { label: "AI per-account caption generation", synque: true, hootsuite: false, buffer: false, sprout: false },
@@ -1950,7 +2206,7 @@ function Act7Compare() {
   ];
   function Check({ value }: { value: string | boolean }) {
     if (value === true) return <span className="text-lg font-bold" style={{ color: COLOR.emerald }}>✓</span>;
-    if (value === false) return <span className="text-muted-foreground/40">—</span>;
+    if (value === false) return <span style={{ color: COLOR.textMuted }}>—</span>;
     return <span className="text-xs font-medium" style={{ color: COLOR.textBody }}>{value}</span>;
   }
   return (
@@ -2042,6 +2298,7 @@ function Act7Compare() {
 /* ----------------------------- Act 8: Pricing -------------------------- */
 
 function Act8Pricing({ onTrial }: { onTrial: () => void }) {
+  const COLOR = useColors();
   return (
     <section
       id="pricing"
@@ -2101,9 +2358,10 @@ function Act8Pricing({ onTrial }: { onTrial: () => void }) {
                           maskComposite: "exclude",
                         }}
                       />
+                      {/* Continuous glow pulse behind the featured card */}
                       <div
                         className="pointer-events-none absolute -inset-px rounded-3xl opacity-40 blur-2xl"
-                        style={{ background: `linear-gradient(135deg, ${COLOR.accentA(0.4)}, ${COLOR.violetA(0.2)})` }}
+                        style={{ background: `linear-gradient(135deg, ${COLOR.accentA(0.4)}, ${COLOR.violetA(0.2)})`, animation: "pulseGlow 4s ease-in-out infinite" }}
                       />
                       <div
                         className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
@@ -2185,6 +2443,7 @@ function Act8Pricing({ onTrial }: { onTrial: () => void }) {
 /* ------------------------------ Act 9: FAQ ------------------------------ */
 
 function Act9FAQ() {
+  const COLOR = useColors();
   const [open, setOpen] = React.useState<number | null>(0);
   const faqs = [
     { q: "How is SYNQUE different from Hootsuite or Buffer?", a: "SYNQUE is built for teams, not solo creators. We include AI per-account caption generation (no other tool does this), anti-suspension account safety guards, a unified inbox with sentiment tagging, and a full approval workflow — all in one calm interface. Hootsuite charges $99/mo for features we include free." },
@@ -2269,6 +2528,7 @@ function Act9FAQ() {
 /* --------------------------- Act 10: Final CTA --------------------------- */
 
 function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
+  const COLOR = useColors();
   return (
     <section className="relative w-full overflow-hidden py-32 sm:py-40" style={{ background: "transparent" }}>
       {/* Vibrant aurora orbs — more intense than the page bg */}
@@ -2326,7 +2586,7 @@ function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
           </h2>
         </Reveal>
         <Reveal delay={240}>
-          <p className="mx-auto mt-6 max-w-xl text-base sm:text-lg" style={{ color: "#C5C5CC" }}>
+          <p className="mx-auto mt-6 max-w-xl text-base sm:text-lg" style={{ color: COLOR.textBody }}>
             Join 2,400+ teams using SYNQUE to publish smarter, protect their accounts, and beat the competition.
             Start your 15-day trial — full access, no card to explore.
           </p>
@@ -2353,9 +2613,10 @@ function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
   );
 }
 
-/* ------------------------------ Act 9: Footer -------------------------- */
+/* ------------------------------ Act 11: Footer -------------------------- */
 
 function Act11Footer() {
+  const COLOR = useColors();
   return (
     <footer
       className="relative w-full overflow-hidden pt-20 pb-10"
@@ -2406,9 +2667,9 @@ function Act11Footer() {
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t pt-6 text-xs sm:flex-row" style={{ borderColor: COLOR.border, color: COLOR.textBody }}>
           <span>© 2026 SYNQUE · Orchestrate Your Social</span>
           <div className="flex gap-5">
-            <a href="/privacy" className="transition hover:text-white">Privacy</a>
-            <a href="/terms" className="transition hover:text-white">Terms</a>
-            <a href="/security" className="transition hover:text-white">Security</a>
+            <a href="/privacy" className="transition hover:opacity-80">Privacy</a>
+            <a href="/terms" className="transition hover:opacity-80">Terms</a>
+            <a href="/security" className="transition hover:opacity-80">Security</a>
           </div>
         </div>
       </div>
@@ -2417,6 +2678,7 @@ function Act11Footer() {
 }
 
 function FooterCol({ title, links }: { title: string; links: string[] }) {
+  const COLOR = useColors();
   return (
     <div>
       <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: COLOR.textBody }}>{title}</div>
@@ -2425,7 +2687,7 @@ function FooterCol({ title, links }: { title: string; links: string[] }) {
           const [text, href] = l.includes("|") ? l.split("|") : [l, "#"];
           return (
             <li key={text}>
-              <a href={href} className="text-sm transition hover:text-white" style={{ color: COLOR.textBody }}>{text}</a>
+              <a href={href} className="text-sm transition hover:opacity-80" style={{ color: COLOR.textBody }}>{text}</a>
             </li>
           );
         })}
@@ -2482,7 +2744,6 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
   const activate = async () => {
     if (!validatePayment()) return;
     setStep("activating");
-    // Create the real user account via the signup API
     const success = await signup(form.name.trim(), form.email.trim(), form.password);
     if (success) {
       setStep("done");
@@ -2689,7 +2950,6 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
       if (!success) {
         setError("Invalid email or password. If you're new, start a free trial.");
       }
-      // If success, the auth store updates isAuthenticated and page.tsx switches to AppShell
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
