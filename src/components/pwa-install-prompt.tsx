@@ -11,7 +11,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 const DISMISS_KEY = "socialflow-pwa-install-dismissed";
 const DISMISS_DAYS = 7;
-const SHOW_DELAY_MS = 30000; // 30 seconds
+const SHOW_DELAY_MS = 15000; // 15 seconds
 
 /**
  * PWA Install Prompt — cross-browser install notification.

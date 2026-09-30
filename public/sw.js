@@ -1,7 +1,7 @@
 // SocialFlow Service Worker — enables PWA installability
 // Chrome requires a service worker + manifest for the "Install app" prompt
 
-const CACHE_NAME = "socialflow-v1";
+const CACHE_NAME = "socialflow-v2";
 const STATIC_ASSETS = ["/", "/manifest.json", "/icon.svg", "/icon-192.png", "/icon-512.png"];
 
 // Install — cache static assets
