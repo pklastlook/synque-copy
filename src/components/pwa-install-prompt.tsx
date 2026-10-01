@@ -121,11 +121,11 @@ export function PWAInstallPrompt() {
         aria-label="Close install prompt"
       />
 
-      {/* Prompt card */}
+      {/* Prompt card — top-right for easy access */}
       <div
         className={cn(
           "glass-strong glass-sheen apple-font animate-ios-slide-up",
-          "fixed bottom-4 left-4 right-4 z-[100] sm:bottom-6 sm:left-auto sm:right-6 sm:w-[380px]",
+          "fixed top-4 left-4 right-4 z-[100] sm:top-6 sm:left-auto sm:right-6 sm:w-[380px]",
           "rounded-3xl border border-border/40 p-5 shadow-2xl",
         )}
         role="dialog"
