@@ -9112,3 +9112,42 @@ Stage Summary:
 - Honest UX: the web app cannot tunnel browser traffic (OS-level network control required), so it does the next best thing — provides real configs the user imports into WireGuard, then verifies the tunnel changed the egress IP.
 - The only thing needed for a fully-working production tunnel: an admin must replace each demo server's `endpoint` + `serverPubKey` with a real running WireGuard server's details. All key generation, config building, IP detection, and verification work out of the box.
 - Files produced: `prisma/schema.prisma` (VPNServer + VPNSession models), `src/lib/wireguard.ts`, `src/app/api/vpn/{servers,session,connect,disconnect,config,ip,verify,qr}/route.ts`, rewritten `src/components/views/vpn.tsx`.
+
+---
+Task ID: ios27-mobile-icons
+Agent: main (Z.ai Code)
+Task: Make all mobile view icons square-shaped and similar to iOS 27 icons; use real icons for social media platforms (WhatsApp, Instagram, Facebook, X, LinkedIn, TikTok, YouTube, Threads).
+
+Work Log:
+- Installed `react-icons` (Simple Icons set) for real brand SVG logos.
+- Created `src/components/brand-icons.tsx`:
+  - `InstagramIcon`, `FacebookIcon`, `XIcon`, `TiktokIcon`, `YoutubeIcon`, `ThreadsIcon`, `WhatsappIcon` (from react-icons/si).
+  - `LinkedinIcon` — official LinkedIn "in" glyph rendered inline (Simple Icons removed LinkedIn for trademark).
+  - `PlatformBrandIcon` switch component mapping platform id → real brand logo.
+- Created `src/components/ios-icon-tile.tsx`:
+  - `IosIconTile` component — squircle (22% corner radius, iOS icon proportion), full-bleed gradient background, top-inner highlight glint (`mix-blend-mode: screen`), soft elevation shadow, white centered glyph, active state (scale 1.08 + ring).
+  - `IOS_GRADIENTS` map — per-app brand gradients (home=purple, inbox=green, compose=orange, calendar=red, stats=blue, etc.) + social brand gradients (whatsapp green, instagram sunset, facebook blue, x black, tiktok cyan-black-red, youtube red, threads dark).
+- Rewrote `PlatformGlyph` in `src/lib/platforms.tsx` to use REAL Simple Icons SVG paths (fill="currentColor") instead of the old abstract geometric marks. Keeps the `currentColor` contract so it tints white on gradient badges + brand color on transparent pills.
+- Added iOS icon tile CSS block to `src/app/globals.css`:
+  - `.ios-icon-tile` — relative/isolate/overflow-hidden, layered box-shadow (elevation + inset top highlight), spring transition.
+  - `.ios-icon-tile-glint` — top-to-bottom white gradient (screen blend) for glass depth.
+  - `.ios-icon-tile-active` — scale 1.08 + white ring + brighter shadow (light + dark variants).
+  - `.apple-tab-item.is-tiled` — hides old flat `.tab-icon`, keeps label styling.
+- Updated `src/components/app-shell.tsx`:
+  - Tab definitions now carry `gradient` key (IosGradientKey) instead of `accent` color string.
+  - `MORE_NAV_ITEMS` restructured as a discriminated union (`kind: "lucide" | "brand"`) so social items render their real brand logo while app items render lucide glyphs.
+  - Mobile bottom bar: each tab renders `<IosIconTile gradient={...} size={44} active>` wrapping the lucide glyph (h-6 w-6, white via stroke=currentColor).
+  - "More" sheet grid: each item renders `<IosIconTile gradient={...} size={56} active>` wrapping either a lucide glyph OR `<PlatformBrandIcon>` for social items (WhatsApp uses real brand logo). Bar min-height raised 64→76px to fit tiles.
+- Lint: `bun run lint` → exit 0, zero errors/warnings.
+
+Verification (Agent Browser + VLM):
+- Logged in via "Live Demo" on iPhone 14 device emulation.
+- Mobile bottom bar renders 5 iOS-27 squircle gradient tiles (Home purple, Stats blue, Reports pink-red, Insights green, More grey). VLM rating: 9/10 — "square-shaped rounded tiles with gradient backgrounds, closely mimicking modern iOS app icon style".
+- "More" sheet renders 12 squircle gradient tiles. VLM confirms: "WhatsApp icon is the real brand logo — white telephone handset inside a speech bubble on green background. All icons are square tiles with rounded corners (squircles) with gradient colors, consistent with iOS app icon style."
+- DOM inspection confirmed: WhatsApp tile background = `linear-gradient(145deg, rgb(37, 211, 102))` (WhatsApp green) and its SVG path starts `M17.472 14.382...` — the real Simple Icons WhatsApp logo path.
+- Console errors: zero. Dev log: zero errors.
+
+Stage Summary:
+- All mobile-view icons are now iOS-27-style square squircle gradient tiles (was: flat outline lucide icons with no background).
+- Social media platforms use REAL brand logos: WhatsApp (Simple Icons), Instagram/Facebook/X/TikTok/YouTube/Threads (Simple Icons), LinkedIn (official glyph). `PlatformGlyph` updated everywhere (used by PlatformBadge in accounts/dashboard/etc.).
+- Files produced: `src/components/brand-icons.tsx`, `src/components/ios-icon-tile.tsx`; modified `src/lib/platforms.tsx`, `src/components/app-shell.tsx`, `src/app/globals.css`. Added dependency `react-icons`.

@@ -40,51 +40,90 @@ import { AccountSafetyView } from "@/components/views/account-safety";
 import { VPNView } from "@/components/views/vpn";
 import {
   LayoutDashboard, PenSquare, Inbox as InboxIcon, BarChart3, MoreHorizontal,
-  Calendar, MessageCircle as WhatsAppIcon, MessageSquare, CheckSquare,
+  Calendar, MessageSquare, CheckSquare,
   Link2, Image as ImageIcon, FileBarChart, Megaphone, Settings as SettingsIcon,
   Building2, TrendingUp, Briefcase, X, Crosshair, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { IosIconTile, IOS_GRADIENTS, type IosGradientKey } from "@/components/ios-icon-tile";
+import {
+  WhatsappIcon,
+  PlatformBrandIcon,
+} from "@/components/brand-icons";
 
 // === Mobile bottom tab bar items — role-based ===
 // Editors: Home, Inbox, Compose, Calendar, More
 // Managers/Admins: Home, Inbox, Compose, Stats, More
-const EDITOR_TABS: { id: string; label: string; icon: LucideIcon; accent: string }[] = [
-  { id: "dashboard", label: "Home", icon: LayoutDashboard, accent: "#5856D6" },
-  { id: "inbox", label: "Inbox", icon: InboxIcon, accent: "#34C759" },
-  { id: "composer", label: "Compose", icon: PenSquare, accent: "#FF9500" },
-  { id: "calendar", label: "Calendar", icon: Calendar, accent: "#FF3B30" },
-  { id: "settings", label: "More", icon: MoreHorizontal, accent: "#8E8E93" },
+// Each tab renders an iOS-27 squircle gradient tile with a white glyph.
+type MobileTab = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  gradient: IosGradientKey;
+};
+
+const EDITOR_TABS: MobileTab[] = [
+  { id: "dashboard", label: "Home", icon: LayoutDashboard, gradient: "home" },
+  { id: "inbox", label: "Inbox", icon: InboxIcon, gradient: "inbox" },
+  { id: "composer", label: "Compose", icon: PenSquare, gradient: "compose" },
+  { id: "calendar", label: "Calendar", icon: Calendar, gradient: "calendar" },
+  { id: "settings", label: "More", icon: MoreHorizontal, gradient: "more" },
 ];
 
-const MANAGER_TABS: { id: string; label: string; icon: LucideIcon; accent: string }[] = [
-  { id: "dashboard", label: "Home", icon: LayoutDashboard, accent: "#5856D6" },
-  { id: "analytics", label: "Stats", icon: BarChart3, accent: "#007AFF" },
-  { id: "reports", label: "Reports", icon: FileBarChart, accent: "#FF2D55" },
-  { id: "listening", label: "Insights", icon: Crosshair, accent: "#34C759" },
-  { id: "settings", label: "More", icon: MoreHorizontal, accent: "#8E8E93" },
+const MANAGER_TABS: MobileTab[] = [
+  { id: "dashboard", label: "Home", icon: LayoutDashboard, gradient: "home" },
+  { id: "analytics", label: "Stats", icon: BarChart3, gradient: "stats" },
+  { id: "reports", label: "Reports", icon: FileBarChart, gradient: "reports" },
+  { id: "listening", label: "Insights", icon: Crosshair, gradient: "insights" },
+  { id: "settings", label: "More", icon: MoreHorizontal, gradient: "more" },
 ];
 
-// === "More" sheet items — colorful iOS-style icons ===
-const MORE_NAV_ITEMS: { id: string; label: string; icon: LucideIcon; color: string }[] = [
-  { id: "calendar", label: "Calendar", icon: Calendar, color: "#FF3B30" },
-  { id: "whatsapp", label: "WhatsApp", icon: WhatsAppIcon, color: "#34C759" },
-  { id: "chat", label: "Chat", icon: MessageSquare, color: "#5856D6" },
-  { id: "tasks", label: "Tasks", icon: CheckSquare, color: "#FF9500" },
-  { id: "accounts", label: "Accounts", icon: Link2, color: "#007AFF" },
-  { id: "media", label: "Media", icon: ImageIcon, color: "#AF52DE" },
-  { id: "reports", label: "Reports", icon: FileBarChart, color: "#FF2D55" },
-  { id: "campaigns", label: "Campaigns", icon: Megaphone, color: "#FF6B00" },
+// === "More" sheet items ===
+// Each item is an iOS-27 squircle gradient tile. Social platforms use their
+// REAL brand logo (WhatsApp, etc.); app-internal items use a lucide glyph.
+type MoreItem =
+  | {
+      id: string;
+      label: string;
+      icon: LucideIcon;
+      gradient: IosGradientKey;
+      kind: "lucide";
+    }
+  | {
+      id: string;
+      label: string;
+      gradient: IosGradientKey;
+      kind: "brand";
+      brand:
+        | "whatsapp"
+        | "instagram"
+        | "facebook"
+        | "x"
+        | "linkedin"
+        | "tiktok"
+        | "youtube"
+        | "threads";
+    };
+
+const MORE_NAV_ITEMS: MoreItem[] = [
+  { id: "calendar", label: "Calendar", icon: Calendar, gradient: "calendar", kind: "lucide" },
+  { id: "whatsapp", label: "WhatsApp", gradient: "whatsapp", kind: "brand", brand: "whatsapp" },
+  { id: "chat", label: "Chat", icon: MessageSquare, gradient: "chat", kind: "lucide" },
+  { id: "tasks", label: "Tasks", icon: CheckSquare, gradient: "tasks", kind: "lucide" },
+  { id: "accounts", label: "Accounts", icon: Link2, gradient: "accounts", kind: "lucide" },
+  { id: "media", label: "Media", icon: ImageIcon, gradient: "media", kind: "lucide" },
+  { id: "reports", label: "Reports", icon: FileBarChart, gradient: "reports", kind: "lucide" },
+  { id: "campaigns", label: "Campaigns", icon: Megaphone, gradient: "campaigns", kind: "lucide" },
 ];
 
-const MORE_ADMIN_ITEMS_MEMBER: { id: string; label: string; icon: LucideIcon; color: string }[] = [
-  { id: "settings", label: "Settings", icon: SettingsIcon, color: "#8E8E93" },
-  { id: "organization", label: "Org", icon: Building2, color: "#5AC8FA" },
-  { id: "team-performance", label: "Performance", icon: TrendingUp, color: "#FF9500" },
+const MORE_ADMIN_ITEMS_MEMBER: MoreItem[] = [
+  { id: "settings", label: "Settings", icon: SettingsIcon, gradient: "settings", kind: "lucide" },
+  { id: "organization", label: "Org", icon: Building2, gradient: "org", kind: "lucide" },
+  { id: "team-performance", label: "Performance", icon: TrendingUp, gradient: "performance", kind: "lucide" },
 ];
 
-const MORE_ADMIN_ITEMS_OWNER: { id: string; label: string; icon: LucideIcon; color: string }[] = [
-  { id: "owner", label: "Owner", icon: Briefcase, color: "#FFD60A" },
+const MORE_ADMIN_ITEMS_OWNER: MoreItem[] = [
+  { id: "owner", label: "Owner", icon: Briefcase, gradient: "performance", kind: "lucide" },
 ];
 
 export function AppShell() {
@@ -195,7 +234,7 @@ export function AppShell() {
             className={cn(
               "apple-tab-bar apple-tab-bar-dock apple-font select-none antialiased",
               "fixed bottom-0 left-0 right-0 z-50 flex items-stretch",
-              "min-h-[64px] rounded-3xl",
+              "min-h-[76px] rounded-3xl",
             )}
             aria-label="Primary"
           >
@@ -208,19 +247,24 @@ export function AppShell() {
                   key={tab.id}
                   onClick={() => handleMobileTab(tab.id)}
                   className={cn(
-                    "apple-tab-item touch-button transition-colors duration-200",
+                    "apple-tab-item is-tiled touch-button transition-colors duration-200",
                     isActive && "active",
                     isCompose && "apple-compose-tab",
                   )}
                   aria-label={tab.label}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <Icon
-                    className="tab-icon h-6 w-6"
-                    strokeWidth={isActive ? 2.4 : 2}
-                    style={{ color: isActive ? tab.accent : undefined }}
-                  />
-                  <span className="tab-label block leading-none" style={{ color: isActive ? tab.accent : undefined }}>{tab.label}</span>
+                  {/* iOS-27 squircle gradient tile with white glyph */}
+                  <IosIconTile
+                    gradient={IOS_GRADIENTS[tab.gradient]}
+                    size={44}
+                    active={isActive}
+                    label={tab.label}
+                    flat={tab.gradient === "more"}
+                  >
+                    <Icon className="h-6 w-6" strokeWidth={2.2} />
+                  </IosIconTile>
+                  <span className="tab-label block leading-none">{tab.label}</span>
                 </button>
               );
             })}
@@ -264,10 +308,9 @@ export function AppShell() {
               </button>
             </div>
 
-            {/* Primary navigation grid — colorful iOS-style icons */}
+            {/* Primary navigation grid — iOS-27 squircle tiles */}
             <div className="grid grid-cols-4 gap-2.5 px-4 pb-4">
               {MORE_NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
                 const active = view === item.id;
                 return (
                   <button
@@ -278,15 +321,19 @@ export function AppShell() {
                       active && "!border-primary/50",
                     )}
                   >
-                    <span
-                      className="grid h-10 w-10 place-items-center rounded-xl"
-                      style={{
-                        background: active ? item.color : `${item.color}1A`,
-                        color: active ? "#fff" : item.color,
-                      }}
+                    <IosIconTile
+                      gradient={IOS_GRADIENTS[item.gradient]}
+                      size={56}
+                      active={active}
+                      label={item.label}
+                      flat={item.kind === "brand" && (item.brand === "x" || item.brand === "threads" || item.brand === "whatsapp")}
                     >
-                      <Icon className="h-5 w-5" strokeWidth={2.2} />
-                    </span>
+                      {item.kind === "lucide" ? (
+                        <item.icon className="h-7 w-7" strokeWidth={2.2} />
+                      ) : (
+                        <PlatformBrandIcon platform={item.brand} className="h-7 w-7" />
+                      )}
+                    </IosIconTile>
                     <span className="text-[11px] font-medium text-foreground/80">{item.label}</span>
                   </button>
                 );
@@ -304,7 +351,6 @@ export function AppShell() {
                     ...MORE_ADMIN_ITEMS_MEMBER,
                     ...(user.role === "admin" ? MORE_ADMIN_ITEMS_OWNER : []),
                   ].map((item) => {
-                    const Icon = item.icon;
                     const active = view === item.id;
                     return (
                       <button
@@ -315,15 +361,18 @@ export function AppShell() {
                           active && "!border-primary/50",
                         )}
                       >
-                        <span
-                          className="grid h-10 w-10 place-items-center rounded-xl"
-                          style={{
-                            background: active ? item.color : `${item.color}1A`,
-                            color: active ? "#fff" : item.color,
-                          }}
+                        <IosIconTile
+                          gradient={IOS_GRADIENTS[item.gradient]}
+                          size={56}
+                          active={active}
+                          label={item.label}
                         >
-                          <Icon className="h-5 w-5" strokeWidth={2.2} />
-                        </span>
+                          {item.kind === "lucide" ? (
+                            <item.icon className="h-7 w-7" strokeWidth={2.2} />
+                          ) : (
+                            <PlatformBrandIcon platform={item.brand} className="h-7 w-7" />
+                          )}
+                        </IosIconTile>
                         <span className="text-[11px] font-medium text-foreground/80">{item.label}</span>
                       </button>
                     );

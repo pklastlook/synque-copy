@@ -1296,6 +1296,74 @@ html { scroll-behavior: smooth; }
 }
 
 /* ================================================================
+   iOS 26/27 ICON TILE — "Liquid Glass" squircle icon
+   Used by: mobile bottom bar + "More" sheet + platform account tiles.
+   A rounded-square gradient tile with a top-inner highlight glint + soft
+   elevation shadow. Active state scales up + brightens.
+   ================================================================ */
+
+.ios-icon-tile {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-shadow:
+    0 2px 6px -1px rgba(0, 0, 0, 0.18),
+    0 1px 2px rgba(0, 0, 0, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease;
+}
+/* Top-inner highlight glint — gives the "glass" depth */
+.ios-icon-tile-glint {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(255, 255, 255, 0.06) 38%,
+      rgba(255, 255, 255, 0) 60%
+    );
+  mix-blend-mode: screen;
+}
+.ios-icon-tile-active {
+  transform: scale(1.08);
+  box-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.24),
+    0 2px 4px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+.dark .ios-icon-tile-active {
+  box-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.50),
+    0 2px 4px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 2px rgba(255, 255, 255, 0.20);
+}
+
+/* ---- Mobile bottom-bar tab item (revised for icon tiles) ----
+   The tab now holds an IosIconTile (squircle gradient) + a tiny label.
+   The active dot indicator stays (macOS Dock pattern). */
+.apple-tab-item .ios-icon-tile {
+  width: 44px;
+  height: 44px;
+}
+.apple-tab-item .tab-label {
+  font-size: 10px;
+}
+/* When the tab has an icon tile, hide the old flat icon styling */
+.apple-tab-item.is-tiled .tab-icon {
+  display: none;
+}
+.apple-tab-item.is-tiled .tab-label {
+  color: var(--foreground);
+  opacity: 0.78;
+}
+.apple-tab-item.is-tiled.active .tab-label {
+  opacity: 1;
+  font-weight: 600;
+}
+
+/* ================================================================
    SPLASH SCREEN — animated SYNQUE intro overlay
    Shared by:
    - SplashScreen (src/components/splash-screen.tsx)
