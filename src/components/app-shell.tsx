@@ -60,7 +60,7 @@ const MANAGER_TABS: { id: string; label: string; icon: LucideIcon; accent: strin
   { id: "dashboard", label: "Home", icon: LayoutDashboard, accent: "#5856D6" },
   { id: "analytics", label: "Stats", icon: BarChart3, accent: "#007AFF" },
   { id: "reports", label: "Reports", icon: FileBarChart, accent: "#FF2D55" },
-  { id: "approvals", label: "Approvals", icon: CheckSquare, accent: "#FF9500" },
+  { id: "listening", label: "Insights", icon: Crosshair, accent: "#34C759" },
   { id: "settings", label: "More", icon: MoreHorizontal, accent: "#8E8E93" },
 ];
 
