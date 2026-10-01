@@ -44,6 +44,10 @@ const PLATFORMS_COLOR_MAP: Record<string, string> = {
 export async function GET(req: NextRequest) {
   // Range parameter: today | yesterday | week | month (default: week)
   const rangeParam = req.nextUrl.searchParams.get("range") ?? "week";
+  // Scope parameter: "team" (all team data — managers/admins only) or "me" (only my data).
+  // When scope=me, managers/admins see only their own posts/accounts (like a member).
+  // When scope=team (or omitted), managers/admins see all team data; members always see only their own.
+  const scopeParam = req.nextUrl.searchParams.get("scope") ?? "team";
   const now = Date.now();
   const day = 86400000;
   let rangeStart: number;
@@ -78,7 +82,10 @@ export async function GET(req: NextRequest) {
   const scope = getTenantScope(authUser ?? { userId: "", role: "member", customerId: null });
   // Members/editors/viewers see only their own accounts + posts; admins/managers see everything
   // Within their tenant. Super-admins (no customerId) see ALL tenants.
-  const isManagerView = userRole === "admin" || userRole === "manager";
+  // The scope=me parameter lets managers/admins temporarily view only their own data
+  // (the "My work" toggle in the header).
+  const isManagerRole = userRole === "admin" || userRole === "manager";
+  const isManagerView = isManagerRole && scopeParam !== "me";
   try {
     // For members: filter to only their own accounts + posts (within their tenant)
     // For managers/admins: fetch everything in their tenant (or all for super-admins)

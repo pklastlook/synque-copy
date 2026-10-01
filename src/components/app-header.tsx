@@ -203,7 +203,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex shrink-0 items-center gap-1.5 rounded-lg p-0.5 transition hover:bg-[#F5F5F7] dark:hover:bg-white/[0.06]">
-              <NameAvatar name={user?.name ?? "User"} color="blue" className="h-9 w-9 text-xs" ring />
+              <NameAvatar name={user?.name ?? "User"} color="blue" src={user?.avatar ?? undefined} className="h-9 w-9 text-xs" ring />
               <ChevronDown className="h-3 w-3 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
@@ -211,7 +211,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
             <DropdownMenuLabel>
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <NameAvatar name={user?.name ?? "User"} color="blue" className="h-8 w-8 text-xs" />
+                  <NameAvatar name={user?.name ?? "User"} color="blue" src={user?.avatar ?? undefined} className="h-8 w-8 text-xs" />
                   <div className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold truncate">{user?.name ?? "User"}</span>
                     <span className="block text-xs font-normal text-muted-foreground truncate">{user?.email ?? ""}</span>

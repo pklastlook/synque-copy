@@ -87,6 +87,13 @@ import {
   ZoomIn,
   ZoomOut,
   ScanLine,
+  // Report content-order drag-and-drop
+  GripVertical,
+  Table,
+  TrendingUp,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from "lucide-react";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PlatformBadge } from "@/components/glass/platform-badge";
@@ -431,7 +438,7 @@ export function SettingsView() {
 
 // ===== 1. Profile =====
 function ProfileSection() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { data, reload } = useApi<ApiUser[]>("/api/users");
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -499,29 +506,11 @@ function ProfileSection() {
         if (patchRes.ok) {
           const patchJson = await patchRes.json();
           setAvatarUrl(json.url);
-          // Keep the persisted auth store in sync so the sidebar/header
-          // avatar updates without a full page reload.
-          try {
-            const raw = localStorage.getItem("socialflow-auth");
-            if (raw) {
-              const parsed = JSON.parse(raw);
-              if (parsed?.state?.user) {
-                parsed.state.user = { ...parsed.state.user, avatar: json.url };
-                localStorage.setItem("socialflow-auth", JSON.stringify(parsed));
-              }
-            }
-          } catch {}
-          if (patchJson?.user && typeof window !== "undefined") {
-            try {
-              const raw = localStorage.getItem("socialflow-auth");
-              if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed?.state?.user) {
-                  parsed.state.user = { ...parsed.state.user, ...patchJson.user };
-                  localStorage.setItem("socialflow-auth", JSON.stringify(parsed));
-                }
-              }
-            } catch {}
+          // Update the auth store so the sidebar/header avatar updates
+          // instantly without a full page reload.
+          updateUser({ avatar: json.url });
+          if (patchJson?.user) {
+            updateUser(patchJson.user);
           }
           toast.success("Avatar updated");
           reload();
@@ -4825,6 +4814,14 @@ type Orientation = "portrait" | "landscape";
 type ReportFontSize = "small" | "medium" | "large";
 type HeaderLayout = "banner" | "centered" | "minimal";
 type TableStyle = "striped" | "plain" | "bordered";
+type FooterPosition = "left" | "center" | "right";
+
+/** The 4 reorderable body sections shown in the live preview and printout. */
+type ContentSectionId =
+  | "executiveSummary"
+  | "kpiStrip"
+  | "perAccountTable"
+  | "topPostsTable";
 
 interface ReportSettings {
   showCompanyLogo: boolean;
@@ -4848,6 +4845,34 @@ interface ReportSettings {
   tableStyle: TableStyle;
   showSentimentBadges: boolean;
   showSparklines: boolean;
+
+  // NEW: Per-section visibility toggles (so the user can hide individual
+  // body sections beyond just executive summary / KPI strip).
+  showPerAccountTable: boolean;
+  showTopPostsTable: boolean;
+
+  // NEW: Margin settings (in millimetres). Applied to the print root as
+  // `padding: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm`
+  // via a <style> override (the @media print block hardcodes 8mm — the more
+  // specific `.report-print-root.report-print-root` selector wins).
+  marginTop: number;
+  marginRight: number;
+  marginBottom: number;
+  marginLeft: number;
+
+  // NEW: Custom footer. `customFooterText` overrides `footerText` when set
+  // (non-empty); `footerPosition` controls alignment; `showFooterLine`
+  // toggles the separator rule above the footer; `footerFontSize` scales
+  // the footer text independently of `fontSize`.
+  customFooterText: string;
+  footerPosition: FooterPosition;
+  showFooterLine: boolean;
+  footerFontSize: ReportFontSize;
+
+  // NEW: Content ordering — array of ContentSectionId strings whose order
+  // determines the rendering sequence of body sections. Edited by the
+  // drag-and-drop "Content Order" panel below.
+  contentOrder: ContentSectionId[];
 }
 
 const DEFAULT_REPORT_SETTINGS: ReportSettings = {
@@ -4872,12 +4897,39 @@ const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   tableStyle: "striped",
   showSentimentBadges: true,
   showSparklines: false,
+  showPerAccountTable: true,
+  showTopPostsTable: true,
+  marginTop: 10,
+  marginRight: 10,
+  marginBottom: 10,
+  marginLeft: 10,
+  customFooterText: "",
+  footerPosition: "center",
+  showFooterLine: true,
+  footerFontSize: "small",
+  contentOrder: ["executiveSummary", "kpiStrip", "perAccountTable", "topPostsTable"],
 };
 
 function loadReportSettings(): ReportSettings {
   try {
     const raw = JSON.parse(localStorage.getItem(REPORT_SETTINGS_KEY) ?? "{}");
-    return { ...DEFAULT_REPORT_SETTINGS, ...raw };
+    const merged: ReportSettings = { ...DEFAULT_REPORT_SETTINGS, ...raw };
+    // Sanitize contentOrder: keep only valid section ids, drop duplicates,
+    // and append any missing sections (so future-added sections show up).
+    const allSections = DEFAULT_REPORT_SETTINGS.contentOrder;
+    const seen = new Set<ContentSectionId>();
+    const ordered: ContentSectionId[] = [];
+    for (const s of Array.isArray(merged.contentOrder) ? merged.contentOrder : []) {
+      if (typeof s === "string" && allSections.includes(s as ContentSectionId) && !seen.has(s as ContentSectionId)) {
+        seen.add(s as ContentSectionId);
+        ordered.push(s as ContentSectionId);
+      }
+    }
+    for (const s of allSections) {
+      if (!seen.has(s)) ordered.push(s);
+    }
+    merged.contentOrder = ordered;
+    return merged;
   } catch {
     return { ...DEFAULT_REPORT_SETTINGS };
   }
@@ -4894,16 +4946,66 @@ export function getReportSettings(): ReportSettings {
   return loadReportSettings();
 }
 
+/**
+ * The 4 reorderable body sections surfaced in the drag-and-drop "Content
+ * Order" panel. The icon + label render on the draggable card; the `id` is
+ * what's stored in `ReportSettings.contentOrder` (and read by both the
+ * live preview and the Reports PrintLayout to control render order).
+ *
+ * `visibilityKey` points at the matching boolean toggle in ReportSettings
+ * so the same card can show/hide the section as well as reorder it.
+ */
+const CONTENT_SECTIONS: {
+  id: ContentSectionId;
+  label: string;
+  desc: string;
+  icon: LucideIcon;
+  visibilityKey: "showExecutiveSummary" | "showKpiStrip" | "showPerAccountTable" | "showTopPostsTable";
+}[] = [
+  { id: "executiveSummary", label: "Executive Summary", desc: "One-paragraph narrative at the top.", icon: FileText, visibilityKey: "showExecutiveSummary" },
+  { id: "kpiStrip", label: "KPI Strip", desc: "Row of headline metrics (6 cells).", icon: BarChart3, visibilityKey: "showKpiStrip" },
+  { id: "perAccountTable", label: "Per-Account Summary", desc: "Main data table for the report.", icon: Table, visibilityKey: "showPerAccountTable" },
+  { id: "topPostsTable", label: "Top Engaged Posts", desc: "Top-10 / leaderboard subsection.", icon: TrendingUp, visibilityKey: "showTopPostsTable" },
+];
+
+/** mm → px helper used by the on-screen preview to mirror the print margins.
+ *  Uses 96dpi (CSS reference pixel) so 10mm ≈ 37.8px on screen. */
+function mmToPx(mm: number) {
+  return (mm * 96) / 25.4;
+}
+
 function ReportSettingsSection() {
   const [settings, setSettings] = React.useState<ReportSettings>(loadReportSettings);
   const [fullPreviewOpen, setFullPreviewOpen] = React.useState(false);
   const [zoom, setZoom] = React.useState(1);
   const [compactScale, setCompactScale] = React.useState(0.45);
   const compactWrapperRef = React.useRef<HTMLDivElement | null>(null);
+  // Drag-and-drop state for the "Content Order" panel.
+  // `draggedIndex` = index in contentOrder of the card currently being dragged
+  // (or null when no drag is in progress). `dragOverIndex` = the index the
+  // pointer is currently hovering, used to render a blue "drop here" border.
+  const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
 
   function update<K extends keyof ReportSettings>(key: K, value: ReportSettings[K]) {
     setSettings((prev) => ({ ...prev, [key]: value }));
   }
+
+  // Reorder contentOrder array — move the dragged card to a new position.
+  const handleDrop = React.useCallback((targetIndex: number) => {
+    setSettings((prev) => {
+      if (draggedIndex === null || draggedIndex === targetIndex) return prev;
+      const order = [...prev.contentOrder];
+      const [moved] = order.splice(draggedIndex, 1);
+      // After splice, the array is shorter by one; if target > dragged we
+      // need to subtract one to land at the right visual spot.
+      const insertAt = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      order.splice(insertAt, 0, moved);
+      return { ...prev, contentOrder: order };
+    });
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }, [draggedIndex]);
 
   const save = () => {
     try {
@@ -5017,6 +5119,10 @@ function ReportSettingsSection() {
       ? settings.paperSize === "a4" ? 794 : 816
       : settings.paperSize === "a4" ? 1123 : 1056;
 
+  // Convert the mm margin settings to px for the on-screen preview canvases
+  // (uses 96dpi — 1mm ≈ 3.78px — so what you see matches the print output).
+  const previewPaddingPx = `${mmToPx(settings.marginTop)}px ${mmToPx(settings.marginRight)}px ${mmToPx(settings.marginBottom)}px ${mmToPx(settings.marginLeft)}px`;
+
   return (
     <section className="glass rounded-xl crystal-in p-5">
       <SectionHeader
@@ -5118,6 +5224,8 @@ function ReportSettingsSection() {
             <div className="mt-2 space-y-0.5">
               <ToggleRow label="Show executive summary" desc="One-paragraph overview at the top of the report." checked={settings.showExecutiveSummary} onChange={(v) => update("showExecutiveSummary", v)} />
               <ToggleRow label="Show KPI strip" desc="Row of headline metrics below the header." checked={settings.showKpiStrip} onChange={(v) => update("showKpiStrip", v)} />
+              <ToggleRow label="Show per-account table" desc="Main per-account / data table for the report." checked={settings.showPerAccountTable} onChange={(v) => update("showPerAccountTable", v)} />
+              <ToggleRow label="Show top posts table" desc="Top engaged posts / leaderboard subsection (when available)." checked={settings.showTopPostsTable} onChange={(v) => update("showTopPostsTable", v)} />
               <ToggleRow label="Show sentiment badges" desc="Color-coded POS / NEU / NEG tags on table rows." checked={settings.showSentimentBadges} onChange={(v) => update("showSentimentBadges", v)} />
               <ToggleRow label="Show sparklines" desc="Tiny inline trend lines next to numeric KPIs." checked={settings.showSparklines} onChange={(v) => update("showSparklines", v)} />
             </div>
@@ -5137,6 +5245,86 @@ function ReportSettingsSection() {
 
           <Separator />
 
+          {/* Content order — drag-and-drop reordering of body sections */}
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Content order</div>
+                <div className="text-xs text-muted-foreground">Drag to reorder body sections. Toggle the eye to hide a section.</div>
+              </div>
+              <button
+                onClick={() => update("contentOrder", [...DEFAULT_REPORT_SETTINGS.contentOrder])}
+                className="shrink-0 rounded-lg border border-border bg-muted/40 px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted"
+                title="Reset section order to defaults"
+              >
+                Reset order
+              </button>
+            </div>
+            <ul className="mt-3 space-y-2">
+              {settings.contentOrder.map((sectionId, index) => {
+                const def = CONTENT_SECTIONS.find((s) => s.id === sectionId);
+                if (!def) return null;
+                const Icon = def.icon;
+                const visible = settings[def.visibilityKey] as boolean;
+                const isDragging = draggedIndex === index;
+                const isDropTarget = dragOverIndex === index && draggedIndex !== null && draggedIndex !== index;
+                return (
+                  <li
+                    key={def.id}
+                    draggable
+                    onDragStart={() => setDraggedIndex(index)}
+                    onDragEnd={() => { setDraggedIndex(null); setDragOverIndex(null); }}
+                    onDragOver={(e) => { e.preventDefault(); if (draggedIndex !== index) setDragOverIndex(index); }}
+                    onDrop={(e) => { e.preventDefault(); handleDrop(index); }}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-xl border bg-background px-3 py-2.5 transition",
+                      isDragging ? "opacity-50 " : "",
+                      isDropTarget
+                        ? "border-primary ring-2 ring-primary/30 "
+                        : "border-border hover:border-primary/40 ",
+                    )}
+                  >
+                    <span
+                      className="cursor-grab text-muted-foreground transition group-hover:text-foreground active:cursor-grabbing"
+                      title="Drag to reorder"
+                      aria-hidden
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </span>
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{def.label}</span>
+                        <span className="rounded-full bg-muted/60 px-1.5 py-0.5 text-[9px] font-mono tabular-nums text-muted-foreground">#{index + 1}</span>
+                      </div>
+                      <div className="truncate text-[11px] text-muted-foreground">{def.desc}</div>
+                    </div>
+                    <button
+                      onClick={() => update(def.visibilityKey, !visible)}
+                      className={cn(
+                        "grid h-8 w-8 place-items-center rounded-lg border transition",
+                        visible
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                          : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                      )}
+                      title={visible ? "Hide this section" : "Show this section"}
+                      aria-label={visible ? `Hide ${def.label}` : `Show ${def.label}`}
+                    >
+                      {visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              Sections render top-to-bottom in this order, both in the live preview on the right and in the printed report.
+            </p>
+          </div>
+
+          <Separator />
+
           {/* Footer & page setup */}
           <div>
             <div className="text-sm font-semibold">Footer &amp; page setup</div>
@@ -5144,15 +5332,100 @@ function ReportSettingsSection() {
               <ToggleRow label="Show footer" desc="Print a footer line at the bottom of every page." checked={settings.showFooter} onChange={(v) => update("showFooter", v)} />
               <ToggleRow label="Show page numbers" desc="Print 'Page X of Y' in the footer." checked={settings.showPageNumbers} onChange={(v) => update("showPageNumbers", v)} />
               <ToggleRow label="Show watermark" desc="Faint diagonal text behind every page." checked={settings.showWatermark} onChange={(v) => update("showWatermark", v)} />
+              <ToggleRow label="Show footer separator line" desc="Thin rule above the footer block." checked={settings.showFooterLine} onChange={(v) => update("showFooterLine", v)} />
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Footer text" compact>
+              <Field label="Footer text" hint="Default footer caption." compact>
                 <Input value={settings.footerText} onChange={(e) => update("footerText", e.target.value)} placeholder="Confidential — for internal use only" />
               </Field>
               <Field label="Watermark text" compact>
                 <Input value={settings.watermarkText} onChange={(e) => update("watermarkText", e.target.value)} placeholder="DRAFT" disabled={!settings.showWatermark} />
               </Field>
             </div>
+
+            {/* Custom footer override */}
+            <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+              <div className="mb-2 text-xs font-semibold">Custom footer</div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Custom footer text" hint="Overrides the default footer text when non-empty." compact>
+                  <Input
+                    value={settings.customFooterText}
+                    onChange={(e) => update("customFooterText", e.target.value)}
+                    placeholder="© Acme Inc. — All rights reserved"
+                  />
+                </Field>
+                <Field label="Footer position" compact>
+                  <Select value={settings.footerPosition} onValueChange={(v) => update("footerPosition", v as FooterPosition)}>
+                    <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              <div className="mt-3">
+                <Field label="Footer font size" compact>
+                  <Select value={settings.footerFontSize} onValueChange={(v) => update("footerFontSize", v as ReportFontSize)}>
+                    <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="small">Small</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="large">Large</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </div>
+
+            {/* Margins — applied to the print root as padding. */}
+            <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="text-xs font-semibold">Page margins (mm)</div>
+                <button
+                  onClick={() => {
+                    update("marginTop", DEFAULT_REPORT_SETTINGS.marginTop);
+                    update("marginRight", DEFAULT_REPORT_SETTINGS.marginRight);
+                    update("marginBottom", DEFAULT_REPORT_SETTINGS.marginBottom);
+                    update("marginLeft", DEFAULT_REPORT_SETTINGS.marginLeft);
+                  }}
+                  className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition hover:bg-muted"
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {([
+                  { key: "marginTop" as const, label: "Top" },
+                  { key: "marginRight" as const, label: "Right" },
+                  { key: "marginBottom" as const, label: "Bottom" },
+                  { key: "marginLeft" as const, label: "Left" },
+                ]).map((m) => (
+                  <Field key={m.key} label={m.label} compact>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={50}
+                        step={1}
+                        value={settings[m.key]}
+                        onChange={(e) => {
+                          const n = Math.max(0, Math.min(50, Number(e.target.value) || 0));
+                          update(m.key, n);
+                        }}
+                        className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm tabular-nums"
+                      />
+                      <span className="text-[10px] text-muted-foreground">mm</span>
+                    </div>
+                  </Field>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Applied to the print sheet as padding. Default is 10&nbsp;mm on every side.
+              </p>
+            </div>
+
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <Field label="Paper size" compact>
                 <Select value={settings.paperSize} onValueChange={(v) => update("paperSize", v as PaperSize)}>
@@ -5231,6 +5504,7 @@ function ReportSettingsSection() {
                 transform: `scale(${compactScale})`,
                 width: nativeW,
                 minHeight: nativeH,
+                padding: previewPaddingPx,
               }}
             >
               <ReportPreviewCanvas settings={settings} company={company} />
@@ -5309,6 +5583,7 @@ function ReportSettingsSection() {
                 transformOrigin: "top center",
                 width: nativeW,
                 minHeight: nativeH,
+                padding: previewPaddingPx,
               }}
             >
               <ReportPreviewCanvas settings={settings} company={company} />
@@ -5321,9 +5596,16 @@ function ReportSettingsSection() {
           HIDDEN PRINT ROOT — the actual element window.print() emits.
           Always mounted, hidden on screen, shown only in print mode.
           Mirrors the live settings so the printed output matches the
-          on-screen preview exactly.
+          on-screen preview exactly. The inline <style> overrides the
+          hardcoded `padding: 8mm !important;` from globals.css's
+          @media print block using a more-specific double-class selector.
          ============================================================ */}
       <div className="report-print-root hidden print:block">
+        {/* Margin override — `.report-print-root.report-print-root` has
+            specificity (0,2,0) which beats `.report-print-root` (0,1,0)
+            from globals.css; both carry !important, so the more specific
+            one wins and the user's margins apply. */}
+        <style>{`.report-print-root.report-print-root { padding: ${settings.marginTop}mm ${settings.marginRight}mm ${settings.marginBottom}mm ${settings.marginLeft}mm !important; }`}</style>
         <ReportPreviewCanvas settings={settings} company={company} />
       </div>
     </section>
@@ -5438,6 +5720,133 @@ function ReportPreviewCanvas({
   const fontScale =
     settings.fontSize === "large" ? 1.12 : settings.fontSize === "small" ? 0.88 : 1;
 
+  // Footer font-size scaling — independent of body `fontSize`.
+  const footerFontScale =
+    settings.footerFontSize === "large" ? 1.25
+      : settings.footerFontSize === "medium" ? 1.05
+      : 0.85;
+  const footerAlign =
+    settings.footerPosition === "left" ? "flex-start"
+      : settings.footerPosition === "right" ? "flex-end"
+      : "center";
+  // `customFooterText` overrides the default `footerText` when non-empty.
+  const effectiveFooterText =
+    settings.customFooterText.trim() !== "" ? settings.customFooterText : settings.footerText;
+
+  // ---- Body sections as discrete nodes so we can reorder them. ----
+  const executiveSummaryNode = (
+    <>
+      <h2 className="report-section-title">Executive Summary</h2>
+      <p className="report-text">
+        Across all accounts, impressions grew 8.4% week-over-week driven by TikTok (+12.1%). Engagement rate held
+        at 4.2% with {PREVIEW_TABLE_ROWS.length} active accounts publishing 186 posts. Top performer
+        <strong> @synque</strong> on TikTok reached 312K unique users.
+      </p>
+    </>
+  );
+
+  const kpiStripNode = (
+    <div className="report-metric-row">
+      {PREVIEW_KPI_ROWS.map((k) => (
+        <div key={k.label} className="report-metric">
+          <div className="report-metric-value">{k.value}</div>
+          <div className="report-metric-label">{k.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const perAccountTableNode = (
+    <>
+      <h2 className="report-section-title">Per-Account Summary</h2>
+      <table className="report-table">
+        <thead>
+          <tr>
+            <th>Account</th>
+            <th>Platform</th>
+            <th className="text-right">Followers</th>
+            <th className="text-right">Impressions</th>
+            <th className="text-right">Reach</th>
+            <th className="text-right">Eng.</th>
+            {settings.showSentimentBadges && <th className="text-center">Sentiment</th>}
+            {settings.showSparklines && <th className="text-center">7-day</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {PREVIEW_TABLE_ROWS.map((row, i) => (
+            <tr
+              key={row.account + row.platform}
+              style={{
+                background: settings.tableStyle === "striped" && i % 2 === 1 ? "#f9f9fb" : undefined,
+                borderBottom: settings.tableStyle === "bordered" ? "1px solid #d4d4d8" : undefined,
+              }}
+            >
+              <td className="font-medium">{row.account}</td>
+              <td className="capitalize">{row.platform}</td>
+              <td className="text-right tabular-nums">{row.followers}</td>
+              <td className="text-right tabular-nums">{row.impressions}</td>
+              <td className="text-right tabular-nums">{row.reach}</td>
+              <td className="text-right tabular-nums">{row.engagement}</td>
+              {settings.showSentimentBadges && (
+                <td className="text-center">
+                  <span className={`sentiment-pill ${sentimentClass(row.sentiment)}`}>
+                    {sentimentLabel(row.sentiment)}
+                  </span>
+                </td>
+              )}
+              {settings.showSparklines && (
+                <td className="text-center">
+                  <ReportSparkline points={row.trend} color={accent} />
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+
+  const topPostsTableNode = (
+    <>
+      <h2 className="report-section-title">Top Engaged Posts</h2>
+      <table className="report-table">
+        <thead>
+          <tr>
+            <th>Post Title</th>
+            <th>Author</th>
+            <th>Platform</th>
+            <th className="text-right">Engagement</th>
+          </tr>
+        </thead>
+        <tbody>
+          {PREVIEW_TOP_POSTS.map((p, i) => (
+            <tr
+              key={p.title}
+              style={{
+                background: settings.tableStyle === "striped" && i % 2 === 1 ? "#f9f9fb" : undefined,
+                borderBottom: settings.tableStyle === "bordered" ? "1px solid #d4d4d8" : undefined,
+              }}
+            >
+              <td className="font-medium" style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</td>
+              <td>{p.author}</td>
+              <td className="capitalize">{p.platform}</td>
+              <td className="text-right tabular-nums">{p.engagement}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+
+  // Map each contentOrder id to its rendered node — gated by the matching
+  // show* toggle. Hidden sections contribute `null` and are skipped.
+  const sectionMap: Record<ContentSectionId, React.ReactNode> = {
+    executiveSummary: settings.showExecutiveSummary ? executiveSummaryNode : null,
+    kpiStrip: settings.showKpiStrip ? kpiStripNode : null,
+    perAccountTable: settings.showPerAccountTable ? perAccountTableNode : null,
+    topPostsTable: settings.showTopPostsTable ? topPostsTableNode : null,
+  };
+
   return (
     <div
       className="report-preview-root"
@@ -5521,109 +5930,28 @@ function ReportPreviewCanvas({
         </div>
         <div className="report-title-accent" style={{ background: accent }} />
 
-        {/* === EXECUTIVE SUMMARY === */}
-        {settings.showExecutiveSummary && (
-          <>
-            <h2 className="report-section-title">Executive Summary</h2>
-            <p className="report-text">
-              Across all accounts, impressions grew 8.4% week-over-week driven by TikTok (+12.1%). Engagement rate held
-              at 4.2% with {PREVIEW_TABLE_ROWS.length} active accounts publishing 186 posts. Top performer
-              <strong> @synque</strong> on TikTok reached 312K unique users.
-            </p>
-          </>
-        )}
+        {/* === BODY SECTIONS (rendered in contentOrder) === */}
+        {settings.contentOrder.map((sectionId) => (
+          <React.Fragment key={sectionId}>
+            {sectionMap[sectionId]}
+          </React.Fragment>
+        ))}
 
-        {/* === KPI STRIP === */}
-        {settings.showKpiStrip && (
-          <div className="report-metric-row">
-            {PREVIEW_KPI_ROWS.map((k) => (
-              <div key={k.label} className="report-metric">
-                <div className="report-metric-value">{k.value}</div>
-                <div className="report-metric-label">{k.label}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* === PER-ACCOUNT SUMMARY TABLE === */}
-        <h2 className="report-section-title">Per-Account Summary</h2>
-        <table className="report-table">
-          <thead>
-            <tr>
-              <th>Account</th>
-              <th>Platform</th>
-              <th className="text-right">Followers</th>
-              <th className="text-right">Impressions</th>
-              <th className="text-right">Reach</th>
-              <th className="text-right">Eng.</th>
-              {settings.showSentimentBadges && <th className="text-center">Sentiment</th>}
-              {settings.showSparklines && <th className="text-center">7-day</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {PREVIEW_TABLE_ROWS.map((row, i) => (
-              <tr
-                key={row.account + row.platform}
-                style={{
-                  background: settings.tableStyle === "striped" && i % 2 === 1 ? "#f9f9fb" : undefined,
-                  borderBottom: settings.tableStyle === "bordered" ? "1px solid #d4d4d8" : undefined,
-                }}
-              >
-                <td className="font-medium">{row.account}</td>
-                <td className="capitalize">{row.platform}</td>
-                <td className="text-right tabular-nums">{row.followers}</td>
-                <td className="text-right tabular-nums">{row.impressions}</td>
-                <td className="text-right tabular-nums">{row.reach}</td>
-                <td className="text-right tabular-nums">{row.engagement}</td>
-                {settings.showSentimentBadges && (
-                  <td className="text-center">
-                    <span className={`sentiment-pill ${sentimentClass(row.sentiment)}`}>
-                      {sentimentLabel(row.sentiment)}
-                    </span>
-                  </td>
-                )}
-                {settings.showSparklines && (
-                  <td className="text-center">
-                    <ReportSparkline points={row.trend} color={accent} />
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* === TOP ENGAGED POSTS === */}
-        <h2 className="report-section-title">Top Engaged Posts</h2>
-        <table className="report-table">
-          <thead>
-            <tr>
-              <th>Post Title</th>
-              <th>Author</th>
-              <th>Platform</th>
-              <th className="text-right">Engagement</th>
-            </tr>
-          </thead>
-          <tbody>
-            {PREVIEW_TOP_POSTS.map((p, i) => (
-              <tr
-                key={p.title}
-                style={{
-                  background: settings.tableStyle === "striped" && i % 2 === 1 ? "#f9f9fb" : undefined,
-                  borderBottom: settings.tableStyle === "bordered" ? "1px solid #d4d4d8" : undefined,
-                }}
-              >
-                <td className="font-medium" style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</td>
-                <td>{p.author}</td>
-                <td className="capitalize">{p.platform}</td>
-                <td className="text-right tabular-nums">{p.engagement}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* === FOOTER === */}
+        {/* === FOOTER ===
+            Renders at the bottom of the report. `footerPosition` controls
+            alignment; `showFooterLine` toggles the separator rule; the
+            custom-footer-text override is applied above. The footer block
+            uses the user's `footerFontSize` setting via an inline scale. */}
         {settings.showFooter && (
-          <div className="report-footer-company">
+          <div
+            className="report-footer-company"
+            style={{
+              borderTopWidth: settings.showFooterLine ? undefined : 0,
+              paddingTop: settings.showFooterLine ? undefined : 4,
+              fontSize: `calc(7.5px * ${footerFontScale})`,
+              justifyContent: footerAlign,
+            }}
+          >
             {showLogo && (
               company.logo ? (
                 <img src={company.logo} alt={company.name} className="report-footer-logo" />
@@ -5638,11 +5966,11 @@ function ReportPreviewCanvas({
                 <div className="report-footer-company-contact">{contactLine}</div>
               )}
             </div>
-            <div className="report-footer-meta">
+            <div className="report-footer-meta" style={{ textAlign: settings.footerPosition === "left" ? "left" : settings.footerPosition === "center" ? "center" : "right" }}>
               <div>Generated on {now}</div>
               <div>{reportTitle} · {dateRangeLabel}</div>
-              {settings.footerText && (
-                <div className="report-footer-confidential">{settings.footerText}</div>
+              {effectiveFooterText && (
+                <div className="report-footer-confidential">{effectiveFooterText}</div>
               )}
               {settings.showPageNumbers && <div>Page 1 of 1</div>}
             </div>

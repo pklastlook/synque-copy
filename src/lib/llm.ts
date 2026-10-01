@@ -137,7 +137,14 @@ class GeminiClient implements LLMClient {
 
   constructor(creds: Record<string, string>) {
     this.apiKey = creds.apiKey;
-    this.model = creds.model || "gemini-1.5-flash";
+    // Default to gemini-2.5-flash (latest available as of Sep 2025).
+    // Auto-upgrade deprecated models: gemini-1.5-* and gemini-2.0-* are no longer available.
+    const stored = creds.model || "gemini-2.5-flash";
+    if (stored.includes("1.5") || stored.includes("2.0-flash")) {
+      this.model = "gemini-2.5-flash";
+    } else {
+      this.model = stored;
+    }
   }
 
   async chat(messages: LLMMessage[]): Promise<string> {
@@ -215,7 +222,18 @@ export async function getLLMClient(): Promise<LLMClient> {
   const bucket = Math.floor(Date.now() / 60000);
   if (_cachedClient && _cachedKey === bucket.toString()) return _cachedClient;
 
-  // 1. Try Claude (Anthropic) from DB — highest priority
+  // 0. Try ZAI SDK first — most reliable (works in all regions, no geo-blocks).
+  //    The .z-ai-config file is present in dev; ZAI_* env vars are set on Vercel.
+  try {
+    const { createZaiClient } = await import("./zai");
+    const zai = await createZaiClient();
+    _cachedClient = new ZAIClient(zai);
+    _cachedKey = bucket.toString();
+    console.log("[llm] Using ZAI provider (primary — region-safe)");
+    return _cachedClient;
+  } catch {}
+
+  // 1. Try Claude (Anthropic) from DB
   try {
     const row = await db.integration.findUnique({ where: { type: "claude" } });
     if (row?.enabled && row.credentials) {
@@ -242,7 +260,7 @@ export async function getLLMClient(): Promise<LLMClient> {
     }
   } catch {}
 
-  // 3. Try Gemini from DB
+  // 3. Try Gemini from DB (may fail due to geo-restrictions)
   try {
     const row = await db.integration.findUnique({ where: { type: "gemini" } });
     if (row?.enabled && row.credentials) {

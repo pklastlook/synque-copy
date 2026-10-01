@@ -34,6 +34,10 @@ interface AuthState {
   complete2faLogin: (code: string) => Promise<boolean>;
   logout: () => Promise<void>;
   fetchUser: () => Promise<void>;
+  /** Patch the current user object in the store + persisted localStorage.
+   *  Used by Settings → Profile after avatar upload or profile edits so
+   *  the sidebar/header avatar updates without a full page reload. */
+  updateUser: (patch: Partial<AuthUser>) => void;
 }
 
 export const useAuth = create<AuthState>()(
@@ -213,6 +217,12 @@ export const useAuth = create<AuthState>()(
         } catch {
           // keep existing state on network error
         }
+      },
+
+      updateUser: (patch) => {
+        const current = get().user;
+        if (!current) return;
+        set({ user: { ...current, ...patch } });
       },
     }),
     {

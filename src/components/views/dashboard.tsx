@@ -196,7 +196,9 @@ const QUICK_ACTIONS: { label: string; icon: LucideIcon; view: ViewId; accent: st
 
 export function DashboardView() {
   const [range, setRange] = React.useState<"today" | "yesterday" | "week" | "month">("week");
-  const { data, loading } = useApi<DashboardData>(`/api/dashboard?range=${range}`);
+  const { adminMode } = useNav();
+  const scope = adminMode ? "team" : "me";
+  const { data, loading } = useApi<DashboardData>(`/api/dashboard?range=${range}&scope=${scope}`);
   const { setView, openComposerWithPost } = useNav();
   const { user } = useAuth();
   const firstName = user?.name?.split(" ")[0] || "there";
