@@ -2813,14 +2813,12 @@ function FooterCol({
           }}
         />
       </button>
-      {/* Links — always visible on desktop (sm:block), collapsible on mobile */}
+      {/* Links — use 'footer-links' class which is styled in globals.css:
+          - Mobile (max-width:639px): collapsible via max-height/opacity
+          - Desktop (sm: and up): always visible (max-height:none, opacity:1) */}
       <ul
-        className="mt-4 space-y-2.5 overflow-hidden transition-all duration-300 sm:max-h-none sm:opacity-100"
-        style={{
-          maxHeight: open ? "300px" : "0px",
-          opacity: open ? 1 : 0,
-          marginTop: open ? "1rem" : "0px",
-        }}
+        className="footer-links mt-4 space-y-2.5"
+        data-open={open ? "1" : "0"}
       >
         {links.map((l) => {
           const [text, href] = l.includes("|") ? l.split("|") : [l, "#"];

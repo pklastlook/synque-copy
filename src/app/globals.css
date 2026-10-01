@@ -919,6 +919,16 @@
   .mobile-only { display: none !important; }
 }
 
+/* === Footer collapsible links — mobile only, always visible on desktop === */
+.footer-links { transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease; }
+@media (max-width: 639px) {
+  .footer-links { max-height: 0; opacity: 0; margin-top: 0 !important; overflow: hidden; }
+  .footer-links[data-open="1"] { max-height: 300px; opacity: 1; margin-top: 1rem !important; }
+}
+@media (min-width: 640px) {
+  .footer-links { max-height: none !important; opacity: 1 !important; margin-top: 1rem !important; overflow: visible !important; }
+}
+
 /* === Smooth scrolling === */
 html { scroll-behavior: smooth; }
 .scroll-smooth {
