@@ -8758,3 +8758,156 @@ npx tsx scripts/seed-demo-data.ts
 # Force re-seed (wipes demo-owned data first, then re-creates)
 npx tsx scripts/seed-demo-data.ts --force
 ```
+
+---
+
+## Task ID: wipe-reseed-pakistani — Wipe + reseed 9 Pakistani team members
+
+**Task**: Create a comprehensive TypeScript script that wipes ALL existing data from the Neon PostgreSQL database and recreates it with 9 Pakistani team members (Cloudinary profile photos already uploaded). The real user `it.ashraf@outlook.com` must be preserved across the wipe. No existing code files may be modified — only `scripts/wipe-and-reseed.ts` is created.
+
+### File delivered
+
+- `/home/z/my-project/scripts/wipe-and-reseed.ts` — destructive wipe + fresh re-seed script.
+
+### What was built
+
+A single-file script (`npx tsx scripts/wipe-and-reseed.ts`) that follows the same Neon-adapter pattern as `scripts/seed-demo-data.ts` but is **destructive and idempotent by design** (always wipes first, then re-creates — no `--force` flag needed).
+
+#### Connection pattern
+- Manually loads `.env` + `.env.local` (always overwrites shell env, mirroring seed-demo-data).
+- Strips `channel_binding=require` from the connection string for Neon compatibility.
+- Uses `@prisma/adapter-neon` `PrismaNeon` adapter wrapped around `PrismaClient` (same as `src/lib/db.ts`).
+- Prisma client imported from `../generated/client` (relative to `scripts/`).
+
+#### STEP 1 — Wipe everything (preserve `it.ashraf@outlook.com`)
+Deletes ALL rows from every module, in foreign-key-safe order:
+1. Child tables depending on Accounts/Posts/Users: `Comment`, `PostVariant`, `Post`, `AnalyticsDaily`, `Activity`, `AccountHealth`, `AccountProtection`, `Account`
+2. Workflow tables: `Task`, `Approval`, `Campaign`, `HashtagGroup`
+3. Listening module: `Mention` → `ListeningQuery`, `CompetitorSnapshot` → `Competitor`, `Influencer`
+4. Auth tables: `Session`, `PasswordResetToken`, `EmailVerificationToken`
+5. `User.deleteMany({ where: { email: { not: "it.ashraf@outlook.com" } } })` — preserves the real user (password, role, customerId all stay intact).
+
+`MediaAsset` rows are intentionally left untouched (optional per task).
+
+#### STEP 2 — 9 Pakistani team members
+Creates all 9 members with `bcrypt.hash("demo123456", 12)`:
+- **Rabia Khan** (`rabia@synque.app`) — admin / Founder & CEO / Leadership — `customerId=null` (super-admin)
+- **Fatima Ahmed** (`fatima@synque.app`) — manager / Social Media Manager / Marketing
+- **Uneeza Tariq** (`uneeza@synque.app`) — manager / Content Strategist / Content
+- **Bilal Raza** (`bilal@synque.app`) — editor / Content Creator / Content
+- **Asad Mahmood** (`asad@synque.app`) — editor / Video Editor / Creative
+- **Hirrat Sheikh** (`hirrat@synque.app`) — editor / Graphic Designer / Creative
+- **Muzahir Ali** (`muzahir@synque.app`) — viewer / Analytics Specialist / Analytics
+- **Khubaib Khan** (`khubaib@synque.app`) — viewer / Marketing Intern / Marketing
+- **Taaha Siddiqui** (`taaha@synque.app`) — viewer / Community Manager / Marketing
+
+Each member has the supplied Cloudinary avatar URL, `timezone: "Asia/Karachi"`, `language: "en-PK"`, gender set per the spec, and a unique `color` seed for the avatar gradient fallback.
+
+#### STEP 3 — 9 social accounts (7 healthy + 2 risky)
+- Instagram `@synque.official` (Rabia, 24K) — healthy
+- Instagram `@synque.studio` (Fatima, 8K) — **risky**
+- TikTok `@synque` (Bilal, 15K) — healthy
+- LinkedIn `synque` (Uneeza, 5K) — healthy
+- X `@synquehq` (Asad, 7K) — healthy
+- X `@synque_deals` (Khubaib, 3K) — **risky**
+- Facebook `Synque` (Hirrat, 12K) — healthy
+- YouTube `@synque` (Muzahir, 9K) — healthy
+- Threads `@synque` (Taaha, 4K) — healthy
+
+Each account gets:
+- **AccountHealth**: healthy accounts → `riskScore` 5-20, `riskLevel="safe"`, `status="healthy"`, low negative ratios; risky accounts → `riskScore` 72-92, `riskLevel` elevated/high/critical, `status` warning/restricted/suspended, high negative-comment ratio, `riskReasons` JSON with `["spam_flagged","high_report_rate","rapid_follow_unfollow","duplicate_content"]`.
+- **AccountProtection**: default safe-cadence guards (4/day, 2/hour, 30-min spacing, banned hashtags list, etc.).
+
+#### STEP 4 + 5 — 14 posts + 17 PostVariants
+Posts (authored across all 9 team members):
+- 4 published (Rabia, Fatima, Bilal, Uneeza)
+- 3 scheduled (Asad, Hirrat, Taaha) — `scheduledAt` 2-5 days in the future
+- 5 draft (Bilal, Khubaib, Muzahir, Hirrat, Uneeza)
+- 2 failed (Asad, Khubaib) — `scheduledAt` in the past, `status="failed"`
+
+PostVariants: 2-3 platform-specific variants per published/scheduled post (e.g., IG/TikTok/FB for Summer Launch; IG/LinkedIn/Threads for Founder's Note). Published variants have realistic engagement metrics; scheduled variants have all-zero metrics.
+
+#### STEP 6 — 18 Comments
+6 positive + 6 neutral + 6 negative, spread across accounts. Negative comments concentrate on the 2 risky accounts (`ig:studio`, `x:deals`) plus a couple of skeptical comments on healthy accounts. 9 comments are replied (`replied=true`, `replyText` populated, `repliedAt` set); assignees span Fatima, Bilal, Taaha, Rabia, Uneeza, Hirrat, Khubaib.
+
+#### STEP 7 — AnalyticsDaily (30 days × 9 accounts = 270 rows)
+Per-account 30-day trend anchored to `Account.followers`. Risky accounts have declining follower trend (×-0.5). Uses `createMany` in batches of 100 with `skipDuplicates: true`.
+
+#### STEP 8 — 12 Activities
+Activity feed entries spread across all 9 members: `post_published`, `comment_replied`, `account_connected`, `ai_generated`, `post_scheduled`, `team_joined`. Each links to the correct userId and stores JSON `meta`.
+
+#### STEP 9 — 3 Campaigns
+- **Summer Collection Launch** (active, awareness, $25K, Rabia owns) — running now
+- **Spring Campaign** (completed, conversion, $18K, Fatima owns) — ended 14 days ago
+- **Holiday Special** (draft, engagement, $35K, Uneeza owns) — starts in 45 days
+
+#### STEP 10 — 10 Tasks
+3 todo + 2 in_progress + 2 review + 2 done + 1 blocked. Spread across all 9 team members (creator + assignee). 2 overdue (due in the past, status todo/blocked).
+
+#### STEP 11 — 5 Approvals
+2 pending + 1 approved + 1 rejected + 1 changes_requested. Each approval links to a real post (via `postId`) and an author + approver team member.
+
+#### STEP 12 — 5 Hashtag Groups
+Summer Campaign, Product Launch, Brand General (Synque-flavored), Pakistani Creators, Behind the Scenes. Mix of platform scopes.
+
+#### STEP 13 — 4 Competitors + 16 snapshots
+Hue & Co. (IG), Sustainable Threads (IG), Vertex Apparel (X), Northwind Studio (TikTok). Each competitor gets 4 weekly snapshots (past 28 days) — followers trend backward, engagement stays flat, posts scale with the snapshot interval.
+
+#### STEP 14 — 4 Listening Queries + 7 Mentions
+Queries: Synque Brand (brand), Competitor Mentions (competitor), Sustainable Fashion Industry (keyword), Pakistani Creator Economy (hashtag, paused). 7 mentions spread across IG, X, Reddit, web, news — positive/neutral/negative sentiments.
+
+#### STEP 15 — 6 Influencers
+Mix of Instagram, TikTok, YouTube, LinkedIn, X creators. Mix of active/paused/completed/draft statuses. Includes 2 Pakistani-creator influencers (Ayesha Khan, Hamza Sheikh) to match the brand's local focus.
+
+### Verification
+
+- **Script run** (`npx tsx scripts/wipe-and-reseed.ts`): Completed successfully on first run. All 15 steps reported `✓` with expected counts.
+- **Independent verification** (via temporary `scripts/verify-reseed.ts`, then deleted to comply with task scope — "ONLY create scripts/wipe-and-reseed.ts"):
+  - **Preserved real user**: `it.ashraf@outlook.com` still exists with `password` (bcrypt hash, length=60), `role="admin"`, `customerId=null` — untouched by the wipe.
+  - **9 Pakistani members**: all created with `password=✓`, `avatar=✓` (Cloudinary URL), `customerId=null` (Rabia as super-admin, all others also null for now).
+  - **Risky accounts**: `ig:studio` and `x:deals` have elevated/critical risk levels + warning/restricted/suspended statuses; healthy accounts have `safe`/`healthy`.
+  - Final DB counts match expectations (see summary below).
+
+### Final DB counts
+
+```
+users                  10   (9 Pakistani + 1 preserved it.ashraf@outlook.com)
+accounts                9
+accountHealth           9
+accountProtection       9
+posts                  14
+postVariants           17
+comments               18
+analyticsDaily        270   (9 accounts × 30 days)
+activities             12
+campaigns               3
+tasks                  10
+approvals               5
+hashtagGroups           5
+competitors             4
+competitorSnapshots    16   (4 per competitor × 4 competitors)
+listeningQueries        4
+mentions                7
+influencers             6
+```
+
+### Demo login credentials
+
+- Email: `rabia@synque.app` · Password: `demo123456` (admin — super-admin, `customerId=null`)
+- Email: `fatima@synque.app` · Password: `demo123456` (manager)
+- Email: `uneeza@synque.app` · Password: `demo123456` (manager)
+- Email: `bilal@synque.app` · Password: `demo123456` (editor)
+- Email: `asad@synque.app` · Password: `demo123456` (editor)
+- Email: `hirrat@synque.app` · Password: `demo123456` (editor)
+- Email: `muzahir@synque.app` · Password: `demo123456` (viewer)
+- Email: `khubaib@synque.app` · Password: `demo123456` (viewer)
+- Email: `taaha@synque.app` · Password: `demo123456` (viewer)
+- Real user `it.ashraf@outlook.com` is preserved with its original password (untouched).
+
+### Running the script
+
+```bash
+# Destructive — wipes ALL data (preserves it.ashraf@outlook.com), then re-seeds.
+npx tsx scripts/wipe-and-reseed.ts
+```
+
