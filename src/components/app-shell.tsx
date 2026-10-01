@@ -45,8 +45,18 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// === Mobile bottom tab bar items — iOS 18 SF Pro style with accent colors ===
-const MOBILE_TABS: { id: string; label: string; icon: LucideIcon; accent: string }[] = [
+// === Mobile bottom tab bar items — role-based ===
+// Editors: Home, Inbox, Compose, Calendar, More
+// Managers/Admins: Home, Inbox, Compose, Stats, More
+const EDITOR_TABS: { id: string; label: string; icon: LucideIcon; accent: string }[] = [
+  { id: "dashboard", label: "Home", icon: LayoutDashboard, accent: "#5856D6" },
+  { id: "inbox", label: "Inbox", icon: InboxIcon, accent: "#34C759" },
+  { id: "composer", label: "Compose", icon: PenSquare, accent: "#FF9500" },
+  { id: "calendar", label: "Calendar", icon: Calendar, accent: "#FF3B30" },
+  { id: "settings", label: "More", icon: MoreHorizontal, accent: "#8E8E93" },
+];
+
+const MANAGER_TABS: { id: string; label: string; icon: LucideIcon; accent: string }[] = [
   { id: "dashboard", label: "Home", icon: LayoutDashboard, accent: "#5856D6" },
   { id: "inbox", label: "Inbox", icon: InboxIcon, accent: "#34C759" },
   { id: "composer", label: "Compose", icon: PenSquare, accent: "#FF9500" },
@@ -186,7 +196,7 @@ export function AppShell() {
             )}
             aria-label="Primary"
           >
-            {MOBILE_TABS.map((tab) => {
+            {(user && (user.role === "admin" || user.role === "manager") ? MANAGER_TABS : EDITOR_TABS).map((tab) => {
               const Icon = tab.icon;
               const isActive = view === tab.id || (tab.id === "settings" && showMoreSheet);
               const isCompose = tab.id === "composer";
