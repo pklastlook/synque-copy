@@ -48,22 +48,19 @@ export async function GET(req: NextRequest) {
     });
     const data = await res.json();
 
-    // Sync status back to DB (so other views can show "connected")
-    if (data.connected && conn.status !== "connected") {
+    // Always sync status back to DB (even if unchanged) — this fixes stale
+    // "connected" records when the Railway service has disconnected but the
+    // DB still shows connected from a previous session.
+    const newStatus = data.connected ? "connected" : "disconnected";
+    if (conn.status !== newStatus || (data.connected && conn.phone !== data.phone)) {
       await db.whatsAppConnection.update({
         where: { ownerId },
         data: {
-          status: "connected",
+          status: newStatus,
           phone: data.phone ?? null,
-          lastConnectedAt: new Date(),
-        },
-      });
-    } else if (!data.connected && conn.status === "connected") {
-      await db.whatsAppConnection.update({
-        where: { ownerId },
-        data: {
-          status: "disconnected",
-          lastDisconnectedAt: new Date(),
+          ...(data.connected
+            ? { lastConnectedAt: new Date() }
+            : { lastDisconnectedAt: new Date() }),
         },
       });
     }
@@ -72,16 +69,22 @@ export async function GET(req: NextRequest) {
       connected: data.connected ?? false,
       qr: data.qr ?? null,
       phone: data.phone ?? null,
-      dbStatus: data.connected ? "connected" : "disconnected",
+      dbStatus: newStatus,
     });
   } catch {
-    // Mini-service not running
+    // Mini-service not running — force disconnect in DB
+    if (conn.status === "connected") {
+      await db.whatsAppConnection.update({
+        where: { ownerId },
+        data: { status: "disconnected", lastDisconnectedAt: new Date(), phone: null },
+      });
+    }
     return NextResponse.json({
       connected: false,
       qr: null,
       phone: null,
       serviceOffline: true,
-      dbStatus: conn.status,
+      dbStatus: "disconnected",
     });
   }
 }
