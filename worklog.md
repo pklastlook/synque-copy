@@ -9201,3 +9201,45 @@ Stage Summary:
 - Every module page tab row (Reports, Analytics, Team Performance, any view using shadcn Tabs) is now full-width + horizontally scrollable on mobile via global CSS — no cutoff, no overflow, consistent alignment.
 - Reports sub-template row + toolbar stack vertically on mobile for better readability.
 - Files modified: `src/app/globals.css`, `src/components/app-shell.tsx`, `src/components/app-sidebar.tsx`, `src/components/views/reports.tsx`, `src/components/views/analytics.tsx`.
+
+---
+Task ID: unify-app-icons-everywhere
+Agent: main (Z.ai Code)
+Task: Site/app icon not updated on all places (favicon, apple-touch, breadcrumbs, manifest PNGs). Replace new SYNQUE icon everywhere — don't skip any. Push to GitHub.
+
+Work Log:
+- Audited all icon assets: `public/icon.svg` (already new SYNQUE design), `public/logo.svg` (OLD template "Z" logo — orphan), all PNGs (`icon-512.png`, `icon-192.png`, `apple-touch-icon.png`, `favicon-32.png`, `favicon-16.png`, `src/app/favicon.ico`) — VLM confirmed these still contained the OLD "Z" logo (purple/yellow gradient on dark navy).
+- In-app logos (sidebar, landing, login, activate, splash, pwa-splash) all use the `Logo`/`LogoWordmark` React component (SYNQUE text wordmark) — already correct, no change needed.
+- Breadcrumb component (`src/components/ui/breadcrumb.tsx`) is a generic shadcn primitive with no logo — no change needed.
+- Improved `public/icon.svg` design: removed the tiny unreadable slogan text, enlarged the SYNQUE wordmark from font-size 72 → 104 with tighter letter-spacing, added a subtle accent glow rect behind the wordmark for depth. Still renders "SYN" (white) + "QUE" (blue→indigo gradient) on a dark rounded squircle tile.
+- Created `scripts/regen-icons.ts` — uses `sharp` to rasterize `icon.svg` into all required PNG sizes at density 384.
+- Ran the script → regenerated all 6 icon files:
+  - `public/icon-512.png` (512×512)
+  - `public/icon-192.png` (192×192)
+  - `public/apple-touch-icon.png` (180×180)
+  - `public/favicon-32.png` (32×32)
+  - `public/favicon-16.png` (16×16)
+  - `src/app/favicon.ico` (32×32, PNG-wrapped — accepted by all modern browsers)
+- VLM-verified `icon-512.png` now shows "SYNQUE" text (SYN white, QUE blue gradient) on dark rounded tile — OLD "Z" logo is gone.
+- Updated `src/app/layout.tsx` `metadata.icons`:
+  - `icon`: added `/favicon-32.png` (32×32) + `/favicon-16.png` (16×16) PNG fallbacks alongside the SVG (older browsers that don't render SVG favicons now get the PNG).
+  - `apple`: added `/apple-touch-icon.png` (180×180) as primary (iOS Safari prefers PNG over SVG for apple-touch-icon), kept SVG as secondary.
+- Updated `<head>` link tags in layout.tsx:
+  - `apple-touch-icon` → `/apple-touch-icon.png` (+ 180×180 sized variant).
+  - `icon` SVG + PNG 32×32 + PNG 16×16.
+  - `shortcut icon` → `/icon.svg`.
+- Removed orphan `public/logo.svg` (old template "Z" logo — no code referenced it).
+- Lint: `bun run lint` → exit 0.
+
+Verification:
+- Dev server serves all icons: `icon.svg` (200, image/svg+xml), `favicon.ico` (200, image/x-icon), `apple-touch-icon.png` (200, image/png), `icon-192.png` (200, image/png).
+- Agent Browser confirmed head links render correctly: apple-touch-icon → /apple-touch-icon.png, icon (svg + 32png + 16png), shortcut → /icon.svg, favicon.ico served.
+- Console errors: zero. Dev log: zero errors.
+
+Stage Summary:
+- All icon assets now use the new SYNQUE design (SYN white + QUE blue→indigo gradient on dark squircle). No "Z" logo remains anywhere.
+- PNG icons (192, 512, apple-touch 180, favicon 32/16, favicon.ico) regenerated from the improved icon.svg via sharp.
+- layout.tsx + manifest.json reference the correct icons (SVG primary + PNG fallbacks for broad browser/iOS support).
+- Old template logo.svg removed.
+- New script `scripts/regen-icons.ts` lets future icon updates regenerate all sizes in one command.
+- Files: `public/icon.svg` (improved), `public/{icon-512,icon-192,apple-touch-icon,favicon-32,favicon-16}.png` (regenerated), `src/app/favicon.ico` (regenerated), `src/app/layout.tsx` (icon links), `scripts/regen-icons.ts` (new), `public/logo.svg` (deleted).
