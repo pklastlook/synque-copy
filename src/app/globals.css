@@ -920,8 +920,10 @@
   .mobile-content .grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   /* Wrap long text that might cause overflow */
   .mobile-content .truncate { min-width: 0; }
-  /* Prevent flex items from overflowing */
-  .mobile-content .flex { flex-wrap: wrap; min-width: 0; }
+  /* Prevent flex items from overflowing — but DON'T force wrap on
+     intentionally-scrollable rows (overflow-x-auto), they need nowrap */
+  .mobile-content .flex { min-width: 0; }
+  .mobile-content .flex:not(.overflow-x-auto):not(.overflow-auto):not(.scroll-liquid) { flex-wrap: wrap; }
   /* But don't break layouts that intentionally don't wrap */
   .mobile-content .flexnowrap,
   .mobile-content .flex-nowrap { flex-wrap: nowrap !important; }
