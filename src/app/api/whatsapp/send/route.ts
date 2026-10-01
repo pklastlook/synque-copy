@@ -18,6 +18,7 @@ const WHATSAPP_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || "http://127.0.0
 export async function POST(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+  const ownerId = user!.userId;
 
   const { to, text } = (await req.json()) as { to?: string; text?: string };
 
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(`${WHATSAPP_SERVICE_URL}/send`, {
+    const res = await fetch(`${WHATSAPP_SERVICE_URL}/send?ownerId=${ownerId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to: to.trim(), text: text.trim() }),

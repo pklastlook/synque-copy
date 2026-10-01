@@ -42,15 +42,13 @@ export async function GET(req: NextRequest) {
   });
 
   try {
-    // Ask the mini-service for the current status
-    const res = await fetch(`${WHATSAPP_SERVICE_URL}/status`, {
+    // Ask the mini-service for this owner's status (per-user session)
+    const res = await fetch(`${WHATSAPP_SERVICE_URL}/status?ownerId=${ownerId}`, {
       signal: AbortSignal.timeout(3000),
     });
     const data = await res.json();
 
-    // Always sync status back to DB (even if unchanged) — this fixes stale
-    // "connected" records when the Railway service has disconnected but the
-    // DB still shows connected from a previous session.
+    // Always sync status back to DB
     const newStatus = data.connected ? "connected" : "disconnected";
     if (conn.status !== newStatus || (data.connected && conn.phone !== data.phone)) {
       await db.whatsAppConnection.update({
@@ -98,7 +96,7 @@ export async function POST(req: NextRequest) {
 
   if (action === "logout") {
     try {
-      await fetch(`${WHATSAPP_SERVICE_URL}/logout`, { method: "POST", signal: AbortSignal.timeout(3000) });
+      await fetch(`${WHATSAPP_SERVICE_URL}/logout?ownerId=${ownerId}`, { method: "POST", signal: AbortSignal.timeout(3000) });
     } catch {}
     await db.whatsAppConnection.update({
       where: { ownerId },
@@ -114,7 +112,7 @@ export async function POST(req: NextRequest) {
     const webhookTarget = `${proto}://${host}/api/whatsapp/webhook?ownerId=${ownerId}`;
 
     try {
-      await fetch(`${WHATSAPP_SERVICE_URL}/webhook-target`, {
+      await fetch(`${WHATSAPP_SERVICE_URL}/webhook-target?ownerId=${ownerId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target: webhookTarget }),
@@ -122,13 +120,13 @@ export async function POST(req: NextRequest) {
       });
     } catch {
       return NextResponse.json({
-        error: "WhatsApp service is not running. Ask the admin to start it (bun run dev in mini-services/whatsapp-service).",
+        error: "WhatsApp service is not running. Ask the admin to start it.",
       }, { status: 503 });
     }
 
-    // Force a restart so a fresh QR is generated even if there's a stale session
+    // Force a restart so a fresh QR is generated for this owner's session
     try {
-      await fetch(`${WHATSAPP_SERVICE_URL}/restart`, {
+      await fetch(`${WHATSAPP_SERVICE_URL}/restart?ownerId=${ownerId}`, {
         method: "POST",
         signal: AbortSignal.timeout(3000),
       });
