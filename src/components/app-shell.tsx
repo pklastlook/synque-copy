@@ -41,7 +41,7 @@ import {
   LayoutDashboard, PenSquare, Inbox as InboxIcon, BarChart3, MoreHorizontal,
   Calendar, MessageCircle as WhatsAppIcon, MessageSquare, CheckSquare,
   Link2, Image as ImageIcon, FileBarChart, Megaphone, Settings as SettingsIcon,
-  Building2, TrendingUp, Briefcase, X, type LucideIcon,
+  Building2, TrendingUp, Briefcase, X, Crosshair, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
