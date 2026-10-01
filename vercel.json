@@ -1,0 +1,10 @@
+{
+  "buildCommand": "next build",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "src/app/api/whatsapp/webhook/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}

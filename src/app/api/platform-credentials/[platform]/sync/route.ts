@@ -155,7 +155,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
               date: today,
               followers: json.followers_count ?? 0,
               impressions: 0, reach: 0, engagement: 0,
-              likes: 0, comments: 0, shares: 0, saves: 0, posts: 0,
+              posts: 0,
             },
           });
         }
@@ -222,7 +222,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
             data: {
               accountId, date: today, followers,
               impressions: 0, reach: 0, engagement: 0,
-              likes: 0, comments: 0, shares: 0, saves: 0, posts: 0,
+              posts: 0,
             },
           });
         }
@@ -278,7 +278,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
             data: {
               accountId, date: today, followers: json.fan_count ?? 0,
               impressions: 0, reach: 0, engagement: 0,
-              likes: 0, comments: 0, shares: 0, saves: 0, posts: 0,
+              posts: 0,
             },
           });
         }

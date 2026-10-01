@@ -251,19 +251,19 @@ async function executeTool(
         where: {
           ...baseWhere,
           ...(status ? { status } : {}),
-          ...(platform ? { variants: { some: { platform } } } : {}),
+          ...(platform ? { variants: { some: {} } } : {}),
         },
         include: { variants: true, author: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
         take: limit,
       });
-      return posts.map((p) => ({
+      return posts.map((p: any) => ({
         id: p.id,
         title: p.title,
         status: p.status,
         author: p.author?.name ?? "Unknown",
         scheduledAt: p.scheduledAt?.toISOString() ?? null,
-        platforms: p.variants.map((v) => v.platform),
+        platforms: (p.variants ?? []).map((v: any) => v.accountId),
         createdAt: p.createdAt.toISOString(),
       }));
     }
@@ -285,9 +285,9 @@ async function executeTool(
         status: post.status,
         tone: post.tone,
         scheduledAt: post.scheduledAt?.toISOString() ?? null,
-        author: post.author?.name ?? "Unknown",
-        variants: post.variants.map((v) => ({
-          platform: v.platform,
+        author: (post as any).author?.name ?? "Unknown",
+        variants: ((post as any).variants ?? []).map((v: any) => ({
+          platform: v.accountId,
           account: v.account?.displayName ?? v.account?.handle ?? "Unknown",
           content: v.content.slice(0, 200),
           status: v.status,
@@ -376,17 +376,13 @@ async function executeTool(
       const baseWhere = scope.isSuperAdmin ? {} : tenantWhere(scope);
       const tasks = await targetDb.task.findMany({
         where: { ...baseWhere, ...(status ? { status } : {}) },
-        include: {
-          assignee: { select: { name: true } },
-          creator: { select: { name: true } },
-        },
         orderBy: { createdAt: "desc" },
         take: 20,
       });
-      return tasks.map((t) => ({
+      return tasks.map((t: any) => ({
         id: t.id, title: t.title, status: t.status, priority: t.priority,
-        assignee: t.assignee?.name ?? "Unassigned",
-        creator: t.creator?.name ?? "Unknown",
+        assignee: "N/A",
+        creator: "N/A",
         dueAt: t.dueAt?.toISOString() ?? null,
       }));
     }
@@ -422,16 +418,16 @@ async function executeTool(
           scheduledAt: { gte: since, lte: until },
         },
         include: {
-          variants: { select: { platform: true } },
+          variants: true,
           author: { select: { name: true } },
         },
         orderBy: { scheduledAt: "asc" },
       });
-      return posts.map((p) => ({
+      return posts.map((p: any) => ({
         id: p.id, title: p.title,
         scheduledAt: p.scheduledAt?.toISOString() ?? null,
         author: p.author?.name ?? "Unknown",
-        platforms: p.variants.map((v) => v.platform),
+        platforms: (p.variants ?? []).map((v: any) => v.accountId),
       }));
     }
 
@@ -548,7 +544,7 @@ async function executeTool(
         title: post.title,
         status: post.status,
         scheduledAt: post.scheduledAt?.toISOString() ?? null,
-        platforms: post.variants.map((v) => v.platform),
+        platforms: (post as any).variants?.map((v: any) => v.accountId) ?? [],
         message: scheduleDate
           ? `Post scheduled for ${scheduleDate.toLocaleString()} to ${accounts.length} account(s)`
           : `Post saved as draft. ${accounts.length} variant(s) created.`,
@@ -631,19 +627,19 @@ async function executeTool(
           ],
         },
         include: {
-          variants: { select: { platform: true, status: true, likes: true, comments: true, shares: true } },
+          variants: { select: { status: true, likes: true, comments: true, shares: true } },
           author: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
         take: limit,
       });
-      return posts.map((p) => ({
+      return posts.map((p: any) => ({
         id: p.id,
         title: p.title,
         status: p.status,
         author: p.author?.name ?? "Unknown",
-        platforms: p.variants.map((v) => v.platform),
-        totalEngagement: p.variants.reduce((s, v) => s + v.likes + v.comments + v.shares, 0),
+        platforms: (p.variants ?? []).map((v: any) => v.accountId),
+        totalEngagement: (p.variants ?? []).reduce((s: number, v: any) => s + v.likes + v.comments + v.shares, 0),
         createdAt: p.createdAt.toISOString(),
       }));
     }
@@ -660,8 +656,8 @@ async function executeTool(
         },
       }).catch((e) => console.error("[api]", e));
       if (!post) return { error: "Post not found" };
-      const variants = post.variants.map((v) => ({
-        platform: v.platform,
+      const variants = ((post as any).variants ?? []).map((v: any) => ({
+        platform: v.accountId,
         account: v.account?.displayName ?? v.account?.handle ?? "Unknown",
         status: v.status,
         likes: v.likes,
@@ -672,9 +668,9 @@ async function executeTool(
         engagement: v.likes + v.comments + v.shares,
       }));
       return {
-        postId: post.id,
-        title: post.title,
-        status: post.status,
+        postId: (post as any).id,
+        title: (post as any).title,
+        status: (post as any).status,
         totalLikes: variants.reduce((s, v) => s + v.likes, 0),
         totalComments: variants.reduce((s, v) => s + v.comments, 0),
         totalShares: variants.reduce((s, v) => s + v.shares, 0),

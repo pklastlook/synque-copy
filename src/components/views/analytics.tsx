@@ -638,9 +638,9 @@ export function AnalyticsView() {
 
   if (loading || !data) return <AnalyticsSkeleton />;
 
-  // Empty state — no accounts connected
+  // Empty state — no analytics data available (either no accounts or no data)
   if (data.perAccount.length === 0 && data.series.length === 0) {
-    return <EmptyState mode="no-accounts" />;
+    return <EmptyState mode="no-posts" />;
   }
 
   // Filtered data (platform multi-select)
@@ -3273,12 +3273,12 @@ function EmptyState({
         <BarChart3 className="h-10 w-10" />
       </div>
       <h2 className="mt-5 text-xl font-bold tracking-tight">
-        {isNoAccounts ? "No analytics yet" : "No posts in this period"}
+        {isNoAccounts ? "No analytics yet" : "No data for this period"}
       </h2>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">
         {isNoAccounts
-          ? "Connect your first social media account to start tracking performance, engagement, and audience growth."
-          : "Publish your first post to see how it performs across all your connected accounts."}
+          ? "Connect a social media account to start tracking performance."
+          : "Try a different date range, or publish content to see analytics here."}
       </p>
       <div className="mt-5 flex items-center gap-2">
         {isNoAccounts ? (

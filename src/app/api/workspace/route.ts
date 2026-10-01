@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   let ws = await db.workspaceSettings.findUnique({ where: { ownerId } });
   if (!ws) {
     // Create with defaults on first access
-    ws = await db.workspaceSettings.create({ data: { ownerId } }).catch((e) => console.error("[api]", e));
+    ws = await db.workspaceSettings.create({ data: { ownerId } }).catch((e) => { console.error("[api]", e); return null; });
   }
 
   if (!ws) {
