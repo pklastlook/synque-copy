@@ -26,7 +26,8 @@ export type ViewId =
   | "utm"
   | "approvals"
   | "influencers"
-  | "account-safety";
+  | "account-safety"
+  | "vpn";
 
 export interface PlatformAccount {
   id: string;

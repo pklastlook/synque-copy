@@ -84,6 +84,7 @@ const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; 
   { id: "reports", label: "Reports", icon: FileBarChart, group: "Insights", accent: "oklch(0.72 0.18 75)" },
   { id: "accounts", label: "Accounts", icon: AtSign, group: "Workspace", accent: "oklch(0.68 0.2 145)" },
   { id: "account-safety", label: "Account Safety", icon: Shield, group: "Workspace", accent: "oklch(0.74 0.18 145)" },
+  { id: "vpn", label: "VPN", icon: ShieldCheck, group: "Workspace", accent: "oklch(0.55 0.2 255)" },
   // Organization module (Users / Team / Roles / Departments / Designations) — managers+ only.
   // Rendered as an expandable parent below (see <OrganizationGroup /> inside
   // the Workspace group render). No flat NAV entry is needed.

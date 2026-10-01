@@ -37,6 +37,7 @@ import { UTMBuilderView } from "@/components/views/utm-builder";
 import { ApprovalsView } from "@/components/views/approvals";
 import { InfluencersView } from "@/components/views/influencers";
 import { AccountSafetyView } from "@/components/views/account-safety";
+import { VPNView } from "@/components/views/vpn";
 import {
   LayoutDashboard, PenSquare, Inbox as InboxIcon, BarChart3, MoreHorizontal,
   Calendar, MessageCircle as WhatsAppIcon, MessageSquare, CheckSquare,
@@ -177,6 +178,7 @@ export function AppShell() {
               {view === "approvals" && <ApprovalsView />}
               {view === "influencers" && <InfluencersView />}
               {view === "account-safety" && <AccountSafetyView />}
+              {view === "vpn" && <VPNView />}
               {view === "settings" && <SettingsView />}
             </div>
           </main>
