@@ -2732,7 +2732,7 @@ function AccountsTab({
         }
       />
       <div className="max-h-[480px] overflow-auto scroll-liquid rounded-2xl">
-        <table className="w-full min-w-[820px] border-collapse text-sm">
+        <table className="w-full min-w-[600px] sm:min-w-[820px] border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-background/80 backdrop-blur-md">
             <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
               <SortHeaderCell label="Account" k="displayName" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />

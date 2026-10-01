@@ -1461,7 +1461,7 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
             <div className="py-8 text-center text-xs text-muted-foreground">No platform variants published yet.</div>
           ) : (
             <div className="overflow-x-auto">
-              <Table className="min-w-[640px]">
+              <Table className="min-w-[500px] sm:min-w-[640px]">
                 <TableHeader>
                   <TableRow className="border-border/40">
                     <TableHead className="h-8 text-[10px] uppercase">Platform</TableHead>
@@ -3117,7 +3117,7 @@ function ContentCalendarContent({ analytics, postsPerfData, totals }: {
       {/* Best posting times heatmap */}
       <HeroChart title="Best Posting Times" desc="Heatmap: posts by weekday × hour. Darker = more posts.">
         <div className="overflow-x-auto">
-          <div className="min-w-[640px]">
+          <div className="min-w-[500px] sm:min-w-[640px]">
             {/* Hour labels */}
             <div className="flex pl-10">
               {Array.from({ length: 24 }, (_, h) => (
