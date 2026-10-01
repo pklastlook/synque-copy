@@ -443,10 +443,7 @@ export const ModelName = {
   Session: 'Session',
   PasswordResetToken: 'PasswordResetToken',
   EmailVerificationToken: 'EmailVerificationToken',
-  Influencer: 'Influencer',
-  Proxy: 'Proxy',
-  AccountProxy: 'AccountProxy',
-  ProxyRotation: 'ProxyRotation'
+  Influencer: 'Influencer'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -462,7 +459,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken" | "influencer" | "proxy" | "accountProxy" | "proxyRotation"
+    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken" | "influencer"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3944,228 +3941,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    Proxy: {
-      payload: Prisma.$ProxyPayload<ExtArgs>
-      fields: Prisma.ProxyFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.ProxyFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.ProxyFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload>
-        }
-        findFirst: {
-          args: Prisma.ProxyFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.ProxyFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload>
-        }
-        findMany: {
-          args: Prisma.ProxyFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload>[]
-        }
-        create: {
-          args: Prisma.ProxyCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload>
-        }
-        createMany: {
-          args: Prisma.ProxyCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.ProxyCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload>[]
-        }
-        delete: {
-          args: Prisma.ProxyDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload>
-        }
-        update: {
-          args: Prisma.ProxyUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload>
-        }
-        deleteMany: {
-          args: Prisma.ProxyDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.ProxyUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.ProxyUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload>[]
-        }
-        upsert: {
-          args: Prisma.ProxyUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyPayload>
-        }
-        aggregate: {
-          args: Prisma.ProxyAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateProxy>
-        }
-        groupBy: {
-          args: Prisma.ProxyGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProxyGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.ProxyCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProxyCountAggregateOutputType> | number
-        }
-      }
-    }
-    AccountProxy: {
-      payload: Prisma.$AccountProxyPayload<ExtArgs>
-      fields: Prisma.AccountProxyFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.AccountProxyFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.AccountProxyFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload>
-        }
-        findFirst: {
-          args: Prisma.AccountProxyFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.AccountProxyFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload>
-        }
-        findMany: {
-          args: Prisma.AccountProxyFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload>[]
-        }
-        create: {
-          args: Prisma.AccountProxyCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload>
-        }
-        createMany: {
-          args: Prisma.AccountProxyCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.AccountProxyCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload>[]
-        }
-        delete: {
-          args: Prisma.AccountProxyDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload>
-        }
-        update: {
-          args: Prisma.AccountProxyUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload>
-        }
-        deleteMany: {
-          args: Prisma.AccountProxyDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.AccountProxyUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.AccountProxyUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload>[]
-        }
-        upsert: {
-          args: Prisma.AccountProxyUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$AccountProxyPayload>
-        }
-        aggregate: {
-          args: Prisma.AccountProxyAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateAccountProxy>
-        }
-        groupBy: {
-          args: Prisma.AccountProxyGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AccountProxyGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.AccountProxyCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AccountProxyCountAggregateOutputType> | number
-        }
-      }
-    }
-    ProxyRotation: {
-      payload: Prisma.$ProxyRotationPayload<ExtArgs>
-      fields: Prisma.ProxyRotationFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.ProxyRotationFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.ProxyRotationFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload>
-        }
-        findFirst: {
-          args: Prisma.ProxyRotationFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.ProxyRotationFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload>
-        }
-        findMany: {
-          args: Prisma.ProxyRotationFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload>[]
-        }
-        create: {
-          args: Prisma.ProxyRotationCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload>
-        }
-        createMany: {
-          args: Prisma.ProxyRotationCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.ProxyRotationCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload>[]
-        }
-        delete: {
-          args: Prisma.ProxyRotationDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload>
-        }
-        update: {
-          args: Prisma.ProxyRotationUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload>
-        }
-        deleteMany: {
-          args: Prisma.ProxyRotationDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.ProxyRotationUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.ProxyRotationUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload>[]
-        }
-        upsert: {
-          args: Prisma.ProxyRotationUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProxyRotationPayload>
-        }
-        aggregate: {
-          args: Prisma.ProxyRotationAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateProxyRotation>
-        }
-        groupBy: {
-          args: Prisma.ProxyRotationGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProxyRotationGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.ProxyRotationCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProxyRotationCountAggregateOutputType> | number
-        }
-      }
-    }
   }
 } & {
   other: {
@@ -4999,53 +4774,6 @@ export const InfluencerScalarFieldEnum = {
 export type InfluencerScalarFieldEnum = (typeof InfluencerScalarFieldEnum)[keyof typeof InfluencerScalarFieldEnum]
 
 
-export const ProxyScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  host: 'host',
-  port: 'port',
-  username: 'username',
-  password: 'password',
-  protocol: 'protocol',
-  country: 'country',
-  city: 'city',
-  status: 'status',
-  healthy: 'healthy',
-  lastChecked: 'lastChecked',
-  latency: 'latency',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type ProxyScalarFieldEnum = (typeof ProxyScalarFieldEnum)[keyof typeof ProxyScalarFieldEnum]
-
-
-export const AccountProxyScalarFieldEnum = {
-  id: 'id',
-  accountId: 'accountId',
-  proxyId: 'proxyId',
-  assignedAt: 'assignedAt',
-  active: 'active'
-} as const
-
-export type AccountProxyScalarFieldEnum = (typeof AccountProxyScalarFieldEnum)[keyof typeof AccountProxyScalarFieldEnum]
-
-
-export const ProxyRotationScalarFieldEnum = {
-  id: 'id',
-  proxyId: 'proxyId',
-  accountId: 'accountId',
-  action: 'action',
-  ip: 'ip',
-  status: 'status',
-  latency: 'latency',
-  notes: 'notes',
-  createdAt: 'createdAt'
-} as const
-
-export type ProxyRotationScalarFieldEnum = (typeof ProxyRotationScalarFieldEnum)[keyof typeof ProxyRotationScalarFieldEnum]
-
-
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -5336,9 +5064,6 @@ export type GlobalOmitConfig = {
   passwordResetToken?: Prisma.PasswordResetTokenOmit
   emailVerificationToken?: Prisma.EmailVerificationTokenOmit
   influencer?: Prisma.InfluencerOmit
-  proxy?: Prisma.ProxyOmit
-  accountProxy?: Prisma.AccountProxyOmit
-  proxyRotation?: Prisma.ProxyRotationOmit
 }
 
 /* Types for Logging */

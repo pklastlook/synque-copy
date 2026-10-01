@@ -97,10 +97,7 @@ export const ModelName = {
   Session: 'Session',
   PasswordResetToken: 'PasswordResetToken',
   EmailVerificationToken: 'EmailVerificationToken',
-  Influencer: 'Influencer',
-  Proxy: 'Proxy',
-  AccountProxy: 'AccountProxy',
-  ProxyRotation: 'ProxyRotation'
+  Influencer: 'Influencer'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -911,53 +908,6 @@ export const InfluencerScalarFieldEnum = {
 } as const
 
 export type InfluencerScalarFieldEnum = (typeof InfluencerScalarFieldEnum)[keyof typeof InfluencerScalarFieldEnum]
-
-
-export const ProxyScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  host: 'host',
-  port: 'port',
-  username: 'username',
-  password: 'password',
-  protocol: 'protocol',
-  country: 'country',
-  city: 'city',
-  status: 'status',
-  healthy: 'healthy',
-  lastChecked: 'lastChecked',
-  latency: 'latency',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type ProxyScalarFieldEnum = (typeof ProxyScalarFieldEnum)[keyof typeof ProxyScalarFieldEnum]
-
-
-export const AccountProxyScalarFieldEnum = {
-  id: 'id',
-  accountId: 'accountId',
-  proxyId: 'proxyId',
-  assignedAt: 'assignedAt',
-  active: 'active'
-} as const
-
-export type AccountProxyScalarFieldEnum = (typeof AccountProxyScalarFieldEnum)[keyof typeof AccountProxyScalarFieldEnum]
-
-
-export const ProxyRotationScalarFieldEnum = {
-  id: 'id',
-  proxyId: 'proxyId',
-  accountId: 'accountId',
-  action: 'action',
-  ip: 'ip',
-  status: 'status',
-  latency: 'latency',
-  notes: 'notes',
-  createdAt: 'createdAt'
-} as const
-
-export type ProxyRotationScalarFieldEnum = (typeof ProxyRotationScalarFieldEnum)[keyof typeof ProxyRotationScalarFieldEnum]
 
 
 export const SortOrder = {
