@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 // Demo credentials — fixed so anyone can preview the product
 // Uses demo@synque.app which is the seeded demo user with rich data across all modules
-const DEMO_EMAIL = "demo@synque.app";
+const DEMO_EMAIL = "rabia@synque.app";
 const DEMO_PASSWORD = "demo123456";
 
 // Read-only permission set — viewer role
