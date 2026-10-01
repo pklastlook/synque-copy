@@ -9243,3 +9243,45 @@ Stage Summary:
 - Old template logo.svg removed.
 - New script `scripts/regen-icons.ts` lets future icon updates regenerate all sizes in one command.
 - Files: `public/icon.svg` (improved), `public/{icon-512,icon-192,apple-touch-icon,favicon-32,favicon-16}.png` (regenerated), `src/app/favicon.ico` (regenerated), `src/app/layout.tsx` (icon links), `scripts/regen-icons.ts` (new), `public/logo.svg` (deleted).
+
+---
+Task ID: mobile-icons-match-sidebar-v2
+Agent: main (Z.ai Code)
+Task: Previous task only changed icon NAMES but left the iOS-27 squircle gradient TILES in place — so the bottom bar still did NOT visually match the sidebar (which uses FLAT accent-colored line icons, no tile background). User said "nothing changed". This task replaces the iOS tiles with flat accent-colored icons that truly match the sidebar visual style.
+
+Work Log:
+- Root cause of user complaint: bottom bar + More sheet still rendered `IosIconTile` (squircle gradient tiles with white glyphs) — visually completely different from the sidebar's flat colored lucide icons. Only the icon *names* had been swapped; the visual treatment was unchanged.
+- Rewrote `src/components/app-shell.tsx` tab definitions:
+  - `MobileTab` type: replaced `gradient: IosGradientKey` → `accent: string` (oklch color, same as sidebar's NAV entries).
+  - `MoreItem` type: same `accent` field replacing `gradient`.
+  - EDITOR_TABS / MANAGER_TABS / MORE_NAV_ITEMS / MORE_ADMIN_ITEMS_*: each item now carries the SAME oklch accent color as the corresponding sidebar NAV entry (e.g. dashboard=oklch(0.55 0.2 255), reports=oklch(0.72 0.18 75), listening=oklch(0.7 0.2 25), whatsapp=oklch(0.78 0.18 145), etc.).
+  - Removed `IosIconTile` + `IOS_GRADIENTS` imports (no longer used). Removed unused `WhatsappIcon` import.
+- Rewrote mobile bottom bar render:
+  - Removed `<IosIconTile>` wrapper entirely.
+  - Each tab now renders a flat `<Icon className="tab-icon h-[22px] w-[22px]" style={{ color: tab.accent, opacity: isActive ? 1 : 0.7 }} />` + a `<span className="tab-label">` — EXACTLY like the sidebar's nav item (flat accent-colored stroke icon + label, no tile).
+  - Active button gets `style={{ color: tab.accent }}` so the active dot indicator (::before) uses `currentColor` = the accent.
+  - Bar min-height reduced 76→64px (no tile to accommodate).
+- Rewrote More sheet grid:
+  - Removed `<IosIconTile>` wrapper.
+  - Each item renders a flat `<item.icon className="h-7 w-7" style={{ color: item.accent, opacity: active ? 1 : 0.8 }} />` (or `<PlatformBrandIcon>` for WhatsApp) + label — same flat style as the sidebar.
+  - Replaced `apple-pill` border styling with simple `more-grid-item` + `bg-primary/5` active / `hover:bg-muted/40` — cleaner, matches sidebar hover.
+- Updated `src/app/globals.css`:
+  - `.apple-tab-item.active::before` (the dot indicator) now uses `background: currentColor` + `box-shadow: 0 0 6px currentColor` instead of hardcoded `var(--apple-blue)` — so the dot picks up each tab's accent color.
+  - Removed the obsolete dark-mode `.dark .apple-tab-item.active::before` override (currentColor handles both themes).
+- Module page tabs (Reports / Analytics / Team Performance): confirmed the global `@media (max-width: 640px)` CSS from the previous task is applied — TabsList is full-width + horizontally scrollable. Verified Reports: `width=366 (vp=390), overflow-x=auto, scrollWidth=422, 5 triggers=[Performance, Team, Content, Platforms, Custom]`.
+- Lint: `bun run lint` → exit 0.
+
+Verification (Agent Browser, iPhone 14 viewport):
+- Bottom bar: DOM-verified all 5 tabs have `tile=no` (no IosIconTile), `iconStroke=<accent oklch>`, `iconFill=none`, `labelDisplay=block`, `labelText=Home/Stats/Reports/Insights/More`. Active (Home) dot uses `currentColor` = accent.
+  - Home: oklch(0.55 0.2 255) blue, Stats: oklch(0.55 0.2 255) blue, Reports: oklch(0.72 0.18 75) amber, Insights: oklch(0.7 0.2 25) orange, More: oklch(0.62 0 0) gray — ALL MATCH sidebar accents.
+- More sheet: all 12 items have `tile=no`, flat accent-colored stroke icons (Calendar green, WhatsApp brand, Chat violet, Tasks teal, Accounts green, Media purple, Reports amber, Campaigns orange, Settings gray, Org blue, Performance blue, Owner gold).
+- Reports tabs: full-width 366px, scrollable, 5 tabs present, active tab highlighted.
+- Console errors: zero. Dev log: zero errors.
+
+Stage Summary:
+- Mobile bottom bar + More sheet now VISUALLY match the desktop sidebar: flat accent-colored lucide line icons + labels, NO gradient tiles. Each item uses the same oklch accent color as its sidebar counterpart.
+- Active tab: full-color icon + accent-colored dot indicator above (uses currentColor).
+- More sheet: flat icons in a clean grid, active item gets a subtle primary-tinted background.
+- Module page tabs (reports/analytics/team-performance) remain full-width + horizontally scrollable on mobile.
+- The iOS-27 squircle tile approach (from the earlier task) has been fully removed from the mobile bar + More sheet. (The `IosIconTile` component file is kept for potential future use but no longer imported by app-shell.)
+- Files modified: `src/components/app-shell.tsx`, `src/app/globals.css`.

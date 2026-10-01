@@ -45,54 +45,51 @@ import {
   Building2, Briefcase, X, Radio, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { IosIconTile, IOS_GRADIENTS, type IosGradientKey } from "@/components/ios-icon-tile";
-import {
-  WhatsappIcon,
-  PlatformBrandIcon,
-} from "@/components/brand-icons";
+import { PlatformBrandIcon } from "@/components/brand-icons";
 
 // === Mobile bottom tab bar items — role-based ===
 // Editors: Home, Inbox, Compose, Calendar, More
 // Managers/Admins: Home, Inbox, Compose, Stats, More
-// Each tab renders an iOS-27 squircle gradient tile with a white glyph.
+// Visual style MATCHES the desktop sidebar: flat accent-colored lucide icon +
+// label, NO tile background. Active = full-color icon + accent dot indicator.
 type MobileTab = {
   id: string;
   label: string;
   icon: LucideIcon;
-  gradient: IosGradientKey;
+  accent: string; // oklch color (matches sidebar)
 };
 
 const EDITOR_TABS: MobileTab[] = [
-  { id: "dashboard", label: "Home", icon: LayoutDashboard, gradient: "home" },
-  { id: "inbox", label: "Inbox", icon: InboxIcon, gradient: "inbox" },
-  { id: "composer", label: "Compose", icon: PenSquare, gradient: "compose" },
-  { id: "calendar", label: "Calendar", icon: CalendarDays, gradient: "calendar" },
-  { id: "settings", label: "More", icon: MoreHorizontal, gradient: "more" },
+  { id: "dashboard", label: "Home", icon: LayoutDashboard, accent: "oklch(0.55 0.2 255)" },
+  { id: "inbox", label: "Inbox", icon: InboxIcon, accent: "oklch(0.66 0.18 200)" },
+  { id: "composer", label: "Compose", icon: PenSquare, accent: "oklch(0.7 0.2 25)" },
+  { id: "calendar", label: "Calendar", icon: CalendarDays, accent: "oklch(0.68 0.2 145)" },
+  { id: "settings", label: "More", icon: MoreHorizontal, accent: "oklch(0.62 0 0)" },
 ];
 
 const MANAGER_TABS: MobileTab[] = [
-  { id: "dashboard", label: "Home", icon: LayoutDashboard, gradient: "home" },
-  { id: "analytics", label: "Stats", icon: BarChart3, gradient: "stats" },
-  { id: "reports", label: "Reports", icon: FileBarChart, gradient: "reports" },
-  { id: "listening", label: "Insights", icon: Radio, gradient: "insights" },
-  { id: "settings", label: "More", icon: MoreHorizontal, gradient: "more" },
+  { id: "dashboard", label: "Home", icon: LayoutDashboard, accent: "oklch(0.55 0.2 255)" },
+  { id: "analytics", label: "Stats", icon: BarChart3, accent: "oklch(0.55 0.2 255)" },
+  { id: "reports", label: "Reports", icon: FileBarChart, accent: "oklch(0.72 0.18 75)" },
+  { id: "listening", label: "Insights", icon: Radio, accent: "oklch(0.7 0.2 25)" },
+  { id: "settings", label: "More", icon: MoreHorizontal, accent: "oklch(0.62 0 0)" },
 ];
 
 // === "More" sheet items ===
-// Each item is an iOS-27 squircle gradient tile. Social platforms use their
-// REAL brand logo (WhatsApp, etc.); app-internal items use a lucide glyph.
+// Flat accent-colored icons matching the sidebar style. WhatsApp uses its real
+// brand logo; other items use the same lucide glyph as the sidebar.
 type MoreItem =
   | {
       id: string;
       label: string;
       icon: LucideIcon;
-      gradient: IosGradientKey;
+      accent: string;
       kind: "lucide";
     }
   | {
       id: string;
       label: string;
-      gradient: IosGradientKey;
+      accent: string;
       kind: "brand";
       brand:
         | "whatsapp"
@@ -106,24 +103,24 @@ type MoreItem =
     };
 
 const MORE_NAV_ITEMS: MoreItem[] = [
-  { id: "calendar", label: "Calendar", icon: CalendarDays, gradient: "calendar", kind: "lucide" },
-  { id: "whatsapp", label: "WhatsApp", gradient: "whatsapp", kind: "brand", brand: "whatsapp" },
-  { id: "chat", label: "Chat", icon: MessageCircle, gradient: "chat", kind: "lucide" },
-  { id: "tasks", label: "Tasks", icon: ListTodo, gradient: "tasks", kind: "lucide" },
-  { id: "accounts", label: "Accounts", icon: AtSign, gradient: "accounts", kind: "lucide" },
-  { id: "media", label: "Media", icon: ImageIcon, gradient: "media", kind: "lucide" },
-  { id: "reports", label: "Reports", icon: FileBarChart, gradient: "reports", kind: "lucide" },
-  { id: "campaigns", label: "Campaigns", icon: Megaphone, gradient: "campaigns", kind: "lucide" },
+  { id: "calendar", label: "Calendar", icon: CalendarDays, accent: "oklch(0.68 0.2 145)", kind: "lucide" },
+  { id: "whatsapp", label: "WhatsApp", accent: "oklch(0.78 0.18 145)", kind: "brand", brand: "whatsapp" },
+  { id: "chat", label: "Chat", icon: MessageCircle, accent: "oklch(0.66 0.22 305)", kind: "lucide" },
+  { id: "tasks", label: "Tasks", icon: ListTodo, accent: "oklch(0.7 0.18 165)", kind: "lucide" },
+  { id: "accounts", label: "Accounts", icon: AtSign, accent: "oklch(0.68 0.2 145)", kind: "lucide" },
+  { id: "media", label: "Media", icon: ImageIcon, accent: "oklch(0.62 0.22 300)", kind: "lucide" },
+  { id: "reports", label: "Reports", icon: FileBarChart, accent: "oklch(0.72 0.18 75)", kind: "lucide" },
+  { id: "campaigns", label: "Campaigns", icon: Megaphone, accent: "oklch(0.7 0.2 25)", kind: "lucide" },
 ];
 
 const MORE_ADMIN_ITEMS_MEMBER: MoreItem[] = [
-  { id: "settings", label: "Settings", icon: SettingsIcon, gradient: "settings", kind: "lucide" },
-  { id: "organization", label: "Org", icon: Building2, gradient: "org", kind: "lucide" },
-  { id: "team-performance", label: "Performance", icon: BarChart3, gradient: "performance", kind: "lucide" },
+  { id: "settings", label: "Settings", icon: SettingsIcon, accent: "oklch(0.62 0 0)", kind: "lucide" },
+  { id: "organization", label: "Org", icon: Building2, accent: "oklch(0.66 0.18 200)", kind: "lucide" },
+  { id: "team-performance", label: "Performance", icon: BarChart3, accent: "oklch(0.55 0.2 255)", kind: "lucide" },
 ];
 
 const MORE_ADMIN_ITEMS_OWNER: MoreItem[] = [
-  { id: "owner", label: "Owner", icon: Briefcase, gradient: "performance", kind: "lucide" },
+  { id: "owner", label: "Owner", icon: Briefcase, accent: "oklch(0.78 0.18 75)", kind: "lucide" },
 ];
 
 export function AppShell() {
@@ -225,46 +222,45 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* Mobile bottom tab bar — macOS 27 / iOS dock style.
-          Floating rounded glass dock with margin from screen edges.
-          Active tab shows a small dot indicator ABOVE the icon. */}
+      {/* Mobile bottom tab bar — matches the desktop sidebar visual style.
+          Flat accent-colored lucide icons + labels (NO tile background).
+          Active = full-color icon + accent dot indicator above. */}
       {showMobileTabs && (
         <div className="mobile-only">
           <nav
             className={cn(
               "apple-tab-bar apple-tab-bar-dock apple-font select-none antialiased",
               "fixed bottom-0 left-0 right-0 z-50 flex items-stretch",
-              "min-h-[76px] rounded-3xl",
+              "min-h-[64px] rounded-3xl",
             )}
             aria-label="Primary"
           >
             {(user && (user.role === "admin" || user.role === "manager") ? MANAGER_TABS : EDITOR_TABS).map((tab) => {
               const Icon = tab.icon;
               const isActive = view === tab.id || (tab.id === "settings" && showMoreSheet);
-              const isCompose = tab.id === "composer";
               return (
                 <button
                   key={tab.id}
                   onClick={() => handleMobileTab(tab.id)}
                   className={cn(
-                    "apple-tab-item is-tiled touch-button transition-colors duration-200",
+                    "apple-tab-item apple-tab-flat touch-button transition-colors duration-200",
                     isActive && "active",
-                    isCompose && "apple-compose-tab",
                   )}
                   aria-label={tab.label}
                   aria-current={isActive ? "page" : undefined}
+                  style={isActive ? { color: tab.accent } : undefined}
                 >
-                  {/* iOS-27 squircle gradient tile with white glyph */}
-                  <IosIconTile
-                    gradient={IOS_GRADIENTS[tab.gradient]}
-                    size={44}
-                    active={isActive}
-                    label={tab.label}
-                    flat={tab.gradient === "more"}
+                  <Icon
+                    className="tab-icon h-[22px] w-[22px]"
+                    strokeWidth={isActive ? 2.4 : 2}
+                    style={{ color: tab.accent, opacity: isActive ? 1 : 0.7 }}
+                  />
+                  <span
+                    className="tab-label block leading-none"
+                    style={{ opacity: isActive ? 1 : 0.75 }}
                   >
-                    <Icon className="h-6 w-6" strokeWidth={2.2} />
-                  </IosIconTile>
-                  <span className="tab-label block leading-none">{tab.label}</span>
+                    {tab.label}
+                  </span>
                 </button>
               );
             })}
@@ -308,8 +304,8 @@ export function AppShell() {
               </button>
             </div>
 
-            {/* Primary navigation grid — iOS-27 squircle tiles */}
-            <div className="grid grid-cols-4 gap-2.5 px-4 pb-4">
+            {/* Primary navigation grid — flat accent-colored icons (sidebar style) */}
+            <div className="grid grid-cols-4 gap-2 px-4 pb-4">
               {MORE_NAV_ITEMS.map((item) => {
                 const active = view === item.id;
                 return (
@@ -317,23 +313,22 @@ export function AppShell() {
                     key={item.id}
                     onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
                     className={cn(
-                      "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-xl p-3",
-                      active && "!border-primary/50",
+                      "more-grid-item touch-button flex flex-col items-center gap-1.5 rounded-xl p-3 transition",
+                      active ? "bg-primary/5" : "hover:bg-muted/40",
                     )}
                   >
-                    <IosIconTile
-                      gradient={IOS_GRADIENTS[item.gradient]}
-                      size={56}
-                      active={active}
-                      label={item.label}
-                      flat={item.kind === "brand" && (item.brand === "x" || item.brand === "threads" || item.brand === "whatsapp")}
-                    >
-                      {item.kind === "lucide" ? (
-                        <item.icon className="h-7 w-7" strokeWidth={2.2} />
-                      ) : (
-                        <PlatformBrandIcon platform={item.brand} className="h-7 w-7" />
-                      )}
-                    </IosIconTile>
+                    {item.kind === "lucide" ? (
+                      <item.icon
+                        className="h-7 w-7"
+                        strokeWidth={2}
+                        style={{ color: item.accent, opacity: active ? 1 : 0.8 }}
+                      />
+                    ) : (
+                      <PlatformBrandIcon
+                        platform={item.brand}
+                        className="h-7 w-7"
+                      />
+                    )}
                     <span className="text-[11px] font-medium text-foreground/80">{item.label}</span>
                   </button>
                 );
@@ -346,7 +341,7 @@ export function AppShell() {
                 <div className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Admin
                 </div>
-                <div className="grid grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-4 gap-2">
                   {[
                     ...MORE_ADMIN_ITEMS_MEMBER,
                     ...(user.role === "admin" ? MORE_ADMIN_ITEMS_OWNER : []),
@@ -357,22 +352,22 @@ export function AppShell() {
                         key={item.id}
                         onClick={() => { setView(item.id as any); setShowMoreSheet(false); }}
                         className={cn(
-                          "apple-pill touch-button flex flex-col items-center gap-1.5 rounded-xl p-3",
-                          active && "!border-primary/50",
+                          "more-grid-item touch-button flex flex-col items-center gap-1.5 rounded-xl p-3 transition",
+                          active ? "bg-primary/5" : "hover:bg-muted/40",
                         )}
                       >
-                        <IosIconTile
-                          gradient={IOS_GRADIENTS[item.gradient]}
-                          size={56}
-                          active={active}
-                          label={item.label}
-                        >
-                          {item.kind === "lucide" ? (
-                            <item.icon className="h-7 w-7" strokeWidth={2.2} />
-                          ) : (
-                            <PlatformBrandIcon platform={item.brand} className="h-7 w-7" />
-                          )}
-                        </IosIconTile>
+                        {item.kind === "lucide" ? (
+                          <item.icon
+                            className="h-7 w-7"
+                            strokeWidth={2}
+                            style={{ color: item.accent, opacity: active ? 1 : 0.8 }}
+                          />
+                        ) : (
+                          <PlatformBrandIcon
+                            platform={item.brand}
+                            className="h-7 w-7"
+                          />
+                        )}
                         <span className="text-[11px] font-medium text-foreground/80">{item.label}</span>
                       </button>
                     );

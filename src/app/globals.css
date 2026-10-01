@@ -1261,7 +1261,7 @@ html { scroll-behavior: smooth; }
 .apple-tab-item.active .tab-label { font-weight: 600; }
 
 /* Active tab indicator — small 4px dot ABOVE the icon (macOS Dock style).
-   Mirrors the running-app indicator pattern in macOS Dock. */
+   Uses currentColor so it picks up the per-item accent color. */
 .apple-tab-item.active::before {
   content: "";
   position: absolute;
@@ -1271,13 +1271,9 @@ html { scroll-behavior: smooth; }
   width: 5px;
   height: 5px;
   border-radius: 999px;
-  background: var(--apple-blue);
+  background: currentColor;
   opacity: 0.95;
-  box-shadow: 0 0 6px rgba(0, 113, 227, 0.50);
-}
-.dark .apple-tab-item.active::before {
-  background: #0A84FF;
-  box-shadow: 0 0 6px rgba(10, 132, 255, 0.50);
+  box-shadow: 0 0 6px currentColor;
 }
 
 /* Remove old pill indicator (was below the icon) — replaced with dot above. */
