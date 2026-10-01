@@ -9,7 +9,7 @@ import {
   Sparkles, CheckCircle2, UserPlus, Wand2, ArrowUpRight, ChevronRight,
   FileEdit, XCircle, Layers, Inbox, Activity, Globe,
   Lightbulb, AlertCircle, AtSign, Check,
-  BarChart3, Calendar, Zap,
+  BarChart3, Calendar, Zap, Share2, PenSquare,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -1084,18 +1084,24 @@ export function DashboardView() {
           )}
         </GlassCard>
 
-        {/* Pipeline — compact */}
+        {/* Pipeline — complete workflow view */}
         <GlassCard className="p-4">
           <SectionHeader
-            title="Content pipeline"
-            desc="Every post by lifecycle stage"
+            title="Content workflow"
+            desc="Posts → Drafts → Scheduled → Published → Shared"
             action={
               <button onClick={() => setView("calendar")} className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline">
                 Calendar <ArrowUpRight className="h-3 w-3" />
               </button>
             }
           />
-          <PipelineFlow pipeline={data.pipeline} total={data.pipelineTotal} />
+          <ContentWorkflow
+            allPosts={data.recentPosts ?? []}
+            publishedPosts={data.publishedPosts ?? []}
+            failedPosts={data.failedPosts ?? []}
+            pipeline={data.pipeline}
+            total={data.pipelineTotal}
+          />
         </GlassCard>
       </div>
 
@@ -1127,58 +1133,153 @@ export function DashboardView() {
   );
 }
 
-// ============ Pipeline Flow — compact horizontal stages ============
-function PipelineFlow({ pipeline, total }: {
+// ============ Content Workflow — complete lifecycle view ============
+// Shows the 5-stage workflow: Posts → Drafts → Scheduled → Published → Shared
+// Each stage shows the actual count + sample posts with thumbnails.
+function ContentWorkflow({
+  allPosts,
+  publishedPosts,
+  failedPosts,
+  pipeline,
+  total,
+}: {
+  allPosts: any[];
+  publishedPosts: any[];
+  failedPosts: any[];
   pipeline: { draft: number; scheduled: number; published: number; failed: number };
   total: number;
 }) {
+  const stages = [
+    { key: "posts", label: "Posts", count: total, color: "#8E8E93", icon: Layers },
+    { key: "draft", label: "Drafts", count: pipeline.draft, color: "#AF52DE", icon: PenSquare },
+    { key: "scheduled", label: "Scheduled", count: pipeline.scheduled, color: "#007AFF", icon: Clock },
+    { key: "published", label: "Published", count: pipeline.published, color: "#34C759", icon: Send },
+    { key: "shared", label: "Shares", count: publishedPosts.reduce((s, p) => s + (p.platforms?.length ?? 0), 0), color: "#FF9500", icon: Share2 },
+  ];
+
   return (
     <div className="space-y-3">
-      <div className="flex items-stretch gap-1.5">
-        {PIPELINE_STAGES.map((stage, i) => {
-          const count = pipeline[stage.key as keyof typeof pipeline];
-          const pct = total > 0 ? (count / total) * 100 : 0;
+      {/* Stage flow — horizontal bar with counts */}
+      <div className="flex items-stretch gap-1">
+        {stages.map((stage, i) => {
+          const StageIcon = stage.icon;
           return (
             <React.Fragment key={stage.key}>
               <div
-                className="group relative flex-1 overflow-hidden rounded-xl border border-border/40 bg-muted/20 p-2.5"
-                style={{ animationDelay: `${0.04 * i}s` }}
+                className="group relative flex-1 overflow-hidden rounded-xl border p-2"
+                style={{ borderColor: `${stage.color}30`, background: `${stage.color}08` }}
               >
-                <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 transition-all duration-700 ease-out"
-                  style={{
-                    height: `${Math.max(pct, 4)}%`,
-                    background: `linear-gradient(180deg, ${stage.color}30 0%, ${stage.color}08 100%)`,
-                  }}
-                />
-                <div className="relative">
-                  <div className="flex items-center justify-between gap-1">
-                    <div
-                      className="grid h-6 w-6 place-items-center rounded-md"
-                      style={{ background: `${stage.color}14`, color: stage.color }}
-                    >
-                      <stage.icon className="h-3 w-3" />
-                    </div>
-                    <span
-                      className="rounded-full px-1.5 py-0.5 text-[9px] font-bold"
-                      style={{ background: `${stage.color}14`, color: stage.color }}
-                    >
-                      {Math.round(pct)}%
-                    </span>
+                <div className="flex items-center justify-between">
+                  <div
+                    className="grid h-6 w-6 place-items-center rounded-md"
+                    style={{ background: `${stage.color}14`, color: stage.color }}
+                  >
+                    <StageIcon className="h-3 w-3" />
                   </div>
-                  <div className="mt-1.5 num-display text-base font-bold leading-none">{count}</div>
-                  <div className="label-caps mt-0.5 text-[9px]">{stage.label}</div>
                 </div>
+                <div className="mt-1.5 num-display text-base font-bold leading-none">{stage.count}</div>
+                <div className="label-caps mt-0.5 text-[8px]">{stage.label}</div>
               </div>
-              {i < PIPELINE_STAGES.length - 1 && (
+              {i < stages.length - 1 && (
                 <div className="flex items-center">
-                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />
+                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/30" />
                 </div>
               )}
             </React.Fragment>
           );
         })}
       </div>
+
+      {/* Sample posts per stage — show up to 4 recent posts with thumbnails */}
+      {allPosts.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="label-caps text-[9px] text-muted-foreground">Recent posts</div>
+          {allPosts.slice(0, 4).map((post: any) => {
+            const statusMeta: Record<string, { label: string; color: string }> = {
+              draft: { label: "Draft", color: "#AF52DE" },
+              scheduled: { label: "Scheduled", color: "#007AFF" },
+              published: { label: "Published", color: "#34C759" },
+              failed: { label: "Failed", color: "#FF3B30" },
+            };
+            const status = statusMeta[post.status] ?? statusMeta.draft;
+            return (
+              <div
+                key={post.id}
+                className="group flex items-center gap-2.5 rounded-lg border border-border/30 bg-muted/10 p-2 transition hover:bg-muted/20"
+              >
+                {/* Thumbnail */}
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
+                  {post.mediaUrl ? (
+                    <img src={post.mediaUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  {/* Status dot */}
+                  <span
+                    className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-1 ring-background"
+                    style={{ background: status.color }}
+                  />
+                </div>
+                {/* Title + author */}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[11px] font-semibold">{post.title}</div>
+                  <div className="truncate text-[9px] text-muted-foreground">
+                    {post.authorName} · {status.label}
+                  </div>
+                </div>
+                {/* Status badge */}
+                <span
+                  className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold"
+                  style={{ background: `${status.color}14`, color: status.color }}
+                >
+                  {status.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Published + shared breakdown — shows which platforms each post was shared to */}
+      {publishedPosts.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="label-caps text-[9px] text-muted-foreground">Published + shared across platforms</div>
+          {publishedPosts.slice(0, 3).map((post: any) => (
+            <div
+              key={post.id}
+              className="flex items-center gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-2"
+            >
+              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
+                {post.mediaUrl ? (
+                  <img src={post.mediaUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center">
+                    <Send className="h-4 w-4 text-emerald-500" />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[11px] font-semibold">{post.title}</div>
+                <div className="mt-0.5 flex items-center gap-1">
+                  {(post.platforms ?? []).map((p: any, i: number) => (
+                    <PlatformBadge key={i} platform={p} size={16} />
+                  ))}
+                  {(post.platforms?.length ?? 0) === 0 && (
+                    <span className="text-[9px] text-muted-foreground">No platforms</span>
+                  )}
+                </div>
+              </div>
+              <span className="shrink-0 text-[9px] font-bold text-emerald-600">
+                {post.platforms?.length ?? 0} shares
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Total summary */}
       <div className="flex items-center justify-between rounded-lg bg-muted/30 px-2.5 py-1.5 text-[11px]">
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Layers className="h-3 w-3" /> Total content
