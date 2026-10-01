@@ -619,7 +619,7 @@ function PipelineSection({
 }) {
   return (
     <GlassCard className="crystal-in p-4" style={{ animationDelay: "0.20s" }}>
-      <SectionHeader icon={Layers} title="Content workflow" desc="Posts → Drafts → Scheduled → Published → Shared" />
+      <SectionHeader icon={Layers} title="Team productivity" desc="Content output, platform breakdown, sentiment & activity" />
 
       {/* 5-stage workflow — colored stage cards with chevron arrows between them */}
       <ContentWorkflowStrip

@@ -211,7 +211,7 @@ const TEMPLATES: Template[] = [
   { id: "audience", name: "Audience", icon: Users, color: "oklch(0.62 0.22 300)", desc: "Follower growth & platform distribution" },
   { id: "engagement", name: "Engagement", icon: Heart, color: "oklch(0.7 0.2 25)", desc: "Likes · comments · shares · saves" },
   { id: "team", name: "Team Activity", icon: BarChart3, color: "oklch(0.74 0.18 165)", desc: "Member contributions & cadence" },
-  { id: "content", name: "Content", icon: FileText, color: "oklch(0.68 0.18 95)", desc: "Content workflow: Posts → Drafts → Scheduled → Published → Shared" },
+  { id: "content", name: "Content", icon: FileText, color: "oklch(0.68 0.18 95)", desc: "Content pipeline: posts, drafts, scheduled, published & shares" },
   { id: "growth", name: "Growth", icon: Activity, color: "oklch(0.7 0.2 145)", desc: "Follower & reach trends over time" },
   { id: "platform", name: "Platforms", icon: Globe, color: "oklch(0.6 0.2 220)", desc: "Per-platform performance comparison" },
   { id: "reach", name: "Reach", icon: Target, color: "oklch(0.65 0.22 15)", desc: "Impressions & reach breakdown" },
@@ -844,7 +844,7 @@ function MetricTabs({ metrics, value, onChange }: { metrics: { key: string; labe
   );
 }
 
-// ============ Content workflow strip (Posts → Drafts → Scheduled → Published → Shared) ============
+// ============ Content pipeline strip (Posts → Drafts → Scheduled → Published → Shares) ============
 // Mirrors the Dashboard's `ContentWorkflow` visual: colored stage cards with
 // chevron arrows between them. Used by the Content and Posts-Performance
 // report templates. Shares is the number of platform variants published
@@ -1339,7 +1339,7 @@ function ContentContent({ analytics, teamData, totals }: {
   return (
     <div className="space-y-4">
       <p className="text-[12px] leading-relaxed text-muted-foreground">
-        Content workflow overview — <strong className="text-foreground">{totals.posts}</strong> total posts,
+        Content pipeline overview — <strong className="text-foreground">{totals.posts}</strong> total posts,
         <strong className="text-foreground"> {pipeline.draft}</strong> drafts,
         <strong className="text-foreground"> {pipeline.scheduled}</strong> scheduled,
         <strong className="text-foreground"> {pipeline.published}</strong> published,
@@ -4119,7 +4119,7 @@ function PrintLayout({
 
         {template.id === "content" && (
           <>
-            <PrintSection title="Content Workflow">
+            <PrintSection title="Content Pipeline">
               <table className="report-table">
                 <thead><tr>
                   <th>Stage</th>
