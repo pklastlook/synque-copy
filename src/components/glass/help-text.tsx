@@ -40,6 +40,7 @@ export function HelpText({
   className?: string;
 }) {
   const [dismissed, setDismissedState] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
 
   React.useEffect(() => {
     setDismissedState(getDismissed().includes(module));
@@ -56,18 +57,30 @@ export function HelpText({
   return (
     <div
       className={cn(
-        "flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/5 p-3 text-[12px] leading-relaxed",
+        "help-text-banner flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/5 p-2 text-[11px] leading-snug sm:rounded-xl sm:p-3 sm:text-[12px] sm:leading-relaxed",
         className
       )}
     >
-      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-      <div className="flex-1 text-muted-foreground">{children}</div>
+      <Info className="mt-0.5 h-3 w-3 shrink-0 text-primary sm:h-3.5 sm:w-3.5" />
+      {/* Mobile: collapsed (truncated, tap to expand). Desktop: always full. */}
+      <div
+        className={cn(
+          "flex-1 text-muted-foreground",
+          !expanded && "truncate sm:truncate-none",
+        )}
+        onClick={() => setExpanded((v) => !v)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setExpanded((v) => !v); }}
+      >
+        {children}
+      </div>
       <button
         onClick={dismiss}
         className="shrink-0 rounded-md p-0.5 text-muted-foreground/50 transition hover:bg-muted hover:text-foreground"
         aria-label="Dismiss help"
       >
-        <X className="h-3.5 w-3.5" />
+        <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
       </button>
     </div>
   );

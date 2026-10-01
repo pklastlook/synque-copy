@@ -190,7 +190,7 @@ export function SectionHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("mb-3 flex items-center justify-between gap-3", className)}>
+    <div className={cn("mb-2 flex items-center justify-between gap-3 sm:mb-3", className)}>
       <div className="flex items-center gap-2 min-w-0">
         {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
         <div className="min-w-0">

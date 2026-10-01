@@ -822,11 +822,19 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
     <nav
       className={cn(
         "fixed left-1/2 top-3 z-50 w-[calc(100%-1rem)] max-w-6xl -translate-x-1/2 rounded-2xl px-4 py-3 transition-all duration-300 sm:w-[calc(100%-2rem)] sm:px-5",
+        "border",
         scrolled
-          ? "border shadow-[0_8px_40px_-8px_rgba(0,0,0,0.6)] backdrop-blur-xl"
-          : "border border-transparent bg-transparent",
+          ? "shadow-[0_8px_40px_-8px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          : "sm:border-transparent sm:shadow-none sm:backdrop-blur-none",
       )}
-      style={scrolled ? { background: COLOR.navBg, borderColor: COLOR.border } : undefined}
+      style={{
+        ["--nav-bg" as string]: COLOR.navBg,
+        ["--nav-solid-bg" as string]: COLOR.navBg.replace(/[\d.]+\)$/, "1)"),
+        ["--nav-border" as string]: COLOR.border,
+        borderColor: "var(--nav-border)",
+        background: "var(--nav-solid-bg)",
+      } as React.CSSProperties}
+      data-mobile-solid="true"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5 transition-transform duration-300 hover:scale-105">
