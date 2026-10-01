@@ -8,7 +8,7 @@ import {
   Heart, Activity as ActivityIcon, Thermometer,
   Calendar, PlayCircle, PauseCircle, Lock,
   ArrowUpRight, RefreshCw, Copy, FileText,
-  X,
+  Globe, Server, Wifi, Plus, Trash2, X,
   type LucideIcon,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks";
@@ -21,12 +21,17 @@ import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose,
-} from "@/components/ui/dialog";
-import {
   MetricRow, SectionHeader, ListRow, Pill, Sparkline,
   type Metric,
 } from "@/components/glass/dense-ui";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 // ============ Types ============
 
@@ -485,6 +490,9 @@ export function AccountSafetyView() {
         onOpenChange={setAppealOpen}
         platform={appealPlatform}
       />
+
+      {/* VPN / Proxy rotation */}
+      <VPNProxySection />
     </div>
   );
 }
@@ -703,5 +711,241 @@ function SafetySkeleton() {
         <div className="shimmer h-48 rounded-3xl" />
       </div>
     </div>
+  );
+}
+
+// ============ VPN / Proxy Rotation Section ============
+
+interface ProxyData {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  protocol: string;
+  country: string | null;
+  city: string | null;
+  status: string;
+  healthy: boolean;
+  latency: number | null;
+  lastChecked: string | null;
+  accounts: { id: string; account: { id: string; platform: string; handle: string; displayName: string } }[];
+}
+
+function VPNProxySection() {
+  const { data, loading, reload } = useApi<{ proxies: ProxyData[] }>("/api/proxies");
+  const [showAdd, setShowAdd] = React.useState(false);
+  const [form, setForm] = React.useState({ name: "", host: "", port: "", username: "", password: "", protocol: "http", country: "", city: "" });
+  const [saving, setSaving] = React.useState(false);
+  const [checking, setChecking] = React.useState<string | null>(null);
+
+  const proxies = data?.proxies ?? [];
+
+  async function addProxy() {
+    if (!form.name || !form.host || !form.port) {
+      toast.error("Name, host, and port are required");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/proxies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        toast.success("Proxy added");
+        setForm({ name: "", host: "", port: "", username: "", password: "", protocol: "http", country: "", city: "" });
+        setShowAdd(false);
+        reload();
+      } else {
+        toast.error("Failed to add proxy");
+      }
+    } catch {
+      toast.error("Network error");
+    }
+    setSaving(false);
+  }
+
+  async function deleteProxy(id: string) {
+    if (!confirm("Delete this proxy? Assigned accounts will use direct connection.")) return;
+    try {
+      await fetch(`/api/proxies?id=${id}`, { method: "DELETE" });
+      toast.success("Proxy deleted");
+      reload();
+    } catch {
+      toast.error("Failed to delete");
+    }
+  }
+
+  async function checkProxy(proxyId: string) {
+    setChecking(proxyId);
+    try {
+      const res = await fetch("/api/proxies/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proxyId }),
+      });
+      const data = await res.json();
+      if (data.healthy) {
+        toast.success(`Proxy healthy — ${data.latency}ms — IP: ${data.ip ?? "unknown"}`);
+      } else {
+        toast.error("Proxy is down or unreachable");
+      }
+      reload();
+    } catch {
+      toast.error("Health check failed");
+    }
+    setChecking(null);
+  }
+
+  return (
+    <GlassCard className="crystal-in p-4">
+      <SectionHeader
+        title="VPN / Proxy rotation"
+        desc="Assign a unique IP to each account to avoid IP-based suspension detection"
+        icon={Globe}
+        action={
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add proxy
+          </button>
+        }
+      />
+
+      {/* Add proxy form */}
+      {showAdd && (
+        <div className="mb-4 rounded-xl border border-border/40 bg-muted/20 p-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <Label className="text-xs">Name *</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="US-East-1" className="mt-1 h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Host / IP *</Label>
+              <Input value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="proxy.example.com" className="mt-1 h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Port *</Label>
+              <Input value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value })} placeholder="8080" className="mt-1 h-9" type="number" />
+            </div>
+            <div>
+              <Label className="text-xs">Username</Label>
+              <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="user" className="mt-1 h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Password</Label>
+              <Input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="pass" type="password" className="mt-1 h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Protocol</Label>
+              <Select value={form.protocol} onValueChange={(v) => setForm({ ...form, protocol: v })}>
+                <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="http">HTTP</SelectItem>
+                  <SelectItem value="https">HTTPS</SelectItem>
+                  <SelectItem value="socks4">SOCKS4</SelectItem>
+                  <SelectItem value="socks5">SOCKS5</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Country</Label>
+              <Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="US" className="mt-1 h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">City</Label>
+              <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="New York" className="mt-1 h-9" />
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button onClick={addProxy} disabled={saving} className="liquid-pill flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-60">
+              {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              {saving ? "Saving..." : "Save proxy"}
+            </button>
+            <button onClick={() => setShowAdd(false)} className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Proxy list */}
+      {loading ? (
+        <div className="shimmer h-32 rounded-xl" />
+      ) : proxies.length === 0 ? (
+        <div className="grid place-items-center py-8 text-center text-sm text-muted-foreground">
+          <Globe className="mb-2 h-8 w-8 opacity-40" />
+          No proxies configured. Add one to start rotating IPs per account.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {proxies.map((p) => (
+            <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border/40 bg-muted/20 p-3">
+              {/* Health indicator */}
+              <div
+                className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg", p.healthy ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500")}
+              >
+                <Wifi className="h-4 w-4" />
+              </div>
+
+              {/* Proxy info */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-xs font-bold">{p.name}</span>
+                  {p.country && <Pill color="blue">{p.country}</Pill>}
+                  {p.city && <span className="text-[10px] text-muted-foreground">{p.city}</span>}
+                </div>
+                <div className="truncate text-[10px] text-muted-foreground">
+                  {p.protocol.toUpperCase()}://{p.host}:{p.port}
+                  {p.latency && <span className="ml-2">· {p.latency}ms</span>}
+                  {p.lastChecked && <span className="ml-2">· checked {new Date(p.lastChecked).toLocaleTimeString()}</span>}
+                </div>
+                {/* Assigned accounts */}
+                {p.accounts.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {p.accounts.map((a) => (
+                      <span key={a.id} className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium">
+                        <PlatformBadge platform={a.account.platform as PlatformId} size={12} />
+                        {a.account.handle}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={() => checkProxy(p.id)}
+                  disabled={checking === p.id}
+                  className="grid h-7 w-7 place-items-center rounded-lg border border-border/50 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  title="Health check"
+                >
+                  {checking === p.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                  onClick={() => deleteProxy(p.id)}
+                  className="grid h-7 w-7 place-items-center rounded-lg border border-border/50 text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500"
+                  title="Delete"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Info note */}
+      <div className="mt-3 flex items-start gap-2 rounded-lg bg-primary/5 p-3 text-[11px] text-muted-foreground">
+        <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+        <span>
+          Assigning a unique proxy to each account means platform APIs see a different IP per account —
+          reducing the risk of IP-based suspension detection. When a post is published, the API call
+          is routed through the account's assigned proxy. Health checks verify the proxy is alive
+          and measure latency.
+        </span>
+      </div>
+    </GlassCard>
   );
 }

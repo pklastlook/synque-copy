@@ -74,6 +74,7 @@ model Account {
   comments   Comment[]
   health     AccountHealth?
   protection AccountProtection?
+  accountProxies AccountProxy[]
 }
 
 // ===== Account Health (suspension risk + sentiment ratio) =====
@@ -816,4 +817,51 @@ model Influencer {
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// ===== VPN / Proxy Rotation for Account Safety =====
+model Proxy {
+  id          String   @id @default(cuid())
+  name        String   // friendly name e.g. "US-East-1"
+  host        String   // proxy host or IP
+  port        Int      // proxy port
+  username    String?  // auth username (optional)
+  password    String?  // auth password (optional)
+  protocol    String   @default("http") // http | https | socks4 | socks5
+  country     String?  // e.g. "US", "PK", "UK"
+  city        String?  // e.g. "New York"
+  status      String   @default("active") // active | down | rotating
+  healthy     Boolean  @default(true)
+  lastChecked DateTime?
+  latency     Int?     // ms response time
+  // Which accounts use this proxy
+  accounts    AccountProxy[]
+  // Rotation history
+  rotations   ProxyRotation[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AccountProxy {
+  id          String   @id @default(cuid())
+  accountId   String
+  proxyId     String
+  assignedAt  DateTime @default(now())
+  active      Boolean  @default(true)
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  proxy       Proxy    @relation(fields: [proxyId], references: [id], onDelete: Cascade)
+  @@unique([accountId, proxyId])
+}
+
+model ProxyRotation {
+  id          String   @id @default(cuid())
+  proxyId     String
+  accountId   String?
+  action      String   // assigned | rotated | removed | health_check
+  ip          String?  // the IP that was used
+  status      String   // success | failed | timeout
+  latency     Int?
+  notes       String?
+  proxy       Proxy    @relation(fields: [proxyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
 }
