@@ -109,10 +109,10 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
   const roleBadge = ROLE_BADGE[user?.role ?? "member"] ?? ROLE_BADGE.member;
 
   return (
-    <header className="sticky top-0 z-30 px-3 pt-3 sm:px-5 lg:px-6">
+    <header className="sticky top-0 z-30 px-2 pt-2 sm:px-5 sm:pt-3 lg:px-6">
       {/* Header bar — solid white (frosted via /80 + backdrop-blur-xl), rounded-xl, hairline border.
-          Density pass: gap-2 py-2 (was gap-2.5 py-2.5) for a tighter macOS-27 toolbar feel. */}
-      <div className="glass-topbar mx-auto flex w-full max-w-[1340px] items-center gap-2 rounded-xl px-3 py-2 sm:px-4">
+          Mobile: minimal — only menu, title, bell, avatar. Desktop: full toolbar. */}
+      <div className="glass-topbar mx-auto flex w-full max-w-[1340px] items-center gap-1.5 rounded-xl px-2 py-2 sm:gap-2 sm:px-4">
         <button
           onClick={onMenu}
           className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10] lg:hidden"
@@ -122,12 +122,11 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
         </button>
 
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg">{t.title}</h1>
+          <h1 className="truncate text-sm font-semibold tracking-tight sm:text-lg">{t.title}</h1>
           <p className="hidden truncate text-[11px] text-muted-foreground lg:block">{t.subtitle}</p>
         </div>
 
-        {/* Search — opens command palette. bg-[#F5F5F7] rounded-lg (NOT rounded-full).
-            Dense: px-2.5 py-1.5 (was px-3 py-2) — matches h-9 icon buttons visually. */}
+        {/* Search — opens command palette. Hidden on mobile (use menu instead). */}
         <button
           onClick={() => setCmdOpen(true)}
           className="hidden items-center gap-2 rounded-lg border border-black/[0.06] bg-[#F5F5F7] px-2.5 py-1.5 text-sm text-[#86868B] transition hover:bg-[#E8E8ED] dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-[#98989D] dark:hover:bg-white/[0.10] xl:flex"
@@ -139,19 +138,18 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           </kbd>
         </button>
 
-        {/* Quick compose button — solid #0071E3, rounded-lg.
-            Dense: px-2.5 py-1.5 (was px-3 py-2) — consistent with search button. */}
+        {/* Quick compose button — hidden on mobile (use FAB or menu). */}
         <button
           onClick={() => setView("composer")}
-          className="hidden items-center gap-1.5 rounded-lg bg-[#0071E3] px-2.5 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,113,227,0.30)] transition hover:bg-[#0061cb] dark:bg-[#0A84FF] dark:hover:bg-[#0071E3] sm:flex"
+          className="hidden items-center gap-1.5 rounded-lg bg-[#0071E3] px-2.5 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,113,227,0.30)] transition hover:bg-[#0061cb] dark:bg-[#0A84FF] dark:hover:bg-[#0071E3] lg:flex"
           title="Compose with AI"
         >
           <PenLine className="h-3.5 w-3.5" />
           <span className="hidden lg:inline">Compose</span>
         </button>
 
-        {/* Admin / Member scope toggle — segmented control. */}
-        <div className="hidden items-center rounded-lg bg-[#F5F5F7] p-0.5 dark:bg-white/[0.06] sm:flex" title={adminMode ? "Viewing all team data" : "Viewing only your data"}>
+        {/* Admin / Member scope toggle — hidden on mobile (use dropdown). */}
+        <div className="hidden items-center rounded-lg bg-[#F5F5F7] p-0.5 dark:bg-white/[0.06] lg:flex" title={adminMode ? "Viewing all team data" : "Viewing only your data"}>
           <button
             onClick={() => setAdminMode(true)}
             className={cn(
@@ -172,15 +170,18 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           </button>
         </div>
 
-        {/* Connection status indicator */}
-        <ConnectionStatus />
+        {/* Connection status — hidden on mobile */}
+        <div className="hidden lg:block">
+          <ConnectionStatus />
+        </div>
 
-        {/* Notification bell — fetches real unread comments */}
+        {/* Notification bell — always visible */}
         <NotificationsBell onNavigate={() => setView("inbox")} />
 
+        {/* Theme toggle — hidden on mobile (use user dropdown) */}
         <button
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10]"
+          className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10] sm:grid"
           aria-label="Toggle theme"
         >
           {mounted && resolvedTheme === "dark" ? (
@@ -190,21 +191,21 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           )}
         </button>
 
+        {/* Log out — hidden on mobile (use user dropdown) */}
         <button
           onClick={logout}
-          className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#FF3B30]/10 hover:text-[#FF3B30] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-[#FF453A]/15 dark:hover:text-[#FF453A] sm:grid"
+          className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#FF3B30]/10 hover:text-[#FF3B30] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-[#FF453A]/15 dark:hover:text-[#FF453A] lg:grid"
           aria-label="Log out"
           title="Log out"
         >
           <LogOut className="h-[18px] w-[18px]" />
         </button>
 
-        {/* User avatar — functional dropdown with role badge */}
+        {/* User avatar — always visible */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex shrink-0 items-center gap-1.5 rounded-lg p-0.5 transition hover:bg-[#F5F5F7] dark:hover:bg-white/[0.06]">
-              <NameAvatar name={user?.name ?? "User"} color="blue" src={user?.avatar ?? undefined} className="h-9 w-9 text-xs" ring />
-              <ChevronDown className="h-3 w-3 text-muted-foreground" />
+            <button className="flex shrink-0 items-center rounded-lg p-0.5 transition hover:bg-[#F5F5F7] dark:hover:bg-white/[0.06]">
+              <NameAvatar name={user?.name ?? "User"} color="blue" src={user?.avatar ?? undefined} className="h-8 w-8 text-xs sm:h-9 sm:w-9" ring />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-60">
@@ -229,6 +230,13 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-pointer" onClick={() => setView("team-performance")}>
               <Activity className="mr-2 h-4 w-4" /> My Activity
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer sm:hidden" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
+              {resolvedTheme === "dark" ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+              {resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer sm:hidden" onClick={() => setView("composer")}>
+              <PenLine className="mr-2 h-4 w-4" /> Compose
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer text-rose-500 focus:text-rose-500" onClick={logout}>

@@ -752,7 +752,7 @@ export function DashboardView() {
         </BentoTile>
       </BentoGrid>
 
-      {/* === 5. Recent posts + Shared/Failed — compact secondary section === */}
+      {/* === 5. Recent posts + Shared/Failed — compact secondary section (desktop only on mobile) === */}
       <div className="grid gap-3 lg:grid-cols-2">
         {/* Recent posts — click to edit (preserves openComposerWithPost) */}
         <GlassCard className="p-4">
@@ -1011,8 +1011,8 @@ export function DashboardView() {
         )}
       </div>
 
-      {/* === 6. Tasks + Pipeline — compact horizontal section === */}
-      <div className="grid gap-3 lg:grid-cols-2">
+      {/* === 6. Tasks + Pipeline — compact horizontal section (hidden on mobile for cleaner view) === */}
+      <div className="hidden grid gap-3 lg:grid lg:grid-cols-2">
         {/* Task summary — compact dense list */}
         <GlassCard className="p-4">
           <SectionHeader

@@ -85,18 +85,21 @@ export interface Metric {
 
 export function MetricRow({ metrics, className }: { metrics: Metric[]; className?: string }) {
   return (
-    <div className={cn("flex items-stretch overflow-x-auto rounded-xl border border-border/40 bg-muted/20", className)}>
+    <div className={cn(
+      "grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border/40 bg-border/40 sm:flex sm:items-stretch sm:overflow-x-auto bg-muted/20",
+      className
+    )}>
       {metrics.map((m, i) => (
         <div
           key={i}
           className={cn(
-            "flex min-w-[140px] flex-1 items-center gap-3 px-4 py-2.5",
-            i < metrics.length - 1 && "border-r border-border/40"
+            "flex items-center gap-2 bg-muted/20 px-3 py-2.5 sm:min-w-[140px] sm:flex-1 sm:gap-3 sm:px-4",
+            i < metrics.length - 1 && "sm:border-r sm:border-border/40"
           )}
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-1.5">
-              <span className="num-display text-lg font-bold leading-none tabular-nums">
+              <span className="num-display text-base font-bold leading-none tabular-nums sm:text-lg">
                 {typeof m.value === "number" ? m.value.toLocaleString() : m.value}
               </span>
               {m.delta !== undefined && (
@@ -110,10 +113,10 @@ export function MetricRow({ metrics, className }: { metrics: Metric[]; className
                 </span>
               )}
             </div>
-            <div className="label-caps mt-1 truncate text-[10px] text-muted-foreground">{m.label}</div>
+            <div className="label-caps mt-1 truncate text-[9px] text-muted-foreground sm:text-[10px]">{m.label}</div>
           </div>
           {m.spark && m.spark.length > 1 && (
-            <Sparkline data={m.spark} color={m.color ?? "var(--primary)"} width={48} height={20} />
+            <Sparkline data={m.spark} color={m.color ?? "var(--primary)"} width={36} height={18} />
           )}
         </div>
       ))}
@@ -127,7 +130,7 @@ export function MetricRow({ metrics, className }: { metrics: Metric[]; className
 
 export function BentoGrid({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("grid auto-rows-[minmax(120px,auto)] grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4", className)}>
+    <div className={cn("grid auto-rows-[minmax(120px,auto)] grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4", className)}>
       {children}
     </div>
   );
@@ -146,12 +149,12 @@ export function BentoTile({
   hover?: boolean;
 } & React.HTMLAttributes<HTMLDivElement>) {
   const spanClass = {
-    "1x1": "sm:col-span-1 sm:row-span-1",
-    "1x2": "sm:col-span-1 sm:row-span-2",
-    "2x1": "sm:col-span-2 sm:row-span-1",
-    "2x2": "sm:col-span-2 sm:row-span-2",
-    "3x1": "sm:col-span-3 sm:row-span-1",
-    "1x3": "sm:col-span-1 sm:row-span-3",
+    "1x1": "col-span-1 sm:col-span-1 sm:row-span-1",
+    "1x2": "col-span-1 sm:col-span-1 sm:row-span-2",
+    "2x1": "col-span-1 sm:col-span-2 sm:row-span-1",
+    "2x2": "col-span-1 sm:col-span-2 sm:row-span-2",
+    "3x1": "col-span-1 sm:col-span-3 sm:row-span-1",
+    "1x3": "col-span-1 sm:col-span-1 sm:row-span-3",
   }[span];
 
   return (
