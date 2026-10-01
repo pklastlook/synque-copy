@@ -8911,3 +8911,88 @@ influencers             6
 npx tsx scripts/wipe-and-reseed.ts
 ```
 
+
+---
+
+## Task ID: macos27-ios-dock-redesign
+
+**Task**: Redesign SYNQUE app to match macOS 27 / iOS dock aesthetic. Seven specific changes — verify build error fix, redesign mobile bottom bar as a floating iOS dock, replace "Sign in" with compact "Start trial" on mobile topbar, make footer columns expandable on mobile, enhance landing page animations (count-up verify, animated SVG line graph behind headline, enhanced hero eyebrow text), apply macOS 27 style to dropdown menus / notifications / user avatar dropdown, and verify production build passes.
+
+### Files modified (ONLY existing files — no new files created)
+1. `/home/z/my-project/src/app/globals.css` — mobile tab bar redesign + macOS 27 dropdown styles
+2. `/home/z/my-project/src/components/app-shell.tsx` — `<nav>` wrapper updated for floating dock
+3. `/home/z/my-project/src/components/landing-page.tsx` — mobile "Start trial", footer expandable, hero animations
+
+### Work log
+
+**1. Build error verification** ✓
+- Confirmed `@key iosSheetUp` is now `@keyframes iosSheetUp` at `globals.css` line 682.
+- Grep for `@key ` (without `frames`) returned 0 matches — no other broken keyframes remain.
+
+**2. Mobile bottom bar → macOS dock / iOS dock style**
+- `globals.css` `.apple-tab-bar` block rewritten:
+  - `border-radius: 24px` (rounded like a dock, was flat 0)
+  - Glassmorphic bg `rgba(255, 255, 255, 0.72)` + `backdrop-filter: blur(30px) saturate(180%)`
+  - `box-shadow: 0 4px 24px -4px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.45)` (replaced the top hairline border)
+  - Dark mode: `rgba(28, 28, 30, 0.72)` bg, dark border, stronger shadow
+- Added new `.apple-tab-bar-dock` helper class that floats the bar with `margin: 0 12px 12px` (+ safe-area-inset on bottom).
+- Active tab indicator moved from BELOW the icon (`.apple-tab-item.active::after`) to ABOVE the icon (`.apple-tab-item.active::before`) — 5px dot, glowing blue halo, mirrors macOS Dock running-app indicator.
+- `app-shell.tsx` `<nav>` wrapper class list updated:
+  - Replaced `apple-glass-heavy` with the new `apple-tab-bar` dock styling
+  - Added `apple-tab-bar-dock` for floating margins
+  - `min-h-[49px]` → `min-h-[64px]`, added `rounded-3xl`
+  - Removed the old `pb-[env(safe-area-inset-bottom,0px)]` since `.apple-tab-bar-dock` handles safe-area in its bottom margin.
+
+**3. Replace "Sign in" with "Start trial" in mobile topbar**
+- `landing-page.tsx` `CinematicNav`:
+  - Desktop (`hidden sm:flex`): kept "Sign in" text link + added a dedicated `hidden sm:inline-flex` "Start trial" `GlowCTA` button (was previously always-visible).
+  - Mobile (`sm:hidden`): added a compact `GlowCTA` "Start trial" button (`px-3 py-2 text-[12px]`, smaller Rocket icon) — replaces the "Sign in" link entirely on mobile.
+  - "Sign in" is still reachable on mobile via the hamburger dropdown (kept there as a list item, intentionally — needed for returning users).
+
+**4. Footer expandable on mobile**
+- `Act11Footer` now uses `useState<string | null>(null)` to track which column is open. Each column toggles independently; only one open at a time.
+- `FooterCol` rewritten to accept `open: boolean` + `onToggle: () => void` props:
+  - Header is now a `<button>` (on mobile) with `aria-expanded`.
+  - A `ChevronDown` icon (only shown `sm:hidden`) rotates 180° when expanded.
+  - On desktop (`sm:` and up): `sm:cursor-default sm:pointer-events-none` disables the toggle, `sm:max-h-none sm:opacity-100` always shows the links.
+  - On mobile: `maxHeight` animates between 0 and 300px with a 300ms transition; opacity fades; margin-top collapses when closed.
+  - Default state on mobile: all collapsed (initial state `null`).
+
+**5. Enhance landing page animations**
+- **a) Count-up** — verified `CountUpStat` component already animates from 0 → target on scroll-into-view via `IntersectionObserver` (threshold 0.4) + `requestAnimationFrame` with cubic ease-out over 1.8s. Already wired into the trust stats bar (`Act1Hero`). No change needed.
+- **b) Animated SVG line graph** — added a new `<svg>` element in `Act1Hero` (behind the headline, `z-0`, `opacity: 0.18`, `sm:block`):
+  - 900×320 viewBox, gradient stroke `linearGradient` from `COLOR.accent` → `COLOR.violet` → `COLOR.teal`.
+  - Soft area fill below the line using `heroAreaGrad` (accent → transparent).
+  - The line path uses `stroke-dasharray: 1400` + `stroke-dashoffset: 1400` and animates with the existing `lineDraw` keyframe (`2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards`) — the line "draws itself" on load.
+  - 4 small accent-colored circles at key points along the line, fading in staggered (1.4s, 1.65s, 1.9s, 2.15s) via the existing `fadeUp` keyframe.
+- **c) Enhanced hero eyebrow text** — replaced the previous "The enterprise command center" pill with a new prominent `<p>` element directly below it:
+  - Text: "Orchestrate your social. The enterprise command center for modern social teams."
+  - Larger font: `text-lg sm:text-xl` (was implicit-none before).
+  - Subtle gradient text effect: `bg-clip-text text-transparent` with `linear-gradient(120deg, COLOR.accent, COLOR.violet)` + the existing `heroGradientShift` keyframe (animated position shift over 8s).
+  - Typing/fade-in animation on load: composed `heroGradientShift 8s ease-in-out infinite, fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both` — fades up + in.
+
+**6. macOS 27 style popups / notifications / user dropdown**
+Added a new section at the end of `globals.css` (after the print rules):
+
+- New `@keyframes macosMenuOpen` — subtle scale-in (`scale(0.96) translateY(-2px)` → `scale(1) translateY(0)`) over 220ms with cubic ease.
+- Dropdown menus (`[data-slot="dropdown-menu-content"], .dropdown-menu, [role="menu"]`):
+  - `border-radius: 14px !important` (was rounded-md ~6px)
+  - Layered shadow: `0 8px 32px -4px rgba(0,0,0,0.12), 0 2px 8px -2px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04)`
+  - More interior padding: `6px`
+  - Glassmorphic: `backdrop-filter: blur(30px) saturate(180%)` + `background: rgba(255, 255, 255, 0.86)`
+  - Subtle scale-in animation on open
+  - Dark mode variant with `rgba(28, 28, 30, 0.86)` bg + stronger dark shadow.
+- Menu items (`[data-slot="dropdown-menu-item]` etc.): `border-radius: 8px`, `padding: 6px 10px`, smooth color transition.
+- Separators: thinner, `margin: 4px 2px`, theme-aware bg.
+- Notification items: subtle backdrop-blur on the icon tiles inside; soft glass hover background (`rgba(0,0,0,0.04)` light / `rgba(255,255,255,0.08)` dark).
+- User avatar dropdown header:
+  - `DropdownMenuLabel` (`[data-slot="dropdown-menu-label"]`) gets `padding: 8px 10px`, `border-bottom: 1px solid rgba(0,0,0,0.06)` (separator between profile info and menu items), `margin-bottom: 4px`. Dark mode variant.
+  - Avatar inside the label header: scaled up to `40×40px` (from 32×32) + `font-size: 14px`.
+- All styles use `!important` to override the shadcn defaults without modifying `dropdown-menu.tsx` (which is a generated primitive).
+
+### Verification
+
+- **Lint**: `bun run lint` → **exit 0**, no errors, no warnings introduced.
+- **Production build**: `NODE_OPTIONS="--max-old-space-size=3072" npx next build` → ✓ Compiled successfully in 52s, all 25 static pages generated, no type errors. (Default memory budget was insufficient in the sandbox; raising the old-space limit to 3GB allowed the build to complete.)
+- **Runtime**: `curl http://localhost:3000/` → 200 OK, 217KB HTML, contains "Orchestrate your social" (×2) and "Start trial" (×2) — confirming the new eyebrow text and mobile "Start trial" button render in the SSR'd HTML.
+- **Mobile nav** (`apple-tab-bar-dock`) only renders client-side when a user is signed in (gated by `showMobileTabs`), so it doesn't appear in the unauthenticated landing page HTML — expected.
