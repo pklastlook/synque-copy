@@ -337,6 +337,7 @@ export type UserWhereInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageListRelationFilter
   sentMessages?: Prisma.ChatMessageListRelationFilter
   receivedMessages?: Prisma.ChatMessageListRelationFilter
+  vpnSessions?: Prisma.VPNSessionListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -374,6 +375,7 @@ export type UserOrderByWithRelationInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageOrderByRelationAggregateInput
   sentMessages?: Prisma.ChatMessageOrderByRelationAggregateInput
   receivedMessages?: Prisma.ChatMessageOrderByRelationAggregateInput
+  vpnSessions?: Prisma.VPNSessionOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -414,6 +416,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageListRelationFilter
   sentMessages?: Prisma.ChatMessageListRelationFilter
   receivedMessages?: Prisma.ChatMessageListRelationFilter
+  vpnSessions?: Prisma.VPNSessionListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -509,6 +512,7 @@ export type UserCreateInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -546,6 +550,7 @@ export type UserUncheckedCreateInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -583,6 +588,7 @@ export type UserUpdateInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -620,6 +626,7 @@ export type UserUncheckedUpdateInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -970,6 +977,20 @@ export type UserUpdateOneRequiredWithoutSessionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutSessionsInput, Prisma.UserUpdateWithoutSessionsInput>, Prisma.UserUncheckedUpdateWithoutSessionsInput>
 }
 
+export type UserCreateNestedOneWithoutVpnSessionsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutVpnSessionsInput, Prisma.UserUncheckedCreateWithoutVpnSessionsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVpnSessionsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutVpnSessionsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutVpnSessionsInput, Prisma.UserUncheckedCreateWithoutVpnSessionsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVpnSessionsInput
+  upsert?: Prisma.UserUpsertWithoutVpnSessionsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutVpnSessionsInput, Prisma.UserUpdateWithoutVpnSessionsInput>, Prisma.UserUncheckedUpdateWithoutVpnSessionsInput>
+}
+
 export type UserCreateWithoutAccountsInput = {
   id?: string
   name: string
@@ -1004,6 +1025,7 @@ export type UserCreateWithoutAccountsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAccountsInput = {
@@ -1040,6 +1062,7 @@ export type UserUncheckedCreateWithoutAccountsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAccountsInput = {
@@ -1092,6 +1115,7 @@ export type UserUpdateWithoutAccountsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAccountsInput = {
@@ -1128,6 +1152,7 @@ export type UserUncheckedUpdateWithoutAccountsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutPostsInput = {
@@ -1164,6 +1189,7 @@ export type UserCreateWithoutPostsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutPostsInput = {
@@ -1200,6 +1226,7 @@ export type UserUncheckedCreateWithoutPostsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutPostsInput = {
@@ -1252,6 +1279,7 @@ export type UserUpdateWithoutPostsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPostsInput = {
@@ -1288,6 +1316,7 @@ export type UserUncheckedUpdateWithoutPostsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutAssignedCommentsInput = {
@@ -1324,6 +1353,7 @@ export type UserCreateWithoutAssignedCommentsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAssignedCommentsInput = {
@@ -1360,6 +1390,7 @@ export type UserUncheckedCreateWithoutAssignedCommentsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAssignedCommentsInput = {
@@ -1412,6 +1443,7 @@ export type UserUpdateWithoutAssignedCommentsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssignedCommentsInput = {
@@ -1448,6 +1480,7 @@ export type UserUncheckedUpdateWithoutAssignedCommentsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutActivitiesInput = {
@@ -1484,6 +1517,7 @@ export type UserCreateWithoutActivitiesInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutActivitiesInput = {
@@ -1520,6 +1554,7 @@ export type UserUncheckedCreateWithoutActivitiesInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutActivitiesInput = {
@@ -1572,6 +1607,7 @@ export type UserUpdateWithoutActivitiesInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutActivitiesInput = {
@@ -1608,6 +1644,7 @@ export type UserUncheckedUpdateWithoutActivitiesInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutSavedWhatsAppMsgsInput = {
@@ -1644,6 +1681,7 @@ export type UserCreateWithoutSavedWhatsAppMsgsInput = {
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutSavedWhatsAppMsgsInput = {
@@ -1680,6 +1718,7 @@ export type UserUncheckedCreateWithoutSavedWhatsAppMsgsInput = {
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutSavedWhatsAppMsgsInput = {
@@ -1732,6 +1771,7 @@ export type UserUpdateWithoutSavedWhatsAppMsgsInput = {
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSavedWhatsAppMsgsInput = {
@@ -1768,6 +1808,7 @@ export type UserUncheckedUpdateWithoutSavedWhatsAppMsgsInput = {
   platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutSentMessagesInput = {
@@ -1804,6 +1845,7 @@ export type UserCreateWithoutSentMessagesInput = {
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutSentMessagesInput = {
@@ -1840,6 +1882,7 @@ export type UserUncheckedCreateWithoutSentMessagesInput = {
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutSentMessagesInput = {
@@ -1881,6 +1924,7 @@ export type UserCreateWithoutReceivedMessagesInput = {
   platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutReceivedMessagesInput = {
@@ -1917,6 +1961,7 @@ export type UserUncheckedCreateWithoutReceivedMessagesInput = {
   platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutReceivedMessagesInput = {
@@ -1969,6 +2014,7 @@ export type UserUpdateWithoutSentMessagesInput = {
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSentMessagesInput = {
@@ -2005,6 +2051,7 @@ export type UserUncheckedUpdateWithoutSentMessagesInput = {
   platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserUpsertWithoutReceivedMessagesInput = {
@@ -2052,6 +2099,7 @@ export type UserUpdateWithoutReceivedMessagesInput = {
   platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutReceivedMessagesInput = {
@@ -2088,6 +2136,7 @@ export type UserUncheckedUpdateWithoutReceivedMessagesInput = {
   platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutMailboxesInput = {
@@ -2124,6 +2173,7 @@ export type UserCreateWithoutMailboxesInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutMailboxesInput = {
@@ -2160,6 +2210,7 @@ export type UserUncheckedCreateWithoutMailboxesInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutMailboxesInput = {
@@ -2212,6 +2263,7 @@ export type UserUpdateWithoutMailboxesInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMailboxesInput = {
@@ -2248,6 +2300,7 @@ export type UserUncheckedUpdateWithoutMailboxesInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutWorkspaceInput = {
@@ -2284,6 +2337,7 @@ export type UserCreateWithoutWorkspaceInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutWorkspaceInput = {
@@ -2320,6 +2374,7 @@ export type UserUncheckedCreateWithoutWorkspaceInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutWorkspaceInput = {
@@ -2372,6 +2427,7 @@ export type UserUpdateWithoutWorkspaceInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWorkspaceInput = {
@@ -2408,6 +2464,7 @@ export type UserUncheckedUpdateWithoutWorkspaceInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutPlatformCredentialsInput = {
@@ -2444,6 +2501,7 @@ export type UserCreateWithoutPlatformCredentialsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutPlatformCredentialsInput = {
@@ -2480,6 +2538,7 @@ export type UserUncheckedCreateWithoutPlatformCredentialsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutPlatformCredentialsInput = {
@@ -2532,6 +2591,7 @@ export type UserUpdateWithoutPlatformCredentialsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPlatformCredentialsInput = {
@@ -2568,6 +2628,7 @@ export type UserUncheckedUpdateWithoutPlatformCredentialsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutSessionsInput = {
@@ -2604,6 +2665,7 @@ export type UserCreateWithoutSessionsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutSessionsInput = {
@@ -2640,6 +2702,7 @@ export type UserUncheckedCreateWithoutSessionsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
   sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
   receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+  vpnSessions?: Prisma.VPNSessionUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutSessionsInput = {
@@ -2692,6 +2755,7 @@ export type UserUpdateWithoutSessionsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSessionsInput = {
@@ -2728,6 +2792,171 @@ export type UserUncheckedUpdateWithoutSessionsInput = {
   savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
   sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
   receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
+  vpnSessions?: Prisma.VPNSessionUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutVpnSessionsInput = {
+  id?: string
+  name: string
+  email: string
+  password?: string | null
+  avatar?: string | null
+  role?: string
+  title?: string | null
+  department?: string | null
+  color?: string | null
+  permissions?: string | null
+  status?: string
+  lastActive?: Date | string | null
+  createdAt?: Date | string
+  bio?: string | null
+  timezone?: string | null
+  language?: string | null
+  gender?: string | null
+  birthDate?: Date | string | null
+  phone?: string | null
+  customerId?: string | null
+  emailVerified?: Date | string | null
+  totpSecret?: string | null
+  twoFactorEnabled?: boolean
+  sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
+  accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
+  posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
+  activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
+  assignedComments?: Prisma.CommentCreateNestedManyWithoutAssigneeInput
+  mailboxes?: Prisma.MailboxCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceSettingsCreateNestedOneWithoutOwnerInput
+  platformCredentials?: Prisma.PlatformCredentialCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageCreateNestedManyWithoutSavedByInput
+  sentMessages?: Prisma.ChatMessageCreateNestedManyWithoutSenderInput
+  receivedMessages?: Prisma.ChatMessageCreateNestedManyWithoutReceiverInput
+}
+
+export type UserUncheckedCreateWithoutVpnSessionsInput = {
+  id?: string
+  name: string
+  email: string
+  password?: string | null
+  avatar?: string | null
+  role?: string
+  title?: string | null
+  department?: string | null
+  color?: string | null
+  permissions?: string | null
+  status?: string
+  lastActive?: Date | string | null
+  createdAt?: Date | string
+  bio?: string | null
+  timezone?: string | null
+  language?: string | null
+  gender?: string | null
+  birthDate?: Date | string | null
+  phone?: string | null
+  customerId?: string | null
+  emailVerified?: Date | string | null
+  totpSecret?: string | null
+  twoFactorEnabled?: boolean
+  sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
+  accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
+  posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
+  activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
+  assignedComments?: Prisma.CommentUncheckedCreateNestedManyWithoutAssigneeInput
+  mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutOwnerInput
+  workspace?: Prisma.WorkspaceSettingsUncheckedCreateNestedOneWithoutOwnerInput
+  platformCredentials?: Prisma.PlatformCredentialUncheckedCreateNestedManyWithoutUserInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedCreateNestedManyWithoutSavedByInput
+  sentMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutSenderInput
+  receivedMessages?: Prisma.ChatMessageUncheckedCreateNestedManyWithoutReceiverInput
+}
+
+export type UserCreateOrConnectWithoutVpnSessionsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutVpnSessionsInput, Prisma.UserUncheckedCreateWithoutVpnSessionsInput>
+}
+
+export type UserUpsertWithoutVpnSessionsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutVpnSessionsInput, Prisma.UserUncheckedUpdateWithoutVpnSessionsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutVpnSessionsInput, Prisma.UserUncheckedCreateWithoutVpnSessionsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutVpnSessionsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutVpnSessionsInput, Prisma.UserUncheckedUpdateWithoutVpnSessionsInput>
+}
+
+export type UserUpdateWithoutVpnSessionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  department?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  permissions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  lastActive?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  birthDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
+  accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
+  posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
+  activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
+  assignedComments?: Prisma.CommentUpdateManyWithoutAssigneeNestedInput
+  mailboxes?: Prisma.MailboxUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceSettingsUpdateOneWithoutOwnerNestedInput
+  platformCredentials?: Prisma.PlatformCredentialUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUpdateManyWithoutSavedByNestedInput
+  sentMessages?: Prisma.ChatMessageUpdateManyWithoutSenderNestedInput
+  receivedMessages?: Prisma.ChatMessageUpdateManyWithoutReceiverNestedInput
+}
+
+export type UserUncheckedUpdateWithoutVpnSessionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  department?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  color?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  permissions?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  lastActive?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  timezone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  language?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  birthDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
+  accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
+  posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
+  activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
+  assignedComments?: Prisma.CommentUncheckedUpdateManyWithoutAssigneeNestedInput
+  mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutOwnerNestedInput
+  workspace?: Prisma.WorkspaceSettingsUncheckedUpdateOneWithoutOwnerNestedInput
+  platformCredentials?: Prisma.PlatformCredentialUncheckedUpdateManyWithoutUserNestedInput
+  savedWhatsAppMsgs?: Prisma.WhatsAppMessageUncheckedUpdateManyWithoutSavedByNestedInput
+  sentMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutSenderNestedInput
+  receivedMessages?: Prisma.ChatMessageUncheckedUpdateManyWithoutReceiverNestedInput
 }
 
 
@@ -2746,6 +2975,7 @@ export type UserCountOutputType = {
   savedWhatsAppMsgs: number
   sentMessages: number
   receivedMessages: number
+  vpnSessions: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2759,6 +2989,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   savedWhatsAppMsgs?: boolean | UserCountOutputTypeCountSavedWhatsAppMsgsArgs
   sentMessages?: boolean | UserCountOutputTypeCountSentMessagesArgs
   receivedMessages?: boolean | UserCountOutputTypeCountReceivedMessagesArgs
+  vpnSessions?: boolean | UserCountOutputTypeCountVpnSessionsArgs
 }
 
 /**
@@ -2841,6 +3072,13 @@ export type UserCountOutputTypeCountReceivedMessagesArgs<ExtArgs extends runtime
   where?: Prisma.ChatMessageWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountVpnSessionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.VPNSessionWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2877,6 +3115,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   savedWhatsAppMsgs?: boolean | Prisma.User$savedWhatsAppMsgsArgs<ExtArgs>
   sentMessages?: boolean | Prisma.User$sentMessagesArgs<ExtArgs>
   receivedMessages?: boolean | Prisma.User$receivedMessagesArgs<ExtArgs>
+  vpnSessions?: boolean | Prisma.User$vpnSessionsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -2971,6 +3210,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   savedWhatsAppMsgs?: boolean | Prisma.User$savedWhatsAppMsgsArgs<ExtArgs>
   sentMessages?: boolean | Prisma.User$sentMessagesArgs<ExtArgs>
   receivedMessages?: boolean | Prisma.User$receivedMessagesArgs<ExtArgs>
+  vpnSessions?: boolean | Prisma.User$vpnSessionsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -2990,6 +3230,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     savedWhatsAppMsgs: Prisma.$WhatsAppMessagePayload<ExtArgs>[]
     sentMessages: Prisma.$ChatMessagePayload<ExtArgs>[]
     receivedMessages: Prisma.$ChatMessagePayload<ExtArgs>[]
+    vpnSessions: Prisma.$VPNSessionPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -3420,6 +3661,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   savedWhatsAppMsgs<T extends Prisma.User$savedWhatsAppMsgsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$savedWhatsAppMsgsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   sentMessages<T extends Prisma.User$sentMessagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$sentMessagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ChatMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   receivedMessages<T extends Prisma.User$receivedMessagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$receivedMessagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ChatMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  vpnSessions<T extends Prisma.User$vpnSessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$vpnSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VPNSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -4121,6 +4363,30 @@ export type User$receivedMessagesArgs<ExtArgs extends runtime.Types.Extensions.I
   take?: number
   skip?: number
   distinct?: Prisma.ChatMessageScalarFieldEnum | Prisma.ChatMessageScalarFieldEnum[]
+}
+
+/**
+ * User.vpnSessions
+ */
+export type User$vpnSessionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the VPNSession
+   */
+  select?: Prisma.VPNSessionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the VPNSession
+   */
+  omit?: Prisma.VPNSessionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.VPNSessionInclude<ExtArgs> | null
+  where?: Prisma.VPNSessionWhereInput
+  orderBy?: Prisma.VPNSessionOrderByWithRelationInput | Prisma.VPNSessionOrderByWithRelationInput[]
+  cursor?: Prisma.VPNSessionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.VPNSessionScalarFieldEnum | Prisma.VPNSessionScalarFieldEnum[]
 }
 
 /**

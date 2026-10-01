@@ -252,3 +252,13 @@ export type EmailVerificationToken = Prisma.EmailVerificationTokenModel
  * 
  */
 export type Influencer = Prisma.InfluencerModel
+/**
+ * Model VPNServer
+ * 
+ */
+export type VPNServer = Prisma.VPNServerModel
+/**
+ * Model VPNSession
+ * 
+ */
+export type VPNSession = Prisma.VPNSessionModel

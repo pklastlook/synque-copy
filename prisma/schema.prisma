@@ -52,6 +52,7 @@ model User {
   savedWhatsAppMsgs   WhatsAppMessage[] @relation("WhatsAppSavedBy")
   sentMessages        ChatMessage[]     @relation("ChatSender")
   receivedMessages    ChatMessage[]     @relation("ChatReceiver")
+  vpnSessions         VPNSession[]
 }
 
 model Account {
@@ -816,4 +817,54 @@ model Influencer {
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// ===== VPN (WireGuard) =====
+// Real WireGuard VPN server endpoints. Admin-configured — each row points
+// to an actual running WireGuard server (the server's public key + host:port).
+// The web app generates REAL client key pairs (x25519) and builds valid
+// .conf files the user imports into the official WireGuard client.
+model VPNServer {
+  id            String   @id @default(cuid())
+  countryCode   String                      // ISO 2-letter e.g. "US"
+  countryName   String
+  city          String
+  flag          String   @default("🏳")     // emoji flag
+  endpoint      String                      // host:port of the real WireGuard server
+  serverPubKey  String                      // server's Curve25519 public key (base64)
+  allowedIps    String   @default("0.0.0.0/0, ::/0")
+  dns           String   @default("1.1.1.1, 1.0.0.1")
+  addressPool   String   @default("10.66.0.0/24")  // client address pool (CIDR)
+  ping          Int      @default(0)        // est. latency ms (informational)
+  load          Int      @default(0)         // 0-100 server load %
+  premium       Boolean  @default(false)
+  status        String   @default("active")  // active | maintenance | offline
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  sessions     VPNSession[]
+}
+
+// Per-user VPN session. Stores the user's real generated private/public key
+// pair, the assigned VPN server, the assigned client IP, and the full .conf
+// text. One active session per user.
+model VPNSession {
+  id            String   @id @default(cuid())
+  userId        String
+  serverId      String
+  privateKey    String                     // client Curve25519 private key (base64)
+  publicKey     String                     // client Curve25519 public key (base64)
+  clientAddress String                     // e.g. 10.66.0.5/32
+  config        String                     // full WireGuard .conf text
+  status        String   @default("active") // active | disconnected | expired
+  connectedAt   DateTime?
+  disconnectedAt DateTime?
+  lastVerifiedIp String?                   // last IP seen by the verify endpoint
+  lastVerifiedAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server        VPNServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }

@@ -97,7 +97,9 @@ export const ModelName = {
   Session: 'Session',
   PasswordResetToken: 'PasswordResetToken',
   EmailVerificationToken: 'EmailVerificationToken',
-  Influencer: 'Influencer'
+  Influencer: 'Influencer',
+  VPNServer: 'VPNServer',
+  VPNSession: 'VPNSession'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -908,6 +910,48 @@ export const InfluencerScalarFieldEnum = {
 } as const
 
 export type InfluencerScalarFieldEnum = (typeof InfluencerScalarFieldEnum)[keyof typeof InfluencerScalarFieldEnum]
+
+
+export const VPNServerScalarFieldEnum = {
+  id: 'id',
+  countryCode: 'countryCode',
+  countryName: 'countryName',
+  city: 'city',
+  flag: 'flag',
+  endpoint: 'endpoint',
+  serverPubKey: 'serverPubKey',
+  allowedIps: 'allowedIps',
+  dns: 'dns',
+  addressPool: 'addressPool',
+  ping: 'ping',
+  load: 'load',
+  premium: 'premium',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VPNServerScalarFieldEnum = (typeof VPNServerScalarFieldEnum)[keyof typeof VPNServerScalarFieldEnum]
+
+
+export const VPNSessionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  serverId: 'serverId',
+  privateKey: 'privateKey',
+  publicKey: 'publicKey',
+  clientAddress: 'clientAddress',
+  config: 'config',
+  status: 'status',
+  connectedAt: 'connectedAt',
+  disconnectedAt: 'disconnectedAt',
+  lastVerifiedIp: 'lastVerifiedIp',
+  lastVerifiedAt: 'lastVerifiedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VPNSessionScalarFieldEnum = (typeof VPNSessionScalarFieldEnum)[keyof typeof VPNSessionScalarFieldEnum]
 
 
 export const SortOrder = {

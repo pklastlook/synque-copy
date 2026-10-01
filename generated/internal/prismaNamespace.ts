@@ -443,7 +443,9 @@ export const ModelName = {
   Session: 'Session',
   PasswordResetToken: 'PasswordResetToken',
   EmailVerificationToken: 'EmailVerificationToken',
-  Influencer: 'Influencer'
+  Influencer: 'Influencer',
+  VPNServer: 'VPNServer',
+  VPNSession: 'VPNSession'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -459,7 +461,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken" | "influencer"
+    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken" | "influencer" | "vPNServer" | "vPNSession"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3941,6 +3943,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    VPNServer: {
+      payload: Prisma.$VPNServerPayload<ExtArgs>
+      fields: Prisma.VPNServerFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VPNServerFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VPNServerFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload>
+        }
+        findFirst: {
+          args: Prisma.VPNServerFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VPNServerFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload>
+        }
+        findMany: {
+          args: Prisma.VPNServerFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload>[]
+        }
+        create: {
+          args: Prisma.VPNServerCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload>
+        }
+        createMany: {
+          args: Prisma.VPNServerCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VPNServerCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload>[]
+        }
+        delete: {
+          args: Prisma.VPNServerDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload>
+        }
+        update: {
+          args: Prisma.VPNServerUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload>
+        }
+        deleteMany: {
+          args: Prisma.VPNServerDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VPNServerUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VPNServerUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload>[]
+        }
+        upsert: {
+          args: Prisma.VPNServerUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNServerPayload>
+        }
+        aggregate: {
+          args: Prisma.VPNServerAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVPNServer>
+        }
+        groupBy: {
+          args: Prisma.VPNServerGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VPNServerGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VPNServerCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VPNServerCountAggregateOutputType> | number
+        }
+      }
+    }
+    VPNSession: {
+      payload: Prisma.$VPNSessionPayload<ExtArgs>
+      fields: Prisma.VPNSessionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VPNSessionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VPNSessionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload>
+        }
+        findFirst: {
+          args: Prisma.VPNSessionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VPNSessionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload>
+        }
+        findMany: {
+          args: Prisma.VPNSessionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload>[]
+        }
+        create: {
+          args: Prisma.VPNSessionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload>
+        }
+        createMany: {
+          args: Prisma.VPNSessionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VPNSessionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload>[]
+        }
+        delete: {
+          args: Prisma.VPNSessionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload>
+        }
+        update: {
+          args: Prisma.VPNSessionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload>
+        }
+        deleteMany: {
+          args: Prisma.VPNSessionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VPNSessionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VPNSessionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload>[]
+        }
+        upsert: {
+          args: Prisma.VPNSessionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VPNSessionPayload>
+        }
+        aggregate: {
+          args: Prisma.VPNSessionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVPNSession>
+        }
+        groupBy: {
+          args: Prisma.VPNSessionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VPNSessionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VPNSessionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VPNSessionCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -4774,6 +4924,48 @@ export const InfluencerScalarFieldEnum = {
 export type InfluencerScalarFieldEnum = (typeof InfluencerScalarFieldEnum)[keyof typeof InfluencerScalarFieldEnum]
 
 
+export const VPNServerScalarFieldEnum = {
+  id: 'id',
+  countryCode: 'countryCode',
+  countryName: 'countryName',
+  city: 'city',
+  flag: 'flag',
+  endpoint: 'endpoint',
+  serverPubKey: 'serverPubKey',
+  allowedIps: 'allowedIps',
+  dns: 'dns',
+  addressPool: 'addressPool',
+  ping: 'ping',
+  load: 'load',
+  premium: 'premium',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VPNServerScalarFieldEnum = (typeof VPNServerScalarFieldEnum)[keyof typeof VPNServerScalarFieldEnum]
+
+
+export const VPNSessionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  serverId: 'serverId',
+  privateKey: 'privateKey',
+  publicKey: 'publicKey',
+  clientAddress: 'clientAddress',
+  config: 'config',
+  status: 'status',
+  connectedAt: 'connectedAt',
+  disconnectedAt: 'disconnectedAt',
+  lastVerifiedIp: 'lastVerifiedIp',
+  lastVerifiedAt: 'lastVerifiedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VPNSessionScalarFieldEnum = (typeof VPNSessionScalarFieldEnum)[keyof typeof VPNSessionScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -5064,6 +5256,8 @@ export type GlobalOmitConfig = {
   passwordResetToken?: Prisma.PasswordResetTokenOmit
   emailVerificationToken?: Prisma.EmailVerificationTokenOmit
   influencer?: Prisma.InfluencerOmit
+  vPNServer?: Prisma.VPNServerOmit
+  vPNSession?: Prisma.VPNSessionOmit
 }
 
 /* Types for Logging */
