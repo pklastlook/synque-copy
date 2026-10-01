@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
-    const uploadedById = (formData.get("uploadedById") as string) || user!.id;
+    const uploadedById = (formData.get("uploadedById") as string) || user!.userId;
     const name = (formData.get("name") as string) || file?.name || "Untitled";
     const folder = (formData.get("folder") as string) || "general";
 
