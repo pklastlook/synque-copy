@@ -313,23 +313,21 @@ export function DashboardView() {
       </div>
 
       {/* === 2. Day range tabs + MetricRow — posting/sharing/commenting prioritized === */}
-      <div className="flex items-center gap-3">
-        <div className="scroll-liquid flex items-center gap-1 overflow-x-auto rounded-xl border border-border/50 bg-muted/30 p-1">
-          {RANGE_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setRange(tab.id)}
-              className={cn(
-                "shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition",
-                range === tab.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      <div className="scroll-liquid flex items-center gap-1 overflow-x-auto rounded-xl border border-border/50 bg-muted/30 p-1">
+        {RANGE_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setRange(tab.id)}
+            className={cn(
+              "shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition",
+              range === tab.id
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
       <MetricRow metrics={metrics} />
 

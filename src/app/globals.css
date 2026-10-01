@@ -895,9 +895,11 @@
 @media (max-width: 1023px) {
   .desktop-only { display: none !important; }
   .mobile-content { padding-bottom: 72px !important; }
-  /* Reduce vertical spacing between top-level sections on mobile (space-y-4 -> space-y-3) */
-  .mobile-content > div.space-y-4 { gap: 0.75rem; }
-  .mobile-content > div.space-y-4 > * + * { margin-top: 0.75rem; }
+  /* Reduce vertical spacing between top-level sections on mobile (space-y-4/5 -> tighter) */
+  .mobile-content > div.space-y-4,
+  .mobile-content > div.space-y-5 { gap: 0.75rem; }
+  .mobile-content > div.space-y-4 > * + *,
+  .mobile-content > div.space-y-5 > * + * { margin-top: 0.75rem; }
   /* Landing page nav: solid (non-transparent) background on mobile */
   nav[data-mobile-solid="true"] {
     background: var(--nav-solid-bg, #0a0c14) !important;

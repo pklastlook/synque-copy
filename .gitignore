@@ -58,3 +58,4 @@ db/custom.db
 public/uploads/*
 !public/uploads/.gitkeep
 tool-results/
+upload/
