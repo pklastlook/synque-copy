@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Download, X, Share, Plus, Check, Smartphone } from "lucide-react";
+import { Download, X, Share, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -14,13 +14,14 @@ const DISMISS_DAYS = 7;
 const SHOW_DELAY_MS = 15000; // 15 seconds
 
 /**
- * PWA Install Prompt — cross-browser install notification.
+ * PWA Install Prompt — non-intrusive top toast.
  *
- * - Chrome/Edge/Brave: captures `beforeinstallprompt` event, shows custom banner
- * - Safari iOS: detects iOS + not standalone, shows "Add to Home Screen" instructions
- * - Firefox/other: shows manual install instructions
+ * - Chrome/Edge/Brave: captures `beforeinstallprompt`, shows a small toast
+ * - Safari iOS: detects iOS + not standalone, shows "Add to Home Screen" steps
+ * - NO full-screen backdrop (doesn't block the page)
  * - Dismissed state saved to localStorage for 7 days
- * - Only shows after 30s on the page (non-intrusive)
+ * - Only shows after 15s on the page
+ * - Slides in from the top, sits above the app header
  */
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = React.useState<BeforeInstallPromptEvent | null>(null);
@@ -113,109 +114,92 @@ export function PWAInstallPrompt() {
   if (!show || installed) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <button
-        onClick={handleDismiss}
-        className="fixed inset-0 z-[90] animate-ios-fade-scale bg-black/20 backdrop-blur-sm"
-        aria-label="Close install prompt"
-      />
-
-      {/* Prompt card — top-right for easy access */}
-      <div
-        className={cn(
-          "glass-strong glass-sheen apple-font animate-ios-slide-up",
-          "fixed top-4 left-4 right-4 z-[100] sm:top-6 sm:left-auto sm:right-6 sm:w-[380px]",
-          "rounded-3xl border border-border/40 p-5 shadow-2xl",
-        )}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Install SYNQUE app"
-      >
-        {/* Close button */}
-        <button
-          onClick={handleDismiss}
-          className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-          aria-label="Dismiss"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        {/* Header */}
-        <div className="flex items-center gap-3 pb-3">
+    <div
+      className={cn(
+        "pwa-install-toast apple-font animate-ios-slide-down",
+        "fixed left-1/2 top-2 z-[100] w-[calc(100%-16px)] max-w-[420px] -translate-x-1/2",
+        "rounded-2xl border border-border/50 bg-background/95 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl",
+      )}
+      role="dialog"
+      aria-label="Install SYNQUE app"
+    >
+      {/* Collapsed: compact row — icon + title + Install button + close */}
+      {!showIOSInstructions ? (
+        <div className="flex items-center gap-3 p-2.5">
           {/* App icon */}
           <div
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
-            style={{
-              background: "linear-gradient(135deg, var(--primary), var(--gold, #FFD60A))",
-            }}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
+            style={{ background: "linear-gradient(135deg, var(--primary), var(--gold, #FFD60A))" }}
           >
-            <span className="text-lg font-extrabold text-white">S</span>
+            <span className="text-sm font-extrabold text-white">S</span>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold">Install SYNQUE</div>
-            <div className="text-[11px] text-muted-foreground">
-              Add to your {isIOS ? "Home Screen" : "device"} for quick access
+            <div className="truncate text-[13px] font-bold leading-tight">Install SYNQUE</div>
+            <div className="truncate text-[10px] text-muted-foreground leading-tight">
+              Add to home screen · works offline
             </div>
           </div>
+          <button
+            onClick={handleInstall}
+            className="liquid-pill flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] font-semibold"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Install
+          </button>
+          <button
+            onClick={handleDismiss}
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-
-        {/* Benefits */}
-        <div className="space-y-1.5 pb-3">
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <Check className="h-3 w-3 shrink-0 text-emerald-500" />
-            Full-screen experience, no browser chrome
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <Check className="h-3 w-3 shrink-0 text-emerald-500" />
-            Faster launch with offline support
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <Check className="h-3 w-3 shrink-0 text-emerald-500" />
-            Push notifications for new messages
-          </div>
-        </div>
-
-        {/* iOS instructions */}
-        {showIOSInstructions ? (
-          <div className="space-y-2 rounded-2xl bg-muted/40 p-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              How to install on iOS:
+      ) : (
+        /* Expanded: iOS instructions (no backdrop, inline) */
+        <div className="p-3">
+          <div className="flex items-start gap-3 pb-2.5">
+            <div
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
+              style={{ background: "linear-gradient(135deg, var(--primary), var(--gold, #FFD60A))" }}
+            >
+              <span className="text-sm font-extrabold text-white">S</span>
             </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-bold leading-tight">Install SYNQUE</div>
+              <div className="text-[10px] text-muted-foreground leading-tight">
+                Add to Home Screen
+              </div>
+            </div>
+            <button
+              onClick={handleDismiss}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="space-y-1.5 rounded-xl bg-muted/40 p-2.5">
             <div className="flex items-center gap-2 text-[11px] text-foreground/80">
               <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">1</span>
               Tap the <Share className="inline h-3 w-3" /> Share button
             </div>
             <div className="flex items-center gap-2 text-[11px] text-foreground/80">
               <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">2</span>
-              Tap "Add to Home Screen"
+              Tap &ldquo;Add to Home Screen&rdquo;
             </div>
             <div className="flex items-center gap-2 text-[11px] text-foreground/80">
               <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">3</span>
-              Tap "Add" to confirm
+              Tap &ldquo;Add&rdquo; to confirm
             </div>
           </div>
-        ) : null}
-
-        {/* Action buttons */}
-        <div className="flex gap-2 pt-1">
-          {!showIOSInstructions && (
-            <button
-              onClick={handleInstall}
-              className="liquid-pill glow-ring flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold"
-            >
-              <Download className="h-4 w-4" />
-              Install
-            </button>
-          )}
           <button
             onClick={handleDismiss}
-            className="flex items-center justify-center gap-1.5 rounded-2xl border border-border/50 bg-muted/40 px-4 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            className="mt-2.5 w-full rounded-xl bg-primary/10 py-2 text-[12px] font-semibold text-primary transition hover:bg-primary/20"
           >
-            {showIOSInstructions ? "Got it" : "Not now"}
+            Got it
           </button>
         </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 }
