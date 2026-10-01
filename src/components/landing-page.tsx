@@ -39,6 +39,7 @@ import {
   Github,
   Sun,
   Moon,
+  LogIn,
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -868,10 +869,14 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
           <GlowCTA onClick={onTrial} className="hidden px-5 py-2.5 text-[13px] sm:inline-flex">
             <Rocket className="h-4 w-4" /> Start trial
           </GlowCTA>
-          {/* Mobile: compact "Start trial" button replaces "Sign in" */}
-          <GlowCTA onClick={onTrial} className="px-3 py-2 text-[12px] sm:hidden">
-            <Rocket className="h-3.5 w-3.5" /> Start trial
-          </GlowCTA>
+          {/* Mobile: compact "Sign in" button replaces the desktop "Start trial" CTA */}
+          <button
+            onClick={onSignIn}
+            className="flex min-h-9 items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] font-semibold sm:hidden"
+            style={{ color: COLOR.textBody }}
+          >
+            <LogIn className="h-3.5 w-3.5" /> Sign in
+          </button>
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
