@@ -8996,3 +8996,67 @@ Added a new section at the end of `globals.css` (after the print rules):
 - **Production build**: `NODE_OPTIONS="--max-old-space-size=3072" npx next build` → ✓ Compiled successfully in 52s, all 25 static pages generated, no type errors. (Default memory budget was insufficient in the sandbox; raising the old-space limit to 3GB allowed the build to complete.)
 - **Runtime**: `curl http://localhost:3000/` → 200 OK, 217KB HTML, contains "Orchestrate your social" (×2) and "Start trial" (×2) — confirming the new eyebrow text and mobile "Start trial" button render in the SSR'd HTML.
 - **Mobile nav** (`apple-tab-bar-dock`) only renders client-side when a user is signed in (gated by `showMobileTabs`), so it doesn't appear in the unauthenticated landing page HTML — expected.
+
+---
+
+## Task ID: content-workflow-everywhere
+
+**Task**: Roll out the Dashboard's new "Content workflow" 5-stage lifecycle (Posts → Drafts → Scheduled → Published → Shared) to the other three views that still showed the old Draft/Scheduled/Published/Failed pipeline. No API routes were touched; the changes are presentation-only and adapt each view's existing data source.
+
+### Reference implementation
+- `src/components/views/dashboard.tsx` `ContentWorkflow` (line ~1139) and its 5 colored stage cards with `ChevronRight` separators — copied verbatim as the visual template.
+- Color scheme locked across all views: Posts `#8E8E93` gray, Drafts `#AF52DE` purple, Scheduled `#007AFF` blue, Published `#34C759` green, Shares `#FF9500` orange.
+- Icons: Posts `Layers`, Drafts `PenSquare`, Scheduled `Clock`, Published `Send`, Shares `Share2`.
+
+### Files modified
+
+#### 1. `src/components/views/calendar.tsx`
+- Section header `desc` for month view: `"Content pipeline — click a day to inspect"` → `"Content workflow — click a day to inspect"`.
+- Empty-state copy: `"Your content pipeline is empty for this month."` → `"Your content workflow is empty for this month."`.
+- The calendar's existing dense metric strip (Posts this month / Scheduled / Published / Drafts / Pending Approval) was left intact — the task asked for terminology updates only.
+
+#### 2. `src/components/views/team-performance.tsx`
+- Imports: added `ChevronRight`, `Share2`, `PenSquare` from `lucide-react`.
+- `PipelineSection`: renamed header from `"Posts pipeline"` to `"Content workflow"` with the canonical `desc="Posts → Drafts → Scheduled → Published → Shared"`.
+- Replaced the 4-pill lifecycle grid (`PIPELINE_META.map(...)` rendering Drafts/Scheduled/Published/Failed with mini progress bars) with a new `<ContentWorkflowStrip>` component.
+- Added new helper `ContentWorkflowStrip({ total, pipeline, shares })`:
+  - Renders 5 colored stage cards in a `flex items-stretch gap-1` row with `ChevronRight` arrows between them — identical to the Dashboard's `ContentWorkflow` stage flow.
+  - `Posts = total` (team totals), `Drafts = pipeline.draft`, `Scheduled = pipeline.scheduled`, `Published = pipeline.published`, `Shares = postsByPlatform.reduce((s, p) => s + p.published, 0) || pipeline.published` (sum of platform-level publishes as a real share count; falls back to `pipeline.published` when no platform breakdown is available).
+- The rest of `PipelineSection` (posts-by-platform list, comment sentiment, comment types, activity heatmap) is unchanged.
+
+#### 3. `src/components/views/reports.tsx`
+- Imports: added `ChevronRight`, `Send`, `Share2`, `PenSquare`.
+- Tab metadata: Content tab `desc` updated from `"Post pipeline: draft → scheduled → published"` to `"Content workflow: Posts → Drafts → Scheduled → Published → Shared"`.
+- `PipelinePills` component rewritten end-to-end:
+  - New signature `{ posts, draft, scheduled, published, shares }` (was `{ draft, scheduled, published, failed }`).
+  - Renders the same 5-stage colored card + chevron-arrow strip as the Dashboard's `ContentWorkflow` and team-performance's `ContentWorkflowStrip` — visual consistency across all three views.
+  - Same color scheme (Posts gray / Drafts purple / Scheduled blue / Published green / Shares orange).
+- `ContentContent` (Content report template):
+  - Executive summary now reads `"Content workflow overview — {N} total posts, {N} drafts, {N} scheduled, {N} published, {N} shares across platforms."` (Failed dropped, Shares added).
+  - `PipelinePills` call updated to pass `posts={totals.posts}`, `shares={platformData.reduce((s,p)=>s+p.published,0) || pipeline.published}`.
+- `PostsPerformanceContent` (Posts-Performance report template):
+  - `PipelinePills` call updated to pass `posts={k.totalPosts}`, `shares={k.totalVariantsPublished || k.published}` (variants published is the real share count; falls back to published).
+- Content tab KPI strip (`useMemo` for the MetricRow above the report): replaced `Failed` pill with `Shares` (using `totalVariantsPublished ?? pipeline.published`) and removed the now-redundant `Variants`/`Total Posts` entries — collapsed to 6 KPIs (Posts / Drafts / Scheduled / Published / Shares / Comments) matching the new workflow.
+- Print mode:
+  - "Content Pipeline" print section retitled `"Content Workflow"`; table header column renamed `Status → Stage`; rows now Posts / Drafts / Scheduled / Published / Shares. Total denominator uses `teamData.teamTotals.postsCreated` (the true post total). Shares count uses `postsPerfData?.kpis.totalVariantsPublished ?? p.published`.
+  - Content print KPI table: replaced `Failed`/`Variants` rows with a single `Shares` row using `totalVariantsPublished ?? p.published`.
+  - Posts-Performance print KPI table: replaced `Failed` row with `Shares` using `totalVariantsPublished ?? published`. Reordered to Posts / Drafts / Scheduled / Published / Shares / Comments / Reply Rate.
+  - Content print executive summary sentence rewritten to match the new workflow wording (`publishing workflow` instead of `publishing pipeline`; `shares across platforms` instead of `failed`).
+
+### Implementation notes
+- Each view adapts its existing data source for the new `Shares` stage:
+  - **Team Performance**: real platform-level shares from `postsByPlatform.reduce((s, p) => s + p.published, 0)`.
+  - **Reports / Content template**: same platform-level sum (`teamData.postsByPlatform`).
+  - **Reports / Posts-Performance template**: `postsPerfData.kpis.totalVariantsPublished` (which is exactly "platform variants published", i.e. shares).
+  - All call sites fall back to `pipeline.published` as a proxy when the upstream share count is unavailable — the task's "Keep it simple" guidance.
+- The Dashboard, all API routes, Prisma schema, and all other views are unchanged.
+- `PIPELINE_META` / `KANBAN_COLUMNS` / `STATUS_META` constants in team-performance.tsx were intentionally kept — they still drive the Kanban board and member pipeline stats and are unrelated to the new Content Workflow strip.
+- `Pill` import in reports.tsx is still used by other templates (ROI, sentiment, listening), so it was not removed.
+
+### Verification
+- **Lint**: `bun run lint` → exit 0, no errors.
+- **TypeScript**: `npx tsc --noEmit` → no errors in `src/components/views/{team-performance,reports,calendar}.tsx` (only pre-existing errors in unrelated `examples/`, `mini-services/`, `skills/`, and a couple of API routes — none introduced by this task).
+- **Dev server**: `bun run dev` running cleanly on port 3000, no compile errors.
+
+### Work records
+- `/agent-ctx/content-workflow-everywhere-main.md` — this task's work record.
