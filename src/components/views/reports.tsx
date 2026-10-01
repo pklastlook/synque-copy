@@ -10,10 +10,10 @@ import {
   FileText, Download, Trash2, Eye, Printer,
   Calendar, BarChart3, Users, TrendingUp, Heart, FileBarChart,
   Clock, Loader2, Activity, Globe, Target,
-  ChevronDown, Save, ArrowUpDown, Award, Trophy, UserCheck, Grid3x3, Zap,
+  ChevronDown, ChevronRight, Save, ArrowUpDown, Award, Trophy, UserCheck, Grid3x3, Zap,
   Layers, CheckCircle2, XCircle, ListFilter, MessageCircle, Reply, LayoutGrid, List as ListIcon,
   DollarSign, Radio, Sparkles, Smile, Frown, Meh, CalendarDays, CalendarRange, CalendarClock,
-  Filter,
+  Filter, Send, Share2, PenSquare,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -211,7 +211,7 @@ const TEMPLATES: Template[] = [
   { id: "audience", name: "Audience", icon: Users, color: "oklch(0.62 0.22 300)", desc: "Follower growth & platform distribution" },
   { id: "engagement", name: "Engagement", icon: Heart, color: "oklch(0.7 0.2 25)", desc: "Likes · comments · shares · saves" },
   { id: "team", name: "Team Activity", icon: BarChart3, color: "oklch(0.74 0.18 165)", desc: "Member contributions & cadence" },
-  { id: "content", name: "Content", icon: FileText, color: "oklch(0.68 0.18 95)", desc: "Post pipeline: draft → scheduled → published" },
+  { id: "content", name: "Content", icon: FileText, color: "oklch(0.68 0.18 95)", desc: "Content workflow: Posts → Drafts → Scheduled → Published → Shared" },
   { id: "growth", name: "Growth", icon: Activity, color: "oklch(0.7 0.2 145)", desc: "Follower & reach trends over time" },
   { id: "platform", name: "Platforms", icon: Globe, color: "oklch(0.6 0.2 220)", desc: "Per-platform performance comparison" },
   { id: "reach", name: "Reach", icon: Target, color: "oklch(0.65 0.22 15)", desc: "Impressions & reach breakdown" },
@@ -513,15 +513,14 @@ export function ReportsView() {
       const pipeline = teamData?.pipeline ?? { draft: 0, scheduled: 0, published: 0, failed: 0 };
       const k = postsPerfData?.kpis;
       const totalPosts = teamData?.teamTotals.postsCreated ?? k?.totalPosts ?? 0;
-      const variants = k?.totalVariantsPublished ?? 0;
+      const shares = k?.totalVariantsPublished ?? pipeline.published;
       const comments = k?.totalComments ?? teamData?.teamTotals.commentsReceived ?? 0;
       return [
-        { label: "Total Posts", value: totalPosts.toLocaleString(), color: "oklch(0.62 0.22 255)" },
+        { label: "Posts", value: totalPosts.toLocaleString(), color: "oklch(0.62 0.22 255)" },
         { label: "Drafts", value: pipeline.draft.toLocaleString(), color: "oklch(0.6 0.02 250)" },
         { label: "Scheduled", value: pipeline.scheduled.toLocaleString(), color: "oklch(0.7 0.15 75)" },
         { label: "Published", value: pipeline.published.toLocaleString(), color: "oklch(0.7 0.2 145)" },
-        { label: "Failed", value: pipeline.failed.toLocaleString(), color: "oklch(0.55 0.22 25)" },
-        { label: "Variants", value: variants.toLocaleString(), color: "oklch(0.72 0.2 75)" },
+        { label: "Shares", value: shares.toLocaleString(), color: "oklch(0.72 0.18 75)" },
         { label: "Comments", value: comments.toLocaleString(), color: "oklch(0.7 0.2 305)" },
       ];
     }
@@ -845,33 +844,54 @@ function MetricTabs({ metrics, value, onChange }: { metrics: { key: string; labe
   );
 }
 
-// ============ Compact pipeline pills (draft / scheduled / published / failed) ============
-// Replaces a 4-card KPI strip with one 4-pill row.
+// ============ Content workflow strip (Posts → Drafts → Scheduled → Published → Shared) ============
+// Mirrors the Dashboard's `ContentWorkflow` visual: colored stage cards with
+// chevron arrows between them. Used by the Content and Posts-Performance
+// report templates. Shares is the number of platform variants published
+// (falls back to `published` count as a proxy when variants aren't tracked).
 function PipelinePills({
-  draft, scheduled, published, failed,
+  posts, draft, scheduled, published, shares,
 }: {
-  draft: number; scheduled: number; published: number; failed: number;
+  posts: number; draft: number; scheduled: number; published: number; shares: number;
 }) {
-  const total = draft + scheduled + published + failed;
-  const pills = [
-    { label: "Draft", value: draft, color: "neutral" as const, icon: <FileText className="h-2.5 w-2.5" /> },
-    { label: "Scheduled", value: scheduled, color: "amber" as const, icon: <Clock className="h-2.5 w-2.5" /> },
-    { label: "Published", value: published, color: "green" as const, icon: <CheckCircle2 className="h-2.5 w-2.5" /> },
-    { label: "Failed", value: failed, color: "rose" as const, icon: <XCircle className="h-2.5 w-2.5" /> },
+  const stages = [
+    { key: "posts", label: "Posts", count: posts, color: "#8E8E93", icon: Layers },
+    { key: "draft", label: "Drafts", count: draft, color: "#AF52DE", icon: PenSquare },
+    { key: "scheduled", label: "Scheduled", count: scheduled, color: "#007AFF", icon: Clock },
+    { key: "published", label: "Published", count: published, color: "#34C759", icon: Send },
+    { key: "shared", label: "Shares", count: shares, color: "#FF9500", icon: Share2 },
   ];
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
-      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Pipeline</span>
-      <span className="text-[10px] text-muted-foreground/70">· {total} total</span>
-      <div className="ml-auto flex flex-wrap items-center gap-1.5">
-        {pills.map(p => (
-          <Pill key={p.label} color={p.color}>
-            {p.icon}
-            <span className="tabular-nums">{p.value}</span>
-            <span className="opacity-70">{p.label}</span>
-          </Pill>
-        ))}
-      </div>
+    <div className="flex items-stretch gap-1">
+      {stages.map((stage, i) => {
+        const StageIcon = stage.icon;
+        return (
+          <React.Fragment key={stage.key}>
+            <div
+              className="group relative flex-1 overflow-hidden rounded-xl border p-2"
+              style={{ borderColor: `${stage.color}30`, background: `${stage.color}08` }}
+            >
+              <div className="flex items-center justify-between">
+                <div
+                  className="grid h-6 w-6 place-items-center rounded-md"
+                  style={{ background: `${stage.color}14`, color: stage.color }}
+                >
+                  <StageIcon className="h-3 w-3" />
+                </div>
+              </div>
+              <div className="num-display mt-1.5 text-base font-bold leading-none tabular-nums">
+                {stage.count}
+              </div>
+              <div className="label-caps mt-0.5 text-[8px]">{stage.label}</div>
+            </div>
+            {i < stages.length - 1 && (
+              <div className="flex items-center">
+                <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/30" />
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -1319,15 +1339,21 @@ function ContentContent({ analytics, teamData, totals }: {
   return (
     <div className="space-y-4">
       <p className="text-[12px] leading-relaxed text-muted-foreground">
-        Content pipeline overview — <strong className="text-foreground">{totals.posts}</strong> total posts,
+        Content workflow overview — <strong className="text-foreground">{totals.posts}</strong> total posts,
         <strong className="text-foreground"> {pipeline.draft}</strong> drafts,
         <strong className="text-foreground"> {pipeline.scheduled}</strong> scheduled,
         <strong className="text-foreground"> {pipeline.published}</strong> published,
-        <strong className="text-foreground"> {pipeline.failed}</strong> failed.
+        <strong className="text-foreground"> {platformData.reduce((s, p) => s + p.published, 0) || pipeline.published}</strong> shares across platforms.
       </p>
 
-      {/* Pipeline as compact 4-pill row (not 4 cards) */}
-      <PipelinePills draft={pipeline.draft} scheduled={pipeline.scheduled} published={pipeline.published} failed={pipeline.failed} />
+      {/* 5-stage workflow: Posts → Drafts → Scheduled → Published → Shared */}
+      <PipelinePills
+        posts={totals.posts}
+        draft={pipeline.draft}
+        scheduled={pipeline.scheduled}
+        published={pipeline.published}
+        shares={platformData.reduce((s, p) => s + p.published, 0) || pipeline.published}
+      />
 
       {/* One chart: posts by platform */}
       <HeroChart title="Posts by Platform" desc="Published vs total per platform">
@@ -1410,8 +1436,14 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
 
   return (
     <div className="space-y-4">
-      {/* Compact pipeline as 4-pill row (not 8 cards) */}
-      <PipelinePills draft={k.draft} scheduled={k.scheduled} published={k.published} failed={k.failed} />
+      {/* 5-stage workflow: Posts → Drafts → Scheduled → Published → Shared */}
+      <PipelinePills
+        posts={k.totalPosts}
+        draft={k.draft}
+        scheduled={k.scheduled}
+        published={k.published}
+        shares={k.totalVariantsPublished || k.published}
+      />
 
       {/* One chart: engagement by platform with metric toggle */}
       {chartData.length > 0 && (
@@ -3572,7 +3604,7 @@ function PrintLayout({
       case "platform":
         return `This ${dateRangeLabel.toLowerCase()} platform comparison report aggregates performance across ${platformAgg.length} platform(s) and ${analytics.perAccount.length} account(s).`;
       case "content":
-        return `This ${dateRangeLabel.toLowerCase()} content report covers the publishing pipeline: ${teamData?.teamTotals.postsCreated ?? 0} total posts, ${teamData?.teamTotals.publishedPosts ?? 0} published, ${teamData?.teamTotals.scheduledPosts ?? 0} scheduled, ${teamData?.teamTotals.draftPosts ?? 0} drafts, ${teamData?.teamTotals.failedPosts ?? 0} failed.`;
+        return `This ${dateRangeLabel.toLowerCase()} content report covers the publishing workflow: ${teamData?.teamTotals.postsCreated ?? 0} total posts, ${teamData?.teamTotals.draftPosts ?? 0} drafts, ${teamData?.teamTotals.scheduledPosts ?? 0} scheduled, ${teamData?.teamTotals.publishedPosts ?? 0} published, and ${postsPerfData?.kpis.totalVariantsPublished ?? teamData?.teamTotals.publishedPosts ?? 0} shares across platforms.`;
       case "roi": {
         const cost = (() => { try { return Number(localStorage.getItem("synque-roi-monthly-cost") ?? "1000"); } catch { return 1000; } })();
         const months = Math.max((analytics.series.length || 30) / 30, 1);
@@ -3654,13 +3686,13 @@ function PrintLayout({
       }
       case "content": {
         const p = teamData?.pipeline;
+        const shares = postsPerfData?.kpis.totalVariantsPublished ?? p?.published ?? 0;
         return [
-          { label: "Total Posts", value: (teamData?.teamTotals.postsCreated ?? 0).toLocaleString() },
-          { label: "Published", value: (p?.published ?? 0).toLocaleString() },
-          { label: "Scheduled", value: (p?.scheduled ?? 0).toLocaleString() },
+          { label: "Posts", value: (teamData?.teamTotals.postsCreated ?? 0).toLocaleString() },
           { label: "Drafts", value: (p?.draft ?? 0).toLocaleString() },
-          { label: "Failed", value: (p?.failed ?? 0).toLocaleString() },
-          { label: "Variants", value: (postsPerfData?.kpis.totalVariantsPublished ?? 0).toLocaleString() },
+          { label: "Scheduled", value: (p?.scheduled ?? 0).toLocaleString() },
+          { label: "Published", value: (p?.published ?? 0).toLocaleString() },
+          { label: "Shares", value: shares.toLocaleString() },
         ];
       }
       case "growth":
@@ -3750,11 +3782,11 @@ function PrintLayout({
           ? Math.round((k.totalCommentsReplied / k.totalComments) * 100)
           : 0;
         return [
-          { label: "Total Posts", value: (k?.totalPosts ?? 0).toLocaleString() },
-          { label: "Published", value: (k?.published ?? 0).toLocaleString() },
-          { label: "Scheduled", value: (k?.scheduled ?? 0).toLocaleString() },
+          { label: "Posts", value: (k?.totalPosts ?? 0).toLocaleString() },
           { label: "Drafts", value: (k?.draft ?? 0).toLocaleString() },
-          { label: "Failed", value: (k?.failed ?? 0).toLocaleString() },
+          { label: "Scheduled", value: (k?.scheduled ?? 0).toLocaleString() },
+          { label: "Published", value: (k?.published ?? 0).toLocaleString() },
+          { label: "Shares", value: (k?.totalVariantsPublished ?? k?.published ?? 0).toLocaleString() },
           { label: "Comments", value: (k?.totalComments ?? 0).toLocaleString() },
           { label: "Reply Rate", value: `${replyRate}%` },
         ];
@@ -4087,26 +4119,28 @@ function PrintLayout({
 
         {template.id === "content" && (
           <>
-            <PrintSection title="Content Pipeline">
+            <PrintSection title="Content Workflow">
               <table className="report-table">
                 <thead><tr>
-                  <th>Status</th>
+                  <th>Stage</th>
                   <th className="text-right">Count</th>
                   <th className="text-right">% of Total</th>
                 </tr></thead>
                 <tbody>
                   {(() => {
                     const p = teamData?.pipeline ?? { draft: 0, scheduled: 0, published: 0, failed: 0 };
-                    const total = p.draft + p.scheduled + p.published + p.failed;
+                    const total = teamData?.teamTotals.postsCreated ?? (p.draft + p.scheduled + p.published + p.failed);
+                    const shares = postsPerfData?.kpis.totalVariantsPublished ?? p.published;
                     const rows = [
-                      { status: "Published", count: p.published, color: "emerald" },
-                      { status: "Scheduled", count: p.scheduled, color: "primary" },
-                      { status: "Draft", count: p.draft, color: "amber" },
-                      { status: "Failed", count: p.failed, color: "rose" },
+                      { stage: "Posts", count: total, color: "neutral" },
+                      { stage: "Drafts", count: p.draft, color: "amber" },
+                      { stage: "Scheduled", count: p.scheduled, color: "primary" },
+                      { stage: "Published", count: p.published, color: "emerald" },
+                      { stage: "Shares", count: shares, color: "rose" },
                     ];
                     return rows.map(r => (
-                      <tr key={r.status}>
-                        <td className="font-medium">{r.status}</td>
+                      <tr key={r.stage}>
+                        <td className="font-medium">{r.stage}</td>
                         <td className="text-right tabular-nums">{r.count}</td>
                         <td className="text-right tabular-nums">{total > 0 ? ((r.count / total) * 100).toFixed(1) : "0.0"}%</td>
                       </tr>

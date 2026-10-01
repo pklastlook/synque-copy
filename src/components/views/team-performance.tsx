@@ -6,7 +6,7 @@ import {
   Sparkles, Trophy, Crown, Activity, Layers,
   Reply, Hash, FileEdit, XCircle, Flame,
   ShieldCheck, ShieldAlert, AlertTriangle, Heart,
-  Ban, Info, ChevronDown, ChevronUp,
+  Ban, Info, ChevronDown, ChevronUp, ChevronRight, Share2, PenSquare,
   ArrowUpDown, LayoutGrid, List as ListIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -619,42 +619,14 @@ function PipelineSection({
 }) {
   return (
     <GlassCard className="crystal-in p-4" style={{ animationDelay: "0.20s" }}>
-      <SectionHeader icon={Layers} title="Posts pipeline" desc="Every post by lifecycle stage + team-wide breakdowns" />
+      <SectionHeader icon={Layers} title="Content workflow" desc="Posts → Drafts → Scheduled → Published → Shared" />
 
-      {/* 4 lifecycle pills */}
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {PIPELINE_META.map((stage) => {
-          const count = pipeline[stage.key as keyof typeof pipeline];
-          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-          const StageIcon = stage.icon;
-          return (
-            <div
-              key={stage.key}
-              className="flex items-center gap-2.5 rounded-xl border border-border/40 bg-muted/20 px-3 py-2.5"
-            >
-              <div
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
-                style={{ background: `${stage.color}14`, color: stage.color }}
-              >
-                <StageIcon className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="num-display text-lg font-bold leading-none tabular-nums">{count}</span>
-                  <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">{pct}%</span>
-                </div>
-                <div className="label-caps mt-0.5 text-[10px] text-muted-foreground">{stage.label}</div>
-              </div>
-              <div className="h-1 w-10 shrink-0 overflow-hidden rounded-full bg-muted/50">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${Math.max(pct, 2)}%`, background: stage.color }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {/* 5-stage workflow — colored stage cards with chevron arrows between them */}
+      <ContentWorkflowStrip
+        total={total}
+        pipeline={pipeline}
+        shares={postsByPlatform.reduce((s, p) => s + (p.published ?? 0), 0) || pipeline.published}
+      />
 
       {/* Team-wide breakdowns: posts by platform · comment sentiment · comment types */}
       <div className="mt-3 grid gap-3 border-t border-border/40 pt-3 lg:grid-cols-3">
@@ -814,6 +786,61 @@ function SentimentMiniRow({
           style={{ width: `${Math.max(pct, 2)}%`, background: color }}
         />
       </div>
+    </div>
+  );
+}
+
+// ============ Content Workflow strip — 5-stage lifecycle bar ============
+// Mirrors the Dashboard's `ContentWorkflow` visual: Posts → Drafts →
+// Scheduled → Published → Shared. Each stage is a colored card with an
+// icon chip, a large count, and a small label, separated by chevron arrows.
+function ContentWorkflowStrip({
+  total,
+  pipeline,
+  shares,
+}: {
+  total: number;
+  pipeline: { draft: number; scheduled: number; published: number; failed: number };
+  shares: number;
+}) {
+  const stages = [
+    { key: "posts", label: "Posts", count: total, color: "#8E8E93", icon: Layers },
+    { key: "draft", label: "Drafts", count: pipeline.draft, color: "#AF52DE", icon: PenSquare },
+    { key: "scheduled", label: "Scheduled", count: pipeline.scheduled, color: "#007AFF", icon: Clock },
+    { key: "published", label: "Published", count: pipeline.published, color: "#34C759", icon: Send },
+    { key: "shared", label: "Shares", count: shares, color: "#FF9500", icon: Share2 },
+  ];
+  return (
+    <div className="flex items-stretch gap-1">
+      {stages.map((stage, i) => {
+        const StageIcon = stage.icon;
+        return (
+          <React.Fragment key={stage.key}>
+            <div
+              className="group relative flex-1 overflow-hidden rounded-xl border p-2"
+              style={{ borderColor: `${stage.color}30`, background: `${stage.color}08` }}
+            >
+              <div className="flex items-center justify-between">
+                <div
+                  className="grid h-6 w-6 place-items-center rounded-md"
+                  style={{ background: `${stage.color}14`, color: stage.color }}
+                >
+                  <StageIcon className="h-3 w-3" />
+                </div>
+              </div>
+              <div className="num-display mt-1.5 text-base font-bold leading-none tabular-nums">
+                {stage.count}
+              </div>
+              <div className="label-caps mt-0.5 text-[8px]">{stage.label}</div>
+            </div>
+            {i < stages.length - 1 && (
+              <div className="flex items-center">
+                <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/30" />
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }

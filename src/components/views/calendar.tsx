@@ -1437,7 +1437,7 @@ export function CalendarView() {
             }
             desc={
               viewMode === "month"
-                ? "Content pipeline — click a day to inspect"
+                ? "Content workflow — click a day to inspect"
                 : viewMode === "agenda"
                 ? "Chronological list of upcoming posts"
                 : "Green dots = peak engagement windows"
@@ -1477,7 +1477,7 @@ export function CalendarView() {
                   No posts in {format(currentMonth, "MMMM")}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  Your content pipeline is empty for this month.
+                  Your content workflow is empty for this month.
                 </div>
               </div>
               <button
