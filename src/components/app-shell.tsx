@@ -184,15 +184,16 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* Mobile bottom tab bar — iOS 18 / macOS 27 style.
-          Solid #F0F0F2, flat top edge, dot indicator below active icon. */}
+      {/* Mobile bottom tab bar — macOS 27 / iOS dock style.
+          Floating rounded glass dock with margin from screen edges.
+          Active tab shows a small dot indicator ABOVE the icon. */}
       {showMobileTabs && (
         <div className="mobile-only">
           <nav
             className={cn(
-              "apple-tab-bar apple-glass-heavy apple-font select-none antialiased",
+              "apple-tab-bar apple-tab-bar-dock apple-font select-none antialiased",
               "fixed bottom-0 left-0 right-0 z-50 flex items-stretch",
-              "min-h-[49px] pb-[env(safe-area-inset-bottom,0px)]",
+              "min-h-[64px] rounded-3xl",
             )}
             aria-label="Primary"
           >

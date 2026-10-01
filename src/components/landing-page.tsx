@@ -857,6 +857,7 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
           )}
+          {/* Desktop: "Sign in" text link + "Start trial" button */}
           <button
             onClick={onSignIn}
             className="hidden min-h-10 items-center rounded-xl px-3 text-sm font-medium transition hover:opacity-80 sm:flex"
@@ -864,8 +865,12 @@ function CinematicNav({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: ()
           >
             Sign in
           </button>
-          <GlowCTA onClick={onTrial} className="px-5 py-2.5 text-[13px]">
+          <GlowCTA onClick={onTrial} className="hidden px-5 py-2.5 text-[13px] sm:inline-flex">
             <Rocket className="h-4 w-4" /> Start trial
+          </GlowCTA>
+          {/* Mobile: compact "Start trial" button replaces "Sign in" */}
+          <GlowCTA onClick={onTrial} className="px-3 py-2 text-[12px] sm:hidden">
+            <Rocket className="h-3.5 w-3.5" /> Start trial
           </GlowCTA>
           {/* Mobile hamburger */}
           <button
@@ -1159,6 +1164,65 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
         style={{ background: COLOR.border }}
       />
 
+      {/* Animated SVG line graph behind the headline — draws itself on load
+          using stroke-dasharray + stroke-dashoffset (lineDraw keyframe).
+          Subtle, glassy, adds depth without dominating. */}
+      <svg
+        className="pointer-events-none absolute left-1/2 top-1/2 z-0 hidden -translate-x-1/2 -translate-y-1/2 sm:block"
+        width="900"
+        height="320"
+        viewBox="0 0 900 320"
+        fill="none"
+        aria-hidden
+        style={{ opacity: 0.18 }}
+      >
+        <defs>
+          <linearGradient id="heroLineGrad" x1="0" y1="0" x2="900" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor={COLOR.accent} />
+            <stop offset="50%" stopColor={COLOR.violet} />
+            <stop offset="100%" stopColor={COLOR.teal} />
+          </linearGradient>
+          <linearGradient id="heroAreaGrad" x1="0" y1="0" x2="0" y2="320" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor={COLOR.accent} stopOpacity="0.30" />
+            <stop offset="100%" stopColor={COLOR.accent} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {/* Area under the line */}
+        <path
+          d="M0,260 C100,240 180,180 260,200 C340,220 420,140 500,120 C580,100 660,150 740,90 C800,50 860,40 900,30 L900,320 L0,320 Z"
+          fill="url(#heroAreaGrad)"
+        />
+        {/* Line that draws itself on load */}
+        <path
+          d="M0,260 C100,240 180,180 260,200 C340,220 420,140 500,120 C580,100 660,150 740,90 C800,50 860,40 900,30"
+          stroke="url(#heroLineGrad)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            strokeDasharray: 1400,
+            strokeDashoffset: 1400,
+            animation: "lineDraw 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards",
+          }}
+        />
+        {/* Subtle dots along the line */}
+        {[
+          { x: 260, y: 200 },
+          { x: 500, y: 120 },
+          { x: 740, y: 90 },
+          { x: 900, y: 30 },
+        ].map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r="5"
+            fill={COLOR.accent}
+            style={{ opacity: 0, animation: `fadeUp 0.5s ease-out ${1.4 + i * 0.25}s forwards` }}
+          />
+        ))}
+      </svg>
+
       <div className="relative z-20 mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 pt-28 pb-20 text-center sm:px-6 lg:px-8">
         <Reveal>
           <span
@@ -1172,6 +1236,21 @@ function Act1Hero({ onTrial, onSignIn }: { onTrial: () => void; onSignIn: () => 
             <Sparkles className="h-3.5 w-3.5" />
             The enterprise command center
           </span>
+        </Reveal>
+
+        {/* Enhanced eyebrow — "Orchestrate your social..." with blue→violet
+            gradient text + fade-in animation on load. Larger font than before. */}
+        <Reveal delay={80}>
+          <p
+            className="mt-7 max-w-2xl bg-clip-text text-lg font-semibold tracking-tight text-transparent sm:text-xl"
+            style={{
+              backgroundImage: `linear-gradient(120deg, ${COLOR.accent}, ${COLOR.violet})`,
+              backgroundSize: "200% 200%",
+              animation: "heroGradientShift 8s ease-in-out infinite, fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both",
+            }}
+          >
+            Orchestrate your social. The enterprise command center for modern social teams.
+          </p>
         </Reveal>
 
         <Reveal delay={120}>
@@ -2637,6 +2716,11 @@ function Act10FinalCTA({ onTrial }: { onTrial: () => void }) {
 
 function Act11Footer() {
   const COLOR = useColors();
+  // Mobile collapsible footer columns — all collapsed on mobile, expanded on
+  // desktop (desktop uses `sm:` to always show). Tracked by column title so
+  // each column toggles independently.
+  const [openCol, setOpenCol] = React.useState<string | null>(null);
+  const toggle = (title: string) => setOpenCol((cur) => (cur === title ? null : title));
   return (
     <footer
       className="relative w-full overflow-hidden pt-20 pb-10"
@@ -2679,10 +2763,10 @@ function Act11Footer() {
               ))}
             </div>
           </div>
-          <FooterCol title="Product" links={["Features|/features", "Pricing|/pricing", "Compare|/compare", "Integrations|/integrations"]} />
-          <FooterCol title="Company" links={["About|/about", "Blog|/blog", "Careers|/careers", "Contact|/contact"]} />
-          <FooterCol title="Resources" links={["Docs|/docs", "Help|/help", "Status|/status", "Changelog|/changelog"]} />
-          <FooterCol title="Legal" links={["Privacy|/privacy", "Terms|/terms", "Security|/security", "DPA|/dpa"]} />
+          <FooterCol title="Product" links={["Features|/features", "Pricing|/pricing", "Compare|/compare", "Integrations|/integrations"]} open={openCol === "Product"} onToggle={() => toggle("Product")} />
+          <FooterCol title="Company" links={["About|/about", "Blog|/blog", "Careers|/careers", "Contact|/contact"]} open={openCol === "Company"} onToggle={() => toggle("Company")} />
+          <FooterCol title="Resources" links={["Docs|/docs", "Help|/help", "Status|/status", "Changelog|/changelog"]} open={openCol === "Resources"} onToggle={() => toggle("Resources")} />
+          <FooterCol title="Legal" links={["Privacy|/privacy", "Terms|/terms", "Security|/security", "DPA|/dpa"]} open={openCol === "Legal"} onToggle={() => toggle("Legal")} />
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t pt-6 text-xs sm:flex-row" style={{ borderColor: COLOR.border, color: COLOR.textBody }}>
           <span>© 2026 SYNQUE · Orchestrate Your Social</span>
@@ -2697,12 +2781,47 @@ function Act11Footer() {
   );
 }
 
-function FooterCol({ title, links }: { title: string; links: string[] }) {
+function FooterCol({
+  title,
+  links,
+  open,
+  onToggle,
+}: {
+  title: string;
+  links: string[];
+  open: boolean;
+  onToggle: () => void;
+}) {
   const COLOR = useColors();
   return (
     <div>
-      <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: COLOR.textBody }}>{title}</div>
-      <ul className="mt-4 space-y-2.5">
+      {/* Mobile: button header that toggles expand/collapse.
+          Desktop: static heading, no toggle. */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between text-left sm:cursor-default sm:pointer-events-none"
+      >
+        <span className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: COLOR.textBody }}>{title}</span>
+        {/* Chevron rotates when expanded — only shown on mobile (sm:hidden) */}
+        <ChevronDown
+          className="h-4 w-4 transition-transform duration-300 sm:hidden"
+          style={{
+            color: COLOR.textBody,
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
+      </button>
+      {/* Links — always visible on desktop (sm:block), collapsible on mobile */}
+      <ul
+        className="mt-4 space-y-2.5 overflow-hidden transition-all duration-300 sm:max-h-none sm:opacity-100"
+        style={{
+          maxHeight: open ? "300px" : "0px",
+          opacity: open ? 1 : 0,
+          marginTop: open ? "1rem" : "0px",
+        }}
+      >
         {links.map((l) => {
           const [text, href] = l.includes("|") ? l.split("|") : [l, "#"];
           return (
