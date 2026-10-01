@@ -86,14 +86,14 @@ export interface Metric {
 export function MetricRow({ metrics, className }: { metrics: Metric[]; className?: string }) {
   return (
     <div className={cn(
-      "grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border/40 bg-border/40 sm:flex sm:items-stretch sm:overflow-x-auto bg-muted/20",
+      "scroll-liquid flex gap-2 overflow-x-auto rounded-xl border border-border/40 bg-muted/20 p-2 sm:grid sm:grid-cols-2 sm:gap-px sm:overflow-hidden sm:bg-border/40 sm:p-0 lg:flex lg:items-stretch lg:overflow-x-auto lg:bg-border/40 lg:p-0",
       className
     )}>
       {metrics.map((m, i) => (
         <div
           key={i}
           className={cn(
-            "flex items-center gap-2 bg-muted/20 px-3 py-2.5 sm:min-w-[140px] sm:flex-1 sm:gap-3 sm:px-4",
+            "flex shrink-0 items-center gap-2 rounded-lg bg-muted/20 px-3 py-2.5 sm:min-w-[140px] sm:flex-1 sm:gap-3 sm:rounded-none sm:px-4",
             i < metrics.length - 1 && "sm:border-r sm:border-border/40"
           )}
         >

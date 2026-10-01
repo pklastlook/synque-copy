@@ -270,21 +270,21 @@ export function DashboardView() {
       </HelpText>
 
       {/* === 1. Hero header strip — compact (no GlassCard wrapper) === */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="relative grid h-11 w-11 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg">
+          <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg">
             <Globe className="h-5 w-5" />
             <span className="absolute inset-0 animate-ping rounded-full bg-primary/20" style={{ animationDuration: "2.5s" }} />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              <Sparkles className="h-3 w-3 text-primary" />
-              {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+              <Sparkles className="h-3 w-3 shrink-0 text-primary" />
+              <span className="truncate">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</span>
             </div>
             <h2 className="mt-0.5 text-[22px] font-bold leading-tight tracking-tight sm:text-[26px]">
               Good day, <span className="retaina-text">{firstName}</span>
             </h2>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">
+            <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
               {isManager
                 ? <>{k.postsCreated.value} posts · {k.published.value} published ·{" "}<span className={cn(pendingInbox > 0 && "font-semibold text-amber-500")}>{pendingInbox} unread</span></>
                 : <>{k.accounts} {k.accounts === 1 ? "account" : "accounts"} · {k.published.value} published ·{" "}<span className={cn(pendingInbox > 0 && "font-semibold text-amber-500")}>{pendingInbox} unread</span>{failedCount > 0 && <span className="font-semibold text-rose-500"> · {failedCount} failed</span>}</>
@@ -296,7 +296,7 @@ export function DashboardView() {
           {pendingInbox > 0 && (
             <button
               onClick={() => setView("inbox")}
-              className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-[12px] font-semibold text-amber-600 transition hover:bg-amber-500/20 dark:text-amber-400"
+              className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] font-semibold text-amber-600 transition hover:bg-amber-500/20 dark:text-amber-400"
             >
               <Inbox className="h-4 w-4" />
               {pendingInbox} unread
@@ -304,23 +304,23 @@ export function DashboardView() {
           )}
           <button
             onClick={() => setView("composer")}
-            className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-[12px] font-semibold"
+            className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[12px] font-semibold sm:px-4"
           >
             <Wand2 className="h-4 w-4" />
-            Compose with AI
+            <span className="whitespace-nowrap">Compose with AI</span>
           </button>
         </div>
       </div>
 
       {/* === 2. Day range tabs + MetricRow — posting/sharing/commenting prioritized === */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-muted/30 p-1">
+      <div className="flex items-center gap-3">
+        <div className="scroll-liquid flex items-center gap-1 overflow-x-auto rounded-xl border border-border/50 bg-muted/30 p-1">
           {RANGE_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setRange(tab.id)}
               className={cn(
-                "rounded-lg px-3 py-1.5 text-[11px] font-semibold transition",
+                "shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition",
                 range === tab.id
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -367,7 +367,7 @@ export function DashboardView() {
       )}
 
       {/* === 4. BentoGrid — 5 intentional tiles === */}
-      <BentoGrid className="auto-rows-[minmax(150px,auto)]">
+      <BentoGrid className="auto-rows-[minmax(150px,auto)] sm:auto-rows-[minmax(150px,auto)]">
 
         {/* ── Tile 1: HERO METRIC (2×2) — Posts by members with details ── */}
         <BentoTile span="2x2" className="flex flex-col gap-2 overflow-hidden">
@@ -386,7 +386,7 @@ export function DashboardView() {
 
           {/* Big number — total posts by all members + secondary stats */}
           <div className="flex items-end gap-3">
-            <div className="num-display text-[44px] font-bold leading-none tracking-tight sm:text-[52px]">
+            <div className="num-display text-[40px] font-bold leading-none tracking-tight sm:text-[52px]">
               {data.topContributors.reduce((s, c) => s + c.posts, 0)}
             </div>
             <div className="mb-1.5 flex flex-col gap-1">
@@ -399,8 +399,8 @@ export function DashboardView() {
             across <span className="font-semibold text-foreground">{data.topContributors.length}</span> active {data.topContributors.length === 1 ? "member" : "members"} · last 30 days
           </div>
 
-          {/* Members list with post bars + expandable post details */}
-          <div className="scroll-liquid -mx-1 flex-1 space-y-2 overflow-y-auto px-1 pb-1">
+          {/* Members list with post bars + expandable post details — capped on mobile */}
+          <div className="scroll-liquid -mx-1 flex-1 space-y-2 overflow-y-auto px-1 pb-1 max-h-[260px] sm:max-h-none">
             {data.topContributors.length === 0 ? (
               <div className="grid place-items-center py-8 text-center text-xs text-muted-foreground">
                 <FileText className="h-6 w-6 mb-1 opacity-40" />
@@ -546,7 +546,7 @@ export function DashboardView() {
               }
             />
           </div>
-          <div className="scroll-liquid flex-1 overflow-y-auto">
+          <div className="scroll-liquid flex-1 overflow-y-auto max-h-[300px] sm:max-h-none">
             {data.activities.length > 0 ? (
               data.activities.slice(0, 8).map((a) => {
                 const Icon = ACTIVITY_ICON[a.type] ?? CheckCircle2;
@@ -692,13 +692,13 @@ export function DashboardView() {
           <HeroChart
             title="Performance trend"
             action={
-              <div className="flex flex-wrap items-center gap-1">
+              <div className="scroll-liquid flex items-center gap-1 overflow-x-auto">
                 {CHART_METRICS.map((m) => (
                   <button
                     key={m.key}
                     onClick={() => setChartMetric(m.key)}
                     className={cn(
-                      "rounded-md px-2 py-0.5 text-[10px] font-semibold transition",
+                      "shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold transition",
                       chartMetric === m.key ? "text-white" : "bg-muted/60 text-muted-foreground hover:bg-muted"
                     )}
                     style={chartMetric === m.key ? { background: m.color } : {}}
@@ -709,7 +709,7 @@ export function DashboardView() {
               </div>
             }
           >
-            <div className="h-[220px] w-full">
+            <div className="h-[180px] w-full sm:h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.series} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
                   <defs>
@@ -1011,8 +1011,8 @@ export function DashboardView() {
         )}
       </div>
 
-      {/* === 6. Tasks + Pipeline — compact horizontal section (hidden on mobile for cleaner view) === */}
-      <div className="hidden grid gap-3 lg:grid lg:grid-cols-2">
+      {/* === 6. Tasks + Pipeline — compact horizontal section === */}
+      <div className="grid gap-3 lg:grid-cols-2">
         {/* Task summary — compact dense list */}
         <GlassCard className="p-4">
           <SectionHeader
@@ -1159,14 +1159,14 @@ function ContentWorkflow({
 
   return (
     <div className="space-y-3">
-      {/* Stage flow — horizontal bar with counts */}
-      <div className="flex items-stretch gap-1">
+      {/* Stage flow — horizontal bar with counts (scrollable on mobile) */}
+      <div className="scroll-liquid flex items-stretch gap-1 overflow-x-auto pb-1">
         {stages.map((stage, i) => {
           const StageIcon = stage.icon;
           return (
             <React.Fragment key={stage.key}>
               <div
-                className="group relative flex-1 overflow-hidden rounded-xl border p-2"
+                className="group relative w-[88px] shrink-0 overflow-hidden rounded-xl border p-2 sm:w-auto sm:flex-1"
                 style={{ borderColor: `${stage.color}30`, background: `${stage.color}08` }}
               >
                 <div className="flex items-center justify-between">
@@ -1181,8 +1181,8 @@ function ContentWorkflow({
                 <div className="label-caps mt-0.5 text-[8px]">{stage.label}</div>
               </div>
               {i < stages.length - 1 && (
-                <div className="flex items-center">
-                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/30" />
+                <div className="flex shrink-0 items-center">
+                  <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
                 </div>
               )}
             </React.Fragment>
