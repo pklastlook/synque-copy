@@ -877,7 +877,7 @@ export function AnalyticsView() {
 
       {/* Tabs — Growth / Engagement / Accounts */}
       <Tabs defaultValue="growth" className="animate-rise">
-        <TabsList>
+        <TabsList className="w-full sm:w-fit">
           <TabsTrigger value="growth">
             <TrendingUp className="h-3.5 w-3.5" />
             Growth

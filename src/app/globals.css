@@ -1203,23 +1203,21 @@ html { scroll-behavior: smooth; }
 .apple-tab-bar {
   /* Floating dock — margin from screen edges + rounded like a dock */
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.50);
-  /* Glassmorphic — heavy blur + saturation, semi-transparent bg */
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  /* Solid (non-transparent) background — user requested no transparency */
+  background: #ffffff;
   /* Soft elevation shadow — replaces the old top border line */
-  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.15),
-              0 1px 2px rgba(0, 0, 0, 0.04),
-              inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.18),
+              0 1px 2px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.5);
   /* Floating gap from screen edges handled by wrapper (.apple-tab-bar-dock) */
 }
 .dark .apple-tab-bar {
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(28, 28, 30, 0.72);
-  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.50),
-              0 1px 2px rgba(0, 0, 0, 0.30),
-              inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1c1c1e;
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.60),
+              0 1px 2px rgba(0, 0, 0, 0.40),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /* Dock wrapper — floats the bar with margin from screen edges.
@@ -1361,6 +1359,42 @@ html { scroll-behavior: smooth; }
 .apple-tab-item.is-tiled.active .tab-label {
   opacity: 1;
   font-weight: 600;
+}
+
+/* ================================================================
+   MOBILE VIEW TABS — horizontal-scroll pill nav for module pages
+   (Reports, Analytics, Team Performance, etc.)
+   On mobile, TabsList becomes a full-width scrollable row of equal
+   pills so tabs never overflow or wrap awkwardly.
+   ================================================================ */
+@media (max-width: 640px) {
+  /* Make every TabsList full-width + scrollable on mobile */
+  [data-slot="tabs-list"] {
+    width: 100% !important;
+    max-width: 100%;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    flex-wrap: nowrap !important;
+    padding: 3px;
+  }
+  [data-slot="tabs-list"]::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+  /* Triggers size to content (not flex-1) so they stay readable + scroll */
+  [data-slot="tabs-trigger"] {
+    flex: 0 0 auto !important;
+    min-width: 0;
+    padding-left: 10px;
+    padding-right: 10px;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  /* Keep icon+text tight inside triggers */
+  [data-slot="tabs-trigger"] svg {
+    flex-shrink: 0;
+  }
 }
 
 /* ================================================================

@@ -9151,3 +9151,53 @@ Stage Summary:
 - All mobile-view icons are now iOS-27-style square squircle gradient tiles (was: flat outline lucide icons with no background).
 - Social media platforms use REAL brand logos: WhatsApp (Simple Icons), Instagram/Facebook/X/TikTok/YouTube/Threads (Simple Icons), LinkedIn (official glyph). `PlatformGlyph` updated everywhere (used by PlatformBadge in accounts/dashboard/etc.).
 - Files produced: `src/components/brand-icons.tsx`, `src/components/ios-icon-tile.tsx`; modified `src/lib/platforms.tsx`, `src/components/app-shell.tsx`, `src/app/globals.css`. Added dependency `react-icons`.
+
+---
+Task ID: mobile-icon-tab-enhancements
+Agent: main (Z.ai Code)
+Task: Make bottom bar icons match sidebar icons, disable bottom bar transparency, enhance module page tabs (reports etc.) for mobile alignment, general mobile polish.
+
+Work Log:
+- **Disabled bottom bar transparency** (`src/app/globals.css`):
+  - `.apple-tab-bar` background changed from `rgba(255,255,255,0.72)` → solid `#ffffff` (light) / `#1c1c1e` (dark).
+  - Removed `backdrop-filter: blur(30px) saturate(180%)` (was the glass blur).
+  - Verified via Agent Browser: `backdrop=none`, `bg=rgb(28,28,30)`, `opacity=1` — fully opaque.
+- **Matched bottom bar + More sheet icons to sidebar icons** (`src/components/app-shell.tsx`):
+  - calendar: `Calendar` → `CalendarDays` (matches sidebar)
+  - listening: `Crosshair` → `Radio` (matches sidebar)
+  - tasks: `CheckSquare` → `ListTodo` (matches sidebar)
+  - accounts: `Link2` → `AtSign` (matches sidebar)
+  - media: `Image as ImageIcon` → `Images as ImageIcon` (matches sidebar)
+  - chat: `MessageSquare` → `MessageCircle` (matches sidebar)
+  - team-performance: `TrendingUp` → `BarChart3` (matches sidebar)
+  - Removed now-unused `TrendingUp` import.
+- **Updated sidebar WhatsApp to use real brand logo** (`src/components/app-sidebar.tsx`):
+  - Imported `WhatsappIcon` from `@/components/brand-icons`.
+  - Changed whatsapp nav item icon from `MessageCircle` → `WhatsappIcon` (real Simple Icons brand logo).
+  - Now both sidebar and mobile bottom bar/More sheet show the SAME real WhatsApp logo — consistency achieved.
+- **Enhanced module page tabs for mobile** (`src/app/globals.css`):
+  - Added a `@media (max-width: 640px)` block that targets ALL `[data-slot="tabs-list"]` + `[data-slot="tabs-trigger"]`:
+    - TabsList: `width: 100% !important`, `overflow-x: auto !important`, `flex-wrap: nowrap`, hidden scrollbar.
+    - TabsTrigger: `flex: 0 0 auto !important` (size to content, not equal-split), `white-space: nowrap`, `font-size: 12px`.
+  - This makes every tab row in every view (Reports, Analytics, Team Performance) full-width + horizontally scrollable on mobile — no more cutoff/overflow.
+- **Reports view mobile fixes** (`src/components/views/reports.tsx`):
+  - Main TabsList: `w-fit` → `w-full sm:w-fit`.
+  - Sub-template pill row: `flex flex-wrap items-center` → `flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center` (stacks vertically on mobile).
+  - Save/Print toolbar: `ml-auto` → `sm:ml-auto` (doesn't push off-screen on mobile).
+- **Analytics view** (`src/components/views/analytics.tsx`):
+  - TabsList: added `className="w-full sm:w-fit"`.
+- Lint: `bun run lint` → exit 0, zero errors.
+
+Verification (Agent Browser + VLM, iPhone 14 viewport):
+- Bottom bar: solid opaque background confirmed (`bg=rgb(28,28,30)`, `backdrop=none`). VLM: "bottom navigation bar is solid dark, opaque, not translucent or see-through".
+- Bottom bar icons match sidebar: DOM-verified Insights tile uses Radio path (`M16.247 7.761a6`), Stats uses BarChart3 path, Reports uses FileBarChart path.
+- Reports tabs: 5 triggers in a full-width scrollable row (`width=366, scrollWidth=422, overflow-x=auto`). VLM: "5 tabs cleanly aligned in a single horizontal row, fully visible without cutoff".
+- More sheet: VLM confirmed WhatsApp is real brand logo, all icons match sidebar (Calendar=calendar grid, Chat=speech bubble, Tasks=checklist, Accounts=@ symbol, Media=picture frame, Campaigns=megaphone), all in square gradient tiles.
+- Console errors: zero. Dev log: zero errors.
+
+Stage Summary:
+- Bottom bar is now solid (non-transparent) — no more glass blur.
+- All mobile bottom bar + More sheet icons now use the SAME lucide icons as the sidebar per module (CalendarDays, Radio, ListTodo, AtSign, Images, MessageCircle, BarChart3), plus real WhatsApp brand logo in both places.
+- Every module page tab row (Reports, Analytics, Team Performance, any view using shadcn Tabs) is now full-width + horizontally scrollable on mobile via global CSS — no cutoff, no overflow, consistent alignment.
+- Reports sub-template row + toolbar stack vertically on mobile for better readability.
+- Files modified: `src/app/globals.css`, `src/components/app-shell.tsx`, `src/components/app-sidebar.tsx`, `src/components/views/reports.tsx`, `src/components/views/analytics.tsx`.

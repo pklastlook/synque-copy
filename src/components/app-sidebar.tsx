@@ -53,6 +53,7 @@ import { SETTINGS_TABS, type SettingsTab } from "@/components/views/settings";
 import { ORG_TABS, type OrgTab } from "@/components/views/organization";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { LogoWordmark } from "@/components/glass/logo";
+import { WhatsappIcon } from "@/components/brand-icons";
 import { ListRow, Pill } from "@/components/glass/dense-ui";
 import { toast } from "sonner";
 import {
@@ -67,7 +68,7 @@ const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; 
   { id: "composer", label: "Composer", icon: PenSquare, group: "Overview", accent: "oklch(0.7 0.2 25)" },
   { id: "calendar", label: "Calendar", icon: CalendarDays, group: "Overview", accent: "oklch(0.68 0.2 145)" },
   { id: "inbox", label: "Inbox", icon: Inbox, group: "Overview", accent: "oklch(0.66 0.18 200)" },
-  { id: "whatsapp", label: "WhatsApp", icon: MessageCircle, group: "Overview", accent: "oklch(0.78 0.18 145)" },
+  { id: "whatsapp", label: "WhatsApp", icon: WhatsappIcon, group: "Overview", accent: "oklch(0.78 0.18 145)" },
   { id: "chat", label: "Team Chat", icon: MessageCircle, group: "Overview", accent: "oklch(0.66 0.22 305)" },
   { id: "tasks", label: "Tasks", icon: ListTodo, group: "Overview", accent: "oklch(0.7 0.18 165)" },
   // Performance (team-wide metrics) — managers+ only

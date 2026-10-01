@@ -40,9 +40,9 @@ import { AccountSafetyView } from "@/components/views/account-safety";
 import { VPNView } from "@/components/views/vpn";
 import {
   LayoutDashboard, PenSquare, Inbox as InboxIcon, BarChart3, MoreHorizontal,
-  Calendar, MessageSquare, CheckSquare,
-  Link2, Image as ImageIcon, FileBarChart, Megaphone, Settings as SettingsIcon,
-  Building2, TrendingUp, Briefcase, X, Crosshair, type LucideIcon,
+  CalendarDays, MessageCircle, ListTodo, AtSign,
+  Images as ImageIcon, FileBarChart, Megaphone, Settings as SettingsIcon,
+  Building2, Briefcase, X, Radio, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IosIconTile, IOS_GRADIENTS, type IosGradientKey } from "@/components/ios-icon-tile";
@@ -66,7 +66,7 @@ const EDITOR_TABS: MobileTab[] = [
   { id: "dashboard", label: "Home", icon: LayoutDashboard, gradient: "home" },
   { id: "inbox", label: "Inbox", icon: InboxIcon, gradient: "inbox" },
   { id: "composer", label: "Compose", icon: PenSquare, gradient: "compose" },
-  { id: "calendar", label: "Calendar", icon: Calendar, gradient: "calendar" },
+  { id: "calendar", label: "Calendar", icon: CalendarDays, gradient: "calendar" },
   { id: "settings", label: "More", icon: MoreHorizontal, gradient: "more" },
 ];
 
@@ -74,7 +74,7 @@ const MANAGER_TABS: MobileTab[] = [
   { id: "dashboard", label: "Home", icon: LayoutDashboard, gradient: "home" },
   { id: "analytics", label: "Stats", icon: BarChart3, gradient: "stats" },
   { id: "reports", label: "Reports", icon: FileBarChart, gradient: "reports" },
-  { id: "listening", label: "Insights", icon: Crosshair, gradient: "insights" },
+  { id: "listening", label: "Insights", icon: Radio, gradient: "insights" },
   { id: "settings", label: "More", icon: MoreHorizontal, gradient: "more" },
 ];
 
@@ -106,11 +106,11 @@ type MoreItem =
     };
 
 const MORE_NAV_ITEMS: MoreItem[] = [
-  { id: "calendar", label: "Calendar", icon: Calendar, gradient: "calendar", kind: "lucide" },
+  { id: "calendar", label: "Calendar", icon: CalendarDays, gradient: "calendar", kind: "lucide" },
   { id: "whatsapp", label: "WhatsApp", gradient: "whatsapp", kind: "brand", brand: "whatsapp" },
-  { id: "chat", label: "Chat", icon: MessageSquare, gradient: "chat", kind: "lucide" },
-  { id: "tasks", label: "Tasks", icon: CheckSquare, gradient: "tasks", kind: "lucide" },
-  { id: "accounts", label: "Accounts", icon: Link2, gradient: "accounts", kind: "lucide" },
+  { id: "chat", label: "Chat", icon: MessageCircle, gradient: "chat", kind: "lucide" },
+  { id: "tasks", label: "Tasks", icon: ListTodo, gradient: "tasks", kind: "lucide" },
+  { id: "accounts", label: "Accounts", icon: AtSign, gradient: "accounts", kind: "lucide" },
   { id: "media", label: "Media", icon: ImageIcon, gradient: "media", kind: "lucide" },
   { id: "reports", label: "Reports", icon: FileBarChart, gradient: "reports", kind: "lucide" },
   { id: "campaigns", label: "Campaigns", icon: Megaphone, gradient: "campaigns", kind: "lucide" },
@@ -119,7 +119,7 @@ const MORE_NAV_ITEMS: MoreItem[] = [
 const MORE_ADMIN_ITEMS_MEMBER: MoreItem[] = [
   { id: "settings", label: "Settings", icon: SettingsIcon, gradient: "settings", kind: "lucide" },
   { id: "organization", label: "Org", icon: Building2, gradient: "org", kind: "lucide" },
-  { id: "team-performance", label: "Performance", icon: TrendingUp, gradient: "performance", kind: "lucide" },
+  { id: "team-performance", label: "Performance", icon: BarChart3, gradient: "performance", kind: "lucide" },
 ];
 
 const MORE_ADMIN_ITEMS_OWNER: MoreItem[] = [

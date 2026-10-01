@@ -592,7 +592,7 @@ export function ReportsView() {
 
       {/* === Main 4-tab navigation (replaces 13 template buttons) === */}
       <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as TabId)}>
-        <TabsList className="h-9 w-fit">
+        <TabsList className="h-9 w-full sm:w-fit">
           {TAB_GROUPS.map(g => {
             const Icon = g.icon;
             const active = activeTab === g.id;
@@ -611,7 +611,7 @@ export function ReportsView() {
       </Tabs>
 
       {/* === Sub-template pill row + compact toolbar (Save / Print) === */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex flex-wrap items-center gap-1.5">
           {activeGroup.templates.map(tid => {
             const t = TEMPLATES.find(t => t.id === tid)!;
@@ -635,7 +635,7 @@ export function ReportsView() {
             );
           })}
         </div>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 sm:ml-auto">
           <button
             onClick={saveCurrentReport}
             disabled={savingReport}
