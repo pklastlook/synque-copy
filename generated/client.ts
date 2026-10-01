@@ -276,3 +276,18 @@ export type EmailVerificationToken = Prisma.EmailVerificationTokenModel
  * 
  */
 export type Influencer = Prisma.InfluencerModel
+/**
+ * Model Proxy
+ * 
+ */
+export type Proxy = Prisma.ProxyModel
+/**
+ * Model AccountProxy
+ * 
+ */
+export type AccountProxy = Prisma.AccountProxyModel
+/**
+ * Model ProxyRotation
+ * 
+ */
+export type ProxyRotation = Prisma.ProxyRotationModel

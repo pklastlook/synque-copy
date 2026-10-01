@@ -274,6 +274,7 @@ export type AccountWhereInput = {
   comments?: Prisma.CommentListRelationFilter
   health?: Prisma.XOR<Prisma.AccountHealthNullableScalarRelationFilter, Prisma.AccountHealthWhereInput> | null
   protection?: Prisma.XOR<Prisma.AccountProtectionNullableScalarRelationFilter, Prisma.AccountProtectionWhereInput> | null
+  accountProxies?: Prisma.AccountProxyListRelationFilter
 }
 
 export type AccountOrderByWithRelationInput = {
@@ -294,6 +295,7 @@ export type AccountOrderByWithRelationInput = {
   comments?: Prisma.CommentOrderByRelationAggregateInput
   health?: Prisma.AccountHealthOrderByWithRelationInput
   protection?: Prisma.AccountProtectionOrderByWithRelationInput
+  accountProxies?: Prisma.AccountProxyOrderByRelationAggregateInput
 }
 
 export type AccountWhereUniqueInput = Prisma.AtLeast<{
@@ -317,6 +319,7 @@ export type AccountWhereUniqueInput = Prisma.AtLeast<{
   comments?: Prisma.CommentListRelationFilter
   health?: Prisma.XOR<Prisma.AccountHealthNullableScalarRelationFilter, Prisma.AccountHealthWhereInput> | null
   protection?: Prisma.XOR<Prisma.AccountProtectionNullableScalarRelationFilter, Prisma.AccountProtectionWhereInput> | null
+  accountProxies?: Prisma.AccountProxyListRelationFilter
 }, "id">
 
 export type AccountOrderByWithAggregationInput = {
@@ -372,6 +375,7 @@ export type AccountCreateInput = {
   comments?: Prisma.CommentCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyCreateNestedManyWithoutAccountInput
 }
 
 export type AccountUncheckedCreateInput = {
@@ -391,6 +395,7 @@ export type AccountUncheckedCreateInput = {
   comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthUncheckedCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionUncheckedCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type AccountUpdateInput = {
@@ -410,6 +415,7 @@ export type AccountUpdateInput = {
   comments?: Prisma.CommentUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountUncheckedUpdateInput = {
@@ -429,6 +435,7 @@ export type AccountUncheckedUpdateInput = {
   comments?: Prisma.CommentUncheckedUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUncheckedUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUncheckedUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountCreateManyInput = {
@@ -659,6 +666,20 @@ export type AccountUpdateOneRequiredWithoutAnalyticsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.AccountUpdateToOneWithWhereWithoutAnalyticsInput, Prisma.AccountUpdateWithoutAnalyticsInput>, Prisma.AccountUncheckedUpdateWithoutAnalyticsInput>
 }
 
+export type AccountCreateNestedOneWithoutAccountProxiesInput = {
+  create?: Prisma.XOR<Prisma.AccountCreateWithoutAccountProxiesInput, Prisma.AccountUncheckedCreateWithoutAccountProxiesInput>
+  connectOrCreate?: Prisma.AccountCreateOrConnectWithoutAccountProxiesInput
+  connect?: Prisma.AccountWhereUniqueInput
+}
+
+export type AccountUpdateOneRequiredWithoutAccountProxiesNestedInput = {
+  create?: Prisma.XOR<Prisma.AccountCreateWithoutAccountProxiesInput, Prisma.AccountUncheckedCreateWithoutAccountProxiesInput>
+  connectOrCreate?: Prisma.AccountCreateOrConnectWithoutAccountProxiesInput
+  upsert?: Prisma.AccountUpsertWithoutAccountProxiesInput
+  connect?: Prisma.AccountWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AccountUpdateToOneWithWhereWithoutAccountProxiesInput, Prisma.AccountUpdateWithoutAccountProxiesInput>, Prisma.AccountUncheckedUpdateWithoutAccountProxiesInput>
+}
+
 export type AccountCreateWithoutOwnerInput = {
   id?: string
   platform: string
@@ -675,6 +696,7 @@ export type AccountCreateWithoutOwnerInput = {
   comments?: Prisma.CommentCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyCreateNestedManyWithoutAccountInput
 }
 
 export type AccountUncheckedCreateWithoutOwnerInput = {
@@ -693,6 +715,7 @@ export type AccountUncheckedCreateWithoutOwnerInput = {
   comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthUncheckedCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionUncheckedCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type AccountCreateOrConnectWithoutOwnerInput = {
@@ -754,6 +777,7 @@ export type AccountCreateWithoutHealthInput = {
   analytics?: Prisma.AnalyticsDailyCreateNestedManyWithoutAccountInput
   comments?: Prisma.CommentCreateNestedManyWithoutAccountInput
   protection?: Prisma.AccountProtectionCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyCreateNestedManyWithoutAccountInput
 }
 
 export type AccountUncheckedCreateWithoutHealthInput = {
@@ -772,6 +796,7 @@ export type AccountUncheckedCreateWithoutHealthInput = {
   analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
   comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAccountInput
   protection?: Prisma.AccountProtectionUncheckedCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type AccountCreateOrConnectWithoutHealthInput = {
@@ -806,6 +831,7 @@ export type AccountUpdateWithoutHealthInput = {
   analytics?: Prisma.AnalyticsDailyUpdateManyWithoutAccountNestedInput
   comments?: Prisma.CommentUpdateManyWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountUncheckedUpdateWithoutHealthInput = {
@@ -824,6 +850,7 @@ export type AccountUncheckedUpdateWithoutHealthInput = {
   analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
   comments?: Prisma.CommentUncheckedUpdateManyWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUncheckedUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountCreateWithoutProtectionInput = {
@@ -842,6 +869,7 @@ export type AccountCreateWithoutProtectionInput = {
   analytics?: Prisma.AnalyticsDailyCreateNestedManyWithoutAccountInput
   comments?: Prisma.CommentCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyCreateNestedManyWithoutAccountInput
 }
 
 export type AccountUncheckedCreateWithoutProtectionInput = {
@@ -860,6 +888,7 @@ export type AccountUncheckedCreateWithoutProtectionInput = {
   analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
   comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthUncheckedCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type AccountCreateOrConnectWithoutProtectionInput = {
@@ -894,6 +923,7 @@ export type AccountUpdateWithoutProtectionInput = {
   analytics?: Prisma.AnalyticsDailyUpdateManyWithoutAccountNestedInput
   comments?: Prisma.CommentUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountUncheckedUpdateWithoutProtectionInput = {
@@ -912,6 +942,7 @@ export type AccountUncheckedUpdateWithoutProtectionInput = {
   analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
   comments?: Prisma.CommentUncheckedUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUncheckedUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountCreateWithoutVariantsInput = {
@@ -930,6 +961,7 @@ export type AccountCreateWithoutVariantsInput = {
   comments?: Prisma.CommentCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyCreateNestedManyWithoutAccountInput
 }
 
 export type AccountUncheckedCreateWithoutVariantsInput = {
@@ -948,6 +980,7 @@ export type AccountUncheckedCreateWithoutVariantsInput = {
   comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthUncheckedCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionUncheckedCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type AccountCreateOrConnectWithoutVariantsInput = {
@@ -982,6 +1015,7 @@ export type AccountUpdateWithoutVariantsInput = {
   comments?: Prisma.CommentUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountUncheckedUpdateWithoutVariantsInput = {
@@ -1000,6 +1034,7 @@ export type AccountUncheckedUpdateWithoutVariantsInput = {
   comments?: Prisma.CommentUncheckedUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUncheckedUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUncheckedUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountCreateWithoutCommentsInput = {
@@ -1018,6 +1053,7 @@ export type AccountCreateWithoutCommentsInput = {
   analytics?: Prisma.AnalyticsDailyCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyCreateNestedManyWithoutAccountInput
 }
 
 export type AccountUncheckedCreateWithoutCommentsInput = {
@@ -1036,6 +1072,7 @@ export type AccountUncheckedCreateWithoutCommentsInput = {
   analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthUncheckedCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionUncheckedCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type AccountCreateOrConnectWithoutCommentsInput = {
@@ -1070,6 +1107,7 @@ export type AccountUpdateWithoutCommentsInput = {
   analytics?: Prisma.AnalyticsDailyUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountUncheckedUpdateWithoutCommentsInput = {
@@ -1088,6 +1126,7 @@ export type AccountUncheckedUpdateWithoutCommentsInput = {
   analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUncheckedUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUncheckedUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountCreateWithoutAnalyticsInput = {
@@ -1106,6 +1145,7 @@ export type AccountCreateWithoutAnalyticsInput = {
   comments?: Prisma.CommentCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyCreateNestedManyWithoutAccountInput
 }
 
 export type AccountUncheckedCreateWithoutAnalyticsInput = {
@@ -1124,6 +1164,7 @@ export type AccountUncheckedCreateWithoutAnalyticsInput = {
   comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAccountInput
   health?: Prisma.AccountHealthUncheckedCreateNestedOneWithoutAccountInput
   protection?: Prisma.AccountProtectionUncheckedCreateNestedOneWithoutAccountInput
+  accountProxies?: Prisma.AccountProxyUncheckedCreateNestedManyWithoutAccountInput
 }
 
 export type AccountCreateOrConnectWithoutAnalyticsInput = {
@@ -1158,6 +1199,7 @@ export type AccountUpdateWithoutAnalyticsInput = {
   comments?: Prisma.CommentUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountUncheckedUpdateWithoutAnalyticsInput = {
@@ -1173,6 +1215,99 @@ export type AccountUncheckedUpdateWithoutAnalyticsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   variants?: Prisma.PostVariantUncheckedUpdateManyWithoutAccountNestedInput
+  comments?: Prisma.CommentUncheckedUpdateManyWithoutAccountNestedInput
+  health?: Prisma.AccountHealthUncheckedUpdateOneWithoutAccountNestedInput
+  protection?: Prisma.AccountProtectionUncheckedUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUncheckedUpdateManyWithoutAccountNestedInput
+}
+
+export type AccountCreateWithoutAccountProxiesInput = {
+  id?: string
+  platform: string
+  handle: string
+  displayName: string
+  avatar?: string | null
+  followers?: number
+  postsCount?: number
+  verified?: boolean
+  customerId?: string | null
+  createdAt?: Date | string
+  owner: Prisma.UserCreateNestedOneWithoutAccountsInput
+  variants?: Prisma.PostVariantCreateNestedManyWithoutAccountInput
+  analytics?: Prisma.AnalyticsDailyCreateNestedManyWithoutAccountInput
+  comments?: Prisma.CommentCreateNestedManyWithoutAccountInput
+  health?: Prisma.AccountHealthCreateNestedOneWithoutAccountInput
+  protection?: Prisma.AccountProtectionCreateNestedOneWithoutAccountInput
+}
+
+export type AccountUncheckedCreateWithoutAccountProxiesInput = {
+  id?: string
+  platform: string
+  handle: string
+  displayName: string
+  avatar?: string | null
+  followers?: number
+  postsCount?: number
+  verified?: boolean
+  ownerId: string
+  customerId?: string | null
+  createdAt?: Date | string
+  variants?: Prisma.PostVariantUncheckedCreateNestedManyWithoutAccountInput
+  analytics?: Prisma.AnalyticsDailyUncheckedCreateNestedManyWithoutAccountInput
+  comments?: Prisma.CommentUncheckedCreateNestedManyWithoutAccountInput
+  health?: Prisma.AccountHealthUncheckedCreateNestedOneWithoutAccountInput
+  protection?: Prisma.AccountProtectionUncheckedCreateNestedOneWithoutAccountInput
+}
+
+export type AccountCreateOrConnectWithoutAccountProxiesInput = {
+  where: Prisma.AccountWhereUniqueInput
+  create: Prisma.XOR<Prisma.AccountCreateWithoutAccountProxiesInput, Prisma.AccountUncheckedCreateWithoutAccountProxiesInput>
+}
+
+export type AccountUpsertWithoutAccountProxiesInput = {
+  update: Prisma.XOR<Prisma.AccountUpdateWithoutAccountProxiesInput, Prisma.AccountUncheckedUpdateWithoutAccountProxiesInput>
+  create: Prisma.XOR<Prisma.AccountCreateWithoutAccountProxiesInput, Prisma.AccountUncheckedCreateWithoutAccountProxiesInput>
+  where?: Prisma.AccountWhereInput
+}
+
+export type AccountUpdateToOneWithWhereWithoutAccountProxiesInput = {
+  where?: Prisma.AccountWhereInput
+  data: Prisma.XOR<Prisma.AccountUpdateWithoutAccountProxiesInput, Prisma.AccountUncheckedUpdateWithoutAccountProxiesInput>
+}
+
+export type AccountUpdateWithoutAccountProxiesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  platform?: Prisma.StringFieldUpdateOperationsInput | string
+  handle?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  followers?: Prisma.IntFieldUpdateOperationsInput | number
+  postsCount?: Prisma.IntFieldUpdateOperationsInput | number
+  verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  owner?: Prisma.UserUpdateOneRequiredWithoutAccountsNestedInput
+  variants?: Prisma.PostVariantUpdateManyWithoutAccountNestedInput
+  analytics?: Prisma.AnalyticsDailyUpdateManyWithoutAccountNestedInput
+  comments?: Prisma.CommentUpdateManyWithoutAccountNestedInput
+  health?: Prisma.AccountHealthUpdateOneWithoutAccountNestedInput
+  protection?: Prisma.AccountProtectionUpdateOneWithoutAccountNestedInput
+}
+
+export type AccountUncheckedUpdateWithoutAccountProxiesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  platform?: Prisma.StringFieldUpdateOperationsInput | string
+  handle?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  followers?: Prisma.IntFieldUpdateOperationsInput | number
+  postsCount?: Prisma.IntFieldUpdateOperationsInput | number
+  verified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  ownerId?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  variants?: Prisma.PostVariantUncheckedUpdateManyWithoutAccountNestedInput
+  analytics?: Prisma.AnalyticsDailyUncheckedUpdateManyWithoutAccountNestedInput
   comments?: Prisma.CommentUncheckedUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUncheckedUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUncheckedUpdateOneWithoutAccountNestedInput
@@ -1207,6 +1342,7 @@ export type AccountUpdateWithoutOwnerInput = {
   comments?: Prisma.CommentUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountUncheckedUpdateWithoutOwnerInput = {
@@ -1225,6 +1361,7 @@ export type AccountUncheckedUpdateWithoutOwnerInput = {
   comments?: Prisma.CommentUncheckedUpdateManyWithoutAccountNestedInput
   health?: Prisma.AccountHealthUncheckedUpdateOneWithoutAccountNestedInput
   protection?: Prisma.AccountProtectionUncheckedUpdateOneWithoutAccountNestedInput
+  accountProxies?: Prisma.AccountProxyUncheckedUpdateManyWithoutAccountNestedInput
 }
 
 export type AccountUncheckedUpdateManyWithoutOwnerInput = {
@@ -1249,12 +1386,14 @@ export type AccountCountOutputType = {
   variants: number
   analytics: number
   comments: number
+  accountProxies: number
 }
 
 export type AccountCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   variants?: boolean | AccountCountOutputTypeCountVariantsArgs
   analytics?: boolean | AccountCountOutputTypeCountAnalyticsArgs
   comments?: boolean | AccountCountOutputTypeCountCommentsArgs
+  accountProxies?: boolean | AccountCountOutputTypeCountAccountProxiesArgs
 }
 
 /**
@@ -1288,6 +1427,13 @@ export type AccountCountOutputTypeCountCommentsArgs<ExtArgs extends runtime.Type
   where?: Prisma.CommentWhereInput
 }
 
+/**
+ * AccountCountOutputType without action
+ */
+export type AccountCountOutputTypeCountAccountProxiesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AccountProxyWhereInput
+}
+
 
 export type AccountSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1307,6 +1453,7 @@ export type AccountSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   comments?: boolean | Prisma.Account$commentsArgs<ExtArgs>
   health?: boolean | Prisma.Account$healthArgs<ExtArgs>
   protection?: boolean | Prisma.Account$protectionArgs<ExtArgs>
+  accountProxies?: boolean | Prisma.Account$accountProxiesArgs<ExtArgs>
   _count?: boolean | Prisma.AccountCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["account"]>
 
@@ -1362,6 +1509,7 @@ export type AccountInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   comments?: boolean | Prisma.Account$commentsArgs<ExtArgs>
   health?: boolean | Prisma.Account$healthArgs<ExtArgs>
   protection?: boolean | Prisma.Account$protectionArgs<ExtArgs>
+  accountProxies?: boolean | Prisma.Account$accountProxiesArgs<ExtArgs>
   _count?: boolean | Prisma.AccountCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AccountIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1380,6 +1528,7 @@ export type $AccountPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     comments: Prisma.$CommentPayload<ExtArgs>[]
     health: Prisma.$AccountHealthPayload<ExtArgs> | null
     protection: Prisma.$AccountProtectionPayload<ExtArgs> | null
+    accountProxies: Prisma.$AccountProxyPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1793,6 +1942,7 @@ export interface Prisma__AccountClient<T, Null = never, ExtArgs extends runtime.
   comments<T extends Prisma.Account$commentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Account$commentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   health<T extends Prisma.Account$healthArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Account$healthArgs<ExtArgs>>): Prisma.Prisma__AccountHealthClient<runtime.Types.Result.GetResult<Prisma.$AccountHealthPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   protection<T extends Prisma.Account$protectionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Account$protectionArgs<ExtArgs>>): Prisma.Prisma__AccountProtectionClient<runtime.Types.Result.GetResult<Prisma.$AccountProtectionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  accountProxies<T extends Prisma.Account$accountProxiesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Account$accountProxiesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AccountProxyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2341,6 +2491,30 @@ export type Account$protectionArgs<ExtArgs extends runtime.Types.Extensions.Inte
    */
   include?: Prisma.AccountProtectionInclude<ExtArgs> | null
   where?: Prisma.AccountProtectionWhereInput
+}
+
+/**
+ * Account.accountProxies
+ */
+export type Account$accountProxiesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AccountProxy
+   */
+  select?: Prisma.AccountProxySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AccountProxy
+   */
+  omit?: Prisma.AccountProxyOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AccountProxyInclude<ExtArgs> | null
+  where?: Prisma.AccountProxyWhereInput
+  orderBy?: Prisma.AccountProxyOrderByWithRelationInput | Prisma.AccountProxyOrderByWithRelationInput[]
+  cursor?: Prisma.AccountProxyWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AccountProxyScalarFieldEnum | Prisma.AccountProxyScalarFieldEnum[]
 }
 
 /**
