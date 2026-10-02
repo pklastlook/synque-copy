@@ -134,12 +134,9 @@ export default function LoginPage() {
             {/* Ambient glow inside the panel */}
             <div className="pointer-events-none absolute -left-20 top-1/3 h-72 w-72 rounded-full bg-primary/8 blur-[80px]" />
 
-            {/* Logo — static, no animation, square tile */}
+            {/* Logo — text only, no tile */}
             <div className="relative">
               <Link href="/" className="inline-block">
-                <div className="grid h-14 w-14 place-items-center rounded-none bg-gradient-to-br from-primary to-primary/70 shadow-lg">
-                  <span className="text-2xl font-extrabold italic tracking-tight text-primary-foreground">S</span>
-                </div>
                 <LogoWordmark size="text-xl" logoSize={36} static className="mt-3" />
               </Link>
             </div>
