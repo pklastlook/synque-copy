@@ -188,7 +188,7 @@ class GeminiClient implements LLMClient {
 }
 
 // ============================================================================
-// ZAI Client (legacy fallback)
+// ZAI Client (legacy fallback — uses ZAI SDK)
 // ============================================================================
 
 class ZAIClient implements LLMClient {
@@ -213,6 +213,48 @@ class ZAIClient implements LLMClient {
 }
 
 // ============================================================================
+// ZAI Direct Client — calls the ZAI API directly via fetch (no SDK needed).
+// Works on Vercel serverless where the ZAI SDK's config-file approach fails.
+// ============================================================================
+
+class ZAIDirectClient implements LLMClient {
+  private apiKey: string;
+  private baseUrl: string;
+  private token: string;
+  get provider() { return "zai-direct"; }
+
+  constructor() {
+    this.apiKey = process.env.ZAI_API_KEY || "Z.ai";
+    this.baseUrl = (process.env.ZAI_BASE_URL || "https://internal-api.z.ai/v1").replace(/\/+$/, "");
+    this.token = process.env.ZAI_TOKEN || "";
+  }
+
+  async chat(messages: LLMMessage[]): Promise<string> {
+    const res = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": this.apiKey,
+        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+      },
+      body: JSON.stringify({
+        model: "glm-4.6",
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        thinking: { type: "disabled" },
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`ZAI API error ${res.status}: ${errText.substring(0, 200)}`);
+    }
+
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content ?? "";
+  }
+}
+
+// ============================================================================
 // Factory + fallback
 // ============================================================================
 
@@ -223,14 +265,25 @@ export async function getLLMClient(): Promise<LLMClient> {
   const bucket = Math.floor(Date.now() / 60000);
   if (_cachedClient && _cachedKey === bucket.toString()) return _cachedClient;
 
-  // 0. Try ZAI SDK first — most reliable (works in all regions, no geo-blocks).
-  //    The .z-ai-config file is present in dev; ZAI_* env vars are set on Vercel.
+  // 0. Try ZAI Direct fetch first — most reliable on Vercel serverless.
+  //    Calls the ZAI API directly via fetch (no SDK, no config file needed).
+  //    Only requires ZAI_API_KEY + ZAI_BASE_URL env vars.
+  if (process.env.ZAI_API_KEY && process.env.ZAI_BASE_URL) {
+    try {
+      _cachedClient = new ZAIDirectClient();
+      _cachedKey = bucket.toString();
+      console.log("[llm] Using ZAI Direct provider (fetch-based, Vercel-safe)");
+      return _cachedClient;
+    } catch {}
+  }
+
+  // 0b. Try ZAI SDK (works locally where .z-ai-config file exists)
   try {
     const { createZaiClient } = await import("./zai");
     const zai = await createZaiClient();
     _cachedClient = new ZAIClient(zai);
     _cachedKey = bucket.toString();
-    console.log("[llm] Using ZAI provider (primary — region-safe)");
+    console.log("[llm] Using ZAI SDK provider (config-file-based)");
     return _cachedClient;
   } catch {}
 
