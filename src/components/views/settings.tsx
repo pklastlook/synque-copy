@@ -38,6 +38,7 @@ import {
   LogOut,
   Copy,
   QrCode,
+  Fingerprint,
   // Integrations
   BarChart3,
   Image as ImageIcon,
@@ -102,6 +103,7 @@ import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import { useApi, timeAgo } from "@/lib/hooks";
+import { BiometricAuth } from "@/components/biometric-auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -2559,6 +2561,30 @@ function SecuritySection() {
           >
             <KeyRound className="h-3.5 w-3.5" /> Update password
           </button>
+        </div>
+      </section>
+
+      {/* Biometric — Face ID / Fingerprint / Touch ID */}
+      <section className="glass rounded-xl crystal-in p-5">
+        <SectionHeader title="Face ID & Biometrics" desc="Sign in instantly with Face ID, Touch ID, or Windows Hello." />
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted/30 p-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+              <Fingerprint className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-sm font-medium">Biometric sign-in</div>
+              <div className="text-xs text-muted-foreground">
+                Use your device's built-in Face ID, Touch ID, or fingerprint scanner to sign in without a password.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col items-center gap-3">
+          <BiometricAuth
+            mode="register"
+            label="Enable Face ID / Fingerprint"
+          />
         </div>
       </section>
 
