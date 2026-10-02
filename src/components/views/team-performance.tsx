@@ -296,11 +296,11 @@ function LeaderboardSection({
         action={<Pill color="amber">{sortedMembers.length} members</Pill>}
       />
       <div className="overflow-x-auto">
-        <Table className="min-w-[860px]">
+        <Table className="min-w-[860px]" aria-label="Team leaderboard — members ranked by content activity">
           <TableHeader>
             <TableRow className="border-border/40">
-              <TableHead className="h-9 w-12 text-[10px] uppercase tracking-wide text-muted-foreground">Rank</TableHead>
-              <TableHead className="h-9 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <TableHead scope="col" className="h-9 w-12 text-[10px] uppercase tracking-wide text-muted-foreground">Rank</TableHead>
+              <TableHead scope="col" className="h-9 text-[10px] uppercase tracking-wide text-muted-foreground">
                 <SortButton
                   label="Member"
                   active={sortKey === "name"}
@@ -309,23 +309,23 @@ function LeaderboardSection({
                   align="left"
                 />
               </TableHead>
-              <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
+              <TableHead scope="col" className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
                 <SortButton label="Posts" active={sortKey === "posts"} dir={sortDir} onClick={() => toggleSort("posts")} />
               </TableHead>
-              <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
+              <TableHead scope="col" className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
                 <SortButton label="Published" active={sortKey === "published"} dir={sortDir} onClick={() => toggleSort("published")} />
               </TableHead>
-              <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
+              <TableHead scope="col" className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
                 <SortButton label="Comments" active={sortKey === "comments"} dir={sortDir} onClick={() => toggleSort("comments")} />
               </TableHead>
-              <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
+              <TableHead scope="col" className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
                 <SortButton label="Reply %" active={sortKey === "replyRate"} dir={sortDir} onClick={() => toggleSort("replyRate")} />
               </TableHead>
-              <TableHead className="h-9 text-[10px] uppercase tracking-wide text-muted-foreground">Platforms</TableHead>
-              <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
+              <TableHead scope="col" className="h-9 text-[10px] uppercase tracking-wide text-muted-foreground">Platforms</TableHead>
+              <TableHead scope="col" className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
                 <SortButton label="Engagement" active={sortKey === "engagement"} dir={sortDir} onClick={() => toggleSort("engagement")} />
               </TableHead>
-              <TableHead className="h-9 text-[10px] uppercase tracking-wide text-muted-foreground">7-day trend</TableHead>
+              <TableHead scope="col" className="h-9 text-[10px] uppercase tracking-wide text-muted-foreground">7-day trend</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -352,7 +352,7 @@ function LeaderboardSection({
                       className="cursor-pointer border-border/30 transition hover:bg-muted/30"
                       onClick={() => setExpandedRow(isOpen ? null : m.id)}
                     >
-                      <TableCell className="py-2.5">
+                      <TableCell scope="row" className="py-2.5">
                         <span className="text-base font-bold tabular-nums">{rankDisplay}</span>
                       </TableCell>
                       <TableCell className="py-2.5">
@@ -426,7 +426,7 @@ function LeaderboardSection({
           </TableBody>
         </Table>
       </div>
-      <div className="mt-3 text-[10px] text-muted-foreground">
+      <div className="mt-3 text-[10px] text-muted-foreground" role="status" aria-live="polite">
         Showing {sortedMembers.length} members · click a row to expand details · sort by clicking column headers
       </div>
     </GlassCard>
@@ -574,11 +574,11 @@ function MemberExpandedDetails({ member, engagement }: { member: Member; engagem
         {member.platforms.length === 0 ? (
           <div className="text-[10px] text-muted-foreground">No platforms assigned</div>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5" role="list" aria-label="Per-platform breakdown">
             {member.platforms.map((p) => {
               const pct = p.total > 0 ? Math.round((p.published / p.total) * 100) : 0;
               return (
-                <div key={p.platform} className="flex items-center gap-2 text-[11px]">
+                <div key={p.platform} className="flex items-center gap-2 text-[11px]" role="listitem">
                   <PlatformBadge platform={p.platform as PlatformId} size={16} />
                   <span className="font-bold tabular-nums">{p.published}</span>
                   <span className="text-muted-foreground">/ {p.total}</span>
@@ -638,12 +638,12 @@ function PipelineSection({
           {postsByPlatform.length === 0 ? (
             <div className="text-[10px] text-muted-foreground">No platforms yet</div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-1.5" role="list" aria-label="Posts by platform">
               {postsByPlatform.map((p) => {
                 const config = PLATFORMS[p.platform as PlatformId];
                 const pct = p.total > 0 ? Math.round((p.published / p.total) * 100) : 0;
                 return (
-                  <div key={p.platform} className="flex items-center gap-2">
+                  <div key={p.platform} className="flex items-center gap-2" role="listitem">
                     <PlatformBadge platform={p.platform as PlatformId} size={18} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
@@ -703,7 +703,7 @@ function PipelineSection({
           {Object.keys(commentsByType).length === 0 ? (
             <div className="text-[10px] text-muted-foreground">No comments yet</div>
           ) : (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5" role="list" aria-label="Comment types">
               {Object.entries(commentsByType).map(([type, count]) => {
                 const pct = commentsReceived > 0 ? Math.round((count / commentsReceived) * 100) : 0;
                 const Icon = type === "mention" ? Hash : MessageCircle;
@@ -716,6 +716,7 @@ function PipelineSection({
                 return (
                   <div
                     key={type}
+                    role="listitem"
                     className="flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/20 px-2 py-1.5"
                     style={{ borderLeft: `2px solid ${color}` }}
                   >
@@ -741,7 +742,7 @@ function PipelineSection({
             </div>
             <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
               <span>Less</span>
-              <div className="flex gap-0.5">
+              <div className="flex gap-0.5" aria-hidden="true">
                 {[0.1, 0.3, 0.5, 0.7, 1].map((o) => (
                   <span
                     key={o}
@@ -858,8 +859,12 @@ function ActivityHeatmap({ data }: { data: { date: string; count: number; platfo
   const totalActivity = data.reduce((s, d) => s + d.count, 0);
 
   return (
-    <div className="scroll-liquid overflow-x-auto pb-1">
-      <div className="flex min-w-[560px] gap-1">
+    <div
+      className="scroll-liquid overflow-x-auto pb-1"
+      role="img"
+      aria-label={`90-day activity heatmap — ${totalActivity} total activities across ${activeDays} active days`}
+    >
+      <div className="flex min-w-[560px] gap-1" role="presentation">
         {weeks.map((week, wi) => (
           <div key={wi} className="flex flex-col gap-1">
             {week.map((day) => {
@@ -965,12 +970,12 @@ function TopContributorsSection({ data }: { data: TeamPerformanceData }) {
                 {tile.title}
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2" role="list" aria-label={`${tile.title} podium`}>
               {tile.members.length === 0 ? (
                 <div className="py-2 text-center text-[10px] text-muted-foreground">No data</div>
               ) : (
                 tile.members.map((m, i) => (
-                  <div key={m.id} className="flex items-center gap-2">
+                  <div key={m.id} className="flex items-center gap-2" role="listitem">
                     <span className="w-4 text-center text-xs">{RANK_EMOJI[i] ?? i + 1}</span>
                     <NameAvatar
                       name={m.name}
@@ -1061,11 +1066,11 @@ function PostsKanbanSection({ data, loading }: { data: PostsKanbanData | null; l
         desc="Every post across the team, by lifecycle stage — Kanban or List view."
         action={
           <Tabs value={view} onValueChange={(v) => setView(v as "kanban" | "list")}>
-            <TabsList className="h-8 p-0.5">
-              <TabsTrigger value="kanban" className="gap-1 px-2.5 py-0 text-[11px]">
+            <TabsList className="h-8 p-0.5" aria-label="Posts board view toggle">
+              <TabsTrigger value="kanban" className="gap-1 px-2.5 py-0 text-[11px]" aria-label="Kanban view">
                 <LayoutGrid className="h-3 w-3" /> Kanban
               </TabsTrigger>
-              <TabsTrigger value="list" className="gap-1 px-2.5 py-0 text-[11px]">
+              <TabsTrigger value="list" className="gap-1 px-2.5 py-0 text-[11px]" aria-label="List view">
                 <ListIcon className="h-3 w-3" /> List
               </TabsTrigger>
             </TabsList>
@@ -1074,7 +1079,12 @@ function PostsKanbanSection({ data, loading }: { data: PostsKanbanData | null; l
       />
 
       {/* Compact summary row — dense inline KPI strip. */}
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-muted/20 px-3 py-2 text-[11px]">
+      <div
+        className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-muted/20 px-3 py-2 text-[11px]"
+        role="status"
+        aria-live="polite"
+        aria-label="Posts board summary"
+      >
         <span className="text-muted-foreground">
           Posts this month:{" "}
           <span className="font-bold text-foreground tabular-nums">{k.totalPostsThisMonth}</span>
@@ -1254,18 +1264,18 @@ function PostsListView({
 }) {
   return (
     <div className="overflow-x-auto">
-      <Table className="min-w-[760px]">
+      <Table className="min-w-[760px]" aria-label="Posts list — sortable by title, engagement, and date">
         <TableHeader>
           <TableRow className="border-border/40">
-            <TableHead className="h-8 text-[10px] uppercase">
+            <TableHead scope="col" className="h-8 text-[10px] uppercase">
               <button onClick={() => toggleSort("title")} className="flex items-center gap-1 hover:text-foreground">
                 Post <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
               </button>
             </TableHead>
-            <TableHead className="h-8 text-[10px] uppercase">Author</TableHead>
-            <TableHead className="h-8 text-[10px] uppercase">Status</TableHead>
-            <TableHead className="h-8 text-[10px] uppercase">Platforms</TableHead>
-            <TableHead className="h-8 text-right text-[10px] uppercase">
+            <TableHead scope="col" className="h-8 text-[10px] uppercase">Author</TableHead>
+            <TableHead scope="col" className="h-8 text-[10px] uppercase">Status</TableHead>
+            <TableHead scope="col" className="h-8 text-[10px] uppercase">Platforms</TableHead>
+            <TableHead scope="col" className="h-8 text-right text-[10px] uppercase">
               <button
                 onClick={() => toggleSort("engagement")}
                 className="flex items-center gap-1 hover:text-foreground"
@@ -1273,7 +1283,7 @@ function PostsListView({
                 Engagement <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
               </button>
             </TableHead>
-            <TableHead className="h-8 text-right text-[10px] uppercase">
+            <TableHead scope="col" className="h-8 text-right text-[10px] uppercase">
               <button onClick={() => toggleSort("date")} className="flex items-center gap-1 hover:text-foreground">
                 Date <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
               </button>
@@ -1297,7 +1307,7 @@ function PostsListView({
                     className="cursor-pointer border-border/30 transition hover:bg-muted/30"
                     onClick={() => setExpandedRow(isOpen ? null : p.id)}
                   >
-                    <TableCell className="py-2.5">
+                    <TableCell scope="row" className="py-2.5">
                       <div className="flex items-center gap-2">
                         <ChevronDown
                           className={cn(
@@ -1414,7 +1424,7 @@ function PostsListView({
           )}
         </TableBody>
       </Table>
-      <div className="mt-3 text-[10px] text-muted-foreground">
+      <div className="mt-3 text-[10px] text-muted-foreground" role="status" aria-live="polite">
         Showing {posts.length} posts · click a row to expand platform variants
       </div>
     </div>
@@ -1455,7 +1465,7 @@ function AccountHealthCompact({
         }
       />
 
-      <div className="space-y-1.5">
+      <div className="space-y-1.5" role="list" aria-label="Account health list">
         {accountHealth.map((acc) => {
           const isOpen = expanded === acc.id;
           const statusMeta = HEALTH_STATUS_META[acc.healthStatus] ?? HEALTH_STATUS_META.healthy;
@@ -1467,10 +1477,17 @@ function AccountHealthCompact({
               ? "oklch(0.78 0.18 75)"
               : "oklch(0.74 0.18 165)";
           return (
-            <div key={acc.id} className="overflow-hidden rounded-xl border border-border/40">
+            <div
+              key={acc.id}
+              role="listitem"
+              className="overflow-hidden rounded-xl border border-border/40"
+            >
               <button
                 onClick={() => setExpanded(isOpen ? null : acc.id)}
                 className="flex w-full items-center gap-3 p-2.5 text-left transition hover:bg-muted/40"
+                aria-expanded={isOpen}
+                aria-controls={`account-health-detail-${acc.id}`}
+                aria-label={`Account ${acc.displayName}, risk score ${acc.riskScore} of 100, status ${statusMeta.label}. ${isOpen ? "Collapse" : "Expand"} details.`}
               >
                 <PlatformBadge platform={acc.platform} size={22} />
                 <div className="min-w-0 flex-1">
@@ -1479,7 +1496,7 @@ function AccountHealthCompact({
                     {acc.handle} · {acc.ownerName}
                   </div>
                 </div>
-                <div className="relative h-7 w-7 shrink-0">
+                <div className="relative h-7 w-7 shrink-0" aria-hidden="true">
                   <svg className="h-full w-full -rotate-90" viewBox="0 0 32 32">
                     <circle cx="16" cy="16" r="12" fill="none" stroke="var(--muted)" strokeWidth="3" opacity={0.3} />
                     <circle
@@ -1518,7 +1535,12 @@ function AccountHealthCompact({
                 )}
               </button>
               {isOpen && (
-                <div className="space-y-3 border-t border-border/40 bg-muted/20 p-3">
+                <div
+                  className="space-y-3 border-t border-border/40 bg-muted/20 p-3"
+                  id={`account-health-detail-${acc.id}`}
+                  role="region"
+                  aria-label={`Details for ${acc.displayName}`}
+                >
                   {/* Posting limits */}
                   <div className="grid grid-cols-3 gap-2 text-[10px]">
                     <div className="rounded-md bg-background/60 p-2">
@@ -1629,10 +1651,15 @@ function AccountHealthCompact({
               {accountCommentLoad.reduce((s, a) => s + a.unread, 0)} unread
             </span>
           </div>
-          <div className="scroll-liquid max-h-[200px] space-y-1 overflow-y-auto pr-1">
+          <div
+            className="scroll-liquid max-h-[200px] space-y-1 overflow-y-auto pr-1"
+            role="list"
+            aria-label="Account comment load"
+          >
             {accountCommentLoad.map((a) => (
               <div
                 key={a.id}
+                role="listitem"
                 className="flex items-center gap-2 rounded-lg border border-border/30 bg-muted/20 px-2 py-1.5"
               >
                 <PlatformBadge platform={a.platform} size={20} />
@@ -1700,7 +1727,11 @@ function RecentActivityCompact({ activities }: { activities: TeamPerformanceData
         desc="Latest content actions across the team"
         action={activities.length > 0 ? <Pill color="blue">{activities.length} actions</Pill> : undefined}
       />
-      <div className="scroll-liquid max-h-[280px] space-y-1 overflow-y-auto pr-1">
+      <div
+        className="scroll-liquid max-h-[280px] space-y-1 overflow-y-auto pr-1"
+        role="list"
+        aria-label="Recent activity feed"
+      >
         {activities.length === 0 ? (
           <div className="py-6 text-center text-xs text-muted-foreground">No recent activity</div>
         ) : (
@@ -1709,6 +1740,7 @@ function RecentActivityCompact({ activities }: { activities: TeamPerformanceData
             return (
               <div
                 key={a.id}
+                role="listitem"
                 className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-muted/50"
               >
                 <NameAvatar name={a.userName} color={a.userColor ?? "blue"} className="h-7 w-7 text-[10px]" />

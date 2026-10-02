@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { RetinaBg } from "@/components/glass/retina-bg";
 import { SectionHeader, Pill } from "@/components/glass/dense-ui";
+import { ViewErrorBoundary } from "@/components/app-error-boundary";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import { DashboardView } from "@/components/views/dashboard";
@@ -244,34 +245,34 @@ export function AppShell() {
               key={view}
               className="animate-ios-fade-scale mx-auto w-full max-w-[1400px] px-3 pt-3 pb-28 sm:px-6 sm:pt-4 lg:px-8 lg:pb-8 mobile-content"
             >
-              {view === "dashboard" && <DashboardView />}
-              {view === "composer" && <ComposerView />}
-              {view === "calendar" && <CalendarView />}
-              {view === "analytics" && <AnalyticsView />}
-              {view === "inbox" && <InboxView />}
-              {view === "accounts" && <AccountsView />}
-              {view === "team" && <TeamView />}
-              {view === "campaigns" && <CampaignsView />}
-              {view === "media" && <MediaLibraryView />}
-              {view === "listening" && <ListeningView />}
-              {view === "hashtags" && <HashtagsView />}
-              {view === "competitors" && <CompetitorsView />}
-              {view === "reports" && <ReportsView />}
-              {view === "linkbio" && <LinkBioView />}
-              {view === "mail" && <MailView />}
-              {view === "whatsapp" && <WhatsAppView />}
-              {view === "chat" && <ChatView />}
-              {view === "tasks" && <TasksView />}
-              {view === "admin" && <AdminPanelView />}
-              {view === "owner" && <OwnerView />}
-              {view === "team-performance" && <TeamPerformanceView />}
-              {view === "organization" && <OrganizationView />}
-              {view === "utm" && <UTMBuilderView />}
-              {view === "approvals" && <ApprovalsView />}
-              {view === "influencers" && <InfluencersView />}
-              {view === "account-safety" && <AccountSafetyView />}
-              {view === "vpn" && <VPNView />}
-              {view === "settings" && <SettingsView />}
+              {view === "dashboard" && <ViewErrorBoundary viewName="Dashboard"><DashboardView /></ViewErrorBoundary>}
+              {view === "composer" && <ViewErrorBoundary viewName="Composer"><ComposerView /></ViewErrorBoundary>}
+              {view === "calendar" && <ViewErrorBoundary viewName="Calendar"><CalendarView /></ViewErrorBoundary>}
+              {view === "analytics" && <ViewErrorBoundary viewName="Analytics"><AnalyticsView /></ViewErrorBoundary>}
+              {view === "inbox" && <ViewErrorBoundary viewName="Inbox"><InboxView /></ViewErrorBoundary>}
+              {view === "accounts" && <ViewErrorBoundary viewName="Accounts"><AccountsView /></ViewErrorBoundary>}
+              {view === "team" && <ViewErrorBoundary viewName="Team"><TeamView /></ViewErrorBoundary>}
+              {view === "campaigns" && <ViewErrorBoundary viewName="Campaigns"><CampaignsView /></ViewErrorBoundary>}
+              {view === "media" && <ViewErrorBoundary viewName="Media Library"><MediaLibraryView /></ViewErrorBoundary>}
+              {view === "listening" && <ViewErrorBoundary viewName="Listening"><ListeningView /></ViewErrorBoundary>}
+              {view === "hashtags" && <ViewErrorBoundary viewName="Hashtags"><HashtagsView /></ViewErrorBoundary>}
+              {view === "competitors" && <ViewErrorBoundary viewName="Competitors"><CompetitorsView /></ViewErrorBoundary>}
+              {view === "reports" && <ViewErrorBoundary viewName="Reports"><ReportsView /></ViewErrorBoundary>}
+              {view === "linkbio" && <ViewErrorBoundary viewName="Link in Bio"><LinkBioView /></ViewErrorBoundary>}
+              {view === "mail" && <ViewErrorBoundary viewName="Mail Server"><MailView /></ViewErrorBoundary>}
+              {view === "whatsapp" && <ViewErrorBoundary viewName="WhatsApp"><WhatsAppView /></ViewErrorBoundary>}
+              {view === "chat" && <ViewErrorBoundary viewName="Team Chat"><ChatView /></ViewErrorBoundary>}
+              {view === "tasks" && <ViewErrorBoundary viewName="Tasks"><TasksView /></ViewErrorBoundary>}
+              {view === "admin" && <ViewErrorBoundary viewName="Admin Panel"><AdminPanelView /></ViewErrorBoundary>}
+              {view === "owner" && <ViewErrorBoundary viewName="Owner Panel"><OwnerView /></ViewErrorBoundary>}
+              {view === "team-performance" && <ViewErrorBoundary viewName="Performance"><TeamPerformanceView /></ViewErrorBoundary>}
+              {view === "organization" && <ViewErrorBoundary viewName="Organization"><OrganizationView /></ViewErrorBoundary>}
+              {view === "utm" && <ViewErrorBoundary viewName="UTM Builder"><UTMBuilderView /></ViewErrorBoundary>}
+              {view === "approvals" && <ViewErrorBoundary viewName="Approvals"><ApprovalsView /></ViewErrorBoundary>}
+              {view === "influencers" && <ViewErrorBoundary viewName="Influencers"><InfluencersView /></ViewErrorBoundary>}
+              {view === "account-safety" && <ViewErrorBoundary viewName="Account Safety"><AccountSafetyView /></ViewErrorBoundary>}
+              {view === "vpn" && <ViewErrorBoundary viewName="VPN"><VPNView /></ViewErrorBoundary>}
+              {view === "settings" && <ViewErrorBoundary viewName="Settings"><SettingsView /></ViewErrorBoundary>}
             </div>
           </main>
           <AppFooter />

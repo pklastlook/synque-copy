@@ -316,13 +316,14 @@ export function InfluencersView() {
 
         {/* Search results */}
         {searchResults && searchResults.length > 0 && (
-          <div className="scroll-liquid max-h-[400px] space-y-2 overflow-y-auto">
+          <div className="scroll-liquid max-h-[400px] space-y-2 overflow-y-auto" role="list" aria-label="Influencer search results" aria-live="polite">
             {searchResults.map((result, i) => {
               const platId = (result.platform || "instagram") as PlatformId;
               const p = PLATFORMS[platId] ?? PLATFORMS.instagram;
               return (
                 <div
                   key={i}
+                  role="listitem"
                   className="flex items-center gap-3 rounded-xl border border-border/40 bg-muted/50 p-3 transition hover:border-primary/40"
                 >
                   <PlatformBadge platform={platId} size={32} />
@@ -342,8 +343,9 @@ export function InfluencersView() {
                   <Button
                     onClick={() => addFromSearch(result)}
                     className="liquid-pill h-7 gap-1 px-2.5 text-[10px] font-semibold"
+                    aria-label={`Add ${result.name} to influencer list`}
                   >
-                    <Plus className="h-3 w-3" /> Add
+                    <Plus className="h-3 w-3" aria-hidden="true" /> Add
                   </Button>
                   {result.profileUrl && (
                     <a
@@ -352,8 +354,9 @@ export function InfluencersView() {
                       rel="noopener noreferrer"
                       className="grid h-7 w-7 place-items-center rounded-lg border border-border/50 bg-background/60 text-muted-foreground transition hover:bg-muted hover:text-foreground"
                       title="View profile"
+                      aria-label={`View ${result.name} profile (opens in new tab)`}
                     >
-                      <ExternalLink className="h-3 w-3" />
+                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
                     </a>
                   )}
                 </div>
@@ -371,13 +374,15 @@ export function InfluencersView() {
       </div>
 
       {/* Filter row */}
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Filter influencers by status">
         {(["all", "active", "paused", "completed", "draft"] as const).map((s) => {
           const count = s === "all" ? all.length : all.filter((i) => i.status === s).length;
           const active = statusFilter === s;
           return (
             <button
               key={s}
+              role="tab"
+              aria-selected={active}
               onClick={() => setStatusFilter(s)}
               className={cn(
                 "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition",
@@ -387,7 +392,13 @@ export function InfluencersView() {
               )}
             >
               {s === "all" ? "All" : STATUS_META[s].label}
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold tabular-nums">{count}</span>
+              <span
+                className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold tabular-nums"
+                role="status"
+                aria-label={`${count} ${s === "all" ? "total" : STATUS_META[s].label.toLowerCase()} influencers`}
+              >
+                {count}
+              </span>
             </button>
           );
         })}
@@ -408,19 +419,19 @@ export function InfluencersView() {
         </div>
       ) : (
         <div className="glass overflow-hidden rounded-xl">
-          <Table>
+          <Table aria-label="Tracked influencers">
             <TableHeader>
               <TableRow className="border-border/30 hover:bg-transparent">
-                <TableHead className="h-9 text-[10px] uppercase tracking-wide">Influencer</TableHead>
-                <TableHead className="h-9 text-[10px] uppercase tracking-wide">Status</TableHead>
-                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide">Followers</TableHead>
-                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide">ER %</TableHead>
-                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide">Reach</TableHead>
-                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide">Engagement</TableHead>
-                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide">Cost</TableHead>
-                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide">ROI</TableHead>
-                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide">CPEn</TableHead>
-                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide"></TableHead>
+                <TableHead className="h-9 text-[10px] uppercase tracking-wide" scope="col">Influencer</TableHead>
+                <TableHead className="h-9 text-[10px] uppercase tracking-wide" scope="col">Status</TableHead>
+                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide" scope="col">Followers</TableHead>
+                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide" scope="col">ER %</TableHead>
+                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide" scope="col">Reach</TableHead>
+                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide" scope="col">Engagement</TableHead>
+                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide" scope="col">Cost</TableHead>
+                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide" scope="col">ROI</TableHead>
+                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide" scope="col">CPEn</TableHead>
+                <TableHead className="h-9 text-right text-[10px] uppercase tracking-wide" scope="col">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -430,7 +441,7 @@ export function InfluencersView() {
                 const profile = platformProfileUrl(i.platform, i.handle);
                 return (
                   <TableRow key={i.id} className="border-border/30">
-                    <TableCell>
+                    <TableCell scope="row">
                       <div className="flex items-center gap-2">
                         <PlatformBadge platform={i.platform as PlatformId} size={22} />
                         <div className="min-w-0">
@@ -442,9 +453,10 @@ export function InfluencersView() {
                                 href={profile}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                aria-label={`Open ${i.name} profile on ${i.platform}`}
                                 className="text-muted-foreground/60 transition hover:text-primary"
                               >
-                                <ExternalLink className="h-2.5 w-2.5" />
+                                <ExternalLink className="h-2.5 w-2.5" aria-hidden="true" />
                               </a>
                             )}
                           </div>
@@ -507,15 +519,17 @@ export function InfluencersView() {
                           onClick={() => { setEditing(i); setCreateOpen(true); }}
                           className="grid h-6 w-6 place-items-center rounded-md bg-muted text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
                           title="Edit"
+                          aria-label={`Edit ${i.name}`}
                         >
-                          <Pencil className="h-3 w-3" />
+                          <Pencil className="h-3 w-3" aria-hidden="true" />
                         </button>
                         <button
                           onClick={() => removeInfluencer(i.id, i.name)}
                           className="grid h-6 w-6 place-items-center rounded-md bg-muted text-muted-foreground transition hover:bg-rose-500/15 hover:text-rose-600"
                           title="Remove"
+                          aria-label={`Remove ${i.name}`}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3 w-3" aria-hidden="true" />
                         </button>
                       </div>
                     </TableCell>
@@ -535,7 +549,7 @@ export function InfluencersView() {
             icon={TrendingUp}
             desc="Engagement-per-dollar — your highest-ROI creators"
           />
-          <div className="glass overflow-hidden rounded-xl">
+          <div className="glass overflow-hidden rounded-xl" role="list" aria-label="Top performing influencers by ROI">
             {[...all]
               .filter((i) => calcRoi(i) !== null)
               .sort((a, b) => (calcRoi(b) ?? 0) - (calcRoi(a) ?? 0))
@@ -543,10 +557,11 @@ export function InfluencersView() {
               .map((i, idx) => {
                 const roi = calcRoi(i)!;
                 return (
-                  <ListRow key={i.id} className="!py-2.5">
+                  <ListRow key={i.id} role="listitem" className="!py-2.5">
                     <span
                       className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"
                       style={{ background: idx < 3 ? "oklch(0.7 0.2 45)" : "var(--muted-foreground)" }}
+                      aria-hidden="true"
                     >
                       {idx + 1}
                     </span>
@@ -558,7 +573,7 @@ export function InfluencersView() {
                     <div className="flex items-center gap-3 text-[10px] tabular-nums">
                       <div className="text-right">
                         <div className="flex items-center gap-0.5 font-bold text-emerald-600 dark:text-emerald-400">
-                          <TrendingUp className="h-2.5 w-2.5" />
+                          <TrendingUp className="h-2.5 w-2.5" aria-hidden="true" />
                           {roi.toFixed(2)}
                         </div>
                         <div className="text-muted-foreground">eng/$</div>

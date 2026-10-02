@@ -230,7 +230,7 @@ export function PlatformApiSection() {
         />
 
         {/* Platform selector tabs */}
-        <div className="mb-5 flex flex-wrap gap-2">
+        <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Platform API credentials">
           {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => {
             const Icon = cfg.icon;
             const cred = creds?.find((c) => c.platform === key);
@@ -238,6 +238,9 @@ export function PlatformApiSection() {
             return (
               <button
                 key={key}
+                role="tab"
+                aria-selected={active}
+                aria-label={`${cfg.name} API credentials${cred?.connected ? " (connected)" : ""}`}
                 onClick={() => { setSelectedPlatform(key); setFormValues({}); }}
                 className={cn(
                   "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition",
@@ -246,10 +249,10 @@ export function PlatformApiSection() {
                     : "border-border bg-card text-muted-foreground hover:bg-muted/40"
                 )}
               >
-                <Icon className="h-4 w-4" style={{ color: cfg.color }} />
+                <Icon className="h-4 w-4" style={{ color: cfg.color }} aria-hidden="true" />
                 {cfg.name}
                 {cred?.connected && (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
                 )}
               </button>
             );
@@ -258,16 +261,16 @@ export function PlatformApiSection() {
 
         {/* Status banner */}
         {existingCred?.connected ? (
-          <div className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[12px]">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+          <div className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[12px]" role="status" aria-live="polite">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden="true" />
             <span className="text-muted-foreground">
               <strong className="font-semibold text-emerald-600 dark:text-emerald-400">Connected.</strong>{" "}
               {config.name} API credentials are active. Last updated {new Date(existingCred.updatedAt).toLocaleDateString()}.
             </span>
           </div>
         ) : (
-          <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[12px]">
-            <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[12px]" role="status" aria-live="polite">
+            <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
             <span className="text-muted-foreground">
               <strong className="font-semibold text-amber-600 dark:text-amber-400">Not connected.</strong>{" "}
               You need {config.name} API credentials to enable real posting and automatic profile sync.{" "}
@@ -323,8 +326,9 @@ export function PlatformApiSection() {
               onClick={handleSave}
               disabled={saving}
               className="liquid-pill flex items-center gap-2"
+              aria-label="Save platform credentials"
             >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <KeyRound className="h-4 w-4" aria-hidden="true" />}
               {saving ? "Saving…" : "Save credentials"}
             </Button>
             {existingCred?.connected && (
@@ -332,8 +336,9 @@ export function PlatformApiSection() {
                 onClick={handleDelete}
                 variant="ghost"
                 className="flex items-center gap-2 text-rose-500 hover:bg-rose-500/10"
+                aria-label={`Remove ${config.name} credentials`}
               >
-                <Trash2 className="h-4 w-4" /> Remove
+                <Trash2 className="h-4 w-4" aria-hidden="true" /> Remove
               </Button>
             )}
           </div>
@@ -386,9 +391,9 @@ function SyncAccountsSection({
         title={`Sync ${PLATFORM_CONFIG[platform]?.name} accounts`}
         desc="Fetch real follower counts, post counts, and verification status from the platform API"
       />
-      <div className="space-y-2">
+      <div className="space-y-2" role="list" aria-label={`${PLATFORM_CONFIG[platform]?.name ?? platform} connected accounts`}>
         {platformAccounts.map((a) => (
-          <div key={a.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+          <div key={a.id} role="listitem" className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold">{a.displayName}</div>
               <div className="text-[11px] text-muted-foreground">
@@ -398,12 +403,13 @@ function SyncAccountsSection({
             <button
               onClick={() => onSync(a.id)}
               disabled={syncing === a.id}
+              aria-label={`Sync ${a.displayName} from API`}
               className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
             >
               {syncing === a.id ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
               ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               )}
               {syncing === a.id ? "Syncing…" : "Sync from API"}
             </button>

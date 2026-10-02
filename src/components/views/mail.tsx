@@ -281,14 +281,14 @@ export function MailView() {
                 onClick={() => setMailboxOpen(true)}
                 className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-3 py-2 text-xs font-semibold transition hover:bg-muted"
               >
-                <UserPlus className="h-3.5 w-3.5" /> New mailbox
+                <UserPlus className="h-3.5 w-3.5" aria-hidden="true" /> New mailbox
               </button>
             )}
             <button
               onClick={() => setServerOpen(true)}
               className="liquid-pill glow-ring flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold"
             >
-              <Server className="h-3.5 w-3.5" /> Connect server
+              <Server className="h-3.5 w-3.5" aria-hidden="true" /> Connect server
             </button>
           </div>
         }
@@ -336,16 +336,17 @@ export function MailView() {
             </div>
             {activeServer && (
               <Pill color={STATUS_PILL[activeServer.status].color}>
-                {activeServer.status === "pending" && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                {activeServer.status === "pending" && <Loader2 className="h-2.5 w-2.5 animate-spin" aria-hidden="true" />}
                 {activeServer.status}
               </Pill>
             )}
             {activeMailboxId && (
               <button
                 onClick={() => setComposing(true)}
+                aria-label="Compose new message"
                 className="liquid-pill glow-ring flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold"
               >
-                <SquarePen className="h-3.5 w-3.5" /> Compose
+                <SquarePen className="h-3.5 w-3.5" aria-hidden="true" /> Compose
               </button>
             )}
           </div>
@@ -357,7 +358,7 @@ export function MailView() {
               <div className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Servers
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5" role="list" aria-label="Mail servers">
                 {servers.map((s) => {
                   const expanded = expandedServers.has(s.id);
                   const accent =
@@ -367,7 +368,7 @@ export function MailView() {
                       ? "oklch(0.62 0.24 27)"
                       : "oklch(0.78 0.18 75)";
                   return (
-                    <div key={s.id}>
+                    <div key={s.id} role="listitem">
                       <NavCard
                         icon={Server}
                         title={s.name}
@@ -378,10 +379,11 @@ export function MailView() {
                         onClick={() => toggleServer(s.id)}
                       />
                       {expanded && s.mailboxes.length > 0 && (
-                        <div className="mt-1 ml-3 space-y-0.5 border-l border-border/40 pl-2">
+                        <div className="mt-1 ml-3 space-y-0.5 border-l border-border/40 pl-2" role="list" aria-label={`Mailboxes on ${s.name}`}>
                           {s.mailboxes.map((m) => (
                             <ListRow
                               key={m.id}
+                              role="listitem"
                               onClick={() => selectMailbox(s.id, m.id)}
                               active={activeMailboxId === m.id}
                               className="px-2 py-2"
@@ -403,7 +405,7 @@ export function MailView() {
                                   )}
                                   {m.status === "creating" && (
                                     <Pill color="amber" className="px-1 py-0 text-[9px]">
-                                      <Loader2 className="h-2 w-2 animate-spin" />
+                                      <Loader2 className="h-2 w-2 animate-spin" aria-hidden="true" />
                                       Provisioning
                                     </Pill>
                                   )}
@@ -413,7 +415,11 @@ export function MailView() {
                                 </div>
                               </div>
                               {m.unread > 0 && (
-                                <span className="shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground tabular-nums">
+                                <span
+                                  className="shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground tabular-nums"
+                                  role="status"
+                                  aria-label={`${m.unread} unread messages`}
+                                >
                                   {m.unread}
                                 </span>
                               )}
@@ -432,7 +438,7 @@ export function MailView() {
               {activeMailboxId ? (
                 <>
                   {/* Folder tabs */}
-                  <div className="flex items-center gap-0.5 border-b border-border/40 px-2 py-1.5">
+                  <div className="flex items-center gap-0.5 border-b border-border/40 px-2 py-1.5" role="tablist" aria-label="Message folders">
                     {[
                       { id: "inbox", label: "Inbox", icon: InboxIcon, count: unreadCount },
                       { id: "starred", label: "Starred", icon: Star, count: allMessages.filter((m) => m.folder === "starred").length },
@@ -443,6 +449,8 @@ export function MailView() {
                       return (
                         <button
                           key={f.id}
+                          role="tab"
+                          aria-selected={active}
                           onClick={() => setFolder(f.id)}
                           className={cn(
                             "flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition",
@@ -451,26 +459,33 @@ export function MailView() {
                               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                           )}
                         >
-                          <Icon className="h-3 w-3" />
+                          <Icon className="h-3 w-3" aria-hidden="true" />
                           {f.label}
                           {f.count > 0 && (
-                            <span className="tabular-nums text-[10px] opacity-70">{f.count}</span>
+                            <span
+                              className="tabular-nums text-[10px] opacity-70"
+                              role="status"
+                              aria-label={`${f.count} ${f.label.toLowerCase()} messages`}
+                            >
+                              {f.count}
+                            </span>
                           )}
                         </button>
                       );
                     })}
                   </div>
                   {/* Messages */}
-                  <div className="scroll-liquid max-h-[580px] overflow-y-auto">
+                  <div className="scroll-liquid max-h-[580px] overflow-y-auto" role="list" aria-label={`${folder} messages`}>
                     {filteredMessages.length === 0 ? (
                       <div className="grid place-items-center py-12 text-center text-xs text-muted-foreground">
-                        <InboxIcon className="mb-2 h-8 w-8 opacity-40" />
+                        <InboxIcon className="mb-2 h-8 w-8 opacity-40" aria-hidden="true" />
                         No messages in {folder}
                       </div>
                     ) : (
                       filteredMessages.map((m) => (
                         <ListRow
                           key={m.id}
+                          role="listitem"
                           onClick={() => {
                             setSelectedMsgId(m.id);
                             if (!m.isRead) markRead(m.id);
@@ -483,10 +498,10 @@ export function MailView() {
                         >
                           <div className="flex items-center gap-2">
                             {!m.isRead && m.direction === "in" && (
-                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
                             )}
                             {m.isStarred && (
-                              <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
+                              <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" aria-hidden="true" />
                             )}
                             <span className="truncate text-xs font-semibold">
                               {m.direction === "out" ? `To: ${m.toAddr}` : m.fromAddr}
@@ -543,15 +558,16 @@ export function MailView() {
                   <div className="flex gap-2 border-t border-border/40 p-3">
                     <button
                       onClick={() => setComposing(true)}
+                      aria-label="Reply to message"
                       className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-3 py-2 text-xs font-medium hover:bg-muted"
                     >
-                      <CornerDownLeft className="h-3.5 w-3.5" /> Reply
+                      <CornerDownLeft className="h-3.5 w-3.5" aria-hidden="true" /> Reply
                     </button>
-                    <button className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-3 py-2 text-xs font-medium hover:bg-muted">
-                      <Star className="h-3.5 w-3.5" /> Star
+                    <button className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-3 py-2 text-xs font-medium hover:bg-muted" aria-label="Star message">
+                      <Star className="h-3.5 w-3.5" aria-hidden="true" /> Star
                     </button>
-                    <button className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-3 py-2 text-xs font-medium hover:bg-muted">
-                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    <button className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-3 py-2 text-xs font-medium hover:bg-muted" aria-label="Delete message">
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Delete
                     </button>
                   </div>
                 </div>
@@ -638,44 +654,45 @@ function ServerSummary({
           <button
             onClick={onTest}
             disabled={testing}
+            aria-label="Test mail server connection"
             className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-2.5 py-1.5 text-[11px] font-semibold hover:bg-muted disabled:opacity-50"
           >
             {testing ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
             ) : (
-              <RefreshCw className="h-3 w-3" />
+              <RefreshCw className="h-3 w-3" aria-hidden="true" />
             )}
             Test
           </button>
         }
       />
-      <div className="space-y-2">
-        <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs">
+      <div className="space-y-2" role="list" aria-label="Mail server connection details">
+        <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs" role="listitem">
           <span className="flex items-center gap-1.5 font-semibold text-muted-foreground">
-            <Lock className="h-3 w-3" /> IMAP
+            <Lock className="h-3 w-3" aria-hidden="true" /> IMAP
           </span>
           <span className="font-mono">
             {server.imapHost}:{server.imapPort}
           </span>
         </div>
-        <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs">
+        <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs" role="listitem">
           <span className="flex items-center gap-1.5 font-semibold text-muted-foreground">
-            <Send className="h-3 w-3" /> SMTP
+            <Send className="h-3 w-3" aria-hidden="true" /> SMTP
           </span>
           <span className="font-mono">
             {server.smtpHost}:{server.smtpPort}
           </span>
         </div>
-        <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
+        <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2" role="listitem">
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <HardDrive className="h-3 w-3" /> Storage
+              <HardDrive className="h-3 w-3" aria-hidden="true" /> Storage
             </span>
-            <span className="tabular-nums">
+            <span className="tabular-nums" role="status" aria-live="polite">
               {fmt(server.usedMb)} MB / {fmt(server.totalQuotaMb)} MB ({usedPct}%)
             </span>
           </div>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={usedPct} aria-valuemin={0} aria-valuemax={100} aria-label="Mail server storage usage">
             <div
               className="h-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--gold)]"
               style={{ width: `${Math.min(usedPct, 100)}%` }}
@@ -686,7 +703,7 @@ function ServerSummary({
           onClick={onCreateMailbox}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
         >
-          <UserPlus className="h-3.5 w-3.5" /> Provision new mailbox on @{server.domain}
+          <UserPlus className="h-3.5 w-3.5" aria-hidden="true" /> Provision new mailbox on @{server.domain}
         </button>
       </div>
     </div>

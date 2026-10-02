@@ -85,13 +85,19 @@ export interface Metric {
 
 export function MetricRow({ metrics, className }: { metrics: Metric[]; className?: string }) {
   return (
-    <div className={cn(
-      "scroll-liquid flex flex-nowrap gap-2 overflow-x-auto rounded-xl border border-border/40 bg-muted/20 p-2 sm:grid sm:grid-cols-2 sm:gap-px sm:overflow-hidden sm:bg-border/40 sm:p-0 lg:flex lg:flex-nowrap lg:items-stretch lg:overflow-x-auto lg:bg-border/40 lg:p-0",
-      className
-    )}>
+    <div
+      className={cn(
+        "scroll-liquid flex flex-nowrap gap-2 overflow-x-auto rounded-xl border border-border/40 bg-muted/20 p-2 sm:grid sm:grid-cols-2 sm:gap-px sm:overflow-hidden sm:bg-border/40 sm:p-0 lg:flex lg:flex-nowrap lg:items-stretch lg:overflow-x-auto lg:bg-border/40 lg:p-0",
+        className
+      )}
+      role="list"
+      aria-label="Key metrics"
+    >
       {metrics.map((m, i) => (
         <div
           key={i}
+          role="listitem"
+          aria-label={`${m.label}: ${typeof m.value === "number" ? m.value.toLocaleString() : m.value}${m.delta !== undefined ? ` (${m.delta >= 0 ? "+" : ""}${m.delta}%)` : ""}`}
           className={cn(
             "flex shrink-0 items-center gap-2 rounded-lg bg-muted/20 px-3 py-2.5 sm:min-w-[140px] sm:flex-1 sm:gap-3 sm:rounded-none sm:px-4",
             i < metrics.length - 1 && "sm:border-r sm:border-border/40"

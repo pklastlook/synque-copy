@@ -550,7 +550,11 @@ function TeamPerformanceTile({ members }: { members: TeamMember[] }) {
       </div>
 
       {/* Scrollable list */}
-      <div className="flex-1 overflow-y-auto scroll-liquid">
+      <div
+        className="flex-1 overflow-y-auto scroll-liquid"
+        role="list"
+        aria-label="Team members list"
+      >
         {sorted.map((m) => (
           <TeamListRow
             key={m.id}
@@ -587,6 +591,7 @@ function TeamListRow({
   return (
     <ListRow
       onClick={onProfile}
+      role="listitem"
       className="grid grid-cols-[1.6fr_0.7fr_0.8fr_0.8fr_auto] items-center gap-2 px-4 py-2"
     >
       {/* Member */}
@@ -754,10 +759,11 @@ function ProfileBody({ member }: { member: TeamMember }) {
         </DialogDescription>
       </DialogHeader>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" role="list" aria-label="Member statistics">
         {stats.map((s) => (
           <div
             key={s.label}
+            role="listitem"
             className="rounded-2xl border border-border/40 bg-muted/30 p-3"
           >
             <div
@@ -813,7 +819,11 @@ function ProfileBody({ member }: { member: TeamMember }) {
             No explicit permissions granted.
           </div>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
+          <div
+            className="flex flex-wrap gap-1.5"
+            role="list"
+            aria-label="Member permissions"
+          >
             {member.permissions.map((p) => (
               <Pill key={p}>{p.replace(/_/g, " ")}</Pill>
             ))}
@@ -889,7 +899,12 @@ function TaskBoardTile({
           desc={`${tasks.length} tasks · workflow distribution`}
           icon={ClipboardList}
           action={
-            <div className="flex flex-wrap items-center gap-1">
+            <div
+              className="flex flex-wrap items-center gap-1"
+              role="status"
+              aria-live="polite"
+              aria-label="Task counts by status"
+            >
               {statusOrder.map((s) => (
                 <Pill key={s} color={TASK_STATUS_META[s].pill}>
                   <span className="tabular-nums">{taskStatus[s]}</span>
@@ -904,7 +919,11 @@ function TaskBoardTile({
       </div>
 
       {/* Distribution chart */}
-      <div className="h-[96px] border-b border-border/40 px-2 py-1.5">
+      <div
+        className="h-[96px] border-b border-border/40 px-2 py-1.5"
+        role="img"
+        aria-label="Task status distribution chart — counts of tasks in each workflow stage: To Do, In Progress, Review, Done, Blocked"
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
@@ -914,6 +933,7 @@ function TaskBoardTile({
               strokeDasharray="3 3"
               stroke="var(--border)"
               vertical={false}
+              aria-hidden
             />
             <XAxis
               dataKey="name"
@@ -943,7 +963,11 @@ function TaskBoardTile({
       </div>
 
       {/* Top tasks list */}
-      <div className="flex-1 overflow-y-auto scroll-liquid">
+      <div
+        className="flex-1 overflow-y-auto scroll-liquid"
+        role="list"
+        aria-label="Top priority tasks"
+      >
         {topTasks.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground">
             No tasks yet.
@@ -967,7 +991,7 @@ function TaskListRow({ task }: { task: Task }) {
   const overdue = task.dueAt && new Date(task.dueAt).getTime() < Date.now();
 
   return (
-    <ListRow className="px-4 py-2">
+    <ListRow className="px-4 py-2" role="listitem">
       <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
         <TypeIcon className="h-3 w-3" />
       </span>
@@ -1064,7 +1088,11 @@ function AccountHealthTile({
       </div>
 
       {/* Top accounts list */}
-      <div className="flex-1 overflow-y-auto scroll-liquid">
+      <div
+        className="flex-1 overflow-y-auto scroll-liquid"
+        role="list"
+        aria-label="At-risk accounts ranked by risk score"
+      >
         {top.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground">
             No accounts connected.
@@ -1083,7 +1111,7 @@ function AccountHealthListRow({ account }: { account: AccountHealthRow }) {
   const barColor = riskBarColor(account.riskScore);
 
   return (
-    <ListRow className="px-4 py-2">
+    <ListRow className="px-4 py-2" role="listitem">
       {pid ? (
         <PlatformBadge platform={pid} size={28} />
       ) : (
@@ -1160,6 +1188,10 @@ function DepartmentTile({ departments }: { departments: DepartmentRow[] }) {
             No department data yet.
           </div>
         ) : (
+          <div
+            role="img"
+            aria-label="Department engagement comparison chart — horizontal bars showing engagement by department"
+          >
           <ResponsiveContainer
             width="100%"
             height={Math.max(120, sorted.length * 28)}
@@ -1173,6 +1205,7 @@ function DepartmentTile({ departments }: { departments: DepartmentRow[] }) {
                 strokeDasharray="3 3"
                 stroke="var(--border)"
                 horizontal={false}
+                aria-hidden
               />
               <XAxis
                 type="number"
@@ -1201,16 +1234,22 @@ function DepartmentTile({ departments }: { departments: DepartmentRow[] }) {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+          </div>
         )}
       </div>
 
       {/* Mini legend — top 4 */}
       {sorted.length > 0 && (
         <div className="border-t border-border/40 px-4 py-2">
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+          <div
+            className="grid grid-cols-2 gap-x-3 gap-y-1"
+            role="list"
+            aria-label="Department engagement legend"
+          >
             {sorted.slice(0, 4).map((d, i) => (
               <div
                 key={d.name}
+                role="listitem"
                 className="flex items-center gap-1.5 text-[10px]"
               >
                 <span
@@ -1248,7 +1287,11 @@ function ActivityTile({ activities }: { activities: ActivityRow[] }) {
           icon={Activity}
         />
       </div>
-      <div className="flex-1 overflow-y-auto scroll-liquid">
+      <div
+        className="flex-1 overflow-y-auto scroll-liquid"
+        role="list"
+        aria-label="Recent workspace activity feed"
+      >
         {top.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground">
             No recent activity.
@@ -1264,7 +1307,7 @@ function ActivityTile({ activities }: { activities: ActivityRow[] }) {
 function ActivityListRow({ activity }: { activity: ActivityRow }) {
   const Icon = ACTIVITY_ICON[activity.type] ?? CheckCircle2;
   return (
-    <ListRow className="px-4 py-2">
+    <ListRow className="px-4 py-2" role="listitem">
       <NameAvatar name={activity.userName} className="h-7 w-7 text-[10px]" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-xs">
