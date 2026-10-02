@@ -230,15 +230,23 @@ class ZAIDirectClient implements LLMClient {
   }
 
   async chat(messages: LLMMessage[]): Promise<string> {
+    const chatId = process.env.ZAI_CHAT_ID || "";
+    const userId = process.env.ZAI_USER_ID || "";
+    const token = this.token;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${this.apiKey}`,
+      "X-Z-AI-From": "Z",
+    };
+    if (chatId) headers["X-Chat-Id"] = chatId;
+    if (userId) headers["X-User-Id"] = userId;
+    if (token) headers["X-Token"] = token;
+
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": this.apiKey,
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-      },
+      headers,
       body: JSON.stringify({
-        model: "glm-4.6",
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
         thinking: { type: "disabled" },
       }),
