@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === "production") {
-  console.warn("[auth/me] WARNING: JWT_SECRET not set in production. Using fallback.");
+const SECRET = process.env.JWT_SECRET;
+if (!SECRET) {
+  throw new Error("JWT_SECRET environment variable must be set. Generate one with: openssl rand -hex 32");
 }
-const SECRET = JWT_SECRET || "REDACTED";
 
 export async function GET(req: NextRequest) {
   try {

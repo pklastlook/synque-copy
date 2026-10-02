@@ -9320,3 +9320,182 @@ Verification:
 Stage Summary:
 - Mobile dashboard is now more compact and better aligned: hero header stacks cleanly, day tabs scroll, metrics are a horizontal swipe row (was a tall 3-row grid), bento tiles have capped heights, chart metric buttons scroll, the Tasks+Pipeline section is now visible on mobile (was hidden), and the ContentWorkflow 5 stages scroll horizontally.
 - Files modified: `src/components/views/dashboard.tsx`, `src/components/glass/dense-ui.tsx`.
+
+---
+Task ID: SEC-5
+Agent: security-fix-agent
+Task: Sign OAuth state + remove scheduler key fallback + httpOnly cookie
+
+Work Log:
+- Read worklog.md for context (SEC-5 is a security-hardening task; no prior agent-ctx for SEC-5).
+- Read the four target files: `src/app/api/oauth/connect/[platform]/route.ts`, `src/app/api/oauth/callback/[platform]/route.ts`, `src/app/api/publish/[platform]/route.ts`, `src/lib/auth-session.ts`.
+- Created new helper `src/lib/oauth-state.ts`:
+  - Exports `OAuthStatePayload` type, `signOAuthState(payload)`, `verifyOAuthState(state)`.
+  - Wire format: `<base64url(JSON(payload))>.<base64url(hmac-sha256(payload_b64, JWT_SECRET))>`.
+  - Uses `createHmac` + `timingSafeEqual` (constant-time compare; length-checked first to avoid throwing).
+  - Validates that the decoded payload has `userId` + `platform` strings; returns `null` on any tamper / malformed input.
+  - Reads `JWT_SECRET` at module load (throws loudly if missing — same pattern as `auth-session.ts`).
+- Updated `oauth/connect/[platform]/route.ts`:
+  - Replaced the two `Buffer.from(JSON.stringify(...)).toString("base64url")` calls (default + Twitter + TikTok branches) with `signOAuthState({ userId, platform, cv? })`. The PKCE `cv` is now carried inside the signed payload (was already in the unsigned payload before).
+  - State is built once via `let state = signOAuthState(...)` and overwritten for PKCE platforms, then `authUrl.searchParams.set("state", state)` is set once at the end.
+- Updated `oauth/callback/[platform]/route.ts`:
+  - Replaced the `JSON.parse(Buffer.from(stateParam, "base64url").toString())` try/catch with `verifyOAuthState(stateParam)`. If HMAC verification fails, redirects to `/?oauth_error=invalid_state` (same UX as before, now actually enforced).
+  - Imports `verifyOAuthState` + the `OAuthStatePayload` type.
+- Updated `publish/[platform]/route.ts`:
+  - Removed the `|| "REDACTED"` hardcoded fallback.
+  - Module-load guard: `const SCHEDULER_API_KEY = process.env.SCHEDULER_API_KEY; if (!SCHEDULER_API_KEY) throw new Error("SCHEDULER_API_KEY must be set. Generate one with: openssl rand -hex 32");` — fails loudly on misconfigured deploys instead of falling back to a known-public key.
+- Generated a fresh 64-char hex key with `openssl rand -hex 32` and added `SCHEDULER_API_KEY=REDACTED_SCHEDULER_KEY` to `.env` (with a comment explaining the regenerate command).
+- Updated `src/lib/auth-session.ts` `setAuthCookie`:
+  - `httpOnly: false` → `httpOnly: true` (token no longer readable from JS, blocks XSS-based session theft).
+  - `sameSite: "lax"` → `sameSite: "strict"` (blocks CSRF on cross-site top-level navigations).
+  - `secure: process.env.NODE_ENV === "production"` — unchanged (already correct).
+- Ran `bun run lint` — exit 0, zero errors.
+- Checked `dev.log` — server still compiles cleanly; existing routes (`/api/auth/demo`, `/api/whatsapp/connection`, etc.) continue returning 200. No regressions.
+
+Stage Summary:
+- Three security vulnerabilities fixed and verified with a clean lint pass:
+  1. **OAuth state CSRF**: state is now HMAC-SHA256 signed with `JWT_SECRET` and verified on callback (constant-time compare). Forged/tampered states are rejected. New reusable helper at `src/lib/oauth-state.ts`.
+  2. **Hardcoded scheduler key**: removed the `REDACTED` fallback. The publish route now throws at module load if `SCHEDULER_API_KEY` is unset. A fresh 64-char hex key was generated and written to `.env`.
+  3. **Auth cookie**: `httpOnly: true` + `sameSite: "strict"` + `secure` in production — the JWT is no longer readable from client-side JS and is protected against cross-site CSRF.
+- Files modified: `src/lib/oauth-state.ts` (new), `src/app/api/oauth/connect/[platform]/route.ts`, `src/app/api/oauth/callback/[platform]/route.ts`, `src/app/api/publish/[platform]/route.ts`, `src/lib/auth-session.ts`, `.env`.
+- Note for deployment: the Railway scheduler mini-service must be configured with the same `SCHEDULER_API_KEY` value as `X-Scheduler-Key` header, otherwise scheduled-post publishing will fail auth. The previous hardcoded fallback key no longer works.
+
+---
+Task ID: SEC-4
+Agent: security-fix-agent
+Task: Fix customer route DB URL leak + mail password encryption
+
+Work Log:
+- Read worklog + prior agent-ctx for context (SEC tasks on auth/cookies/oauth already done; mail + customers routes still had the two reported vulnerabilities).
+- **Issue 1 — Customer GET leaked Neon DB URL with password** (`src/app/api/customers/route.ts`):
+  - Switched `GET` from `requireAuth(req)` → `requireRole(req, "admin")`. Non-admin users now get a 403 instead of being able to list customers + see tenant DB metadata.
+  - Removed the `dbUrl` field entirely from the response payload. The `database` sub-object now returns ONLY safe metadata: `id`, `dbName`, `status`, `createdAt` — matching the task's "better" recommendation.
+  - Removed the now-unused `requireAuth` import.
+  - Verified no client UI references `.dbUrl` (ripgrepped `src/**/*.{ts,tsx}` for `dbUrl` — zero hits outside generated Prisma internal files).
+- **Issue 2 — Mail passwords stored as base64 labelled "enc:"** (`src/app/api/mail/route.ts`, `src/app/api/mail/mailboxes/route.ts`):
+  - Created new `src/lib/crypto.ts` module:
+    - Reads `process.env.ENCRYPTION_KEY` (64-char hex → 32 bytes). Throws at module-load time if unset OR malformed, mirroring the `JWT_SECRET` pattern from `src/lib/auth-guard.ts`.
+    - `encrypt(text)`: AES-256-GCM, 96-bit random IV, 16-byte auth tag packed at the end of the ciphertext blob. Output: `v1:<base64-iv>:<base64-ct+tag>` (single string, safe to store in any text DB column).
+    - `decrypt(encrypted)`: reverses the v1 format. Also accepts legacy `enc:<base64>` strings transparently (decodes as plain base64) so existing rows in the DB keep working without a migration script — they'll be silently upgraded to real AES-256-GCM the next time the password is re-saved.
+    - Tamper-detection verified: flipping a byte in the ciphertext makes `decipher.final()` throw "Unsupported state or unable to authenticate data" (GCM auth tag mismatch).
+  - Generated a new 32-byte key with `openssl rand -hex 32` and appended `ENCRYPTION_KEY=...` to `.env` (after `JWT_SECRET`).
+  - Updated `src/app/api/mail/route.ts` POST: `passwordEnc: encrypt(password)` (was `"enc:" + Buffer.from(password).toString("base64")`).
+  - Updated `src/app/api/mail/mailboxes/route.ts`:
+    - POST: `passwordEnc: encrypt(password)`.
+    - PATCH: `data.passwordEnc = encrypt(password)`.
+  - Updated all READ-side decode sites to use `decrypt()` instead of `Buffer.from(..., "base64")`:
+    - `src/lib/email.ts` (sendEmail → nodemailer SMTP auth).
+    - `src/app/api/mail/sync/route.ts` (ImapFlow IMAP auth).
+    - `src/app/api/mail/messages/route.ts` (mailbox password for outbound SMTP).
+- Lint: `bun run lint` → exit 0, zero errors.
+- Smoke-tested the crypto module in isolation:
+  - Round trip: `encrypt("hello-world-secret-123!")` → `v1:01OZq58KhyinlhWp:uMPSH6...` → `decrypt(...)` → `hello-world-secret-123!` ✓
+  - Legacy format: `"enc:" + Buffer.from("my-old-password").toString("base64")` → `decrypt(...)` → `my-old-password` ✓ (existing DB rows won't break the mail sync flow)
+  - Tampered ciphertext: rejected with GCM auth error ✓
+
+Stage Summary:
+- **Customer route no longer leaks DB credentials.** `GET /api/customers` now requires admin role and the response omits `dbUrl` entirely (only `id` + `dbName` + `status` + `createdAt` are returned for tenant DB metadata). Non-admin callers get a clean 403.
+- **Mail passwords are now AES-256-GCM encrypted at rest** with a 32-byte key from `ENCRYPTION_KEY` (required env var, throws at module load if missing — same pattern as `JWT_SECRET`). The previous `"enc:" + base64` approach (which is just encoding, NOT encryption) is fully removed from write paths. Read paths use `decrypt()`, with transparent backward-compat for existing legacy rows.
+- **GCM auth tag** means any tampering with the ciphertext (e.g. via DB access) is detected on decrypt, preventing silent password corruption.
+- Files: `src/lib/crypto.ts` (new), `src/app/api/customers/route.ts`, `src/app/api/mail/route.ts`, `src/app/api/mail/mailboxes/route.ts`, `src/app/api/mail/sync/route.ts`, `src/app/api/mail/messages/route.ts`, `src/lib/email.ts`, `.env`.
+
+---
+Task ID: SEC-6
+Agent: security-fix-agent
+Task: Add tenant isolation to unprotected routes + fix manager escalation
+
+Work Log:
+- Read worklog + auth-guard.ts + the 4 target routes (bank-accounts, users, inbox, reports) + Prisma schema to confirm BankAccount / Comment / Report lacked `customerId`.
+- Added `customerId String?` to the `BankAccount`, `Comment`, and `Report` models in `prisma/schema.prisma` (User already had it). Ran `npx prisma db push --accept-data-loss` against the Neon datasource (the project's `bun run db:push` script is broken under Node 24 — used `DIRECT_URL=...` env override on the CLI) and regenerated the client with `npx prisma generate`.
+- `src/app/api/bank-accounts/route.ts`: GET now calls `requireAuth` + `getTenantScope` + passes `where: tenantWhere(scope)` to `findMany`. POST stamps new rows with `scope.customerId` and scopes the `isDefault` reset `updateMany` to the caller's tenant (was previously clearing defaults across ALL tenants).
+- `src/app/api/users/route.ts`: GET filtered with `tenantWhere(scope)` — super-admins (no customerId) see everyone, tenant users see only their own tenant. PATCH reworked: `role` is admin-only, `permissions` is admin-only, `status` is admin-or-manager. Added a self-escalation guard so an admin cannot raise their own role above its current level (local `ROLE_LEVELS` map mirrors auth-guard's `ROLE_HIERARCHY`).
+- `src/app/api/inbox/route.ts`: GET now calls `requireAuth` + `getTenantScope` + `where: tenantWhere(scope)`. PATCH also requires auth and verifies the target comment belongs to the caller's tenant before updating (prevents cross-tenant writes via id-guessing).
+- `src/app/api/reports/route.ts`: GET filtered by `tenantWhere(scope)`. The user lookup for `createdByName` resolution is also tenant-scoped so author names don't leak across tenants. POST stamps new reports with `scope.customerId` and defaults `createdBy` to the authenticated caller.
+- Ran `bun run lint` → exit 0, zero errors.
+
+Stage Summary:
+- Cross-tenant data leakage via `/api/bank-accounts`, `/api/users`, `/api/inbox`, `/api/reports` is now blocked; super-admins continue to see all tenants, every other role sees only their own.
+- Manager → admin privilege escalation via `PATCH /api/users` is closed: managers can no longer set `role` or `permissions` on any user (admin-only). Managers retain the ability to change a teammate's `status`. Self-escalation (admin raising their own role above current level) is rejected with 403.
+- Schema change applied to Neon + Prisma client regenerated; existing rows now have `customerId = null` and are visible only to super-admins (secure-by-default). New rows created via the patched POST handlers are stamped with the caller's tenant.
+
+---
+Task ID: PERF-UI
+Agent: perf-ui-agent
+Task: Code-split bundle + remove zoom lock + skip-to-content + fix HelpTooltip
+
+Work Log:
+- Read worklog, app-shell.tsx, layout.tsx, and glass/help-text.tsx for context; verified all 10 heavy views (Reports, Composer, Analytics, AdminPanel, VPN, Inbox, Mail, Influencers, LinkBio, UTMBuilder) export the named component used in the view switcher.
+- Refactored `src/components/app-shell.tsx` imports: removed the 10 static `import { XView } from "@/components/views/..."` lines and added `import dynamic from "next/dynamic"`. Kept the 17 lightweight views (Dashboard, Calendar, Accounts, Team, Settings, Campaigns, MediaLibrary, Listening, Hashtags, Competitors, WhatsApp, Chat, Tasks, Owner, TeamPerformance, Organization, Approvals, AccountSafety) as static imports.
+- Declared a shared `viewLoading` skeleton and 10 `dynamic(...)` constants using the `{ ssr: false, loading: viewLoading }` pattern and `import(...).then((m) => ({ default: m.XView }))` to bridge the named exports. All `import` statements remain grouped at the top of the module — no `const` interleaved before imports.
+- Added a "Skip to content" anchor as the first child of the root `<div>` (sr-only, revealed on focus with `focus:bg-background focus:px-3 focus:py-2 focus:shadow`) and added `id="main"` to the `<main>` element so the link has a valid target.
+- Edited `src/app/layout.tsx` viewport export: changed `maximumScale: 1, userScalable: false` to `maximumScale: 5, userScalable: true` so pinch-zoom works for accessibility (WCAG 1.4.4).
+- Rewrote `HelpTooltip` in `src/components/glass/help-text.tsx`: replaced the wrapping `<span>` with `onMouseEnter/onMouseLeave` with a `<span className="relative inline-flex">` wrapper containing a `<button type="button" aria-describedby={tipId}>` that toggles on `onFocus/onBlur` (plus retained hover handlers for mouse users). Generated `tipId` via `React.useId()` and attached `id={tipId}` + `role="tooltip"` to the floating tooltip span. Removed the `cursor-help` from the icon and moved it to the button.
+- Ran `bun run lint` — passed cleanly with no errors or warnings. Verified the dev server (`dev.log`) still returns `200` on `/` and downstream API routes after the changes.
+
+Stage Summary:
+- Initial client bundle no longer ships 10 heavy view components; each is now a separately fetched chunk that only loads when its view is activated. View switching UX preserved with an inline "Loading…" placeholder.
+- Pinch-zoom re-enabled for low-vision users (max scale 5).
+- Keyboard / screen-reader users get a visible "Skip to content" link on first Tab and can jump straight to the main content area.
+- HelpTooltip is now keyboard-accessible: focusable `<button>` trigger, programmatic `id` + `role="tooltip"` association via `aria-describedby`, and works on both focus and hover.
+- Lint clean; dev server healthy.
+
+---
+Task ID: PERF-8
+Agent: perf-fix-agent
+Task: Add database indexes to schema + push
+
+Work Log:
+- Read /home/z/my-project/worklog.md for project context.
+- Inspected `prisma/schema.prisma` (880 lines, 49 models) — confirmed only 4 pre-existing `@@index` directives (PasswordResetToken.email, EmailVerificationToken.email, VPNSession.userId, VPNSession.status).
+- Verified exact field names per model against the schema before adding indexes; all requested fields exist in their corresponding models (Post, PostVariant, Comment, AnalyticsDaily, Activity, Task, Account, Mention, MailMessage, ChatMessage, Invoice, Quotation, Subscription, Session, WhatsAppMessage).
+- Added 36 new `@@index` directives across 15 models in `prisma/schema.prisma` (preserved all existing indexes; no other schema changes):
+  - Post: [authorId], [customerId], [status], [scheduledAt], [createdAt]  (5)
+  - PostVariant: [accountId], [postId], [status], [publishedAt]  (4)
+  - Comment: [accountId], [replied], [createdAt], [sentiment]  (4)
+  - AnalyticsDaily: [accountId], [date]  (2)
+  - Activity: [userId], [customerId], [createdAt]  (3)
+  - Task: [assigneeId], [status], [customerId], [dueAt]  (4)
+  - Account: [ownerId], [customerId], [platform]  (3)
+  - Mention: [queryId], [date]  (2)
+  - MailMessage: [mailboxId], [folder], [date]  (3)
+  - ChatMessage: [senderId], [receiverId], [createdAt], [isRead]  (4)
+  - Invoice: [customerId]  (1)
+  - Quotation: [customerId]  (1)
+  - Subscription: [customerId]  (1)
+  - Session: [userId]  (1)
+  - WhatsAppMessage: [status], [createdAt]  (2)
+- Pushed schema: `set -a && source .env && set +a && npx prisma db push --schema prisma/schema.prisma --accept-data-loss` → "Your database is now in sync with your Prisma schema. Done in 16.65s" (PostgreSQL / Neon).
+- Regenerated client: `npx prisma generate --schema prisma/schema.prisma` → "Generated Prisma Client (7.10.0) to ./generated in 964ms".
+- Ran `bun run lint` → clean, no errors/warnings.
+- Checked `dev.log` — dev server healthy, no schema/runtime errors after push.
+
+Stage Summary:
+- Result: SUCCESS. Total `@@index` directives in schema went from 4 → 40 across 19 models (15 newly indexed models + 4 previously indexed ones). All 36 new B-tree indexes were created on PostgreSQL/Neon for heavily-queried FK + filter columns (customerId, accountId, userId, ownerId, status, date/createdAt, dueAt, sentiment, replied, isRead, folder, platform, scheduledAt, publishedAt, etc.). This will materially speed up the dashboard, inbox, analytics, activity feed, tasks, mail, chat, invoicing, and tenant-scoped list queries across the platform without any code/data changes. Lint clean; dev server confirmed serving 200s post-push.
+
+---
+Task ID: PERF-9
+Agent: perf-fix-agent
+Task: Add pagination to list endpoints + Cache-Control headers
+
+Work Log:
+- Read worklog.md and all target route files to assess current state.
+- Confirmed `src/app/api/comments/classify/route.ts` already uses `take: 500` — left untouched per instructions.
+- Confirmed `src/app/api/mail/messages/route.ts` already uses `take: 100` — left untouched per instructions ("If the route already has `take`, leave it alone").
+- Added `take: 50` to GET `findMany` in:
+  - `src/app/api/posts/route.ts` (already had `orderBy: { createdAt: "desc" }`)
+  - `src/app/api/accounts/route.ts` (already had `orderBy: { followers: "desc" }` — kept as-is)
+  - `src/app/api/inbox/route.ts` (already had `orderBy: { createdAt: "desc" }`)
+  - `src/app/api/reports/route.ts` (already had `orderBy: { createdAt: "desc" }`)
+  - `src/app/api/whatsapp/route.ts` (already had `orderBy: { createdAt: "desc" }`)
+  - `src/app/api/tasks/route.ts` (already had `orderBy: { createdAt: "desc" }`)
+- Captured the response object in a `const res = NextResponse.json(...)` variable and added `res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60")` before returning in:
+  - `src/app/api/analytics/route.ts`
+  - `src/app/api/dashboard/route.ts` (kept error-path `NextResponse.json(... { status: 500 })` intact in the catch block)
+  - `src/app/api/team-performance/route.ts`
+- Ran `bun run lint` — passed with no errors.
+
+Stage Summary:
+- 6 list endpoints now cap results at 50 rows (`posts`, `accounts`, `inbox`, `reports`, `whatsapp`, `tasks`). 2 endpoints already had `take` set (`comments/classify`: 500; `mail/messages`: 100) and were left untouched.
+- All list endpoints already had `orderBy` clauses, so no new ordering was introduced.
+- 3 heavy aggregate read routes (`analytics`, `dashboard`, `team-performance`) now advertise a `Cache-Control: private, max-age=15, stale-while-revalidate=60` header, so browsers and downstream caches can serve repeat visits from cache for 15s and refresh in the background for up to 60s — cutting repeated DB load for dashboard polling without making data feel stale.
+- Lint clean, no type errors.

@@ -666,7 +666,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       isManagerView,
       userRole,
       range: rangeParam,
@@ -745,6 +745,8 @@ export async function GET(req: NextRequest) {
         createdAt: a.createdAt.toISOString(),
       })),
     });
+    res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+    return res;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[/api/dashboard] DB error:", message);

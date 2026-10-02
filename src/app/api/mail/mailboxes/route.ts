@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { encrypt } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
       serverId,
       email,
       displayName: displayName ?? localPart,
-      passwordEnc: "enc:" + Buffer.from(password).toString("base64"),
+      passwordEnc: encrypt(password),
       quotaMb: quotaMb ?? 2048,
       ownerId: ownerId ?? null,
       role: role ?? "member",
@@ -55,7 +56,7 @@ export async function PATCH(req: NextRequest) {
   if (status) data.status = status;
   if (ownerId !== undefined) data.ownerId = ownerId || null;
   if (quotaMb) data.quotaMb = quotaMb;
-  if (password) data.passwordEnc = "enc:" + Buffer.from(password).toString("base64");
+  if (password) data.passwordEnc = encrypt(password);
   const m = await db.mailbox.update({ where: { id }, data });
   return NextResponse.json({ ok: true, id: m.id });
 }

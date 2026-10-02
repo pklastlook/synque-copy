@@ -9,7 +9,10 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { db } from "@/lib/db";
 
-const SECRET = process.env.JWT_SECRET || "REDACTED";
+const SECRET = process.env.JWT_SECRET;
+if (!SECRET) {
+  throw new Error("JWT_SECRET environment variable must be set. Generate one with: openssl rand -hex 32");
+}
 
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
@@ -93,8 +96,8 @@ export async function issueSession(opts: {
  */
 export function setAuthCookie(res: NextResponse, token: string) {
   res.cookies.set("token", token, {
-    httpOnly: false,
-    sameSite: "lax",
+    httpOnly: true,
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     maxAge: SESSION_TTL_SECONDS,
     path: "/",

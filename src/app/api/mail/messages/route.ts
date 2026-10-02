@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { decrypt } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -72,12 +73,8 @@ export async function POST(req: NextRequest) {
   try {
     const nodemailer = await import("nodemailer");
 
-    // Decrypt the mailbox password (stored as base64 — not real encryption,
-    // but we need to decode it to use for SMTP auth)
-    const decodedPassword = Buffer.from(
-      mailbox.passwordEnc.replace("enc:", ""),
-      "base64"
-    ).toString("utf-8");
+    // Decrypt the mailbox password (AES-256-GCM via src/lib/crypto.ts)
+    const decodedPassword = decrypt(mailbox.passwordEnc);
 
     const transporter = nodemailer.createTransport({
       host: server.smtpHost,

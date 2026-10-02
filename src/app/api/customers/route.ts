@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth, requireRole } from "@/lib/auth-guard";
+import { requireRole } from "@/lib/auth-guard";
 import { Client } from "pg";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +63,11 @@ async function pushSchemaToTenantDb(dbUrl: string): Promise<void> {
 }
 
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  // The customers list includes tenant DB metadata. The dbUrl column
+  // contains a full Neon connection string WITH PASSWORD — leaking it
+  // to non-admin users is a credential-disclosure vulnerability.
+  // Restrict the entire GET to admins and NEVER return the dbUrl field.
+  const { user, error } = requireRole(req, "admin");
   if (error) return error;
 
   const customers = await db.customer.findMany({
@@ -80,9 +84,11 @@ export async function GET(req: NextRequest) {
     address: c.address, city: c.city, country: c.country, status: c.status, plan: c.plan,
     serialKey: c.serialKey ? { id: c.serialKey.id, key: c.serialKey.key, status: c.serialKey.status, activatedAt: c.serialKey.activatedAt?.toISOString() ?? null } : null,
     invoicesCount: c.invoices.length, quotationsCount: c.quotations.length,
+    // SECURITY: only return safe metadata (id + name + status + dbName).
+    // NEVER include dbUrl — it contains the full Neon password.
     database: dbMap.get(c.id) ? {
+      id: dbMap.get(c.id)!.id,
       dbName: dbMap.get(c.id)!.dbName,
-      dbUrl: dbMap.get(c.id)!.dbUrl,
       status: dbMap.get(c.id)!.status,
       createdAt: dbMap.get(c.id)!.createdAt.toISOString(),
     } : null,

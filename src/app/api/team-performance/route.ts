@@ -482,7 +482,7 @@ export async function GET() {
       : 0,
   };
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     members,
     teamTotals,
     leaderboard,
@@ -498,4 +498,6 @@ export async function GET() {
     accountHealth,
     healthSummary,
   });
+  res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+  return res;
 }

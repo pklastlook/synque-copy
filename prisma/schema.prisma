@@ -75,6 +75,10 @@ model Account {
   comments   Comment[]
   health     AccountHealth?
   protection AccountProtection?
+
+  @@index([ownerId])
+  @@index([customerId])
+  @@index([platform])
 }
 
 // ===== Account Health (suspension risk + sentiment ratio) =====
@@ -148,6 +152,12 @@ model Post {
   updatedAt  DateTime  @updatedAt
 
   variants   PostVariant[]
+
+  @@index([authorId])
+  @@index([customerId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([createdAt])
 }
 
 model PostVariant {
@@ -167,6 +177,11 @@ model PostVariant {
   impressions Int       @default(0)
   saves       Int       @default(0)
   createdAt   DateTime  @default(now())
+
+  @@index([accountId])
+  @@index([postId])
+  @@index([status])
+  @@index([publishedAt])
 }
 
 model Comment {
@@ -183,7 +198,16 @@ model Comment {
   assigneeId String?
   assignee   User?    @relation("CommentAssignee", fields: [assigneeId], references: [id])
   repliedAt  DateTime?
+  // Multi-tenant: comments are scoped to a customer (tenant) via the owning
+  // account. Denormalised here so list queries can be filtered directly
+  // without a join. null = legacy / super-admin owned.
+  customerId String?
   createdAt  DateTime @default(now())
+
+  @@index([accountId])
+  @@index([replied])
+  @@index([createdAt])
+  @@index([sentiment])
 }
 
 model AnalyticsDaily {
@@ -196,6 +220,9 @@ model AnalyticsDaily {
   reach      Int
   engagement Float
   posts      Int
+
+  @@index([accountId])
+  @@index([date])
 }
 
 model Activity {
@@ -208,6 +235,10 @@ model Activity {
   description String
   meta        String?  // JSON string for extra context
   createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([customerId])
+  @@index([createdAt])
 }
 
 // ===== Campaigns =====
@@ -274,6 +305,9 @@ model Mention {
   engagement Int      @default(0)
   date       DateTime
   createdAt  DateTime @default(now())
+
+  @@index([queryId])
+  @@index([date])
 }
 
 // ===== Approval Workflows =====
@@ -314,6 +348,11 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   completedAt DateTime?
+
+  @@index([assigneeId])
+  @@index([status])
+  @@index([customerId])
+  @@index([dueAt])
 }
 
 // ===== Hashtag Manager =====
@@ -365,6 +404,9 @@ model Report {
   config      String   // JSON: { metrics, dateRange, accounts, groupBy }
   schedule    String?  // daily | weekly | monthly | null
   createdBy   String?
+  // Multi-tenant: reports are scoped to a customer (tenant).
+  // null = belongs to super-admin (visible across tenants).
+  customerId  String?
   lastGenerated DateTime?
   createdAt   DateTime @default(now())
 }
@@ -405,6 +447,9 @@ model WhatsAppMessage {
   isLive      Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ===== WhatsApp Connection (per-workspace QR-scan session) =====
@@ -434,6 +479,11 @@ model ChatMessage {
   fileType  String? // image | video | document | audio
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+  @@index([isRead])
 }
 
 // ===== Mail Server =====
@@ -491,6 +541,10 @@ model MailMessage {
   isStarred   Boolean  @default(false)
   date        DateTime
   createdAt   DateTime @default(now())
+
+  @@index([mailboxId])
+  @@index([folder])
+  @@index([date])
 }
 
 // ===== Owner Module: Customers, Invoices, Quotations, Serial Keys =====
@@ -544,6 +598,8 @@ model Invoice {
   items       String   // JSON array: [{description, qty, price, amount}]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([customerId])
 }
 
 model Quotation {
@@ -562,6 +618,8 @@ model Quotation {
   items       String   // JSON array
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([customerId])
 }
 
 model BankAccount {
@@ -573,6 +631,9 @@ model BankAccount {
   swift       String?
   currency    String   @default("USD")
   isDefault   Boolean  @default(false)
+  // Multi-tenant: bank accounts are scoped to a customer (tenant).
+  // null = belongs to super-admin (visible across tenants).
+  customerId  String?
   createdAt   DateTime @default(now())
 }
 
@@ -615,6 +676,8 @@ model Subscription {
   amount      Float    @default(0)
   currency    String   @default("USD")
   createdAt   DateTime @default(now())
+
+  @@index([customerId])
 }
 
 // ===== Workspace Settings (one row per workspace, keyed by owner) =====
@@ -773,6 +836,8 @@ model Session {
   createdAt   DateTime @default(now())
   expiresAt   DateTime
   revokedAt   DateTime? // null = active, set when user logs out / revokes
+
+  @@index([userId])
 }
 
 // ===== Password Reset Tokens (DB-backed, not in-memory) =====

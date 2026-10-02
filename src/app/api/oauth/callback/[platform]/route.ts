@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { verifyOAuthState, type OAuthStatePayload } from "@/lib/oauth-state";
 
 export const dynamic = "force-dynamic";
 
@@ -33,11 +34,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     return NextResponse.redirect(new URL("/?oauth_error=missing_code_or_state", req.url));
   }
 
-  // Decode the state to get userId + code_verifier (for PKCE)
-  let state: { userId: string; platform: string; cv?: string };
-  try {
-    state = JSON.parse(Buffer.from(stateParam, "base64url").toString());
-  } catch {
+  // Decode + VERIFY the HMAC signature on the state to get userId + code_verifier (for PKCE).
+  // If the signature doesn't match, the state was tampered with — abort.
+  const state: OAuthStatePayload | null = verifyOAuthState(stateParam);
+  if (!state) {
     return NextResponse.redirect(new URL("/?oauth_error=invalid_state", req.url));
   }
 

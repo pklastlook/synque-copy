@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     where,
     orderBy: { createdAt: "desc" },
     include: { savedBy: true },
+    take: 50,
   });
 
   return NextResponse.json(

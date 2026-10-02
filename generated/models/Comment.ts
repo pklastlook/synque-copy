@@ -36,6 +36,7 @@ export type CommentMinAggregateOutputType = {
   replyText: string | null
   assigneeId: string | null
   repliedAt: Date | null
+  customerId: string | null
   createdAt: Date | null
 }
 
@@ -51,6 +52,7 @@ export type CommentMaxAggregateOutputType = {
   replyText: string | null
   assigneeId: string | null
   repliedAt: Date | null
+  customerId: string | null
   createdAt: Date | null
 }
 
@@ -66,6 +68,7 @@ export type CommentCountAggregateOutputType = {
   replyText: number
   assigneeId: number
   repliedAt: number
+  customerId: number
   createdAt: number
   _all: number
 }
@@ -83,6 +86,7 @@ export type CommentMinAggregateInputType = {
   replyText?: true
   assigneeId?: true
   repliedAt?: true
+  customerId?: true
   createdAt?: true
 }
 
@@ -98,6 +102,7 @@ export type CommentMaxAggregateInputType = {
   replyText?: true
   assigneeId?: true
   repliedAt?: true
+  customerId?: true
   createdAt?: true
 }
 
@@ -113,6 +118,7 @@ export type CommentCountAggregateInputType = {
   replyText?: true
   assigneeId?: true
   repliedAt?: true
+  customerId?: true
   createdAt?: true
   _all?: true
 }
@@ -201,6 +207,7 @@ export type CommentGroupByOutputType = {
   replyText: string | null
   assigneeId: string | null
   repliedAt: Date | null
+  customerId: string | null
   createdAt: Date
   _count: CommentCountAggregateOutputType | null
   _min: CommentMinAggregateOutputType | null
@@ -237,6 +244,7 @@ export type CommentWhereInput = {
   replyText?: Prisma.StringNullableFilter<"Comment"> | string | null
   assigneeId?: Prisma.StringNullableFilter<"Comment"> | string | null
   repliedAt?: Prisma.DateTimeNullableFilter<"Comment"> | Date | string | null
+  customerId?: Prisma.StringNullableFilter<"Comment"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Comment"> | Date | string
   account?: Prisma.XOR<Prisma.AccountScalarRelationFilter, Prisma.AccountWhereInput>
   assignee?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
@@ -254,6 +262,7 @@ export type CommentOrderByWithRelationInput = {
   replyText?: Prisma.SortOrderInput | Prisma.SortOrder
   assigneeId?: Prisma.SortOrderInput | Prisma.SortOrder
   repliedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   account?: Prisma.AccountOrderByWithRelationInput
   assignee?: Prisma.UserOrderByWithRelationInput
@@ -274,6 +283,7 @@ export type CommentWhereUniqueInput = Prisma.AtLeast<{
   replyText?: Prisma.StringNullableFilter<"Comment"> | string | null
   assigneeId?: Prisma.StringNullableFilter<"Comment"> | string | null
   repliedAt?: Prisma.DateTimeNullableFilter<"Comment"> | Date | string | null
+  customerId?: Prisma.StringNullableFilter<"Comment"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Comment"> | Date | string
   account?: Prisma.XOR<Prisma.AccountScalarRelationFilter, Prisma.AccountWhereInput>
   assignee?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
@@ -291,6 +301,7 @@ export type CommentOrderByWithAggregationInput = {
   replyText?: Prisma.SortOrderInput | Prisma.SortOrder
   assigneeId?: Prisma.SortOrderInput | Prisma.SortOrder
   repliedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.CommentCountOrderByAggregateInput
   _max?: Prisma.CommentMaxOrderByAggregateInput
@@ -312,6 +323,7 @@ export type CommentScalarWhereWithAggregatesInput = {
   replyText?: Prisma.StringNullableWithAggregatesFilter<"Comment"> | string | null
   assigneeId?: Prisma.StringNullableWithAggregatesFilter<"Comment"> | string | null
   repliedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Comment"> | Date | string | null
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Comment"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Comment"> | Date | string
 }
 
@@ -325,6 +337,7 @@ export type CommentCreateInput = {
   replied?: boolean
   replyText?: string | null
   repliedAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
   account: Prisma.AccountCreateNestedOneWithoutCommentsInput
   assignee?: Prisma.UserCreateNestedOneWithoutAssignedCommentsInput
@@ -342,6 +355,7 @@ export type CommentUncheckedCreateInput = {
   replyText?: string | null
   assigneeId?: string | null
   repliedAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -355,6 +369,7 @@ export type CommentUpdateInput = {
   replied?: Prisma.BoolFieldUpdateOperationsInput | boolean
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   account?: Prisma.AccountUpdateOneRequiredWithoutCommentsNestedInput
   assignee?: Prisma.UserUpdateOneWithoutAssignedCommentsNestedInput
@@ -372,6 +387,7 @@ export type CommentUncheckedUpdateInput = {
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   assigneeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -387,6 +403,7 @@ export type CommentCreateManyInput = {
   replyText?: string | null
   assigneeId?: string | null
   repliedAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -400,6 +417,7 @@ export type CommentUpdateManyMutationInput = {
   replied?: Prisma.BoolFieldUpdateOperationsInput | boolean
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -415,6 +433,7 @@ export type CommentUncheckedUpdateManyInput = {
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   assigneeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -440,6 +459,7 @@ export type CommentCountOrderByAggregateInput = {
   replyText?: Prisma.SortOrder
   assigneeId?: Prisma.SortOrder
   repliedAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -455,6 +475,7 @@ export type CommentMaxOrderByAggregateInput = {
   replyText?: Prisma.SortOrder
   assigneeId?: Prisma.SortOrder
   repliedAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -470,6 +491,7 @@ export type CommentMinOrderByAggregateInput = {
   replyText?: Prisma.SortOrder
   assigneeId?: Prisma.SortOrder
   repliedAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -567,6 +589,7 @@ export type CommentCreateWithoutAssigneeInput = {
   replied?: boolean
   replyText?: string | null
   repliedAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
   account: Prisma.AccountCreateNestedOneWithoutCommentsInput
 }
@@ -582,6 +605,7 @@ export type CommentUncheckedCreateWithoutAssigneeInput = {
   replied?: boolean
   replyText?: string | null
   repliedAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -626,6 +650,7 @@ export type CommentScalarWhereInput = {
   replyText?: Prisma.StringNullableFilter<"Comment"> | string | null
   assigneeId?: Prisma.StringNullableFilter<"Comment"> | string | null
   repliedAt?: Prisma.DateTimeNullableFilter<"Comment"> | Date | string | null
+  customerId?: Prisma.StringNullableFilter<"Comment"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Comment"> | Date | string
 }
 
@@ -639,6 +664,7 @@ export type CommentCreateWithoutAccountInput = {
   replied?: boolean
   replyText?: string | null
   repliedAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
   assignee?: Prisma.UserCreateNestedOneWithoutAssignedCommentsInput
 }
@@ -654,6 +680,7 @@ export type CommentUncheckedCreateWithoutAccountInput = {
   replyText?: string | null
   assigneeId?: string | null
   repliedAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -694,6 +721,7 @@ export type CommentCreateManyAssigneeInput = {
   replied?: boolean
   replyText?: string | null
   repliedAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -707,6 +735,7 @@ export type CommentUpdateWithoutAssigneeInput = {
   replied?: Prisma.BoolFieldUpdateOperationsInput | boolean
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   account?: Prisma.AccountUpdateOneRequiredWithoutCommentsNestedInput
 }
@@ -722,6 +751,7 @@ export type CommentUncheckedUpdateWithoutAssigneeInput = {
   replied?: Prisma.BoolFieldUpdateOperationsInput | boolean
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -736,6 +766,7 @@ export type CommentUncheckedUpdateManyWithoutAssigneeInput = {
   replied?: Prisma.BoolFieldUpdateOperationsInput | boolean
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -750,6 +781,7 @@ export type CommentCreateManyAccountInput = {
   replyText?: string | null
   assigneeId?: string | null
   repliedAt?: Date | string | null
+  customerId?: string | null
   createdAt?: Date | string
 }
 
@@ -763,6 +795,7 @@ export type CommentUpdateWithoutAccountInput = {
   replied?: Prisma.BoolFieldUpdateOperationsInput | boolean
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignee?: Prisma.UserUpdateOneWithoutAssignedCommentsNestedInput
 }
@@ -778,6 +811,7 @@ export type CommentUncheckedUpdateWithoutAccountInput = {
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   assigneeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -792,6 +826,7 @@ export type CommentUncheckedUpdateManyWithoutAccountInput = {
   replyText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   assigneeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   repliedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -809,6 +844,7 @@ export type CommentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   replyText?: boolean
   assigneeId?: boolean
   repliedAt?: boolean
+  customerId?: boolean
   createdAt?: boolean
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
   assignee?: boolean | Prisma.Comment$assigneeArgs<ExtArgs>
@@ -826,6 +862,7 @@ export type CommentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   replyText?: boolean
   assigneeId?: boolean
   repliedAt?: boolean
+  customerId?: boolean
   createdAt?: boolean
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
   assignee?: boolean | Prisma.Comment$assigneeArgs<ExtArgs>
@@ -843,6 +880,7 @@ export type CommentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   replyText?: boolean
   assigneeId?: boolean
   repliedAt?: boolean
+  customerId?: boolean
   createdAt?: boolean
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
   assignee?: boolean | Prisma.Comment$assigneeArgs<ExtArgs>
@@ -860,10 +898,11 @@ export type CommentSelectScalar = {
   replyText?: boolean
   assigneeId?: boolean
   repliedAt?: boolean
+  customerId?: boolean
   createdAt?: boolean
 }
 
-export type CommentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "accountId" | "author" | "authorAvatar" | "text" | "type" | "sentiment" | "replied" | "replyText" | "assigneeId" | "repliedAt" | "createdAt", ExtArgs["result"]["comment"]>
+export type CommentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "accountId" | "author" | "authorAvatar" | "text" | "type" | "sentiment" | "replied" | "replyText" | "assigneeId" | "repliedAt" | "customerId" | "createdAt", ExtArgs["result"]["comment"]>
 export type CommentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
   assignee?: boolean | Prisma.Comment$assigneeArgs<ExtArgs>
@@ -895,6 +934,7 @@ export type $CommentPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     replyText: string | null
     assigneeId: string | null
     repliedAt: Date | null
+    customerId: string | null
     createdAt: Date
   }, ExtArgs["result"]["comment"]>
   composites: {}
@@ -1332,6 +1372,7 @@ export interface CommentFieldRefs {
   readonly replyText: Prisma.FieldRef<"Comment", 'String'>
   readonly assigneeId: Prisma.FieldRef<"Comment", 'String'>
   readonly repliedAt: Prisma.FieldRef<"Comment", 'DateTime'>
+  readonly customerId: Prisma.FieldRef<"Comment", 'String'>
   readonly createdAt: Prisma.FieldRef<"Comment", 'DateTime'>
 }
     

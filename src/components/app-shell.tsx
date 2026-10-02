@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
@@ -9,10 +10,7 @@ import { SectionHeader, Pill } from "@/components/glass/dense-ui";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import { DashboardView } from "@/components/views/dashboard";
-import { ComposerView } from "@/components/views/composer";
 import { CalendarView } from "@/components/views/calendar";
-import { AnalyticsView } from "@/components/views/analytics";
-import { InboxView } from "@/components/views/inbox";
 import { AccountsView } from "@/components/views/accounts";
 import { TeamView } from "@/components/views/team";
 import { SettingsView } from "@/components/views/settings";
@@ -21,23 +19,16 @@ import { MediaLibraryView } from "@/components/views/media-library";
 import { ListeningView } from "@/components/views/listening";
 import { HashtagsView } from "@/components/views/hashtags";
 import { CompetitorsView } from "@/components/views/competitors";
-import { ReportsView } from "@/components/views/reports";
-import { LinkBioView } from "@/components/views/link-bio";
-import { MailView } from "@/components/views/mail";
 import { WhatsAppView } from "@/components/views/whatsapp";
 import { ChatView } from "@/components/views/chat";
 import { TasksView } from "@/components/views/tasks";
-import { AdminPanelView } from "@/components/views/admin-panel";
 import { OwnerView } from "@/components/views/owner";
 import { TeamPerformanceView } from "@/components/views/team-performance";
 import { AIAssistantPanel } from "@/components/ai-assistant";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { OrganizationView } from "@/components/views/organization";
-import { UTMBuilderView } from "@/components/views/utm-builder";
 import { ApprovalsView } from "@/components/views/approvals";
-import { InfluencersView } from "@/components/views/influencers";
 import { AccountSafetyView } from "@/components/views/account-safety";
-import { VPNView } from "@/components/views/vpn";
 import {
   LayoutDashboard, PenSquare, Inbox as InboxIcon, BarChart3, MoreHorizontal,
   CalendarDays, MessageCircle, ListTodo, AtSign,
@@ -46,6 +37,53 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlatformBrandIcon } from "@/components/brand-icons";
+
+// === Heavy views — code-split with next/dynamic to shrink the initial bundle.
+// Each chunk loads on demand when the user navigates to that view.
+const viewLoading = () => (
+  <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>
+);
+
+const ReportsView = dynamic(
+  () => import("@/components/views/reports").then((m) => ({ default: m.ReportsView })),
+  { ssr: false, loading: viewLoading },
+);
+const ComposerView = dynamic(
+  () => import("@/components/views/composer").then((m) => ({ default: m.ComposerView })),
+  { ssr: false, loading: viewLoading },
+);
+const AnalyticsView = dynamic(
+  () => import("@/components/views/analytics").then((m) => ({ default: m.AnalyticsView })),
+  { ssr: false, loading: viewLoading },
+);
+const AdminPanelView = dynamic(
+  () => import("@/components/views/admin-panel").then((m) => ({ default: m.AdminPanelView })),
+  { ssr: false, loading: viewLoading },
+);
+const VPNView = dynamic(
+  () => import("@/components/views/vpn").then((m) => ({ default: m.VPNView })),
+  { ssr: false, loading: viewLoading },
+);
+const InboxView = dynamic(
+  () => import("@/components/views/inbox").then((m) => ({ default: m.InboxView })),
+  { ssr: false, loading: viewLoading },
+);
+const MailView = dynamic(
+  () => import("@/components/views/mail").then((m) => ({ default: m.MailView })),
+  { ssr: false, loading: viewLoading },
+);
+const InfluencersView = dynamic(
+  () => import("@/components/views/influencers").then((m) => ({ default: m.InfluencersView })),
+  { ssr: false, loading: viewLoading },
+);
+const LinkBioView = dynamic(
+  () => import("@/components/views/link-bio").then((m) => ({ default: m.LinkBioView })),
+  { ssr: false, loading: viewLoading },
+);
+const UTMBuilderView = dynamic(
+  () => import("@/components/views/utm-builder").then((m) => ({ default: m.UTMBuilderView })),
+  { ssr: false, loading: viewLoading },
+);
 
 // === Mobile bottom tab bar items — role-based ===
 // Editors: Home, Inbox, Compose, Calendar, More
@@ -175,6 +213,12 @@ export function AppShell() {
 
   return (
     <div className="relative flex min-h-screen flex-col">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:shadow"
+      >
+        Skip to content
+      </a>
       <RetinaBg />
       <div className="flex flex-1">
         {/* Desktop sidebar */}
@@ -195,7 +239,7 @@ export function AppShell() {
         {/* Main content area */}
         <div className="flex min-w-0 flex-1 flex-col lg:ml-[272px]">
           <AppHeader onMenu={() => setMobileOpen(true)} />
-          <main ref={mainRef} className="scroll-liquid flex-1 overflow-y-auto overflow-x-hidden">
+          <main id="main" ref={mainRef} className="scroll-liquid flex-1 overflow-y-auto overflow-x-hidden">
             <div
               key={view}
               className="animate-ios-fade-scale mx-auto w-full max-w-[1400px] px-3 pt-3 pb-28 sm:px-6 sm:pt-4 lg:px-8 lg:pb-8 mobile-content"

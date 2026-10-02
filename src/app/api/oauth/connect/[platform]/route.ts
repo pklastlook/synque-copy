@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { randomBytes, createHash } from "node:crypto";
+import { signOAuthState } from "@/lib/oauth-state";
 
 export const dynamic = "force-dynamic";
 
@@ -105,14 +106,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
   const redirectUri = `${protocol}://${host}/api/oauth/callback/${platform}`;
 
-  // Build the OAuth authorize URL
-  const state = Buffer.from(JSON.stringify({ userId, platform })).toString("base64url");
+  // Build the OAuth authorize URL.
+  // State is HMAC-SHA256 signed with JWT_SECRET to prevent CSRF / forgery.
   const authUrl = new URL(config.authUrl);
   authUrl.searchParams.set("client_id", cred.clientId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("state", state);
   authUrl.searchParams.set("scope", config.scopes.join(" "));
+
+  // Default state (no PKCE)
+  let state = signOAuthState({ userId, platform });
 
   // For Twitter OAuth 2.0, need PKCE code_challenge (S256 — not plain).
   if (platform === "twitter") {
@@ -120,9 +123,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     const codeChallenge = genCodeChallenge(codeVerifier);
     authUrl.searchParams.set("code_challenge", codeChallenge);
     authUrl.searchParams.set("code_challenge_method", "S256");
-    const stateData = { userId, platform, cv: codeVerifier };
-    const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString("base64url");
-    authUrl.searchParams.set("state", stateEncoded);
+    state = signOAuthState({ userId, platform, cv: codeVerifier });
   }
 
   // TikTok OAuth 2.0 with PKCE
@@ -131,10 +132,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     const codeChallenge = genCodeChallenge(codeVerifier);
     authUrl.searchParams.set("code_challenge", codeChallenge);
     authUrl.searchParams.set("code_challenge_method", "S256");
-    const stateData = { userId, platform, cv: codeVerifier };
-    const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString("base64url");
-    authUrl.searchParams.set("state", stateEncoded);
+    state = signOAuthState({ userId, platform, cv: codeVerifier });
   }
+
+  authUrl.searchParams.set("state", state);
 
   // YouTube/Google OAuth 2.0 — uses access_type=offline for refresh token
   if (platform === "youtube") {

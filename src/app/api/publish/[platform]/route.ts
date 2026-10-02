@@ -9,9 +9,14 @@ export const dynamic = "force-dynamic";
  * Internal API key for scheduler → app communication.
  * The scheduler mini-service includes this header to bypass JWT auth
  * so it can publish scheduled posts without a user session.
- * Set SCHEDULER_API_KEY in .env to the same value on both the app + scheduler.
+ * Must be set in .env — there is NO fallback. The route will throw
+ * at module load if the env var is missing, so misconfigured deploys
+ * fail loudly instead of falling back to a known public key.
  */
-const SCHEDULER_API_KEY = process.env.SCHEDULER_API_KEY || "REDACTED";
+const SCHEDULER_API_KEY = process.env.SCHEDULER_API_KEY;
+if (!SCHEDULER_API_KEY) {
+  throw new Error("SCHEDULER_API_KEY must be set. Generate one with: openssl rand -hex 32");
+}
 
 /**
  * POST /api/publish/[platform]

@@ -1,15 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { requireAuth, requireRole } from "@/lib/auth-guard";
+import { requireAuth, requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
+
+// Hierarchy used to guard against self-escalation in PATCH.
+// Mirrors the ROLE_HIERARCHY kept inside src/lib/auth-guard.ts.
+const ROLE_LEVELS: Record<string, number> = {
+  admin: 5,
+  manager: 4,
+  editor: 3,
+  member: 2,
+  viewer: 1,
+};
 
 export async function GET(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
 
-  const users = await db.user.findMany({ orderBy: { createdAt: "asc" } });
+  const scope = getTenantScope(user!);
+  // Super-admins see every user across tenants. Everyone else only sees
+  // users that belong to their own customer (tenant).
+  const users = await db.user.findMany({
+    where: tenantWhere(scope) as { customerId?: string },
+    orderBy: { createdAt: "asc" },
+  });
   return NextResponse.json(
     users.map((u) => ({
       id: u.id,
@@ -43,10 +59,11 @@ export async function PATCH(req: NextRequest) {
   const { id, name, email, role, title, department, color, avatar, gender, birthDate, phone, bio, timezone, language, permissions, status, password } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  // Only admins/managers can change someone else's role/status
-  // Users can edit their own profile (name, email, title, etc.)
+  // Only admins/managers can change someone else's profile fields beyond
+  // their own. Users can always edit their own profile (name, email, etc.).
   const isSelf = user!.userId === id;
-  const canManageOthers = user!.role === "admin" || user!.role === "manager";
+  const isAdmin = user!.role === "admin";
+  const canManageOthers = isAdmin || user!.role === "manager";
 
   if (!isSelf && !canManageOthers) {
     return NextResponse.json({ error: "You can only edit your own profile" }, { status: 403 });
@@ -66,10 +83,54 @@ export async function PATCH(req: NextRequest) {
   if (timezone !== undefined) data.timezone = timezone;
   if (language !== undefined) data.language = language;
 
-  // Role/status changes require manager+ (even for self — can't promote yourself)
-  if (role !== undefined && canManageOthers) data.role = role;
-  if (status !== undefined && canManageOthers) data.status = status;
-  if (permissions !== undefined && canManageOthers) data.permissions = JSON.stringify(permissions);
+  // ---- Privilege assignments (SEC-6 fix) ----
+  // role & permissions are admin-only — managers MUST NOT be able to set
+  // these on other users (prevents privilege escalation via the API).
+  if (role !== undefined) {
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: "Only admins can change user roles" },
+        { status: 403 }
+      );
+    }
+    // Prevent self-escalation: even an admin cannot raise their own role
+    // above its current level (e.g. cannot set themselves to a hypothetical
+    // higher tier). Admin is the ceiling, so in practice this blocks
+    // tampering attempts and any future role above admin.
+    if (isSelf) {
+      const currentLevel = ROLE_LEVELS[user!.role] ?? 0;
+      const newLevel = ROLE_LEVELS[String(role)] ?? 0;
+      if (newLevel > currentLevel) {
+        return NextResponse.json(
+          { error: "You cannot escalate your own role" },
+          { status: 403 }
+        );
+      }
+    }
+    data.role = role;
+  }
+
+  if (permissions !== undefined) {
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: "Only admins can change user permissions" },
+        { status: 403 }
+      );
+    }
+    data.permissions = JSON.stringify(permissions);
+  }
+
+  // status can be changed by admins or managers (managers can suspend/reactivate
+  // a teammate, but cannot change roles/permissions).
+  if (status !== undefined) {
+    if (!canManageOthers) {
+      return NextResponse.json(
+        { error: "Only admins or managers can change user status" },
+        { status: 403 }
+      );
+    }
+    data.status = status;
+  }
 
   // Optional password change
   if (typeof password === "string" && password.length >= 8) {

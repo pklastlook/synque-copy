@@ -11,7 +11,10 @@
 
 import jwt from "jsonwebtoken";
 
-const SECRET = process.env.JWT_SECRET || "REDACTED";
+const SECRET = process.env.JWT_SECRET;
+if (!SECRET) {
+  throw new Error("JWT_SECRET environment variable must be set. Generate one with: openssl rand -hex 32");
+}
 const TEMP_TOKEN_TTL_SECONDS = 5 * 60; // 5 minutes
 
 const TEMP_TOKEN_TYPE = "2fa-pending";

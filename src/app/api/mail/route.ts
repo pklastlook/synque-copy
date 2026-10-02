@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { encrypt } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
       smtpPort: smtpPort ?? 465,
       smtpSecure: smtpSecure ?? true,
       username,
-      passwordEnc: "enc:" + Buffer.from(password).toString("base64"),
+      passwordEnc: encrypt(password),
       fromName: fromName ?? name,
       fromEmail: fromEmail ?? username,
       status: "pending",

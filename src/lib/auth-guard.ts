@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { db } from "@/lib/db";
 
-const SECRET = process.env.JWT_SECRET || "REDACTED";
+const SECRET = process.env.JWT_SECRET;
+if (!SECRET) {
+  throw new Error("JWT_SECRET environment variable must be set. Generate one with: openssl rand -hex 32");
+}
 
 export type Role = "admin" | "manager" | "editor" | "member" | "viewer";
 

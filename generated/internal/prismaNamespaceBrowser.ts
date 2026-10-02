@@ -259,6 +259,7 @@ export const CommentScalarFieldEnum = {
   replyText: 'replyText',
   assigneeId: 'assigneeId',
   repliedAt: 'repliedAt',
+  customerId: 'customerId',
   createdAt: 'createdAt'
 } as const
 
@@ -455,6 +456,7 @@ export const ReportScalarFieldEnum = {
   config: 'config',
   schedule: 'schedule',
   createdBy: 'createdBy',
+  customerId: 'customerId',
   lastGenerated: 'lastGenerated',
   createdAt: 'createdAt'
 } as const
@@ -668,6 +670,7 @@ export const BankAccountScalarFieldEnum = {
   swift: 'swift',
   currency: 'currency',
   isDefault: 'isDefault',
+  customerId: 'customerId',
   createdAt: 'createdAt'
 } as const
 

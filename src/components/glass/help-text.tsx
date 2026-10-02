@@ -88,19 +88,30 @@ export function HelpText({
 
 /**
  * HelpTooltip — a small inline tooltip for field-level help.
- * Hover to reveal. No dismissal needed.
+ * Hover OR focus to reveal. Keyboard accessible via focus/blur.
  */
 export function HelpTooltip({ text }: { text: string }) {
   const [show, setShow] = React.useState(false);
+  const tipId = React.useId();
   return (
-    <span
-      className="relative inline-flex"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
-      <Info className="h-3 w-3 cursor-help text-muted-foreground/60" />
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        className="cursor-help align-middle leading-none"
+        aria-describedby={tipId}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+      >
+        <Info className="h-3 w-3 text-muted-foreground/60" />
+      </button>
       {show && (
-        <span className="absolute bottom-full left-1/2 z-50 mb-1.5 w-48 -translate-x-1/2 rounded-lg bg-popover px-2.5 py-1.5 text-[11px] leading-snug text-popover-foreground shadow-lg ring-1 ring-border">
+        <span
+          id={tipId}
+          role="tooltip"
+          className="absolute bottom-full left-1/2 z-50 mb-1.5 w-48 -translate-x-1/2 rounded-lg bg-popover px-2.5 py-1.5 text-[11px] leading-snug text-popover-foreground shadow-lg ring-1 ring-border"
+        >
           {text}
         </span>
       )}

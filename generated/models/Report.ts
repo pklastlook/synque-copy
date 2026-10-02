@@ -32,6 +32,7 @@ export type ReportMinAggregateOutputType = {
   config: string | null
   schedule: string | null
   createdBy: string | null
+  customerId: string | null
   lastGenerated: Date | null
   createdAt: Date | null
 }
@@ -44,6 +45,7 @@ export type ReportMaxAggregateOutputType = {
   config: string | null
   schedule: string | null
   createdBy: string | null
+  customerId: string | null
   lastGenerated: Date | null
   createdAt: Date | null
 }
@@ -56,6 +58,7 @@ export type ReportCountAggregateOutputType = {
   config: number
   schedule: number
   createdBy: number
+  customerId: number
   lastGenerated: number
   createdAt: number
   _all: number
@@ -70,6 +73,7 @@ export type ReportMinAggregateInputType = {
   config?: true
   schedule?: true
   createdBy?: true
+  customerId?: true
   lastGenerated?: true
   createdAt?: true
 }
@@ -82,6 +86,7 @@ export type ReportMaxAggregateInputType = {
   config?: true
   schedule?: true
   createdBy?: true
+  customerId?: true
   lastGenerated?: true
   createdAt?: true
 }
@@ -94,6 +99,7 @@ export type ReportCountAggregateInputType = {
   config?: true
   schedule?: true
   createdBy?: true
+  customerId?: true
   lastGenerated?: true
   createdAt?: true
   _all?: true
@@ -179,6 +185,7 @@ export type ReportGroupByOutputType = {
   config: string
   schedule: string | null
   createdBy: string | null
+  customerId: string | null
   lastGenerated: Date | null
   createdAt: Date
   _count: ReportCountAggregateOutputType | null
@@ -212,6 +219,7 @@ export type ReportWhereInput = {
   config?: Prisma.StringFilter<"Report"> | string
   schedule?: Prisma.StringNullableFilter<"Report"> | string | null
   createdBy?: Prisma.StringNullableFilter<"Report"> | string | null
+  customerId?: Prisma.StringNullableFilter<"Report"> | string | null
   lastGenerated?: Prisma.DateTimeNullableFilter<"Report"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Report"> | Date | string
 }
@@ -224,6 +232,7 @@ export type ReportOrderByWithRelationInput = {
   config?: Prisma.SortOrder
   schedule?: Prisma.SortOrderInput | Prisma.SortOrder
   createdBy?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastGenerated?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -239,6 +248,7 @@ export type ReportWhereUniqueInput = Prisma.AtLeast<{
   config?: Prisma.StringFilter<"Report"> | string
   schedule?: Prisma.StringNullableFilter<"Report"> | string | null
   createdBy?: Prisma.StringNullableFilter<"Report"> | string | null
+  customerId?: Prisma.StringNullableFilter<"Report"> | string | null
   lastGenerated?: Prisma.DateTimeNullableFilter<"Report"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Report"> | Date | string
 }, "id">
@@ -251,6 +261,7 @@ export type ReportOrderByWithAggregationInput = {
   config?: Prisma.SortOrder
   schedule?: Prisma.SortOrderInput | Prisma.SortOrder
   createdBy?: Prisma.SortOrderInput | Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastGenerated?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.ReportCountOrderByAggregateInput
@@ -269,6 +280,7 @@ export type ReportScalarWhereWithAggregatesInput = {
   config?: Prisma.StringWithAggregatesFilter<"Report"> | string
   schedule?: Prisma.StringNullableWithAggregatesFilter<"Report"> | string | null
   createdBy?: Prisma.StringNullableWithAggregatesFilter<"Report"> | string | null
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Report"> | string | null
   lastGenerated?: Prisma.DateTimeNullableWithAggregatesFilter<"Report"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Report"> | Date | string
 }
@@ -281,6 +293,7 @@ export type ReportCreateInput = {
   config: string
   schedule?: string | null
   createdBy?: string | null
+  customerId?: string | null
   lastGenerated?: Date | string | null
   createdAt?: Date | string
 }
@@ -293,6 +306,7 @@ export type ReportUncheckedCreateInput = {
   config: string
   schedule?: string | null
   createdBy?: string | null
+  customerId?: string | null
   lastGenerated?: Date | string | null
   createdAt?: Date | string
 }
@@ -305,6 +319,7 @@ export type ReportUpdateInput = {
   config?: Prisma.StringFieldUpdateOperationsInput | string
   schedule?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastGenerated?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -317,6 +332,7 @@ export type ReportUncheckedUpdateInput = {
   config?: Prisma.StringFieldUpdateOperationsInput | string
   schedule?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastGenerated?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -329,6 +345,7 @@ export type ReportCreateManyInput = {
   config: string
   schedule?: string | null
   createdBy?: string | null
+  customerId?: string | null
   lastGenerated?: Date | string | null
   createdAt?: Date | string
 }
@@ -341,6 +358,7 @@ export type ReportUpdateManyMutationInput = {
   config?: Prisma.StringFieldUpdateOperationsInput | string
   schedule?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastGenerated?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -353,6 +371,7 @@ export type ReportUncheckedUpdateManyInput = {
   config?: Prisma.StringFieldUpdateOperationsInput | string
   schedule?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastGenerated?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -365,6 +384,7 @@ export type ReportCountOrderByAggregateInput = {
   config?: Prisma.SortOrder
   schedule?: Prisma.SortOrder
   createdBy?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   lastGenerated?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -377,6 +397,7 @@ export type ReportMaxOrderByAggregateInput = {
   config?: Prisma.SortOrder
   schedule?: Prisma.SortOrder
   createdBy?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   lastGenerated?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -389,6 +410,7 @@ export type ReportMinOrderByAggregateInput = {
   config?: Prisma.SortOrder
   schedule?: Prisma.SortOrder
   createdBy?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   lastGenerated?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -403,6 +425,7 @@ export type ReportSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   config?: boolean
   schedule?: boolean
   createdBy?: boolean
+  customerId?: boolean
   lastGenerated?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["report"]>
@@ -415,6 +438,7 @@ export type ReportSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   config?: boolean
   schedule?: boolean
   createdBy?: boolean
+  customerId?: boolean
   lastGenerated?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["report"]>
@@ -427,6 +451,7 @@ export type ReportSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   config?: boolean
   schedule?: boolean
   createdBy?: boolean
+  customerId?: boolean
   lastGenerated?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["report"]>
@@ -439,11 +464,12 @@ export type ReportSelectScalar = {
   config?: boolean
   schedule?: boolean
   createdBy?: boolean
+  customerId?: boolean
   lastGenerated?: boolean
   createdAt?: boolean
 }
 
-export type ReportOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "type" | "description" | "config" | "schedule" | "createdBy" | "lastGenerated" | "createdAt", ExtArgs["result"]["report"]>
+export type ReportOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "type" | "description" | "config" | "schedule" | "createdBy" | "customerId" | "lastGenerated" | "createdAt", ExtArgs["result"]["report"]>
 
 export type $ReportPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Report"
@@ -456,6 +482,7 @@ export type $ReportPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     config: string
     schedule: string | null
     createdBy: string | null
+    customerId: string | null
     lastGenerated: Date | null
     createdAt: Date
   }, ExtArgs["result"]["report"]>
@@ -888,6 +915,7 @@ export interface ReportFieldRefs {
   readonly config: Prisma.FieldRef<"Report", 'String'>
   readonly schedule: Prisma.FieldRef<"Report", 'String'>
   readonly createdBy: Prisma.FieldRef<"Report", 'String'>
+  readonly customerId: Prisma.FieldRef<"Report", 'String'>
   readonly lastGenerated: Prisma.FieldRef<"Report", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Report", 'DateTime'>
 }

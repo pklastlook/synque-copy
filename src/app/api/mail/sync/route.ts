@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-guard";
+import { decrypt } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
         host: server.imapHost,
         port: server.imapPort,
         secure: server.imapSecure,
-        auth: { user: server.username, pass: Buffer.from(server.passwordEnc.replace("enc:", ""), "base64").toString("utf-8") },
+        auth: { user: server.username, pass: decrypt(server.passwordEnc) },
         logger: false,
       });
 

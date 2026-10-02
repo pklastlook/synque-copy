@@ -115,5 +115,7 @@ export async function GET(req: NextRequest) {
   // audience growth (followers over time)
   const followerSeries = series.map((s) => ({ date: s.date, followers: s.followers }));
 
-  return NextResponse.json({ series, perAccount, topContent, followerSeries });
+  const res = NextResponse.json({ series, perAccount, topContent, followerSeries });
+  res.headers.set("Cache-Control", "private, max-age=15, stale-while-revalidate=60");
+  return res;
 }

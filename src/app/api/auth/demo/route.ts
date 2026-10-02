@@ -100,19 +100,28 @@ async function findDemoUser(): Promise<DemoUser | null> {
  * This endpoint is idempotent: calling it repeatedly just re-issues a token.
  */
 export async function POST(req: NextRequest) {
+  // Gate behind non-production — demo endpoint should not be accessible in prod
+  if (process.env.NODE_ENV === "production" && process.env.ENABLE_DEMO !== "true") {
+    return NextResponse.json(
+      { error: "Demo endpoint is disabled in production." },
+      { status: 403 }
+    );
+  }
+
   try {
     const hashedPassword = await bcrypt.hash(DEMO_PASSWORD, 12);
 
     let user: DemoUser | null = await findDemoUser();
 
     if (!user) {
-      // Create the demo user with admin role so they can see all data
+      // Create the demo user with viewer role (NOT admin) + a real customerId
+      // so they're tenant-scoped, not super-admin.
       user = await db.user.create({
         data: {
           name: "Alex Rivera",
           email: DEMO_EMAIL,
           password: hashedPassword,
-          role: "admin",
+          role: "viewer",
           title: "Product Demo",
           department: "Demonstration",
           color: "blue",
@@ -123,15 +132,17 @@ export async function POST(req: NextRequest) {
         select: DEMO_SELECT,
       });
     } else {
-      // Refresh password to make sure the demo user is always
-      // in a known-good state (in case someone changed the password)
+      // Re-issue token but DON'T reactivate if an admin suspended the demo user
+      if (user.status === "suspended") {
+        return NextResponse.json(
+          { error: "Demo account has been suspended." },
+          { status: 403 }
+        );
+      }
+      // Only update lastActive — don't reset password/status
       user = await db.user.update({
         where: { id: user.id },
-        data: {
-          password: hashedPassword,
-          status: "active",
-          lastActive: new Date(),
-        },
+        data: { lastActive: new Date() },
         select: DEMO_SELECT,
       });
     }

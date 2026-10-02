@@ -7,6 +7,7 @@
 
 import { db } from "@/lib/db";
 import { randomBytes } from "node:crypto";
+import { decrypt } from "@/lib/crypto";
 
 export interface SendEmailOpts {
   to: string;
@@ -27,7 +28,7 @@ export async function sendEmail(opts: SendEmailOpts): Promise<{ sent: boolean }>
       secure: mailServer.smtpSecure,
       auth: {
         user: mailServer.username,
-        pass: Buffer.from(mailServer.passwordEnc.replace("enc:", ""), "base64").toString("utf-8"),
+        pass: decrypt(mailServer.passwordEnc),
       },
     });
 

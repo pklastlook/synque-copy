@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     where,
     include: { owner: true, health: true, protection: true },
     orderBy: { followers: "desc" },
+    take: 50,
   });
 
   const accountIds = new Set(accounts.map((a) => a.id));

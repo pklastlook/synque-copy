@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const where = tenantWhere(scope, extraWhere);
 
   const [tasks, users] = await Promise.all([
-    db.task.findMany({ where, orderBy: { createdAt: "desc" } }),
+    db.task.findMany({ where, orderBy: { createdAt: "desc" }, take: 50 }),
     db.user.findMany({
       where: tenantWhere(scope),
       select: { id: true, name: true, color: true, avatar: true },

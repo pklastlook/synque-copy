@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
       variants: { include: { account: { include: { owner: true } } } },
     },
     orderBy: { createdAt: "desc" },
+    take: 50,
   });
 
   return NextResponse.json(
