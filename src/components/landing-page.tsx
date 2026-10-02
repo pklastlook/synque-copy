@@ -46,6 +46,7 @@ import { useTheme } from "next-themes";
 import { useAuth } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 import { Logo, LogoWordmark } from "@/components/glass/logo";
+import { BiometricAuth } from "@/components/biometric-auth";
 import {
   Dialog,
   DialogContent,
@@ -3137,13 +3138,63 @@ function LoginAuroraBg() {
 }
 
 function LoginScreen({ onBack }: { onBack: () => void }) {
-  const { login, loginAsDemo } = useAuth();
+  const { login, loginAsDemo, isAuthenticated } = useAuth();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPw, setShowPw] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [demoLoading, setDemoLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [autoBiometricAttempted, setAutoBiometricAttempted] = React.useState(false);
+
+  // Auto-prompt biometric on page load if supported
+  React.useEffect(() => {
+    if (typeof window === "undefined" || autoBiometricAttempted) return;
+    if (
+      window.PublicKeyCredential &&
+      typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function"
+    ) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(async (available) => {
+          if (available) {
+            try {
+              const optsRes = await fetch("/api/webauthn/authenticate/options", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+              });
+              if (!optsRes.ok) return;
+              const options = await optsRes.json();
+              const { startAuthentication } = await import("@simplewebauthn/browser");
+              const authResp = await startAuthentication({ optionsJSON: options });
+              const verifyRes = await fetch("/api/webauthn/authenticate/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ response: authResp }),
+              });
+              if (verifyRes.ok) {
+                const result = await verifyRes.json();
+                if (result.verified && result.token) {
+                  const existing = JSON.parse(localStorage.getItem("socialflow-auth") || "{}");
+                  existing.state = existing.state || {};
+                  existing.state.token = result.token;
+                  existing.state.user = result.user;
+                  existing.state.isAuthenticated = true;
+                  existing.version = 0;
+                  localStorage.setItem("socialflow-auth", JSON.stringify(existing));
+                  // Force reload to pick up auth state
+                  window.location.href = "/";
+                }
+              }
+            } catch {
+              // User cancelled or no credential
+            }
+            setAutoBiometricAttempted(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [autoBiometricAttempted]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3223,14 +3274,9 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
 
           {/* Right — login form (no role buttons) */}
           <div className="glass crystal-in login-form-container flex flex-col justify-center p-5 sm:p-8 lg:p-10">
-            {/* Splash logo with ripple */}
+            {/* Logo — text only, no tile */}
             <div className="mb-6 flex justify-center">
-              <div className="relative">
-                <div className="login-splash-ripple" />
-                <div className="login-splash-logo grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[var(--primary)]/15 to-[var(--gold)]/15 shadow-lg">
-                  <Logo size={40} withTile={false} />
-                </div>
-              </div>
+              <LogoWordmark size="text-xl" />
             </div>
 
             <button onClick={onBack} className="mb-4 -ml-2 flex min-h-11 items-center gap-1.5 px-2 text-xs text-muted-foreground transition hover:text-foreground">
@@ -3299,6 +3345,24 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               </button>
             </form>
 
+            {/* Divider */}
+            <div className="my-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/50">or</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            {/* Biometric authentication — Face ID / Fingerprint / Touch ID */}
+            <div className="flex flex-col items-center gap-2">
+              <BiometricAuth
+                mode="login"
+                email={email.trim() || undefined}
+                onBiometricSuccess={() => {
+                  window.location.href = "/";
+                }}
+              />
+            </div>
+
             {/* Demo credentials — one-click demo login */}
             <button
               type="button"
@@ -3317,13 +3381,6 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               </div>
               <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
             </button>
-
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              New to SYNQUE?{" "}
-              <button onClick={onBack} className="inline-flex min-h-11 items-center px-2 font-medium text-[var(--primary)] hover:underline">
-                Sign up
-              </button>
-            </p>
           </div>
         </div>
       </div>
