@@ -68,10 +68,13 @@ export default function LoginPage() {
             {/* Ambient glow inside the panel */}
             <div className="pointer-events-none absolute -left-20 top-1/3 h-72 w-72 rounded-full bg-primary/8 blur-[80px]" />
 
-            {/* Logo */}
+            {/* Logo — static, no animation, square tile */}
             <div className="relative">
-              <Link href="/" className="inline-block transition hover:scale-[1.02] duration-300">
-                <LogoWordmark size="text-lg" logoSize={30} />
+              <Link href="/" className="inline-block">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-lg">
+                  <span className="text-lg font-extrabold italic tracking-tight text-primary-foreground">S</span>
+                </div>
+                <LogoWordmark size="text-lg" logoSize={30} static className="mt-3" />
               </Link>
             </div>
 
@@ -123,6 +126,14 @@ export default function LoginPage() {
 
           {/* === RIGHT — Login Form === */}
           <div className="flex flex-col justify-center bg-card px-8 py-10 sm:px-12">
+
+            {/* Mobile logo — static square tile (hidden on desktop, left panel has it) */}
+            <div className="mb-6 flex flex-col items-center lg:hidden">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-lg">
+                <span className="text-lg font-extrabold italic tracking-tight text-primary-foreground">S</span>
+              </div>
+              <LogoWordmark size="text-lg" logoSize={30} static className="mt-2" />
+            </div>
 
             {/* Back link */}
             <Link href="/" className="mb-8 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">

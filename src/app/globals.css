@@ -2294,6 +2294,25 @@ html { scroll-behavior: smooth; }
   letter-spacing: -0.04em;
 }
 
+/* ===== Logo STATIC variant — no animation, fixed gradient ===== */
+.logo-static {
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.03em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  cursor: default;
+}
+.logo-static .logo-syn {
+  color: var(--foreground);
+}
+.logo-static .logo-que {
+  background: linear-gradient(135deg, var(--primary), var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
 /* ============================================================================
    REPORT PREVIEW — on-screen mirror of the @media print .report-print-root
    styles. Used by the Report Settings live preview + full-page preview dialog

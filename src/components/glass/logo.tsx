@@ -70,17 +70,23 @@ export function LogoWordmark({
   size = "text-base",
   showLogo = true,
   logoSize = 28,
+  static: isStatic = false,
 }: {
   className?: string;
   size?: string;
   showLogo?: boolean;
   logoSize?: number;
+  static?: boolean;
 }) {
   return (
     <div className={cn("flex flex-col items-center gap-0.5 text-center", className)}>
       {showLogo && (
         <div
-          className={cn("flex items-center justify-center leading-none", size, "logo-creative")}
+          className={cn(
+            "flex items-center justify-center leading-none",
+            size,
+            isStatic ? "logo-static" : "logo-creative"
+          )}
           aria-label="SYNQUE"
         >
           <span className="logo-syn">SYN</span>

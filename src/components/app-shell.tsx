@@ -149,6 +149,17 @@ export function AppShell() {
     }
   }, [user, view, setView]);
 
+  // Scroll to top whenever the view changes — so each module opens from the
+  // top, not at whatever scroll position the previous view left the page at.
+  React.useEffect(() => {
+    // The main element may be the scroller OR the window may be the scroller
+    // (depends on layout). Scroll both to be safe.
+    if (mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [view]);
+
   // Determine if bottom tab bar should show on mobile
   const showMobileTabs = !["owner", "settings", "organization"].includes(view);
 
@@ -183,7 +194,7 @@ export function AppShell() {
         {/* Main content area */}
         <div className="flex min-w-0 flex-1 flex-col lg:ml-[272px]">
           <AppHeader onMenu={() => setMobileOpen(true)} />
-          <main className="scroll-liquid flex-1 overflow-y-auto overflow-x-hidden">
+          <main ref={mainRef} className="scroll-liquid flex-1 overflow-y-auto overflow-x-hidden">
             <div
               key={view}
               className="animate-ios-fade-scale mx-auto w-full max-w-[1400px] px-3 pt-3 pb-28 sm:px-6 sm:pt-4 lg:px-8 lg:pb-8 mobile-content"

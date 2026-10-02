@@ -23,7 +23,7 @@ export default function ActivatePage() {
           </p>
           <div className="mt-6 rounded-2xl border border-border/40 bg-muted/30 p-4 text-left">
             <div className="flex items-center gap-3">
-              <LogoWordmark size="text-base" logoSize={28} />
+              <LogoWordmark size="text-base" logoSize={28} static />
             </div>
             <p className="mt-3 text-sm font-medium">Sign in to get started</p>
             <p className="mt-1 text-xs text-muted-foreground">Use the email and password provided to you by your account manager.</p>
