@@ -17,6 +17,8 @@ export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
   const [demoLoading, setDemoLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [biometricSupported, setBiometricSupported] = React.useState(false);
+  const [autoBiometricAttempted, setAutoBiometricAttempted] = React.useState(false);
 
   // Redirect to home (which renders the AppShell) once authenticated.
   React.useEffect(() => {
@@ -24,6 +26,60 @@ export default function LoginPage() {
       router.replace("/");
     }
   }, [isAuthenticated, router]);
+
+  // Auto-prompt biometric on page load if supported
+  React.useEffect(() => {
+    if (typeof window === "undefined" || autoBiometricAttempted) return;
+    if (
+      window.PublicKeyCredential &&
+      typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function"
+    ) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(async (available) => {
+          setBiometricSupported(available);
+          if (available) {
+            // Try auto-authentication with discoverable credentials (no email needed)
+            try {
+              const optsRes = await fetch("/api/webauthn/authenticate/options", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+              });
+              if (!optsRes.ok) return;
+              const options = await optsRes.json();
+
+              const { startAuthentication } = await import("@simplewebauthn/browser");
+              const authResp = await startAuthentication({ optionsJSON: options });
+
+              const verifyRes = await fetch("/api/webauthn/authenticate/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ response: authResp }),
+              });
+
+              if (verifyRes.ok) {
+                const result = await verifyRes.json();
+                if (result.verified && result.token) {
+                  // Store the token
+                  const existing = JSON.parse(localStorage.getItem("socialflow-auth") || "{}");
+                  existing.state = existing.state || {};
+                  existing.state.token = result.token;
+                  existing.state.user = result.user;
+                  existing.state.isAuthenticated = true;
+                  existing.version = 0;
+                  localStorage.setItem("socialflow-auth", JSON.stringify(existing));
+                  router.replace("/");
+                }
+              }
+            } catch {
+              // User cancelled or no credential — that's fine, they can use password
+            }
+            setAutoBiometricAttempted(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [autoBiometricAttempted, router]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,11 +193,8 @@ export default function LoginPage() {
           {/* === RIGHT — Login Form === */}
           <div className="flex flex-col justify-center bg-card px-8 py-10 sm:px-12">
 
-            {/* Mobile logo — static square tile, enlarged + centered (hidden on desktop) */}
+            {/* Mobile logo — text only, no tile */}
             <div className="mb-8 flex flex-col items-center justify-center lg:hidden">
-              <div className="grid h-16 w-16 place-items-center rounded-none bg-gradient-to-br from-primary to-primary/70 shadow-lg">
-                <span className="text-2xl font-extrabold italic tracking-tight text-primary-foreground">S</span>
-              </div>
               <LogoWordmark size="text-xl" logoSize={36} static className="mt-3" />
             </div>
 
@@ -262,20 +315,6 @@ export default function LoginPage() {
               </button>
               <p className="mt-2 text-center text-[11px] text-muted-foreground">
                 Browse every module as a read-only viewer — no account needed.
-              </p>
-
-              {/* Trial CTA */}
-              <Link
-                href="/"
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-2.5 text-sm font-medium text-foreground transition-all hover:bg-muted/50 hover:scale-[1.01] active:scale-[0.99]"
-              >
-                <Sparkles className="h-4 w-4 text-primary" />
-                Start a 15-day free trial
-              </Link>
-
-              <p className="mt-6 text-center text-[12px] text-muted-foreground">
-                Don&apos;t have an account?{" "}
-                <Link href="/" className="font-medium text-primary hover:underline">Contact your admin</Link>
               </p>
             </div>
           </div>
