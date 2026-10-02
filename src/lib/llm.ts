@@ -214,8 +214,9 @@ class ZAIClient implements LLMClient {
 
 // ============================================================================
 // ZAI Direct Client — calls the ZAI API directly via fetch (no SDK needed).
-// Tries the Railway AI service as a proxy first (if AI_SERVICE_URL is set),
-// then falls back to calling the ZAI API directly.
+// On the sandbox (dev), uses the z-ai CLI as a fallback (it's installed and
+// works because it resolves internal-api.z.ai correctly).
+// On Vercel, tries the Railway AI service as a proxy first, then direct fetch.
 // ============================================================================
 
 class ZAIDirectClient implements LLMClient {
@@ -233,8 +234,7 @@ class ZAIDirectClient implements LLMClient {
   }
 
   async chat(messages: LLMMessage[]): Promise<string> {
-    // Strategy 1: Try the Railway AI service as a proxy (it has the ZAI
-    // credentials and may have better network connectivity)
+    // Strategy 1: Try the Railway AI service as a proxy (if AI_SERVICE_URL is set)
     if (this.proxyUrl) {
       try {
         const proxyRes = await fetch(`${this.proxyUrl}/chat`, {
@@ -243,6 +243,7 @@ class ZAIDirectClient implements LLMClient {
           body: JSON.stringify({
             messages: messages.map((m) => ({ role: m.role, content: m.content })),
           }),
+          signal: AbortSignal.timeout(15000),
         });
         if (proxyRes.ok) {
           const data = await proxyRes.json();
@@ -276,10 +277,17 @@ class ZAIDirectClient implements LLMClient {
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
           thinking: { type: "disabled" },
         }),
+        signal: AbortSignal.timeout(15000),
       });
     } catch (fetchErr) {
       console.error("[llm:zai-direct] direct fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
-      throw new Error(`ZAI fetch failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+      // Strategy 3: On the sandbox, try the z-ai CLI as a last resort
+      // (the CLI resolves internal-api.z.ai correctly via the system DNS)
+      try {
+        return await this.chatViaCli(messages);
+      } catch (cliErr) {
+        throw new Error(`ZAI fetch failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)} | CLI also failed: ${cliErr instanceof Error ? cliErr.message : String(cliErr)}`);
+      }
     }
 
     if (!res.ok) {
@@ -290,6 +298,34 @@ class ZAIDirectClient implements LLMClient {
 
     const data = await res.json();
     return data.choices?.[0]?.message?.content ?? "";
+  }
+
+  /**
+   * Fallback: use the z-ai CLI to call the ZAI API.
+   * Only works on the sandbox where the CLI is installed.
+   */
+  private async chatViaCli(messages: LLMMessage[]): Promise<string> {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execFileAsync = promisify(execFile);
+
+    // Build the prompt from messages — the CLI takes a single --prompt arg
+    // For multi-turn conversations, concatenate system + user messages
+    const systemMsg = messages.find((m) => m.role === "system")?.content || "";
+    const userMsg = messages.filter((m) => m.role === "user").map((m) => m.content).join("\n\n");
+
+    const args = ["chat", "--prompt", userMsg];
+    if (systemMsg) args.push("--system", systemMsg);
+
+    const { stdout } = await execFileAsync("z-ai", args, { timeout: 20000 });
+
+    // Parse the JSON output from the CLI
+    try {
+      const parsed = JSON.parse(stdout.trim());
+      return parsed.choices?.[0]?.message?.content ?? parsed.content ?? stdout.trim();
+    } catch {
+      return stdout.trim();
+    }
   }
 }
 
