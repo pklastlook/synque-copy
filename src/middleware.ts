@@ -33,6 +33,8 @@ const PUBLIC_ROUTES = [
   "/api/oauth/callback",
   "/api/whatsapp/webhook",
   "/api/linkbio",
+  // WebAuthn authenticate routes are public (login without password)
+  "/api/webauthn/authenticate",
 ];
 
 function isPublicRoute(pathname: string): boolean {
