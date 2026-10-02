@@ -151,6 +151,7 @@ export function AppShell() {
 
   // Scroll to top whenever the view changes — so each module opens from the
   // top, not at whatever scroll position the previous view left the page at.
+  const mainRef = React.useRef<HTMLElement>(null);
   React.useEffect(() => {
     // The main element may be the scroller OR the window may be the scroller
     // (depends on layout). Scroll both to be safe.

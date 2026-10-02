@@ -1,19 +1,28 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ShieldCheck, Check, Lock, Mail as MailIcon, Eye, EyeOff, Loader2, ShieldAlert, Sparkles, Zap, BarChart3, Play } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { LogoWordmark } from "@/components/glass/logo";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const { login, loginAsDemo } = useAuth();
+  const { login, loginAsDemo, isAuthenticated } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPw, setShowPw] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [demoLoading, setDemoLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+
+  // Redirect to home (which renders the AppShell) once authenticated.
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, router]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
