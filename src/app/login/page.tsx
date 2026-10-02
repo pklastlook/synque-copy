@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ShieldCheck, Check, Lock, Mail as MailIcon, Eye, EyeOff, Loader2, ShieldAlert, Sparkles, Zap, BarChart3, Play } from "lucide-react";
+import { ArrowRight, ShieldCheck, Check, Lock, Mail as MailIcon, Eye, EyeOff, Loader2, ShieldAlert, Sparkles, Zap, BarChart3, Play, Fingerprint } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { LogoWordmark } from "@/components/glass/logo";
+import { BiometricAuth } from "@/components/biometric-auth";
 import Link from "next/link";
 
 export default function LoginPage() {
@@ -221,6 +222,29 @@ export default function LoginPage() {
 
               {/* Divider */}
               <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/50">or</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              {/* Biometric authentication — Face ID / Fingerprint / Touch ID */}
+              <div className="flex flex-col items-center gap-3">
+                <BiometricAuth
+                  mode="login"
+                  email={email.trim() || undefined}
+                  onBiometricSuccess={() => {
+                    // Auth store is updated by the BiometricAuth component.
+                    // Redirect to the app.
+                    router.replace("/");
+                  }}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Use Face ID, Touch ID, or fingerprint to sign in instantly
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="my-4 flex items-center gap-3">
                 <div className="h-px flex-1 bg-border" />
                 <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/50">or</span>
                 <div className="h-px flex-1 bg-border" />

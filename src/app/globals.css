@@ -1414,6 +1414,42 @@ html { scroll-behavior: smooth; }
 }
 
 /* ================================================================
+   BIOMETRIC AUTH — Face ID / Fingerprint / Touch ID animations
+   ================================================================ */
+.biometric-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.biometric-btn:hover {
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.15);
+}
+
+/* Scan overlay — animated scan line that sweeps top to bottom */
+.biometric-scan-overlay {
+  pointer-events: none;
+}
+.biometric-scan-line {
+  animation: biometricScan 1.5s ease-in-out infinite;
+  box-shadow: 0 0 8px 2px rgba(var(--primary-rgb, 0, 113, 227), 0.4);
+}
+@keyframes biometricScan {
+  0% { top: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Pulsing ring around the fingerprint icon when scanning */
+.biometric-btn:has(.animate-spin) {
+  animation: biometricPulse 1.5s ease-in-out infinite;
+}
+@keyframes biometricPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 113, 227, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(0, 113, 227, 0); }
+}
+
+/* ================================================================
    SPLASH SCREEN — animated SYNQUE intro overlay
    Shared by:
    - SplashScreen (src/components/splash-screen.tsx)

@@ -262,3 +262,8 @@ export type VPNServer = Prisma.VPNServerModel
  * 
  */
 export type VPNSession = Prisma.VPNSessionModel
+/**
+ * Model WebAuthnCredential
+ * 
+ */
+export type WebAuthnCredential = Prisma.WebAuthnCredentialModel

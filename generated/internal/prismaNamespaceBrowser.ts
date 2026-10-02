@@ -99,7 +99,8 @@ export const ModelName = {
   EmailVerificationToken: 'EmailVerificationToken',
   Influencer: 'Influencer',
   VPNServer: 'VPNServer',
-  VPNSession: 'VPNSession'
+  VPNSession: 'VPNSession',
+  WebAuthnCredential: 'WebAuthnCredential'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -955,6 +956,22 @@ export const VPNSessionScalarFieldEnum = {
 } as const
 
 export type VPNSessionScalarFieldEnum = (typeof VPNSessionScalarFieldEnum)[keyof typeof VPNSessionScalarFieldEnum]
+
+
+export const WebAuthnCredentialScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  publicKey: 'publicKey',
+  counter: 'counter',
+  transports: 'transports',
+  deviceType: 'deviceType',
+  backedUp: 'backedUp',
+  name: 'name',
+  createdAt: 'createdAt',
+  lastUsedAt: 'lastUsedAt'
+} as const
+
+export type WebAuthnCredentialScalarFieldEnum = (typeof WebAuthnCredentialScalarFieldEnum)[keyof typeof WebAuthnCredentialScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -53,6 +53,7 @@ model User {
   sentMessages        ChatMessage[]     @relation("ChatSender")
   receivedMessages    ChatMessage[]     @relation("ChatReceiver")
   vpnSessions         VPNSession[]
+  webauthnCredentials  WebAuthnCredential[]
 }
 
 model Account {
@@ -932,4 +933,22 @@ model VPNSession {
 
   @@index([userId])
   @@index([status])
+}
+
+// ===== WebAuthn (Face ID / Fingerprint / Touch ID) =====
+model WebAuthnCredential {
+  id            String   @id           // base64url of credential ID
+  userId        String
+  publicKey     String                 // base64url-encoded public key
+  counter       Int      @default(0)  // sign count for replay protection
+  transports    String?               // JSON array: ["internal","hybrid",...]
+  deviceType    String?               // "singleDevice" | "multiDevice"
+  backedUp      Boolean  @default(false)
+  name          String?               // user-assigned label (e.g. "MacBook Pro")
+  createdAt     DateTime @default(now())
+  lastUsedAt    DateTime?
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
