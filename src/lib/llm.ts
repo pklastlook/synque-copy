@@ -200,9 +200,10 @@ class ZAIClient implements LLMClient {
   }
 
   async chat(messages: LLMMessage[]): Promise<string> {
+    // ZAI SDK supports system/user/assistant roles. Pass them through directly.
     const completion = await this.zai.chat.completions.create({
       messages: messages.map((m) => ({
-        role: m.role === "system" ? "assistant" : m.role,
+        role: m.role,
         content: m.content,
       })),
       thinking: { type: "disabled" },
