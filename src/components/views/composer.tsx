@@ -2243,72 +2243,68 @@ function ProgressToolbar({
     : "text-primary";
 
   return (
-    <div className="glass-strong glass-sheen sticky top-0 z-20 flex items-center gap-3 rounded-2xl px-4 py-2.5 sm:px-6 lg:px-8">
-      {/* Completion ring — vertically centered */}
-      <div className="relative grid h-9 w-9 shrink-0 self-center sm:h-10 sm:w-10">
-        <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90 sm:h-10 sm:w-10">
+    <div className="glass-strong glass-sheen flex items-center gap-1.5 rounded-xl px-3 py-2 sm:gap-2 sm:px-4 sm:py-2.5 lg:px-5">
+      {/* Completion ring */}
+      <div className="relative grid h-7 w-7 shrink-0 place-items-center sm:h-8 sm:w-8">
+        <svg viewBox="0 0 36 36" className="h-7 w-7 -rotate-90 sm:h-8 sm:w-8">
           <circle
             cx="18" cy="18" r="15.5"
             fill="none"
             stroke="var(--muted)"
             strokeWidth="3"
-            opacity="0.5"
+            opacity="0.4"
           />
           <circle
             cx="18" cy="18" r="15.5"
             fill="none"
             stroke="var(--primary)"
-            strokeWidth="3"
+            strokeWidth="3.5"
             strokeLinecap="round"
             strokeDasharray={`${(completion / 100) * 97.4} 97.4`}
-            className="transition-all duration-500"
+            className="transition-all duration-700 ease-out"
           />
         </svg>
-        <span className="absolute text-[9px] font-bold tabular-nums">
+        <span className="absolute text-[7px] font-bold tabular-nums text-foreground sm:text-[8px]">
           {completion}%
         </span>
       </div>
 
       {/* Title + subtitle */}
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold leading-none">Composer</span>
-          <span className={cn("rounded-full bg-muted/60 px-2 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider", modeColor)}>
+      <div className="flex min-w-0 flex-1 flex-col gap-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-bold leading-tight sm:text-xs">Composer</span>
+          <span className={cn("rounded bg-muted/50 px-1 py-0 text-[7px] font-bold uppercase leading-tight tracking-wide sm:text-[8px]", modeColor)}>
             {mode}
           </span>
         </div>
-        <div className="text-[10px] leading-none text-muted-foreground">
-          {completion === 100
-            ? "Ready to publish"
-            : `${100 - completion}% left to complete`}
-        </div>
+        <span className="truncate text-[8px] leading-tight text-muted-foreground sm:text-[9px]">
+          {completion === 100 ? "Ready to publish" : `${100 - completion}% left to complete`}
+        </span>
       </div>
 
-      {/* Quick actions — vertically centered */}
-      <div className="flex items-center gap-1.5 self-center">
+      {/* Quick actions */}
+      <div className="flex shrink-0 items-center gap-1">
         <button
           onClick={onTemplates}
-          className="hidden items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:flex"
+          className="hidden items-center gap-1 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:flex"
           title="Caption templates"
         >
-          <Star className="h-3.5 w-3.5" />
-          Templates
+          <Star className="h-3 w-3" />
         </button>
         <button
           onClick={onSaveDraft}
           disabled={savingDraft}
-          className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+          className="flex items-center gap-1 rounded-lg border border-border/40 bg-muted/30 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50 sm:px-2.5"
           title="Save as draft (no publish)"
         >
-          {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-          <span className="hidden sm:inline">Save draft</span>
+          {savingDraft ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
         </button>
         <button
           onClick={onReset}
-          className="grid h-8 w-8 place-items-center rounded-xl border border-border/50 bg-muted/40 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          className="grid h-7 w-7 place-items-center rounded-lg border border-border/40 bg-muted/30 text-muted-foreground transition hover:bg-muted hover:text-foreground sm:h-8 sm:w-8"
           title="Reset composer"
         >
-          <Undo2 className="h-3.5 w-3.5" />
+          <Undo2 className="h-3 w-3" />
         </button>
       </div>
     </div>
