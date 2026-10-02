@@ -2244,9 +2244,9 @@ function ProgressToolbar({
 
   return (
     <div className="glass-strong glass-sheen sticky top-0 z-20 flex items-center gap-3 rounded-2xl px-4 py-2.5 sm:px-6 lg:px-8">
-      {/* Completion ring */}
-      <div className="relative grid h-10 w-10 shrink-0 place-items-center">
-        <svg viewBox="0 0 36 36" className="h-10 w-10 -rotate-90">
+      {/* Completion ring — vertically centered */}
+      <div className="relative grid h-9 w-9 shrink-0 self-center sm:h-10 sm:w-10">
+        <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90 sm:h-10 sm:w-10">
           <circle
             cx="18" cy="18" r="15.5"
             fill="none"
@@ -2269,22 +2269,23 @@ function ProgressToolbar({
         </span>
       </div>
 
-      <div className="min-w-0 flex-1">
+      {/* Title + subtitle */}
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold">Composer</span>
-          <span className={cn("rounded-full bg-muted/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider", modeColor)}>
+          <span className="text-sm font-bold leading-none">Composer</span>
+          <span className={cn("rounded-full bg-muted/60 px-2 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider", modeColor)}>
             {mode}
           </span>
         </div>
-        <div className="text-[10px] text-muted-foreground">
+        <div className="text-[10px] leading-none text-muted-foreground">
           {completion === 100
             ? "Ready to publish"
             : `${100 - completion}% left to complete`}
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div className="flex items-center gap-1.5">
+      {/* Quick actions — vertically centered */}
+      <div className="flex items-center gap-1.5 self-center">
         <button
           onClick={onTemplates}
           className="hidden items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:flex"

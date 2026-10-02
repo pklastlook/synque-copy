@@ -1080,10 +1080,10 @@ function ProgressToolbar({
   const mode = syncRecent ? "In sync" : "Analytics";
 
   return (
-    <div className="glass-strong glass-sheen sticky top-0 z-20 -mx-3 flex items-center gap-2 rounded-b-2xl px-3 py-2 sm:-mx-6 sm:gap-3 sm:px-6 lg:-mx-8 lg:px-8">
-      {/* Completion ring */}
-      <div className="relative grid h-8 w-8 shrink-0 place-items-center sm:h-10 sm:w-10">
-        <svg viewBox="0 0 36 36" className="h-8 w-8 -rotate-90 sm:h-10 sm:w-10">
+    <div className="glass-strong glass-sheen sticky top-0 z-20 -mx-3 flex items-center gap-2 rounded-b-2xl px-3 py-2.5 sm:-mx-6 sm:gap-3 sm:px-6 lg:-mx-8 lg:px-8">
+      {/* Completion ring — vertically centered with the text block */}
+      <div className="relative grid h-8 w-8 shrink-0 self-center sm:h-9 sm:w-9">
+        <svg viewBox="0 0 36 36" className="h-8 w-8 -rotate-90 sm:h-9 sm:w-9">
           <circle
             cx="18" cy="18" r="15.5"
             fill="none"
@@ -1106,25 +1106,26 @@ function ProgressToolbar({
         </span>
       </div>
 
-      <div className="min-w-0 flex-1">
+      {/* Title + subtitle — takes remaining space */}
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold sm:text-sm">Analytics</span>
+          <span className="text-xs font-bold leading-none sm:text-sm">Analytics</span>
           <span className={cn(
-            "rounded-full bg-muted/60 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider sm:px-2 sm:text-[9px]",
+            "rounded-full bg-muted/60 px-1.5 py-0.5 text-[8px] font-bold uppercase leading-none tracking-wider sm:px-2 sm:text-[9px]",
             modeColor
           )}>
             {mode}
           </span>
         </div>
-        <div className="truncate text-[9px] text-muted-foreground sm:text-[10px]">
+        <div className="truncate text-[9px] leading-none text-muted-foreground sm:text-[10px]">
           {completion === 100
             ? "Fully configured — explore your data"
             : `${100 - completion}% left to optimize`}
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div className="flex shrink-0 items-center gap-1.5">
+      {/* Quick actions — vertically centered */}
+      <div className="flex shrink-0 items-center gap-1.5 self-center">
         <button
           onClick={onExport}
           className="hidden items-center gap-1.5 rounded-xl border border-border/50 bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:flex"
