@@ -71,10 +71,10 @@ export default function LoginPage() {
             {/* Logo — static, no animation, square tile */}
             <div className="relative">
               <Link href="/" className="inline-block">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-lg">
-                  <span className="text-lg font-extrabold italic tracking-tight text-primary-foreground">S</span>
+                <div className="grid h-14 w-14 place-items-center rounded-none bg-gradient-to-br from-primary to-primary/70 shadow-lg">
+                  <span className="text-2xl font-extrabold italic tracking-tight text-primary-foreground">S</span>
                 </div>
-                <LogoWordmark size="text-lg" logoSize={30} static className="mt-3" />
+                <LogoWordmark size="text-xl" logoSize={36} static className="mt-3" />
               </Link>
             </div>
 
@@ -127,12 +127,12 @@ export default function LoginPage() {
           {/* === RIGHT — Login Form === */}
           <div className="flex flex-col justify-center bg-card px-8 py-10 sm:px-12">
 
-            {/* Mobile logo — static square tile (hidden on desktop, left panel has it) */}
-            <div className="mb-6 flex flex-col items-center lg:hidden">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-lg">
-                <span className="text-lg font-extrabold italic tracking-tight text-primary-foreground">S</span>
+            {/* Mobile logo — static square tile, enlarged + centered (hidden on desktop) */}
+            <div className="mb-8 flex flex-col items-center justify-center lg:hidden">
+              <div className="grid h-16 w-16 place-items-center rounded-none bg-gradient-to-br from-primary to-primary/70 shadow-lg">
+                <span className="text-2xl font-extrabold italic tracking-tight text-primary-foreground">S</span>
               </div>
-              <LogoWordmark size="text-lg" logoSize={30} static className="mt-2" />
+              <LogoWordmark size="text-xl" logoSize={36} static className="mt-3" />
             </div>
 
             {/* Back link */}
