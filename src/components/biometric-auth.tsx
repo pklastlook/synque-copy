@@ -35,13 +35,18 @@ export function BiometricAuth({
   className,
   label,
 }: BiometricAuthProps) {
-  const [supported, setSupported] = React.useState(false);
+  const [supported, setSupported] = React.useState<boolean | null>(null);
   const [state, setState] = React.useState<"idle" | "scanning" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = React.useState("");
 
   // Detect WebAuthn + platform authenticator support
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    // WebAuthn requires a secure context (HTTPS or localhost)
+    if (!window.isSecureContext) {
+      setSupported(false);
+      return;
+    }
     if (
       window.PublicKeyCredential &&
       typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function"
@@ -49,10 +54,32 @@ export function BiometricAuth({
       window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
         .then((available) => setSupported(available))
         .catch(() => setSupported(false));
+    } else {
+      setSupported(false);
     }
   }, []);
 
-  if (!supported) return null;
+  // Still loading support detection
+  if (supported === null) return null;
+
+  // Not supported — show nothing on login page, show info on settings page
+  if (!supported) {
+    if (mode === "register") {
+      return (
+        <div className={cn("flex flex-col items-center gap-2", className)}>
+          <div className="rounded-xl border border-border/40 bg-muted/20 px-4 py-3 text-center">
+            <Fingerprint className="mx-auto h-5 w-5 text-muted-foreground/50" />
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Face ID / Fingerprint is not available on this device.
+              It requires a supported device with Face ID, Touch ID, or
+              Windows Hello, and a secure (HTTPS) connection.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   async function handleBiometric() {
     setState("scanning");

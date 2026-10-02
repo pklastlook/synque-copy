@@ -3147,9 +3147,10 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
   const [error, setError] = React.useState("");
   const [autoBiometricAttempted, setAutoBiometricAttempted] = React.useState(false);
 
-  // Auto-prompt biometric on page load if supported
+  // Auto-prompt biometric on page load if supported (requires HTTPS)
   React.useEffect(() => {
     if (typeof window === "undefined" || autoBiometricAttempted) return;
+    if (!window.isSecureContext) return; // WebAuthn needs HTTPS or localhost
     if (
       window.PublicKeyCredential &&
       typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function"
