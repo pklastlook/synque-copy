@@ -592,7 +592,7 @@ export function ReportsView() {
 
       {/* === Main 4-tab navigation (replaces 13 template buttons) === */}
       <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as TabId)}>
-        <TabsList className="h-9 w-full sm:w-fit">
+        <TabsList className="report-tabs h-auto w-full max-w-full overflow-x-auto p-0.5 sm:w-fit sm:overflow-hidden">
           {TAB_GROUPS.map(g => {
             const Icon = g.icon;
             const active = activeTab === g.id;
@@ -600,9 +600,9 @@ export function ReportsView() {
               <TabsTrigger
                 key={g.id}
                 value={g.id}
-                className="gap-1.5 px-3 text-[12px] data-[state=active]:text-foreground"
+                className="gap-1 px-2 py-1 text-[11px] sm:gap-1.5 sm:px-3 sm:text-[12px] data-[state=active]:text-foreground"
               >
-                <Icon className="h-3.5 w-3.5" style={{ color: active ? g.color : undefined }} />
+                <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" style={{ color: active ? g.color : undefined }} />
                 {g.label}
               </TabsTrigger>
             );
@@ -612,7 +612,7 @@ export function ReportsView() {
 
       {/* === Sub-template pill row + compact toolbar (Save / Print) === */}
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="scroll-liquid flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           {activeGroup.templates.map(tid => {
             const t = TEMPLATES.find(t => t.id === tid)!;
             const Icon = t.icon;
@@ -623,7 +623,7 @@ export function ReportsView() {
                 onClick={() => setActiveTemplate(tid)}
                 title={t.desc}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition",
+                  "flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition",
                   active
                     ? "border-primary/40 bg-primary/10 text-foreground shadow-[inset_0_0_0_1px_var(--ring)]"
                     : "border-border/40 text-muted-foreground hover:bg-muted/30 hover:text-foreground"
@@ -833,9 +833,9 @@ function TemplateContent({
 function MetricTabs({ metrics, value, onChange }: { metrics: { key: string; label: string }[]; value: string; onChange: (m: string) => void }) {
   return (
     <Tabs value={value} onValueChange={onChange}>
-      <TabsList className="h-7 p-0.5">
+      <TabsList className="scroll-liquid h-auto w-full flex-nowrap overflow-x-auto p-0.5 sm:w-auto">
         {metrics.map(m => (
-          <TabsTrigger key={m.key} value={m.key} className="px-2 py-0 text-[10px]">
+          <TabsTrigger key={m.key} value={m.key} className="shrink-0 px-2 py-0 text-[10px]">
             {m.label}
           </TabsTrigger>
         ))}

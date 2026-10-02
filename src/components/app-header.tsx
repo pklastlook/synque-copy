@@ -178,16 +178,16 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
         {/* Notification bell — always visible */}
         <NotificationsBell onNavigate={() => setView("inbox")} />
 
-        {/* Theme toggle — hidden on mobile (use user dropdown) */}
+        {/* Theme toggle — visible on all screens (mobile + desktop) */}
         <button
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10] sm:grid"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10] sm:h-9 sm:w-9"
           aria-label="Toggle theme"
         >
           {mounted && resolvedTheme === "dark" ? (
-            <Sun className="h-[18px] w-[18px]" />
+            <Sun className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
           ) : (
-            <Moon className="h-[18px] w-[18px]" />
+            <Moon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
           )}
         </button>
 

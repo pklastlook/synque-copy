@@ -1384,15 +1384,15 @@ html { scroll-behavior: smooth; }
    pills so tabs never overflow or wrap awkwardly.
    ================================================================ */
 @media (max-width: 640px) {
-  /* Make every TabsList full-width + scrollable on mobile */
+  /* Make every TabsList scrollable on mobile (content-sized, not forced full-width) */
   [data-slot="tabs-list"] {
-    width: 100% !important;
     max-width: 100%;
     overflow-x: auto !important;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none; /* Firefox */
     flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
     padding: 3px;
   }
   [data-slot="tabs-list"]::-webkit-scrollbar {
