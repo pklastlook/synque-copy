@@ -243,17 +243,26 @@ class ZAIDirectClient implements LLMClient {
     if (userId) headers["X-User-Id"] = userId;
     if (token) headers["X-Token"] = token;
 
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        thinking: { type: "disabled" },
-      }),
+    const body = JSON.stringify({
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      thinking: { type: "disabled" },
     });
+
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers,
+        body,
+      });
+    } catch (fetchErr) {
+      console.error("[llm:zai-direct] fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+      throw new Error(`ZAI fetch failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+    }
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
+      console.error(`[llm:zai-direct] API error ${res.status}:`, errText.substring(0, 200));
       throw new Error(`ZAI API error ${res.status}: ${errText.substring(0, 200)}`);
     }
 
