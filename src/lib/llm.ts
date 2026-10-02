@@ -214,22 +214,46 @@ class ZAIClient implements LLMClient {
 
 // ============================================================================
 // ZAI Direct Client — calls the ZAI API directly via fetch (no SDK needed).
-// Works on Vercel serverless where the ZAI SDK's config-file approach fails.
+// Tries the Railway AI service as a proxy first (if AI_SERVICE_URL is set),
+// then falls back to calling the ZAI API directly.
 // ============================================================================
 
 class ZAIDirectClient implements LLMClient {
   private apiKey: string;
   private baseUrl: string;
   private token: string;
+  private proxyUrl: string | null;
   get provider() { return "zai-direct"; }
 
   constructor() {
     this.apiKey = process.env.ZAI_API_KEY || "Z.ai";
     this.baseUrl = (process.env.ZAI_BASE_URL || "https://internal-api.z.ai/v1").replace(/\/+$/, "");
     this.token = process.env.ZAI_TOKEN || "";
+    this.proxyUrl = process.env.AI_SERVICE_URL || null;
   }
 
   async chat(messages: LLMMessage[]): Promise<string> {
+    // Strategy 1: Try the Railway AI service as a proxy (it has the ZAI
+    // credentials and may have better network connectivity)
+    if (this.proxyUrl) {
+      try {
+        const proxyRes = await fetch(`${this.proxyUrl}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          }),
+        });
+        if (proxyRes.ok) {
+          const data = await proxyRes.json();
+          if (data.content) return data.content;
+        }
+      } catch (proxyErr) {
+        console.error("[llm:zai-direct] proxy fetch failed:", proxyErr instanceof Error ? proxyErr.message : String(proxyErr));
+      }
+    }
+
+    // Strategy 2: Call the ZAI API directly with the correct SDK headers
     const chatId = process.env.ZAI_CHAT_ID || "";
     const userId = process.env.ZAI_USER_ID || "";
     const token = this.token;
@@ -243,20 +267,18 @@ class ZAIDirectClient implements LLMClient {
     if (userId) headers["X-User-Id"] = userId;
     if (token) headers["X-Token"] = token;
 
-    const body = JSON.stringify({
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      thinking: { type: "disabled" },
-    });
-
     let res: Response;
     try {
       res = await fetch(`${this.baseUrl}/chat/completions`, {
         method: "POST",
         headers,
-        body,
+        body: JSON.stringify({
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          thinking: { type: "disabled" },
+        }),
       });
     } catch (fetchErr) {
-      console.error("[llm:zai-direct] fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+      console.error("[llm:zai-direct] direct fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
       throw new Error(`ZAI fetch failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
     }
 

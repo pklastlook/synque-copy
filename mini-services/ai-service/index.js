@@ -1,44 +1,52 @@
 /**
  * AI Mini-Service
- * Wraps the ZAI SDK and exposes it as HTTP endpoints.
+ * Calls the ZAI API directly via fetch (no SDK dependency).
  * Deploy on Railway.
  */
 import { createServer } from "node:http";
-import { writeFile } from "node:fs/promises";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || "3004", 10);
 
-let zaiClient = null;
+const API_KEY = process.env.ZAI_API_KEY || "Z.ai";
+const BASE_URL = (process.env.ZAI_BASE_URL || "https://internal-api.z.ai/v1").replace(/\/+$/, "");
+const CHAT_ID = process.env.ZAI_CHAT_ID || "";
+const TOKEN = process.env.ZAI_TOKEN || "";
+const USER_ID = process.env.ZAI_USER_ID || "";
 
-async function getZaiClient() {
-  if (zaiClient) return zaiClient;
+console.log("[ai-service] Config:", JSON.stringify({
+  baseUrl: BASE_URL,
+  apiKey: API_KEY,
+  chatId: CHAT_ID,
+  hasToken: !!TOKEN,
+  userId: USER_ID,
+}));
 
-  const ZAI = (await import("z-ai-web-dev-sdk")).default;
-
-  // Write config from env vars first
-  const apiKey = process.env.ZAI_API_KEY;
-  const baseUrl = process.env.ZAI_BASE_URL;
-  if (!apiKey || !baseUrl) {
-    throw new Error("ZAI_API_KEY and ZAI_BASE_URL env vars are required");
-  }
-  const config = {
-    apiKey,
-    baseUrl,
-    chatId: process.env.ZAI_CHAT_ID || "",
-    token: process.env.ZAI_TOKEN || "",
-    userId: process.env.ZAI_USER_ID || "",
+async function zaiChat(messages) {
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${API_KEY}`,
+    "X-Z-AI-From": "Z",
   };
-  console.log("[ai-service] Config:", JSON.stringify({ ...config, token: config.token ? "***" : "(empty)" }));
-  
-  const configPath = join(__dirname, ".z-ai-config");
-  await writeFile(configPath, JSON.stringify(config), "utf-8");
-  
-  zaiClient = await ZAI.create();
-  console.log("[ai-service] ZAI client created");
-  return zaiClient;
+  if (CHAT_ID) headers["X-Chat-Id"] = CHAT_ID;
+  if (USER_ID) headers["X-User-Id"] = USER_ID;
+  if (TOKEN) headers["X-Token"] = TOKEN;
+
+  const res = await fetch(`${BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      thinking: { type: "disabled" },
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`ZAI API error ${res.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? "";
 }
 
 const server = createServer(async (req, res) => {
@@ -57,7 +65,7 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({
       status: "running",
       service: "ai-service",
-      provider: "zai",
+      provider: "zai-direct",
       timestamp: new Date().toISOString(),
     }));
     return;
@@ -75,25 +83,15 @@ const server = createServer(async (req, res) => {
       }
 
       console.log("[ai-service] /chat — messages:", messages.length);
-      const zai = await getZaiClient();
-      
-      const completion = await zai.chat.completions.create({
-        messages: messages.map((m) => ({
-          role: m.role === "system" ? "assistant" : m.role,
-          content: m.content,
-        })),
-        thinking: { type: "disabled" },
-      });
-      const content = completion.choices[0]?.message?.content ?? "";
+      const content = await zaiChat(messages);
       console.log("[ai-service] /chat — response length:", content.length);
 
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ content }));
     } catch (err) {
       console.error("[ai-service] /chat error:", err.message);
-      console.error("[ai-service] stack:", err.stack);
       res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: err.message, stack: err.stack?.split("\n").slice(0, 5) }));
+      res.end(JSON.stringify({ error: err.message }));
     }
     return;
   }
@@ -113,8 +111,4 @@ function readBody(req) {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`[ai-service] HTTP server on http://0.0.0.0:${PORT}`);
-  // Pre-warm ZAI client
-  getZaiClient().catch((err) => {
-    console.error("[ai-service] ZAI client creation failed:", err.message);
-  });
 });
