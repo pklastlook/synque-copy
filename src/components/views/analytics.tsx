@@ -811,7 +811,7 @@ export function AnalyticsView() {
     (compareMode ? 1 : 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {/* ProgressToolbar */}
       <ProgressToolbar
         completion={completion}
@@ -1080,10 +1080,10 @@ function ProgressToolbar({
   const mode = syncRecent ? "In sync" : "Analytics";
 
   return (
-    <div className="glass-strong glass-sheen sticky top-0 z-20 -mx-3 flex items-center gap-2 rounded-b-2xl px-3 py-2.5 sm:-mx-6 sm:gap-3 sm:px-6 lg:-mx-8 lg:px-8">
-      {/* Completion ring — same height as text block (h-9 = 36px matches 2 lines of text) */}
-      <div className="relative grid h-9 w-9 shrink-0 place-items-center sm:h-10 sm:w-10">
-        <svg viewBox="0 0 36 36" className="h-9 w-9 -rotate-90 sm:h-10 sm:w-10">
+    <div className="glass-strong glass-sheen flex items-center gap-2 rounded-2xl px-3 py-2.5 sm:gap-3 sm:px-4 lg:px-5">
+      {/* Completion ring */}
+      <div className="relative grid h-8 w-8 shrink-0 place-items-center sm:h-9 sm:w-9">
+        <svg viewBox="0 0 36 36" className="h-8 w-8 -rotate-90 sm:h-9 sm:w-9">
           <circle
             cx="18" cy="18" r="15.5"
             fill="none"
@@ -1106,7 +1106,7 @@ function ProgressToolbar({
         </span>
       </div>
 
-      {/* Title + subtitle — fixed height to match the ring */}
+      {/* Title + subtitle */}
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold leading-none sm:text-sm">Analytics</span>
