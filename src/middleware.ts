@@ -42,6 +42,8 @@ const PUBLIC_ROUTES = [
   "/api/whatsapp/webhook",
   // WebAuthn authenticate routes are public (login without password)
   "/api/webauthn/authenticate",
+  "/api/webauthn/authenticate/options",
+  "/api/webauthn/authenticate/verify",
 ];
 
 // Sub-paths that are public even though they live under an otherwise-protected
