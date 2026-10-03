@@ -10,6 +10,7 @@ import {
   FileEdit, XCircle, Layers, Inbox, Activity, Globe,
   Lightbulb, AlertCircle, AtSign, Check,
   BarChart3, Calendar, Zap, Share2, PenSquare,
+  Smile, Frown,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -269,8 +270,13 @@ export function DashboardView() {
         }
       </HelpText>
 
-      {/* === 1. Hero header strip — compact (no GlassCard wrapper) === */}
-      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      {/* === 1. Hero header strip — compact (no GlassCard wrapper) ===
+          On desktop (lg+) the hero is a 3-section row:
+          [greeting] [inbox preview bar — fills empty space] [action buttons]
+          The inbox bar fills what was previously dead horizontal space between
+          the greeting and the buttons. Hidden below lg (mobile/tablet use the
+          compact "unread" pill button + full Inbox view instead). */}
+      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between lg:flex-nowrap">
         <div className="flex items-center gap-3">
           <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg">
             <Globe className="h-5 w-5" />
@@ -292,11 +298,87 @@ export function DashboardView() {
             </p>
           </div>
         </div>
+
+        {/* Inbox preview bar — fills the empty horizontal space on desktop.
+            Shows the latest unread comments as compact cards. Clicking any
+            card (or the header) navigates to the full Inbox view. */}
+        <div className="hidden min-w-0 max-w-[680px] flex-1 items-center gap-1.5 rounded-2xl border border-amber-500/25 bg-amber-500/[0.04] p-1.5 lg:flex">
+          {/* Header chip — Inbox label + unread count */}
+          <button
+            onClick={() => setView("inbox")}
+            className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl bg-amber-500/10 px-2.5 py-2 text-amber-600 transition hover:bg-amber-500/20 dark:text-amber-400"
+            aria-label={`Open inbox, ${pendingInbox} unread`}
+          >
+            <Inbox className="h-4 w-4" />
+            <span className="num-display text-[15px] font-bold leading-none tabular-nums">{pendingInbox}</span>
+            <span className="label-caps text-[7px] uppercase tracking-wide">unread</span>
+          </button>
+
+          {/* Message cards — horizontal scroll when more than ~3 fit */}
+          {data.commentInbox.length > 0 ? (
+            <div className="scroll-liquid flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+              {data.commentInbox.slice(0, 4).map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setView("inbox")}
+                  className="group flex min-w-0 shrink-0 items-center gap-2 rounded-xl bg-background/70 px-2.5 py-1.5 text-left transition hover:bg-background hover:shadow-sm"
+                  style={{ width: 190 }}
+                >
+                  <NameAvatar
+                    name={c.author}
+                    className="h-7 w-7 shrink-0 text-[9px]"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="truncate text-[11px] font-semibold leading-tight">{c.author}</span>
+                      <PlatformBadge platform={c.platform} size={11} />
+                    </div>
+                    <p className="mt-0.5 truncate text-[10px] leading-tight text-muted-foreground">
+                      {c.text}
+                    </p>
+                    <div className="mt-0.5 flex items-center gap-1">
+                      {c.sentiment === "positive" && <Smile className="h-2.5 w-2.5 text-emerald-500" />}
+                      {c.sentiment === "negative" && <Frown className="h-2.5 w-2.5 text-rose-500" />}
+                      {(c.sentiment === "neutral" || (!c.sentiment)) && <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />}
+                      <span className="text-[9px] text-muted-foreground/80">{timeAgo(c.createdAt)}</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            /* Empty state — still fills the space with a positive "all caught up" message */
+            <button
+              onClick={() => setView("inbox")}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-background/50 px-3 py-2 text-left transition hover:bg-background"
+            >
+              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold leading-tight">Inbox zero</div>
+                <div className="truncate text-[10px] text-muted-foreground">All caught up — no unread messages</div>
+              </div>
+            </button>
+          )}
+
+          {/* See-all chevron */}
+          <button
+            onClick={() => setView("inbox")}
+            className="flex shrink-0 items-center gap-0.5 rounded-xl bg-amber-500/10 px-2.5 py-2 text-[10px] font-semibold text-amber-600 transition hover:bg-amber-500/20 dark:text-amber-400"
+            aria-label="Open inbox"
+          >
+            <span className="hidden xl:inline">All</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
         <div className="flex items-center gap-2">
+          {/* Compact unread pill — shown below lg (desktop uses the inbox bar above) */}
           {pendingInbox > 0 && (
             <button
               onClick={() => setView("inbox")}
-              className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] font-semibold text-amber-600 transition hover:bg-amber-500/20 dark:text-amber-400"
+              className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] font-semibold text-amber-600 transition hover:bg-amber-500/20 lg:hidden dark:text-amber-400"
             >
               <Inbox className="h-4 w-4" />
               {pendingInbox} unread
