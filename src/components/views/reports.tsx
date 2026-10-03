@@ -1948,9 +1948,9 @@ function AccountUserContent({ reportData }: { reportData: ReportDataRoot | null 
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-border/30">
-                          <th className="py-1.5 text-left font-semibold text-muted-foreground">User</th>
-                          <th className="py-1.5 text-right font-semibold text-muted-foreground">Posts</th>
-                          <th className="py-1.5 text-right font-semibold text-muted-foreground">Published</th>
+                          <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">User</th>
+                          <th className="px-3 py-2.5 text-right font-semibold text-muted-foreground">Posts</th>
+                          <th className="px-3 py-2.5 text-right font-semibold text-muted-foreground">Published</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2387,7 +2387,7 @@ function UserAccountMatrixTable({ matrix }: { matrix: ReportDataRoot["userAccoun
           <tr className="border-b border-border/40 bg-muted/20">
             <th className="sticky left-0 z-10 bg-muted/20 py-2.5 px-3 text-left font-semibold text-muted-foreground">User</th>
             {allAccounts.map(a => (
-              <th key={a.id} className="px-2 py-2.5 text-center font-semibold text-muted-foreground" title={a.displayName}>
+              <th key={a.id} className="px-3 py-2.5 text-center font-semibold text-muted-foreground" title={a.displayName}>
                 <div className="flex flex-col items-center gap-0.5">
                   <PlatformBadge platform={a.platform as PlatformId} size={14} />
                   <span className="text-[9px]">{a.displayName.slice(0, 12)}</span>
@@ -2470,7 +2470,7 @@ function UserComparisonTable({ users }: { users: ReportDataRoot["userComparison"
           <tr className="border-b border-border/40 bg-muted/20">
             <th className="sticky left-0 z-10 bg-muted/20 py-2.5 px-3 text-left font-semibold text-muted-foreground">Member</th>
             {cols.map(c => (
-              <th key={c.key} className="px-2 py-2.5 text-right font-semibold">
+              <th key={c.key} className="px-3 py-2.5 text-right font-semibold">
                 <button onClick={() => toggle(c.key)} className="flex items-center gap-1 hover:text-foreground">
                   {c.label}
                   <ArrowUpDown className={cn("h-2.5 w-2.5", sortKey === c.key ? "opacity-100" : "opacity-30")} />
@@ -3920,19 +3920,19 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Date</th>
-                  <th className="text-right">Followers</th>
-                  <th className="text-right">Impressions</th>
-                  <th className="text-right">Reach</th>
-                  <th className="text-right">Engagement</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Followers</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Impressions</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reach</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
                 </tr></thead>
                 <tbody>
                   {series.slice(-30).map(s => (
                     <tr key={s.date}>
                       <td>{fmtDay(s.date)}</td>
-                      <td className="text-right tabular-nums">{s.followers.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{s.impressions.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{s.reach.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{s.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.impressions.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.reach.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.engagement.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -3942,20 +3942,20 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Account</th><th>Platform</th>
-                  <th className="text-right">Followers</th>
-                  <th className="text-right">Impressions</th>
-                  <th className="text-right">Reach</th>
-                  <th className="text-right">Engagement</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Followers</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Impressions</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reach</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
                 </tr></thead>
                 <tbody>
                   {analytics.perAccount.map(a => (
                     <tr key={a.id}>
                       <td className="font-medium">{a.displayName}</td>
                       <td className="capitalize">{a.platform}</td>
-                      <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{a.reach.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.reach.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.engagement.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -3970,17 +3970,17 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Platform</th>
-                  <th className="text-right">Accounts</th>
-                  <th className="text-right">Followers</th>
-                  <th className="text-right">Share %</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Accounts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Followers</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Share %</th>
                 </tr></thead>
                 <tbody>
                   {platformAgg.map(p => (
                     <tr key={p.platform}>
                       <td className="font-medium capitalize">{p.platform}</td>
-                      <td className="text-right tabular-nums">{p.accounts}</td>
-                      <td className="text-right tabular-nums">{p.followers.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{totals.followers > 0 ? ((p.followers / totals.followers) * 100).toFixed(1) : "0.0"}%</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{totals.followers > 0 ? ((p.followers / totals.followers) * 100).toFixed(1) : "0.0"}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -3990,8 +3990,8 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Date</th>
-                  <th className="text-right">Total Followers</th>
-                  <th className="text-right">Daily Change</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Total Followers</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Daily Change</th>
                 </tr></thead>
                 <tbody>
                   {series.slice(-30).map((s, i) => {
@@ -4000,8 +4000,8 @@ function PrintLayout({
                     return (
                       <tr key={s.date}>
                         <td>{fmtDay(s.date)}</td>
-                        <td className="text-right tabular-nums">{s.followers.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
                       </tr>
                     );
                   })}
@@ -4017,22 +4017,22 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Account</th><th>Platform</th>
-                  <th className="text-right">Likes</th>
-                  <th className="text-right">Comments</th>
-                  <th className="text-right">Shares</th>
-                  <th className="text-right">Saves</th>
-                  <th className="text-right">Total</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Likes</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Comments</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Shares</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Saves</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Total</th>
                 </tr></thead>
                 <tbody>
                   {analytics.perAccount.map(a => (
                     <tr key={a.id}>
                       <td className="font-medium">{a.displayName}</td>
                       <td className="capitalize">{a.platform}</td>
-                      <td className="text-right tabular-nums">{a.likes.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{a.comments.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{a.shares.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{a.saves.toLocaleString()}</td>
-                      <td className="text-right tabular-nums font-semibold">{a.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.likes.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.comments.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.shares.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.saves.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-semibold">{a.engagement.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4043,7 +4043,7 @@ function PrintLayout({
                 <table className="report-table">
                   <thead><tr>
                     <th>Post Title</th><th>Author</th><th>Platform</th>
-                    <th className="text-right">Engagement</th>
+                    <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
                   </tr></thead>
                   <tbody>
                     {analytics.topContent.slice(0, 10).map(c => (
@@ -4051,7 +4051,7 @@ function PrintLayout({
                         <td className="max-w-[200px] truncate">{c.title || "Untitled"}</td>
                         <td>{c.authorName}</td>
                         <td className="capitalize">{c.platform}</td>
-                        <td className="text-right tabular-nums">{c.engagement.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{c.engagement.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4067,12 +4067,12 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Rank</th><th>Member</th>
-                  <th className="text-right">Posts</th>
-                  <th className="text-right">Published</th>
-                  <th className="text-right">Comments</th>
-                  <th className="text-right">Replied</th>
-                  <th className="text-right">Reply %</th>
-                  <th className="text-right">7-day</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Published</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Comments</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Replied</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reply %</th>
+                  <th className="px-3 py-2 text-right tabular-nums">7-day</th>
                 </tr></thead>
                 <tbody>
                   {[...reportData.userComparison]
@@ -4081,12 +4081,12 @@ function PrintLayout({
                     <tr key={u.id}>
                       <td className="tabular-nums">{i + 1}</td>
                       <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
-                      <td className="text-right tabular-nums">{u.postsCreated}</td>
-                      <td className="text-right tabular-nums">{u.postsPublished}</td>
-                      <td className="text-right tabular-nums">{u.commentsReceived}</td>
-                      <td className="text-right tabular-nums">{u.commentsReplied}</td>
-                      <td className="text-right tabular-nums">{u.replyRate}%</td>
-                      <td className="text-right tabular-nums">{u.postsLast7d}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsPublished}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.commentsReceived}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.commentsReplied}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.replyRate}%</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsLast7d}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4096,19 +4096,19 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Member</th>
-                  <th className="text-right">Accounts Owned</th>
-                  <th className="text-right">Posts Created</th>
-                  <th className="text-right">Variants Published</th>
-                  <th className="text-right">Avg Posts/Account</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Accounts Owned</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts Created</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Variants Published</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Avg Posts/Account</th>
                 </tr></thead>
                 <tbody>
                   {reportData.userComparison.map(u => (
                     <tr key={u.id}>
                       <td className="font-medium">{u.name}</td>
-                      <td className="text-right tabular-nums">{u.accountsOwned}</td>
-                      <td className="text-right tabular-nums">{u.postsCreated}</td>
-                      <td className="text-right tabular-nums">{u.variantsPublished}</td>
-                      <td className="text-right tabular-nums">{u.avgPostsPerAccount}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.accountsOwned}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.variantsPublished}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.avgPostsPerAccount}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4123,8 +4123,8 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Stage</th>
-                  <th className="text-right">Count</th>
-                  <th className="text-right">% of Total</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Count</th>
+                  <th className="px-3 py-2 text-right tabular-nums">% of Total</th>
                 </tr></thead>
                 <tbody>
                   {(() => {
@@ -4141,8 +4141,8 @@ function PrintLayout({
                     return rows.map(r => (
                       <tr key={r.stage}>
                         <td className="font-medium">{r.stage}</td>
-                        <td className="text-right tabular-nums">{r.count}</td>
-                        <td className="text-right tabular-nums">{total > 0 ? ((r.count / total) * 100).toFixed(1) : "0.0"}%</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{r.count}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{total > 0 ? ((r.count / total) * 100).toFixed(1) : "0.0"}%</td>
                       </tr>
                     ));
                   })()}
@@ -4162,7 +4162,7 @@ function PrintLayout({
                         <td className="max-w-[180px] truncate font-medium">{p.title || "Untitled"}</td>
                         <td>{p.authorName}</td>
                         <td className="capitalize">{p.status}</td>
-                        <td className="text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
+                        <td className="px-3 py-2 text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
                         <td>{fmtDay(p.createdAt)}</td>
                       </tr>
                     ))}
@@ -4179,19 +4179,19 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Platform</th>
-                  <th className="text-right">Accounts</th>
-                  <th className="text-right">Current Followers</th>
-                  <th className="text-right">Avg Eng.</th>
-                  <th className="text-right">Posts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Accounts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Current Followers</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Avg Eng.</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts</th>
                 </tr></thead>
                 <tbody>
                   {platformAgg.map(p => (
                     <tr key={p.platform}>
                       <td className="font-medium capitalize">{p.platform}</td>
-                      <td className="text-right tabular-nums">{p.accounts}</td>
-                      <td className="text-right tabular-nums">{p.followers.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
-                      <td className="text-right tabular-nums">{p.posts}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.posts}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4201,9 +4201,9 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Date</th>
-                  <th className="text-right">Total Followers</th>
-                  <th className="text-right">Daily Change</th>
-                  <th className="text-right">Growth %</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Total Followers</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Daily Change</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Growth %</th>
                 </tr></thead>
                 <tbody>
                   {series.slice(-30).map((s, i) => {
@@ -4214,9 +4214,9 @@ function PrintLayout({
                     return (
                       <tr key={s.date}>
                         <td>{fmtDay(s.date)}</td>
-                        <td className="text-right tabular-nums">{s.followers.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{delta >= 0 ? "+" : ""}{pct}%</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{delta >= 0 ? "+" : ""}{pct}%</td>
                       </tr>
                     );
                   })}
@@ -4232,21 +4232,21 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Platform</th>
-                  <th className="text-right">Accounts</th>
-                  <th className="text-right">Followers</th>
-                  <th className="text-right">Posts</th>
-                  <th className="text-right">Engagement</th>
-                  <th className="text-right">Avg Eng.</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Accounts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Followers</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Avg Eng.</th>
                 </tr></thead>
                 <tbody>
                   {platformAgg.map(p => (
                     <tr key={p.platform}>
                       <td className="font-medium capitalize">{p.platform}</td>
-                      <td className="text-right tabular-nums">{p.accounts}</td>
-                      <td className="text-right tabular-nums">{p.followers.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{p.posts}</td>
-                      <td className="text-right tabular-nums">{p.engagement.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.posts}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4254,7 +4254,7 @@ function PrintLayout({
             </PrintSection>
             <PrintSection title="Best Platform per Metric">
               <table className="report-table">
-                <thead><tr><th>Metric</th><th>Winning Platform</th><th className="text-right">Value</th></tr></thead>
+                <thead><tr><th>Metric</th><th>Winning Platform</th><th className="px-3 py-2 text-right tabular-nums">Value</th></tr></thead>
                 <tbody>
                   {(() => {
                     const rows: { metric: string; platform: string; value: string }[] = [];
@@ -4274,7 +4274,7 @@ function PrintLayout({
                       <tr key={r.metric}>
                         <td className="font-medium">{r.metric}</td>
                         <td className="capitalize">{r.platform}</td>
-                        <td className="text-right tabular-nums">{r.value}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{r.value}</td>
                       </tr>
                     ));
                   })()}
@@ -4290,18 +4290,18 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Account</th><th>Platform</th>
-                  <th className="text-right">Impressions</th>
-                  <th className="text-right">Reach</th>
-                  <th className="text-right">Reach Rate</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Impressions</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reach</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reach Rate</th>
                 </tr></thead>
                 <tbody>
                   {[...analytics.perAccount].sort((a, b) => b.reach - a.reach).map(a => (
                     <tr key={a.id}>
                       <td className="font-medium">{a.displayName}</td>
                       <td className="capitalize">{a.platform}</td>
-                      <td className="text-right tabular-nums">{a.impressions.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{a.reach.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{a.impressions > 0 ? ((a.reach / a.impressions) * 100).toFixed(1) : "0.0"}%</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.reach.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.impressions > 0 ? ((a.reach / a.impressions) * 100).toFixed(1) : "0.0"}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4311,17 +4311,17 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Date</th>
-                  <th className="text-right">Impressions</th>
-                  <th className="text-right">Reach</th>
-                  <th className="text-right">Reach Rate</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Impressions</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reach</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reach Rate</th>
                 </tr></thead>
                 <tbody>
                   {series.slice(-30).map(s => (
                     <tr key={s.date}>
                       <td>{fmtDay(s.date)}</td>
-                      <td className="text-right tabular-nums">{s.impressions.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{s.reach.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{s.impressions > 0 ? ((s.reach / s.impressions) * 100).toFixed(1) : "0.0"}%</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.impressions.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.reach.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.impressions > 0 ? ((s.reach / s.impressions) * 100).toFixed(1) : "0.0"}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4342,8 +4342,8 @@ function PrintLayout({
                   <table className="report-table report-matrix">
                     <thead><tr>
                       <th>User</th>
-                      {allAccounts.map(a => <th key={a.id} className="text-center">{a.displayName}</th>)}
-                      <th className="text-right">Total</th>
+                      {allAccounts.map(a => <th key={a.id} className="px-3 py-2 text-center">{a.displayName}</th>)}
+                      <th className="px-3 py-2 text-right tabular-nums">Total</th>
                     </tr></thead>
                     <tbody>
                       {matrix.map(u => (
@@ -4353,7 +4353,7 @@ function PrintLayout({
                             const cell = u.perAccount.find(p => p.accountId === a.id);
                             return <td key={a.id} className="text-center tabular-nums">{cell?.posts ?? "—"}</td>;
                           })}
-                          <td className="text-right tabular-nums font-bold">{u.totals.postsCreated}</td>
+                          <td className="px-3 py-2 text-right tabular-nums font-bold">{u.totals.postsCreated}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4365,22 +4365,22 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>User</th><th>Role</th>
-                  <th className="text-right">Posts Created</th>
-                  <th className="text-right">Published</th>
-                  <th className="text-right">Drafts</th>
-                  <th className="text-right">Comments Received</th>
-                  <th className="text-right">Accounts Owned</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts Created</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Published</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Drafts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Comments Received</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Accounts Owned</th>
                 </tr></thead>
                 <tbody>
                   {reportData.userAccountMatrix.map(u => (
                     <tr key={u.userId}>
                       <td className="font-medium">{u.userName}</td>
                       <td>{u.title ?? u.role}</td>
-                      <td className="text-right tabular-nums">{u.totals.postsCreated}</td>
-                      <td className="text-right tabular-nums">{u.totals.published}</td>
-                      <td className="text-right tabular-nums">{u.totals.drafts}</td>
-                      <td className="text-right tabular-nums">{u.totals.commentsReceived}</td>
-                      <td className="text-right tabular-nums">{u.totals.accountsOwned}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.postsCreated}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.published}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.drafts}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.commentsReceived}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.accountsOwned}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4412,7 +4412,7 @@ function PrintLayout({
                   <table className="report-table report-matrix">
                     <thead><tr>
                       <th>Metric</th>
-                      {users.map(u => <th key={u.id} className="text-center">{u.name}</th>)}
+                      {users.map(u => <th key={u.id} className="px-3 py-2 text-center">{u.name}</th>)}
                     </tr></thead>
                     <tbody>
                       {metrics.map(m => (
@@ -4430,22 +4430,22 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Member</th><th>Title</th>
-                  <th className="text-right">Posts</th>
-                  <th className="text-right">Published</th>
-                  <th className="text-right">Replied</th>
-                  <th className="text-right">Reply %</th>
-                  <th className="text-right">7-day</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Published</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Replied</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reply %</th>
+                  <th className="px-3 py-2 text-right tabular-nums">7-day</th>
                 </tr></thead>
                 <tbody>
                   {reportData.userComparison.map(u => (
                     <tr key={u.id}>
                       <td className="font-medium">{u.name}</td>
                       <td>{u.title ?? u.role}</td>
-                      <td className="text-right tabular-nums">{u.postsCreated}</td>
-                      <td className="text-right tabular-nums">{u.postsPublished}</td>
-                      <td className="text-right tabular-nums">{u.commentsReplied}</td>
-                      <td className="text-right tabular-nums">{u.replyRate}%</td>
-                      <td className="text-right tabular-nums">{u.postsLast7d}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsPublished}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.commentsReplied}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.replyRate}%</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsLast7d}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4460,11 +4460,11 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Account</th><th>Platform</th><th>Owner</th>
-                  <th className="text-right">Followers</th>
-                  <th className="text-right">Posts</th>
-                  <th className="text-right">Published</th>
-                  <th className="text-right">Comments</th>
-                  <th className="text-right">Replied</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Followers</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Published</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Comments</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Replied</th>
                 </tr></thead>
                 <tbody>
                   {reportData.accountUserMatrix.map(a => (
@@ -4472,11 +4472,11 @@ function PrintLayout({
                       <td className="font-medium">{a.displayName}</td>
                       <td className="capitalize">{a.platform}</td>
                       <td>{a.ownerName}</td>
-                      <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{a.totalPosts}</td>
-                      <td className="text-right tabular-nums">{a.totalPublished}</td>
-                      <td className="text-right tabular-nums">{a.totalComments}</td>
-                      <td className="text-right tabular-nums">{a.repliedComments}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.totalPosts}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.totalPublished}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.totalComments}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{a.repliedComments}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4489,15 +4489,15 @@ function PrintLayout({
                   <table className="report-table report-sub-table">
                     <thead><tr>
                       <th>Contributor</th>
-                      <th className="text-right">Posts</th>
-                      <th className="text-right">Published</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Published</th>
                     </tr></thead>
                     <tbody>
                       {a.perUser.map(u => (
                         <tr key={u.userId}>
                           <td>{u.userName}</td>
-                          <td className="text-right tabular-nums">{u.posts}</td>
-                          <td className="text-right tabular-nums">{u.published}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{u.posts}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{u.published}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4544,12 +4544,12 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Rank</th><th>Member</th>
-                  <th className="text-right">Posts</th>
-                  <th className="text-right">Published</th>
-                  <th className="text-right">Comments Replied</th>
-                  <th className="text-right">Reply %</th>
-                  <th className="text-right">7-day</th>
-                  <th className="text-right">Score</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Published</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Comments Replied</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reply %</th>
+                  <th className="px-3 py-2 text-right tabular-nums">7-day</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Score</th>
                 </tr></thead>
                 <tbody>
                   {[...reportData.userComparison]
@@ -4559,12 +4559,12 @@ function PrintLayout({
                     <tr key={u.id}>
                       <td className="tabular-nums">{i + 1}</td>
                       <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
-                      <td className="text-right tabular-nums">{u.postsCreated}</td>
-                      <td className="text-right tabular-nums">{u.postsPublished}</td>
-                      <td className="text-right tabular-nums">{u.commentsReplied}</td>
-                      <td className="text-right tabular-nums">{u.replyRate}%</td>
-                      <td className="text-right tabular-nums">{u.postsLast7d}</td>
-                      <td className="text-right tabular-nums font-semibold">{u.postsCreated + u.commentsReplied + u.replyRate}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsPublished}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.commentsReplied}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.replyRate}%</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{u.postsLast7d}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-semibold">{u.postsCreated + u.commentsReplied + u.replyRate}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4579,21 +4579,21 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Platform</th>
-                  <th className="text-right">Published</th>
-                  <th className="text-right">Total Variants</th>
-                  <th className="text-right">Engagement</th>
-                  <th className="text-right">Avg/Post</th>
-                  <th className="text-right">Share %</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Published</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Total Variants</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Avg/Post</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Share %</th>
                 </tr></thead>
                 <tbody>
                   {postsPerfData.platformBreakdown.map(p => (
                     <tr key={p.platform}>
                       <td className="font-medium capitalize">{p.platform}</td>
-                      <td className="text-right tabular-nums">{p.postsPublished}</td>
-                      <td className="text-right tabular-nums">{p.totalVariants}</td>
-                      <td className="text-right tabular-nums">{p.totalEngagement.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{p.avgEngagement.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{p.shareOfTotal.toFixed(1)}%</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.postsPublished}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.totalVariants}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.totalEngagement.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.avgEngagement.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{p.shareOfTotal.toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4603,24 +4603,24 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Member</th><th>Role</th>
-                  <th className="text-right">Posts</th>
-                  <th className="text-right">Published</th>
-                  <th className="text-right">Platforms</th>
-                  <th className="text-right">Comments</th>
-                  <th className="text-right">Reply %</th>
-                  <th className="text-right">Engagement</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Published</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Platforms</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Comments</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reply %</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
                 </tr></thead>
                 <tbody>
                   {postsPerfData.memberBreakdown.map(m => (
                     <tr key={m.userId}>
                       <td className="font-medium">{m.name}</td>
                       <td>{m.title ?? m.role}</td>
-                      <td className="text-right tabular-nums">{m.postsAuthored}</td>
-                      <td className="text-right tabular-nums">{m.postsPublished}</td>
-                      <td className="text-right tabular-nums">{m.platforms.length}</td>
-                      <td className="text-right tabular-nums">{m.commentsReceived}</td>
-                      <td className="text-right tabular-nums">{m.replyRate}%</td>
-                      <td className="text-right tabular-nums">{m.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{m.postsAuthored}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{m.postsPublished}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{m.platforms.length}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{m.commentsReceived}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{m.replyRate}%</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{m.engagement.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4632,8 +4632,8 @@ function PrintLayout({
                   <thead><tr>
                     <th>Title</th><th>Author</th><th>Status</th>
                     <th>Platforms</th>
-                    <th className="text-right">Engagement</th>
-                    <th className="text-right">Comments</th>
+                    <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
+                    <th className="px-3 py-2 text-right tabular-nums">Comments</th>
                   </tr></thead>
                   <tbody>
                     {[...postsPerfData.posts]
@@ -4644,9 +4644,9 @@ function PrintLayout({
                         <td className="max-w-[180px] truncate font-medium">{p.title || "Untitled"}</td>
                         <td>{p.authorName}</td>
                         <td className="capitalize">{p.status}</td>
-                        <td className="text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
-                        <td className="text-right tabular-nums">{p.engagement.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{p.comments}</td>
+                        <td className="px-3 py-2 text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{p.engagement.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{p.comments}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4671,13 +4671,13 @@ function PrintLayout({
                   <table className="report-table">
                     <thead><tr>
                       <th>Account</th><th>Platform</th>
-                      <th className="text-right">Posts</th>
-                      <th className="text-right">Followers</th>
-                      <th className="text-right">Engagement</th>
-                      <th className="text-right">Cost/Post</th>
-                      <th className="text-right">Cost/Eng</th>
-                      <th className="text-right">Est. Rev.</th>
-                      <th className="text-right">ROI</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Followers</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Cost/Post</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Cost/Eng</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Est. Rev.</th>
+                      <th className="px-3 py-2 text-right tabular-nums">ROI</th>
                     </tr></thead>
                     <tbody>
                       {analytics.perAccount.map((a) => {
@@ -4689,13 +4689,13 @@ function PrintLayout({
                           <tr key={a.id}>
                             <td className="font-medium">{a.displayName}</td>
                             <td className="capitalize">{a.platform}</td>
-                            <td className="text-right tabular-nums">{a.posts}</td>
-                            <td className="text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                            <td className="text-right tabular-nums">{a.engagement.toLocaleString()}</td>
-                            <td className="text-right tabular-nums">${(a.posts > 0 ? acctSpend / a.posts : 0).toFixed(2)}</td>
-                            <td className="text-right tabular-nums">${(a.engagement > 0 ? acctSpend / a.engagement : 0).toFixed(4)}</td>
-                            <td className="text-right tabular-nums">${acctRev.toFixed(2)}</td>
-                            <td className="text-right tabular-nums font-semibold">{acctRoi >= 0 ? "+" : ""}{acctRoi.toFixed(1)}%</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{a.posts}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">${(a.posts > 0 ? acctSpend / a.posts : 0).toFixed(2)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">${(a.engagement > 0 ? acctSpend / a.engagement : 0).toFixed(4)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">${acctRev.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold">{acctRoi >= 0 ? "+" : ""}{acctRoi.toFixed(1)}%</td>
                           </tr>
                         );
                       })}
@@ -4708,17 +4708,17 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Date</th>
-                  <th className="text-right">Engagement</th>
-                  <th className="text-right">Posts</th>
-                  <th className="text-right">Est. Revenue</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Est. Revenue</th>
                 </tr></thead>
                 <tbody>
                   {analytics.series.slice(-30).map(s => (
                     <tr key={s.date}>
                       <td>{fmtDay(s.date)}</td>
-                      <td className="text-right tabular-nums">{s.engagement.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{s.posts}</td>
-                      <td className="text-right tabular-nums">${(s.engagement * 0.01).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.posts}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">${(s.engagement * 0.01).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4745,15 +4745,15 @@ function PrintLayout({
                   <table className="report-table">
                     <thead><tr>
                       <th>Sentiment</th>
-                      <th className="text-right">Count</th>
-                      <th className="text-right">Share %</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Count</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Share %</th>
                     </tr></thead>
                     <tbody>
                       {rows.map(r => (
                         <tr key={r.label}>
                           <td className="font-medium">{r.label}</td>
-                          <td className="text-right tabular-nums">{r.count.toLocaleString()}</td>
-                          <td className="text-right tabular-nums">{r.pct.toFixed(1)}%</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{r.count.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{r.pct.toFixed(1)}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4766,15 +4766,15 @@ function PrintLayout({
                 <table className="report-table">
                   <thead><tr>
                     <th>Date</th>
-                    <th className="text-right">Mentions</th>
-                    <th className="text-right">Sentiment Score</th>
+                    <th className="px-3 py-2 text-right tabular-nums">Mentions</th>
+                    <th className="px-3 py-2 text-right tabular-nums">Sentiment Score</th>
                   </tr></thead>
                   <tbody>
                     {listeningData.series.map(d => (
                       <tr key={d.date}>
                         <td>{fmtDay(d.date)}</td>
-                        <td className="text-right tabular-nums">{d.count}</td>
-                        <td className="text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{d.count}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4798,11 +4798,11 @@ function PrintLayout({
                     <table className="report-table">
                       <thead><tr>
                         <th>Source</th>
-                        <th className="text-right">Mentions</th>
-                        <th className="text-right">Positive</th>
-                        <th className="text-right">Neutral</th>
-                        <th className="text-right">Negative</th>
-                        <th className="text-right">Score</th>
+                        <th className="px-3 py-2 text-right tabular-nums">Mentions</th>
+                        <th className="px-3 py-2 text-right tabular-nums">Positive</th>
+                        <th className="px-3 py-2 text-right tabular-nums">Neutral</th>
+                        <th className="px-3 py-2 text-right tabular-nums">Negative</th>
+                        <th className="px-3 py-2 text-right tabular-nums">Score</th>
                       </tr></thead>
                       <tbody>
                         {rows.map(r => {
@@ -4810,11 +4810,11 @@ function PrintLayout({
                           return (
                             <tr key={r.source}>
                               <td className="font-medium capitalize">{r.source}</td>
-                              <td className="text-right tabular-nums">{r.count}</td>
-                              <td className="text-right tabular-nums">{r.positive}</td>
-                              <td className="text-right tabular-nums">{r.neutral}</td>
-                              <td className="text-right tabular-nums">{r.negative}</td>
-                              <td className="text-right tabular-nums">{score >= 0 ? "+" : ""}{score.toFixed(1)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{r.count}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{r.positive}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{r.neutral}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{r.negative}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{score >= 0 ? "+" : ""}{score.toFixed(1)}</td>
                             </tr>
                           );
                         })}
@@ -4836,18 +4836,18 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Date</th>
-                  <th className="text-right">Posts</th>
-                  <th className="text-right">Followers</th>
-                  <th className="text-right">Engagement</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Posts</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Followers</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
                   <th>Status</th>
                 </tr></thead>
                 <tbody>
                   {analytics.series.slice(-30).map(s => (
                     <tr key={s.date}>
                       <td>{fmtDay(s.date)}</td>
-                      <td className="text-right tabular-nums">{s.posts}</td>
-                      <td className="text-right tabular-nums">{s.followers.toLocaleString()}</td>
-                      <td className="text-right tabular-nums">{s.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.posts}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{s.engagement.toLocaleString()}</td>
                       <td>{s.posts === 0 ? <span className="report-subtle">— gap —</span> : "active"}</td>
                     </tr>
                   ))}
@@ -4888,14 +4888,14 @@ function PrintLayout({
                   <table className="report-table">
                     <thead><tr>
                       <th>Rank</th><th>Slot</th>
-                      <th className="text-right">Posts Published</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Posts Published</th>
                     </tr></thead>
                     <tbody>
                       {rows.map((r, i) => (
                         <tr key={r.slot}>
                           <td className="tabular-nums">{i + 1}</td>
                           <td className="font-medium">{r.slot}</td>
-                          <td className="text-right tabular-nums">{r.count}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{r.count}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4915,10 +4915,10 @@ function PrintLayout({
               <table className="report-table">
                 <thead><tr>
                   <th>Query</th>
-                  <th className="text-right">Mentions</th>
-                  <th className="text-right">Reach</th>
-                  <th className="text-right">Engagement</th>
-                  <th className="text-right">Share of Voice</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Mentions</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Reach</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Engagement</th>
+                  <th className="px-3 py-2 text-right tabular-nums">Share of Voice</th>
                 </tr></thead>
                 <tbody>
                   {listeningData.queries.map(q => {
@@ -4927,10 +4927,10 @@ function PrintLayout({
                     return (
                       <tr key={q.id}>
                         <td className="font-medium">{q.name}</td>
-                        <td className="text-right tabular-nums">{q.mentionCount}</td>
-                        <td className="text-right tabular-nums">{q.reach.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{q.engagement.toLocaleString()}</td>
-                        <td className="text-right tabular-nums">{sov.toFixed(1)}%</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{q.mentionCount}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{q.reach.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{q.engagement.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{sov.toFixed(1)}%</td>
                       </tr>
                     );
                   })}
@@ -4942,15 +4942,15 @@ function PrintLayout({
                 <table className="report-table">
                   <thead><tr>
                     <th>Date</th>
-                    <th className="text-right">Mentions</th>
-                    <th className="text-right">Sentiment Score</th>
+                    <th className="px-3 py-2 text-right tabular-nums">Mentions</th>
+                    <th className="px-3 py-2 text-right tabular-nums">Sentiment Score</th>
                   </tr></thead>
                   <tbody>
                     {listeningData.series.map(d => (
                       <tr key={d.date}>
                         <td>{fmtDay(d.date)}</td>
-                        <td className="text-right tabular-nums">{d.count}</td>
-                        <td className="text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{d.count}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4974,17 +4974,17 @@ function PrintLayout({
                   <table className="report-table">
                     <thead><tr>
                       <th>Source</th>
-                      <th className="text-right">Mentions</th>
-                      <th className="text-right">Reach</th>
-                      <th className="text-right">Share %</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Mentions</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Reach</th>
+                      <th className="px-3 py-2 text-right tabular-nums">Share %</th>
                     </tr></thead>
                     <tbody>
                       {rows.map(r => (
                         <tr key={r.source}>
                           <td className="font-medium capitalize">{r.source}</td>
-                          <td className="text-right tabular-nums">{r.count}</td>
-                          <td className="text-right tabular-nums">{r.reach.toLocaleString()}</td>
-                          <td className="text-right tabular-nums">{((r.count / total) * 100).toFixed(1)}%</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{r.count}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{r.reach.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{((r.count / total) * 100).toFixed(1)}%</td>
                         </tr>
                       ))}
                     </tbody>
