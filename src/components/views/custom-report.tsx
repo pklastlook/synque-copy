@@ -1417,16 +1417,16 @@ function PrintLayout({
           <table className="report-table">
             <thead><tr><th>Filter</th><th>Value</th></tr></thead>
             <tbody>
-              <tr><td className="font-medium">Period</td><td>{startDate} to {endDate}</td></tr>
-              <tr><td className="font-medium">Group By</td><td className="capitalize">{groupLabel}</td></tr>
-              <tr><td className="font-medium">Sort By</td><td>{SORT_OPTIONS.find((o) => o.id === report.filters.sortBy)?.label ?? report.filters.sortBy}</td></tr>
-              <tr><td className="font-medium">Post Status</td><td>{report.filters.postStatus ? report.filters.postStatus.join(", ") : "All"}</td></tr>
-              <tr><td className="font-medium">Comment Sentiment</td><td>{report.filters.sentiment ? report.filters.sentiment.join(", ") : "All"}</td></tr>
-              <tr><td className="font-medium">Min Engagement</td><td className="tabular-nums">{report.filters.minEngagement}</td></tr>
+              <tr><td className="px-3 py-2 font-medium">Period</td><td className="px-3 py-2">{startDate} to {endDate}</td></tr>
+              <tr><td className="px-3 py-2 font-medium">Group By</td><td className="px-3 py-2 capitalize">{groupLabel}</td></tr>
+              <tr><td className="px-3 py-2 font-medium">Sort By</td><td className="px-3 py-2">{SORT_OPTIONS.find((o) => o.id === report.filters.sortBy)?.label ?? report.filters.sortBy}</td></tr>
+              <tr><td className="px-3 py-2 font-medium">Post Status</td><td className="px-3 py-2">{report.filters.postStatus ? report.filters.postStatus.join(", ") : "All"}</td></tr>
+              <tr><td className="px-3 py-2 font-medium">Comment Sentiment</td><td className="px-3 py-2">{report.filters.sentiment ? report.filters.sentiment.join(", ") : "All"}</td></tr>
+              <tr><td className="px-3 py-2 font-medium">Min Engagement</td><td className="px-3 py-2 tabular-nums">{report.filters.minEngagement}</td></tr>
               {report.filters.search && (
-                <tr><td className="font-medium">Search</td><td>&ldquo;{report.filters.search}&rdquo;</td></tr>
+                <tr><td className="px-3 py-2 font-medium">Search</td><td className="px-3 py-2">&ldquo;{report.filters.search}&rdquo;</td></tr>
               )}
-              <tr><td className="font-medium">Metrics</td><td>{selectedMetrics.join(", ")}</td></tr>
+              <tr><td className="px-3 py-2 font-medium">Metrics</td><td className="px-3 py-2">{selectedMetrics.join(", ")}</td></tr>
             </tbody>
           </table>
         </PrintSection>
@@ -1437,25 +1437,25 @@ function PrintLayout({
             <table className="report-table">
               <thead><tr>
                 <th>Period</th>
-                <th className="text-right">Posts</th>
-                <th className="text-right">Published</th>
-                <th className="text-right">Likes</th>
-                <th className="text-right">Comments</th>
-                <th className="text-right">Shares</th>
-                <th className="text-right">Engagement</th>
-                <th className="text-right">Reach</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Posts</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Published</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Likes</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Comments</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Shares</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Engagement</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Reach</th>
               </tr></thead>
               <tbody>
                 {report.series.slice(-30).map((d) => (
                   <tr key={d.date}>
-                    <td>{fmtDay(d.date)}</td>
-                    <td className="text-right tabular-nums">{d.postsCreated}</td>
-                    <td className="text-right tabular-nums">{d.published}</td>
-                    <td className="text-right tabular-nums">{d.likes.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{d.comments.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{d.shares.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{d.engagement.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{d.reach.toLocaleString()}</td>
+                    <td className="px-3 py-2">{fmtDay(d.date)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{d.postsCreated}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{d.published}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{d.likes.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{d.comments.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{d.shares.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{d.engagement.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{d.reach.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1469,17 +1469,17 @@ function PrintLayout({
             <table className="report-table">
               <thead><tr>
                 <th>Platform</th>
-                <th className="text-right">Posts</th>
-                <th className="text-right">Engagement</th>
-                <th className="text-right">Followers</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Posts</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Engagement</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Followers</th>
               </tr></thead>
               <tbody>
                 {report.summary.platformBreakdown.map((p) => (
                   <tr key={p.platform}>
                     <td className="font-medium capitalize">{p.platform}</td>
-                    <td className="text-right tabular-nums">{p.posts}</td>
-                    <td className="text-right tabular-nums">{p.engagement.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{p.posts}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{p.engagement.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{p.followers.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1493,19 +1493,19 @@ function PrintLayout({
             <table className="report-table">
               <thead><tr>
                 <th>Member</th>
-                <th className="text-right">Posts</th>
-                <th className="text-right">Published</th>
-                <th className="text-right">Comments</th>
-                <th className="text-right">Engagement</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Posts</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Published</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Comments</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Engagement</th>
               </tr></thead>
               <tbody>
                 {report.members.map((m) => (
                   <tr key={m.id}>
-                    <td className="font-medium">{m.name}</td>
-                    <td className="text-right tabular-nums">{m.posts}</td>
-                    <td className="text-right tabular-nums">{m.published}</td>
-                    <td className="text-right tabular-nums">{m.comments}</td>
-                    <td className="text-right tabular-nums">{m.engagement.toLocaleString()}</td>
+                    <td className="px-3 py-2 font-medium">{m.name}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{m.posts}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{m.published}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{m.comments}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{m.engagement.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1522,19 +1522,19 @@ function PrintLayout({
                 <th>Author</th>
                 <th>Status</th>
                 <th>Platforms</th>
-                <th className="text-right">Likes</th>
-                <th className="text-right">Comments</th>
-                <th className="text-right">Engagement</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Likes</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Comments</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Engagement</th>
               </tr></thead>
               <tbody>
                 {report.posts.slice(0, 30).map((p) => (
                   <tr key={p.id}>
                     <td className="max-w-[180px] truncate font-medium">{p.title || "Untitled"}</td>
-                    <td>{p.authorName}</td>
-                    <td className="capitalize">{p.status}</td>
+                    <td className="px-3 py-2">{p.authorName}</td>
+                    <td className="px-3 py-2 capitalize">{p.status}</td>
                     <td className="text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
-                    <td className="text-right tabular-nums">{p.likes.toLocaleString()}</td>
-                    <td className="text-right tabular-nums">{p.comments.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{p.likes.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{p.comments.toLocaleString()}</td>
                     <td className="text-right tabular-nums font-semibold">{p.engagement.toLocaleString()}</td>
                   </tr>
                 ))}
@@ -1558,12 +1558,12 @@ function PrintLayout({
               <tbody>
                 {report.comments.slice(0, 30).map((c) => (
                   <tr key={c.id}>
-                    <td className="font-medium">{c.author}</td>
+                    <td className="px-3 py-2 font-medium">{c.author}</td>
                     <td className="max-w-[240px] truncate">{c.text}</td>
-                    <td className="capitalize">{c.sentiment}</td>
-                    <td>{c.replied ? "Yes" : "No"}</td>
-                    <td className="capitalize">{c.platform}</td>
-                    <td>{c.accountName}</td>
+                    <td className="px-3 py-2 capitalize">{c.sentiment}</td>
+                    <td className="px-3 py-2">{c.replied ? "Yes" : "No"}</td>
+                    <td className="px-3 py-2 capitalize">{c.platform}</td>
+                    <td className="px-3 py-2">{c.accountName}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1578,18 +1578,18 @@ function PrintLayout({
               <thead><tr>
                 <th>Title</th>
                 <th>Author</th>
-                <th className="text-right">Likes</th>
-                <th className="text-right">Comments</th>
-                <th className="text-right">Shares</th>
-                <th className="text-right">Engagement</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Likes</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Comments</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Shares</th>
+                <th className="px-3 py-2.5 text-right tabular-nums">Engagement</th>
               </tr></thead>
               <tbody>
                 <tr>
-                  <td className="font-medium">{report.bestPost.title || "Untitled"}</td>
-                  <td>{report.bestPost.authorName}</td>
-                  <td className="text-right tabular-nums">{report.bestPost.likes.toLocaleString()}</td>
-                  <td className="text-right tabular-nums">{report.bestPost.comments.toLocaleString()}</td>
-                  <td className="text-right tabular-nums">{report.bestPost.shares.toLocaleString()}</td>
+                  <td className="px-3 py-2 font-medium">{report.bestPost.title || "Untitled"}</td>
+                  <td className="px-3 py-2">{report.bestPost.authorName}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{report.bestPost.likes.toLocaleString()}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{report.bestPost.comments.toLocaleString()}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{report.bestPost.shares.toLocaleString()}</td>
                   <td className="text-right tabular-nums font-semibold">{report.bestPost.engagement.toLocaleString()}</td>
                 </tr>
               </tbody>

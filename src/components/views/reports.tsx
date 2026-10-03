@@ -1956,14 +1956,14 @@ function AccountUserContent({ reportData }: { reportData: ReportDataRoot | null 
                       <tbody>
                         {a.perUser.map(u => (
                           <tr key={u.userId} className="border-b border-border/10">
-                            <td className="py-1.5">
+                            <td className="py-2.5 px-3">
                               <div className="flex items-center gap-2">
                                 <NameAvatar name={u.userName} color={(u.color as any) ?? "blue"} className="h-5 w-5 text-[9px]" />
                                 <span>{u.userName}</span>
                               </div>
                             </td>
-                            <td className="py-1.5 text-right tabular-nums">{u.posts}</td>
-                            <td className="py-1.5 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{u.published}</td>
+                            <td className="py-2.5 px-3 text-right tabular-nums">{u.posts}</td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-emerald-600 dark:text-emerald-400">{u.published}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2051,12 +2051,12 @@ function PlatformContent({ analytics, totals }: {
             <thead>
               <tr className="border-b border-border/40 bg-muted/20">
                 <th className="py-2.5 px-3 text-left font-semibold text-muted-foreground">Platform</th>
-                <th className="px-3 text-right font-semibold text-muted-foreground">Accounts</th>
-                <th className="px-3 text-right font-semibold text-muted-foreground">Followers</th>
-                <th className="px-3 text-right font-semibold text-muted-foreground">Impressions</th>
-                <th className="px-3 text-right font-semibold text-muted-foreground">Engagement</th>
-                <th className="px-3 text-right font-semibold text-muted-foreground">Posts</th>
-                <th className="px-3 text-center font-semibold text-muted-foreground">14d Trend</th>
+                <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Accounts</th>
+                <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Followers</th>
+                <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Impressions</th>
+                <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Engagement</th>
+                <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Posts</th>
+                <th className="py-2.5 px-3 text-center font-semibold text-muted-foreground">14d Trend</th>
               </tr>
             </thead>
             <tbody>
@@ -2279,12 +2279,12 @@ function AccountBreakdownTable({ analytics }: { analytics: AnalyticsData }) {
         <thead>
           <tr className="border-b border-border/40 bg-muted/20">
             <th className="py-2.5 px-3 text-left font-semibold text-muted-foreground">Account</th>
-            <th className="px-3 text-right font-semibold"><SortHeader label="Followers" k="followers" sortKey={sortKey} sortDir={sortDir} onToggle={(k) => toggleSort(k as typeof sortKey)} /></th>
-            <th className="px-3 text-right font-semibold"><SortHeader label="Impressions" k="impressions" sortKey={sortKey} sortDir={sortDir} onToggle={(k) => toggleSort(k as typeof sortKey)} /></th>
-            <th className="px-3 text-right font-semibold"><SortHeader label="Engagement" k="engagement" sortKey={sortKey} sortDir={sortDir} onToggle={(k) => toggleSort(k as typeof sortKey)} /></th>
-            <th className="px-3 text-right font-semibold"><SortHeader label="Posts" k="posts" sortKey={sortKey} sortDir={sortDir} onToggle={(k) => toggleSort(k as typeof sortKey)} /></th>
-            <th className="px-3 text-left font-semibold text-muted-foreground">Owner</th>
-            <th className="px-3 text-center font-semibold text-muted-foreground">14d Trend</th>
+            <th className="py-2.5 px-3 text-right font-semibold"><SortHeader label="Followers" k="followers" sortKey={sortKey} sortDir={sortDir} onToggle={(k) => toggleSort(k as typeof sortKey)} /></th>
+            <th className="py-2.5 px-3 text-right font-semibold"><SortHeader label="Impressions" k="impressions" sortKey={sortKey} sortDir={sortDir} onToggle={(k) => toggleSort(k as typeof sortKey)} /></th>
+            <th className="py-2.5 px-3 text-right font-semibold"><SortHeader label="Engagement" k="engagement" sortKey={sortKey} sortDir={sortDir} onToggle={(k) => toggleSort(k as typeof sortKey)} /></th>
+            <th className="py-2.5 px-3 text-right font-semibold"><SortHeader label="Posts" k="posts" sortKey={sortKey} sortDir={sortDir} onToggle={(k) => toggleSort(k as typeof sortKey)} /></th>
+            <th className="py-2.5 px-3 text-left font-semibold text-muted-foreground">Owner</th>
+            <th className="py-2.5 px-3 text-center font-semibold text-muted-foreground">14d Trend</th>
           </tr>
         </thead>
         <tbody>
@@ -2293,7 +2293,7 @@ function AccountBreakdownTable({ analytics }: { analytics: AnalyticsData }) {
             const spark = series14.map(s => Math.round(s.followers * (a.followers / (analytics.perAccount.reduce((s, x) => s + x.followers, 0) || 1))));
             return (
               <tr key={a.id} className="border-b border-border/20 transition hover:bg-muted/20">
-                <td className="py-2 px-3">
+                <td className="py-2.5 px-3">
                   <div className="flex items-center gap-2">
                     <PlatformBadge platform={a.platform as PlatformId} size={16} />
                     <span className="font-medium">{a.displayName}</span>
@@ -2325,12 +2325,12 @@ function MemberBreakdownTable({ teamData }: { teamData: TeamData }) {
         <thead>
           <tr className="border-b border-border/40 bg-muted/20">
             <th className="py-2.5 px-3 text-left font-semibold text-muted-foreground">Member</th>
-            <th className="px-3 text-right font-semibold text-muted-foreground">Posts</th>
-            <th className="px-3 text-right font-semibold text-muted-foreground">Published</th>
-            <th className="px-3 text-right font-semibold text-muted-foreground">Replied</th>
-            <th className="px-3 text-right font-semibold text-muted-foreground">Reply %</th>
-            <th className="px-3 text-right font-semibold text-muted-foreground">Weekly</th>
-            <th className="px-3 text-center font-semibold text-muted-foreground">14d Trend</th>
+            <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Posts</th>
+            <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Published</th>
+            <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Replied</th>
+            <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Reply %</th>
+            <th className="py-2.5 px-3 text-right font-semibold text-muted-foreground">Weekly</th>
+            <th className="py-2.5 px-3 text-center font-semibold text-muted-foreground">14d Trend</th>
           </tr>
         </thead>
         <tbody>
@@ -2341,7 +2341,7 @@ function MemberBreakdownTable({ teamData }: { teamData: TeamData }) {
             });
             return (
               <tr key={m.id} className="border-b border-border/20 transition hover:bg-muted/20">
-                <td className="py-2 px-3">
+                <td className="py-2.5 px-3">
                   <div className="flex items-center gap-2">
                     <NameAvatar name={m.name} color={(m.color as any) ?? "blue"} className="h-6 w-6 text-[10px]" />
                     <div>
@@ -2402,7 +2402,7 @@ function UserAccountMatrixTable({ matrix }: { matrix: ReportDataRoot["userAccoun
             const total = u.totals.postsCreated;
             return (
               <tr key={u.userId} className="border-b border-border/20 transition hover:bg-muted/20">
-                <td className="sticky left-0 z-10 bg-background/80 py-2 px-3">
+                <td className="sticky left-0 z-10 bg-background/80 py-2.5 px-3">
                   <div className="flex items-center gap-2">
                     <NameAvatar name={u.userName} color={(u.color as any) ?? "blue"} className="h-5 w-5 text-[9px]" />
                     <div className="font-medium truncate">{u.userName}</div>
@@ -2413,7 +2413,7 @@ function UserAccountMatrixTable({ matrix }: { matrix: ReportDataRoot["userAccoun
                   const posts = cell?.posts ?? 0;
                   const comments = cell?.comments ?? 0;
                   return (
-                    <td key={a.id} className="px-2 py-2 text-center">
+                    <td key={a.id} className="px-3 py-2.5 text-center">
                       {posts > 0 || comments > 0 ? (
                         <div className="flex flex-col items-center">
                           <span className="font-bold tabular-nums">{posts}</span>
@@ -2425,7 +2425,7 @@ function UserAccountMatrixTable({ matrix }: { matrix: ReportDataRoot["userAccoun
                     </td>
                   );
                 })}
-                <td className="px-3 py-2 text-right font-bold tabular-nums text-primary">{total}</td>
+                <td className="px-3 py-2.5 text-right font-bold tabular-nums text-primary">{total}</td>
               </tr>
             );
           })}
@@ -2482,7 +2482,7 @@ function UserComparisonTable({ users }: { users: ReportDataRoot["userComparison"
         <tbody>
           {sorted.map(u => (
             <tr key={u.id} className="border-b border-border/20 transition hover:bg-muted/20">
-              <td className="sticky left-0 z-10 bg-background/80 py-2 px-3">
+              <td className="sticky left-0 z-10 bg-background/80 py-2.5 px-3">
                 <div className="flex items-center gap-2">
                   <NameAvatar name={u.name} color={(u.color as any) ?? "blue"} className="h-6 w-6 text-[10px]" />
                   <div>
@@ -3929,10 +3929,10 @@ function PrintLayout({
                   {series.slice(-30).map(s => (
                     <tr key={s.date}>
                       <td>{fmtDay(s.date)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.followers.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.impressions.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.reach.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.impressions.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.reach.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.engagement.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -3952,10 +3952,10 @@ function PrintLayout({
                     <tr key={a.id}>
                       <td className="font-medium">{a.displayName}</td>
                       <td className="capitalize">{a.platform}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.impressions.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.reach.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.reach.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.engagement.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -3978,9 +3978,9 @@ function PrintLayout({
                   {platformAgg.map(p => (
                     <tr key={p.platform}>
                       <td className="font-medium capitalize">{p.platform}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.followers.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{totals.followers > 0 ? ((p.followers / totals.followers) * 100).toFixed(1) : "0.0"}%</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.accounts}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.followers > 0 ? ((p.followers / totals.followers) * 100).toFixed(1) : "0.0"}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4000,8 +4000,8 @@ function PrintLayout({
                     return (
                       <tr key={s.date}>
                         <td>{fmtDay(s.date)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{s.followers.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
                       </tr>
                     );
                   })}
@@ -4028,11 +4028,11 @@ function PrintLayout({
                     <tr key={a.id}>
                       <td className="font-medium">{a.displayName}</td>
                       <td className="capitalize">{a.platform}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.likes.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.comments.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.shares.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.saves.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums font-semibold">{a.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.likes.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.comments.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.shares.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.saves.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums font-semibold">{a.engagement.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4051,7 +4051,7 @@ function PrintLayout({
                         <td className="max-w-[200px] truncate">{c.title || "Untitled"}</td>
                         <td>{c.authorName}</td>
                         <td className="capitalize">{c.platform}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{c.engagement.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{c.engagement.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4081,12 +4081,12 @@ function PrintLayout({
                     <tr key={u.id}>
                       <td className="tabular-nums">{i + 1}</td>
                       <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsCreated}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsPublished}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.commentsReceived}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.commentsReplied}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.replyRate}%</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsLast7d}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsPublished}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.commentsReceived}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.commentsReplied}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.replyRate}%</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsLast7d}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4105,10 +4105,10 @@ function PrintLayout({
                   {reportData.userComparison.map(u => (
                     <tr key={u.id}>
                       <td className="font-medium">{u.name}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.accountsOwned}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsCreated}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.variantsPublished}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.avgPostsPerAccount}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.accountsOwned}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.variantsPublished}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.avgPostsPerAccount}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4141,8 +4141,8 @@ function PrintLayout({
                     return rows.map(r => (
                       <tr key={r.stage}>
                         <td className="font-medium">{r.stage}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{r.count}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{total > 0 ? ((r.count / total) * 100).toFixed(1) : "0.0"}%</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{r.count}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{total > 0 ? ((r.count / total) * 100).toFixed(1) : "0.0"}%</td>
                       </tr>
                     ));
                   })()}
@@ -4162,7 +4162,7 @@ function PrintLayout({
                         <td className="max-w-[180px] truncate font-medium">{p.title || "Untitled"}</td>
                         <td>{p.authorName}</td>
                         <td className="capitalize">{p.status}</td>
-                        <td className="px-3 py-2 text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
+                        <td className="px-3 py-2.5 text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
                         <td>{fmtDay(p.createdAt)}</td>
                       </tr>
                     ))}
@@ -4188,10 +4188,10 @@ function PrintLayout({
                   {platformAgg.map(p => (
                     <tr key={p.platform}>
                       <td className="font-medium capitalize">{p.platform}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.followers.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.posts}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.accounts}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.posts}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4214,9 +4214,9 @@ function PrintLayout({
                     return (
                       <tr key={s.date}>
                         <td>{fmtDay(s.date)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{s.followers.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{delta >= 0 ? "+" : ""}{pct}%</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{delta >= 0 ? "+" : ""}{delta.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{delta >= 0 ? "+" : ""}{pct}%</td>
                       </tr>
                     );
                   })}
@@ -4242,11 +4242,11 @@ function PrintLayout({
                   {platformAgg.map(p => (
                     <tr key={p.platform}>
                       <td className="font-medium capitalize">{p.platform}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.followers.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.posts}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.engagement.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.accounts}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.posts}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.accounts > 0 ? fmt(Math.round(p.engagement / p.accounts)) : "0"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4274,7 +4274,7 @@ function PrintLayout({
                       <tr key={r.metric}>
                         <td className="font-medium">{r.metric}</td>
                         <td className="capitalize">{r.platform}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{r.value}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{r.value}</td>
                       </tr>
                     ));
                   })()}
@@ -4299,9 +4299,9 @@ function PrintLayout({
                     <tr key={a.id}>
                       <td className="font-medium">{a.displayName}</td>
                       <td className="capitalize">{a.platform}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.impressions.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.reach.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.impressions > 0 ? ((a.reach / a.impressions) * 100).toFixed(1) : "0.0"}%</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.impressions.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.reach.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.impressions > 0 ? ((a.reach / a.impressions) * 100).toFixed(1) : "0.0"}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4319,9 +4319,9 @@ function PrintLayout({
                   {series.slice(-30).map(s => (
                     <tr key={s.date}>
                       <td>{fmtDay(s.date)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.impressions.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.reach.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.impressions > 0 ? ((s.reach / s.impressions) * 100).toFixed(1) : "0.0"}%</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.impressions.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.reach.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.impressions > 0 ? ((s.reach / s.impressions) * 100).toFixed(1) : "0.0"}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4353,7 +4353,7 @@ function PrintLayout({
                             const cell = u.perAccount.find(p => p.accountId === a.id);
                             return <td key={a.id} className="text-center tabular-nums">{cell?.posts ?? "—"}</td>;
                           })}
-                          <td className="px-3 py-2 text-right tabular-nums font-bold">{u.totals.postsCreated}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-bold">{u.totals.postsCreated}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4376,11 +4376,11 @@ function PrintLayout({
                     <tr key={u.userId}>
                       <td className="font-medium">{u.userName}</td>
                       <td>{u.title ?? u.role}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.postsCreated}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.published}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.drafts}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.commentsReceived}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.totals.accountsOwned}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.totals.postsCreated}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.totals.published}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.totals.drafts}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.totals.commentsReceived}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.totals.accountsOwned}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4441,11 +4441,11 @@ function PrintLayout({
                     <tr key={u.id}>
                       <td className="font-medium">{u.name}</td>
                       <td>{u.title ?? u.role}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsCreated}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsPublished}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.commentsReplied}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.replyRate}%</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsLast7d}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsPublished}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.commentsReplied}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.replyRate}%</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsLast7d}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4472,11 +4472,11 @@ function PrintLayout({
                       <td className="font-medium">{a.displayName}</td>
                       <td className="capitalize">{a.platform}</td>
                       <td>{a.ownerName}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.totalPosts}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.totalPublished}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.totalComments}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{a.repliedComments}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.totalPosts}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.totalPublished}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.totalComments}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{a.repliedComments}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4496,8 +4496,8 @@ function PrintLayout({
                       {a.perUser.map(u => (
                         <tr key={u.userId}>
                           <td>{u.userName}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{u.posts}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{u.published}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{u.posts}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{u.published}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4559,12 +4559,12 @@ function PrintLayout({
                     <tr key={u.id}>
                       <td className="tabular-nums">{i + 1}</td>
                       <td className="font-medium">{u.name}<span className="report-subtle"> · {u.title ?? u.role}</span></td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsCreated}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsPublished}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.commentsReplied}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.replyRate}%</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{u.postsLast7d}</td>
-                      <td className="px-3 py-2 text-right tabular-nums font-semibold">{u.postsCreated + u.commentsReplied + u.replyRate}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsCreated}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsPublished}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.commentsReplied}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.replyRate}%</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{u.postsLast7d}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums font-semibold">{u.postsCreated + u.commentsReplied + u.replyRate}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4589,11 +4589,11 @@ function PrintLayout({
                   {postsPerfData.platformBreakdown.map(p => (
                     <tr key={p.platform}>
                       <td className="font-medium capitalize">{p.platform}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.postsPublished}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.totalVariants}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.totalEngagement.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.avgEngagement.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{p.shareOfTotal.toFixed(1)}%</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.postsPublished}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.totalVariants}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.totalEngagement.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.avgEngagement.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{p.shareOfTotal.toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4615,12 +4615,12 @@ function PrintLayout({
                     <tr key={m.userId}>
                       <td className="font-medium">{m.name}</td>
                       <td>{m.title ?? m.role}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{m.postsAuthored}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{m.postsPublished}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{m.platforms.length}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{m.commentsReceived}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{m.replyRate}%</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{m.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{m.postsAuthored}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{m.postsPublished}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{m.platforms.length}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{m.commentsReceived}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{m.replyRate}%</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{m.engagement.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4644,9 +4644,9 @@ function PrintLayout({
                         <td className="max-w-[180px] truncate font-medium">{p.title || "Untitled"}</td>
                         <td>{p.authorName}</td>
                         <td className="capitalize">{p.status}</td>
-                        <td className="px-3 py-2 text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{p.engagement.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{p.comments}</td>
+                        <td className="px-3 py-2.5 text-[8.5px] capitalize">{p.platforms.join(", ") || "—"}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{p.engagement.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{p.comments}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4689,13 +4689,13 @@ function PrintLayout({
                           <tr key={a.id}>
                             <td className="font-medium">{a.displayName}</td>
                             <td className="capitalize">{a.platform}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{a.posts}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{a.followers.toLocaleString()}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{a.engagement.toLocaleString()}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">${(a.posts > 0 ? acctSpend / a.posts : 0).toFixed(2)}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">${(a.engagement > 0 ? acctSpend / a.engagement : 0).toFixed(4)}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">${acctRev.toFixed(2)}</td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold">{acctRoi >= 0 ? "+" : ""}{acctRoi.toFixed(1)}%</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{a.posts}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{a.followers.toLocaleString()}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{a.engagement.toLocaleString()}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">${(a.posts > 0 ? acctSpend / a.posts : 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">${(a.engagement > 0 ? acctSpend / a.engagement : 0).toFixed(4)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">${acctRev.toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-semibold">{acctRoi >= 0 ? "+" : ""}{acctRoi.toFixed(1)}%</td>
                           </tr>
                         );
                       })}
@@ -4716,9 +4716,9 @@ function PrintLayout({
                   {analytics.series.slice(-30).map(s => (
                     <tr key={s.date}>
                       <td>{fmtDay(s.date)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.engagement.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.posts}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">${(s.engagement * 0.01).toFixed(2)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.posts}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">${(s.engagement * 0.01).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -4752,8 +4752,8 @@ function PrintLayout({
                       {rows.map(r => (
                         <tr key={r.label}>
                           <td className="font-medium">{r.label}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{r.count.toLocaleString()}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{r.pct.toFixed(1)}%</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{r.count.toLocaleString()}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{r.pct.toFixed(1)}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4773,8 +4773,8 @@ function PrintLayout({
                     {listeningData.series.map(d => (
                       <tr key={d.date}>
                         <td>{fmtDay(d.date)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{d.count}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{d.count}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4810,11 +4810,11 @@ function PrintLayout({
                           return (
                             <tr key={r.source}>
                               <td className="font-medium capitalize">{r.source}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{r.count}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{r.positive}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{r.neutral}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{r.negative}</td>
-                              <td className="px-3 py-2 text-right tabular-nums">{score >= 0 ? "+" : ""}{score.toFixed(1)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums">{r.count}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums">{r.positive}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums">{r.neutral}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums">{r.negative}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums">{score >= 0 ? "+" : ""}{score.toFixed(1)}</td>
                             </tr>
                           );
                         })}
@@ -4845,9 +4845,9 @@ function PrintLayout({
                   {analytics.series.slice(-30).map(s => (
                     <tr key={s.date}>
                       <td>{fmtDay(s.date)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.posts}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.followers.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">{s.engagement.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.posts}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{s.engagement.toLocaleString()}</td>
                       <td>{s.posts === 0 ? <span className="report-subtle">— gap —</span> : "active"}</td>
                     </tr>
                   ))}
@@ -4895,7 +4895,7 @@ function PrintLayout({
                         <tr key={r.slot}>
                           <td className="tabular-nums">{i + 1}</td>
                           <td className="font-medium">{r.slot}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{r.count}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{r.count}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4927,10 +4927,10 @@ function PrintLayout({
                     return (
                       <tr key={q.id}>
                         <td className="font-medium">{q.name}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{q.mentionCount}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{q.reach.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{q.engagement.toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{sov.toFixed(1)}%</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{q.mentionCount}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{q.reach.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{q.engagement.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{sov.toFixed(1)}%</td>
                       </tr>
                     );
                   })}
@@ -4949,8 +4949,8 @@ function PrintLayout({
                     {listeningData.series.map(d => (
                       <tr key={d.date}>
                         <td>{fmtDay(d.date)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{d.count}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{d.count}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{d.sentiment >= 0 ? "+" : ""}{d.sentiment}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -4982,9 +4982,9 @@ function PrintLayout({
                       {rows.map(r => (
                         <tr key={r.source}>
                           <td className="font-medium capitalize">{r.source}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{r.count}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{r.reach.toLocaleString()}</td>
-                          <td className="px-3 py-2 text-right tabular-nums">{((r.count / total) * 100).toFixed(1)}%</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{r.count}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{r.reach.toLocaleString()}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{((r.count / total) * 100).toFixed(1)}%</td>
                         </tr>
                       ))}
                     </tbody>
