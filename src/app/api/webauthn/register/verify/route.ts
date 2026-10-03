@@ -7,13 +7,14 @@ export const dynamic = "force-dynamic";
 
 /** POST /api/webauthn/register/verify
  * Verifies the registration response and stores the credential in the DB.
+ * Body: { response: RegistrationResponseJSON, expectedChallenge: string, expectedOrigin?: string }
  */
 export async function POST(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
 
   const body = await req.json();
-  const { response, expectedOrigin, expectedChallenge } = body;
+  const { response, expectedOrigin } = body;
 
   if (!response?.id) {
     return NextResponse.json({ error: "Invalid registration response" }, { status: 400 });
@@ -21,12 +22,14 @@ export async function POST(req: NextRequest) {
 
   const host = req.headers.get("host") || "";
   const rpID = host.split(":")[0];
+  // Use the origin from the request body (sent by the client) or derive from host
+  const origin = expectedOrigin || `https://${host}`;
 
   try {
     const verification = await verifyRegistrationResponse({
       response,
-      expectedChallenge: expectedChallenge || "",
-      expectedOrigin: expectedOrigin || `https://${host}`,
+      expectedChallenge: body.expectedChallenge || "",
+      expectedOrigin: origin,
       expectedRPID: rpID,
       requireUserVerification: false,
     });

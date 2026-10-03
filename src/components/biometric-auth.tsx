@@ -125,17 +125,25 @@ export function BiometricAuth({
     }
     const options = await optsRes.json();
 
+    // Store the challenge for verification (sent back in step 3)
+    const expectedChallenge = options.challenge;
+    const expectedOrigin = window.location.origin;
+
     // Step 2: Start the browser's biometric registration
     const attResp = await startRegistration({ optionsJSON: options });
 
-    // Step 3: Verify with the server (needs auth)
+    // Step 3: Verify with the server (needs auth) — send challenge + origin
     const verifyRes = await fetch("/api/webauthn/register/verify", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ response: attResp }),
+      body: JSON.stringify({
+        response: attResp,
+        expectedChallenge,
+        expectedOrigin,
+      }),
     });
 
     if (!verifyRes.ok) {
