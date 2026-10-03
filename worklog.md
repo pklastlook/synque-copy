@@ -9669,3 +9669,40 @@ Short, memorable opt-out class for designers to mark "do not wrap" flex rows.
 
 ### Work record
 See `/agent-ctx/MOBILE-FIX-mobile-alignment-fix.md` for full diff summary.
+
+---
+
+## Task ID: TABLE-FIX — `table-header-alignment`
+
+**Task**: Fix table header / cell misalignment in desktop view across all tables (team-performance, influencers, reports, and other modules). Root cause: `TableHead` (th) used `px-2` horizontal padding while `TableCell` (td) used `p-2` (which is `px-2 py-2`). This created vertical padding inconsistencies between header (with `h-10`) and cells (`py-2`), and mismatched alignment between header and content in many tables that apply `text-right` per-column.
+
+### Root-cause fix — `src/components/ui/table.tsx`
+
+Before:
+- `TableHead`: `h-10 px-2 text-left align-middle ...`
+- `TableCell`: `p-2 align-middle ...`  (note: `p-2` = `px-2 py-2`)
+
+After (consistent padding + alignment):
+- `TableHead`: `h-10 px-3 py-2.5 text-left align-middle ...`
+- `TableCell`: `px-3 py-2.5 align-middle ...`
+
+Changes:
+1. Both `TableHead` and `TableCell` now use **the same** horizontal padding — `px-3` (was `px-2` for both, but `px-2` on `<th>` plus default browser th padding created visual offset; `px-3` is cleaner and matches). The key fix is that both now share the identical horizontal padding so per-column alignment (`text-right`, `text-left`) lines up perfectly.
+2. `TableCell` now has explicit `py-2.5` (was `py-2` via `p-2`) to match `TableHead`'s vertical rhythm and provide slightly more breathing room.
+3. `TableHead` gains explicit `py-2.5` so both elements share identical vertical padding.
+4. Both already used `align-middle` — unchanged, confirmed consistent.
+
+### Why this fixes all 3 modules at once
+
+The per-view code in `team-performance.tsx`, `influencers.tsx`, and `reports.tsx` already applies `text-right` to BOTH the `TableHead` and the matching `TableCell` for numeric columns (e.g. ROI, Engagement, Cost). The visual misalignment was caused by the base padding mismatch in the shared `table.tsx` component, NOT by per-view code. With the root-cause fix:
+- All numeric `text-right` columns now align header-to-cell on the right edge.
+- All default `text-left` columns now align header-to-cell on the left edge.
+- No per-view edits were required — the fix propagates to every table in the app.
+
+### Verification
+- `bun run lint` — passes with zero errors / warnings.
+- No per-view code touched; no API / DB / store / route changes.
+- Change is backwards compatible: existing per-view `className` overrides (e.g. `h-9`, `h-8`, `text-[10px]`, `text-right`) layer on top of the new base classes via `cn()` without conflict.
+
+### Work record
+See `/agent-ctx/TABLE-FIX-table-header-alignment.md`.
