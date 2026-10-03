@@ -3178,7 +3178,11 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               const verifyRes = await fetch("/api/webauthn/authenticate/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ response: authResp }),
+                body: JSON.stringify({
+                  response: authResp,
+                  expectedChallenge: options.challenge,
+                  expectedOrigin: window.location.origin,
+                }),
               });
               if (verifyRes.ok) {
                 const result = await verifyRes.json();

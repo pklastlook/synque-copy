@@ -6,18 +6,31 @@ export const dynamic = "force-dynamic";
 
 /** POST /api/webauthn/authenticate/options
  * Generates authentication options for signing in with Face ID / fingerprint.
- * Body: { email: string } — looks up the user's registered credentials.
+ * Body: { email?: string } — if email is provided, looks up that user's credentials.
+ * If no email, returns ALL registered credentials (for discoverable/passkey login).
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const email = body.email?.trim();
+  const rpID = (req.headers.get("host") || "").split(":")[0];
 
   if (!email) {
-    // Allow discoverable credentials (passkeys) — no email needed
+    // No email provided — return ALL registered credentials across all users.
+    // This allows the browser to find any matching passkey on the device.
+    const allCredentials = await db.webAuthnCredential.findMany({
+      select: { id: true, transports: true },
+    });
+
     const options = await generateAuthenticationOptions({
-      rpID: (req.headers.get("host") || "").split(":")[0],
+      rpID,
       userVerification: "preferred",
-      allowCredentials: [],
+      allowCredentials: allCredentials.map((c) => ({
+        id: c.id,
+        type: "public-key" as const,
+        transports: (() => {
+          try { return JSON.parse(c.transports || "[]"); } catch { return []; }
+        })(),
+      })),
     });
     return NextResponse.json(options);
   }
@@ -31,7 +44,7 @@ export async function POST(req: NextRequest) {
   if (!userRecord) {
     // Don't reveal whether the email exists — return empty options
     const options = await generateAuthenticationOptions({
-      rpID: (req.headers.get("host") || "").split(":")[0],
+      rpID,
       userVerification: "preferred",
       allowCredentials: [],
     });
@@ -52,7 +65,7 @@ export async function POST(req: NextRequest) {
   }
 
   const options = await generateAuthenticationOptions({
-    rpID: (req.headers.get("host") || "").split(":")[0],
+    rpID,
     userVerification: "preferred",
     allowCredentials: credentials.map((c) => ({
       id: c.id,

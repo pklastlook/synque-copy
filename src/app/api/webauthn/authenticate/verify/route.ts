@@ -17,10 +17,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid authentication response" }, { status: 400 });
   }
 
-  // Find the credential by ID
-  const credential = await db.webAuthnCredential.findUnique({
+  // Find the credential by ID — search ALL credentials (not just one user's)
+  // because the browser may return any registered passkey on the device
+  const credential = await db.webAuthnCredential.findFirst({
     where: { id: authResponse.id },
-    include: { user: { select: { id: true, name: true, email: true, role: true, customerId: true } } },
+    include: { user: { select: { id: true, name: true, email: true, role: true, title: true, department: true, avatar: true, bio: true, timezone: true, language: true, customerId: true, emailVerified: true, twoFactorEnabled: true } } },
   });
 
   if (!credential) {
@@ -34,12 +35,12 @@ export async function POST(req: NextRequest) {
 
   const host = req.headers.get("host") || "";
   const rpID = host.split(":")[0];
-  const expectedOrigin = `https://${host}`;
+  const expectedOrigin = body.expectedOrigin || `https://${host}`;
 
   try {
     const verification = await verifyAuthenticationResponse({
       response: authResponse,
-      expectedChallenge: authResponse.response?.challenge || "",
+      expectedChallenge: body.expectedChallenge || authResponse.response?.challenge || "",
       expectedOrigin,
       expectedRPID: rpID,
       credential: {

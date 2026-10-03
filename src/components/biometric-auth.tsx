@@ -177,19 +177,27 @@ export function BiometricAuth({
     const options = await optsRes.json();
 
     // If no credentials are registered, don't trigger the browser prompt
-    // (it would show "No passkeys available" error)
     if (!options.allowCredentials || options.allowCredentials.length === 0) {
       throw new Error("No biometric credential found. Sign in with password first, then enable Face ID in Settings.");
     }
 
+    // Capture challenge + origin for verification
+    const expectedChallenge = options.challenge;
+    const expectedOrigin = window.location.origin;
+
     // Step 2: Start the browser's biometric authentication
     const authResp = await startAuthentication({ optionsJSON: options });
 
-    // Step 3: Verify with the server
+    // Step 3: Verify with the server — send challenge + origin
     const verifyRes = await fetch("/api/webauthn/authenticate/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ response: authResp, email }),
+      body: JSON.stringify({
+        response: authResp,
+        email,
+        expectedChallenge,
+        expectedOrigin,
+      }),
     });
 
     if (!verifyRes.ok) {
