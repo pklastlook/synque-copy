@@ -9741,3 +9741,33 @@ Stage Summary:
 - No API / DB / store / route changes — purely a defensive client-side fix.
 - The Media Library now renders gracefully for any asset `type` value coming
   from the database, defaulting unknown types to the image icon/color/bg.
+
+---
+Task ID: NAV-REORDER
+Agent: main
+Task: Restructure the mobile bottom tab bar — move the "Insights" (listening) tab into the More sheet, and move "Reports" into the slot where Insights was.
+
+Work Log:
+- Reverted an earlier (incorrect) rename of "Performance" → "Insights" across
+  4 sites (app-sidebar.tsx, app-shell.tsx ×2, dashboard.tsx). The
+  team-performance view is labelled "Performance" everywhere again.
+- `MANAGER_TABS` (app-shell.tsx): removed the `listening` tab entry.
+  The bar now renders 4 tabs: Home | Stats | Reports | More. "Reports" now
+  occupies the last content slot (where "Insights" used to be).
+- `MORE_NAV_ITEMS` (app-shell.tsx): added a new entry for `listening`,
+  labelled "Insights" (matching the label managers knew it by in the
+  bottom bar). It appears at the end of the primary More-sheet grid.
+- No backend / API / DB changes — purely navigation configuration.
+- Verified the bottom bar shows exactly "Home | Stats | Reports | More"
+  via agent-browser, and the More sheet grid lists "Insights" alongside
+  Calendar, WhatsApp, Chat, Tasks, Accounts, Media, Reports, Campaigns.
+
+Stage Summary:
+- Files changed: `src/components/app-shell.tsx` (MANAGER_TABS + MORE_NAV_ITEMS),
+  `src/components/app-sidebar.tsx` (revert), `src/components/views/dashboard.tsx`
+  (revert QUICK_ACTIONS label).
+- `bun run lint` passes with zero errors.
+- Mobile bottom bar (managers): 4 tabs — Home, Stats, Reports, More.
+- Mobile "More" sheet: now includes "Insights" (listening) in the primary grid.
+- "Performance" (team-performance) stays in the More sheet admin section,
+  unchanged.

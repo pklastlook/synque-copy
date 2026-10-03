@@ -110,7 +110,6 @@ const MANAGER_TABS: MobileTab[] = [
   { id: "dashboard", label: "Home", icon: LayoutDashboard, accent: "oklch(0.55 0.2 255)" },
   { id: "analytics", label: "Stats", icon: BarChart3, accent: "oklch(0.55 0.2 255)" },
   { id: "reports", label: "Reports", icon: FileBarChart, accent: "oklch(0.72 0.18 75)" },
-  { id: "listening", label: "Insights", icon: Radio, accent: "oklch(0.7 0.2 25)" },
   { id: "settings", label: "More", icon: MoreHorizontal, accent: "oklch(0.62 0 0)" },
 ];
 
@@ -150,6 +149,7 @@ const MORE_NAV_ITEMS: MoreItem[] = [
   { id: "media", label: "Media", icon: ImageIcon, accent: "oklch(0.62 0.22 300)", kind: "lucide" },
   { id: "reports", label: "Reports", icon: FileBarChart, accent: "oklch(0.72 0.18 75)", kind: "lucide" },
   { id: "campaigns", label: "Campaigns", icon: Megaphone, accent: "oklch(0.7 0.2 25)", kind: "lucide" },
+  { id: "listening", label: "Insights", icon: Radio, accent: "oklch(0.7 0.2 25)", kind: "lucide" },
 ];
 
 const MORE_ADMIN_ITEMS_MEMBER: MoreItem[] = [
