@@ -12309,3 +12309,117 @@ Verification:
    - `bun run lint` → 0 errors, 7 pre-existing `no-location-assign-relative-destination` warnings unrelated to this change.
 
 Stage Summary: All ~21 pre-existing TypeScript build errors are fixed. The `ignoreBuildErrors: false` switch from P3-9 now serves its intended purpose — the build will fail loudly on any future TS regression instead of silently shipping broken types. No business logic was changed; every edit is a minimal type fix or a build-config exclusion.
+
+---
+Task ID: OWNER-ENHANCE
+Agent: subagent
+Task: Enhance owner module — Databases tab, Activity Log tab, enriched Overview + Customers
+
+Work Log:
+
+**New backend API routes (owner-only — `requireRole(req, "admin")` on every handler):**
+
+1. `src/app/api/tenant-databases/route.ts`
+   - **GET** → lists every `TenantDatabase` row joined with `Customer` (name/email/status/plan) + live on-disk size. Sizes are fetched in a SINGLE round-trip to the Neon maintenance DB (`postgres` database) via `SELECT datname, pg_database_size(datname) FROM pg_database WHERE datname = ANY($1)` — much cheaper than one connection per tenant. The maintenance connection is opened with `pg.Client` using the same Neon host/user/pass as `DIRECT_URL`. Best-effort: returns size 0 if the maintenance DB can't be reached (e.g. local PGlite dev). Returns `healthy: status==="active" && sizeBytes>0` so the UI can flag "active but empty/unreachable" DBs separately from suspended ones.
+   - **POST** → provisions a dedicated Neon DB for an existing Customer that doesn't have one yet. Takes `{ customerId }`, looks up the customer (404 if missing), rejects if a TenantDatabase already exists for that customer (409). Calls `provisionTenantDatabase(rawName)` (reuses the same flow as `POST /api/customers` — creates the DB on Neon + pushes the Prisma schema + encrypts the connection URL). Audits `tenant_database.provisioned`.
+
+2. `src/app/api/tenant-databases/[id]/route.ts`
+   - **PATCH** → updates status (`active` | `suspended`). Validates input, looks up the row (404 if missing), updates the row, **invalidates the cached PrismaClient** for that customer (calls `invalidateTenantDb(customerId)` from `src/lib/tenant-db.ts` so the next request picks up the new state). Audits `tenant_database.status_changed` with `{ from, to, dbName }` metadata.
+   - **POST** → re-pushes the Prisma schema. Decrypts the stored `dbUrl` (AES-256-GCM, see `src/lib/crypto.ts`), calls `pushSchemaToTenantDb(dbUrl)` (which runs `npx prisma db push --accept-data-loss` against the tenant DB). Audits `tenant_database.schema_pushed`. The schema push is non-destructive (Prisma `db push` only adds missing tables/columns; existing data is preserved unless a column type changed).
+
+3. `src/app/api/audit-logs/route.ts`
+   - **GET** → returns `AuditLog` rows joined with the acting `User` (name + email). Supports query params: `action` (exact match, e.g. `user.deleted`), `actor` (ILIKE substring on User.name OR User.email — resolves matching user IDs first, then scopes the audit query by `actorId IN (...)`; short-circuits to `[]` if no users match), `from`/`to` (date range — `to` is inclusive end-of-day), `limit` (default 100, max 500), `offset` (default 0). Returns `{ id, action, actorId, actorName, actorEmail, targetType, targetId, metadata, ip, createdAt }`. The actor-name lookup is done in a single round-trip (`db.user.findMany({ where: { id: { in: uniqueActorIds } } })`).
+
+**Updated backend — `src/app/api/finance/overview/route.ts`:**
+
+Extended the existing parallel `Promise.all` to also fetch: `db.tenantDatabase.findMany`, `db.auditLog.count`, `db.auditLog.findMany` (last 5, with `metadata`), and `db.user.findMany` (tenant-scoped users whose `lastActive` is older than 30 days OR null). Computes:
+   - `tenantDatabases` (count)
+   - `activeDatabases` / `suspendedDatabases` (status filter counts)
+   - `totalStorageMb` (single `SELECT SUM(pg_database_size(datname))` against the Neon maintenance DB — best-effort, returns 0 on connection failure)
+   - `activityLogs` (total AuditLog count — feeds the tab badge in `OWNER_SECTIONS`)
+   - `trialConversionRate` — `(active subs with trialEnds set) / (trial + converted-from-trial subs) * 100`. Heuristic: a customer is "converted from trial" if their Subscription is currently `active` AND has a `trialEnds` date set (meaning the trial ran its course and they paid).
+   - `recentActivity` — last 5 AuditLog rows with actor name/email attached. Added `metadata: true` to the select so the UI can show before/after values.
+   - `churnRiskCustomers` — collapsed per-customer: for each tenant customer with at least one user whose lastActive is older than 30 days (or null), return `{ customerId, customerName, lastActive, inactiveUsers }`. `customerName` is resolved via a follow-up `db.customer.findMany({ where: { id: { in: churnCustomerIds } } })`.
+
+**Updated `src/lib/store.ts` (Zustand nav store):**
+
+Added `ownerDbFilter: string | null` + `setOwnerDbFilter`. This lets the Customers tab's "View Database" action set a filter and switch to the Databases tab; the Databases tab consumes the filter on mount, and clears it once the user starts typing in the search box (so the filter is a one-shot navigation hint, not a persistent constraint).
+
+**Updated `src/components/views/owner.tsx`:**
+
+Imports:
+   - Added `Activity, Play, Pause, RefreshCw, HardDrive, Search, History` from `lucide-react`.
+   - Added `formatDistanceToNow` from `date-fns`.
+   - Added `Table, TableBody, TableCell, TableHead, TableHeader, TableRow` from `@/components/ui/table`.
+
+Types:
+   - Added `id` to the `Customer.database` field (was missing — the API already returns `id`, but the TS interface listed `dbUrl` which the API never returns; the type is now accurate).
+   - Added `AuditLogEntry`, `ChurnRiskCustomer`, `TenantDbRow` interfaces.
+   - Extended BOTH `FinanceOverview` interface declarations (lines ~562 and ~3370) with: `tenantDatabases`, `activeDatabases`, `suspendedDatabases`, `totalStorageMb`, `activityLogs`, `trialConversionRate`, `recentActivity: AuditLogEntry[]`, `churnRiskCustomers: ChurnRiskCustomer[]`. TypeScript merges the two declarations; identical property types are accepted.
+
+Helpers (near `statusTone` / `maskNumber`):
+   - `auditActionTone(action)` → returns `{ dot, label, className }` based on action keywords. Critical (deleted/disabled/revoked/suspended) → rose; warning (role/password/2fa/schema_pushed/status_changed) → amber; info (login/provisioned/created) → emerald; default → muted. Drives the colored dot in the activity feed.
+   - `prettyAction(action)` → splits `"tenant_database.status_changed"` → `"Status changed"`. Used in the Activity Log tab to give a human-friendly label above the raw action string.
+
+`OWNER_SECTIONS` array — added two entries (per the task spec):
+   - `{ id: "databases", label: "Databases", icon: Database, accent: "oklch(0.62 0.22 300)", desc: "Tenant DB registry", countKey: "tenantDatabases" }`
+   - `{ id: "activity", label: "Activity Log", icon: Activity, accent: "oklch(0.7 0.2 25)", desc: "Security events", countKey: "activityLogs" }`
+
+**OverviewTab enhancements:**
+
+   1. New 4-metric `MetricRow` after the existing customer/subscriptions row: Tenant DBs, Storage Used (MB), Trial → Paid (%), Audit Events.
+   2. New 3-column section below the existing "Module overview" grid:
+      - **Tenant database health** card: 2×2 grid showing Total, Active (emerald), Suspended (rose), Storage (MB). Uses `crystal-in` glass card style to match the existing module-health tiles.
+      - **Recent activity** card: scrollable list (`max-h-48 scroll-liquid`) of the last 5 AuditLog entries — each row shows the action (monospace), actor name/email + IP, and a relative timestamp ("3h ago"). Color-coded dot via `auditActionTone`. Empty state: "No security events logged yet".
+      - **Churn risk** card: scrollable list (`max-h-48`) of customers with at least one user inactive 30+ days. Each row: NameAvatar, customer name, "Last seen 23d ago" (or "Never logged in"), and an "idle" count pill (number of inactive users on that tenant). Empty state: "No churn-risk customers".
+
+**CustomersTab enhancements:**
+
+   1. Added `useNav` hook (`setOwnerTab`, `setOwnerDbFilter`) and a `provisioningId` state.
+   2. **DB status dot** next to the existing `StatusPill` — green "DB" pill (active), amber "DB" pill (suspended), or gray "no DB" pill. `title` attribute shows the full DB name + status on hover.
+   3. **Trial days remaining banner** — only for `status === "trial"` customers. Computes `daysLeft = ceil((createdAt + 18 days) - now)`. Shows amber "X days left in trial" or rose "Trial expired". The 18-day trial window matches the task example ("trial created 15 days ago → 3 days left").
+   4. **View Database / Provision Database** in the per-card dropdown menu (conditionally rendered based on whether `c.database` exists).
+   5. **Database status badge** replaced with a richer row: when DB exists, the badge + a small "View" button (calls `viewDatabase(c)` → sets `ownerDbFilter` and switches to the Databases tab). When no DB, a full-width "Provision database" button with a `Loader2` spinner during the POST request. The button calls `provisionDatabase(c)` which POSTs to `/api/tenant-databases` with `{ customerId }`.
+
+**New DatabasesTab component:**
+
+   - 4-metric `MetricRow`: Total / Active / Suspended / Total storage (MB).
+   - SectionHeader with action slot containing a "Clear filter" pill (only shown when `ownerDbFilter` is set) and a search input (filter by dbName / customerName / customerEmail).
+   - `useEffect` clears `ownerDbFilter` when the user starts typing — keeps the cross-tab filter for the initial render but drops it as soon as the user takes manual control.
+   - Rich table (using `@/components/ui/table`) with sticky header, scrollable body (`max-h-[60vh] scroll-liquid`). Columns: Database (icon + name + plan), Customer (name + email), Status (color-coded pill), Size (HardDrive icon + MB), Health (Healthy/Suspended/No size data pill — distinguishes "active but no size data" from "active & healthy"), Created (formatted date), Actions (re-push schema button with RefreshCw icon + suspend/activate toggle with Pause/Play icon). The action buttons show a `Loader2` spinner and are disabled while `busyId === row.id`.
+   - Empty states for: no DBs at all, no DB for the filtered customer.
+
+**New ActivityLogTab component:**
+
+   - SectionHeader with a Badge showing total event count.
+   - Filter bar: Action select (populated from observed actions in the current result set — distinct values, sorted), Actor search input (with Search icon), From date, To date, "Clear filters" button (only shown when any filter is set).
+   - URL is rebuilt via `useMemo` from the filter inputs — the `useApi` hook re-fetches on every URL change, so filtering is live (no "Apply" button needed).
+   - Rich table with sticky header, scrollable body (`max-h-[65vh] scroll-liquid`). Columns: Action (color dot + pretty label + raw action string + metadata JSON snippet), Actor (NameAvatar + name + email, or "system" for null actor), Target (type + ID, or em dash), IP (monospace, or em dash), When (date + time on two lines).
+   - Empty states for: no events at all, no events match filters.
+
+**OwnerView render:**
+
+Added two conditionals after the `users` tab:
+```tsx
+{tab === "databases" && <DatabasesTab />}
+{tab === "activity" && <ActivityLogTab />}
+```
+
+**Lint + TypeScript verification:**
+   - `bun run lint` → 0 errors, 7 pre-existing `no-location-assign-relative-destination` warnings (all in `landing-page.tsx`, `landing-shared.tsx`, `accounts.tsx`, `settings.tsx` — none related to this change).
+   - `npx tsc --noEmit` → only 2 pre-existing errors in `src/app/api/media/upload/route.ts` (unrelated `thumbnail` vs `thumbnailUrl` typo). All new code type-checks cleanly. Notably, the two merged `FinanceOverview` interface declarations (one near OverviewTab, one near FinanceTab) merge without TS erroring — identical property types are accepted by TS interface merging.
+
+Stage Summary:
+The Owner module now exposes 14 sub-sections (was 12) — the two new tabs (Databases, Activity Log) close the visibility gap on multi-tenant infrastructure and security events.
+
+- **Databases tab** turns the TenantDatabase registry into a first-class operational surface: every Neon DB is listed with its owning customer, status, on-disk size (queried live from `pg_database_size()`), and a health verdict. The owner can suspend/activate a tenant DB or re-push the Prisma schema without leaving the panel — both operations are audited.
+- **Activity Log tab** surfaces every security-sensitive event (logins, role changes, 2FA disable, password changes, customer/user deletions, tenant-DB provisioning/status changes/schema pushes) with actor name, IP, timestamp, and metadata JSON. Filterable by action, actor (substring on name/email), and date range.
+- **Overview tab** now has three new cards giving the owner a 10-second read on tenant DB health, the latest 5 security events, and customers at churn risk (no login in 30+ days). A new KPI strip surfaces Trial→Paid conversion %, total tenant storage, and audit-event count.
+- **Customers tab** now shows per-customer DB status as a colored pill next to the existing status pill, surfaces trial days remaining for trial-status customers (amber banner with countdown, or rose "Trial expired"), and offers a one-click "Provision database" button (for customers without a DB) or "View database" button (for customers with one — switches to the Databases tab pre-filtered to that customer).
+- All three new API routes are owner-only (`requireRole(req, "admin")` on every handler), audit the mutations they perform, and follow the existing `db` + `audit` patterns already used by `customers/route.ts` and `customers/[id]/route.ts`.
+
+Risk notes:
+- The size query opens a single maintenance connection to the Neon host per GET request. On a registry of 1000+ tenants this is still one round-trip (the `WHERE datname = ANY($1)` query is O(N) in Postgres). On PGlite (local dev) the maintenance connection fails silently and sizes return 0 — the UI shows "No size data" instead of "Healthy".
+- The `provisionTenantDatabase` call in `POST /api/tenant-databases` is slow (creates a Neon DB + pushes the Prisma schema — typically 30–60 seconds). The CustomersTab button shows a spinner and is disabled for the duration. There is no background-job queue; the request blocks until provisioning completes.
+- Trial conversion rate is a heuristic (active subs with `trialEnds` set / trial + converted). A customer who upgraded without ever going through a trial (e.g. enterprise direct sale) won't be counted. This is a KPI, not a billing number.
+- Churn-risk computation uses `User.lastActive` — only tenant-scoped users (customerId != null) are considered. A tenant with zero users (created but no logins provisioned yet) won't appear in churn-risk (correct — they're not "churning", they're "not yet onboarded").

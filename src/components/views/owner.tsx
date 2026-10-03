@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import {
   Area,
   AreaChart,
@@ -54,6 +54,13 @@ import {
   DollarSign,
   AlertTriangle,
   Database,
+  Activity,
+  Play,
+  Pause,
+  RefreshCw,
+  HardDrive,
+  Search,
+  History,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -89,6 +96,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 // ============================================================================
 // Types — match the JSON shape returned by each API route.
@@ -113,7 +128,7 @@ interface Customer {
   } | null;
   invoicesCount: number;
   quotationsCount: number;
-  database: { dbName: string; dbUrl: string; status: string; createdAt: string } | null;
+  database: { id: string; dbName: string; status: string; createdAt: string } | null;
   createdAt: string;
 }
 
@@ -269,6 +284,32 @@ function maskNumber(num: string) {
   return `•••• •••• ${last}`;
 }
 
+/** Tone for an AuditLog action — drives the colored dot in the activity feed
+ *  and Activity Log tab. Critical actions (deletion, role change, 2FA disable)
+ *  are surfaced as red/amber; informational ones (login, view) as neutral. */
+function auditActionTone(action: string): { dot: string; label: string; className: string } {
+  if (action.includes("deleted") || action.includes("disable") || action.includes("revoked") || action.includes("suspended")) {
+    return { dot: "oklch(0.65 0.22 25)", label: "critical", className: "bg-rose-500/15 text-rose-600 dark:text-rose-400" };
+  }
+  if (action.includes("role") || action.includes("password") || action.includes("2fa") || action.includes("schema_pushed") || action.includes("status_changed")) {
+    return { dot: "oklch(0.72 0.18 75)", label: "warning", className: "bg-amber-500/15 text-amber-600 dark:text-amber-400" };
+  }
+  if (action.includes("login") || action.includes("provisioned") || action.includes("created")) {
+    return { dot: "oklch(0.7 0.2 145)", label: "info", className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" };
+  }
+  return { dot: "oklch(0.62 0.2 255)", label: "neutral", className: "bg-muted text-muted-foreground" };
+}
+
+/** Pretty-print an AuditLog action string — splits "user.login" → "Login",
+ *  "tenant_database.status_changed" → "Status changed", etc. */
+function prettyAction(action: string): string {
+  const last = action.split(".").pop() ?? action;
+  return last
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 async function api(
   method: "POST" | "PATCH" | "DELETE",
   url: string,
@@ -322,6 +363,8 @@ const OWNER_SECTIONS: OwnerSection[] = [
   { id: "apikeys",       label: "API Keys",        icon: Lock,            accent: "oklch(0.72 0.18 75)",  desc: "Integration keys",      countKey: "apiKeys" },
   { id: "bank",          label: "Bank Accounts",   icon: Landmark,        accent: "oklch(0.68 0.22 145)", desc: "Accounts for invoices", countKey: "bankAccounts" },
   { id: "users",         label: "Client Users",    icon: CircleUserRound, accent: "oklch(0.62 0.22 300)", desc: "Login accounts",        countKey: "users" },
+  { id: "databases",     label: "Databases",       icon: Database,        accent: "oklch(0.62 0.22 300)", desc: "Tenant DB registry",    countKey: "tenantDatabases" },
+  { id: "activity",      label: "Activity Log",    icon: Activity,        accent: "oklch(0.7 0.2 25)",    desc: "Security events",       countKey: "activityLogs" },
   { id: "overview",      label: "Overview",        icon: Briefcase,       accent: "oklch(0.72 0.18 75)",  desc: "Enterprise cockpit" },
   { id: "finance",       label: "Finance",          icon: DollarSign,      accent: "oklch(0.55 0.2 255)",  desc: "Revenue & MRR" },
   { id: "reports",       label: "Reports",          icon: BarChart3,       accent: "oklch(0.7 0.2 25)",    desc: "Growth & activity" },
@@ -518,6 +561,41 @@ const EMPTY_CUSTOMER: CustomerForm = {
 };
 
 // ============ Overview Tab — enterprise cockpit ============
+interface AuditLogEntry {
+  id: string;
+  action: string;
+  actorId: string | null;
+  actorName: string | null;
+  actorEmail: string | null;
+  targetType: string | null;
+  targetId: string | null;
+  metadata: string | null;
+  ip: string | null;
+  createdAt: string;
+}
+
+interface ChurnRiskCustomer {
+  customerId: string;
+  customerName: string;
+  lastActive: string | null;
+  inactiveUsers: number;
+}
+
+interface TenantDbRow {
+  id: string;
+  dbName: string;
+  status: string;
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  customerStatus: string;
+  customerPlan: string;
+  sizeBytes: number;
+  sizeMb: number;
+  healthy: boolean;
+  createdAt: string;
+}
+
 interface FinanceOverview {
   customers: number; invoices: number; paidInvoices: number; quotations: number;
   serialKeys: number; activatedKeys: number; devices: number; apiKeys: number;
@@ -525,6 +603,15 @@ interface FinanceOverview {
   users: number; accounts: number; posts: number;
   totalRevenue: number; pendingRevenue: number; overdueRevenue: number; monthlyRevenue: number;
   planDistribution: { name: string; count: number }[];
+  // Owner module extras (Overview + Databases + Activity tabs)
+  tenantDatabases: number;
+  activeDatabases: number;
+  suspendedDatabases: number;
+  totalStorageMb: number;
+  activityLogs: number;
+  trialConversionRate: number;
+  recentActivity: AuditLogEntry[];
+  churnRiskCustomers: ChurnRiskCustomer[];
 }
 
 function OverviewTab() {
@@ -559,6 +646,14 @@ function OverviewTab() {
         { label: "Client Users", value: d.users, color: "oklch(0.66 0.22 305)" },
         { label: "Serial Keys", value: d.serialKeys, color: "oklch(0.72 0.18 75)" },
         { label: "Devices", value: d.devices, color: "oklch(0.6 0.2 220)" },
+      ]} />
+
+      {/* Owner-extras KPI strip: tenant DBs, storage, trial conversion, audit events */}
+      <MetricRow metrics={[
+        { label: "Tenant DBs", value: d.tenantDatabases ?? 0, color: "oklch(0.62 0.22 300)" },
+        { label: "Storage Used", value: `${fmt(d.totalStorageMb ?? 0)} MB`, color: "oklch(0.66 0.18 200)" },
+        { label: "Trial → Paid", value: `${d.trialConversionRate ?? 0}%`, color: "oklch(0.7 0.2 145)" },
+        { label: "Audit Events", value: d.activityLogs ?? 0, color: "oklch(0.7 0.2 25)" },
       ]} />
 
       {/* Charts row */}
@@ -636,12 +731,120 @@ function OverviewTab() {
           })}
         </div>
       </section>
+
+      {/* Owner extras: tenant DB health, recent activity, churn risk */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Tenant database health */}
+        <section className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "oklch(0.62 0.22 300)18", color: "oklch(0.62 0.22 300)" }}>
+              <Database className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold">Tenant database health</h3>
+              <p className="text-[11px] text-muted-foreground">Dedicated Neon DBs per client</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-muted/40 px-3 py-2">
+              <div className="text-[10px] uppercase text-muted-foreground">Total</div>
+              <div className="num-display text-lg font-bold tabular-nums">{d.tenantDatabases ?? 0}</div>
+            </div>
+            <div className="rounded-lg bg-emerald-500/5 px-3 py-2">
+              <div className="text-[10px] uppercase text-muted-foreground">Active</div>
+              <div className="num-display text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{d.activeDatabases ?? 0}</div>
+            </div>
+            <div className="rounded-lg bg-rose-500/5 px-3 py-2">
+              <div className="text-[10px] uppercase text-muted-foreground">Suspended</div>
+              <div className="num-display text-lg font-bold tabular-nums text-rose-600 dark:text-rose-400">{d.suspendedDatabases ?? 0}</div>
+            </div>
+            <div className="rounded-lg bg-muted/40 px-3 py-2">
+              <div className="text-[10px] uppercase text-muted-foreground">Storage</div>
+              <div className="num-display text-lg font-bold tabular-nums">{fmt(d.totalStorageMb ?? 0)} MB</div>
+            </div>
+          </div>
+        </section>
+
+        {/* Recent activity feed (last 5 audit log entries) */}
+        <section className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "oklch(0.7 0.2 25)18", color: "oklch(0.7 0.2 25)" }}>
+              <Activity className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold">Recent activity</h3>
+              <p className="text-[11px] text-muted-foreground">Last 5 security events</p>
+            </div>
+          </div>
+          {d.recentActivity && d.recentActivity.length > 0 ? (
+            <div className="max-h-48 space-y-2 overflow-y-auto scroll-liquid pr-1">
+              {d.recentActivity.map((log) => (
+                <div key={log.id} className="flex items-start gap-2 rounded-lg bg-background/40 px-2 py-1.5 text-[11px]">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: auditActionTone(log.action).dot }} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-mono font-semibold">{log.action}</span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}</span>
+                    </div>
+                    <div className="truncate text-[10px] text-muted-foreground">
+                      {log.actorName ?? log.actorEmail ?? "system"}
+                      {log.ip ? ` · ${log.ip}` : ""}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid h-32 place-items-center text-[11px] text-muted-foreground">
+              No security events logged yet
+            </div>
+          )}
+        </section>
+
+        {/* Churn risk — customers inactive 30+ days */}
+        <section className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "oklch(0.55 0.22 25)18", color: "oklch(0.55 0.22 25)" }}>
+              <AlertTriangle className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold">Churn risk</h3>
+              <p className="text-[11px] text-muted-foreground">No login in 30+ days</p>
+            </div>
+          </div>
+          {d.churnRiskCustomers && d.churnRiskCustomers.length > 0 ? (
+            <div className="max-h-48 space-y-2 overflow-y-auto scroll-liquid pr-1">
+              {d.churnRiskCustomers.slice(0, 6).map((c) => (
+                <div key={c.customerId} className="flex items-center gap-2 rounded-lg bg-background/40 px-2 py-1.5 text-[11px]">
+                  <NameAvatar name={c.customerName} className="h-6 w-6 text-[9px]" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{c.customerName}</div>
+                    <div className="truncate text-[10px] text-muted-foreground">
+                      {c.lastActive
+                        ? `Last seen ${formatDistanceToNow(new Date(c.lastActive), { addSuffix: true })}`
+                        : "Never logged in"}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-bold text-rose-600 dark:text-rose-400">
+                    {c.inactiveUsers} idle
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid h-32 place-items-center text-[11px] text-muted-foreground">
+              No churn-risk customers
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
 
 function CustomersTab() {
   const { data, loading, reload } = useApi<Customer[]>("/api/customers");
+  const { setOwnerTab, setOwnerDbFilter } = useNav();
   const [open, setOpen] = React.useState(false);
   const [editId, setEditId] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<CustomerForm>(EMPTY_CUSTOMER);
@@ -650,6 +853,10 @@ function CustomersTab() {
   const [loginCustomer, setLoginCustomer] = React.useState<Customer | null>(null);
   const [loginForm, setLoginForm] = React.useState({ name: "", email: "", password: "", role: "member" });
   const [loginBusy, setLoginBusy] = React.useState(false);
+  // Provisioning state: tracks which customer is currently having a
+  // database provisioned (POST /api/tenant-databases). The button shows
+  // a spinner and is disabled while the request is in flight.
+  const [provisioningId, setProvisioningId] = React.useState<string | null>(null);
 
   const customers = data ?? [];
   const stats = {
@@ -736,6 +943,46 @@ function CustomersTab() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     }
+  };
+
+  /** Switch to the Databases tab with this customer pre-selected in the
+   *  filter — fired by the per-card "View Database" action. */
+  const viewDatabase = (c: Customer) => {
+    setOwnerDbFilter(c.id);
+    setOwnerTab("databases");
+  };
+
+  /** Provision a dedicated Neon database for a customer that doesn't have
+   *  one yet. Mirrors the create-DB flow on the POST /api/customers route
+   *  but operates on an existing Customer row. */
+  const provisionDatabase = async (c: Customer) => {
+    setProvisioningId(c.id);
+    try {
+      const res = await api("POST", "/api/tenant-databases", { customerId: c.id });
+      const json = res as { ok?: boolean; dbName?: string; error?: string };
+      if (json.dbName) {
+        toast.success("Database provisioned", {
+          description: `Database "${json.dbName}" is active. ${c.name}'s users will log into their own DB.`,
+          duration: 6000,
+        });
+      } else {
+        toast.success("Database provisioned");
+      }
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Provisioning failed");
+    } finally {
+      setProvisioningId(null);
+    }
+  };
+
+  /** Trial days remaining for a trial-status customer. Trial window is
+   *  18 days from customer.createdAt (matches the example "15 days ago →
+   *  3 days left"). Returns null when the customer is not on trial. */
+  const trialDaysLeft = (c: Customer): number | null => {
+    if (c.status !== "trial") return null;
+    const trialEnd = new Date(c.createdAt).getTime() + 18 * 24 * 60 * 60 * 1000;
+    return Math.ceil((trialEnd - Date.now()) / (24 * 60 * 60 * 1000));
   };
 
   const openCreateLogin = (c: Customer) => {
@@ -855,11 +1102,39 @@ function CustomersTab() {
                 <div className="flex items-start gap-3">
                   <NameAvatar name={c.name} className="h-10 w-10 text-xs" />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate text-sm font-semibold">
                         {c.name}
                       </span>
                       <StatusPill status={c.status} />
+                      {/* Tenant DB status dot — green = active, amber = suspended, gray = no DB */}
+                      {c.database ? (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                            c.database.status === "active"
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+                          )}
+                          title={`Tenant DB: ${c.database.dbName} (${c.database.status})`}
+                        >
+                          <span
+                            className={cn(
+                              "h-1.5 w-1.5 rounded-full",
+                              c.database.status === "active" ? "bg-emerald-500" : "bg-amber-500",
+                            )}
+                          />
+                          DB
+                        </span>
+                      ) : (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold uppercase text-muted-foreground"
+                          title="No dedicated database — click Provision to create one"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                          no DB
+                        </span>
+                      )}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
                       {c.email}
@@ -881,6 +1156,15 @@ function CustomersTab() {
                       <DropdownMenuItem onClick={() => openCreateLogin(c)}>
                         <UserPlus className="h-3.5 w-3.5" /> Create login
                       </DropdownMenuItem>
+                      {c.database ? (
+                        <DropdownMenuItem onClick={() => viewDatabase(c)}>
+                          <Database className="h-3.5 w-3.5" /> View database
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => provisionDatabase(c)}>
+                          <Database className="h-3.5 w-3.5" /> Provision database
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         onClick={() => setStatus(c, "active")}
                       >
@@ -904,6 +1188,29 @@ function CustomersTab() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
+
+                {/* Trial days remaining banner — only for trial-status customers */}
+                {(() => {
+                  const daysLeft = trialDaysLeft(c);
+                  if (daysLeft === null) return null;
+                  return (
+                    <div
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px]",
+                        daysLeft > 0
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                          : "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+                      )}
+                    >
+                      <Clock className="h-3 w-3" />
+                      <span className="font-semibold">
+                        {daysLeft > 0
+                          ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} left in trial`
+                          : "Trial expired"}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-lg bg-muted/40 px-2 py-1.5">
@@ -960,20 +1267,37 @@ function CustomersTab() {
                   </div>
                 </div>
 
-                {/* Database status badge */}
+                {/* Database status badge + action button — View DB (active) or Provision (none) */}
                 {c.database ? (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-[10px]">
-                    <Database className="h-3 w-3 text-emerald-500" />
-                    <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{c.database.dbName}</span>
-                    <span className="ml-auto rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
-                      {c.database.status}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-[10px]">
+                      <Database className="h-3 w-3 shrink-0 text-emerald-500" />
+                      <span className="truncate font-mono font-semibold text-emerald-600 dark:text-emerald-400">{c.database.dbName}</span>
+                      <span className="ml-auto shrink-0 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                        {c.database.status}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => viewDatabase(c)}
+                      className="shrink-0 rounded-lg border border-border/60 bg-background/60 px-2 py-1 text-[10px] font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5"
+                      title="Open this database in the Databases tab"
+                    >
+                      View
+                    </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-dashed border-border/40 px-2 py-1 text-[10px] text-muted-foreground/60">
-                    <Database className="h-3 w-3" />
-                    No dedicated database
-                  </div>
+                  <button
+                    onClick={() => provisionDatabase(c)}
+                    disabled={provisioningId === c.id}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-2 py-1.5 text-[10px] font-semibold text-primary transition hover:border-primary hover:bg-primary/10 disabled:opacity-60"
+                  >
+                    {provisioningId === c.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Plus className="h-3 w-3" />
+                    )}
+                    {provisioningId === c.id ? "Provisioning…" : "Provision database"}
+                  </button>
                 )}
               </div>
             ))}
@@ -3324,6 +3648,19 @@ interface FinanceOverview {
   users: number; accounts: number; posts: number;
   totalRevenue: number; pendingRevenue: number; overdueRevenue: number; monthlyRevenue: number;
   planDistribution: { name: string; count: number }[];
+  // Owner module extras (added for Databases + Activity tabs + Overview extras).
+  // Declared again here only because the module-scope `interface FinanceOverview`
+  // declared near the OverviewTab is merged with this one by TypeScript — keeping
+  // the same fields in both declarations avoids accidental drift when one is
+  // edited and the other is forgotten.
+  tenantDatabases: number;
+  activeDatabases: number;
+  suspendedDatabases: number;
+  totalStorageMb: number;
+  activityLogs: number;
+  trialConversionRate: number;
+  recentActivity: AuditLogEntry[];
+  churnRiskCustomers: ChurnRiskCustomer[];
 }
 
 function FinanceTab() {
@@ -3764,6 +4101,448 @@ function ClientUsersTab() {
   );
 }
 
+// ============================================================================
+// Databases Tab — tenant DB registry (one Neon DB per customer)
+// ============================================================================
+
+function DatabasesTab() {
+  const { data, loading, reload } = useApi<TenantDbRow[]>("/api/tenant-databases");
+  const { ownerDbFilter, setOwnerDbFilter } = useNav();
+  const [search, setSearch] = React.useState("");
+  // Clear the cross-tab filter once the user starts typing — we keep the
+  // filter around for the initial render (set by CustomersTab → "View
+  // Database") so the table shows the right customer on first paint.
+  React.useEffect(() => {
+    if (ownerDbFilter && search) setOwnerDbFilter(null);
+  }, [search, ownerDbFilter, setOwnerDbFilter]);
+
+  const [busyId, setBusyId] = React.useState<string | null>(null);
+
+  const rows = data ?? [];
+  const filtered = rows.filter((r) => {
+    if (ownerDbFilter && r.customerId !== ownerDbFilter) return false;
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      r.dbName.toLowerCase().includes(q) ||
+      r.customerName.toLowerCase().includes(q) ||
+      r.customerEmail.toLowerCase().includes(q)
+    );
+  });
+
+  const stats = {
+    total: rows.length,
+    active: rows.filter((r) => r.status === "active").length,
+    suspended: rows.filter((r) => r.status === "suspended").length,
+    totalMb: rows.reduce((s, r) => s + (r.sizeMb || 0), 0),
+  };
+
+  const setStatus = async (row: TenantDbRow, status: "active" | "suspended") => {
+    setBusyId(row.id);
+    try {
+      await api("PATCH", `/api/tenant-databases/${row.id}`, { status });
+      toast.success(`${row.dbName} is now ${status}`);
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const repush = async (row: TenantDbRow) => {
+    if (!confirm(`Re-push the Prisma schema to "${row.dbName}"? Existing data is preserved.`)) return;
+    setBusyId(row.id);
+    try {
+      await api("POST", `/api/tenant-databases/${row.id}`);
+      toast.success("Schema re-pushed", { description: `${row.dbName} tables are in sync.` });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Schema push failed");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <MetricRow metrics={[
+        { label: "Tenant DBs", value: stats.total, color: "oklch(0.62 0.22 300)" },
+        { label: "Active", value: stats.active, color: "oklch(0.7 0.2 145)" },
+        { label: "Suspended", value: stats.suspended, color: "oklch(0.7 0.2 25)" },
+        { label: "Total storage", value: `${fmt(stats.totalMb)} MB`, color: "oklch(0.66 0.18 200)" },
+      ]} />
+
+      <section>
+        <SectionHeader
+          title="Tenant databases"
+          desc="One dedicated Neon PostgreSQL database per customer. View health, suspend, or re-push schema."
+          icon={Database}
+          action={
+            <div className="flex items-center gap-2">
+              {ownerDbFilter && (
+                <button
+                  onClick={() => setOwnerDbFilter(null)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary"
+                >
+                  <X className="h-3 w-3" /> Clear filter
+                </button>
+              )}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by DB or customer…"
+                  className="h-9 w-56 pl-8 text-xs"
+                />
+              </div>
+            </div>
+          }
+        />
+
+        {loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="shimmer h-16 rounded-2xl" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+              <Database className="h-5 w-5" />
+            </div>
+            <p className="mt-3 text-sm font-medium">
+              {ownerDbFilter ? "No database for this customer" : "No tenant databases yet"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {ownerDbFilter
+                ? "Provision one from the Customers tab."
+                : "Provision a database when creating a customer."}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-border/40 bg-background/60">
+            <div className="max-h-[60vh] overflow-y-auto scroll-liquid">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+                  <TableRow className="border-border/40 hover:bg-transparent">
+                    <TableHead className="text-[11px] uppercase">Database</TableHead>
+                    <TableHead className="text-[11px] uppercase">Customer</TableHead>
+                    <TableHead className="text-[11px] uppercase">Status</TableHead>
+                    <TableHead className="text-[11px] uppercase">Size</TableHead>
+                    <TableHead className="text-[11px] uppercase">Health</TableHead>
+                    <TableHead className="text-[11px] uppercase">Created</TableHead>
+                    <TableHead className="text-right text-[11px] uppercase">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((row) => (
+                    <TableRow key={row.id} className="text-xs">
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[oklch(0.62_0.22_300)]/12 text-[oklch(0.55_0.2_300)] dark:text-[oklch(0.78_0.18_300)]">
+                            <Database className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate font-mono font-semibold">{row.dbName}</div>
+                            <div className="truncate text-[10px] text-muted-foreground">
+                              {row.customerPlan ? row.customerPlan : "no plan"}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{row.customerName}</div>
+                          <div className="truncate text-[10px] text-muted-foreground">{row.customerEmail}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize",
+                            row.status === "active"
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                              : "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "h-1.5 w-1.5 rounded-full",
+                              row.status === "active" ? "bg-emerald-500" : "bg-rose-500",
+                            )}
+                          />
+                          {row.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="tabular-nums">
+                        <div className="flex items-center gap-1.5">
+                          <HardDrive className="h-3 w-3 text-muted-foreground" />
+                          {row.sizeMb > 0 ? `${row.sizeMb} MB` : "—"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {row.status === "active" && row.healthy ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-3 w-3" /> Healthy
+                          </span>
+                        ) : row.status === "suspended" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+                            <Pause className="h-3 w-3" /> Suspended
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                            <AlertTriangle className="h-3 w-3" /> No size data
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-[11px] text-muted-foreground">
+                        {format(new Date(row.createdAt), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            onClick={() => repush(row)}
+                            disabled={busyId === row.id}
+                            title="Re-push Prisma schema"
+                            className="grid h-7 w-7 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-50"
+                          >
+                            {busyId === row.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                          {row.status === "active" ? (
+                            <button
+                              onClick={() => setStatus(row, "suspended")}
+                              disabled={busyId === row.id}
+                              title="Suspend database"
+                              className="grid h-7 w-7 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:border-rose-500/40 hover:text-rose-500 disabled:opacity-50"
+                            >
+                              <Pause className="h-3.5 w-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setStatus(row, "active")}
+                              disabled={busyId === row.id}
+                              title="Activate database"
+                              className="grid h-7 w-7 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:border-emerald-500/40 hover:text-emerald-500 disabled:opacity-50"
+                            >
+                              <Play className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ============================================================================
+// Activity Log Tab — security event stream from AuditLog
+// ============================================================================
+
+function ActivityLogTab() {
+  const [action, setAction] = React.useState("");
+  const [actor, setActor] = React.useState("");
+  const [from, setFrom] = React.useState("");
+  const [to, setTo] = React.useState("");
+  // The useApi hook re-fetches whenever the URL changes — so we memoize the
+  // query string from the filter inputs to drive a fresh fetch on every
+  // filter change.
+  const query = React.useMemo(() => {
+    const params = new URLSearchParams();
+    if (action) params.set("action", action);
+    if (actor) params.set("actor", actor);
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    params.set("limit", "200");
+    const qs = params.toString();
+    return qs ? `/api/audit-logs?${qs}` : "/api/audit-logs";
+  }, [action, actor, from, to]);
+
+  const { data, loading } = useApi<AuditLogEntry[]>(query);
+
+  const logs = data ?? [];
+
+  // Distinct actions observed in the current result set — feeds the action
+  // filter dropdown so the owner can narrow down to "user.deleted" etc.
+  const knownActions = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const l of logs) set.add(l.action);
+    return [...set].sort();
+  }, [logs]);
+
+  const resetFilters = () => {
+    setAction("");
+    setActor("");
+    setFrom("");
+    setTo("");
+  };
+
+  const hasFilters = Boolean(action || actor || from || to);
+
+  return (
+    <div className="space-y-4">
+      <section>
+        <SectionHeader
+          title="Security activity log"
+          desc="Logins, role changes, 2FA, password changes, deletions — every security-sensitive event."
+          icon={History}
+          action={
+            <Badge variant="secondary" className="text-[11px]">
+              {logs.length} event{logs.length === 1 ? "" : "s"}
+            </Badge>
+          }
+        />
+
+        {/* Filter bar */}
+        <div className="mb-3 flex flex-wrap items-end gap-2 rounded-2xl border border-border/40 bg-background/60 p-3">
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase text-muted-foreground">Action</Label>
+            <Select value={action || "__all__"} onValueChange={(v) => setAction(v === "__all__" ? "" : v)}>
+              <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder="All actions" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All actions</SelectItem>
+                {knownActions.map((a) => (
+                  <SelectItem key={a} value={a} className="font-mono text-xs">{a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase text-muted-foreground">Actor (name/email)</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={actor}
+                onChange={(e) => setActor(e.target.value)}
+                placeholder="Search actors…"
+                className="h-8 w-48 pl-8 text-xs"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase text-muted-foreground">From</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 w-36 text-xs" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase text-muted-foreground">To</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-8 w-36 text-xs" />
+          </div>
+          {hasFilters ? (
+            <button
+              onClick={resetFilters}
+              className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/40 px-3 text-xs font-medium text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+            >
+              <X className="h-3.5 w-3.5" /> Clear filters
+            </button>
+          ) : null}
+        </div>
+
+        {loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="shimmer h-14 rounded-2xl" />
+            ))}
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="py-12 text-center">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+              <Activity className="h-5 w-5" />
+            </div>
+            <p className="mt-3 text-sm font-medium">
+              {hasFilters ? "No events match your filters" : "No security events yet"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {hasFilters ? "Try widening the date range or clearing the action filter." : "Logins, role changes, and deletions will appear here."}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-border/40 bg-background/60">
+            <div className="max-h-[65vh] overflow-y-auto scroll-liquid">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+                  <TableRow className="border-border/40 hover:bg-transparent">
+                    <TableHead className="text-[11px] uppercase">Action</TableHead>
+                    <TableHead className="text-[11px] uppercase">Actor</TableHead>
+                    <TableHead className="text-[11px] uppercase">Target</TableHead>
+                    <TableHead className="text-[11px] uppercase">IP</TableHead>
+                    <TableHead className="text-right text-[11px] uppercase">When</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => {
+                    const tone = auditActionTone(log.action);
+                    return (
+                      <TableRow key={log.id} className="text-xs align-top">
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tone.dot }} />
+                            <div className="min-w-0">
+                              <div className="font-semibold">{prettyAction(log.action)}</div>
+                              <div className="font-mono text-[10px] text-muted-foreground">{log.action}</div>
+                            </div>
+                          </div>
+                          {log.metadata && (
+                            <div className="mt-1.5 max-w-xs truncate rounded bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                              {log.metadata}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {log.actorName || log.actorEmail ? (
+                            <div className="flex items-center gap-2">
+                              <NameAvatar name={log.actorName ?? log.actorEmail ?? "?"} className="h-6 w-6 text-[9px]" />
+                              <div className="min-w-0">
+                                <div className="truncate font-medium">{log.actorName ?? "—"}</div>
+                                <div className="truncate text-[10px] text-muted-foreground">{log.actorEmail}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] italic text-muted-foreground">system</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {log.targetType ? (
+                            <div className="min-w-0">
+                              <div className="font-medium capitalize">{log.targetType}</div>
+                              {log.targetId && (
+                                <div className="truncate font-mono text-[10px] text-muted-foreground">{log.targetId}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] italic text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-[11px]">
+                          {log.ip ?? <span className="italic text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right text-[11px] text-muted-foreground">
+                          <div>{format(new Date(log.createdAt), "MMM d, yyyy")}</div>
+                          <div>{format(new Date(log.createdAt), "HH:mm:ss")}</div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export function OwnerView() {
   const { ownerTab, setOwnerTab } = useNav();
   // Default to "customers" on first load (also enforced by the store initializer).
@@ -3791,6 +4570,8 @@ export function OwnerView() {
         {tab === "apikeys" && <ApiKeysTab />}
         {tab === "bank" && <BankAccountsTab />}
         {tab === "users" && <ClientUsersTab />}
+        {tab === "databases" && <DatabasesTab />}
+        {tab === "activity" && <ActivityLogTab />}
         {tab === "overview" && <OverviewTab />}
         {tab === "finance" && <FinanceTab />}
         {tab === "reports" && <ReportsTab />}

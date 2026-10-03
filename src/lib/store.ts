@@ -26,6 +26,11 @@ interface NavState {
   /** Owner Panel sub-section */
   ownerTab: string;
   setOwnerTab: (tab: string) => void;
+  /** When set, the Databases tab pre-filters to this customer ID.
+   *  Set by CustomersTab → "View Database" action, consumed + cleared by
+   *  DatabasesTab on mount. */
+  ownerDbFilter: string | null;
+  setOwnerDbFilter: (id: string | null) => void;
   ownerExpanded: boolean;
   toggleOwner: () => void;
   /** Organization sub-section */
@@ -57,6 +62,8 @@ export const useNav = create<NavState>((set) => ({
   toggleMedia: () => set((s) => ({ mediaExpanded: !s.mediaExpanded })),
   ownerTab: "customers",
   setOwnerTab: (tab: string) => set({ ownerTab: tab }),
+  ownerDbFilter: null,
+  setOwnerDbFilter: (id: string | null) => set({ ownerDbFilter: id }),
   ownerExpanded: false,
   toggleOwner: () => set((s) => ({ ownerExpanded: !s.ownerExpanded })),
   orgTab: "overview",
