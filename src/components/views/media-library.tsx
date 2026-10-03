@@ -90,7 +90,7 @@ function fmtBytesBig(bytes: number) {
 }
 
 const TYPE_META: Record<
-  MediaAsset["type"],
+  string,
   {
     icon: React.ElementType;
     color: string;
@@ -117,6 +117,20 @@ const TYPE_META: Record<
     pillColor: "violet",
   },
 };
+
+/**
+ * Safe TYPE_META lookup — falls back to the `image` meta when the asset's
+ * `type` is null, undefined, or any value not present in the map.
+ *
+ * The DB `type` column is a free-form String (see Prisma schema), so we
+ * cannot assume it will always be one of `image | video | audio`. Without
+ * this guard, an unknown value makes `TYPE_META[asset.type]` undefined and
+ * the next `typeMeta.bg` access throws
+ * "Cannot read properties of undefined (reading 'bg')".
+ */
+function getTypeMeta(type: string | null | undefined) {
+  return (type && TYPE_META[type]) || TYPE_META.image;
+}
 
 function parseTags(tags: string | null): string[] {
   if (!tags) return [];
@@ -548,7 +562,7 @@ function MediaTile({
   onUse: () => void;
 }) {
   const tags = parseTags(asset.tags);
-  const typeMeta = TYPE_META[asset.type];
+  const typeMeta = getTypeMeta(asset.type);
 
   return (
     <div className="group flex flex-col">
@@ -633,7 +647,7 @@ function MediaListRow({
   onClick: () => void;
   onUse: () => void;
 }) {
-  const typeMeta = TYPE_META[asset.type];
+  const typeMeta = getTypeMeta(asset.type);
   return (
     <ListRow onClick={onClick} className="bg-background/50 hover:bg-muted/40">
       <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -749,7 +763,7 @@ function AssetDetailDialog({
   onDelete: (a: MediaAsset) => void | Promise<void>;
 }) {
   const tags = asset ? parseTags(asset.tags) : [];
-  const typeMeta = asset ? TYPE_META[asset.type] : TYPE_META.image;
+  const typeMeta = getTypeMeta(asset?.type);
 
   return (
     <Dialog open={!!asset} onOpenChange={(v) => !v && onClose()}>

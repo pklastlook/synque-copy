@@ -9706,3 +9706,38 @@ The per-view code in `team-performance.tsx`, `influencers.tsx`, and `reports.tsx
 
 ### Work record
 See `/agent-ctx/TABLE-FIX-table-header-alignment.md`.
+
+---
+Task ID: MEDIA-FIX
+Agent: main
+Task: Fix "Cannot read properties of undefined (reading 'bg')" runtime error in the Media Library module.
+
+Work Log:
+- Located the crash: `src/components/views/media-library.tsx` had 3 sites doing
+  direct `TYPE_META[asset.type]` lookups (lines ~551, ~636, ~752).
+- Root cause: `TYPE_META` was typed as `Record<MediaAsset["type"], ...>` where
+  `MediaAsset["type"]` is the narrow union `"image" | "video" | "audio"`. But
+  the Prisma schema declares `type String` on `MediaAsset` (free-form). Any
+  DB row with an unexpected `type` (e.g. `"document"`, `"gif"`, `""`, or null)
+  made `TYPE_META[asset.type]` return `undefined`, so the next `typeMeta.bg`
+  access threw "Cannot read properties of undefined (reading 'bg')".
+- Fix:
+  1. Broadened `TYPE_META` key type from `MediaAsset["type"]` to `string`
+     so TS no longer falsely assumes the index always hits.
+  2. Added a safe helper:
+        function getTypeMeta(type: string | null | undefined) {
+          return (type && TYPE_META[type]) || TYPE_META.image;
+        }
+  3. Replaced all 3 direct `TYPE_META[asset.type]` lookups with
+     `getTypeMeta(asset.type)` (and `getTypeMeta(asset?.type)` in the dialog
+     where `asset` may be null).
+- Verified the fallback logic with a standalone node test covering 8 cases
+  (image / video / audio / document / gif / undefined / null / "") — all pass,
+  every unknown value falls back to the `image` meta.
+
+Stage Summary:
+- Files changed: `src/components/views/media-library.tsx` only.
+- `bun run lint` passes with zero errors / warnings.
+- No API / DB / store / route changes — purely a defensive client-side fix.
+- The Media Library now renders gracefully for any asset `type` value coming
+  from the database, defaulting unknown types to the image icon/color/bg.
