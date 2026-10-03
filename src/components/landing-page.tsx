@@ -2895,7 +2895,7 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
   const activate = async () => {
     if (!validatePayment()) return;
     setStep("activating");
-    const success = await signup(form.name.trim(), form.email.trim(), form.password);
+    const success = await signup(form.name.trim(), form.email.trim(), form.password, form.company.trim());
     if (success) {
       setStep("done");
       setTimeout(onActivated, 1400);
@@ -3031,7 +3031,8 @@ function TrialDialog({ open, onOpenChange, onActivated }: { open: boolean; onOpe
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Loader2 className="h-12 w-12 animate-spin text-[var(--gold)]" />
             <h3 className="mt-5 text-lg font-semibold">Activating your trial…</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Provisioning workspace, syncing modules</p>
+            <p className="mt-1 text-sm text-muted-foreground">Provisioning your dedicated database, syncing modules</p>
+            <p className="mt-3 text-[11px] text-muted-foreground/70">This takes ~30 seconds — we're creating an isolated workspace just for you.</p>
           </div>
         )}
 

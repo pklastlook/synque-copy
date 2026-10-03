@@ -28,7 +28,7 @@ interface AuthState {
   // instead of a full session. The UI uses this + complete2faLogin() to
   // prompt for a TOTP code.
   pending2FA: { tempToken: string; email: string } | null;
-  signup: (name: string, email: string, password: string) => Promise<boolean>;
+  signup: (name: string, email: string, password: string, company?: string) => Promise<boolean>;
   login: (email: string, password: string) => Promise<boolean>;
   loginAsDemo: () => Promise<boolean>;
   complete2faLogin: (code: string) => Promise<boolean>;
@@ -49,13 +49,13 @@ export const useAuth = create<AuthState>()(
       loading: false,
       pending2FA: null,
 
-      signup: async (name, email, password) => {
+      signup: async (name, email, password, company) => {
         set({ loading: true });
         try {
           const res = await fetch("/api/auth/signup", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, email, password }),
+            body: JSON.stringify({ name, email, password, company }),
           });
           // Guard: if the server returned HTML (e.g. 500 error page), don't
           // try to parse it as JSON — that throws and can leave the button stuck.
