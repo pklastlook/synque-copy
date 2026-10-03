@@ -20,7 +20,14 @@ if (!SECRET_RAW) {
 // jose requires a Uint8Array key — encode the secret string
 const SECRET = new TextEncoder().encode(SECRET_RAW);
 
-// Routes that don't require authentication
+// Routes that don't require authentication.
+//
+// IMPORTANT: we use EXACT match for routes whose sub-paths include
+// authenticated mutations. Earlier this list used `startsWith`, which made
+// e.g. `/api/linkbio` expose `/api/linkbio/[id]` PATCH/DELETE (stored-XSS
+// sink — see SECURITY-INPUT Finding 1) and `/api/whatsapp/webhook` expose
+// any future sub-path. The exact-match allowlist below closes that hole:
+// only the explicitly-listed paths (and the public click tracker) bypass JWT.
 const PUBLIC_ROUTES = [
   "/api/auth/login",
   "/api/auth/signup",
@@ -32,13 +39,39 @@ const PUBLIC_ROUTES = [
   "/api/auth/demo",
   "/api/oauth/callback",
   "/api/whatsapp/webhook",
-  "/api/linkbio",
   // WebAuthn authenticate routes are public (login without password)
   "/api/webauthn/authenticate",
 ];
 
+// Sub-paths that are public even though they live under an otherwise-protected
+// parent. Currently just the link-in-bio click tracker (called by every
+// visitor on a public `/l/[slug]` page) and the link-in-bio list/create
+// endpoints (POST a new page is part of the public sign-up demo flow).
+const PUBLIC_EXACT_ROUTES = new Set<string>([
+  "/api/linkbio",
+  "/api/linkbio/click",
+]);
+
+// Regex for public link-in-bio click tracking: `/api/linkbio/<id>/click`.
+// `<id>` is a cuid, so we accept any URL-safe character.
+const PUBLIC_LINKBIO_CLICK_RE = /^\/api\/linkbio\/[^/]+\/click$/;
+
 function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
+  // 1. Exact-match allowlist for the small set of routes that must bypass JWT
+  //    but whose sub-paths must NOT (e.g. `/api/whatsapp/webhook` is public,
+  //    but a hypothetical `/api/whatsapp/webhook/anything-else` is not).
+  if (PUBLIC_ROUTES.includes(pathname)) return true;
+
+  // 2. Exact-match routes under `/api/linkbio` that are intentionally public
+  //    (listing + creating pages). PATCH/DELETE on `/api/linkbio/[id]` is
+  //    NOT in this set — it requires auth (it's the stored-XSS sink).
+  if (PUBLIC_EXACT_ROUTES.has(pathname)) return true;
+
+  // 3. Click tracker: `/api/linkbio/[id]/click` is hit by every visitor on a
+  //    public `/l/[slug]` page, so it must be public.
+  if (PUBLIC_LINKBIO_CLICK_RE.test(pathname)) return true;
+
+  return false;
 }
 
 export async function middleware(req: NextRequest) {

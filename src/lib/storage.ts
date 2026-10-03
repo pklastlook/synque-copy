@@ -61,7 +61,38 @@ export interface StorageAdapter {
 // ============================================================================
 
 const PUBLIC_UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
+const PUBLIC_UPLOADS_DIR_RESOLVED = path.resolve(PUBLIC_UPLOADS_DIR);
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+
+/**
+ * SECURITY (P2-4): resolve a storage key under PUBLIC_UPLOADS_DIR and refuse
+ * to return a path that escapes the uploads directory.
+ *
+ * `storageKey` is user-influenced (the value stored in MediaAsset.url /
+ * .thumbnail is what we get back from the DB on delete). Even though the
+ * upload path uses `sanitizePathSegment` / `sanitizeFileName`, a defense-
+ * in-depth check at the boundary of every filesystem operation prevents
+ * `../`-style path traversal from reaching `fs.unlink` / `fs.writeFile` /
+ * `fs.mkdir`.
+ *
+ * @throws Error if the resolved path would escape PUBLIC_UPLOADS_DIR.
+ */
+function assertWithinUploads(storageKey: string): string {
+  const absPath = path.resolve(PUBLIC_UPLOADS_DIR_RESOLVED, storageKey);
+  // `path.resolve` collapses `..`, so an input like `../../etc/passwd`
+  // becomes `/etc/passwd`. We then check the resolved path starts with
+  // the uploads directory + path separator (the equality case is for
+  // an empty storageKey pointing exactly at PUBLIC_UPLOADS_DIR itself).
+  if (
+    absPath !== PUBLIC_UPLOADS_DIR_RESOLVED &&
+    !absPath.startsWith(PUBLIC_UPLOADS_DIR_RESOLVED + path.sep)
+  ) {
+    throw new Error(
+      `Path traversal detected: storageKey "${storageKey}" resolves outside PUBLIC_UPLOADS_DIR`
+    );
+  }
+  return absPath;
+}
 
 class LocalFilesystemAdapter implements StorageAdapter {
   /** Public URL prefix that maps to PUBLIC_UPLOADS_DIR. */
@@ -89,7 +120,11 @@ class LocalFilesystemAdapter implements StorageAdapter {
     const uniquePrefix = randomBytes(6).toString("hex");
     const storageKey = `${tenantSegment}/${safeFolder}/${uniquePrefix}-${safeName}`;
 
-    const absPath = path.join(PUBLIC_UPLOADS_DIR, storageKey);
+    // SECURITY (P2-4): even though tenantSegment / safeFolder / safeName are
+    // already sanitized, run the path-traversal guard before any fs write so
+    // a future refactor that drops a sanitization step cannot create an
+    // arbitrary-write primitive.
+    const absPath = assertWithinUploads(storageKey);
     await fs.mkdir(path.dirname(absPath), { recursive: true });
     await fs.writeFile(absPath, buffer);
 
@@ -111,7 +146,8 @@ class LocalFilesystemAdapter implements StorageAdapter {
           if (thumbBuffer) {
             const thumbName = `${uniquePrefix}-thumb-${safeName.replace(/\.[^.]+$/, ".webp")}`;
             const thumbStorageKey = `${tenantSegment}/${safeFolder}/${thumbName}`;
-            const thumbAbsPath = path.join(PUBLIC_UPLOADS_DIR, thumbStorageKey);
+            // SECURITY (P2-4): same path-traversal guard for the thumbnail path.
+            const thumbAbsPath = assertWithinUploads(thumbStorageKey);
             await fs.writeFile(thumbAbsPath, thumbBuffer);
             thumbnailUrl = `${this.publicPrefix}/${thumbStorageKey}`;
           }
@@ -135,10 +171,28 @@ class LocalFilesystemAdapter implements StorageAdapter {
 
   async delete(storageKey: string): Promise<void> {
     if (!storageKey) return;
-    const absPath = path.join(PUBLIC_UPLOADS_DIR, storageKey);
+    let absPath: string;
+    try {
+      // SECURITY (P2-4): resolve and check the path is still inside
+      // PUBLIC_UPLOADS_DIR before calling fs.unlink. `storageKey` here is
+      // whatever was stored in MediaAsset.url at upload time — for normal
+      // uploads that's sanitized, but this is the boundary that prevents
+      // `../etc/passwd`-style traversal from reaching the filesystem layer.
+      absPath = assertWithinUploads(storageKey);
+    } catch (err) {
+      // Don't leak the storageKey in a 500 — log server-side, return void
+      // (the caller's already wrapped this in `.catch(() => {})`).
+      console.warn(
+        "[storage] delete() refused path traversal attempt:",
+        err instanceof Error ? err.message : String(err)
+      );
+      return;
+    }
     try {
       await fs.unlink(absPath);
-      // Also try to delete the matching thumbnail if it exists
+      // Also try to delete the matching thumbnail if it exists.
+      // `dir` is guaranteed to be inside PUBLIC_UPLOADS_DIR (since absPath
+      // was just checked), so the derived thumbnail path is safe too.
       const dir = path.dirname(absPath);
       const base = path.basename(absPath);
       const thumbBase = base.replace(/^([a-f0-9]+)-/, "$1-thumb-").replace(/\.[^.]+$/, ".webp");

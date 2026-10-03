@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,7 @@ export async function POST(
 ) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
 
   const { id } = await params;
   const { replyText } = (await req.json()) as { replyText?: string };
@@ -26,8 +27,11 @@ export async function POST(
     return NextResponse.json({ error: "replyText is required" }, { status: 400 });
   }
 
-  const mention = await db.mention.findUnique({
-    where: { id },
+  // Tenant scope: load the mention only if its parent ListeningQuery belongs
+  // to the caller's customer (super-admins bypass). Use findFirst with a
+  // compound where to avoid cross-tenant IDOR.
+  const mention = await db.mention.findFirst({
+    where: { id, query: tenantWhere(scope) as { customerId?: string } },
     include: { query: true },
   });
 
@@ -35,9 +39,14 @@ export async function POST(
     return NextResponse.json({ error: "Mention not found" }, { status: 404 });
   }
 
-  // Try to find a matching account + credentials for the mention's platform
+  // Try to find a matching account + credentials for the mention's platform.
+  // Tenant-scope the account lookup so a user in tenant A cannot reply using
+  // tenant B's stored OAuth tokens.
   const account = await db.account.findFirst({
-    where: { platform: mention.source as string },
+    where: {
+      platform: mention.source as string,
+      ...tenantWhere(scope) as { customerId?: string },
+    },
   }).catch((e) => console.error("[api]", e));
 
   if (!account) {

@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const invoices = await db.invoice.findMany({ include: { customer: true }, orderBy: { createdAt: "desc" } });
+/**
+ * GET /api/invoices
+ *
+ * Auth required. Super-admins see all invoices; tenant users see only
+ * invoices belonging to their customer.
+ */
+export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
+  const invoices = await db.invoice.findMany({
+    where: tenantWhere(scope) as { customerId?: string },
+    include: { customer: true },
+    orderBy: { createdAt: "desc" },
+  });
   return NextResponse.json(invoices.map((inv) => ({
     id: inv.id, number: inv.number, customerId: inv.customerId, customerName: inv.customer?.name ?? "Unknown",
     status: inv.status, issueDate: inv.issueDate.toISOString(), dueDate: inv.dueDate?.toISOString() ?? null,
@@ -13,9 +28,23 @@ export async function GET() {
   })));
 }
 
+/**
+ * POST /api/invoices
+ *
+ * Auth required. The customerId is bound to the caller's tenant — the body
+ * `customerId` is ignored unless the caller is a super-admin (who can mint
+ * invoices for any customer).
+ */
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const body = await req.json();
-  const { customerId, items, taxRate, dueDate, notes } = body;
+  const { items, taxRate, dueDate, notes } = body;
+  // Bind customerId to the caller's tenant. Super-admins can pass a body
+  // customerId (for cross-tenant billing); tenant users CANNOT.
+  const customerId = scope.isSuperAdmin ? body.customerId : scope.customerId;
   if (!customerId) return NextResponse.json({ error: "customerId required" }, { status: 400 });
   const parsedItems = (items || []).map((i: { description?: string; qty?: number; price?: number; amount?: number }) => ({
     description: i.description ?? "",

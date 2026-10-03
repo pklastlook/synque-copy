@@ -1,22 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth-guard";
+import { requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const { user, error } = requireRole(req, "admin");
   if (error) return error;
+  const scope = getTenantScope(user!);
+
+  // Tenant scoping: super-admins (no customerId) see all rows; tenant admins
+  // see only rows belonging to their own customer (tenant). PostVariant +
+  // AccountHealth have no direct customerId — they are scoped via the owning
+  // Account relation.
+  const accountWhere = tenantWhere(scope) as { customerId?: string };
+  const variantWhere = scope.isSuperAdmin
+    ? {}
+    : { account: { customerId: scope.customerId } };
+  const healthWhere = scope.isSuperAdmin
+    ? {}
+    : { account: { customerId: scope.customerId } };
 
   const [users, accounts, posts, variants, tasks, comments, activities, health] = await Promise.all([
-    db.user.findMany(),
-    db.account.findMany({ include: { health: true } }),
-    db.post.findMany({ include: { author: true, variants: true } }),
-    db.postVariant.findMany(),
-    db.task.findMany(),
-    db.comment.findMany(),
-    db.activity.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 30 }),
-    db.accountHealth.findMany(),
+    db.user.findMany({ where: accountWhere }),
+    db.account.findMany({ where: accountWhere, include: { health: true } }),
+    db.post.findMany({ where: accountWhere, include: { author: true, variants: true } }),
+    db.postVariant.findMany({ where: variantWhere }),
+    db.task.findMany({ where: accountWhere }),
+    db.comment.findMany({ where: accountWhere }),
+    db.activity.findMany({ where: accountWhere, include: { user: true }, orderBy: { createdAt: "desc" }, take: 30 }),
+    db.accountHealth.findMany({ where: healthWhere }),
   ]);
 
   // Team performance per user

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +11,22 @@ function genKey() {
   return segments.join("-");
 }
 
-export async function GET() {
-  const keys = await db.serialKey.findMany({ include: { customer: true }, orderBy: { createdAt: "desc" } });
+/**
+ * GET /api/serial-keys
+ *
+ * Auth required. Super-admins see all serial keys; tenant users see only
+ * serial keys belonging to their own customer.
+ */
+export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
+  const keys = await db.serialKey.findMany({
+    where: tenantWhere(scope) as { customerId?: string },
+    include: { customer: true },
+    orderBy: { createdAt: "desc" },
+  });
   return NextResponse.json(keys.map((k) => ({
     id: k.id, key: k.key, status: k.status, deviceName: k.deviceName,
     customerId: k.customerId, customerName: k.customer?.name ?? null,
@@ -19,9 +34,25 @@ export async function GET() {
   })));
 }
 
+/**
+ * POST /api/serial-keys
+ *
+ * Admin-only. Generates a new serial key. The customerId from the body is
+ * honoured only for super-admins; tenant admins can only mint keys for
+ * their own customer (the body customerId is overridden with scope.customerId).
+ */
 export async function POST(req: NextRequest) {
+  const { user, error } = requireRole(req, "admin");
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const body = await req.json();
-  const { customerId } = body;
+  // Bind customerId to the caller's tenant unless the caller is a super-admin
+  // (super-admins can mint keys for any customer — they manage cross-tenant).
+  const customerId = scope.isSuperAdmin
+    ? (body.customerId ?? null)
+    : scope.customerId;
+
   // Generate a unique key
   let key = genKey();
   let existing = await db.serialKey.findUnique({ where: { key } }).catch((e) => console.error("[api]", e));

@@ -4425,7 +4425,8 @@ export const ListeningQueryScalarFieldEnum = {
   type: 'type',
   color: 'color',
   status: 'status',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  customerId: 'customerId'
 } as const
 
 export type ListeningQueryScalarFieldEnum = (typeof ListeningQueryScalarFieldEnum)[keyof typeof ListeningQueryScalarFieldEnum]
@@ -4499,7 +4500,8 @@ export const HashtagGroupScalarFieldEnum = {
   usageCount: 'usageCount',
   avgReach: 'avgReach',
   color: 'color',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  customerId: 'customerId'
 } as const
 
 export type HashtagGroupScalarFieldEnum = (typeof HashtagGroupScalarFieldEnum)[keyof typeof HashtagGroupScalarFieldEnum]
@@ -4517,7 +4519,8 @@ export const CompetitorScalarFieldEnum = {
   postingFreq: 'postingFreq',
   status: 'status',
   notes: 'notes',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  customerId: 'customerId'
 } as const
 
 export type CompetitorScalarFieldEnum = (typeof CompetitorScalarFieldEnum)[keyof typeof CompetitorScalarFieldEnum]
@@ -4563,7 +4566,8 @@ export const LinkInBioScalarFieldEnum = {
   clicks: 'clicks',
   accountId: 'accountId',
   active: 'active',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  customerId: 'customerId'
 } as const
 
 export type LinkInBioScalarFieldEnum = (typeof LinkInBioScalarFieldEnum)[keyof typeof LinkInBioScalarFieldEnum]
@@ -4635,7 +4639,8 @@ export const MailServerScalarFieldEnum = {
   fromEmail: 'fromEmail',
   status: 'status',
   lastCheck: 'lastCheck',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  customerId: 'customerId'
 } as const
 
 export type MailServerScalarFieldEnum = (typeof MailServerScalarFieldEnum)[keyof typeof MailServerScalarFieldEnum]
@@ -4652,7 +4657,8 @@ export const MailboxScalarFieldEnum = {
   ownerId: 'ownerId',
   status: 'status',
   role: 'role',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  customerId: 'customerId'
 } as const
 
 export type MailboxScalarFieldEnum = (typeof MailboxScalarFieldEnum)[keyof typeof MailboxScalarFieldEnum]
@@ -4996,7 +5002,8 @@ export const InfluencerScalarFieldEnum = {
   campaignId: 'campaignId',
   notes: 'notes',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  customerId: 'customerId'
 } as const
 
 export type InfluencerScalarFieldEnum = (typeof InfluencerScalarFieldEnum)[keyof typeof InfluencerScalarFieldEnum]

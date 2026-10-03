@@ -288,8 +288,12 @@ model ListeningQuery {
   color      String   @default("#E1306C")
   status     String   @default("active") // active | paused
   createdAt  DateTime @default(now())
+  // Multi-tenant: links to Customer (null = super-admin)
+  customerId String?
 
   mentions   Mention[]
+
+  @@index([customerId])
 }
 
 model Mention {
@@ -366,6 +370,10 @@ model HashtagGroup {
   avgReach   Int      @default(0)
   color      String   @default("#E1306C")
   createdAt  DateTime @default(now())
+  // Multi-tenant: links to Customer (null = super-admin)
+  customerId String?
+
+  @@index([customerId])
 }
 
 // ===== Competitor Tracking =====
@@ -382,8 +390,12 @@ model Competitor {
   status     String   @default("tracking") // tracking | paused
   notes      String?
   createdAt  DateTime @default(now())
+  // Multi-tenant: links to Customer (null = super-admin)
+  customerId String?
 
   snapshots  CompetitorSnapshot[]
+
+  @@index([customerId])
 }
 
 model CompetitorSnapshot {
@@ -426,6 +438,10 @@ model LinkInBio {
   accountId   String?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
+  // Multi-tenant: links to Customer (null = super-admin)
+  customerId  String?
+
+  @@index([customerId])
 }
 
 // ===== WhatsApp Inbox (pasted from groups/chats) =====
@@ -506,8 +522,11 @@ model MailServer {
   status       String   @default("pending") // pending | connected | error
   lastCheck    DateTime?
   createdAt    DateTime @default(now())
-
+  // Multi-tenant: null for super-admin (sees all)
+  customerId   String?
   mailboxes    Mailbox[]
+
+  @@index([customerId])
 }
 
 model Mailbox {
@@ -524,8 +543,12 @@ model Mailbox {
   status       String   @default("active") // active | suspended | creating
   role         String   @default("member") // admin | member
   createdAt    DateTime @default(now())
-
+  // Multi-tenant: denormalized from MailServer.customerId for fast scoping.
+  // null for super-admin (sees all)
+  customerId   String?
   messages     MailMessage[]
+
+  @@index([customerId])
 }
 
 model MailMessage {
@@ -883,6 +906,10 @@ model Influencer {
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  // Multi-tenant: links to Customer (null = super-admin)
+  customerId      String?
+
+  @@index([customerId])
 }
 
 // ===== VPN (WireGuard) =====

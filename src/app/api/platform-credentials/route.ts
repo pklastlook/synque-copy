@@ -1,12 +1,74 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, getTenantScope } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/platform-credentials?userId=xxx — list all platform credentials for a user */
+/**
+ * Resolve the userId a caller is allowed to act on.
+ *
+ * - Non-admin users can ONLY read/write their OWN credentials (body/query
+ *   `userId` is overridden with `req.user.userId`).
+ * - Tenant admins can act on any user INSIDE their tenant (body `userId`
+ *   must belong to a user whose customerId matches the admin's scope).
+ * - Super-admins can act on any userId (no constraint).
+ *
+ * Returns the resolved userId, or `{ error }` if the body requested a
+ * userId the caller is not allowed to act on.
+ */
+async function resolveTargetUserId(
+  callerUserId: string,
+  scope: { customerId: string | null; isSuperAdmin: boolean },
+  requestedUserId: string | null | undefined,
+): Promise<{ userId: string } | { error: NextResponse }> {
+  // Super-admin: honour the requested userId (default to self if missing)
+  if (scope.isSuperAdmin) {
+    return { userId: requestedUserId ?? callerUserId };
+  }
+  // Non-admin (member/editor/viewer): only own credentials
+  const role = (await db.user.findUnique({
+    where: { id: callerUserId },
+    select: { role: true },
+  }))?.role;
+  const isAdmin = role === "admin" || role === "manager";
+  if (!isAdmin) {
+    return { userId: callerUserId };
+  }
+  // Tenant admin: requested userId must belong to their tenant
+  if (!requestedUserId || requestedUserId === callerUserId) {
+    return { userId: callerUserId };
+  }
+  const target = await db.user.findFirst({
+    where: { id: requestedUserId, customerId: scope.customerId },
+    select: { id: true },
+  });
+  if (!target) {
+    return {
+      error: NextResponse.json(
+        { error: "Not allowed — target user is not in your tenant" },
+        { status: 403 },
+      ),
+    };
+  }
+  return { userId: requestedUserId };
+}
+
+/**
+ * GET /api/platform-credentials?userId=xxx
+ *
+ * Auth required. Users can only read their OWN credentials. Tenant admins
+ * can read any user's credentials within their tenant. Super-admins can
+ * read any user's credentials.
+ */
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
+  const requestedUserId = req.nextUrl.searchParams.get("userId");
+  const resolved = await resolveTargetUserId(user.userId, scope, requestedUserId);
+  if ("error" in resolved) return resolved.error;
+  const userId = resolved.userId;
 
   const creds = await db.platformCredential.findMany({ where: { userId } });
   return NextResponse.json(
@@ -30,9 +92,13 @@ export async function GET(req: NextRequest) {
 
 /** PUT /api/platform-credentials — save or update platform credentials */
 export async function PUT(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const body = await req.json();
-  const { userId, platform, clientId, clientSecret, apiKey, apiSecret, accessToken, accessSecret, bearerToken, pageId, profileId } = body as {
-    userId: string;
+  const { userId: requestedUserId, platform, clientId, clientSecret, apiKey, apiSecret, accessToken, accessSecret, bearerToken, pageId, profileId } = body as {
+    userId?: string;
     platform: string;
     clientId?: string;
     clientSecret?: string;
@@ -45,9 +111,14 @@ export async function PUT(req: NextRequest) {
     profileId?: string;
   };
 
-  if (!userId || !platform) {
-    return NextResponse.json({ error: "userId and platform required" }, { status: 400 });
+  if (!platform) {
+    return NextResponse.json({ error: "platform required" }, { status: 400 });
   }
+
+  // Bind userId to the caller (or, for admins, verify the target is in their tenant)
+  const resolved = await resolveTargetUserId(user.userId, scope, requestedUserId);
+  if ("error" in resolved) return resolved.error;
+  const userId = resolved.userId;
 
   const data: Record<string, unknown> = { connected: true };
   if (clientId !== undefined) data.clientId = clientId;
@@ -71,11 +142,19 @@ export async function PUT(req: NextRequest) {
 
 /** DELETE /api/platform-credentials?userId=xxx&platform=yyy — remove credentials */
 export async function DELETE(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
+  const requestedUserId = req.nextUrl.searchParams.get("userId");
   const platform = req.nextUrl.searchParams.get("platform");
-  if (!userId || !platform) {
-    return NextResponse.json({ error: "userId and platform required" }, { status: 400 });
+  if (!platform) {
+    return NextResponse.json({ error: "platform required" }, { status: 400 });
   }
+
+  const resolved = await resolveTargetUserId(user.userId, scope, requestedUserId);
+  if ("error" in resolved) return resolved.error;
+  const userId = resolved.userId;
 
   await db.platformCredential.deleteMany({ where: { userId, platform } }).catch((e) => console.error("[api]", e));
   return NextResponse.json({ ok: true });

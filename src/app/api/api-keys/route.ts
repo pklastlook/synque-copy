@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireRole } from "@/lib/auth-guard";
 import { randomBytes } from "node:crypto";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,22 @@ function genApiKey() {
   return "sf_" + randomBytes(20).toString("hex");
 }
 
-export async function GET() {
+/**
+ * GET /api/api-keys
+ *
+ * Admin-only. The ApiKey model has no userId / customerId column (it's a
+ * global server-side API key for the SYNQUE API itself), so per-user
+ * scoping isn't possible without a schema migration. Restricting to admins
+ * closes the IDOR — only admins can list/manage API keys.
+ *
+ * TODO: add a `userId` column to ApiKey so we can scope by ownership (then
+ * non-admins could mint their own keys; super-admin could see all). Requires
+ * `bun run db:push` after editing prisma/schema.prisma.
+ */
+export async function GET(req: NextRequest) {
+  const { error } = requireRole(req, "admin");
+  if (error) return error;
+
   const keys = await db.apiKey.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json(keys.map((k) => ({
     id: k.id, name: k.name,
@@ -20,7 +36,15 @@ export async function GET() {
   })));
 }
 
+/**
+ * POST /api/api-keys
+ *
+ * Admin-only. Mints a new API key.
+ */
 export async function POST(req: NextRequest) {
+  const { error } = requireRole(req, "admin");
+  if (error) return error;
+
   const { name, permissions } = await req.json();
   if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
   let key = genApiKey();

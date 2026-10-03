@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +13,9 @@ export const dynamic = "force-dynamic";
  *   Removes a pasted message.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = requireAuth(req);
+  const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
 
   const { id } = await params;
   const body = await req.json();
@@ -31,15 +32,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
+  // Verify the message is in the caller's tenant before updating.
+  const existing = await db.whatsAppMessage.findFirst({
+    where: scope.isSuperAdmin
+      ? { id }
+      : { id, savedBy: { customerId: scope.customerId } },
+    select: { id: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+
   await db.whatsAppMessage.update({ where: { id }, data });
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = requireAuth(req);
+  const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
 
   const { id } = await params;
+
+  // Verify the message is in the caller's tenant before deleting.
+  const existing = await db.whatsAppMessage.findFirst({
+    where: scope.isSuperAdmin
+      ? { id }
+      : { id, savedBy: { customerId: scope.customerId } },
+    select: { id: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+
   await db.whatsAppMessage.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

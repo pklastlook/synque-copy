@@ -57,6 +57,7 @@ export type InfluencerMinAggregateOutputType = {
   notes: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  customerId: string | null
 }
 
 export type InfluencerMaxAggregateOutputType = {
@@ -74,6 +75,7 @@ export type InfluencerMaxAggregateOutputType = {
   notes: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  customerId: string | null
 }
 
 export type InfluencerCountAggregateOutputType = {
@@ -91,6 +93,7 @@ export type InfluencerCountAggregateOutputType = {
   notes: number
   createdAt: number
   updatedAt: number
+  customerId: number
   _all: number
 }
 
@@ -126,6 +129,7 @@ export type InfluencerMinAggregateInputType = {
   notes?: true
   createdAt?: true
   updatedAt?: true
+  customerId?: true
 }
 
 export type InfluencerMaxAggregateInputType = {
@@ -143,6 +147,7 @@ export type InfluencerMaxAggregateInputType = {
   notes?: true
   createdAt?: true
   updatedAt?: true
+  customerId?: true
 }
 
 export type InfluencerCountAggregateInputType = {
@@ -160,6 +165,7 @@ export type InfluencerCountAggregateInputType = {
   notes?: true
   createdAt?: true
   updatedAt?: true
+  customerId?: true
   _all?: true
 }
 
@@ -264,6 +270,7 @@ export type InfluencerGroupByOutputType = {
   notes: string | null
   createdAt: Date
   updatedAt: Date
+  customerId: string | null
   _count: InfluencerCountAggregateOutputType | null
   _avg: InfluencerAvgAggregateOutputType | null
   _sum: InfluencerSumAggregateOutputType | null
@@ -304,6 +311,7 @@ export type InfluencerWhereInput = {
   notes?: Prisma.StringNullableFilter<"Influencer"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Influencer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Influencer"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"Influencer"> | string | null
 }
 
 export type InfluencerOrderByWithRelationInput = {
@@ -321,6 +329,7 @@ export type InfluencerOrderByWithRelationInput = {
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
 }
 
 export type InfluencerWhereUniqueInput = Prisma.AtLeast<{
@@ -341,6 +350,7 @@ export type InfluencerWhereUniqueInput = Prisma.AtLeast<{
   notes?: Prisma.StringNullableFilter<"Influencer"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Influencer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Influencer"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"Influencer"> | string | null
 }, "id">
 
 export type InfluencerOrderByWithAggregationInput = {
@@ -358,6 +368,7 @@ export type InfluencerOrderByWithAggregationInput = {
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.InfluencerCountOrderByAggregateInput
   _avg?: Prisma.InfluencerAvgOrderByAggregateInput
   _max?: Prisma.InfluencerMaxOrderByAggregateInput
@@ -383,6 +394,7 @@ export type InfluencerScalarWhereWithAggregatesInput = {
   notes?: Prisma.StringNullableWithAggregatesFilter<"Influencer"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Influencer"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Influencer"> | Date | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Influencer"> | string | null
 }
 
 export type InfluencerCreateInput = {
@@ -400,6 +412,7 @@ export type InfluencerCreateInput = {
   notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  customerId?: string | null
 }
 
 export type InfluencerUncheckedCreateInput = {
@@ -417,6 +430,7 @@ export type InfluencerUncheckedCreateInput = {
   notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  customerId?: string | null
 }
 
 export type InfluencerUpdateInput = {
@@ -434,6 +448,7 @@ export type InfluencerUpdateInput = {
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type InfluencerUncheckedUpdateInput = {
@@ -451,6 +466,7 @@ export type InfluencerUncheckedUpdateInput = {
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type InfluencerCreateManyInput = {
@@ -468,6 +484,7 @@ export type InfluencerCreateManyInput = {
   notes?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  customerId?: string | null
 }
 
 export type InfluencerUpdateManyMutationInput = {
@@ -485,6 +502,7 @@ export type InfluencerUpdateManyMutationInput = {
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type InfluencerUncheckedUpdateManyInput = {
@@ -502,6 +520,7 @@ export type InfluencerUncheckedUpdateManyInput = {
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type InfluencerCountOrderByAggregateInput = {
@@ -519,6 +538,7 @@ export type InfluencerCountOrderByAggregateInput = {
   notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type InfluencerAvgOrderByAggregateInput = {
@@ -544,6 +564,7 @@ export type InfluencerMaxOrderByAggregateInput = {
   notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type InfluencerMinOrderByAggregateInput = {
@@ -561,6 +582,7 @@ export type InfluencerMinOrderByAggregateInput = {
   notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type InfluencerSumOrderByAggregateInput = {
@@ -588,6 +610,7 @@ export type InfluencerSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["influencer"]>
 
 export type InfluencerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -605,6 +628,7 @@ export type InfluencerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["influencer"]>
 
 export type InfluencerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -622,6 +646,7 @@ export type InfluencerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["influencer"]>
 
 export type InfluencerSelectScalar = {
@@ -639,9 +664,10 @@ export type InfluencerSelectScalar = {
   notes?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  customerId?: boolean
 }
 
-export type InfluencerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "handle" | "platform" | "followers" | "engagementRate" | "cost" | "estimatedReach" | "estimatedEngagement" | "status" | "campaignId" | "notes" | "createdAt" | "updatedAt", ExtArgs["result"]["influencer"]>
+export type InfluencerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "handle" | "platform" | "followers" | "engagementRate" | "cost" | "estimatedReach" | "estimatedEngagement" | "status" | "campaignId" | "notes" | "createdAt" | "updatedAt" | "customerId", ExtArgs["result"]["influencer"]>
 
 export type $InfluencerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Influencer"
@@ -661,6 +687,7 @@ export type $InfluencerPayload<ExtArgs extends runtime.Types.Extensions.Internal
     notes: string | null
     createdAt: Date
     updatedAt: Date
+    customerId: string | null
   }, ExtArgs["result"]["influencer"]>
   composites: {}
 }
@@ -1098,6 +1125,7 @@ export interface InfluencerFieldRefs {
   readonly notes: Prisma.FieldRef<"Influencer", 'String'>
   readonly createdAt: Prisma.FieldRef<"Influencer", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Influencer", 'DateTime'>
+  readonly customerId: Prisma.FieldRef<"Influencer", 'String'>
 }
     
 

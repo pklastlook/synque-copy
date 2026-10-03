@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -7,8 +8,13 @@ export const dynamic = "force-dynamic";
  * PATCH /api/influencers/[id]
  *   Update any field. Body: partial influencer payload.
  *   Numerics are coerced to Number() to handle JSON-form submissions.
+ *   Tenant-scoped: returns 404 if the influencer belongs to another tenant.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const { id } = await params;
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const {
@@ -17,6 +23,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     estimatedReach, estimatedEngagement,
     status, campaignId, notes,
   } = body as Record<string, string | number | null | undefined>;
+
+  const existing = await db.influencer.findFirst({
+    where: { id, ...tenantWhere(scope) as { customerId?: string } },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
+  }
 
   const data: Record<string, unknown> = {};
   if (typeof name === "string") data.name = name;
@@ -51,7 +65,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 /** DELETE /api/influencers/[id] — permanently remove an influencer. */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = requireAuth(_req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const { id } = await params;
+
+  const existing = await db.influencer.findFirst({
+    where: { id, ...tenantWhere(scope) as { customerId?: string } },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
+  }
+
   await db.influencer.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

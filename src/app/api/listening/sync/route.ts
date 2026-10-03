@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 import { classifySentimentBatch } from "@/lib/sentiment";
 
 export const dynamic = "force-dynamic";
@@ -34,13 +34,17 @@ export const maxDuration = 60; // multi-platform ingestion can be slow
  *   { ok, totalQueries, totalFound, newMentions, classified, errors }
  */
 export async function POST(req: NextRequest) {
-  const { error } = requireAuth(req);
+  const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
 
   const { queryId } = (await req.json().catch(() => ({}))) as { queryId?: string };
 
-  // Build the where clause — single query, or all "active" queries
-  const where = queryId ? { id: queryId } : { status: "active" as const };
+  // Build the where clause — single query, or all "active" queries.
+  // Always AND with the tenant scope so a tenant user can only sync their own
+  // listening queries (super-admins bypass via empty tenantWhere).
+  const baseWhere = queryId ? { id: queryId } : { status: "active" as const };
+  const where = { ...baseWhere, ...tenantWhere(scope) as { customerId?: string } };
   const queries = await db.listeningQuery.findMany({ where });
 
   if (queries.length === 0) {

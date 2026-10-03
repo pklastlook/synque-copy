@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { TwitterApi } from "twitter-api-v2";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -11,18 +12,50 @@ export const dynamic = "force-dynamic";
  * (followers, following, posts count, verified status) and update
  * the matching Account record in the database.
  *
- * Requires: Twitter API v2 credentials stored in PlatformCredential.
- * Works with either:
- *   - OAuth 2.0 access token (with user.read scope)
- *   - OAuth 1.0a (apiKey + apiSecret + accessToken + accessSecret)
- *   - Bearer Token (app-only, limited read)
+ * Auth required. The body `userId` MUST match the caller (or, for tenant
+ * admins, the target user must be in the caller's tenant). The target
+ * Account must belong to the caller's tenant.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
-  const { platform: rawPlatform } = await params;
-  const { userId, accountId } = (await req.json()) as { userId: string; accountId: string };
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
 
-  if (!userId || !accountId) {
-    return NextResponse.json({ error: "userId and accountId required" }, { status: 400 });
+  const { platform: rawPlatform } = await params;
+  const body = (await req.json()) as { userId?: string; accountId: string };
+  const requestedUserId = body.userId;
+  const { accountId } = body;
+
+  if (!accountId) {
+    return NextResponse.json({ error: "accountId required" }, { status: 400 });
+  }
+
+  // Resolve the userId we are allowed to act on. Non-admins can only act on
+  // themselves. Tenant admins can act on any user in their tenant. Super-admins
+  // can act on anyone. (Defensive: ignore the body userId for non-admins.)
+  let userId = user.userId;
+  if (scope.isSuperAdmin) {
+    userId = requestedUserId ?? user.userId;
+  } else {
+    // Look up the caller's role once.
+    const caller = await db.user.findUnique({
+      where: { id: user.userId },
+      select: { role: true },
+    });
+    const isAdmin = caller?.role === "admin" || caller?.role === "manager";
+    if (isAdmin && requestedUserId && requestedUserId !== user.userId) {
+      const target = await db.user.findFirst({
+        where: { id: requestedUserId, customerId: scope.customerId },
+        select: { id: true },
+      });
+      if (!target) {
+        return NextResponse.json(
+          { error: "Not allowed — target user is not in your tenant" },
+          { status: 403 },
+        );
+      }
+      userId = requestedUserId;
+    }
   }
 
   // Normalize platform name
@@ -40,8 +73,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
     );
   }
 
-  // Get the account record
-  const account = await db.account.findUnique({ where: { id: accountId } });
+  // Get the account record — tenant-scoped (super-admin sees any)
+  const account = await db.account.findFirst({
+    where: { id: accountId, ...tenantWhere(scope) as { customerId?: string } },
+  });
   if (!account) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }

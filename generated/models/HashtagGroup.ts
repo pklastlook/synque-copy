@@ -45,6 +45,7 @@ export type HashtagGroupMinAggregateOutputType = {
   avgReach: number | null
   color: string | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type HashtagGroupMaxAggregateOutputType = {
@@ -56,6 +57,7 @@ export type HashtagGroupMaxAggregateOutputType = {
   avgReach: number | null
   color: string | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type HashtagGroupCountAggregateOutputType = {
@@ -67,6 +69,7 @@ export type HashtagGroupCountAggregateOutputType = {
   avgReach: number
   color: number
   createdAt: number
+  customerId: number
   _all: number
 }
 
@@ -90,6 +93,7 @@ export type HashtagGroupMinAggregateInputType = {
   avgReach?: true
   color?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type HashtagGroupMaxAggregateInputType = {
@@ -101,6 +105,7 @@ export type HashtagGroupMaxAggregateInputType = {
   avgReach?: true
   color?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type HashtagGroupCountAggregateInputType = {
@@ -112,6 +117,7 @@ export type HashtagGroupCountAggregateInputType = {
   avgReach?: true
   color?: true
   createdAt?: true
+  customerId?: true
   _all?: true
 }
 
@@ -210,6 +216,7 @@ export type HashtagGroupGroupByOutputType = {
   avgReach: number
   color: string
   createdAt: Date
+  customerId: string | null
   _count: HashtagGroupCountAggregateOutputType | null
   _avg: HashtagGroupAvgAggregateOutputType | null
   _sum: HashtagGroupSumAggregateOutputType | null
@@ -244,6 +251,7 @@ export type HashtagGroupWhereInput = {
   avgReach?: Prisma.IntFilter<"HashtagGroup"> | number
   color?: Prisma.StringFilter<"HashtagGroup"> | string
   createdAt?: Prisma.DateTimeFilter<"HashtagGroup"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"HashtagGroup"> | string | null
 }
 
 export type HashtagGroupOrderByWithRelationInput = {
@@ -255,6 +263,7 @@ export type HashtagGroupOrderByWithRelationInput = {
   avgReach?: Prisma.SortOrder
   color?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
 }
 
 export type HashtagGroupWhereUniqueInput = Prisma.AtLeast<{
@@ -269,6 +278,7 @@ export type HashtagGroupWhereUniqueInput = Prisma.AtLeast<{
   avgReach?: Prisma.IntFilter<"HashtagGroup"> | number
   color?: Prisma.StringFilter<"HashtagGroup"> | string
   createdAt?: Prisma.DateTimeFilter<"HashtagGroup"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"HashtagGroup"> | string | null
 }, "id">
 
 export type HashtagGroupOrderByWithAggregationInput = {
@@ -280,6 +290,7 @@ export type HashtagGroupOrderByWithAggregationInput = {
   avgReach?: Prisma.SortOrder
   color?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.HashtagGroupCountOrderByAggregateInput
   _avg?: Prisma.HashtagGroupAvgOrderByAggregateInput
   _max?: Prisma.HashtagGroupMaxOrderByAggregateInput
@@ -299,6 +310,7 @@ export type HashtagGroupScalarWhereWithAggregatesInput = {
   avgReach?: Prisma.IntWithAggregatesFilter<"HashtagGroup"> | number
   color?: Prisma.StringWithAggregatesFilter<"HashtagGroup"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"HashtagGroup"> | Date | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"HashtagGroup"> | string | null
 }
 
 export type HashtagGroupCreateInput = {
@@ -310,6 +322,7 @@ export type HashtagGroupCreateInput = {
   avgReach?: number
   color?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type HashtagGroupUncheckedCreateInput = {
@@ -321,6 +334,7 @@ export type HashtagGroupUncheckedCreateInput = {
   avgReach?: number
   color?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type HashtagGroupUpdateInput = {
@@ -332,6 +346,7 @@ export type HashtagGroupUpdateInput = {
   avgReach?: Prisma.IntFieldUpdateOperationsInput | number
   color?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type HashtagGroupUncheckedUpdateInput = {
@@ -343,6 +358,7 @@ export type HashtagGroupUncheckedUpdateInput = {
   avgReach?: Prisma.IntFieldUpdateOperationsInput | number
   color?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type HashtagGroupCreateManyInput = {
@@ -354,6 +370,7 @@ export type HashtagGroupCreateManyInput = {
   avgReach?: number
   color?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type HashtagGroupUpdateManyMutationInput = {
@@ -365,6 +382,7 @@ export type HashtagGroupUpdateManyMutationInput = {
   avgReach?: Prisma.IntFieldUpdateOperationsInput | number
   color?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type HashtagGroupUncheckedUpdateManyInput = {
@@ -376,6 +394,7 @@ export type HashtagGroupUncheckedUpdateManyInput = {
   avgReach?: Prisma.IntFieldUpdateOperationsInput | number
   color?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type HashtagGroupCountOrderByAggregateInput = {
@@ -387,6 +406,7 @@ export type HashtagGroupCountOrderByAggregateInput = {
   avgReach?: Prisma.SortOrder
   color?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type HashtagGroupAvgOrderByAggregateInput = {
@@ -403,6 +423,7 @@ export type HashtagGroupMaxOrderByAggregateInput = {
   avgReach?: Prisma.SortOrder
   color?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type HashtagGroupMinOrderByAggregateInput = {
@@ -414,6 +435,7 @@ export type HashtagGroupMinOrderByAggregateInput = {
   avgReach?: Prisma.SortOrder
   color?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type HashtagGroupSumOrderByAggregateInput = {
@@ -432,6 +454,7 @@ export type HashtagGroupSelect<ExtArgs extends runtime.Types.Extensions.Internal
   avgReach?: boolean
   color?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["hashtagGroup"]>
 
 export type HashtagGroupSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -443,6 +466,7 @@ export type HashtagGroupSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   avgReach?: boolean
   color?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["hashtagGroup"]>
 
 export type HashtagGroupSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -454,6 +478,7 @@ export type HashtagGroupSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   avgReach?: boolean
   color?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["hashtagGroup"]>
 
 export type HashtagGroupSelectScalar = {
@@ -465,9 +490,10 @@ export type HashtagGroupSelectScalar = {
   avgReach?: boolean
   color?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }
 
-export type HashtagGroupOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "tags" | "platform" | "usageCount" | "avgReach" | "color" | "createdAt", ExtArgs["result"]["hashtagGroup"]>
+export type HashtagGroupOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "tags" | "platform" | "usageCount" | "avgReach" | "color" | "createdAt" | "customerId", ExtArgs["result"]["hashtagGroup"]>
 
 export type $HashtagGroupPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "HashtagGroup"
@@ -481,6 +507,7 @@ export type $HashtagGroupPayload<ExtArgs extends runtime.Types.Extensions.Intern
     avgReach: number
     color: string
     createdAt: Date
+    customerId: string | null
   }, ExtArgs["result"]["hashtagGroup"]>
   composites: {}
 }
@@ -912,6 +939,7 @@ export interface HashtagGroupFieldRefs {
   readonly avgReach: Prisma.FieldRef<"HashtagGroup", 'Int'>
   readonly color: Prisma.FieldRef<"HashtagGroup", 'String'>
   readonly createdAt: Prisma.FieldRef<"HashtagGroup", 'DateTime'>
+  readonly customerId: Prisma.FieldRef<"HashtagGroup", 'String'>
 }
     
 

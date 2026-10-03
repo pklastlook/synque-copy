@@ -1,15 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const queries = await db.listeningQuery.findMany({
+    where: tenantWhere(scope) as { customerId?: string },
     include: { mentions: { orderBy: { date: "desc" }, take: 50 } },
     orderBy: { createdAt: "desc" },
   });
 
-  const allMentions = await db.mention.findMany({ orderBy: { date: "desc" }, take: 60, include: { query: true } });
+  // Scope mentions through the owning ListeningQuery so super-admins see all
+  // and tenant users see only their own queries' mentions.
+  const mentionWhere = tenantWhere(scope);
+  const allMentions = await db.mention.findMany({
+    where: mentionWhere.customerId
+      ? { query: { customerId: mentionWhere.customerId } }
+      : undefined,
+    orderBy: { date: "desc" },
+    take: 60,
+    include: { query: true },
+  });
 
   // sentiment distribution
   const sentiments = { positive: 0, neutral: 0, negative: 0 };
@@ -75,9 +91,15 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const body = await req.json();
   const { name, keywords, type, color } = body;
   if (!name || !keywords) return NextResponse.json({ error: "name and keywords required" }, { status: 400 });
-  const q = await db.listeningQuery.create({ data: { name, keywords, type: type ?? "keyword", color: color ?? "#E1306C" } });
+  const q = await db.listeningQuery.create({
+    data: { name, keywords, type: type ?? "keyword", color: color ?? "#E1306C", customerId: scope.customerId },
+  });
   return NextResponse.json({ id: q.id, ok: true });
 }

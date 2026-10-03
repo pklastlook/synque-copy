@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { isSafeUrl } from "@/lib/url-safety";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,17 @@ export async function POST(req: NextRequest) {
 
   if (!text?.trim() && !fileUrl) {
     return NextResponse.json({ error: "Message text or file is required" }, { status: 400 });
+  }
+
+  // SECURITY: validate `fileUrl` is http(s) before storing.
+  // `fileUrl` is later rendered as a clickable link / image src in the chat
+  // UI — a `javascript:` URL would be a stored XSS that runs when a
+  // recipient opens the message. (See SECURITY-INPUT Finding 3.)
+  if (fileUrl && typeof fileUrl === "string" && !isSafeUrl(fileUrl)) {
+    return NextResponse.json(
+      { error: `Unsafe file URL scheme: ${fileUrl}` },
+      { status: 400 }
+    );
   }
 
   const msg = await db.chatMessage.create({

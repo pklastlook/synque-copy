@@ -54,6 +54,7 @@ export type MailServerMinAggregateOutputType = {
   status: string | null
   lastCheck: Date | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type MailServerMaxAggregateOutputType = {
@@ -74,6 +75,7 @@ export type MailServerMaxAggregateOutputType = {
   status: string | null
   lastCheck: Date | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type MailServerCountAggregateOutputType = {
@@ -94,6 +96,7 @@ export type MailServerCountAggregateOutputType = {
   status: number
   lastCheck: number
   createdAt: number
+  customerId: number
   _all: number
 }
 
@@ -126,6 +129,7 @@ export type MailServerMinAggregateInputType = {
   status?: true
   lastCheck?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type MailServerMaxAggregateInputType = {
@@ -146,6 +150,7 @@ export type MailServerMaxAggregateInputType = {
   status?: true
   lastCheck?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type MailServerCountAggregateInputType = {
@@ -166,6 +171,7 @@ export type MailServerCountAggregateInputType = {
   status?: true
   lastCheck?: true
   createdAt?: true
+  customerId?: true
   _all?: true
 }
 
@@ -273,6 +279,7 @@ export type MailServerGroupByOutputType = {
   status: string
   lastCheck: Date | null
   createdAt: Date
+  customerId: string | null
   _count: MailServerCountAggregateOutputType | null
   _avg: MailServerAvgAggregateOutputType | null
   _sum: MailServerSumAggregateOutputType | null
@@ -316,6 +323,7 @@ export type MailServerWhereInput = {
   status?: Prisma.StringFilter<"MailServer"> | string
   lastCheck?: Prisma.DateTimeNullableFilter<"MailServer"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"MailServer"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"MailServer"> | string | null
   mailboxes?: Prisma.MailboxListRelationFilter
 }
 
@@ -337,6 +345,7 @@ export type MailServerOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   lastCheck?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   mailboxes?: Prisma.MailboxOrderByRelationAggregateInput
 }
 
@@ -361,6 +370,7 @@ export type MailServerWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.StringFilter<"MailServer"> | string
   lastCheck?: Prisma.DateTimeNullableFilter<"MailServer"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"MailServer"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"MailServer"> | string | null
   mailboxes?: Prisma.MailboxListRelationFilter
 }, "id">
 
@@ -382,6 +392,7 @@ export type MailServerOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   lastCheck?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.MailServerCountOrderByAggregateInput
   _avg?: Prisma.MailServerAvgOrderByAggregateInput
   _max?: Prisma.MailServerMaxOrderByAggregateInput
@@ -410,6 +421,7 @@ export type MailServerScalarWhereWithAggregatesInput = {
   status?: Prisma.StringWithAggregatesFilter<"MailServer"> | string
   lastCheck?: Prisma.DateTimeNullableWithAggregatesFilter<"MailServer"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"MailServer"> | Date | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"MailServer"> | string | null
 }
 
 export type MailServerCreateInput = {
@@ -430,6 +442,7 @@ export type MailServerCreateInput = {
   status?: string
   lastCheck?: Date | string | null
   createdAt?: Date | string
+  customerId?: string | null
   mailboxes?: Prisma.MailboxCreateNestedManyWithoutServerInput
 }
 
@@ -451,6 +464,7 @@ export type MailServerUncheckedCreateInput = {
   status?: string
   lastCheck?: Date | string | null
   createdAt?: Date | string
+  customerId?: string | null
   mailboxes?: Prisma.MailboxUncheckedCreateNestedManyWithoutServerInput
 }
 
@@ -472,6 +486,7 @@ export type MailServerUpdateInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   lastCheck?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mailboxes?: Prisma.MailboxUpdateManyWithoutServerNestedInput
 }
 
@@ -493,6 +508,7 @@ export type MailServerUncheckedUpdateInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   lastCheck?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mailboxes?: Prisma.MailboxUncheckedUpdateManyWithoutServerNestedInput
 }
 
@@ -514,6 +530,7 @@ export type MailServerCreateManyInput = {
   status?: string
   lastCheck?: Date | string | null
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type MailServerUpdateManyMutationInput = {
@@ -534,6 +551,7 @@ export type MailServerUpdateManyMutationInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   lastCheck?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MailServerUncheckedUpdateManyInput = {
@@ -554,6 +572,7 @@ export type MailServerUncheckedUpdateManyInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   lastCheck?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MailServerCountOrderByAggregateInput = {
@@ -574,6 +593,7 @@ export type MailServerCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   lastCheck?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type MailServerAvgOrderByAggregateInput = {
@@ -599,6 +619,7 @@ export type MailServerMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   lastCheck?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type MailServerMinOrderByAggregateInput = {
@@ -619,6 +640,7 @@ export type MailServerMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   lastCheck?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type MailServerSumOrderByAggregateInput = {
@@ -663,6 +685,7 @@ export type MailServerCreateWithoutMailboxesInput = {
   status?: string
   lastCheck?: Date | string | null
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type MailServerUncheckedCreateWithoutMailboxesInput = {
@@ -683,6 +706,7 @@ export type MailServerUncheckedCreateWithoutMailboxesInput = {
   status?: string
   lastCheck?: Date | string | null
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type MailServerCreateOrConnectWithoutMailboxesInput = {
@@ -719,6 +743,7 @@ export type MailServerUpdateWithoutMailboxesInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   lastCheck?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MailServerUncheckedUpdateWithoutMailboxesInput = {
@@ -739,6 +764,7 @@ export type MailServerUncheckedUpdateWithoutMailboxesInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   lastCheck?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -790,6 +816,7 @@ export type MailServerSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   status?: boolean
   lastCheck?: boolean
   createdAt?: boolean
+  customerId?: boolean
   mailboxes?: boolean | Prisma.MailServer$mailboxesArgs<ExtArgs>
   _count?: boolean | Prisma.MailServerCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["mailServer"]>
@@ -812,6 +839,7 @@ export type MailServerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   status?: boolean
   lastCheck?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["mailServer"]>
 
 export type MailServerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -832,6 +860,7 @@ export type MailServerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   status?: boolean
   lastCheck?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["mailServer"]>
 
 export type MailServerSelectScalar = {
@@ -852,9 +881,10 @@ export type MailServerSelectScalar = {
   status?: boolean
   lastCheck?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }
 
-export type MailServerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "provider" | "domain" | "imapHost" | "imapPort" | "imapSecure" | "smtpHost" | "smtpPort" | "smtpSecure" | "username" | "passwordEnc" | "fromName" | "fromEmail" | "status" | "lastCheck" | "createdAt", ExtArgs["result"]["mailServer"]>
+export type MailServerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "provider" | "domain" | "imapHost" | "imapPort" | "imapSecure" | "smtpHost" | "smtpPort" | "smtpSecure" | "username" | "passwordEnc" | "fromName" | "fromEmail" | "status" | "lastCheck" | "createdAt" | "customerId", ExtArgs["result"]["mailServer"]>
 export type MailServerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   mailboxes?: boolean | Prisma.MailServer$mailboxesArgs<ExtArgs>
   _count?: boolean | Prisma.MailServerCountOutputTypeDefaultArgs<ExtArgs>
@@ -885,6 +915,7 @@ export type $MailServerPayload<ExtArgs extends runtime.Types.Extensions.Internal
     status: string
     lastCheck: Date | null
     createdAt: Date
+    customerId: string | null
   }, ExtArgs["result"]["mailServer"]>
   composites: {}
 }
@@ -1326,6 +1357,7 @@ export interface MailServerFieldRefs {
   readonly status: Prisma.FieldRef<"MailServer", 'String'>
   readonly lastCheck: Prisma.FieldRef<"MailServer", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"MailServer", 'DateTime'>
+  readonly customerId: Prisma.FieldRef<"MailServer", 'String'>
 }
     
 

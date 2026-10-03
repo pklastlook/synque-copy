@@ -53,6 +53,7 @@ export type CompetitorMinAggregateOutputType = {
   status: string | null
   notes: string | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type CompetitorMaxAggregateOutputType = {
@@ -68,6 +69,7 @@ export type CompetitorMaxAggregateOutputType = {
   status: string | null
   notes: string | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type CompetitorCountAggregateOutputType = {
@@ -83,6 +85,7 @@ export type CompetitorCountAggregateOutputType = {
   status: number
   notes: number
   createdAt: number
+  customerId: number
   _all: number
 }
 
@@ -114,6 +117,7 @@ export type CompetitorMinAggregateInputType = {
   status?: true
   notes?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type CompetitorMaxAggregateInputType = {
@@ -129,6 +133,7 @@ export type CompetitorMaxAggregateInputType = {
   status?: true
   notes?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type CompetitorCountAggregateInputType = {
@@ -144,6 +149,7 @@ export type CompetitorCountAggregateInputType = {
   status?: true
   notes?: true
   createdAt?: true
+  customerId?: true
   _all?: true
 }
 
@@ -246,6 +252,7 @@ export type CompetitorGroupByOutputType = {
   status: string
   notes: string | null
   createdAt: Date
+  customerId: string | null
   _count: CompetitorCountAggregateOutputType | null
   _avg: CompetitorAvgAggregateOutputType | null
   _sum: CompetitorSumAggregateOutputType | null
@@ -284,6 +291,7 @@ export type CompetitorWhereInput = {
   status?: Prisma.StringFilter<"Competitor"> | string
   notes?: Prisma.StringNullableFilter<"Competitor"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Competitor"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"Competitor"> | string | null
   snapshots?: Prisma.CompetitorSnapshotListRelationFilter
 }
 
@@ -300,6 +308,7 @@ export type CompetitorOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   snapshots?: Prisma.CompetitorSnapshotOrderByRelationAggregateInput
 }
 
@@ -319,6 +328,7 @@ export type CompetitorWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.StringFilter<"Competitor"> | string
   notes?: Prisma.StringNullableFilter<"Competitor"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Competitor"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"Competitor"> | string | null
   snapshots?: Prisma.CompetitorSnapshotListRelationFilter
 }, "id">
 
@@ -335,6 +345,7 @@ export type CompetitorOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.CompetitorCountOrderByAggregateInput
   _avg?: Prisma.CompetitorAvgOrderByAggregateInput
   _max?: Prisma.CompetitorMaxOrderByAggregateInput
@@ -358,6 +369,7 @@ export type CompetitorScalarWhereWithAggregatesInput = {
   status?: Prisma.StringWithAggregatesFilter<"Competitor"> | string
   notes?: Prisma.StringNullableWithAggregatesFilter<"Competitor"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Competitor"> | Date | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Competitor"> | string | null
 }
 
 export type CompetitorCreateInput = {
@@ -373,6 +385,7 @@ export type CompetitorCreateInput = {
   status?: string
   notes?: string | null
   createdAt?: Date | string
+  customerId?: string | null
   snapshots?: Prisma.CompetitorSnapshotCreateNestedManyWithoutCompetitorInput
 }
 
@@ -389,6 +402,7 @@ export type CompetitorUncheckedCreateInput = {
   status?: string
   notes?: string | null
   createdAt?: Date | string
+  customerId?: string | null
   snapshots?: Prisma.CompetitorSnapshotUncheckedCreateNestedManyWithoutCompetitorInput
 }
 
@@ -405,6 +419,7 @@ export type CompetitorUpdateInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   snapshots?: Prisma.CompetitorSnapshotUpdateManyWithoutCompetitorNestedInput
 }
 
@@ -421,6 +436,7 @@ export type CompetitorUncheckedUpdateInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   snapshots?: Prisma.CompetitorSnapshotUncheckedUpdateManyWithoutCompetitorNestedInput
 }
 
@@ -437,6 +453,7 @@ export type CompetitorCreateManyInput = {
   status?: string
   notes?: string | null
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type CompetitorUpdateManyMutationInput = {
@@ -452,6 +469,7 @@ export type CompetitorUpdateManyMutationInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type CompetitorUncheckedUpdateManyInput = {
@@ -467,6 +485,7 @@ export type CompetitorUncheckedUpdateManyInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type CompetitorCountOrderByAggregateInput = {
@@ -482,6 +501,7 @@ export type CompetitorCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type CompetitorAvgOrderByAggregateInput = {
@@ -504,6 +524,7 @@ export type CompetitorMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type CompetitorMinOrderByAggregateInput = {
@@ -519,6 +540,7 @@ export type CompetitorMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type CompetitorSumOrderByAggregateInput = {
@@ -560,6 +582,7 @@ export type CompetitorCreateWithoutSnapshotsInput = {
   status?: string
   notes?: string | null
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type CompetitorUncheckedCreateWithoutSnapshotsInput = {
@@ -575,6 +598,7 @@ export type CompetitorUncheckedCreateWithoutSnapshotsInput = {
   status?: string
   notes?: string | null
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type CompetitorCreateOrConnectWithoutSnapshotsInput = {
@@ -606,6 +630,7 @@ export type CompetitorUpdateWithoutSnapshotsInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type CompetitorUncheckedUpdateWithoutSnapshotsInput = {
@@ -621,6 +646,7 @@ export type CompetitorUncheckedUpdateWithoutSnapshotsInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -667,6 +693,7 @@ export type CompetitorSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   status?: boolean
   notes?: boolean
   createdAt?: boolean
+  customerId?: boolean
   snapshots?: boolean | Prisma.Competitor$snapshotsArgs<ExtArgs>
   _count?: boolean | Prisma.CompetitorCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["competitor"]>
@@ -684,6 +711,7 @@ export type CompetitorSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   status?: boolean
   notes?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["competitor"]>
 
 export type CompetitorSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -699,6 +727,7 @@ export type CompetitorSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   status?: boolean
   notes?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["competitor"]>
 
 export type CompetitorSelectScalar = {
@@ -714,9 +743,10 @@ export type CompetitorSelectScalar = {
   status?: boolean
   notes?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }
 
-export type CompetitorOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "handle" | "platform" | "avatar" | "followers" | "engagementRate" | "growthRate" | "postingFreq" | "status" | "notes" | "createdAt", ExtArgs["result"]["competitor"]>
+export type CompetitorOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "handle" | "platform" | "avatar" | "followers" | "engagementRate" | "growthRate" | "postingFreq" | "status" | "notes" | "createdAt" | "customerId", ExtArgs["result"]["competitor"]>
 export type CompetitorInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   snapshots?: boolean | Prisma.Competitor$snapshotsArgs<ExtArgs>
   _count?: boolean | Prisma.CompetitorCountOutputTypeDefaultArgs<ExtArgs>
@@ -742,6 +772,7 @@ export type $CompetitorPayload<ExtArgs extends runtime.Types.Extensions.Internal
     status: string
     notes: string | null
     createdAt: Date
+    customerId: string | null
   }, ExtArgs["result"]["competitor"]>
   composites: {}
 }
@@ -1178,6 +1209,7 @@ export interface CompetitorFieldRefs {
   readonly status: Prisma.FieldRef<"Competitor", 'String'>
   readonly notes: Prisma.FieldRef<"Competitor", 'String'>
   readonly createdAt: Prisma.FieldRef<"Competitor", 'DateTime'>
+  readonly customerId: Prisma.FieldRef<"Competitor", 'String'>
 }
     
 

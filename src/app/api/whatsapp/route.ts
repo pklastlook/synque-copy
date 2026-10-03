@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -9,16 +9,29 @@ export const dynamic = "force-dynamic";
  *   ?status=new|used|archived|all (default: all)
  *   Returns pasted WhatsApp messages for the team to publish.
  *
+ * Scoping:
+ *   - Super-admins see all messages.
+ *   - Tenant-scoped users see only messages savedBy users in their tenant
+ *     (via `savedBy.customerId`). This is enforced via the relation.
+ *
  * POST /api/whatsapp
  *   Body: { source, senderName, senderPhone?, groupName?, content, mediaUrl?, mediaType?, savedById }
- *   Saves a new pasted message.
+ *   Saves a new pasted message. `savedById` is forced to the caller's userId
+ *   — callers can no longer spoof attribution to another user.
  */
 export async function GET(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
 
   const status = req.nextUrl.searchParams.get("status") ?? "all";
-  const where = status === "all" ? {} : { status };
+  const statusFilter = status === "all" ? {} : { status };
+
+  // WhatsAppMessage has no direct customerId column — scope via the
+  // savedBy relation. Super-admins get no filter.
+  const where = scope.isSuperAdmin
+    ? statusFilter
+    : { ...statusFilter, savedBy: { customerId: scope.customerId } };
 
   const messages = await db.whatsAppMessage.findMany({
     where,
@@ -50,6 +63,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
 
   const body = await req.json();
   const {
@@ -60,7 +74,6 @@ export async function POST(req: NextRequest) {
     content,
     mediaUrl,
     mediaType,
-    savedById,
   } = body as {
     source?: string;
     senderName?: string;
@@ -79,6 +92,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Sender name is required" }, { status: 400 });
   }
 
+  // Ignore any client-supplied `savedById` — always attribute to the caller.
+  // This closes the mass-assignment / spoofed-attribution vector where a
+  // user could paste a message "as" another user.
   const msg = await db.whatsAppMessage.create({
     data: {
       source: source ?? "group",
@@ -88,9 +104,15 @@ export async function POST(req: NextRequest) {
       content: content.trim(),
       mediaUrl: mediaUrl?.trim() || null,
       mediaType: mediaType ?? null,
-      savedById: savedById || user!.userId,
+      savedById: user!.userId,
     },
   });
+
+  // Note: `scope` is intentionally unused beyond the requireAuth check —
+  // WhatsApp messages are attributed by savedById (per-user), not by
+  // tenant. The tenant scope above is enforced on the GET path via the
+  // savedBy relation.
+  void scope;
 
   return NextResponse.json({ id: msg.id, ok: true });
 }

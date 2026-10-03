@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const competitors = await db.competitor.findMany({
+    where: tenantWhere(scope) as { customerId?: string },
     include: { snapshots: { orderBy: { date: "asc" } } },
     orderBy: { followers: "desc" },
   });
@@ -32,6 +38,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const body = await req.json();
   const { name, handle, platform, notes } = body;
   if (!name || !handle || !platform) return NextResponse.json({ error: "name, handle, platform required" }, { status: 400 });
@@ -45,6 +55,7 @@ export async function POST(req: NextRequest) {
       engagementRate: 0,
       growthRate: 0,
       postingFreq: 0,
+      customerId: scope.customerId,
     },
   });
   // seed a snapshot

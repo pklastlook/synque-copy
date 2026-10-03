@@ -1,16 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const mailboxId = req.nextUrl.searchParams.get("mailboxId");
   const folder = req.nextUrl.searchParams.get("folder");
+
+  // Tenant scope is enforced via the mailbox relation:
+  // a non-super-admin can only see messages whose mailbox belongs to
+  // their tenant. Super-admins see everything.
+  const mailboxFilter = tenantWhere(scope) as Record<string, unknown>;
 
   const where: Record<string, unknown> = {};
   if (mailboxId) where.mailboxId = mailboxId;
   if (folder) where.folder = folder;
+  if (!scope.isSuperAdmin) where.mailbox = mailboxFilter;
 
   const messages = await db.mailMessage.findMany({
     where,
@@ -18,7 +29,9 @@ export async function GET(req: NextRequest) {
     take: 100,
   });
 
-  const mailboxes = await db.mailbox.findMany();
+  const mailboxes = await db.mailbox.findMany({
+    where: mailboxFilter,
+  });
   const mailboxesById: Record<string, { email: string; displayName: string }> = {};
   for (const m of mailboxes) mailboxesById[m.id] = { email: m.email, displayName: m.displayName };
 
@@ -41,15 +54,24 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const { mailboxId, toAddr, subject, body } = await req.json();
   if (!mailboxId || !toAddr || !subject) {
     return NextResponse.json({ error: "mailboxId, toAddr, subject required" }, { status: 400 });
   }
-  const mailbox = await db.mailbox.findUnique({ where: { id: mailboxId } });
+  // Fetch mailbox + verify it belongs to the caller's tenant.
+  const mailbox = await db.mailbox.findFirst({
+    where: { id: mailboxId, ...tenantWhere(scope) as Record<string, unknown> },
+  });
   if (!mailbox) return NextResponse.json({ error: "Mailbox not found" }, { status: 404 });
 
-  // Get the mail server config for SMTP credentials
-  const server = await db.mailServer.findUnique({ where: { id: mailbox.serverId } });
+  // Get the mail server config for SMTP credentials, also tenant-scoped.
+  const server = await db.mailServer.findFirst({
+    where: { id: mailbox.serverId, ...tenantWhere(scope) as Record<string, unknown> },
+  });
   if (!server) {
     return NextResponse.json({ error: "Mail server not found" }, { status: 404 });
   }
@@ -101,8 +123,8 @@ export async function POST(req: NextRequest) {
       sent: true,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "SMTP error";
-    console.error("[mail/messages] SMTP failed:", message);
+    // Do NOT leak raw SMTP error messages — they can expose internal hostnames.
+    console.error("[mail/messages] SMTP failed:", err instanceof Error ? err.message : String(err));
 
     // The message is already saved in the "sent" folder — mark it so
     // the user knows it wasn't actually delivered
@@ -110,17 +132,33 @@ export async function POST(req: NextRequest) {
       id: msg.id,
       ok: true,
       sent: false,
-      error: `Email saved but not delivered — SMTP error: ${message}`,
+      error: "Email saved but not delivered — SMTP error.",
     }, { status: 201 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const { id, isRead, isStarred, folder } = await req.json();
   const data: Record<string, unknown> = {};
   if (isRead !== undefined) data.isRead = isRead;
   if (isStarred !== undefined) data.isStarred = isStarred;
   if (folder) data.folder = folder;
+
+  // Verify the message belongs to a mailbox in the caller's tenant
+  // before mutating.
+  const existing = await db.mailMessage.findFirst({
+    where: {
+      id,
+      mailbox: tenantWhere(scope) as Record<string, unknown>,
+    },
+    select: { id: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+
   await db.mailMessage.update({ where: { id }, data });
   return NextResponse.json({ ok: true });
 }

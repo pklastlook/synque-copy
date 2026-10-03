@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { randomBytes, createHash } from "node:crypto";
 import { signOAuthState } from "@/lib/oauth-state";
+import { requireAuth } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -74,19 +75,24 @@ const OAUTH_CONFIG: Record<string, {
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
   const { platform } = await params;
-  const userId = req.nextUrl.searchParams.get("userId");
 
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
-  }
+  // SECURITY: bind userId to the authenticated caller. Never trust an
+  // arbitrary userId from the query string — that would let any logged-in
+  // user initiate an OAuth flow that writes tokens into ANOTHER user's
+  // PlatformCredential row (see oauth/callback which upserts on userId_platform).
+  const userId = user.userId;
 
   const config = OAUTH_CONFIG[platform];
   if (!config) {
     return NextResponse.json({ error: `OAuth for '${platform}' not supported` }, { status: 400 });
   }
 
-  // Get the OAuth app credentials (clientId + clientSecret) from the DB
+  // Get the OAuth app credentials (clientId + clientSecret) from the DB.
+  // These are owned by the caller (per-user) — an attacker cannot read or
+  // initiate flows against another tenant's OAuth app.
   const cred = await db.platformCredential.findUnique({
     where: { userId_platform: { userId, platform } },
   });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, getTenantScope } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 import { getDbForUser } from "@/lib/tenant-db";
 import { storage } from "@/lib/storage";
 
@@ -10,13 +10,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { user, error } = requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
-  const { db: targetDb } = await getDbForUser(user!);
+  const { db: targetDb, isTenantIsolated } = await getDbForUser(user!);
 
   const { id } = await params;
 
-  // Verify the asset belongs to this tenant before editing
-  const existing = await targetDb.mediaAsset.findUnique({ where: { id } }).catch((e) => console.error("[api]", e));
-  if (!existing || existing.customerId !== scope.customerId) {
+  // Verify the asset belongs to this tenant before editing.
+  // For an isolated tenant DB, `targetDb` is already isolated (no extra filter
+  // needed). For the shared central DB we MUST filter by customerId, otherwise
+  // any logged-in user could mutate another tenant's asset by id.
+  const tenantFilter = isTenantIsolated ? {} : tenantWhere(scope) as { customerId?: string };
+  const existing = await targetDb.mediaAsset.findFirst({
+    where: { id, ...tenantFilter },
+    select: { id: true },
+  }).catch((e) => console.error("[api]", e));
+  if (!existing) {
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
   }
 
@@ -34,12 +41,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { user, error } = requireAuth(_req);
   if (error) return error;
   const scope = getTenantScope(user!);
-  const { db: targetDb } = await getDbForUser(user!);
+  const { db: targetDb, isTenantIsolated } = await getDbForUser(user!);
 
   const { id } = await params;
 
-  const existing = await targetDb.mediaAsset.findUnique({ where: { id } }).catch((e) => console.error("[api]", e));
-  if (!existing || existing.customerId !== scope.customerId) {
+  const tenantFilter = isTenantIsolated ? {} : tenantWhere(scope) as { customerId?: string };
+  const existing = await targetDb.mediaAsset.findFirst({
+    where: { id, ...tenantFilter },
+    select: { url: true, thumbnail: true },
+  }).catch((e) => console.error("[api]", e));
+  if (!existing) {
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
   }
 

@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireRole } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * /api/customers/[id] — manage a single Customer (tenant) record.
+ *
+ * SECURITY: A Customer row IS a tenant. Only admins can mutate tenant records.
+ * `requireRole(req, "admin")` accepts both super-admins (role=admin,
+ * customerId=null) and tenant admins (role=admin, customerId="abc").
+ * The customers list/create route (`/api/customers`) uses the same gate, so
+ * consistency is preserved.
+ */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = requireAuth(req);
+  const { error } = requireRole(req, "admin");
   if (error) return error;
   const { id } = await params;
   const body = await req.json();
@@ -22,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = requireAuth(req);
+  const { error } = requireRole(req, "admin");
   if (error) return error;
   const { id } = await params;
 

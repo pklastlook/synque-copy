@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const body = await req.json();
   const {
     serverId,
@@ -20,7 +25,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "serverId, localPart, password required" }, { status: 400 });
   }
 
-  const server = await db.mailServer.findUnique({ where: { id: serverId } });
+  const server = await db.mailServer.findFirst({
+    where: { id: serverId, ...tenantWhere(scope) as Record<string, unknown> },
+  });
   if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 });
 
   const email = `${localPart}@${server.domain}`;
@@ -38,6 +45,7 @@ export async function POST(req: NextRequest) {
       ownerId: ownerId ?? null,
       role: role ?? "member",
       status: "active",
+      customerId: scope.customerId,
     },
   });
 
@@ -51,12 +59,24 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const { id, status, ownerId, quotaMb, password } = await req.json();
   const data: Record<string, unknown> = {};
   if (status) data.status = status;
   if (ownerId !== undefined) data.ownerId = ownerId || null;
   if (quotaMb) data.quotaMb = quotaMb;
   if (password) data.passwordEnc = encrypt(password);
+
+  // Verify the mailbox belongs to the caller's tenant before updating.
+  const existing = await db.mailbox.findFirst({
+    where: { id, ...tenantWhere(scope) as Record<string, unknown> },
+    select: { id: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Mailbox not found" }, { status: 404 });
+
   const m = await db.mailbox.update({ where: { id }, data });
   return NextResponse.json({ ok: true, id: m.id });
 }

@@ -32,6 +32,7 @@ export type ListeningQueryMinAggregateOutputType = {
   color: string | null
   status: string | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type ListeningQueryMaxAggregateOutputType = {
@@ -42,6 +43,7 @@ export type ListeningQueryMaxAggregateOutputType = {
   color: string | null
   status: string | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type ListeningQueryCountAggregateOutputType = {
@@ -52,6 +54,7 @@ export type ListeningQueryCountAggregateOutputType = {
   color: number
   status: number
   createdAt: number
+  customerId: number
   _all: number
 }
 
@@ -64,6 +67,7 @@ export type ListeningQueryMinAggregateInputType = {
   color?: true
   status?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type ListeningQueryMaxAggregateInputType = {
@@ -74,6 +78,7 @@ export type ListeningQueryMaxAggregateInputType = {
   color?: true
   status?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type ListeningQueryCountAggregateInputType = {
@@ -84,6 +89,7 @@ export type ListeningQueryCountAggregateInputType = {
   color?: true
   status?: true
   createdAt?: true
+  customerId?: true
   _all?: true
 }
 
@@ -167,6 +173,7 @@ export type ListeningQueryGroupByOutputType = {
   color: string
   status: string
   createdAt: Date
+  customerId: string | null
   _count: ListeningQueryCountAggregateOutputType | null
   _min: ListeningQueryMinAggregateOutputType | null
   _max: ListeningQueryMaxAggregateOutputType | null
@@ -198,6 +205,7 @@ export type ListeningQueryWhereInput = {
   color?: Prisma.StringFilter<"ListeningQuery"> | string
   status?: Prisma.StringFilter<"ListeningQuery"> | string
   createdAt?: Prisma.DateTimeFilter<"ListeningQuery"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"ListeningQuery"> | string | null
   mentions?: Prisma.MentionListRelationFilter
 }
 
@@ -209,6 +217,7 @@ export type ListeningQueryOrderByWithRelationInput = {
   color?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   mentions?: Prisma.MentionOrderByRelationAggregateInput
 }
 
@@ -223,6 +232,7 @@ export type ListeningQueryWhereUniqueInput = Prisma.AtLeast<{
   color?: Prisma.StringFilter<"ListeningQuery"> | string
   status?: Prisma.StringFilter<"ListeningQuery"> | string
   createdAt?: Prisma.DateTimeFilter<"ListeningQuery"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"ListeningQuery"> | string | null
   mentions?: Prisma.MentionListRelationFilter
 }, "id">
 
@@ -234,6 +244,7 @@ export type ListeningQueryOrderByWithAggregationInput = {
   color?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.ListeningQueryCountOrderByAggregateInput
   _max?: Prisma.ListeningQueryMaxOrderByAggregateInput
   _min?: Prisma.ListeningQueryMinOrderByAggregateInput
@@ -250,6 +261,7 @@ export type ListeningQueryScalarWhereWithAggregatesInput = {
   color?: Prisma.StringWithAggregatesFilter<"ListeningQuery"> | string
   status?: Prisma.StringWithAggregatesFilter<"ListeningQuery"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ListeningQuery"> | Date | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"ListeningQuery"> | string | null
 }
 
 export type ListeningQueryCreateInput = {
@@ -260,6 +272,7 @@ export type ListeningQueryCreateInput = {
   color?: string
   status?: string
   createdAt?: Date | string
+  customerId?: string | null
   mentions?: Prisma.MentionCreateNestedManyWithoutQueryInput
 }
 
@@ -271,6 +284,7 @@ export type ListeningQueryUncheckedCreateInput = {
   color?: string
   status?: string
   createdAt?: Date | string
+  customerId?: string | null
   mentions?: Prisma.MentionUncheckedCreateNestedManyWithoutQueryInput
 }
 
@@ -282,6 +296,7 @@ export type ListeningQueryUpdateInput = {
   color?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mentions?: Prisma.MentionUpdateManyWithoutQueryNestedInput
 }
 
@@ -293,6 +308,7 @@ export type ListeningQueryUncheckedUpdateInput = {
   color?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mentions?: Prisma.MentionUncheckedUpdateManyWithoutQueryNestedInput
 }
 
@@ -304,6 +320,7 @@ export type ListeningQueryCreateManyInput = {
   color?: string
   status?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type ListeningQueryUpdateManyMutationInput = {
@@ -314,6 +331,7 @@ export type ListeningQueryUpdateManyMutationInput = {
   color?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ListeningQueryUncheckedUpdateManyInput = {
@@ -324,6 +342,7 @@ export type ListeningQueryUncheckedUpdateManyInput = {
   color?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ListeningQueryCountOrderByAggregateInput = {
@@ -334,6 +353,7 @@ export type ListeningQueryCountOrderByAggregateInput = {
   color?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type ListeningQueryMaxOrderByAggregateInput = {
@@ -344,6 +364,7 @@ export type ListeningQueryMaxOrderByAggregateInput = {
   color?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type ListeningQueryMinOrderByAggregateInput = {
@@ -354,6 +375,7 @@ export type ListeningQueryMinOrderByAggregateInput = {
   color?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type ListeningQueryScalarRelationFilter = {
@@ -383,6 +405,7 @@ export type ListeningQueryCreateWithoutMentionsInput = {
   color?: string
   status?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type ListeningQueryUncheckedCreateWithoutMentionsInput = {
@@ -393,6 +416,7 @@ export type ListeningQueryUncheckedCreateWithoutMentionsInput = {
   color?: string
   status?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type ListeningQueryCreateOrConnectWithoutMentionsInput = {
@@ -419,6 +443,7 @@ export type ListeningQueryUpdateWithoutMentionsInput = {
   color?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ListeningQueryUncheckedUpdateWithoutMentionsInput = {
@@ -429,6 +454,7 @@ export type ListeningQueryUncheckedUpdateWithoutMentionsInput = {
   color?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -470,6 +496,7 @@ export type ListeningQuerySelect<ExtArgs extends runtime.Types.Extensions.Intern
   color?: boolean
   status?: boolean
   createdAt?: boolean
+  customerId?: boolean
   mentions?: boolean | Prisma.ListeningQuery$mentionsArgs<ExtArgs>
   _count?: boolean | Prisma.ListeningQueryCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["listeningQuery"]>
@@ -482,6 +509,7 @@ export type ListeningQuerySelectCreateManyAndReturn<ExtArgs extends runtime.Type
   color?: boolean
   status?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["listeningQuery"]>
 
 export type ListeningQuerySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -492,6 +520,7 @@ export type ListeningQuerySelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   color?: boolean
   status?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["listeningQuery"]>
 
 export type ListeningQuerySelectScalar = {
@@ -502,9 +531,10 @@ export type ListeningQuerySelectScalar = {
   color?: boolean
   status?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }
 
-export type ListeningQueryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "keywords" | "type" | "color" | "status" | "createdAt", ExtArgs["result"]["listeningQuery"]>
+export type ListeningQueryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "keywords" | "type" | "color" | "status" | "createdAt" | "customerId", ExtArgs["result"]["listeningQuery"]>
 export type ListeningQueryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   mentions?: boolean | Prisma.ListeningQuery$mentionsArgs<ExtArgs>
   _count?: boolean | Prisma.ListeningQueryCountOutputTypeDefaultArgs<ExtArgs>
@@ -525,6 +555,7 @@ export type $ListeningQueryPayload<ExtArgs extends runtime.Types.Extensions.Inte
     color: string
     status: string
     createdAt: Date
+    customerId: string | null
   }, ExtArgs["result"]["listeningQuery"]>
   composites: {}
 }
@@ -956,6 +987,7 @@ export interface ListeningQueryFieldRefs {
   readonly color: Prisma.FieldRef<"ListeningQuery", 'String'>
   readonly status: Prisma.FieldRef<"ListeningQuery", 'String'>
   readonly createdAt: Prisma.FieldRef<"ListeningQuery", 'DateTime'>
+  readonly customerId: Prisma.FieldRef<"ListeningQuery", 'String'>
 }
     
 

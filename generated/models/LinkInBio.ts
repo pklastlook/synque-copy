@@ -49,6 +49,7 @@ export type LinkInBioMinAggregateOutputType = {
   accountId: string | null
   active: boolean | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type LinkInBioMaxAggregateOutputType = {
@@ -64,6 +65,7 @@ export type LinkInBioMaxAggregateOutputType = {
   accountId: string | null
   active: boolean | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type LinkInBioCountAggregateOutputType = {
@@ -79,6 +81,7 @@ export type LinkInBioCountAggregateOutputType = {
   accountId: number
   active: number
   createdAt: number
+  customerId: number
   _all: number
 }
 
@@ -106,6 +109,7 @@ export type LinkInBioMinAggregateInputType = {
   accountId?: true
   active?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type LinkInBioMaxAggregateInputType = {
@@ -121,6 +125,7 @@ export type LinkInBioMaxAggregateInputType = {
   accountId?: true
   active?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type LinkInBioCountAggregateInputType = {
@@ -136,6 +141,7 @@ export type LinkInBioCountAggregateInputType = {
   accountId?: true
   active?: true
   createdAt?: true
+  customerId?: true
   _all?: true
 }
 
@@ -238,6 +244,7 @@ export type LinkInBioGroupByOutputType = {
   accountId: string | null
   active: boolean
   createdAt: Date
+  customerId: string | null
   _count: LinkInBioCountAggregateOutputType | null
   _avg: LinkInBioAvgAggregateOutputType | null
   _sum: LinkInBioSumAggregateOutputType | null
@@ -276,6 +283,7 @@ export type LinkInBioWhereInput = {
   accountId?: Prisma.StringNullableFilter<"LinkInBio"> | string | null
   active?: Prisma.BoolFilter<"LinkInBio"> | boolean
   createdAt?: Prisma.DateTimeFilter<"LinkInBio"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"LinkInBio"> | string | null
 }
 
 export type LinkInBioOrderByWithRelationInput = {
@@ -291,6 +299,7 @@ export type LinkInBioOrderByWithRelationInput = {
   accountId?: Prisma.SortOrderInput | Prisma.SortOrder
   active?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
 }
 
 export type LinkInBioWhereUniqueInput = Prisma.AtLeast<{
@@ -309,6 +318,7 @@ export type LinkInBioWhereUniqueInput = Prisma.AtLeast<{
   accountId?: Prisma.StringNullableFilter<"LinkInBio"> | string | null
   active?: Prisma.BoolFilter<"LinkInBio"> | boolean
   createdAt?: Prisma.DateTimeFilter<"LinkInBio"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"LinkInBio"> | string | null
 }, "id" | "slug">
 
 export type LinkInBioOrderByWithAggregationInput = {
@@ -324,6 +334,7 @@ export type LinkInBioOrderByWithAggregationInput = {
   accountId?: Prisma.SortOrderInput | Prisma.SortOrder
   active?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.LinkInBioCountOrderByAggregateInput
   _avg?: Prisma.LinkInBioAvgOrderByAggregateInput
   _max?: Prisma.LinkInBioMaxOrderByAggregateInput
@@ -347,6 +358,7 @@ export type LinkInBioScalarWhereWithAggregatesInput = {
   accountId?: Prisma.StringNullableWithAggregatesFilter<"LinkInBio"> | string | null
   active?: Prisma.BoolWithAggregatesFilter<"LinkInBio"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"LinkInBio"> | Date | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"LinkInBio"> | string | null
 }
 
 export type LinkInBioCreateInput = {
@@ -362,6 +374,7 @@ export type LinkInBioCreateInput = {
   accountId?: string | null
   active?: boolean
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type LinkInBioUncheckedCreateInput = {
@@ -377,6 +390,7 @@ export type LinkInBioUncheckedCreateInput = {
   accountId?: string | null
   active?: boolean
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type LinkInBioUpdateInput = {
@@ -392,6 +406,7 @@ export type LinkInBioUpdateInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type LinkInBioUncheckedUpdateInput = {
@@ -407,6 +422,7 @@ export type LinkInBioUncheckedUpdateInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type LinkInBioCreateManyInput = {
@@ -422,6 +438,7 @@ export type LinkInBioCreateManyInput = {
   accountId?: string | null
   active?: boolean
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type LinkInBioUpdateManyMutationInput = {
@@ -437,6 +454,7 @@ export type LinkInBioUpdateManyMutationInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type LinkInBioUncheckedUpdateManyInput = {
@@ -452,6 +470,7 @@ export type LinkInBioUncheckedUpdateManyInput = {
   accountId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type LinkInBioCountOrderByAggregateInput = {
@@ -467,6 +486,7 @@ export type LinkInBioCountOrderByAggregateInput = {
   accountId?: Prisma.SortOrder
   active?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type LinkInBioAvgOrderByAggregateInput = {
@@ -487,6 +507,7 @@ export type LinkInBioMaxOrderByAggregateInput = {
   accountId?: Prisma.SortOrder
   active?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type LinkInBioMinOrderByAggregateInput = {
@@ -502,6 +523,7 @@ export type LinkInBioMinOrderByAggregateInput = {
   accountId?: Prisma.SortOrder
   active?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type LinkInBioSumOrderByAggregateInput = {
@@ -524,6 +546,7 @@ export type LinkInBioSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   accountId?: boolean
   active?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["linkInBio"]>
 
 export type LinkInBioSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -539,6 +562,7 @@ export type LinkInBioSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   accountId?: boolean
   active?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["linkInBio"]>
 
 export type LinkInBioSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -554,6 +578,7 @@ export type LinkInBioSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   accountId?: boolean
   active?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }, ExtArgs["result"]["linkInBio"]>
 
 export type LinkInBioSelectScalar = {
@@ -569,9 +594,10 @@ export type LinkInBioSelectScalar = {
   accountId?: boolean
   active?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }
 
-export type LinkInBioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "slug" | "title" | "subtitle" | "avatar" | "theme" | "links" | "visits" | "clicks" | "accountId" | "active" | "createdAt", ExtArgs["result"]["linkInBio"]>
+export type LinkInBioOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "slug" | "title" | "subtitle" | "avatar" | "theme" | "links" | "visits" | "clicks" | "accountId" | "active" | "createdAt" | "customerId", ExtArgs["result"]["linkInBio"]>
 
 export type $LinkInBioPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "LinkInBio"
@@ -589,6 +615,7 @@ export type $LinkInBioPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     accountId: string | null
     active: boolean
     createdAt: Date
+    customerId: string | null
   }, ExtArgs["result"]["linkInBio"]>
   composites: {}
 }
@@ -1024,6 +1051,7 @@ export interface LinkInBioFieldRefs {
   readonly accountId: Prisma.FieldRef<"LinkInBio", 'String'>
   readonly active: Prisma.FieldRef<"LinkInBio", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"LinkInBio", 'DateTime'>
+  readonly customerId: Prisma.FieldRef<"LinkInBio", 'String'>
 }
     
 

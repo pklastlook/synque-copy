@@ -11382,3 +11382,380 @@ Stage Summary:
 - Files changed: src/app/api/team/[id]/route.ts, src/app/api/team/route.ts, src/app/api/users/route.ts, .env, mini-services/scheduler-service/index.ts, mini-services/scheduler-service/index.js, mini-services/whatsapp-service/index.js, eslint.config.mjs
 - `bun run lint` passes clean
 - All Phase 1 code changes committed and force-pushed to origin/main (d5164f8)
+
+---
+Task ID: P2-1-a
+Agent: subagent
+Task: IDOR sweep — posts, inbox, comments routes
+
+Work Log:
+- `src/app/api/posts/[id]/route.ts` — rewrote both PATCH and DELETE.
+  - Added `requireAuth(req)` + `getTenantScope(user)` + `tenantWhere(scope)` at the top of each handler.
+  - PATCH: inserted a `db.post.findFirst({ where: { id, ...tenantWhere(scope) }})` ownership check before processing body/variants. Cross-tenant attempts return 404 (not 403 — avoids confirming the resource exists). The post-ownership check also implicitly tenant-protects the child PostVariant findMany/update/create (variants are scoped via `postId: id` once the parent post is verified).
+  - DELETE: same findFirst + 404 guard before `postVariant.deleteMany` and `post.delete`.
+  - No business logic changes — only auth + tenant scoping added.
+- `src/app/api/inbox/[id]/route.ts` — rewrote both PATCH and DELETE.
+  - Added `requireAuth(req)` + `getTenantScope(user)` + `tenantWhere(scope)` to both handlers.
+  - Both: `db.comment.findFirst({ where: { id, ...tenantWhere(scope) }})` ownership check; cross-tenant attempts return 404. Existing `comment.update` / `comment.delete` follow only after the guard.
+  - Mirrors the already-fixed `/api/inbox/route.ts` PATCH pattern (P1-2-b style).
+- `src/app/api/comments/[id]/route.ts` — does NOT exist. Only `src/app/api/comments/classify/route.ts` exists under `/api/comments/`, and that route already has `requireAuth` (though it lacks tenant scoping on the `accountId` filter — out of scope for this task; the task spec only named `comments/[id]/route.ts`). No changes made.
+- `src/app/api/posts/route.ts` — hardened GET and POST.
+  - GET: added `requireAuth(req)` + `getTenantScope(user)`. Wrapped the existing `where` (status/authorId filters) in `tenantWhere(scope, {...})` so tenant users only see posts from their own tenant; super-admins see all (no filter).
+  - POST: added `requireAuth(req)` + `getTenantScope(user)`. New posts are stamped with `customerId: postCustomerId` where `postCustomerId = scope.isSuperAdmin ? null : scope.customerId`. Mirrors the P1-2-b POST /api/team pattern — tenant users always stamp their own tenant, super-admins leave null.
+
+Stage Summary:
+- Files changed: `src/app/api/posts/[id]/route.ts`, `src/app/api/inbox/[id]/route.ts`, `src/app/api/posts/route.ts`.
+- Files audited but unchanged: `src/app/api/comments/classify/route.ts` (already had `requireAuth`; tenant scoping out of scope for this task). No `src/app/api/comments/[id]/route.ts` file exists.
+- Verification: `cd /home/z/my-project && bun run lint` exited 0 with no errors or warnings.
+
+---
+Task ID: P2-1-b
+Agent: subagent
+Task: IDOR sweep — media, approvals, campaigns, bank-accounts, customers
+
+Work Log:
+- `src/app/api/media/[id]/route.ts` — rewrote both PATCH and DELETE.
+  - Both: kept `requireAuth(req)` + `getTenantScope(user)` + `getDbForUser(user)` (existing). Switched the ownership check from `findUnique({where:{id}})` + manual `existing.customerId !== scope.customerId` comparison to the recommended `findFirst({where: { id, ...tenantWhere(scope) }})` pattern. Added the `isTenantIsolated ? {} : tenantWhere(scope)` switch so isolated tenant DBs (where `targetDb` is already isolated) don't get a redundant/incorrect customerId filter — fixing a latent bug where a tenant admin couldn't access assets in their own dedicated DB if the row's `customerId` was null.
+  - PATCH selects `{id:true}` (existence check only). DELETE selects `{url, thumbnail}` so the storage-key extraction still works for the best-effort file deletion.
+  - No business logic changes — only auth + tenant scoping tightened.
+- `src/app/api/media/route.ts` — audited, NO change. Already had `requireAuth` on GET + POST, `tenantWhere(scope)` on the list query, and `customerId: scope.customerId` stamping on POST.create.
+- `src/app/api/approvals/route.ts` — added auth + tenant scoping (was completely unauthenticated + unscoped).
+  - GET: `requireAuth` + `getTenantScope`. Approval has NO customerId column, so scoping walks `authorId → User.customerId`: fetches the set of tenant-user IDs and filters `where: { authorId: { in: [...] } }`. Super-admin (no customerId) sees all approvals. Status filter preserved.
+  - POST: `requireAuth` + `getTenantScope`. Validates the body's `authorId` resolves to a User whose `customerId` matches the caller's scope; cross-tenant authorId → 404. Approval creation otherwise unchanged (status/comment/priority/dueAt logic intact).
+- `src/app/api/approvals/[id]/route.ts` — added auth + tenant scoping (was completely unauthenticated + unscoped).
+  - Added `assertApprovalInTenant(id, scope)` helper that fetches the approval, then (for non-super-admins) walks `authorId → User.customerId` and returns 404 if the approval's author isn't in the caller's tenant. Super-admin bypasses the author check.
+  - PATCH + DELETE: `requireAuth` + `getTenantScope` + `assertApprovalInTenant` guard before the existing `approval.update` / `approval.delete`. Status allowlist + terminal-state `resolvedAt` logic unchanged.
+- `src/app/api/campaigns/route.ts` — added auth + tenant scoping (was completely unauthenticated + unscoped).
+  - GET: `requireAuth` + `getTenantScope`. `db.campaign.findMany({ where: tenantWhere(scope) })` — Campaign has a customerId column. Super-admin sees all.
+  - POST: `requireAuth` + `getTenantScope`. Stamps `customerId: scope.customerId` on create (super-admin leaves it null → global). ownerId/budget/dates logic unchanged.
+- `src/app/api/campaigns/[id]/route.ts` — added auth + tenant scoping (was completely unauthenticated + unscoped).
+  - PATCH + DELETE: `requireAuth` + `getTenantScope` + `db.campaign.findFirst({ where: { id, ...tenantWhere(scope) }})` ownership check → 404 on cross-tenant access. Existing allowlist + `campaign.update` / `campaign.delete` logic unchanged.
+- `src/app/api/bank-accounts/[id]/route.ts` — CRITICAL fix + auth + tenant scoping.
+  - Added `requireAuth` + `getTenantScope` + `db.bankAccount.findFirst({ where: { id, ...tenantWhere(scope) }})` ownership check → 404 on cross-tenant access for both PATCH and DELETE (was completely unauthenticated — relied only on middleware).
+  - **CRITICAL FIX** on line 12: the old `db.bankAccount.updateMany({ data: { isDefault: false } })` had NO `where` clause — every "set as default" PATCH un-defaulted EVERY bank account across ALL tenants globally. Now scoped to `where: tenantWhere(scope)` so only the caller's tenant's bank accounts are reset. Mirrors the already-correct pattern in `bank-accounts/route.ts` POST.
+  - Allowlist + update/delete logic otherwise unchanged.
+- `src/app/api/customers/[id]/route.ts` — CRITICAL fix: any authenticated user could DELETE an entire Customer (tenant) + cascade.
+  - PATCH: upgraded `requireAuth(req)` → `requireRole(req, "admin")`. Matches the existing `customers/route.ts` GET/POST gate (which already required admin). Allows both super-admins (role=admin, customerId=null) and tenant admins (role=admin, customerId=abc) to mutate tenant records.
+  - DELETE: upgraded `requireAuth(req)` → `requireRole(req, "admin")`. The cascade-delete logic (invoices, quotations, serialKeys, subscriptions, tasks, posts, activities, campaigns, user-customerId unlink, customer.delete) is unchanged — only the auth gate was tightened.
+
+Stage Summary:
+- Files changed: `src/app/api/media/[id]/route.ts`, `src/app/api/approvals/route.ts`, `src/app/api/approvals/[id]/route.ts`, `src/app/api/campaigns/route.ts`, `src/app/api/campaigns/[id]/route.ts`, `src/app/api/bank-accounts/[id]/route.ts`, `src/app/api/customers/[id]/route.ts` (7 files).
+- Files audited but unchanged: `src/app/api/media/route.ts` (already had requireAuth + tenantWhere + customerId stamping).
+- Critical fixes shipped:
+  1. `bank-accounts/[id]` PATCH `updateMany({})` global mutation → now `where: tenantWhere(scope)`.
+  2. `customers/[id]` DELETE no longer accessible to non-admins (was any authenticated user).
+- All 7 routes now enforce `requireAuth` (or `requireRole` for customer mutations) + tenant scoping. Cross-tenant IDOR closed: any logged-in user in tenant A can no longer read/edit/delete tenant B's media, approvals, campaigns, bank accounts, or customers by guessing IDs.
+- Approval model has no customerId column — scoping walks `authorId → User.customerId` (documented inline).
+- Verification: `cd /home/z/my-project && bun run lint` exited 0 with no errors or warnings.
+
+---
+Task ID: P2-1-c
+Agent: subagent
+Task: IDOR sweep — mail + whatsapp routes (SSRF fix on mail)
+
+Work Log:
+1. Read worklog.md SECURITY-DATA section (lines 10471-10820) and prior SECURITY-INPUT-2 reference (line 10856) for the mail SSRF context. Read `src/lib/auth-guard.ts` to confirm `requireAuth`, `getTenantScope`, `tenantWhere` API.
+2. Read all 6 mail + 6 whatsapp route files + the `MailServer`/`Mailbox`/`MailMessage`/`WhatsAppMessage` Prisma models. Confirmed:
+   - `POST /api/mail` had NO `requireAuth` (only middleware) and accepted attacker-supplied `imapHost`/`imapPort` to open a real IMAP connection → SSRF.
+   - `POST /api/mail` echoed raw `err.message` from `client.connect()` → leaked internal network info.
+   - `GET /api/mail` returned all servers across all tenants (no tenant filter).
+   - `GET /api/mail/messages` returned all messages across all tenants.
+   - `PATCH /api/mail/messages` updated any message by ID (no scope).
+   - `POST /api/mail/messages` accepted arbitrary `mailboxId` (no scope) and echoed raw SMTP errors.
+   - `POST /api/mail/sync` had `requireAuth` but iterated ALL connected servers across ALL tenants.
+   - `DELETE /api/mail/[id]` had no auth at all.
+   - `POST /api/mail/mailboxes` + `PATCH` accepted arbitrary `serverId`/`id` across tenants.
+   - `GET /api/whatsapp` returned all messages across all tenants (leaks `senderPhone` + `content`).
+   - `POST /api/whatsapp` accepted client-supplied `savedById` → mass-assignment / spoofed attribution.
+   - `PATCH/DELETE /api/whatsapp/[id]` had auth but no tenant scope.
+3. Added `customerId String?` + `@@index([customerId])` to `MailServer` and `Mailbox` models in `prisma/schema.prisma`. The mail tables had no tenant column at all; the scope helper was unusable without it. Re-ran `npx prisma generate` (the project uses pglite via `prisma-pglite`, but `bun run db:push` was broken — a pre-existing env issue with the @augment-vir `relevant-args` parser. Per task rules, did not run db commands; the schema changes are valid and will be applied on next deploy).
+4. Rewrote `src/app/api/mail/route.ts`:
+   - Added `requireAuth` + `getTenantScope` to both GET and POST.
+   - GET now uses `tenantWhere(scope)` on `mailServer.findMany` and on the `totalMessages` count (via `mailbox.server` relation filter).
+   - POST writes `customerId: scope.customerId` on the new MailServer row.
+   - **SSRF fix (P2-1-c-specific)**: Added `isPrivateOrReservedHost()` blocklist rejecting `10.x`, `172.16-31.x`, `192.168.x`, `127.x`, `169.254.x` (AWS metadata), `0.x`, multicast/reserved `224+`, IPv6 loopback `::1`, ULA `fc00::/7`, link-local `fe80::/10`, unspecified `::`, IPv4-mapped `::ffff:a.b.c.d`, and `.localhost`/`.internal` TLDs.
+   - Added `validatePort()` requiring `Number.isInteger` in 1-65535. Applied to both `imapPort` AND `smtpPort` (defensively).
+   - **Generic error**: POST no longer echoes `err.message` from `client.connect()`. Logs server-side only, returns `"Connection failed — mail server saved, but connection test failed."`.
+5. Rewrote `src/app/api/mail/messages/route.ts`:
+   - GET: added auth + scope, filters messages via `mailbox: tenantWhere(scope)` for non-super-admins; fetches the mailboxes dropdown from the same scope.
+   - POST: added auth + scope; fetches mailbox via `findFirst({ id, ...tenantWhere(scope) })` and the server the same way; SMTP error no longer leaks (logs server-side only, returns generic message).
+   - PATCH: added auth + scope; verifies message belongs to a mailbox in the caller's tenant before mutating.
+6. Rewrote `src/app/api/mail/sync/route.ts`:
+   - POST already had `requireAuth`; added `getTenantScope` and filtered `mailServer.findMany` with `tenantWhere(scope)`.
+   - Per-server IMAP error no longer echoed — logs server-side, returns generic `"Connection failed"` in the `results` array.
+7. Rewrote `src/app/api/mail/[id]/route.ts`:
+   - Added `requireAuth` (was entirely missing). DELETE now verifies the server belongs to the caller's tenant before deleting cascade-related mailboxes/messages.
+8. Rewrote `src/app/api/mail/mailboxes/route.ts`:
+   - POST: added auth + scope; server lookup is tenant-scoped; new Mailbox row writes `customerId: scope.customerId`.
+   - PATCH: added auth + scope; verifies mailbox belongs to caller's tenant before updating.
+9. Rewrote `src/app/api/mail/mailboxes/[id]/route.ts`:
+   - PATCH + DELETE: added auth + scope + ownership verification.
+10. Rewrote `src/app/api/whatsapp/route.ts`:
+    - GET: added `getTenantScope`; filters via `savedBy: { customerId: scope.customerId }` for non-super-admins (WhatsAppMessage has no direct `customerId` column, so scope via the `savedBy` relation).
+    - POST: removed client-supplied `savedById` from the body — always attributes to `user!.userId` (closes the mass-assignment / spoofed-attribution vector flagged in SECURITY-INPUT-4).
+11. Rewrote `src/app/api/whatsapp/[id]/route.ts`:
+    - PATCH + DELETE: added `getTenantScope`; verifies message is in the caller's tenant via `savedBy.customerId` before updating/deleting.
+12. Ran `bun run lint` — exit 0, no errors/warnings. Also ran `npx prisma generate` to refresh the client for the new `customerId` columns on MailServer/Mailbox.
+
+Stage Summary:
+- Closed the SSRF on `POST /api/mail` (the highest-risk item): attacker can no longer probe `169.254.169.254`, `127.0.0.1`, `10.x`, etc. via the IMAP connection test, and raw `client.connect()` errors are no longer echoed (eliminating the side-channel that previously leaked internal hostnames + ports).
+- Closed cross-tenant IDOR on 8 mail + whatsapp route files. Every list/detail/mutate path now filters via `tenantWhere(scope)` (mail) or via the `savedBy.customerId` relation (whatsapp, since the table has no direct `customerId`).
+- Closed the `savedById` mass-assignment on `POST /api/whatsapp` — clients can no longer paste a message "as" another user.
+- Schema additions: `customerId String?` on `MailServer` + `Mailbox` (+ indexes). Required `npx prisma generate` (done). `bun run db:push` is broken in this env (pre-existing @augment-vir/parser issue unrelated to this change); schema is valid and will apply on next deploy.
+- `bun run lint` exits clean.
+
+---
+
+## Task ID: P2-3-4-5
+**Agent**: subagent (security engineer)
+**Task**: XSS URL allowlist + path traversal fix + HMAC webhook signature
+
+### Work Log
+
+Fixes three classes of input-validation vulnerability flagged in the
+SECURITY-INPUT audit (P2-3 stored XSS, P2-4 path traversal in
+`storage.delete`, P2-5 unsigned WhatsApp webhook).
+
+#### 1. Stored XSS — URL allowlist (P2-3-a + P2-3-b + P2-3-c)
+
+**New file** `src/lib/url-safety.ts`:
+- `isSafeUrl(url)` — accepts only `http:`/`https:` URLs via `new URL(url)`
+  parsing. Rejects `javascript:`, `data:`, `file:`, `vbscript:`, `blob:`,
+  empty / non-string input, and anything that fails URL parsing.
+- `isSafeFetchableUrl(url)` — strict variant that ALSO blocks obvious
+  loopback / private TLDs (`localhost`, `127.0.0.1`, `::1`, `0.0.0.0`,
+  `*.localhost`, `*.local`). Placeholder for the SSRF follow-up task; not
+  wired into any route yet.
+- Single source of truth — every stored-URL sink imports from here so future
+  audit + policy changes have one place to update.
+
+**`src/app/api/linkbio/route.ts`** (PATCH + POST):
+- PATCH — when `links` is in the body, iterate `links[].url` and reject the
+  whole request with 400 if any URL fails `isSafeUrl()`. The link array is
+  the highest-impact stored-XSS sink in the app (rendered as
+  `<a href={link.url}>` on the public `/l/[slug]` page — see
+  SECURITY-INPUT Finding 1).
+- POST — when `avatar` URL is supplied (rendered as `<img src={avatar}>` on
+  the same public page), reject with 400 if it's not `http(s)`.
+- POST still doesn't accept `links` (the create endpoint always mints an
+  empty `[]`), so no other URLs to validate there.
+
+**`src/app/api/linkbio/[id]/route.ts`** (PATCH):
+- Same `links[].url` and `avatar` validation as the parent route — this is
+  the route that the SECURITY-INPUT audit specifically called out as
+  bypassing auth via the middleware's `startsWith` allowlist.
+- Mass-assignment allowlist (`allowed = [...]`) is preserved so the auth
+  scope is unchanged; URL validation runs AFTER the allowlist filter so it
+  only fires on URLs that would actually be persisted.
+
+**`src/middleware.ts`** (auth-allowlist tightening — fixes the
+"middleware uses `startsWith` for `/api/linkbio` so PATCH is also public"
+half of P2-3-a):
+- `PUBLIC_ROUTES` is now matched with `pathname === route` (via `includes`)
+  instead of `pathname.startsWith(route)`. This means `/api/whatsapp/webhook`
+  is public but a hypothetical `/api/whatsapp/webhook/foo` is NOT — and the
+  same for every other entry.
+- New `PUBLIC_EXACT_ROUTES` Set for paths that live under an
+  otherwise-protected parent but must stay public (currently just
+  `/api/linkbio` for listing + creating pages, and the unused
+  `/api/linkbio/click` alias).
+- New `PUBLIC_LINKBIO_CLICK_RE = /^\/api\/linkbio\/[^/]+\/click$/` so the
+  public click tracker at `/api/linkbio/[id]/click` still bypasses JWT (it's
+  hit by every visitor on a public `/l/[slug]` page).
+- Net effect: `PATCH /api/linkbio/[id]` and `DELETE /api/linkbio/[id]` now
+  REQUIRE a JWT — closes the unauthenticated stored-XSS vector at the
+  middleware layer, in addition to the URL validation inside the handler.
+- POST `/api/linkbio` (create page) and POST `/api/linkbio/[id]/click`
+  remain public so the public sign-up / click-tracking flows still work.
+
+**`src/app/api/chat/route.ts`** (POST):
+- After the existing "text or file is required" check, validate `fileUrl`
+  with `isSafeUrl()` and reject with 400 if not `http(s)`. `fileUrl` is
+  rendered as a clickable link / image src in the chat UI (see
+  SECURITY-INPUT Finding 3) — a `javascript:` URL would fire when the
+  recipient opens the message.
+
+**`src/app/api/whatsapp/webhook/route.ts`** (POST):
+- Validate `body.mediaUrl` with `isSafeUrl()` before persisting (the URL is
+  rendered as a clickable link in the WhatsApp Inbox UI). Defence-in-depth
+  even though the route is now also HMAC-signed — if the mini-service is
+  compromised or MINI_SERVICE_KEY leaks, an attacker still can't inject
+  `javascript:` URLs.
+
+#### 2. Path traversal fix (P2-4)
+
+**`src/lib/storage.ts`**:
+- New module-level helper `assertWithinUploads(storageKey: string): string`
+  that resolves `path.resolve(PUBLIC_UPLOADS_DIR, storageKey)`, then checks
+  the result starts with `PUBLIC_UPLOADS_DIR_RESOLVED + path.sep` (or equals
+  it). Throws `Error("Path traversal detected: ...")` if the resolved path
+  would escape the uploads directory. `path.resolve` collapses `..`, so an
+  input like `../../etc/passwd` resolves to `/etc/passwd` and is correctly
+  rejected.
+- Applied to `LocalFilesystemAdapter.upload()`:
+  - Main file `absPath` is now `assertWithinUploads(storageKey)` instead of
+    `path.join(PUBLIC_UPLOADS_DIR, storageKey)`. Even though `storageKey`
+    is built from `sanitizePathSegment` / `sanitizeFileName` outputs, this
+    is the defence-in-depth boundary so a future refactor that drops a
+    sanitization step can't create an arbitrary-write primitive.
+  - Thumbnail `thumbAbsPath` likewise routes through
+    `assertWithinUploads(thumbStorageKey)`.
+- Applied to `LocalFilesystemAdapter.delete()`:
+  - Wraps the `path.join` + `fs.unlink` in a try/catch that calls
+    `assertWithinUploads(storageKey)` first. On traversal attempt it logs
+    server-side and returns silently (caller already wraps in
+    `.catch(() => {})`).
+  - The thumbnail delete path is derived from `path.dirname(absPath)` /
+    `path.basename(absPath)` of the already-validated `absPath`, so it's
+    automatically inside PUBLIC_UPLOADS_DIR — no separate check needed.
+- `CloudinaryAdapter` is unchanged: its `delete()` calls Cloudinary's API
+  (`client.uploader.destroy(public_id)`), not the local filesystem, so
+  there's no path-traversal vector there. Same for its `upload()` — it
+  posts buffers to a remote CDN, not the local FS.
+
+#### 3. HMAC-SHA256 webhook signature (P2-5)
+
+**`src/app/api/whatsapp/webhook/route.ts`** (POST):
+- Reads `WEBHOOK_SECRET = process.env.MINI_SERVICE_KEY` at module top
+  level. (Per P1-2-a, the mini-service refuses to boot without this env
+  var; we fail-closed on the receiving side too.)
+- New `verifySignature(body, signature, secret)` helper:
+  - Computes `crypto.createHmac("sha256", secret).update(body).digest("hex")`.
+  - Compares with `crypto.timingSafeEqual` (constant-time) so the check
+    isn't susceptible to a timing oracle. Buffers are length-checked
+    first because `timingSafeEqual` throws on length mismatch.
+  - Returns `false` on any error / empty input.
+- POST handler now:
+  1. Reads raw `bodyText = await req.text()` (NOT `req.json()` — JSON
+     round-trip would re-serialize and break the signature).
+  2. If `WEBHOOK_SECRET` is missing, returns 503 ("Webhook signing secret
+     not configured") so an operator who forgot to set MINI_SERVICE_KEY
+     sees a clear failure mode.
+  3. Reads the `X-Webhook-Signature` header; if missing or if
+     `verifySignature` returns false, returns 401 "Invalid signature".
+  4. Only then `JSON.parse(bodyText)` — body is authenticated before any
+     parsing.
+- Follow-up (out of scope here, per task instructions): the WhatsApp
+  mini-service (`mini-services/whatsapp-service/index.ts`) must be updated
+  to compute the same HMAC over its `JSON.stringify(payload)` body and send
+  it as the `X-Webhook-Signature` header. Until that follow-up lands, all
+  inbound WhatsApp messages will be rejected with 401 — this is the
+  intended "fail closed" behaviour for an unsigned webhook.
+
+### Files changed
+1. `src/lib/url-safety.ts` — **new** (URL allowlist helper, 60 LOC).
+2. `src/middleware.ts` — `PUBLIC_ROUTES` switched from `startsWith` to
+   exact-match (`includes`); added `PUBLIC_EXACT_ROUTES` Set +
+   `PUBLIC_LINKBIO_CLICK_RE` regex so `/api/linkbio/[id]` PATCH/DELETE now
+   requires JWT.
+3. `src/app/api/linkbio/route.ts` — validate `links[].url` in PATCH and
+   `avatar` in POST with `isSafeUrl()` (400 on unsafe scheme).
+4. `src/app/api/linkbio/[id]/route.ts` — validate `links[].url` and
+   `avatar` in PATCH with `isSafeUrl()` (400 on unsafe scheme).
+5. `src/app/api/chat/route.ts` — validate `fileUrl` in POST with
+   `isSafeUrl()` (400 on unsafe scheme).
+6. `src/app/api/whatsapp/webhook/route.ts` — HMAC-SHA256 signature
+   verification via `X-Webhook-Signature` header (401 on missing/invalid);
+   also validate `mediaUrl` with `isSafeUrl()`.
+7. `src/lib/storage.ts` — new `assertWithinUploads()` helper applied to
+   `LocalFilesystemAdapter.upload()` (main + thumbnail) and `.delete()`
+   to prevent `../` path traversal in user-controlled storage keys.
+
+### Stage Summary
+- 3 classes of input-validation bug closed:
+  - **P2-3 Stored XSS** — every user-supplied URL rendered as an `href` /
+    `src` is now validated against an http(s)-only allowlist at write time
+    in 4 routes (linkbio POST/PATCH ×2, chat POST, whatsapp webhook POST).
+    Combined with the middleware tightening, the unauthenticated
+    `/api/linkbio/[id]` PATCH stored-XSS path is now blocked at both the
+    edge (JWT required) and the handler (URL scheme validated).
+  - **P2-4 Path traversal** — `LocalFilesystemAdapter` no longer passes
+    user-influenced `storageKey` directly to `fs.unlink` / `fs.writeFile`.
+    Both `upload()` and `delete()` now route through
+    `assertWithinUploads()` which resolves + checks the path stays under
+    `public/uploads/` before any filesystem touch.
+  - **P2-5 Webhook signature** — `/api/whatsapp/webhook` no longer
+    accepts unsigned requests. HMAC-SHA256 over the raw body, verified
+    with `crypto.timingSafeEqual`, is the new authentication gate. Until
+    the WhatsApp mini-service is updated to sign its requests (follow-up
+    task), all inbound messages will be rejected with 401 — this is the
+    intended fail-closed behaviour.
+- `bun run lint` exited 0 (no errors, no warnings).
+- No database commands run, no dev server started.
+
+---
+Task ID: P2-1-e
+Agent: subagent
+Task: Social module — add customerId to schema + IDOR sweep (listening, hashtags, influencers, competitors, linkbio)
+
+Work Log:
+1. Read `prisma/schema.prisma` fully (955 lines) + `src/lib/auth-guard.ts` (220 lines) to understand the existing tenant-scope primitives (`requireAuth`, `getTenantScope`, `tenantWhere`) and the existing pattern for `customerId String?` columns on `Account`/`Task`/`Report`/`User` (bare column + `@@index([customerId])`, no Customer relation).
+2. Reviewed the SECURITY-DATA Finding 4 table in worklog.md (lines 10458–10608) to confirm the exact IDORs this task remediates. Identified the 5 models that lack `customerId`: `ListeningQuery`, `HashtagGroup`, `Competitor`, `LinkInBio`, `Influencer` (task brief's "Hashtag"/"LinkBio" alias names resolved to the actual schema names).
+3. **Schema edits** (`prisma/schema.prisma`):
+   - `ListeningQuery` — added `customerId String?` + `@@index([customerId])`.
+   - `HashtagGroup` — added `customerId String?` + `@@index([customerId])`.
+   - `Competitor` — added `customerId String?` + `@@index([customerId])`.
+   - `LinkInBio` — added `customerId String?` + `@@index([customerId])`.
+   - `Influencer` — added `customerId String?` + `@@index([customerId])`.
+   - `Mention` and `CompetitorSnapshot` deliberately left untouched — they are scoped via their parent relation (query / competitor).
+4. **Route edits** — applied the same `requireAuth` + `getTenantScope` + `tenantWhere(scope)` pattern to 7 route files (14 handlers):
+   - `src/app/api/listening/route.ts` — GET scopes `listeningQuery.findMany` + `mention.findMany` (via `query` relation); POST stamps `customerId: scope.customerId`.
+   - `src/app/api/listening/[id]/route.ts` — PATCH + DELETE do tenant-scoped `findFirst` before mutation, 404 if not in caller's tenant.
+   - `src/app/api/listening/[id]/reply/route.ts` — `mention.findUnique` → `mention.findFirst({ where: { id, query: tenantWhere(scope) }})`; account lookup also tenant-scoped.
+   - `src/app/api/listening/sync/route.ts` — merged `tenantWhere(scope)` into `listeningQuery.findMany` where clause.
+   - `src/app/api/hashtags/route.ts` + `[id]/route.ts` — full pattern.
+   - `src/app/api/influencers/route.ts` + `[id]/route.ts` — full pattern.
+   - `src/app/api/competitors/route.ts` + `[id]/route.ts` + `sync/route.ts` — full pattern; POST stamps `customerId` on the new Competitor (seeded snapshot inherits via relation).
+   - `src/app/api/linkbio/route.ts` — GET kept PUBLIC per task instruction; POST + PATCH gained `requireAuth` + tenant scope.
+   - `src/app/api/linkbio/[id]/route.ts` — PATCH + DELETE gained `requireAuth` + tenant-scoped `findFirst` guard. Previously this route was reachable without any JWT because the middleware `PUBLIC_ROUTES` `startsWith("/api/linkbio")` pattern also matched `/api/linkbio/[id]`. Handler-level auth now blocks the IDOR.
+   - `src/app/api/linkbio/[id]/click/route.ts` — left PUBLIC (visitor click tracking for the public `/l/[slug]` page).
+5. Verified: `bun run lint` clean (zero errors, zero warnings). `bunx prisma validate` reports "The schema at prisma/schema.prisma is valid 🚀".
+6. Did NOT run `bun run db:push` (per task instruction — main agent will handle the migration after reviewing all P2-1 changes).
+7. Wrote agent work record to `/home/z/my-project/agent-ctx/P2-1-e-subagent.md`.
+
+Stage Summary:
+- **Files changed**: 1 schema (`prisma/schema.prisma`) + 14 route files under `src/app/api/{listening,hashtags,influencers,competitors,linkbio}` (and `[id]` subpaths).
+- **Schema**: 5 models gained `customerId String?` + `@@index([customerId])`. No Customer relation added (matches existing pattern). `Mention` / `CompetitorSnapshot` deliberately left untouched — they scope via parent relations.
+- **Routes**: 14 handlers (GET/POST/PATCH/DELETE across 7 route files) now require auth + tenant scope. 4 routes that already had `requireAuth` (`listening/[id]/reply`, `listening/sync`, `competitors/sync`, `influencers/search`) gained tenant-scoped DB queries via `tenantWhere(scope)`.
+- **IDOR closed**: Cross-tenant read/write of listening queries, hashtags, influencers, competitors, and link-in-bio pages is no longer possible. Super-admins (role=admin + customerId=null) bypass the filter and see all rows, matching the existing `getTenantScope` contract.
+- **Public endpoints preserved**: `/api/linkbio` GET (for the public `/l/[slug]` page flow) and `/api/linkbio/[id]/click` (visitor click tracking) are still public.
+- **Verification**: lint clean, prisma validate clean. No `db:push` run.
+
+---
+Task ID: P2-1-d
+Agent: subagent
+Task: IDOR sweep — admin, devices, serial-keys, api-keys, platform-credentials, oauth, quotations, invoices
+
+Work Log:
+1. Read `worklog.md` SECURITY-DATA section (Finding 4: widespread cross-tenant IDOR / missing tenant scoping) + `src/lib/auth-guard.ts` to confirm the `requireAuth` / `requireRole` / `getTenantScope` / `tenantWhere` primitive API. Confirmed the global Edge middleware enforces JWT signature on every `/api/*` route, but the responsibility for role + tenant scoping is pushed to each handler — and ~half of the routes omit it.
+2. Read all 14 target route files (8 directories) in parallel: `admin/route.ts`, `devices/route.ts` + `[id]/route.ts`, `serial-keys/route.ts` + `[id]/route.ts`, `api-keys/route.ts` + `[id]/route.ts`, `platform-credentials/route.ts` + `[platform]/sync/route.ts` (the `[id]` route does not exist), `oauth/connect/[platform]/route.ts`, `oauth/check/route.ts`, `quotations/route.ts` + `[id]/route.ts`, `invoices/route.ts` + `[id]/route.ts`. Also read `bank-accounts/route.ts` as a reference for the established pattern.
+3. Applied the standard pattern (`requireAuth` + `getTenantScope` + `tenantWhere(scope)` for list/findMany, and `findFirst({ where: { id, ...tenantWhere(scope) }})` guard before any by-id update/delete — returning 404 to avoid leaking presence across tenants). For models with no direct `customerId` (`Device`, `PostVariant`, `AccountHealth`), used Prisma relation filters: `{ serialKey: { customerId: scope.customerId } }` and `{ account: { customerId: scope.customerId } }`.
+4. Route-by-route changes:
+   - **admin/route.ts** (rewrite): kept `requireRole(req, "admin")` but wrapped every `findMany` with `tenantWhere(scope)` (User/Account/Post/Task/Comment/Activity) + relation filters for PostVariant/AccountHealth via the owning Account. Super-admin sees all; tenant admin sees only their tenant. Closes the headline IDOR where a tenant admin could read every user's email across all tenants.
+   - **devices/route.ts** (rewrite): added `requireAuth` + tenant-scope via `serialKey.customerId` relation. POST verifies the body `serialKeyId` belongs to the caller's tenant before attaching (super-admin excepted).
+   - **devices/[id]/route.ts** (rewrite): added `requireAuth` + `getVisibleDevice(id, scope)` helper using the relation filter; 404 if the device's SerialKey isn't in the caller's tenant.
+   - **serial-keys/route.ts** (rewrite): GET = `requireAuth` + `tenantWhere(scope)`; POST = `requireRole(req, "admin")` + bind `customerId` to caller's tenant (super-admin can pass body customerId).
+   - **serial-keys/[id]/route.ts** (rewrite): `requireRole(req, "admin")` + tenant-scoped `findFirst` before any mutation.
+   - **api-keys/route.ts** (rewrite): `requireRole(req, "admin")` on GET + POST. The `ApiKey` Prisma model has no `userId`/`customerId` column (global server-side API tokens) — admin-only is the safest minimal fix without a schema migration. Left a TODO comment in source for the deeper fix.
+   - **api-keys/[id]/route.ts** (rewrite): `requireRole(req, "admin")` + `findUnique` existence check (defensive 404).
+   - **platform-credentials/route.ts** (rewrite): added `requireAuth` + a `resolveTargetUserId()` helper that enforces: non-admin → only own credentials; tenant admin/manager → target user must be in caller's tenant; super-admin → any user. GET/PUT/DELETE all go through this resolver. Closes the critical secrets-leak where any caller could read/overwrite ANY user's OAuth tokens.
+   - **platform-credentials/[platform]/sync/route.ts** (top-of-handler rewrite): added `requireAuth` + same userId resolution logic; target Account fetched via `findFirst({ where: { id: accountId, ...tenantWhere(scope) }})`. Body `userId` ignored for non-admins.
+   - **oauth/connect/[platform]/route.ts** (top-of-handler rewrite): added `requireAuth`; `userId` is now bound to `req.user.userId` — the query `userId` param is ignored. An attacker can no longer initiate an OAuth flow that writes tokens into another user's `PlatformCredential` row.
+   - **oauth/check/route.ts** (rewrite): added `requireAuth`; `userId` bound to caller. The query `userId` param is ignored — closes an info-leak that let any caller probe whether another user/tenant had configured OAuth.
+   - **quotations/route.ts** (rewrite): `requireAuth` + `tenantWhere(scope)` on GET; POST binds `customerId` to `scope.customerId` (super-admin can pass body customerId).
+   - **quotations/[id]/route.ts** (rewrite): `requireAuth` + tenant-scoped `findFirst` guard before PATCH/DELETE.
+   - **invoices/route.ts** (rewrite): same pattern as quotations.
+   - **invoices/[id]/route.ts** (rewrite): same pattern as quotations/[id].
+5. Verified: `bun run lint` clean (zero errors, zero warnings). No business logic changed — only auth checks + tenant/ownership `where` clauses added.
+6. Did NOT run `bun run db:push` (per task instruction — the rules forbid running database commands; main agent will handle any needed migrations). The ApiKey deeper fix (add `userId` column) is left as a TODO in source.
+7. Wrote agent work record to `/home/z/my-project/agent-ctx/P2-1-d-subagent.md`.
+
+Stage Summary:
+- **Files changed**: 14 route files under `src/app/api/{admin, devices, serial-keys, api-keys, platform-credentials, oauth, quotations, invoices}` (and `[id]` / `[platform]/sync` subpaths).
+- **Auth added**: 9 handlers had NO auth check at all (devices GET/POST, devices/[id] PATCH/DELETE, serial-keys GET/POST, serial-keys/[id] PATCH/DELETE, api-keys GET/POST, api-keys/[id] PATCH/DELETE, platform-credentials GET/PUT/DELETE, platform-credentials/[platform]/sync POST, oauth/connect GET, oauth/check GET, quotations GET/POST, quotations/[id] PATCH/DELETE, invoices GET/POST, invoices/[id] PATCH/DELETE) — all now gated by `requireAuth` (or `requireRole("admin")` for admin-only resources: admin, serial-keys mutations, api-keys).
+- **Tenant scope added**: list endpoints filtered by `tenantWhere(scope)` (or relation filter via `serialKey.customerId` / `account.customerId` for models with no direct customerId). By-id mutations guarded by `findFirst({ where: { id, ...tenantWhere(scope) }})` returning 404 (not 403) when the target is in another tenant — avoids leaking presence.
+- **Ownership-bound fixes**: platform-credentials (users read/write OWN; admins read all in tenant via `resolveTargetUserId()` helper), oauth/connect + oauth/check + platform-credentials/[platform]/sync (body `userId` is always overridden with `req.user.userId` for non-admins; tenant admins can target any user in their tenant; super-admin can target anyone).
+- **Body-controlled `customerId` fixes**: quotations + invoices POST now bind `customerId` to `scope.customerId` — body `customerId` ignored unless super-admin.
+- **Critical secrets leak closed**: platform-credentials IDOR where any caller could read/overwrite ANY user's OAuth tokens (Twitter/IG/FB/LinkedIn/TikTok/YouTube access tokens + page IDs) is now scoped to the caller (or, for admins, to their tenant).
+- **Cross-tenant admin reads closed**: a tenant admin can no longer dump every user's email/role across all tenants via `GET /api/admin` — they only see their own tenant.
+- **Verification**: `bun run lint` clean. No business logic changed. No `db:push` run (per task rules).

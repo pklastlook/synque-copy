@@ -48,6 +48,7 @@ export type MailboxMinAggregateOutputType = {
   status: string | null
   role: string | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type MailboxMaxAggregateOutputType = {
@@ -62,6 +63,7 @@ export type MailboxMaxAggregateOutputType = {
   status: string | null
   role: string | null
   createdAt: Date | null
+  customerId: string | null
 }
 
 export type MailboxCountAggregateOutputType = {
@@ -76,6 +78,7 @@ export type MailboxCountAggregateOutputType = {
   status: number
   role: number
   createdAt: number
+  customerId: number
   _all: number
 }
 
@@ -102,6 +105,7 @@ export type MailboxMinAggregateInputType = {
   status?: true
   role?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type MailboxMaxAggregateInputType = {
@@ -116,6 +120,7 @@ export type MailboxMaxAggregateInputType = {
   status?: true
   role?: true
   createdAt?: true
+  customerId?: true
 }
 
 export type MailboxCountAggregateInputType = {
@@ -130,6 +135,7 @@ export type MailboxCountAggregateInputType = {
   status?: true
   role?: true
   createdAt?: true
+  customerId?: true
   _all?: true
 }
 
@@ -231,6 +237,7 @@ export type MailboxGroupByOutputType = {
   status: string
   role: string
   createdAt: Date
+  customerId: string | null
   _count: MailboxCountAggregateOutputType | null
   _avg: MailboxAvgAggregateOutputType | null
   _sum: MailboxSumAggregateOutputType | null
@@ -268,6 +275,7 @@ export type MailboxWhereInput = {
   status?: Prisma.StringFilter<"Mailbox"> | string
   role?: Prisma.StringFilter<"Mailbox"> | string
   createdAt?: Prisma.DateTimeFilter<"Mailbox"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"Mailbox"> | string | null
   server?: Prisma.XOR<Prisma.MailServerScalarRelationFilter, Prisma.MailServerWhereInput>
   owner?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   messages?: Prisma.MailMessageListRelationFilter
@@ -285,6 +293,7 @@ export type MailboxOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   role?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   server?: Prisma.MailServerOrderByWithRelationInput
   owner?: Prisma.UserOrderByWithRelationInput
   messages?: Prisma.MailMessageOrderByRelationAggregateInput
@@ -305,6 +314,7 @@ export type MailboxWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.StringFilter<"Mailbox"> | string
   role?: Prisma.StringFilter<"Mailbox"> | string
   createdAt?: Prisma.DateTimeFilter<"Mailbox"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"Mailbox"> | string | null
   server?: Prisma.XOR<Prisma.MailServerScalarRelationFilter, Prisma.MailServerWhereInput>
   owner?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   messages?: Prisma.MailMessageListRelationFilter
@@ -322,6 +332,7 @@ export type MailboxOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   role?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.MailboxCountOrderByAggregateInput
   _avg?: Prisma.MailboxAvgOrderByAggregateInput
   _max?: Prisma.MailboxMaxOrderByAggregateInput
@@ -344,6 +355,7 @@ export type MailboxScalarWhereWithAggregatesInput = {
   status?: Prisma.StringWithAggregatesFilter<"Mailbox"> | string
   role?: Prisma.StringWithAggregatesFilter<"Mailbox"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Mailbox"> | Date | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Mailbox"> | string | null
 }
 
 export type MailboxCreateInput = {
@@ -356,6 +368,7 @@ export type MailboxCreateInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
   server: Prisma.MailServerCreateNestedOneWithoutMailboxesInput
   owner?: Prisma.UserCreateNestedOneWithoutMailboxesInput
   messages?: Prisma.MailMessageCreateNestedManyWithoutMailboxInput
@@ -373,6 +386,7 @@ export type MailboxUncheckedCreateInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
   messages?: Prisma.MailMessageUncheckedCreateNestedManyWithoutMailboxInput
 }
 
@@ -386,6 +400,7 @@ export type MailboxUpdateInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   server?: Prisma.MailServerUpdateOneRequiredWithoutMailboxesNestedInput
   owner?: Prisma.UserUpdateOneWithoutMailboxesNestedInput
   messages?: Prisma.MailMessageUpdateManyWithoutMailboxNestedInput
@@ -403,6 +418,7 @@ export type MailboxUncheckedUpdateInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.MailMessageUncheckedUpdateManyWithoutMailboxNestedInput
 }
 
@@ -418,6 +434,7 @@ export type MailboxCreateManyInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type MailboxUpdateManyMutationInput = {
@@ -430,6 +447,7 @@ export type MailboxUpdateManyMutationInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MailboxUncheckedUpdateManyInput = {
@@ -444,6 +462,7 @@ export type MailboxUncheckedUpdateManyInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MailboxListRelationFilter = {
@@ -468,6 +487,7 @@ export type MailboxCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   role?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type MailboxAvgOrderByAggregateInput = {
@@ -487,6 +507,7 @@ export type MailboxMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   role?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type MailboxMinOrderByAggregateInput = {
@@ -501,6 +522,7 @@ export type MailboxMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   role?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
 }
 
 export type MailboxSumOrderByAggregateInput = {
@@ -621,6 +643,7 @@ export type MailboxCreateWithoutOwnerInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
   server: Prisma.MailServerCreateNestedOneWithoutMailboxesInput
   messages?: Prisma.MailMessageCreateNestedManyWithoutMailboxInput
 }
@@ -636,6 +659,7 @@ export type MailboxUncheckedCreateWithoutOwnerInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
   messages?: Prisma.MailMessageUncheckedCreateNestedManyWithoutMailboxInput
 }
 
@@ -680,6 +704,7 @@ export type MailboxScalarWhereInput = {
   status?: Prisma.StringFilter<"Mailbox"> | string
   role?: Prisma.StringFilter<"Mailbox"> | string
   createdAt?: Prisma.DateTimeFilter<"Mailbox"> | Date | string
+  customerId?: Prisma.StringNullableFilter<"Mailbox"> | string | null
 }
 
 export type MailboxCreateWithoutServerInput = {
@@ -692,6 +717,7 @@ export type MailboxCreateWithoutServerInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
   owner?: Prisma.UserCreateNestedOneWithoutMailboxesInput
   messages?: Prisma.MailMessageCreateNestedManyWithoutMailboxInput
 }
@@ -707,6 +733,7 @@ export type MailboxUncheckedCreateWithoutServerInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
   messages?: Prisma.MailMessageUncheckedCreateNestedManyWithoutMailboxInput
 }
 
@@ -746,6 +773,7 @@ export type MailboxCreateWithoutMessagesInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
   server: Prisma.MailServerCreateNestedOneWithoutMailboxesInput
   owner?: Prisma.UserCreateNestedOneWithoutMailboxesInput
 }
@@ -762,6 +790,7 @@ export type MailboxUncheckedCreateWithoutMessagesInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type MailboxCreateOrConnectWithoutMessagesInput = {
@@ -790,6 +819,7 @@ export type MailboxUpdateWithoutMessagesInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   server?: Prisma.MailServerUpdateOneRequiredWithoutMailboxesNestedInput
   owner?: Prisma.UserUpdateOneWithoutMailboxesNestedInput
 }
@@ -806,6 +836,7 @@ export type MailboxUncheckedUpdateWithoutMessagesInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MailboxCreateManyOwnerInput = {
@@ -819,6 +850,7 @@ export type MailboxCreateManyOwnerInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type MailboxUpdateWithoutOwnerInput = {
@@ -831,6 +863,7 @@ export type MailboxUpdateWithoutOwnerInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   server?: Prisma.MailServerUpdateOneRequiredWithoutMailboxesNestedInput
   messages?: Prisma.MailMessageUpdateManyWithoutMailboxNestedInput
 }
@@ -846,6 +879,7 @@ export type MailboxUncheckedUpdateWithoutOwnerInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.MailMessageUncheckedUpdateManyWithoutMailboxNestedInput
 }
 
@@ -860,6 +894,7 @@ export type MailboxUncheckedUpdateManyWithoutOwnerInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type MailboxCreateManyServerInput = {
@@ -873,6 +908,7 @@ export type MailboxCreateManyServerInput = {
   status?: string
   role?: string
   createdAt?: Date | string
+  customerId?: string | null
 }
 
 export type MailboxUpdateWithoutServerInput = {
@@ -885,6 +921,7 @@ export type MailboxUpdateWithoutServerInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   owner?: Prisma.UserUpdateOneWithoutMailboxesNestedInput
   messages?: Prisma.MailMessageUpdateManyWithoutMailboxNestedInput
 }
@@ -900,6 +937,7 @@ export type MailboxUncheckedUpdateWithoutServerInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.MailMessageUncheckedUpdateManyWithoutMailboxNestedInput
 }
 
@@ -914,6 +952,7 @@ export type MailboxUncheckedUpdateManyWithoutServerInput = {
   status?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -959,6 +998,7 @@ export type MailboxSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   status?: boolean
   role?: boolean
   createdAt?: boolean
+  customerId?: boolean
   server?: boolean | Prisma.MailServerDefaultArgs<ExtArgs>
   owner?: boolean | Prisma.Mailbox$ownerArgs<ExtArgs>
   messages?: boolean | Prisma.Mailbox$messagesArgs<ExtArgs>
@@ -977,6 +1017,7 @@ export type MailboxSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   status?: boolean
   role?: boolean
   createdAt?: boolean
+  customerId?: boolean
   server?: boolean | Prisma.MailServerDefaultArgs<ExtArgs>
   owner?: boolean | Prisma.Mailbox$ownerArgs<ExtArgs>
 }, ExtArgs["result"]["mailbox"]>
@@ -993,6 +1034,7 @@ export type MailboxSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   status?: boolean
   role?: boolean
   createdAt?: boolean
+  customerId?: boolean
   server?: boolean | Prisma.MailServerDefaultArgs<ExtArgs>
   owner?: boolean | Prisma.Mailbox$ownerArgs<ExtArgs>
 }, ExtArgs["result"]["mailbox"]>
@@ -1009,9 +1051,10 @@ export type MailboxSelectScalar = {
   status?: boolean
   role?: boolean
   createdAt?: boolean
+  customerId?: boolean
 }
 
-export type MailboxOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "serverId" | "email" | "displayName" | "passwordEnc" | "quotaMb" | "usedMb" | "ownerId" | "status" | "role" | "createdAt", ExtArgs["result"]["mailbox"]>
+export type MailboxOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "serverId" | "email" | "displayName" | "passwordEnc" | "quotaMb" | "usedMb" | "ownerId" | "status" | "role" | "createdAt" | "customerId", ExtArgs["result"]["mailbox"]>
 export type MailboxInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   server?: boolean | Prisma.MailServerDefaultArgs<ExtArgs>
   owner?: boolean | Prisma.Mailbox$ownerArgs<ExtArgs>
@@ -1046,6 +1089,7 @@ export type $MailboxPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     status: string
     role: string
     createdAt: Date
+    customerId: string | null
   }, ExtArgs["result"]["mailbox"]>
   composites: {}
 }
@@ -1483,6 +1527,7 @@ export interface MailboxFieldRefs {
   readonly status: Prisma.FieldRef<"Mailbox", 'String'>
   readonly role: Prisma.FieldRef<"Mailbox", 'String'>
   readonly createdAt: Prisma.FieldRef<"Mailbox", 'DateTime'>
+  readonly customerId: Prisma.FieldRef<"Mailbox", 'String'>
 }
     
 

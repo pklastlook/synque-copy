@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/linkbio
+ *
+ * PUBLIC — listed in middleware PUBLIC_ROUTES so visitors can resolve link-in-bio
+ * slugs from the public `/l/[slug]` page. The actual `/l/[slug]` server
+ * component queries the DB directly (not via this API), but the route is kept
+ * public for backwards compatibility with external embeds.
+ *
+ * NOTE: This returns ALL link-in-bio pages across tenants. The create/update/
+ * delete handlers below ARE tenant-scoped (see PATCH / POST). If you need
+ * tenant-scoped listing in the future, require auth here too.
+ */
 export async function GET() {
   const pages = await db.linkInBio.findMany({ orderBy: { visits: "desc" } });
   return NextResponse.json(
@@ -23,8 +36,33 @@ export async function GET() {
   );
 }
 
+/**
+ * PATCH /api/linkbio
+ *
+ * Update a link-in-bio page by id (passed in the body). Tenant-scoped — returns
+ * 404 if the page belongs to another tenant.
+ *
+ * NOTE: This is a backwards-compatible API shape (id in body). The preferred
+ * pattern is PATCH /api/linkbio/[id] (see sibling [id]/route.ts).
+ */
 export async function PATCH(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const { id, links, title, subtitle, theme, active } = await req.json();
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const existing = await db.linkInBio.findFirst({
+    where: { id, ...tenantWhere(scope) as { customerId?: string } },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Link-in-bio page not found" }, { status: 404 });
+  }
+
   const data: Record<string, unknown> = {};
   if (links !== undefined) data.links = JSON.stringify(links);
   if (title !== undefined) data.title = title;
@@ -35,8 +73,12 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-/** POST — create a new link-in-bio page with a unique slug. */
+/** POST — create a new link-in-bio page with a unique slug. Tenant-scoped. */
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const body = await req.json().catch(() => ({}));
   const { title, subtitle, theme, slug, accountId, avatar } = body as {
     title?: string;
@@ -75,6 +117,7 @@ export async function POST(req: NextRequest) {
       clicks: 0,
       accountId: accountId ?? null,
       active: true,
+      customerId: scope.customerId,
     },
   });
 

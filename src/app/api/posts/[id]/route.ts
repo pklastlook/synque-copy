@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+
   const { id } = await params;
+  const scope = getTenantScope(user!);
+
+  // Verify the target post exists AND belongs to the caller's tenant.
+  // Uses findFirst + tenantWhere instead of `update({ where: { id } })` so a
+  // cross-tenant attempt hits a 404 (not a silent mutation, and not a 403
+  // that would confirm the resource exists in another tenant).
+  const existing = await db.post.findFirst({
+    where: { id, ...tenantWhere(scope) as { customerId?: string } },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const body = await req.json();
 
   const allowed = ["title", "caption", "mediaUrl", "mediaType", "tone", "status", "scheduledAt"];
@@ -24,6 +42,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   //   - else → CREATE a new variant
   // Variants not present in the payload are left untouched (so a "republish"
   // doesn't wipe analytics for accounts the user didn't re-edit).
+  //
+  // Tenant safety: the parent post was verified above (findFirst with
+  // tenantWhere), so any variant scoped via `postId: id` is implicitly
+  // tenant-owned.
   if (body.variants !== undefined) {
     const incoming = normalizeVariants(body.variants);
 
@@ -88,8 +110,24 @@ function normalizeVariants(v: unknown): NormalizedVariant[] {
   return [];
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+
   const { id } = await params;
+  const scope = getTenantScope(user!);
+
+  // Verify the target post exists AND belongs to the caller's tenant before
+  // allowing any destructive cascade. The PostVariant rows are children of
+  // the post so verifying the parent is sufficient.
+  const existing = await db.post.findFirst({
+    where: { id, ...tenantWhere(scope) as { customerId?: string } },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   await db.postVariant.deleteMany({ where: { postId: id } }).catch(() => {});
   await db.post.delete({ where: { id } });
   return NextResponse.json({ ok: true });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Batch sync across competitors can be slow
@@ -33,11 +33,15 @@ export const maxDuration = 60; // Batch sync across competitors can be slow
 export async function POST(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
 
   const { competitorId } = (await req.json().catch(() => ({}))) as { competitorId?: string };
 
-  // Build the where clause — single competitor, or all "tracking" competitors
-  const where = competitorId ? { id: competitorId } : { status: "tracking" as const };
+  // Build the where clause — single competitor, or all "tracking" competitors.
+  // Always AND with the tenant scope so a tenant user can only sync their own
+  // competitors (super-admins bypass via empty tenantWhere).
+  const baseWhere = competitorId ? { id: competitorId } : { status: "tracking" as const };
+  const where = { ...baseWhere, ...tenantWhere(scope) as { customerId?: string } };
   const competitors = await db.competitor.findMany({ where });
 
   if (competitors.length === 0) {

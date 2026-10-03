@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const status = req.nextUrl.searchParams.get("status");
   const authorId = req.nextUrl.searchParams.get("authorId");
 
+  // Tenant-scoped list: tenant users only see posts in their own tenant;
+  // super-admins see all. Existing status/authorId filters are merged in.
   const posts = await db.post.findMany({
-    where: {
+    where: tenantWhere(scope, {
       ...(status ? { status } : {}),
       ...(authorId ? { authorId } : {}),
-    },
+    }) as { customerId?: string; status?: string; authorId?: string },
     include: {
       author: true,
       variants: { include: { account: { include: { owner: true } } } },
@@ -54,6 +61,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
   const body = await req.json();
   const { title, caption, mediaUrl, tone, scheduledAt, accountIds, variants, authorId } = body as {
     title: string;
@@ -66,6 +77,11 @@ export async function POST(req: NextRequest) {
     authorId: string;
   };
 
+  // Bind customerId to the caller's tenant. A non-super-admin always stamps
+  // their own tenant; a super-admin (no customerId) leaves it null (legacy /
+  // cross-tenant bucket). Mirrors the P1-2-b pattern in /api/team POST.
+  const postCustomerId = scope.isSuperAdmin ? null : scope.customerId;
+
   const post = await db.post.create({
     data: {
       title,
@@ -76,6 +92,7 @@ export async function POST(req: NextRequest) {
       status: scheduledAt ? "scheduled" : "published",
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       authorId,
+      customerId: postCustomerId,
       variants: {
         create: accountIds.map((aid) => ({
           accountId: aid,

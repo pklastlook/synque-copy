@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 import { decrypt } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
@@ -18,9 +18,10 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
 
   const servers = await db.mailServer.findMany({
-    where: { status: "connected" },
+    where: { status: "connected", ...tenantWhere(scope) as Record<string, unknown> },
     include: { mailboxes: true },
   });
 
@@ -119,8 +120,9 @@ export async function POST(req: NextRequest) {
         data: { lastCheck: new Date() },
       });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "IMAP connection error";
-      results.push({ server: server.name, synced: 0, error: msg });
+      // Do NOT echo the raw IMAP error message — it can leak internal hostnames.
+      console.error(`[mail/sync] IMAP connection error for server ${server.id}:`, e instanceof Error ? e.message : String(e));
+      results.push({ server: server.name, synced: 0, error: "Connection failed" });
     }
   }
 
