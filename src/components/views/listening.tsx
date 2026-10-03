@@ -566,7 +566,7 @@ function MentionRow({ mention }: { mention: RecentMention }) {
     <ListRow className="items-start border-b border-border/30">
       <SourceBadge source={mention.source} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="no-wrap flex items-center gap-2">
           <NameAvatar
             name={mention.author}
             src={mention.authorAvatar}
@@ -599,7 +599,7 @@ function MentionRow({ mention }: { mention: RecentMention }) {
           <span className="inline-flex items-center gap-1 tabular-nums">
             <Heart className="h-3 w-3" /> {fmt(mention.engagement)}
           </span>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="no-wrap ml-auto flex items-center gap-1">
             <Button
               size="sm"
               variant="ghost"

@@ -9592,3 +9592,80 @@ Stage Summary:
 - Icon-only refresh buttons in inbox + approvals also tightened to `h-7 w-7 sm:h-8 sm:w-8 rounded-lg` to match composer's icon-only reset button pattern.
 - All file-specific behaviour preserved: calendar's ViewMode modeColor, inbox's `disabled` state on Mark-all-read + `text-primary` on the Inbox badge, approvals' conditional rose stroke color + overdue/pending/clear modeColor.
 - Lint clean. Zero new TypeScript errors in the modified files.
+
+---
+
+## Task ID: MOBILE-FIX — `MOBILE-FIX-mobile-alignment-fix`
+
+**Task**: Fix mobile alignment issues in SYNQUE dashboard, listening view, and global mobile CSS. Pure frontend polish pass; no API / DB / store changes.
+
+### Files changed
+1. `src/components/views/dashboard.tsx`
+2. `src/components/views/listening.tsx`
+3. `src/app/globals.css`
+
+### 1. ContentWorkflow stage cards (dashboard.tsx)
+Horizontal-scroll stage flow (Posts / Drafts / Scheduled / Published / Shares)
+was too tall and cramped on mobile. Tightened every size one notch so 5 cards
++ 4 chevrons fit a 360–375px viewport comfortably:
+
+- card width `w-[88px]` → `w-[72px]`
+- card padding `p-2` → `p-1.5`
+- icon container `h-6 w-6` → `h-5 w-5`
+- icon `h-3 w-3` → `h-2.5 w-2.5`
+- number `text-base` → `text-sm`
+- label `text-[8px]` → `text-[7px]`
+- chevron `h-3 w-3` → `h-2.5 w-2.5`
+
+Desktop still expands via `sm:w-auto sm:flex-1`.
+
+### 2. Tasks stat row (dashboard.tsx)
+Total / Done / Active / Overdue row was a `flex items-stretch gap-1.5` with
+`flex-1` children. Combined with the global
+`.mobile-content .flex:not(.overflow-x-auto)... { flex-wrap: wrap; }` rule, the
+4 stats were wrapping unpredictably into 2×2. Converted to a deterministic grid
+and tightened typography:
+
+- container `flex items-stretch gap-1.5` → `grid grid-cols-4 gap-1`
+- stat cell `flex-1 ... p-2` → `grid place-items-center ... p-1.5`
+- number `text-base` → `text-sm`
+- label `text-[9px]` → `text-[8px]`
+
+Global CSS will demote this to a graceful 2×2 on mobile (via
+`.mobile-content .grid-cols-4 { grid-template-columns: repeat(2, ...) }`)
+and restore the 1×4 row at `sm:`+.
+
+### 3. Tasks + Pipeline section wrapper (dashboard.tsx)
+Wrapper changed from `grid gap-3 lg:grid-cols-2` to
+`flex flex-col gap-3 lg:grid lg:grid-cols-2` — defensive against any future
+grid-cols overrides, makes the "stack on mobile" intent explicit. Desktop
+2-column layout preserved.
+
+### 4. Listening view (listening.tsx)
+Two flex containers in `MentionRow` were being wrapped by the global flex-wrap
+rule, breaking the visual hierarchy of each mention card. Added `no-wrap`
+class to both:
+
+- Author header (`avatar + author name + sentiment Pill + "time ago"`) — must
+  stay on one row for scannability.
+- Reply / View action buttons (`ml-auto flex items-center gap-1`) — `ml-auto`
+  only works in a non-wrapped flex row.
+
+### 5. Global mobile CSS escape hatch (globals.css)
+Added `.no-wrap` to the existing escape-hatch rule (alongside `.flexnowrap`
+and `.flex-nowrap`):
+
+```css
+.mobile-content .flexnowrap,
+.mobile-content .flex-nowrap,
+.mobile-content .flex.no-wrap { flex-wrap: nowrap !important; }
+```
+
+Short, memorable opt-out class for designers to mark "do not wrap" flex rows.
+
+### Validation
+- `bun run lint` — passes with zero errors / warnings.
+- No type errors introduced; no new dependencies; no API / DB / store changes.
+
+### Work record
+See `/agent-ctx/MOBILE-FIX-mobile-alignment-fix.md` for full diff summary.

@@ -1010,7 +1010,7 @@ export function DashboardView() {
       </div>
 
       {/* === 6. Tasks + Pipeline — compact horizontal section === */}
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2">
         {/* Task summary — compact dense list */}
         <GlassCard className="p-4">
           <SectionHeader
@@ -1023,18 +1023,18 @@ export function DashboardView() {
             }
           />
           {/* Dense stat row */}
-          <div className="mb-2 flex items-stretch gap-1.5">
+          <div className="mb-2 grid grid-cols-4 gap-1">
             {[
               { label: "Total", value: data.taskSummary.total, color: "oklch(0.62 0.2 255)" },
               { label: "Done", value: data.taskSummary.done, color: "oklch(0.7 0.2 145)" },
               { label: "Active", value: data.taskSummary.inProgress, color: "oklch(0.7 0.15 75)" },
               { label: "Overdue", value: data.taskSummary.overdue, color: "oklch(0.55 0.22 25)" },
             ].map((s) => (
-              <div key={s.label} className="flex-1 rounded-lg border border-border/30 bg-muted/10 p-2 text-center">
-                <div className="num-display text-base font-bold" style={{ color: s.color }}>
+              <div key={s.label} className="grid place-items-center rounded-lg border border-border/30 bg-muted/10 p-1.5 text-center">
+                <div className="num-display text-sm font-bold" style={{ color: s.color }}>
                   {s.value}
                 </div>
-                <div className="label-caps mt-0.5 text-[9px] text-muted-foreground">{s.label}</div>
+                <div className="label-caps mt-0.5 text-[8px] text-muted-foreground">{s.label}</div>
               </div>
             ))}
           </div>
@@ -1164,23 +1164,23 @@ function ContentWorkflow({
           return (
             <React.Fragment key={stage.key}>
               <div
-                className="group relative w-[88px] shrink-0 overflow-hidden rounded-xl border p-2 sm:w-auto sm:flex-1"
+                className="group relative w-[72px] shrink-0 overflow-hidden rounded-xl border p-1.5 sm:w-auto sm:flex-1"
                 style={{ borderColor: `${stage.color}30`, background: `${stage.color}08` }}
               >
                 <div className="flex items-center justify-between">
                   <div
-                    className="grid h-6 w-6 place-items-center rounded-md"
+                    className="grid h-5 w-5 place-items-center rounded-md"
                     style={{ background: `${stage.color}14`, color: stage.color }}
                   >
-                    <StageIcon className="h-3 w-3" />
+                    <StageIcon className="h-2.5 w-2.5" />
                   </div>
                 </div>
-                <div className="mt-1.5 num-display text-base font-bold leading-none">{stage.count}</div>
-                <div className="label-caps mt-0.5 text-[8px]">{stage.label}</div>
+                <div className="mt-1.5 num-display text-sm font-bold leading-none">{stage.count}</div>
+                <div className="label-caps mt-0.5 text-[7px]">{stage.label}</div>
               </div>
               {i < stages.length - 1 && (
                 <div className="flex shrink-0 items-center">
-                  <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
+                  <ChevronRight className="h-2.5 w-2.5 text-muted-foreground/30" />
                 </div>
               )}
             </React.Fragment>

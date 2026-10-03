@@ -926,7 +926,8 @@
   .mobile-content .flex:not(.overflow-x-auto):not(.overflow-auto):not(.scroll-liquid) { flex-wrap: wrap; }
   /* But don't break layouts that intentionally don't wrap */
   .mobile-content .flexnowrap,
-  .mobile-content .flex-nowrap { flex-wrap: nowrap !important; }
+  .mobile-content .flex-nowrap,
+  .mobile-content .flex.no-wrap { flex-wrap: nowrap !important; }
 }
 
 /* Desktop: landing nav uses semi-transparent + blur (scrolled) or transparent (top) */
