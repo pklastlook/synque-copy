@@ -5,7 +5,7 @@ import { requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const { user, error } = requireRole(req, "admin");
+  const { user, error } = await requireRole(req, "admin");
   if (error) return error;
   const scope = getTenantScope(user!);
 

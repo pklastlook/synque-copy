@@ -7,10 +7,16 @@ export const dynamic = "force-dynamic";
 
 /** POST /api/webauthn/register/verify
  * Verifies the registration response and stores the credential in the DB.
- * Body: { response: RegistrationResponseJSON, expectedChallenge: string, expectedOrigin?: string }
+ *
+ * Body: { response: RegistrationResponseJSON, expectedOrigin?: string }
+ *
+ * The expected challenge is looked up from the server-side `WebauthnChallenge`
+ * table (single-use, 5-min TTL) — it is NO LONGER read from the request body,
+ * which prevented replay attacks where a client could re-submit a stale or
+ * attacker-crafted challenge.
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const body = await req.json();
@@ -20,6 +26,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid registration response" }, { status: 400 });
   }
 
+  // Look up the stored challenge for this user (most recent unused,
+  // non-expired one). We do NOT trust any challenge value sent in the body.
+  const storedChallenge = await db.webauthnChallenge.findFirst({
+    where: {
+      userId: user!.userId,
+      used: false,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!storedChallenge) {
+    return NextResponse.json(
+      { error: "Challenge expired or not found. Please restart biometric registration." },
+      { status: 400 }
+    );
+  }
+
+  // Mark the challenge as used IMMEDIATELY (before verification) so a
+  // concurrent replay attempt cannot reuse the same row.
+  await db.webauthnChallenge.update({
+    where: { id: storedChallenge.id },
+    data: { used: true },
+  });
+
   const host = req.headers.get("host") || "";
   const rpID = host.split(":")[0];
   // Use the origin from the request body (sent by the client) or derive from host
@@ -28,7 +59,7 @@ export async function POST(req: NextRequest) {
   try {
     const verification = await verifyRegistrationResponse({
       response,
-      expectedChallenge: body.expectedChallenge || "",
+      expectedChallenge: storedChallenge.challenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
       requireUserVerification: false,

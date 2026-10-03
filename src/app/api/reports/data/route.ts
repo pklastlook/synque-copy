@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  * This powers the Team/User/Pages/Profile reports.
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const days = parseInt(req.nextUrl.searchParams.get("days") ?? "30", 10);

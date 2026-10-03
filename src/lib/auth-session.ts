@@ -5,6 +5,7 @@
  * session creation logic stays in one place.
  */
 
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { db } from "@/lib/db";
@@ -15,6 +16,22 @@ if (!SECRET) {
 }
 
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+
+/**
+ * Compute a SHA-256 hex digest of the raw JWT.
+ *
+ * We persist only the hash in `Session.token` so that a DB read alone
+ * (e.g. via a SQL dump, a compromised replica, or an SSRF into the DB)
+ * does not grant a usable bearer token. To revoke a session or check
+ * whether one is active, callers MUST pass the raw JWT here first.
+ *
+ * The hash is computed synchronously via Node's `crypto` module
+ * (the same primitive used by `jsonwebtoken` for HS256) and is constant
+ * time on the comparison side via Prisma's `@unique` index lookup.
+ */
+export function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
 
 /**
  * Issue a JWT, persist a Session row, and set the auth cookie on the
@@ -58,10 +75,17 @@ export async function issueSession(opts: {
   const ipAddress = forwardedFor?.split(",")[0]?.trim() ?? null;
 
   // Persist the session row so we can list/revoke it later.
+  //
+  // SECURITY (P3-6): store a SHA-256 hash of the raw JWT in `Session.token`
+  // instead of the raw token itself. A DB-only compromise (read replica,
+  // SQL dump, backup theft) therefore cannot yield a usable bearer token.
+  // `hashToken` is the single canonical hashing helper — both write and
+  // lookup paths go through it so the comparison is consistent.
+  const tokenHash = hashToken(token);
   await db.session.create({
     data: {
       userId: user.id,
-      token,
+      token: tokenHash,
       userAgent,
       ipAddress,
       createdAt: now,
@@ -107,11 +131,16 @@ export function setAuthCookie(res: NextResponse, token: string) {
 /**
  * Revoke the session matching a token, if one exists.
  * Safe to call even if the token is invalid or the session is missing.
+ *
+ * Accepts the RAW JWT (as produced by `issueSession`) and hashes it
+ * internally before looking it up — callers never need to handle the
+ * hash directly.
  */
 export async function revokeSessionByToken(token: string): Promise<void> {
   if (!token) return;
+  const tokenHash = hashToken(token);
   await db.session.updateMany({
-    where: { token, revokedAt: null },
+    where: { token: tokenHash, revokedAt: null },
     data: { revokedAt: new Date() },
   }).catch((e) => {
     console.error("[revokeSessionByToken] failed:", e instanceof Error ? e.message : String(e));

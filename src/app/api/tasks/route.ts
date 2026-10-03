@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * Super-admins see all tasks.
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const scope = getTenantScope(user!);
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
  *         assigneeId?, creatorId, status?, priority?, type?, dueAt? }
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const body = await req.json();

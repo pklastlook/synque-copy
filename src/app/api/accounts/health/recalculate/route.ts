@@ -19,7 +19,7 @@ export const maxDuration = 60;
  * No body required. Auth required.
  */
 export async function POST(req: NextRequest) {
-  const { error } = requireAuth(req);
+  const { error } = await requireAuth(req);
   if (error) return error;
 
   try {

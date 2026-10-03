@@ -16,7 +16,7 @@ const WHATSAPP_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || "https://whatsa
  * (CORS + mixed content issues), so we proxy through the app's API.
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   try {

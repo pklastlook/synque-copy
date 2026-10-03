@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * likely active. Records the new IP on the session.
  */
 export async function GET(req: NextRequest) {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth.error) return auth.error;
   const { userId } = auth.user!;
 

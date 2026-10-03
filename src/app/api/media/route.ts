@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /** GET /api/media — list assets for this tenant (from tenant DB if provisioned). */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   try {
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/media — add a media asset by URL (existing external URL or uploaded elsewhere). */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   try {

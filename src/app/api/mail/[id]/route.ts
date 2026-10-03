@@ -5,7 +5,7 @@ import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 export const dynamic = "force-dynamic";
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

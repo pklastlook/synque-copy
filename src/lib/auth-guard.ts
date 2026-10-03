@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { db } from "@/lib/db";
+import { hashToken } from "@/lib/auth-session";
 
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET) {
@@ -67,9 +68,34 @@ export function hasRole(userRole: string, requiredRole: Role): boolean {
 }
 
 /**
- * Require authentication. Returns the user or a 401 response.
+ * Require authentication AND verify that the request's JWT maps to an
+ * active (non-revoked) Session row in the database.
+ *
+ * This is the default auth check for every protected API route. It
+ * supersedes the JWT-only `requireAuth` of older revisions: a valid JWT
+ * signature is no longer enough — the matching Session row must also
+ * exist and have `revokedAt IS NULL`.
+ *
+ * Semantics:
+ *   - Invalid / missing JWT        → 401 (auth required)
+ *   - Session row exists, revokedAt set  → 401 (session revoked)
+ *   - Session row exists, revokedAt null, expiresAt in the future  → allow
+ *   - Session row exists but expiresAt in the past  → 401 (session expired)
+ *   - No Session row found  → allow (backward compat for tokens issued
+ *     before session tracking was wired up, and for any code path where
+ *     the session row failed to persist — issueSession logs but does not
+ *     throw on DB error)
+ *   - DB unreachable during the session lookup  → allow (best-effort:
+ *     a transient DB hiccup must not lock every user out of the app)
+ *
+ * The middleware (src/middleware.ts) already verifies the JWT signature
+ * in the Edge runtime before this function runs, so by the time we get
+ * here the JWT is cryptographically valid. This function adds the
+ * session-revocation check on top.
+ *
+ * Returns `{ user, error }` where exactly one of the two is non-null.
  */
-export function requireAuth(req: NextRequest) {
+export async function requireAuth(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) {
     return {
@@ -77,6 +103,46 @@ export function requireAuth(req: NextRequest) {
       error: NextResponse.json({ error: "Authentication required" }, { status: 401 }),
     };
   }
+
+  // Best-effort session-revocation check.
+  //
+  // We hash the raw JWT (SHA-256, see `hashToken`) and look it up in the
+  // `Session` table. The lookup is wrapped in try/catch so a transient
+  // DB error or Prisma connection blip CANNOT lock every user out —
+  // on lookup failure we fall through and treat the request as authed
+  // (same as the "no Session row found" backward-compat path).
+  const token = getRawToken(req);
+  if (token) {
+    let session: { revokedAt: Date | null; expiresAt: Date } | null = null;
+    try {
+      session = await db.session.findUnique({
+        where: { token: hashToken(token) },
+        select: { revokedAt: true, expiresAt: true },
+      });
+    } catch (e) {
+      // Defensive: don't lock users out during a transient DB issue.
+      // The JWT signature is already verified by the middleware, so
+      // allowing here is the strictly safer choice.
+      console.error("[requireAuth] session lookup failed:", e instanceof Error ? e.message : String(e));
+    }
+
+    if (session) {
+      if (session.revokedAt) {
+        return {
+          user: null as null,
+          error: NextResponse.json({ error: "Session revoked. Please log in again." }, { status: 401 }),
+        };
+      }
+      if (session.expiresAt < new Date()) {
+        return {
+          user: null as null,
+          error: NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 }),
+        };
+      }
+    }
+    // else: no Session row → allow (backward compat / best-effort miss).
+  }
+
   return { user, error: null };
 }
 
@@ -101,18 +167,18 @@ export function getRawToken(req: NextRequest): string | null {
  * Require authentication AND verify that the request's JWT matches an
  * active (non-revoked, non-expired) Session row in the database.
  *
- * Use this for sensitive routes where revoking a session should immediately
- * deny access (e.g. account deletion, API key management, billing changes).
- *
- * For ordinary read routes (dashboards, lists) prefer the sync `requireAuth`
- * to avoid the extra DB round-trip — the JWT signature check alone is
- * usually sufficient there.
+ * This is the same check that `requireAuth` now performs (since P3-6
+ * `requireAuth` was upgraded to also check the session table). It is
+ * retained for routes that explicitly want both the user object AND
+ * the raw token (e.g. for audit logging), and as a stable named entry
+ * point for sensitive mutations (account deletion, billing changes,
+ * API key management).
  *
  * Returns the user, the raw token (for logging/auditing), or an error
  * (401 if unauthenticated, 401 if session revoked/expired).
  */
 export async function requireAuthWithSession(req: NextRequest) {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth.error) return { user: null, token: null, error: auth.error };
 
   const token = getRawToken(req);
@@ -125,45 +191,14 @@ export async function requireAuthWithSession(req: NextRequest) {
     };
   }
 
-  // Look up the session. Best-effort: if the DB is unavailable, fall back
-  // to the JWT-only check (don't lock users out because of a Neon hiccup).
-  let session: { revokedAt: Date | null; expiresAt: Date } | null = null;
-  try {
-    session = await db.session.findUnique({
-      where: { token },
-      select: { revokedAt: true, expiresAt: true },
-    });
-  } catch (e) {
-    console.error("[requireAuthWithSession] DB lookup failed:", e instanceof Error ? e.message : String(e));
-    // Fall through — treat as valid (defensive: avoid locking out users
-    // during transient DB issues).
-  }
-
-  if (session) {
-    if (session.revokedAt) {
-      return {
-        user: null,
-        token,
-        error: NextResponse.json({ error: "Session revoked. Please log in again." }, { status: 401 }),
-      };
-    }
-    if (session.expiresAt < new Date()) {
-      return {
-        user: null,
-        token,
-        error: NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 }),
-      };
-    }
-  }
-
   return { user: auth.user, token, error: null };
 }
 
 /**
  * Require a specific role. Returns the user or a 403 response.
  */
-export function requireRole(req: NextRequest, role: Role) {
-  const authResult = requireAuth(req);
+export async function requireRole(req: NextRequest, role: Role) {
+  const authResult = await requireAuth(req);
   if (authResult.error) return authResult;
 
   if (!hasRole(authResult.user!.role, role)) {
@@ -187,7 +222,7 @@ export function requireRole(req: NextRequest, role: Role) {
  *   - { customerId: "xxx", isSuperAdmin: false } → tenant-scoped (sees only their client's data)
  *
  * Usage in API routes:
- *   const { user, error } = requireAuth(req);
+ *   const { user, error } = await requireAuth(req);
  *   if (error) return error;
  *   const scope = getTenantScope(user);
  *   const where = scope.isSuperAdmin ? {} : { customerId: scope.customerId };

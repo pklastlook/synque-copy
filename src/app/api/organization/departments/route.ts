@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /** GET /api/organization/departments — list departments for this tenant (from tenant DB if provisioned). */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireRole(req, "manager");
+  const { user, error } = await requireRole(req, "manager");
   if (error) return error;
   const scope = getTenantScope(user!);
   const { db: targetDb, isTenantIsolated } = await getDbForUser(user!);
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/organization/departments — create a new department in the tenant DB. */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireRole(req, "manager");
+  const { user, error } = await requireRole(req, "manager");
   if (error) return error;
   const scope = getTenantScope(user!);
   const { db: targetDb } = await getDbForUser(user!);

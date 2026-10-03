@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * quotations belonging to their customer.
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
  * quotations for any customer).
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

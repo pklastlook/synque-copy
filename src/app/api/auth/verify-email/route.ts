@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   // is called from the in-app "verify your email" banner).
   let email: string | undefined;
 
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth.user) {
     email = auth.user.email;
   } else {

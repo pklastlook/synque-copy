@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * periodic cron job (the scheduler mini-service).
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

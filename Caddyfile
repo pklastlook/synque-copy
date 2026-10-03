@@ -1,34 +1,130 @@
+# ============================================================================
+# Caddyfile — Prism Social gateway
+# ============================================================================
+# P3-7 (security hardening):
+#   1. SSRF allowlist — `?XTransformPort=<n>` previously let any client
+#      reverse_proxy to an arbitrary localhost port. It is now restricted
+#      to the five known service ports below (3000 app, 3002 whatsapp,
+#      3003 scheduler, 3004 ai, 3005 zai-proxy). Any other value is
+#      rejected with HTTP 403 before the proxy dial.
+#   2. TLS note — this site listens on `:81` plaintext because the
+#      sandbox / hosting platform terminates TLS upstream and forwards
+#      plain HTTP to Caddy. When deploying Caddy as the public edge,
+#      replace `:81` with the real hostname so Caddy auto-provisions a
+#      Let's Encrypt certificate, and add an `:80` site block that
+#      redirects to `https://` (see the TLS production note at the
+#      bottom of this file).
+# ============================================================================
+
 :81 {
-        @transform_port_query {
-                query XTransformPort=*
-        }
+	# ---- Allowed XTransformPort values (SSRF allowlist) ----------------------
+	# When a new mini-service is added, append a @port_<N> matcher + handle
+	# block here AND keep the wildcard `@blocked_port` matcher below as the
+	# fail-closed catch-all. Do NOT loosen the wildcard.
 
-        handle @transform_port_query {
-                reverse_proxy localhost:{query.XTransformPort} {
-                        header_up Host {host}
-                        header_up X-Forwarded-For {remote_host}
-                        header_up X-Forwarded-Proto {scheme}
-                        header_up X-Real-IP {remote_host}
-                }
-        }
+	@port_3000 query XTransformPort=3000
+	handle @port_3000 {
+		reverse_proxy localhost:3000 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
 
-        # ZAI proxy — routes /api/zai-proxy/* to the ZAI proxy on port 3005
-        handle /api/zai-proxy* {
-                rewrite * {path}
-                reverse_proxy localhost:3005 {
-                        header_up Host {host}
-                        header_up X-Forwarded-For {remote_host}
-                        header_up X-Forwarded-Proto {scheme}
-                        header_up X-Real-IP {remote_host}
-                }
-        }
+	@port_3002 query XTransformPort=3002
+	handle @port_3002 {
+		reverse_proxy localhost:3002 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
 
-        handle {
-                reverse_proxy localhost:3000 {
-                        header_up Host {host}
-                        header_up X-Forwarded-For {remote_host}
-                        header_up X-Forwarded-Proto {scheme}
-                        header_up X-Real-IP {remote_host}
-                }
-        }
+	@port_3003 query XTransformPort=3003
+	handle @port_3003 {
+		reverse_proxy localhost:3003 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	@port_3004 query XTransformPort=3004
+	handle @port_3004 {
+		reverse_proxy localhost:3004 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	@port_3005 query XTransformPort=3005
+	handle @port_3005 {
+		reverse_proxy localhost:3005 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# ---- Block any other XTransformPort value (SSRF protection) --------------
+	# Reached only when XTransformPort is present but did not match any of the
+	# allowlist entries above. Respond 403 instead of proxying — never dial
+	# the attacker-chosen port.
+	@blocked_port query XTransformPort=*
+	handle @blocked_port {
+		respond "Forbidden: XTransformPort not allowed" 403
+	}
+
+	# ---- ZAI proxy — routes /api/zai-proxy/* to the ZAI proxy on port 3005 ---
+	# (Fixed path-based route, separate from the dynamic XTransformPort
+	# selector. Kept for backwards-compat with existing API clients.)
+	handle /api/zai-proxy* {
+		rewrite * {path}
+		reverse_proxy localhost:3005 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# ---- Default route — main Next.js app on port 3000 ----------------------
+	# Reached when no XTransformPort is present and the path is not
+	# /api/zai-proxy*.
+	handle {
+		reverse_proxy localhost:3000 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
 }
+
+# ============================================================================
+# Production TLS note (P3-7 step 2):
+# When deploying Caddy as the public edge (i.e. Caddy itself terminates TLS,
+# not a downstream platform proxy), replace the `:81` site address with the
+# real hostname, e.g.:
+#
+#     prismsocial.example.com {
+#         # ... same handle blocks as inside :81 above ...
+#     }
+#
+#     # HTTP -> HTTPS redirect (plain HTTP -> HTTPS):
+#     http://prismsocial.example.com {
+#         redir https://prismsocial.example.com{uri} permanent
+#     }
+#
+# Caddy will then auto-provision a Let's Encrypt certificate for that hostname
+# on first boot (assuming ports 80 + 443 are reachable from the public
+# internet and DNS points at this host). In the current sandbox the platform
+# terminates TLS upstream and forwards plain HTTP to :81, so no TLS block is
+# needed here.
+# ============================================================================

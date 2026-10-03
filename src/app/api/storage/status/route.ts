@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  *  Used by the Settings → Integrations UI to show whether Cloudinary is
  *  properly configured (either via DB/Settings UI or via .env). */
 export async function GET(req: NextRequest) {
-  const { error } = requireAuth(req);
+  const { error } = await requireAuth(req);
   if (error) return error;
 
   return NextResponse.json(await getStatus());

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ const ALLOWED_ROLES = ["admin", "manager", "editor", "member", "viewer"];
  *   manager can update title/status but NOT role.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireRole(req, "manager");
+  const { user, error } = await requireRole(req, "manager");
   if (error) return error;
 
   const { id } = await params;
@@ -64,6 +65,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const updated = await db.user.update({ where: { id }, data });
+
+  // Audit role changes (only when role was actually mutated).
+  if (data.role) {
+    await audit(req, user!.userId, "user.role_changed", {
+      targetType: "user",
+      targetId: id,
+      metadata: { role: data.role },
+    });
+  }
+
   return NextResponse.json({ ok: true, id: updated.id });
 }
 
@@ -77,7 +88,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
  *   caller's tenant.
  */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireRole(req, "manager");
+  const { user, error } = await requireRole(req, "manager");
   if (error) return error;
 
   const { id } = await params;
@@ -120,6 +131,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   // Reassign authored posts as well.
   await db.post.updateMany({ where: { authorId: id }, data: { authorId: newOwnerId ?? id } }).catch(() => {});
+
+  // Audit the user deletion BEFORE the row is removed (so we can still
+  // resolve the targetId if needed). Best-effort — never blocks.
+  await audit(req, user!.userId, "user.deleted", {
+    targetType: "user",
+    targetId: id,
+  });
 
   await db.user.delete({ where: { id } });
   return NextResponse.json({ ok: true });

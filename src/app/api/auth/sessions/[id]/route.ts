@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getRawToken } from "@/lib/auth-guard";
+import { hashToken } from "@/lib/auth-session";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth.error) return auth.error;
 
   try {
@@ -48,8 +49,13 @@ export async function DELETE(
     });
 
     // If the revoked session is the current one, the client should log out.
+    //
+    // SECURITY (P3-6): `Session.token` is stored as a SHA-256 hash
+    // (see `hashToken` in auth-session.ts), so we hash the incoming raw
+    // JWT before comparing. A DB read alone never yields a usable token.
     const currentToken = getRawToken(req);
-    const revokedCurrent = currentToken === session.token;
+    const currentTokenHash = currentToken ? hashToken(currentToken) : null;
+    const revokedCurrent = currentTokenHash != null && currentTokenHash === session.token;
 
     return NextResponse.json({
       ok: true,

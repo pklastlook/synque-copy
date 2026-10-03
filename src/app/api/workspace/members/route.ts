@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  *   Filtered by tenant (same client only).
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const scope = getTenantScope(user!);

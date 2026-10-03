@@ -47,6 +47,7 @@ export type UserMinAggregateOutputType = {
   customerId: string | null
   emailVerified: Date | null
   totpSecret: string | null
+  pendingTotpSecret: string | null
   twoFactorEnabled: boolean | null
 }
 
@@ -73,6 +74,7 @@ export type UserMaxAggregateOutputType = {
   customerId: string | null
   emailVerified: Date | null
   totpSecret: string | null
+  pendingTotpSecret: string | null
   twoFactorEnabled: boolean | null
 }
 
@@ -99,6 +101,7 @@ export type UserCountAggregateOutputType = {
   customerId: number
   emailVerified: number
   totpSecret: number
+  pendingTotpSecret: number
   twoFactorEnabled: number
   _all: number
 }
@@ -127,6 +130,7 @@ export type UserMinAggregateInputType = {
   customerId?: true
   emailVerified?: true
   totpSecret?: true
+  pendingTotpSecret?: true
   twoFactorEnabled?: true
 }
 
@@ -153,6 +157,7 @@ export type UserMaxAggregateInputType = {
   customerId?: true
   emailVerified?: true
   totpSecret?: true
+  pendingTotpSecret?: true
   twoFactorEnabled?: true
 }
 
@@ -179,6 +184,7 @@ export type UserCountAggregateInputType = {
   customerId?: true
   emailVerified?: true
   totpSecret?: true
+  pendingTotpSecret?: true
   twoFactorEnabled?: true
   _all?: true
 }
@@ -278,6 +284,7 @@ export type UserGroupByOutputType = {
   customerId: string | null
   emailVerified: Date | null
   totpSecret: string | null
+  pendingTotpSecret: string | null
   twoFactorEnabled: boolean
   _count: UserCountAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
@@ -325,6 +332,7 @@ export type UserWhereInput = {
   customerId?: Prisma.StringNullableFilter<"User"> | string | null
   emailVerified?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   totpSecret?: Prisma.StringNullableFilter<"User"> | string | null
+  pendingTotpSecret?: Prisma.StringNullableFilter<"User"> | string | null
   twoFactorEnabled?: Prisma.BoolFilter<"User"> | boolean
   sessions?: Prisma.SessionListRelationFilter
   accounts?: Prisma.AccountListRelationFilter
@@ -364,6 +372,7 @@ export type UserOrderByWithRelationInput = {
   customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   emailVerified?: Prisma.SortOrderInput | Prisma.SortOrder
   totpSecret?: Prisma.SortOrderInput | Prisma.SortOrder
+  pendingTotpSecret?: Prisma.SortOrderInput | Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
   sessions?: Prisma.SessionOrderByRelationAggregateInput
   accounts?: Prisma.AccountOrderByRelationAggregateInput
@@ -406,6 +415,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   customerId?: Prisma.StringNullableFilter<"User"> | string | null
   emailVerified?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   totpSecret?: Prisma.StringNullableFilter<"User"> | string | null
+  pendingTotpSecret?: Prisma.StringNullableFilter<"User"> | string | null
   twoFactorEnabled?: Prisma.BoolFilter<"User"> | boolean
   sessions?: Prisma.SessionListRelationFilter
   accounts?: Prisma.AccountListRelationFilter
@@ -445,6 +455,7 @@ export type UserOrderByWithAggregationInput = {
   customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   emailVerified?: Prisma.SortOrderInput | Prisma.SortOrder
   totpSecret?: Prisma.SortOrderInput | Prisma.SortOrder
+  pendingTotpSecret?: Prisma.SortOrderInput | Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
@@ -477,6 +488,7 @@ export type UserScalarWhereWithAggregatesInput = {
   customerId?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   emailVerified?: Prisma.DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
   totpSecret?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  pendingTotpSecret?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   twoFactorEnabled?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
 }
 
@@ -503,6 +515,7 @@ export type UserCreateInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -542,6 +555,7 @@ export type UserUncheckedCreateInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -581,6 +595,7 @@ export type UserUpdateInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -620,6 +635,7 @@ export type UserUncheckedUpdateInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -659,6 +675,7 @@ export type UserCreateManyInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
 }
 
@@ -685,6 +702,7 @@ export type UserUpdateManyMutationInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
@@ -711,6 +729,7 @@ export type UserUncheckedUpdateManyInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
@@ -737,6 +756,7 @@ export type UserCountOrderByAggregateInput = {
   customerId?: Prisma.SortOrder
   emailVerified?: Prisma.SortOrder
   totpSecret?: Prisma.SortOrder
+  pendingTotpSecret?: Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
 }
 
@@ -763,6 +783,7 @@ export type UserMaxOrderByAggregateInput = {
   customerId?: Prisma.SortOrder
   emailVerified?: Prisma.SortOrder
   totpSecret?: Prisma.SortOrder
+  pendingTotpSecret?: Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
 }
 
@@ -789,6 +810,7 @@ export type UserMinOrderByAggregateInput = {
   customerId?: Prisma.SortOrder
   emailVerified?: Prisma.SortOrder
   totpSecret?: Prisma.SortOrder
+  pendingTotpSecret?: Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
 }
 
@@ -1035,6 +1057,7 @@ export type UserCreateWithoutAccountsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -1073,6 +1096,7 @@ export type UserUncheckedCreateWithoutAccountsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -1127,6 +1151,7 @@ export type UserUpdateWithoutAccountsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -1165,6 +1190,7 @@ export type UserUncheckedUpdateWithoutAccountsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -1203,6 +1229,7 @@ export type UserCreateWithoutPostsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -1241,6 +1268,7 @@ export type UserUncheckedCreateWithoutPostsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -1295,6 +1323,7 @@ export type UserUpdateWithoutPostsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -1333,6 +1362,7 @@ export type UserUncheckedUpdateWithoutPostsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -1371,6 +1401,7 @@ export type UserCreateWithoutAssignedCommentsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -1409,6 +1440,7 @@ export type UserUncheckedCreateWithoutAssignedCommentsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -1463,6 +1495,7 @@ export type UserUpdateWithoutAssignedCommentsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -1501,6 +1534,7 @@ export type UserUncheckedUpdateWithoutAssignedCommentsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -1539,6 +1573,7 @@ export type UserCreateWithoutActivitiesInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -1577,6 +1612,7 @@ export type UserUncheckedCreateWithoutActivitiesInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -1631,6 +1667,7 @@ export type UserUpdateWithoutActivitiesInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -1669,6 +1706,7 @@ export type UserUncheckedUpdateWithoutActivitiesInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -1707,6 +1745,7 @@ export type UserCreateWithoutSavedWhatsAppMsgsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -1745,6 +1784,7 @@ export type UserUncheckedCreateWithoutSavedWhatsAppMsgsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -1799,6 +1839,7 @@ export type UserUpdateWithoutSavedWhatsAppMsgsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -1837,6 +1878,7 @@ export type UserUncheckedUpdateWithoutSavedWhatsAppMsgsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -1875,6 +1917,7 @@ export type UserCreateWithoutSentMessagesInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -1913,6 +1956,7 @@ export type UserUncheckedCreateWithoutSentMessagesInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -1956,6 +2000,7 @@ export type UserCreateWithoutReceivedMessagesInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -1994,6 +2039,7 @@ export type UserUncheckedCreateWithoutReceivedMessagesInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -2048,6 +2094,7 @@ export type UserUpdateWithoutSentMessagesInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -2086,6 +2133,7 @@ export type UserUncheckedUpdateWithoutSentMessagesInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -2135,6 +2183,7 @@ export type UserUpdateWithoutReceivedMessagesInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -2173,6 +2222,7 @@ export type UserUncheckedUpdateWithoutReceivedMessagesInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -2211,6 +2261,7 @@ export type UserCreateWithoutMailboxesInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -2249,6 +2300,7 @@ export type UserUncheckedCreateWithoutMailboxesInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -2303,6 +2355,7 @@ export type UserUpdateWithoutMailboxesInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -2341,6 +2394,7 @@ export type UserUncheckedUpdateWithoutMailboxesInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -2379,6 +2433,7 @@ export type UserCreateWithoutWorkspaceInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -2417,6 +2472,7 @@ export type UserUncheckedCreateWithoutWorkspaceInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -2471,6 +2527,7 @@ export type UserUpdateWithoutWorkspaceInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -2509,6 +2566,7 @@ export type UserUncheckedUpdateWithoutWorkspaceInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -2547,6 +2605,7 @@ export type UserCreateWithoutPlatformCredentialsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -2585,6 +2644,7 @@ export type UserUncheckedCreateWithoutPlatformCredentialsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -2639,6 +2699,7 @@ export type UserUpdateWithoutPlatformCredentialsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -2677,6 +2738,7 @@ export type UserUncheckedUpdateWithoutPlatformCredentialsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -2715,6 +2777,7 @@ export type UserCreateWithoutSessionsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -2753,6 +2816,7 @@ export type UserUncheckedCreateWithoutSessionsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -2807,6 +2871,7 @@ export type UserUpdateWithoutSessionsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -2845,6 +2910,7 @@ export type UserUncheckedUpdateWithoutSessionsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -2883,6 +2949,7 @@ export type UserCreateWithoutVpnSessionsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -2921,6 +2988,7 @@ export type UserUncheckedCreateWithoutVpnSessionsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -2975,6 +3043,7 @@ export type UserUpdateWithoutVpnSessionsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -3013,6 +3082,7 @@ export type UserUncheckedUpdateWithoutVpnSessionsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -3051,6 +3121,7 @@ export type UserCreateWithoutWebauthnCredentialsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
@@ -3089,6 +3160,7 @@ export type UserUncheckedCreateWithoutWebauthnCredentialsInput = {
   customerId?: string | null
   emailVerified?: Date | string | null
   totpSecret?: string | null
+  pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
@@ -3143,6 +3215,7 @@ export type UserUpdateWithoutWebauthnCredentialsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
@@ -3181,6 +3254,7 @@ export type UserUncheckedUpdateWithoutWebauthnCredentialsInput = {
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
@@ -3349,6 +3423,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   customerId?: boolean
   emailVerified?: boolean
   totpSecret?: boolean
+  pendingTotpSecret?: boolean
   twoFactorEnabled?: boolean
   sessions?: boolean | Prisma.User$sessionsArgs<ExtArgs>
   accounts?: boolean | Prisma.User$accountsArgs<ExtArgs>
@@ -3389,6 +3464,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   customerId?: boolean
   emailVerified?: boolean
   totpSecret?: boolean
+  pendingTotpSecret?: boolean
   twoFactorEnabled?: boolean
 }, ExtArgs["result"]["user"]>
 
@@ -3415,6 +3491,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   customerId?: boolean
   emailVerified?: boolean
   totpSecret?: boolean
+  pendingTotpSecret?: boolean
   twoFactorEnabled?: boolean
 }, ExtArgs["result"]["user"]>
 
@@ -3441,10 +3518,11 @@ export type UserSelectScalar = {
   customerId?: boolean
   emailVerified?: boolean
   totpSecret?: boolean
+  pendingTotpSecret?: boolean
   twoFactorEnabled?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "password" | "avatar" | "role" | "title" | "department" | "color" | "permissions" | "status" | "lastActive" | "createdAt" | "bio" | "timezone" | "language" | "gender" | "birthDate" | "phone" | "customerId" | "emailVerified" | "totpSecret" | "twoFactorEnabled", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "password" | "avatar" | "role" | "title" | "department" | "color" | "permissions" | "status" | "lastActive" | "createdAt" | "bio" | "timezone" | "language" | "gender" | "birthDate" | "phone" | "customerId" | "emailVerified" | "totpSecret" | "pendingTotpSecret" | "twoFactorEnabled", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   sessions?: boolean | Prisma.User$sessionsArgs<ExtArgs>
   accounts?: boolean | Prisma.User$accountsArgs<ExtArgs>
@@ -3504,6 +3582,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     customerId: string | null
     emailVerified: Date | null
     totpSecret: string | null
+    pendingTotpSecret: string | null
     twoFactorEnabled: boolean
   }, ExtArgs["result"]["user"]>
   composites: {}
@@ -3963,6 +4042,7 @@ export interface UserFieldRefs {
   readonly customerId: Prisma.FieldRef<"User", 'String'>
   readonly emailVerified: Prisma.FieldRef<"User", 'DateTime'>
   readonly totpSecret: Prisma.FieldRef<"User", 'String'>
+  readonly pendingTotpSecret: Prisma.FieldRef<"User", 'String'>
   readonly twoFactorEnabled: Prisma.FieldRef<"User", 'Boolean'>
 }
     

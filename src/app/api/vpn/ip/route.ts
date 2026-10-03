@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * That's the genuine, verifiable signal that the VPN is working.
  */
 export async function GET(req: NextRequest) {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth.error) return auth.error;
 
   let ip: string | null = null;

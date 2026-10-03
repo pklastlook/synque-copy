@@ -100,7 +100,9 @@ export const ModelName = {
   Influencer: 'Influencer',
   VPNServer: 'VPNServer',
   VPNSession: 'VPNSession',
-  WebAuthnCredential: 'WebAuthnCredential'
+  WebAuthnCredential: 'WebAuthnCredential',
+  WebauthnChallenge: 'WebauthnChallenge',
+  AuditLog: 'AuditLog'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -142,6 +144,7 @@ export const UserScalarFieldEnum = {
   customerId: 'customerId',
   emailVerified: 'emailVerified',
   totpSecret: 'totpSecret',
+  pendingTotpSecret: 'pendingTotpSecret',
   twoFactorEnabled: 'twoFactorEnabled'
 } as const
 
@@ -980,6 +983,32 @@ export const WebAuthnCredentialScalarFieldEnum = {
 } as const
 
 export type WebAuthnCredentialScalarFieldEnum = (typeof WebAuthnCredentialScalarFieldEnum)[keyof typeof WebAuthnCredentialScalarFieldEnum]
+
+
+export const WebauthnChallengeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  challenge: 'challenge',
+  used: 'used',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt'
+} as const
+
+export type WebauthnChallengeScalarFieldEnum = (typeof WebauthnChallengeScalarFieldEnum)[keyof typeof WebauthnChallengeScalarFieldEnum]
+
+
+export const AuditLogScalarFieldEnum = {
+  id: 'id',
+  actorId: 'actorId',
+  action: 'action',
+  targetType: 'targetType',
+  targetId: 'targetId',
+  metadata: 'metadata',
+  ip: 'ip',
+  createdAt: 'createdAt'
+} as const
+
+export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
 
 
 export const SortOrder = {

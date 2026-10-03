@@ -6,7 +6,7 @@ import { requireAuth, requireRole, getTenantScope, tenantWhere } from "@/lib/aut
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
   // Users see only members of their own tenant. Super-admins see all.
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
  * - Mass-assignment hardened: only allowlisted fields from the body are used.
  */
 export async function POST(req: NextRequest) {
-  const { user: authUser, error } = requireRole(req, "manager");
+  const { user: authUser, error } = await requireRole(req, "manager");
   if (error) return error;
 
   const body = await req.json();

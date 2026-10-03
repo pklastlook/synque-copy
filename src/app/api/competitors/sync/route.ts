@@ -32,7 +32,7 @@ export const maxDuration = 60; // Batch sync across competitors can be slow
  *   { ok, synced: [...], errors: [...], total, updated }
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

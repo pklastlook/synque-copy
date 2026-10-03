@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { user, error } = requireRole(req, "admin");
+  const { user, error } = await requireRole(req, "admin");
   if (error) return error;
   const scope = getTenantScope(user!);
 
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
  */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { user, error } = requireRole(_req, "admin");
+  const { user, error } = await requireRole(_req, "admin");
   if (error) return error;
   const scope = getTenantScope(user!);
 

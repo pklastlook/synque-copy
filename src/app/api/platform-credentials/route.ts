@@ -65,7 +65,7 @@ async function resolveTargetUserId(
  * read any user's credentials.
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
 
 /** PUT /api/platform-credentials — save or update platform credentials */
 export async function PUT(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 
@@ -158,7 +158,7 @@ export async function PUT(req: NextRequest) {
 
 /** DELETE /api/platform-credentials?userId=xxx&platform=yyy — remove credentials */
 export async function DELETE(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

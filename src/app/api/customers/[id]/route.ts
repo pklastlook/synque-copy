@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth-guard";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,13 +9,13 @@ export const dynamic = "force-dynamic";
  * /api/customers/[id] — manage a single Customer (tenant) record.
  *
  * SECURITY: A Customer row IS a tenant. Only admins can mutate tenant records.
- * `requireRole(req, "admin")` accepts both super-admins (role=admin,
+ * `await requireRole(req, "admin")` accepts both super-admins (role=admin,
  * customerId=null) and tenant admins (role=admin, customerId="abc").
  * The customers list/create route (`/api/customers`) uses the same gate, so
  * consistency is preserved.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = requireRole(req, "admin");
+  const { error } = await requireRole(req, "admin");
   if (error) return error;
   const { id } = await params;
   const body = await req.json();
@@ -31,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = requireRole(req, "admin");
+  const { user, error } = await requireRole(req, "admin");
   if (error) return error;
   const { id } = await params;
 
@@ -48,6 +49,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     // Unlink users from this customer (set customerId to null, don't delete the users)
     await db.user.updateMany({ where: { customerId: id }, data: { customerId: null } }).catch(() => ({}));
+
+    // Audit the tenant deletion BEFORE the row is removed. Best-effort — never blocks.
+    await audit(req, user!.userId, "customer.deleted", {
+      targetType: "customer",
+      targetId: id,
+    });
 
     // Delete the customer
     await db.customer.delete({ where: { id } });

@@ -42,7 +42,7 @@ async function ensureSeeded() {
 
 /** GET /api/vpn/servers — list all available VPN servers */
 export async function GET(req: NextRequest) {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth.error) return auth.error;
 
   await ensureSeeded();

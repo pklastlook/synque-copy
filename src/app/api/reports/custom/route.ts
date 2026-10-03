@@ -34,7 +34,7 @@ export const maxDuration = 30;
  * - comment-level detail list
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   try {

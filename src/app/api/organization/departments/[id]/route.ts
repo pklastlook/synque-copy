@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /** PATCH /api/organization/departments/[id] */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireRole(req, "manager");
+  const { user, error } = await requireRole(req, "manager");
   if (error) return error;
   const scope = getTenantScope(user!);
   const { db: targetDb } = await getDbForUser(user!);
@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 /** DELETE /api/organization/departments/[id] */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireRole(req, "manager");
+  const { user, error } = await requireRole(req, "manager");
   if (error) return error;
   const scope = getTenantScope(user!);
   const { db: targetDb } = await getDbForUser(user!);

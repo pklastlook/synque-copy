@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
  * 4. If no tool needed: AI returns conversational reply directly
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const body = await req.json();

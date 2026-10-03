@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getRawToken } from "@/lib/auth-guard";
+import { hashToken } from "@/lib/auth-session";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
  * Requires authentication.
  */
 export async function GET(req: NextRequest) {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth.error) return auth.error;
 
   try {
@@ -40,8 +41,13 @@ export async function GET(req: NextRequest) {
     const currentToken = getRawToken(req);
 
     // Map to public shape — never expose the raw token to the client.
+    //
+    // SECURITY (P3-6): `Session.token` is now stored as a SHA-256 hash
+    // (see `hashToken` in auth-session.ts), so we hash the incoming raw
+    // JWT before comparing. A DB read alone never yields a usable token.
+    const currentTokenHash = currentToken ? hashToken(currentToken) : null;
     const publicSessions = sessions.map((s) => {
-      const isCurrent = currentToken === s.token;
+      const isCurrent = currentTokenHash != null && currentTokenHash === s.token;
       // Parse a friendly device label from the UA string for the UI.
       const device = parseUserAgent(s.userAgent);
       return {

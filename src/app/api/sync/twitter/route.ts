@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
  * Body: { accountId } — the X/Twitter account to sync
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const { accountId } = (await req.json()) as { accountId?: string };

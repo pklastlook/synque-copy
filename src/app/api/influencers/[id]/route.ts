@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  *   Tenant-scoped: returns 404 if the influencer belongs to another tenant.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 
@@ -65,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 /** DELETE /api/influencers/[id] — permanently remove an influencer. */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireAuth(_req);
+  const { user, error } = await requireAuth(_req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

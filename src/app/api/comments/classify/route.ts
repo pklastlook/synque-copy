@@ -26,7 +26,7 @@ export const maxDuration = 60;
  * are classified at ingestion time.
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const { accountId } = (await req.json().catch(() => ({}))) as { accountId?: string };

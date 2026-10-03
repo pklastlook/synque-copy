@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /** PATCH /api/media/[id] — update asset metadata (name / tags / folder / url). */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
   const { db: targetDb, isTenantIsolated } = await getDbForUser(user!);
@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 /** DELETE /api/media/[id] — delete asset + its file from storage. */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireAuth(_req);
+  const { user, error } = await requireAuth(_req);
   if (error) return error;
   const scope = getTenantScope(user!);
   const { db: targetDb, isTenantIsolated } = await getDbForUser(user!);

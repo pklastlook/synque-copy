@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
  * Account must belong to the caller's tenant.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

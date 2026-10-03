@@ -40,7 +40,7 @@ async function assertApprovalInTenant(
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
   const { id } = await params;
@@ -86,7 +86,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 /** DELETE /api/approvals/[id] — permanently remove an approval request. */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { user, error } = requireAuth(_req);
+  const { user, error } = await requireAuth(_req);
   if (error) return error;
   const scope = getTenantScope(user!);
   const { id } = await params;

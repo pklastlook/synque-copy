@@ -38,6 +38,7 @@ model User {
   // 2FA / Security
   emailVerified  DateTime?  // when the user verified their email
   totpSecret     String?    // TOTP secret for 2FA (base32 encoded)
+  pendingTotpSecret String? // staged TOTP secret during 2FA setup — committed to totpSecret only after the user verifies a code from their authenticator
   twoFactorEnabled Boolean  @default(false) // whether 2FA is required on login
   // Sessions + login history
   sessions       Session[]
@@ -989,4 +990,41 @@ model WebAuthnCredential {
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ===== WebAuthn challenge storage (single-use, TTL = 5 min) =====
+// Challenges MUST be stored server-side so the client cannot influence the
+// expected challenge at verify time (defeats replay attacks). A challenge
+// is created by the `options` endpoints (register/authenticate), persisted
+// here with a 5-minute expiry, and marked `used = true` after verification
+// (single-use). `userId` is null for the authenticate flow when the caller
+// has not yet identified themselves (passkey discoverable login).
+model WebauthnChallenge {
+  id          String   @id @default(cuid())
+  userId      String?  // null for authenticate (user not yet known)
+  challenge   String   // the base64url challenge string
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([userId])
+  @@index([challenge])
+}
+
+// ===== Audit Log =====
+// Security-sensitive action log. Append-only; written by the `audit()` helper
+// in src/lib/audit.ts. Best-effort: failures never break the request.
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?  // user who performed the action (null = system/anonymous)
+  action      String   // e.g. "user.login", "user.role_changed", "user.deleted", "customer.deleted", "2fa.disabled"
+  targetType  String?  // e.g. "user", "customer", "post"
+  targetId    String?  // ID of the affected resource
+  metadata    String?  // JSON string with before/after values
+  ip          String?  // request IP
+  createdAt   DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
 }

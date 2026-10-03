@@ -267,3 +267,13 @@ export type VPNSession = Prisma.VPNSessionModel
  * 
  */
 export type WebAuthnCredential = Prisma.WebAuthnCredentialModel
+/**
+ * Model WebauthnChallenge
+ * 
+ */
+export type WebauthnChallenge = Prisma.WebauthnChallengeModel
+/**
+ * Model AuditLog
+ * 
+ */
+export type AuditLog = Prisma.AuditLogModel

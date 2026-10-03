@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
   if (isSchedulerCall) {
     userId = body.userId;
   } else {
-    const { user, error } = requireAuth(req);
+    const { user, error } = await requireAuth(req);
     if (error) return error;
     userId = user!.userId;
   }

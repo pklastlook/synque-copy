@@ -46,7 +46,7 @@ export async function GET() {
  * pattern is PATCH /api/linkbio/[id] (see sibling [id]/route.ts).
  */
 export async function PATCH(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 
@@ -75,7 +75,7 @@ export async function PATCH(req: NextRequest) {
 
 /** POST — create a new link-in-bio page with a unique slug. Tenant-scoped. */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

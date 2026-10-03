@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * SerialKey (serialKeyId = null) are visible only to super-admins.
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
  * tenant's data. Super-admins can attach any serial key (or none).
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

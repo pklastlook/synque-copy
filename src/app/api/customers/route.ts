@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
   // contains a full Neon connection string WITH PASSWORD — leaking it
   // to non-admin users is a credential-disclosure vulnerability.
   // Restrict the entire GET to admins and NEVER return the dbUrl field.
-  const { user, error } = requireRole(req, "admin");
+  const { user, error } = await requireRole(req, "admin");
   if (error) return error;
 
   const customers = await db.customer.findMany({
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { user, error } = requireRole(req, "admin");
+  const { user, error } = await requireRole(req, "admin");
   if (error) return error;
 
   const body = await req.json();

@@ -446,7 +446,9 @@ export const ModelName = {
   Influencer: 'Influencer',
   VPNServer: 'VPNServer',
   VPNSession: 'VPNSession',
-  WebAuthnCredential: 'WebAuthnCredential'
+  WebAuthnCredential: 'WebAuthnCredential',
+  WebauthnChallenge: 'WebauthnChallenge',
+  AuditLog: 'AuditLog'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -462,7 +464,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken" | "influencer" | "vPNServer" | "vPNSession" | "webAuthnCredential"
+    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken" | "influencer" | "vPNServer" | "vPNSession" | "webAuthnCredential" | "webauthnChallenge" | "auditLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -4166,6 +4168,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    WebauthnChallenge: {
+      payload: Prisma.$WebauthnChallengePayload<ExtArgs>
+      fields: Prisma.WebauthnChallengeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.WebauthnChallengeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.WebauthnChallengeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload>
+        }
+        findFirst: {
+          args: Prisma.WebauthnChallengeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.WebauthnChallengeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload>
+        }
+        findMany: {
+          args: Prisma.WebauthnChallengeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload>[]
+        }
+        create: {
+          args: Prisma.WebauthnChallengeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload>
+        }
+        createMany: {
+          args: Prisma.WebauthnChallengeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.WebauthnChallengeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload>[]
+        }
+        delete: {
+          args: Prisma.WebauthnChallengeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload>
+        }
+        update: {
+          args: Prisma.WebauthnChallengeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload>
+        }
+        deleteMany: {
+          args: Prisma.WebauthnChallengeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.WebauthnChallengeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.WebauthnChallengeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload>[]
+        }
+        upsert: {
+          args: Prisma.WebauthnChallengeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebauthnChallengePayload>
+        }
+        aggregate: {
+          args: Prisma.WebauthnChallengeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateWebauthnChallenge>
+        }
+        groupBy: {
+          args: Prisma.WebauthnChallengeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WebauthnChallengeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.WebauthnChallengeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WebauthnChallengeCountAggregateOutputType> | number
+        }
+      }
+    }
+    AuditLog: {
+      payload: Prisma.$AuditLogPayload<ExtArgs>
+      fields: Prisma.AuditLogFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AuditLogFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AuditLogFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        findFirst: {
+          args: Prisma.AuditLogFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AuditLogFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        findMany: {
+          args: Prisma.AuditLogFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>[]
+        }
+        create: {
+          args: Prisma.AuditLogCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        createMany: {
+          args: Prisma.AuditLogCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AuditLogCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>[]
+        }
+        delete: {
+          args: Prisma.AuditLogDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        update: {
+          args: Prisma.AuditLogUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        deleteMany: {
+          args: Prisma.AuditLogDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AuditLogUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AuditLogUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>[]
+        }
+        upsert: {
+          args: Prisma.AuditLogUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        aggregate: {
+          args: Prisma.AuditLogAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAuditLog>
+        }
+        groupBy: {
+          args: Prisma.AuditLogGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AuditLogGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AuditLogCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AuditLogCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -4228,6 +4378,7 @@ export const UserScalarFieldEnum = {
   customerId: 'customerId',
   emailVerified: 'emailVerified',
   totpSecret: 'totpSecret',
+  pendingTotpSecret: 'pendingTotpSecret',
   twoFactorEnabled: 'twoFactorEnabled'
 } as const
 
@@ -5068,6 +5219,32 @@ export const WebAuthnCredentialScalarFieldEnum = {
 export type WebAuthnCredentialScalarFieldEnum = (typeof WebAuthnCredentialScalarFieldEnum)[keyof typeof WebAuthnCredentialScalarFieldEnum]
 
 
+export const WebauthnChallengeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  challenge: 'challenge',
+  used: 'used',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt'
+} as const
+
+export type WebauthnChallengeScalarFieldEnum = (typeof WebauthnChallengeScalarFieldEnum)[keyof typeof WebauthnChallengeScalarFieldEnum]
+
+
+export const AuditLogScalarFieldEnum = {
+  id: 'id',
+  actorId: 'actorId',
+  action: 'action',
+  targetType: 'targetType',
+  targetId: 'targetId',
+  metadata: 'metadata',
+  ip: 'ip',
+  createdAt: 'createdAt'
+} as const
+
+export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -5361,6 +5538,8 @@ export type GlobalOmitConfig = {
   vPNServer?: Prisma.VPNServerOmit
   vPNSession?: Prisma.VPNSessionOmit
   webAuthnCredential?: Prisma.WebAuthnCredentialOmit
+  webauthnChallenge?: Prisma.WebauthnChallengeOmit
+  auditLog?: Prisma.AuditLogOmit
 }
 
 /* Types for Logging */

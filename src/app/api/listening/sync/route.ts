@@ -35,7 +35,7 @@ export const maxDuration = 60; // multi-platform ingestion can be slow
  *   { ok, totalQueries, totalFound, newMentions, classified, errors }
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

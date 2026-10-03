@@ -18,7 +18,7 @@ function genKey() {
  * serial keys belonging to their own customer.
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
  * their own customer (the body customerId is overridden with scope.customerId).
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireRole(req, "admin");
+  const { user, error } = await requireRole(req, "admin");
   if (error) return error;
   const scope = getTenantScope(user!);
 

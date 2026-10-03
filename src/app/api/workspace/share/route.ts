@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  *   - Shares I've received (others' workspaces shared with me)
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const [sentShares, receivedShares, myWorkspace] = await Promise.all([
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
  *   Body: { sharedWithUserId, permission }
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const { sharedWithUserId, permission } = await req.json() as { sharedWithUserId: string; permission?: string };
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
  *   Body: { shareId, action: "accept" | "revoke" }
  */
 export async function PATCH(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const { shareId, action } = await req.json() as { shareId: string; action: "accept" | "revoke" };
@@ -147,7 +147,7 @@ export async function PATCH(req: NextRequest) {
  *   Body: { scope: "all" | "sent" | "received" }
  */
 export async function DELETE(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const body = await req.json().catch(() => ({}) as { scope?: string });

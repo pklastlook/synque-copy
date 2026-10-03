@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ const ROLE_LEVELS: Record<string, number> = {
 };
 
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const scope = getTenantScope(user!);
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const body = await req.json();
@@ -160,6 +161,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
+  // Audit password resets (only when password was actually changed).
+  if (typeof password === "string") {
+    await audit(req, user!.userId, "user.password_changed", {
+      targetType: "user",
+      targetId: id,
+    });
+  }
+
   // Return the updated user so the client can refresh state without a re-fetch
   const updated = await db.user.findUnique({ where: { id } });
   return NextResponse.json({
@@ -184,7 +193,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { user, error } = requireRole(req, "admin");
+  const { user, error } = await requireRole(req, "admin");
   if (error) return error;
 
   const body = await req.json();

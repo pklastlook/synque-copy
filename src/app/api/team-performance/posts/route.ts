@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  *   - Super-admins / legacy tenants use the main db with tenantWhere() row filter
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
   const { db: targetDb, isTenantIsolated } = await getDbForUser(user!);

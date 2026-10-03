@@ -7,7 +7,15 @@ export const dynamic = "force-dynamic";
 
 /** POST /api/webauthn/authenticate/verify
  * Verifies the authentication response and issues a session JWT.
+ *
  * Body: { response: AuthenticatorAssertionResponseJSON, email?: string }
+ *
+ * The expected challenge is looked up from the server-side
+ * `WebauthnChallenge` table (single-use, 5-min TTL) — it is NO LONGER read
+ * from the request body. We first resolve the credential (and thus the
+ * user), then look up the most-recent unused challenge for that user (or,
+ * for discoverable-login flows, the most-recent unused challenge whose
+ * `userId` is null).
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -33,6 +41,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Credential does not match this email" }, { status: 403 });
   }
 
+  // Look up the stored challenge for this user. Two scenarios:
+  //   (a) the options endpoint was called WITH an email → challenge.userId
+  //       matches the credential's user id.
+  //   (b) the options endpoint was called WITHOUT an email (discoverable
+  //       passkey login) → challenge.userId is null.
+  // We query both: prefer a row whose userId matches the credential owner;
+  // fall back to any unused, non-expired row with userId = null.
+  // Order by createdAt desc so the most recent (most-likely-intended)
+  // challenge wins.
+  const now = new Date();
+  const storedChallenge =
+    (await db.webauthnChallenge.findFirst({
+      where: {
+        userId: credential.userId,
+        used: false,
+        expiresAt: { gt: now },
+      },
+      orderBy: { createdAt: "desc" },
+    })) ||
+    (await db.webauthnChallenge.findFirst({
+      where: {
+        userId: null,
+        used: false,
+        expiresAt: { gt: now },
+      },
+      orderBy: { createdAt: "desc" },
+    }));
+
+  if (!storedChallenge) {
+    return NextResponse.json(
+      { error: "Challenge expired or not found. Please restart biometric authentication." },
+      { status: 400 }
+    );
+  }
+
+  // Mark the challenge as used IMMEDIATELY (before verification) so a
+  // concurrent replay attempt cannot reuse the same row.
+  await db.webauthnChallenge.update({
+    where: { id: storedChallenge.id },
+    data: { used: true },
+  });
+
   const host = req.headers.get("host") || "";
   const rpID = host.split(":")[0];
   const expectedOrigin = body.expectedOrigin || `https://${host}`;
@@ -40,7 +90,7 @@ export async function POST(req: NextRequest) {
   try {
     const verification = await verifyAuthenticationResponse({
       response: authResponse,
-      expectedChallenge: body.expectedChallenge || authResponse.response?.challenge || "",
+      expectedChallenge: storedChallenge.challenge,
       expectedOrigin,
       expectedRPID: rpID,
       credential: {

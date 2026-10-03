@@ -20,7 +20,7 @@ async function getVisibleDevice(id: string, scope: { customerId: string | null; 
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
 
@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { user, error } = requireAuth(_req);
+  const { user, error } = await requireAuth(_req);
   if (error) return error;
   const scope = getTenantScope(user!);
 

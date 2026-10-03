@@ -75,7 +75,7 @@ const OAUTH_CONFIG: Record<string, {
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const { platform } = await params;
 

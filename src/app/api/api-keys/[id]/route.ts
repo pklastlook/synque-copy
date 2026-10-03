@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { error } = requireRole(req, "admin");
+  const { error } = await requireRole(req, "admin");
   if (error) return error;
 
   const existing = await db.apiKey.findUnique({ where: { id }, select: { id: true } });
@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
  */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { error } = requireRole(_req, "admin");
+  const { error } = await requireRole(_req, "admin");
   if (error) return error;
 
   const existing = await db.apiKey.findUnique({ where: { id }, select: { id: true } });

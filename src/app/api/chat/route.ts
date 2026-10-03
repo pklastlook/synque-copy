@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * Tenant-scoped: members see only users in their own tenant.
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const scope = getTenantScope(user!);
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
  * Body: { receiverId?, text, fileUrl?, fileName?, fileType? }
  */
 export async function POST(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const { receiverId, text, fileUrl, fileName, fileType } = (await req.json()) as {
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
  * Body: { receiverId? } — marks all messages from this receiver (or group) as read
  */
 export async function PATCH(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const { receiverId } = (await req.json()) as { receiverId?: string | null };

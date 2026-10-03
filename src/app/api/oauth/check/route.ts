@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  * their OAuth app).
  */
 export async function GET(req: NextRequest) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const platform = req.nextUrl.searchParams.get("platform");

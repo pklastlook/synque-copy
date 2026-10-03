@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { issueSession, setAuthCookie } from "@/lib/auth-session";
 import { sign2faTempToken } from "@/lib/2fa-temp-token";
+import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,10 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({ token, user: userPublic });
     setAuthCookie(response, token);
+
+    // Audit the successful login (best-effort — never blocks the response).
+    await audit(req, user.id, "user.login");
+
     return response;
   } catch (error) {
     console.error("Login error:", error);

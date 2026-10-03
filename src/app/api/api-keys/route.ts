@@ -23,7 +23,7 @@ function genApiKey() {
  * `bun run db:push` after editing prisma/schema.prisma.
  */
 export async function GET(req: NextRequest) {
-  const { error } = requireRole(req, "admin");
+  const { error } = await requireRole(req, "admin");
   if (error) return error;
 
   const keys = await db.apiKey.findMany({ orderBy: { createdAt: "desc" } });
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
  * Admin-only. Mints a new API key.
  */
 export async function POST(req: NextRequest) {
-  const { error } = requireRole(req, "admin");
+  const { error } = await requireRole(req, "admin");
   if (error) return error;
 
   const { name, permissions } = await req.json();

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /** GET /api/vpn/session — current user's active VPN session (if any) */
 export async function GET(req: NextRequest) {
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (auth.error) return auth.error;
   const { userId } = auth.user!;
 

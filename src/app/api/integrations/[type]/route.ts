@@ -25,7 +25,7 @@ function typeWhere(
 
 /** GET /api/integrations/[type] — get one integration's config (masked) */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
-  const { user, error } = requireAuth(req);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
   const scope = getTenantScope(user!);
   const { type } = await params;
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ type
 
 /** DELETE /api/integrations/[type] — disable + clear credentials */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
-  const { user, error } = requireRole(req, "admin");
+  const { user, error } = await requireRole(req, "admin");
   if (error) return error;
   const scope = getTenantScope(user!);
   const { type } = await params;
@@ -86,7 +86,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
 
 /** POST /api/integrations/[type]/test — test the integration connection */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
-  const { user, error } = requireRole(req, "admin");
+  const { user, error } = await requireRole(req, "admin");
   if (error) return error;
   const scope = getTenantScope(user!);
   const { type } = await params;

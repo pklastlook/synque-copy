@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { rateLimitByIp } from "@/lib/rate-limit";
 
 /**
  * Global auth middleware — enforces JWT authentication on every /api/* route
@@ -84,9 +85,71 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // Allow public routes
-  if (isPublicRoute(pathname)) {
-    return NextResponse.next();
+  // Allow public routes (still needs security headers + rate limits below).
+  const isPublic = isPublicRoute(pathname);
+
+  // --------------------------------------------------------------
+  // Rate limiting (P3-1)
+  //
+  // Applied BEFORE the auth check so brute-force / credential-stuffing
+  // attempts against public auth endpoints are throttled regardless of
+  // whether they carry a valid JWT. Limits are per-IP per-minute.
+  // --------------------------------------------------------------
+
+  // Auth endpoints — 10 req/min/IP (login, signup, forgot/reset, 2FA).
+  // `startsWith` is safe here because every path under these prefixes is
+  // an auth mutation that should be throttled.
+  if (
+    pathname.startsWith("/api/auth/login") ||
+    pathname.startsWith("/api/auth/signup") ||
+    pathname.startsWith("/api/auth/forgot-password") ||
+    pathname.startsWith("/api/auth/2fa")
+  ) {
+    const blocked = rateLimitByIp(req, 10, 60_000);
+    if (blocked) {
+      return NextResponse.json(
+        { error: "Too many requests. Try again later." },
+        { status: 429, headers: blocked.headers }
+      );
+    }
+  }
+
+  // AI endpoints — 20 req/min/IP. Matches any /api/ai/* route plus any
+  // route whose path contains `generate` or `classify` (e.g.
+  // `/api/content/generate`, `/api/sentiment/classify`).
+  if (
+    pathname.startsWith("/api/ai/") ||
+    pathname.includes("/generate") ||
+    pathname.includes("/classify")
+  ) {
+    const blocked = rateLimitByIp(req, 20, 60_000);
+    if (blocked) {
+      return NextResponse.json(
+        { error: "Too many AI requests. Try again later." },
+        { status: 429, headers: blocked.headers }
+      );
+    }
+  }
+
+  // All other /api/ write endpoints — 60 req/min/IP.
+  // GETs are read-heavy and cacheable; only mutations get the tighter cap.
+  if (
+    pathname.startsWith("/api/") &&
+    (req.method === "POST" || req.method === "PATCH" || req.method === "DELETE")
+  ) {
+    const blocked = rateLimitByIp(req, 60, 60_000);
+    if (blocked) {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429, headers: blocked.headers }
+      );
+    }
+  }
+
+  if (isPublic) {
+    const res = NextResponse.next();
+    addSecurityHeaders(res);
+    return res;
   }
 
   // Try Bearer token first
@@ -127,6 +190,12 @@ export async function middleware(req: NextRequest) {
 
 /**
  * Add security headers to all responses.
+ *
+ * Includes a strict Content-Security-Policy (P3-2) that locks script/style/
+ * img/connect sources to the app's own origin + a small allowlist of trusted
+ * third-party origins (Cloudinary for media, Google Fonts, Railway-hosted
+ * services, z.ai internal API). `frame-ancestors 'none'` blocks clickjacking
+ * outright (belt-and-braces alongside the X-Frame-Options: DENY header).
  */
 function addSecurityHeaders(res: NextResponse) {
   res.headers.set("X-Content-Type-Options", "nosniff");
@@ -136,6 +205,35 @@ function addSecurityHeaders(res: NextResponse) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()"
   );
+
+  // Strict Content-Security-Policy (P3-2).
+  // - `script-src` includes `'unsafe-inline' 'unsafe-eval'` because Next.js
+  //   dev mode injects inline runtime chunks; tighten to a nonce-based CSP
+  //   in production once the build pipeline is set up for it.
+  // - `img-src` allows the CDN hosts actually used by the app (Cloudinary,
+  //   Twitter/X avatars, GitHub avatars) plus `data:`/`blob:` for inline
+  //   previews and uploads.
+  // - `connect-src` allows the app's own origin, the Railway-hosted mini
+  //   services (HTTPS + WSS), and the z.ai internal API used by `src/lib/zai.ts`.
+  // - `frame-ancestors 'none'` + `X-Frame-Options: DENY` = double coverage.
+  // - `form-action 'self'` blocks form submissions to third-party origins.
+  // - `base-uri 'self'` blocks `<base>` hijack.
+  res.headers.set(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com https://abs.twimg.com https://pbs.twimg.com https://avatars.githubusercontent.com",
+      "connect-src 'self' https://*.up.railway.app wss://*.up.railway.app https://internal-api.z.ai",
+      "media-src 'self' https://res.cloudinary.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ")
+  );
+
   if (process.env.NODE_ENV === "production") {
     res.headers.set(
       "Strict-Transport-Security",

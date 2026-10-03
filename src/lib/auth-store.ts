@@ -198,6 +198,25 @@ export const useAuth = create<AuthState>()(
             // Ignore — local state will be cleared anyway.
           }
         }
+        // P3-10: clear the service-worker Cache API on the client too.
+        //
+        // The /api/auth/logout response sets `Clear-Site-Data: "cache",
+        // "cookies"`, which clears the browser's HTTP cache + cookies, but
+        // does NOT clear the SW's Cache Storage API (where sw.js has been
+        // stashing authenticated HTML snapshots). The new SW (v3) deletes
+        // the old v2 cache on its next `activate`, but that only happens
+        // after the browser fetches the updated sw.js — until then the old
+        // SW might still serve stale authenticated HTML on offline
+        // navigation. Wiping the caches here from the client closes that
+        // window immediately on logout.
+        if (typeof caches !== "undefined") {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          } catch {
+            // Ignore — best-effort. Local state is cleared below regardless.
+          }
+        }
         set({ isAuthenticated: false, user: null, token: null, pending2FA: null });
       },
 
