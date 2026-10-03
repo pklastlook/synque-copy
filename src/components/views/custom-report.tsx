@@ -325,10 +325,38 @@ export function CustomReportView() {
     const originalTitle = document.title;
     const reportName = `Custom Report — ${startDate} to ${endDate}`;
     document.title = reportName;
+
+    // Move the hidden .report-print-root to be a DIRECT child of <body>
+    // before printing. This escapes any ancestor containing blocks
+    // (transform, backdrop-filter, position:relative on glass cards) that
+    // would trap the absolute-positioned print root and cause blank pages.
+    const printRoot = document.querySelector(".report-print-root");
+    let originalParent: Node | null = null;
+    let originalNextSibling: Node | null = null;
+    if (printRoot && printRoot.parentElement !== document.body) {
+      originalParent = printRoot.parentElement;
+      originalNextSibling = printRoot.nextSibling;
+      document.body.appendChild(printRoot);
+    }
+
+    const restore = () => {
+      document.title = originalTitle;
+      if (printRoot && originalParent) {
+        if (originalNextSibling) {
+          (originalParent as HTMLElement).insertBefore(printRoot, originalNextSibling);
+        } else {
+          (originalParent as HTMLElement).appendChild(printRoot);
+        }
+      }
+    };
+
     setTimeout(() => {
       window.print();
-      window.addEventListener("afterprint", () => { document.title = originalTitle; }, { once: true });
-      setTimeout(() => { document.title = originalTitle; }, 5000);
+      window.addEventListener("afterprint", () => {
+        restore();
+      }, { once: true });
+      // Fallback restore in case afterprint doesn't fire
+      setTimeout(restore, 5000);
     }, 300);
   }
 
