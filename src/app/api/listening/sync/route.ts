@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 import { classifySentimentBatch } from "@/lib/sentiment";
+import { decryptPlatformCredential } from "@/lib/platform-credential-crypto";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // multi-platform ingestion can be slow
@@ -62,14 +63,18 @@ export async function POST(req: NextRequest) {
 
   // Pre-fetch Twitter + Instagram credentials ONCE (any connected one — the
   // first available credential across all team members is used, matching the
-  // competitors/sync pattern).
-  const twitterCred = await db.platformCredential.findFirst({
+  // competitors/sync pattern). Sensitive fields (accessToken, bearerToken,
+  // oauth2UserToken, ...) are stored AES-256-GCM-encrypted at rest — decrypt
+  // before passing them to the platform search helpers.
+  const twitterCredRow = await db.platformCredential.findFirst({
     where: { platform: { in: ["twitter", "x"] }, connected: true },
   });
+  const twitterCred = twitterCredRow ? decryptPlatformCredential(twitterCredRow) : null;
 
-  const igCred = await db.platformCredential.findFirst({
+  const igCredRow = await db.platformCredential.findFirst({
     where: { platform: "instagram", connected: true },
   });
+  const igCred = igCredRow ? decryptPlatformCredential(igCredRow) : null;
 
   const errors: string[] = [];
   const allRaw: { queryId: string; raw: RawMention }[] = [];

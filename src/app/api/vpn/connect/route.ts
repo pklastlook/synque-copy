@@ -7,6 +7,7 @@ import {
   nextClientAddress,
   demoServerPublicKey,
 } from "@/lib/wireguard";
+import { encrypt } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -79,10 +80,14 @@ export async function POST(req: NextRequest) {
     data: {
       userId,
       serverId,
-      privateKey,
+      // Encrypt the private key + full WireGuard .conf at rest so a DB
+      // backup leak does not expose every user's Curve25519 private key.
+      // The plaintext values are still returned in this response (shown
+      // once at creation time) — but only the encrypted form is persisted.
+      privateKey: encrypt(privateKey),
       publicKey,
       clientAddress,
-      config,
+      config: encrypt(config),
       status: "active",
       connectedAt: now,
     },

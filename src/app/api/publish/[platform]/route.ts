@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { TwitterApi } from "twitter-api-v2";
 import { requireAuth } from "@/lib/auth-guard";
+import { decryptPlatformCredential } from "@/lib/platform-credential-crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -66,16 +67,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
   // Normalize platform name (x → twitter)
   const platform = rawPlatform === "x" ? "twitter" : rawPlatform;
 
-  // Get stored credentials for this platform
-  const cred = await db.platformCredential.findUnique({
+  // Get stored credentials for this platform. Sensitive fields
+  // (oauth2UserToken, apiKey, apiSecret, accessToken, accessSecret,
+  //  bearerToken) are stored AES-256-GCM-encrypted at rest — decrypt
+  // before using them to call the platform APIs.
+  const credRow = await db.platformCredential.findUnique({
     where: { userId_platform: { userId, platform } },
   });
 
-  if (!cred || !cred.connected) {
+  if (!credRow || !credRow.connected) {
     return NextResponse.json({
       error: `${platform.charAt(0).toUpperCase() + platform.slice(1)} API credentials not configured. Go to Settings → Platform API Keys to add them. Without credentials, posts are saved to your workspace but not published to ${platform}.`,
     }, { status: 400 });
   }
+  const cred = decryptPlatformCredential(credRow);
 
   // Get the account
   const account = await db.account.findUnique({
@@ -589,15 +594,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
   // === THREADS (Meta Threads API) ===
   if (platform === "threads") {
     try {
-      const cred = await db.platformCredential.findFirst({
+      const credRow = await db.platformCredential.findFirst({
         where: { userId, platform: "threads", connected: true },
       });
-      if (!cred || !cred.accessToken) {
+      if (!credRow || !credRow.accessToken) {
         return NextResponse.json({
           error: "Threads API credentials not configured. Add them in Settings → Platform API Keys.",
           manualUrl: "https://www.threads.net",
         }, { status: 400 });
       }
+      const cred = decryptPlatformCredential(credRow);
 
       // Threads API: create a media container, then publish
       // Step 1: Create container

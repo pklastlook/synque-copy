@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyOAuthState, type OAuthStatePayload } from "@/lib/oauth-state";
+import {
+  decryptPlatformCredential,
+  encryptIfPresent,
+} from "@/lib/platform-credential-crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +47,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
   const { userId } = state;
 
-  // Get the OAuth app credentials
-  const cred = await db.platformCredential.findUnique({
+  // Get the OAuth app credentials. The `clientSecret` column is stored
+  // AES-256-GCM-encrypted at rest (see SECURITY-DATA Finding 1 remediation)
+  // so we decrypt before using it for the token-exchange Basic-Auth header.
+  const credRow = await db.platformCredential.findUnique({
     where: { userId_platform: { userId, platform } },
   });
+  const cred = credRow ? decryptPlatformCredential(credRow) : null;
 
   if (!cred?.clientId || !cred?.clientSecret) {
     return NextResponse.redirect(new URL("/?oauth_error=app_not_configured", req.url));
@@ -486,12 +493,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
       }
     }
 
-    // Save the access token + page ID for future posting
-    // Store OAuth 2.0 user token SEPARATELY from OAuth 1.0a accessToken
+    // Save the access token + page ID for future posting. The
+    // `oauth2UserToken` column is now AES-256-GCM-encrypted at rest (see
+    // SECURITY-DATA Finding 1 remediation) so the live OAuth 2.0 user token
+    // is never persisted in plaintext. `pageId` is a non-sensitive ID and
+    // is stored as-is.
     await db.platformCredential.update({
       where: { userId_platform: { userId, platform } },
       data: {
-        oauth2UserToken: accessToken || undefined,
+        oauth2UserToken: accessToken ? encryptIfPresent(accessToken) : undefined,
         pageId: pageId || undefined,
         connected: true,
       },

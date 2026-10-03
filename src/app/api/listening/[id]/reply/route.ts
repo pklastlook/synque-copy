@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { decryptPlatformCredential } from "@/lib/platform-credential-crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -72,9 +73,12 @@ export async function POST(
   }
 
   const credPlatform = mention.source === "x" || mention.source === "twitter" ? "twitter" : mention.source;
-  const cred = await db.platformCredential.findUnique({
+  const credRow = await db.platformCredential.findUnique({
     where: { userId_platform: { userId: account.ownerId, platform: credPlatform } },
   }).catch((e) => console.error("[api]", e));
+  // Sensitive fields (oauth2UserToken, accessToken, ...) are stored
+  // AES-256-GCM-encrypted at rest — decrypt before using them.
+  const cred = credRow ? decryptPlatformCredential(credRow) : null;
 
   let postedToPlatform = false;
   let platformError: string | null = null;

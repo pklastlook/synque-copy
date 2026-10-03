@@ -29,6 +29,7 @@ export type IntegrationMinAggregateOutputType = {
   type: string | null
   name: string | null
   credentials: string | null
+  customerId: string | null
   enabled: boolean | null
   connectedAt: Date | null
   lastSyncAt: Date | null
@@ -41,6 +42,7 @@ export type IntegrationMaxAggregateOutputType = {
   type: string | null
   name: string | null
   credentials: string | null
+  customerId: string | null
   enabled: boolean | null
   connectedAt: Date | null
   lastSyncAt: Date | null
@@ -53,6 +55,7 @@ export type IntegrationCountAggregateOutputType = {
   type: number
   name: number
   credentials: number
+  customerId: number
   enabled: number
   connectedAt: number
   lastSyncAt: number
@@ -67,6 +70,7 @@ export type IntegrationMinAggregateInputType = {
   type?: true
   name?: true
   credentials?: true
+  customerId?: true
   enabled?: true
   connectedAt?: true
   lastSyncAt?: true
@@ -79,6 +83,7 @@ export type IntegrationMaxAggregateInputType = {
   type?: true
   name?: true
   credentials?: true
+  customerId?: true
   enabled?: true
   connectedAt?: true
   lastSyncAt?: true
@@ -91,6 +96,7 @@ export type IntegrationCountAggregateInputType = {
   type?: true
   name?: true
   credentials?: true
+  customerId?: true
   enabled?: true
   connectedAt?: true
   lastSyncAt?: true
@@ -176,6 +182,7 @@ export type IntegrationGroupByOutputType = {
   type: string
   name: string
   credentials: string
+  customerId: string | null
   enabled: boolean
   connectedAt: Date | null
   lastSyncAt: Date | null
@@ -209,6 +216,7 @@ export type IntegrationWhereInput = {
   type?: Prisma.StringFilter<"Integration"> | string
   name?: Prisma.StringFilter<"Integration"> | string
   credentials?: Prisma.StringFilter<"Integration"> | string
+  customerId?: Prisma.StringNullableFilter<"Integration"> | string | null
   enabled?: Prisma.BoolFilter<"Integration"> | boolean
   connectedAt?: Prisma.DateTimeNullableFilter<"Integration"> | Date | string | null
   lastSyncAt?: Prisma.DateTimeNullableFilter<"Integration"> | Date | string | null
@@ -221,6 +229,7 @@ export type IntegrationOrderByWithRelationInput = {
   type?: Prisma.SortOrder
   name?: Prisma.SortOrder
   credentials?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   enabled?: Prisma.SortOrder
   connectedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lastSyncAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -236,6 +245,7 @@ export type IntegrationWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.IntegrationWhereInput | Prisma.IntegrationWhereInput[]
   name?: Prisma.StringFilter<"Integration"> | string
   credentials?: Prisma.StringFilter<"Integration"> | string
+  customerId?: Prisma.StringNullableFilter<"Integration"> | string | null
   enabled?: Prisma.BoolFilter<"Integration"> | boolean
   connectedAt?: Prisma.DateTimeNullableFilter<"Integration"> | Date | string | null
   lastSyncAt?: Prisma.DateTimeNullableFilter<"Integration"> | Date | string | null
@@ -248,6 +258,7 @@ export type IntegrationOrderByWithAggregationInput = {
   type?: Prisma.SortOrder
   name?: Prisma.SortOrder
   credentials?: Prisma.SortOrder
+  customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   enabled?: Prisma.SortOrder
   connectedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lastSyncAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -266,6 +277,7 @@ export type IntegrationScalarWhereWithAggregatesInput = {
   type?: Prisma.StringWithAggregatesFilter<"Integration"> | string
   name?: Prisma.StringWithAggregatesFilter<"Integration"> | string
   credentials?: Prisma.StringWithAggregatesFilter<"Integration"> | string
+  customerId?: Prisma.StringNullableWithAggregatesFilter<"Integration"> | string | null
   enabled?: Prisma.BoolWithAggregatesFilter<"Integration"> | boolean
   connectedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Integration"> | Date | string | null
   lastSyncAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Integration"> | Date | string | null
@@ -278,6 +290,7 @@ export type IntegrationCreateInput = {
   type: string
   name: string
   credentials: string
+  customerId?: string | null
   enabled?: boolean
   connectedAt?: Date | string | null
   lastSyncAt?: Date | string | null
@@ -290,6 +303,7 @@ export type IntegrationUncheckedCreateInput = {
   type: string
   name: string
   credentials: string
+  customerId?: string | null
   enabled?: boolean
   connectedAt?: Date | string | null
   lastSyncAt?: Date | string | null
@@ -302,6 +316,7 @@ export type IntegrationUpdateInput = {
   type?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   credentials?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   connectedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastSyncAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -314,6 +329,7 @@ export type IntegrationUncheckedUpdateInput = {
   type?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   credentials?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   connectedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastSyncAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -326,6 +342,7 @@ export type IntegrationCreateManyInput = {
   type: string
   name: string
   credentials: string
+  customerId?: string | null
   enabled?: boolean
   connectedAt?: Date | string | null
   lastSyncAt?: Date | string | null
@@ -338,6 +355,7 @@ export type IntegrationUpdateManyMutationInput = {
   type?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   credentials?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   connectedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastSyncAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -350,6 +368,7 @@ export type IntegrationUncheckedUpdateManyInput = {
   type?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   credentials?: Prisma.StringFieldUpdateOperationsInput | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   connectedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastSyncAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -362,6 +381,7 @@ export type IntegrationCountOrderByAggregateInput = {
   type?: Prisma.SortOrder
   name?: Prisma.SortOrder
   credentials?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   enabled?: Prisma.SortOrder
   connectedAt?: Prisma.SortOrder
   lastSyncAt?: Prisma.SortOrder
@@ -374,6 +394,7 @@ export type IntegrationMaxOrderByAggregateInput = {
   type?: Prisma.SortOrder
   name?: Prisma.SortOrder
   credentials?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   enabled?: Prisma.SortOrder
   connectedAt?: Prisma.SortOrder
   lastSyncAt?: Prisma.SortOrder
@@ -386,6 +407,7 @@ export type IntegrationMinOrderByAggregateInput = {
   type?: Prisma.SortOrder
   name?: Prisma.SortOrder
   credentials?: Prisma.SortOrder
+  customerId?: Prisma.SortOrder
   enabled?: Prisma.SortOrder
   connectedAt?: Prisma.SortOrder
   lastSyncAt?: Prisma.SortOrder
@@ -400,6 +422,7 @@ export type IntegrationSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   type?: boolean
   name?: boolean
   credentials?: boolean
+  customerId?: boolean
   enabled?: boolean
   connectedAt?: boolean
   lastSyncAt?: boolean
@@ -412,6 +435,7 @@ export type IntegrationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   type?: boolean
   name?: boolean
   credentials?: boolean
+  customerId?: boolean
   enabled?: boolean
   connectedAt?: boolean
   lastSyncAt?: boolean
@@ -424,6 +448,7 @@ export type IntegrationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   type?: boolean
   name?: boolean
   credentials?: boolean
+  customerId?: boolean
   enabled?: boolean
   connectedAt?: boolean
   lastSyncAt?: boolean
@@ -436,6 +461,7 @@ export type IntegrationSelectScalar = {
   type?: boolean
   name?: boolean
   credentials?: boolean
+  customerId?: boolean
   enabled?: boolean
   connectedAt?: boolean
   lastSyncAt?: boolean
@@ -443,7 +469,7 @@ export type IntegrationSelectScalar = {
   updatedAt?: boolean
 }
 
-export type IntegrationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "type" | "name" | "credentials" | "enabled" | "connectedAt" | "lastSyncAt" | "createdAt" | "updatedAt", ExtArgs["result"]["integration"]>
+export type IntegrationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "type" | "name" | "credentials" | "customerId" | "enabled" | "connectedAt" | "lastSyncAt" | "createdAt" | "updatedAt", ExtArgs["result"]["integration"]>
 
 export type $IntegrationPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Integration"
@@ -453,6 +479,7 @@ export type $IntegrationPayload<ExtArgs extends runtime.Types.Extensions.Interna
     type: string
     name: string
     credentials: string
+    customerId: string | null
     enabled: boolean
     connectedAt: Date | null
     lastSyncAt: Date | null
@@ -885,6 +912,7 @@ export interface IntegrationFieldRefs {
   readonly type: Prisma.FieldRef<"Integration", 'String'>
   readonly name: Prisma.FieldRef<"Integration", 'String'>
   readonly credentials: Prisma.FieldRef<"Integration", 'String'>
+  readonly customerId: Prisma.FieldRef<"Integration", 'String'>
   readonly enabled: Prisma.FieldRef<"Integration", 'Boolean'>
   readonly connectedAt: Prisma.FieldRef<"Integration", 'DateTime'>
   readonly lastSyncAt: Prisma.FieldRef<"Integration", 'DateTime'>

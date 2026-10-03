@@ -760,11 +760,22 @@ model Integration {
   type        String   @unique // mail | slack | stripe | ga | canva | unsplash | zapier
   name        String
   credentials String   // JSON: encrypted API keys, tokens, webhook URLs, etc.
+  // Multi-tenant: binds this integration row to a specific Customer (tenant).
+  // null = global/shared (e.g. super-admin configured, or pre-migration rows
+  // that haven't been re-saved by a tenant admin yet).
+  // NOTE: `type` is still @unique — there is at most ONE row per integration
+  // type globally until a follow-up task relaxes this to
+  // @@unique([customerId, type]). The `customerId` column lets GET queries
+  // scope by tenant today (super-admin sees all, tenant users see only rows
+  // they own).
+  customerId  String?
   enabled     Boolean  @default(false)
   connectedAt DateTime?
   lastSyncAt  DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([customerId])
 }
 
 // ===== Per-client database tracking =====

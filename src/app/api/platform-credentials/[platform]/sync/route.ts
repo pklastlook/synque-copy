@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { TwitterApi } from "twitter-api-v2";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { decryptPlatformCredential } from "@/lib/platform-credential-crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -61,17 +62,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
   // Normalize platform name
   const platform = rawPlatform === "x" ? "twitter" : rawPlatform;
 
-  // Get stored credentials for this platform
-  const cred = await db.platformCredential.findUnique({
+  // Get stored credentials for this platform. Sensitive fields
+  // (apiKey, apiSecret, accessToken, accessSecret, bearerToken, ...) are
+  // stored AES-256-GCM-encrypted at rest — decrypt before handing them to
+  // the platform SDK / fetch calls.
+  const credRow = await db.platformCredential.findUnique({
     where: { userId_platform: { userId, platform } },
   });
 
-  if (!cred || !cred.connected) {
+  if (!credRow || !credRow.connected) {
     return NextResponse.json(
       { error: `${platform.charAt(0).toUpperCase() + platform.slice(1)} API credentials not configured. Add them in Settings → Platform API Keys.` },
       { status: 400 }
     );
   }
+  const cred = decryptPlatformCredential(credRow);
 
   // Get the account record — tenant-scoped (super-admin sees any)
   const account = await db.account.findFirst({

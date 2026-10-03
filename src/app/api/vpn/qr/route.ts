@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-guard";
+import { decrypt } from "@/lib/crypto";
 import QRCode from "qrcode";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +29,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
+  // Decrypt the stored config. Pre-migration rows were stored as plaintext —
+  // if decrypt() throws (unrecognized format / GCM tag mismatch), fall back
+  // to the raw value so legacy sessions still render their QR code.
+  let configText = session.config;
+  try {
+    configText = decrypt(session.config);
+  } catch {
+    configText = session.config;
+  }
+
   // Generate QR PNG buffer from the raw config text
-  const pngBuffer = await QRCode.toBuffer(session.config, {
+  const pngBuffer = await QRCode.toBuffer(configText, {
     type: "png",
     margin: 2,
     width: 480,

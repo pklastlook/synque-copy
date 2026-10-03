@@ -1,4 +1,31 @@
 import { db } from "./db";
+import { decrypt } from "./crypto";
+
+/**
+ * Decrypt an `Integration.credentials` cell into a `Record<string, string>`,
+ * transparently handling pre-migration plaintext rows.
+ *
+ * P2-2-b: new writes go through `encrypt(JSON.stringify(creds))`, producing
+ * the `v1:<iv>:<ct>` format. Pre-migration rows are plain JSON. We try
+ * `decrypt()` first; on failure (unrecognised format / GCM mismatch) we
+ * fall back to `JSON.parse()` on the raw value.
+ *
+ * Returns `null` if neither path yields valid JSON.
+ */
+function decryptIntegrationCreds(raw: string | null | undefined): Record<string, string> | null {
+  if (!raw) return null;
+  let plain = raw;
+  try {
+    plain = decrypt(raw);
+  } catch {
+    // Pre-migration plaintext — keep `plain = raw` and let JSON.parse below handle it.
+  }
+  try {
+    return JSON.parse(plain) as Record<string, string>;
+  } catch {
+    return null;
+  }
+}
 
 export type LLMMessage = {
   role: "system" | "user" | "assistant";
@@ -366,8 +393,8 @@ export async function getLLMClient(): Promise<LLMClient> {
   try {
     const row = await db.integration.findUnique({ where: { type: "claude" } });
     if (row?.enabled && row.credentials) {
-      const creds = JSON.parse(row.credentials) as Record<string, string>;
-      if (creds.apiKey && creds.model) {
+      const creds = decryptIntegrationCreds(row.credentials);
+      if (creds?.apiKey && creds.model) {
         _cachedClient = new ClaudeClient(creds);
         _cachedKey = bucket.toString();
         console.log("[llm] Using Claude provider from DB (model:", creds.model + ")");
@@ -380,8 +407,8 @@ export async function getLLMClient(): Promise<LLMClient> {
   try {
     const row = await db.integration.findUnique({ where: { type: "openai" } });
     if (row?.enabled && row.credentials) {
-      const creds = JSON.parse(row.credentials) as Record<string, string>;
-      if (creds.apiKey && creds.model) {
+      const creds = decryptIntegrationCreds(row.credentials);
+      if (creds?.apiKey && creds.model) {
         _cachedClient = new OpenAIClient(creds);
         _cachedKey = bucket.toString();
         return _cachedClient;
@@ -393,8 +420,8 @@ export async function getLLMClient(): Promise<LLMClient> {
   try {
     const row = await db.integration.findUnique({ where: { type: "gemini" } });
     if (row?.enabled && row.credentials) {
-      const creds = JSON.parse(row.credentials) as Record<string, string>;
-      if (creds.apiKey && creds.model) {
+      const creds = decryptIntegrationCreds(row.credentials);
+      if (creds?.apiKey && creds.model) {
         _cachedClient = new GeminiClient(creds);
         _cachedKey = bucket.toString();
         return _cachedClient;
@@ -483,8 +510,8 @@ export async function getLLMStatus(): Promise<LLMStatus> {
   try {
     const row = await db.integration.findUnique({ where: { type: "claude" } });
     if (row?.enabled && row.credentials) {
-      const creds = JSON.parse(row.credentials) as Record<string, string>;
-      if (creds.apiKey && creds.model) {
+      const creds = decryptIntegrationCreds(row.credentials);
+      if (creds?.apiKey && creds.model) {
         return {
           configured: true,
           provider: "claude",
@@ -500,8 +527,8 @@ export async function getLLMStatus(): Promise<LLMStatus> {
   try {
     const row = await db.integration.findUnique({ where: { type: "openai" } });
     if (row?.enabled && row.credentials) {
-      const creds = JSON.parse(row.credentials) as Record<string, string>;
-      if (creds.apiKey && creds.model) {
+      const creds = decryptIntegrationCreds(row.credentials);
+      if (creds?.apiKey && creds.model) {
         return { configured: true, provider: "openai", model: creds.model, message: `OpenAI (${creds.model}) configured.`, credentialSource: "db" };
       }
     }
@@ -511,8 +538,8 @@ export async function getLLMStatus(): Promise<LLMStatus> {
   try {
     const row = await db.integration.findUnique({ where: { type: "gemini" } });
     if (row?.enabled && row.credentials) {
-      const creds = JSON.parse(row.credentials) as Record<string, string>;
-      if (creds.apiKey && creds.model) {
+      const creds = decryptIntegrationCreds(row.credentials);
+      if (creds?.apiKey && creds.model) {
         return { configured: true, provider: "gemini", model: creds.model, message: `Gemini (${creds.model}) configured.`, credentialSource: "db" };
       }
     }

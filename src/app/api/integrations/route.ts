@@ -1,10 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth, requireRole } from "@/lib/auth-guard";
+import { requireAuth, requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { encrypt, decrypt } from "@/lib/crypto";
 import { invalidateStorageAdapter } from "@/lib/storage";
 import { invalidateLLMClient } from "@/lib/llm";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Decrypt an `Integration.credentials` cell into a `Record<string, string>`.
+ *
+ * After P2-2-b all new writes are `encrypt(JSON.stringify(creds))`, but
+ * pre-migration rows may still contain plaintext JSON. We try `decrypt()`
+ * first; on any failure (unrecognised format, GCM auth-tag mismatch,
+ * truncated value) we fall back to `JSON.parse()` on the raw value.
+ *
+ * Returns `null` for null/empty input or when neither path yields valid JSON.
+ */
+function decryptCredentials(raw: string | null): Record<string, string> | null {
+  if (!raw) return null;
+  // Try the new encrypted format first.
+  try {
+    return JSON.parse(decrypt(raw)) as Record<string, string>;
+  } catch {
+    // Fall through to plaintext JSON.parse — pre-migration rows.
+  }
+  try {
+    return JSON.parse(raw) as Record<string, string>;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Integration definitions — what each integration needs.
@@ -133,8 +159,16 @@ export const INTEGRATION_DEFS: Record<string, {
 export async function GET(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
 
-  const rows = await db.integration.findMany();
+  // P2-2-b: scope by tenant. Super-admins see all rows; tenant users see
+  // only rows whose customerId matches theirs (or null = global/shared rows
+  // that a super-admin configured for everyone).
+  const where = scope.isSuperAdmin
+    ? {}
+    : { OR: [{ customerId: scope.customerId }, { customerId: null }] };
+
+  const rows = await db.integration.findMany({ where });
   const byType: Record<string, { enabled: boolean; connectedAt: string | null; lastSyncAt: string | null }> = {};
   for (const r of rows) {
     byType[r.type] = {
@@ -163,6 +197,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = requireRole(req, "admin");
   if (error) return error;
+  const scope = getTenantScope(user!);
 
   const { type, credentials } = (await req.json()) as { type: string; credentials: Record<string, string> };
   if (!type || !INTEGRATION_DEFS[type]) {
@@ -177,18 +212,36 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // P2-2-b: encrypt the JSON-stringified credentials at rest. The decrypt
+  // helper (used on every read path) transparently handles both the new
+  // `v1:<iv>:<ct>` format and pre-migration plaintext, so existing rows
+  // keep working until the backfill script rewrites them.
+  const credentialsJson = JSON.stringify(credentials);
+  const encryptedCredentials = encrypt(credentialsJson);
+
+  // Bind the row to the caller's tenant. Super-admins (no customerId) leave
+  // it null = global/shared.
+  const customerId = scope.isSuperAdmin ? null : scope.customerId;
+
+  // `type` is still @unique in the schema, so this upsert targets the
+  // single global row by `type`. The `customerId` is written through so
+  // tenant-scoped GET queries find the row. (A follow-up task will relax
+  // `type @unique` → `@@unique([customerId, type])` to give each tenant
+  // its own row.)
   await db.integration.upsert({
     where: { type },
     update: {
       name: def.name,
-      credentials: JSON.stringify(credentials),
+      credentials: encryptedCredentials,
+      customerId,
       enabled: true,
       connectedAt: new Date(),
     },
     create: {
       type,
       name: def.name,
-      credentials: JSON.stringify(credentials),
+      credentials: encryptedCredentials,
+      customerId,
       enabled: true,
       connectedAt: new Date(),
     },
@@ -207,3 +260,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, enabled: true });
 }
+
+// Exported for the sibling `[type]/route.ts` so it can decrypt with the
+// same plaintext-fallback logic without duplicating the try/catch dance.
+export { decryptCredentials };

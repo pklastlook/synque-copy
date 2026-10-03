@@ -4861,6 +4861,7 @@ export const IntegrationScalarFieldEnum = {
   type: 'type',
   name: 'name',
   credentials: 'credentials',
+  customerId: 'customerId',
   enabled: 'enabled',
   connectedAt: 'connectedAt',
   lastSyncAt: 'lastSyncAt',

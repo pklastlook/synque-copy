@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { decryptPlatformCredential } from "@/lib/platform-credential-crypto";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Batch sync across competitors can be slow
@@ -72,14 +73,17 @@ export async function POST(req: NextRequest) {
 
       // Resolve a connected PlatformCredential for this platform.
       // Prefer the authenticated user's credentials; fall back to any.
-      let cred = await db.platformCredential.findFirst({
+      // Sensitive fields (accessToken, bearerToken, oauth2UserToken, ...)
+      // are stored AES-256-GCM-encrypted at rest — decrypt before using.
+      let credRow = await db.platformCredential.findFirst({
         where: { userId: user!.userId, platform, connected: true },
       });
-      if (!cred) {
-        cred = await db.platformCredential.findFirst({
+      if (!credRow) {
+        credRow = await db.platformCredential.findFirst({
           where: { platform, connected: true },
         });
       }
+      const cred = credRow ? decryptPlatformCredential(credRow) : null;
 
       if (!cred || !hasUsableToken(cred)) {
         errors.push(

@@ -1,6 +1,7 @@
 import { PrismaClient } from "../../generated/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { db } from "./db";
+import { decrypt } from "./crypto";
 
 const globalForTenant = globalThis as unknown as {
   __tenantDbs: Map<string, PrismaClient> | undefined;
@@ -27,7 +28,14 @@ export async function getTenantDb(customerId: string | null | undefined): Promis
   if (cached) return cached;
   const tenantRow = await db.tenantDatabase.findUnique({ where: { customerId } }).catch(() => null);
   if (!tenantRow || tenantRow.status !== "active" || !tenantRow.dbUrl) return null;
-  const client = makeClient(tenantRow.dbUrl);
+  // SECURITY (SECURITY-DATA Finding 3): dbUrl is stored as an AES-256-GCM
+  // ciphertext (see /api/customers/route.ts POST → encrypt()). Decrypt it here,
+  // right before opening the PrismaClient — the plaintext connection string
+  // (with Neon password) lives only in memory for the lifetime of this client.
+  // decrypt() throws on tamper / unrecognized format — surface as a 500
+  // rather than silently serving stale or broken connections.
+  const connectionString = decrypt(tenantRow.dbUrl);
+  const client = makeClient(connectionString);
   tenantCache.set(customerId, client);
   return client;
 }

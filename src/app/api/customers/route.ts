@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth-guard";
+import { encrypt } from "@/lib/crypto";
 import { Client } from "pg";
 
 export const dynamic = "force-dynamic";
@@ -124,11 +125,16 @@ export async function POST(req: NextRequest) {
       await pushSchemaToTenantDb(dbUrl);
 
       // 3. Register it in the TenantDatabase table
+      // SECURITY (SECURITY-DATA Finding 3): encrypt the connection string
+      // (which contains the Neon DB password) before persisting — never store
+      // plaintext credentials at rest. Decryption happens lazily in
+      // `src/lib/tenant-db.ts:getTenantDb()` right before opening the
+      // PrismaClient. The GET endpoint above never returns dbUrl.
       await db.tenantDatabase.create({
         data: {
           customerId: customer.id,
           dbName,
-          dbUrl,
+          dbUrl: encrypt(dbUrl),
           status: "active",
         },
       });

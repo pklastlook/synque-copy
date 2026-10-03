@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-guard";
+import { decryptPlatformCredential } from "@/lib/platform-credential-crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +41,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This endpoint only syncs X/Twitter accounts" }, { status: 400 });
   }
 
-  // Get stored credentials
+  // Get stored credentials. Sensitive fields (accessToken, oauth2UserToken,
+  // bearerToken, ...) are stored AES-256-GCM-encrypted at rest — decrypt
+  // before using them to call the Twitter API.
   const ownerId = account.ownerId;
-  const cred = await db.platformCredential.findUnique({
+  const credRow = await db.platformCredential.findUnique({
     where: { userId_platform: { userId: ownerId, platform: "twitter" } },
   }).catch((e) => console.error("[api]", e));
+
+  const cred = credRow ? decryptPlatformCredential(credRow) : null;
 
   if (!cred?.oauth2UserToken) {
     return NextResponse.json({

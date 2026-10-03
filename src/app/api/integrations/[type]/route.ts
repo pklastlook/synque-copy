@@ -1,26 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth, requireRole } from "@/lib/auth-guard";
-import { INTEGRATION_DEFS } from "../route";
+import { requireAuth, requireRole, getTenantScope } from "@/lib/auth-guard";
+import { INTEGRATION_DEFS, decryptCredentials } from "../route";
 import { invalidateStorageAdapter } from "@/lib/storage";
 import { invalidateLLMClient } from "@/lib/llm";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Build a Prisma `where` clause for a single integration type, scoped by
+ * tenant. Mirrors the GET /api/integrations list scope: tenant users see
+ * rows whose customerId matches theirs OR is null (global/shared). Super-
+ * admins see all rows.
+ */
+function typeWhere(
+  scope: { customerId: string | null; isSuperAdmin: boolean },
+  type: string
+): Record<string, unknown> {
+  if (scope.isSuperAdmin) {
+    return { type };
+  }
+  return { type, OR: [{ customerId: scope.customerId }, { customerId: null }] };
+}
+
 /** GET /api/integrations/[type] — get one integration's config (masked) */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+  const scope = getTenantScope(user!);
   const { type } = await params;
   if (!INTEGRATION_DEFS[type]) {
     return NextResponse.json({ error: "Unknown integration type" }, { status: 400 });
   }
-  const row = await db.integration.findUnique({ where: { type } });
+
+  // Tenant scope: tenant users can only see rows owned by them OR shared (null).
+  const row = await db.integration.findFirst({ where: typeWhere(scope, type) });
   if (!row) {
     return NextResponse.json({ type, enabled: false, configured: false });
   }
-  // Return field masks (never expose stored secrets)
-  const creds = JSON.parse(row.credentials) as Record<string, string>;
+  // Decrypt the credentials blob (with plaintext fallback for pre-migration rows).
+  // Return field masks (never expose stored secrets).
+  const creds = decryptCredentials(row.credentials) ?? {};
   const def = INTEGRATION_DEFS[type];
   const maskedFields = def.fields.map((f) => ({
     ...f,
@@ -40,11 +60,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ type
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
   const { user, error } = requireRole(req, "admin");
   if (error) return error;
+  const scope = getTenantScope(user!);
   const { type } = await params;
   if (!INTEGRATION_DEFS[type]) {
     return NextResponse.json({ error: "Unknown integration type" }, { status: 400 });
   }
-  await db.integration.deleteMany({ where: { type } });
+
+  // P2-2-b: scope the delete by tenant so a tenant admin in tenant A can't
+  // wipe tenant B's integration row. Super-admins bypass the filter.
+  await db.integration.deleteMany({ where: typeWhere(scope, type) });
 
   // If deleting Cloudinary, invalidate the cached storage adapter so
   // subsequent uploads fall back to the local adapter (or env-configured).
@@ -64,17 +88,24 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
 export async function POST(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
   const { user, error } = requireRole(req, "admin");
   if (error) return error;
+  const scope = getTenantScope(user!);
   const { type } = await params;
   if (!INTEGRATION_DEFS[type]) {
     return NextResponse.json({ error: "Unknown integration type" }, { status: 400 });
   }
 
-  const row = await db.integration.findUnique({ where: { type } });
+  // Tenant scope the read so a tenant admin can only test their own
+  // integration (or a shared global one).
+  const row = await db.integration.findFirst({ where: typeWhere(scope, type) });
   if (!row || !row.enabled) {
     return NextResponse.json({ error: "Integration not configured" }, { status: 400 });
   }
 
-  const creds = JSON.parse(row.credentials) as Record<string, string>;
+  // Decrypt credentials (with plaintext fallback for pre-migration rows).
+  const creds = decryptCredentials(row.credentials);
+  if (!creds) {
+    return NextResponse.json({ error: "Integration credentials are unreadable" }, { status: 500 });
+  }
 
   try {
     // Test based on integration type

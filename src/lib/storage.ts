@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
+import { decrypt } from "./crypto";
 
 /**
  * Pluggable storage abstraction.
@@ -251,7 +252,16 @@ class CloudinaryAdapter implements StorageAdapter {
     try {
       const row = await db.integration.findUnique({ where: { type: "cloudinary" } });
       if (row?.enabled && row.credentials) {
-        const creds = JSON.parse(row.credentials) as Record<string, string>;
+        // P2-2-b: credentials are stored as encrypt(JSON.stringify(creds)).
+        // decrypt() throws on plaintext (pre-migration rows) — fall back to
+        // JSON.parse on the raw value so we don't break during the rollout.
+        let credsRaw = row.credentials;
+        try {
+          credsRaw = decrypt(row.credentials);
+        } catch {
+          // Pre-migration plaintext — leave credsRaw as the raw column value.
+        }
+        const creds = JSON.parse(credsRaw) as Record<string, string>;
         if (creds.cloudName && creds.apiKey && creds.apiSecret) {
           this.cloudName = creds.cloudName;
           this.apiKey = creds.apiKey;
@@ -559,7 +569,15 @@ export async function getStatus(): Promise<StorageStatus> {
     try {
       const row = await db.integration.findUnique({ where: { type: "cloudinary" } });
       if (row?.enabled && row.credentials) {
-        const creds = JSON.parse(row.credentials) as Record<string, string>;
+        // P2-2-b: decrypt the stored credentials blob. Falls back to
+        // plaintext JSON.parse for pre-migration rows.
+        let credsRaw = row.credentials;
+        try {
+          credsRaw = decrypt(row.credentials);
+        } catch {
+          // Pre-migration plaintext — keep raw value.
+        }
+        const creds = JSON.parse(credsRaw) as Record<string, string>;
         if (creds.cloudName && creds.apiKey && creds.apiSecret) {
           return {
             provider: "cloudinary",

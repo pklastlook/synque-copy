@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getTenantScope } from "@/lib/auth-guard";
+import {
+  decryptPlatformCredential,
+  encryptPlatformCredentialWrite,
+} from "@/lib/platform-credential-crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +74,12 @@ export async function GET(req: NextRequest) {
   if ("error" in resolved) return resolved.error;
   const userId = resolved.userId;
 
-  const creds = await db.platformCredential.findMany({ where: { userId } });
+  const rows = await db.platformCredential.findMany({ where: { userId } });
+  // Sensitive fields are stored AES-256-GCM-encrypted at rest. Decrypt them
+  // (with try/catch fallback to raw plaintext for pre-migration rows) before
+  // masking so the masked preview shows the REAL last-4 chars of the secret,
+  // not the last-4 chars of the ciphertext blob.
+  const creds = rows.map(decryptPlatformCredential);
   return NextResponse.json(
     creds.map((c) => ({
       id: c.id,
@@ -120,6 +129,12 @@ export async function PUT(req: NextRequest) {
   if ("error" in resolved) return resolved.error;
   const userId = resolved.userId;
 
+  // Build the write payload. Sensitive fields (clientSecret, apiSecret,
+  // accessToken, accessSecret, bearerToken, etc.) are AES-256-GCM-encrypted
+  // before persistence so a DB backup leak / SQL injection / prisma-studio
+  // glance does NOT expose live OAuth tokens. `undefined` fields are left
+  // untouched (Prisma skips them on update); `null` clears the column;
+  // non-empty strings become ciphertexts; empty strings become `null`.
   const data: Record<string, unknown> = { connected: true };
   if (clientId !== undefined) data.clientId = clientId;
   if (clientSecret !== undefined) data.clientSecret = clientSecret;
@@ -130,11 +145,12 @@ export async function PUT(req: NextRequest) {
   if (bearerToken !== undefined) data.bearerToken = bearerToken;
   if (pageId !== undefined) data.pageId = pageId;
   if (profileId !== undefined) data.profileId = profileId;
+  const encryptedData = encryptPlatformCredentialWrite(data);
 
   const cred = await db.platformCredential.upsert({
     where: { userId_platform: { userId, platform } },
-    create: { userId, platform, ...data },
-    update: data,
+    create: { userId, platform, ...encryptedData },
+    update: encryptedData,
   });
 
   return NextResponse.json({ id: cred.id, ok: true });

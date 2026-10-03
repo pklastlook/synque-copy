@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-guard";
 import { classifySentimentBatch } from "@/lib/sentiment";
 import { recalculateAccountHealth } from "@/lib/account-health";
+import { decryptPlatformCredential } from "@/lib/platform-credential-crypto";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Allow up to 60s for batch processing
@@ -57,10 +58,14 @@ export async function POST(req: NextRequest) {
     const result = { account: account.handle, platform: account.platform, fetched: 0, newComments: 0, classified: 0, errors: [] as string[] };
 
     try {
-      // Get the platform credentials
-      const cred = await db.platformCredential.findFirst({
+      // Get the platform credentials. Sensitive fields are stored
+      // AES-256-GCM-encrypted at rest — decrypt before passing them to the
+      // platform-specific fetchers (they read accessToken, bearerToken,
+      // pageId, profileId).
+      const credRow = await db.platformCredential.findFirst({
         where: { userId: account.ownerId, platform: account.platform, connected: true },
       });
+      const cred = credRow ? decryptPlatformCredential(credRow) : null;
 
       if (!cred || !cred.accessToken) {
         result.errors.push("No connected credentials for this platform");
