@@ -143,11 +143,17 @@ export function BiometricAuth({
     });
 
     if (optsRes.status === 404) {
-      throw new Error("No biometric credential found. Please sign in with your password first.");
+      throw new Error("No biometric credential found. Please sign in with your password first, then enable Face ID in Settings.");
     }
     if (!optsRes.ok) throw new Error("Failed to generate authentication options");
 
     const options = await optsRes.json();
+
+    // If no credentials are registered, don't trigger the browser prompt
+    // (it would show "No passkeys available" error)
+    if (!options.allowCredentials || options.allowCredentials.length === 0) {
+      throw new Error("No biometric credential found. Sign in with password first, then enable Face ID in Settings.");
+    }
 
     // Step 2: Start the browser's biometric authentication
     const authResp = await startAuthentication({ optionsJSON: options });

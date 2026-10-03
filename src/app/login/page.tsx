@@ -27,7 +27,9 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, router]);
 
-  // Auto-prompt biometric on page load if supported (requires HTTPS)
+  // Auto-prompt biometric ONLY if the user has previously registered a credential.
+  // We check the DB first — if no credentials exist for any user on this device,
+  // we skip the auto-prompt entirely (avoids the "No passkeys available" error).
   React.useEffect(() => {
     if (typeof window === "undefined" || autoBiometricAttempted) return;
     if (!window.isSecureContext) return; // WebAuthn needs HTTPS or localhost
@@ -39,15 +41,25 @@ export default function LoginPage() {
         .then(async (available) => {
           setBiometricSupported(available);
           if (available) {
-            // Try auto-authentication with discoverable credentials (no email needed)
+            // Check if ANY WebAuthn credentials are registered in the DB.
+            // If none, skip the auto-prompt (no point asking for a passkey
+            // that doesn't exist yet — the user needs to register first).
             try {
-              const optsRes = await fetch("/api/webauthn/authenticate/options", {
+              const checkRes = await fetch("/api/webauthn/authenticate/options", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({}),
               });
-              if (!optsRes.ok) return;
-              const options = await optsRes.json();
+              if (!checkRes.ok) return;
+              const options = await checkRes.json();
+
+              // If allowCredentials is empty AND no allowCredentials were sent,
+              // the browser will show "No passkeys available" — skip auto-prompt.
+              // Only auto-prompt if the server returned specific credentials to use.
+              if (!options.allowCredentials || options.allowCredentials.length === 0) {
+                setAutoBiometricAttempted(true);
+                return;
+              }
 
               const { startAuthentication } = await import("@simplewebauthn/browser");
               const authResp = await startAuthentication({ optionsJSON: options });
@@ -61,7 +73,6 @@ export default function LoginPage() {
               if (verifyRes.ok) {
                 const result = await verifyRes.json();
                 if (result.verified && result.token) {
-                  // Store the token
                   const existing = JSON.parse(localStorage.getItem("socialflow-auth") || "{}");
                   existing.state = existing.state || {};
                   existing.state.token = result.token;
@@ -73,7 +84,7 @@ export default function LoginPage() {
                 }
               }
             } catch {
-              // User cancelled or no credential — that's fine, they can use password
+              // User cancelled — that's fine, they can use password
             }
             setAutoBiometricAttempted(true);
           }

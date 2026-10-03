@@ -3147,7 +3147,7 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
   const [error, setError] = React.useState("");
   const [autoBiometricAttempted, setAutoBiometricAttempted] = React.useState(false);
 
-  // Auto-prompt biometric on page load if supported (requires HTTPS)
+  // Auto-prompt biometric ONLY if the user has previously registered a credential.
   React.useEffect(() => {
     if (typeof window === "undefined" || autoBiometricAttempted) return;
     if (!window.isSecureContext) return; // WebAuthn needs HTTPS or localhost
@@ -3166,6 +3166,13 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
               });
               if (!optsRes.ok) return;
               const options = await optsRes.json();
+
+              // Skip auto-prompt if no credentials are registered
+              if (!options.allowCredentials || options.allowCredentials.length === 0) {
+                setAutoBiometricAttempted(true);
+                return;
+              }
+
               const { startAuthentication } = await import("@simplewebauthn/browser");
               const authResp = await startAuthentication({ optionsJSON: options });
               const verifyRes = await fetch("/api/webauthn/authenticate/verify", {
@@ -3183,12 +3190,11 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
                   existing.state.isAuthenticated = true;
                   existing.version = 0;
                   localStorage.setItem("socialflow-auth", JSON.stringify(existing));
-                  // Force reload to pick up auth state
                   window.location.href = "/";
                 }
               }
             } catch {
-              // User cancelled or no credential
+              // User cancelled
             }
             setAutoBiometricAttempted(true);
           }
