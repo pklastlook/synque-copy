@@ -19,6 +19,16 @@ const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const PORT = parseInt(process.env.PORT || "3003", 10);
 const POLL_INTERVAL_MS = 60 * 1000; // Check every 60 seconds
 
+// ─── Security config ──────────────────────────────────────────────────────
+// Shared-secret bearer auth — every route except /health requires
+// `Authorization: Bearer <MINI_SERVICE_KEY>`.
+const SERVICE_KEY = process.env.MINI_SERVICE_KEY;
+
+if (!SERVICE_KEY) {
+  console.error("[scheduler] FATAL: MINI_SERVICE_KEY env var is required");
+  process.exit(1);
+}
+
 // Clean the DB URL (strip channel_binding=require)
 function cleanDbUrl(url: string): string {
   return url.replace(/&?channel_binding=require/g, "").replace(/\?$/, "");
@@ -81,11 +91,16 @@ async function publishScheduledPosts() {
           : variant.content;
 
         try {
+          const schedulerKey = process.env.SCHEDULER_API_KEY;
+          if (!schedulerKey) {
+            console.error("[scheduler] SCHEDULER_API_KEY not set — skipping publish (SEC-5 fix: no hardcoded fallback)");
+            return;
+          }
           const res = await fetch(`${APP_URL}/api/publish/${platform}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Scheduler-Key": process.env.SCHEDULER_API_KEY || "REDACTED",
+              "X-Scheduler-Key": schedulerKey,
             },
             body: JSON.stringify({
               userId: post.authorId,
@@ -155,6 +170,28 @@ async function publishScheduledPosts() {
 
 // HTTP health check server
 const server = createServer((req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", APP_URL);
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  // ─── Auth middleware — every route except /health requires a bearer token ───
+  if (url.pathname !== "/health") {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${SERVICE_KEY}`) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
+      return;
+    }
+  }
+
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({
     status: "running",
@@ -169,8 +206,8 @@ async function main() {
   process.on("unhandledRejection", (err) => console.error("[scheduler] Unhandled:", err));
   process.on("uncaughtException", (err) => console.error("[scheduler] Uncaught:", err));
 
-  server.listen(PORT, () => {
-    console.log(`[scheduler] Health check on http://localhost:${PORT}`);
+  server.listen(PORT, "127.0.0.1", () => {
+    console.log(`[scheduler] Health check on http://127.0.0.1:${PORT}`);
     console.log(`[scheduler] Polling every ${POLL_INTERVAL_MS / 1000}s for scheduled posts`);
     console.log(`[scheduler] App URL: ${APP_URL}`);
   });

@@ -11285,3 +11285,54 @@ Most AI routes log the LLM error message but not the user prompt. However, `src/
 - **Severity breakdown**: 6 Critical (linkbio stored XSS; SSRF via mail; chat fileUrl XSS; storage.delete path traversal; manager→admin password takeover; zero rate limiting), 7 High (team/route mass assignment; ownerId/authorId mass assignment; quotations/invoices mass assignment; integration SSRF; execSync prisma db push; whatsapp webhook no validation; (the high-severity entries in the table)), 5 Medium (dangerouslySetInnerHTML CSS; JSON.parse without try/catch; linkbio click spam; file-upload-route readiness; serial-key Math.random; whatsapp mediaUrl XSS; fingerprint spoofable), 2 Low (CREATE DATABASE interpolation smell; extractTag regex-builder smell), 3 Info (influencers/search LLM cost attack; AI error logs; no raw SQL positive).
 - **Top 3 to fix immediately**: (1) Public `/api/linkbio/*` stored XSS via `javascript:` URL → unauthenticated account takeover of any logged-in user who clicks a link on a public bio page. (2) Manager→admin password change in `/api/users` PATCH → full platform takeover by any manager. (3) Zero rate limiting on `/api/auth/login` + `/api/auth/2fa/login` → brute-forceable passwords and TOTP codes.
 - **Overlap with prior audits**: This audit corroborates SECURITY-DATA Findings 4, 5, 6, 15 (cross-tenant IDOR, public WhatsApp webhook, public uploads) from the input-validation angle, and identifies 6 new Critical findings (stored XSS, SSRF, path traversal, mass-assignment password takeover) that the prior IDOR/secrets audits did not specifically call out. Recommend sequencing follow-up tasks: SECURITY-INPUT-1 (linkbio + chat XSS + storage.delete path traversal), SECURITY-INPUT-2 (mail SSRF + integration SSRF), SECURITY-INPUT-3 (rate limiting everywhere), SECURITY-INPUT-4 (mass-assignment hardening: ownerId/authorId/uploadedById + manager password change).
+
+---
+
+## Task ID: P1-2-a
+**Agent**: subagent (security engineer)
+**Task**: Add shared-secret bearer authentication to all three mini-services, bind them to localhost, and scope CORS. Also remove hardcoded ZAI credentials.
+
+### Work Log
+1. Read `/home/z/my-project/worklog.md` SECURITY-INFRA audit section (lines 9970–10169) to confirm the four open Critical findings this task remediates: WhatsApp service zero auth, AI service zero auth + API-key boot log, zai-proxy zero auth + hardcoded creds, and CORS `*` everywhere.
+2. Read all four mini-service source files (`whatsapp-service/index.ts`, `ai-service/index.js`, `zai-proxy/index.js`, `scheduler-service/index.ts`) plus `.env` and `.env.example` to plan minimal, surgical edits.
+3. **`mini-services/whatsapp-service/index.ts`**:
+   - Added `const SERVICE_KEY = process.env.MINI_SERVICE_KEY` + `const APP_URL = process.env.APP_URL || "http://localhost:3000"` near the top (after `PORT`/`SESSIONS_DIR`).
+   - Added fail-fast `process.exit(1)` if `SERVICE_KEY` is unset.
+   - Updated `sendJSON()` to set `Access-Control-Allow-Origin: APP_URL` (was `*`) and to add `Authorization` to `Access-Control-Allow-Headers` (was `Content-Type, X-Owner-Id`).
+   - Inserted an auth-middleware block immediately after the OPTIONS preflight handler: every route except `/health` requires `Authorization: Bearer <SERVICE_KEY>`; failure → 401 `{ error: "Unauthorized" }`.
+   - Changed `server.listen(PORT, ...)` to `server.listen(PORT, "127.0.0.1", ...)` and updated the startup log line.
+4. **`mini-services/ai-service/index.js`**:
+   - Added `SERVICE_KEY` / `APP_URL` env reads + fail-fast exit at the top.
+   - **Removed** the `console.log("[ai-service] Config:", JSON.stringify({ baseUrl, apiKey: API_KEY, chatId, hasToken, userId }))` block (was lines 16–22) that leaked the API key + chat ID + user ID on every boot.
+   - Changed the ZAI API_KEY fallback from `"Z.ai"` to `""` so the service does not silently send `Bearer Z.ai` to ZAI when the env is unset.
+   - Added CORS preflight headers using `APP_URL` (was `*`).
+   - Inserted the same bearer-auth middleware (exempt `/health`) after the OPTIONS handler.
+   - Switched `req.url === "/health"` and `req.url === "/chat"` checks to `url.pathname` for consistency with the new `URL` parsing.
+   - Changed `server.listen(PORT, "0.0.0.0", ...)` to `server.listen(PORT, "127.0.0.1", ...)`.
+5. **`mini-services/zai-proxy/index.js`**:
+   - **Removed hardcoded credentials** at lines 13–16 (`API_KEY="Z.ai"`, `CHAT_ID="chat-b8e092a6-..."`, `TOKEN="eyJhbGciOi..."`, `USER_ID="28fee991-..."`). Replaced with `process.env.ZAI_API_KEY`, `process.env.ZAI_CHAT_ID`, `process.env.ZAI_TOKEN`, `process.env.ZAI_USER_ID` reads. Also moved `ZAI_BASE_URL` to env-var-with-fallback form.
+   - Made the ZAI request headers conditional (`if (CHAT_ID) ...`) so unset credentials aren't sent as empty strings — mirrors the ai-service pattern.
+   - Added `SERVICE_KEY` / `APP_URL` + fail-fast exit.
+   - Added scoped CORS + bearer-auth middleware (exempt `/health`).
+   - Changed `server.listen(PORT, "0.0.0.0", ...)` to `server.listen(PORT, "127.0.0.1", ...)`.
+6. **`mini-services/scheduler-service/index.ts`** (source TS — compiled `index.js` is P1-3's responsibility):
+   - Added `const SERVICE_KEY = process.env.MINI_SERVICE_KEY` + fail-fast exit at top (after `APP_URL`/`PORT`/`POLL_INTERVAL_MS`).
+   - Rewrote the HTTP health-check server handler: added scoped CORS (`APP_URL`), OPTIONS preflight handling, URL parsing, and bearer-auth middleware exempting `/health`. Health response body is unchanged.
+   - Changed `server.listen(PORT, ...)` to `server.listen(PORT, "127.0.0.1", ...)` and updated the startup log line.
+7. **`.env`** — appended (no existing values touched) a `MINI_SERVICE_KEY=synque-mini-service-key-CHANGE-ME-2026` block with a comment header explaining its purpose. `APP_URL` and the four `ZAI_*` vars were already present in `.env`, so per the "APPEND, do NOT overwrite" rule they were left as-is.
+8. **`.env.example`** — added `MINI_SERVICE_KEY=` placeholder (with comment) inside the existing SECURITY section, right after `SCHEDULER_API_KEY=`. The other new vars (`APP_URL`, `ZAI_*`) already had entries in `.env.example`, so they were not duplicated.
+9. Ran `bun run lint` (ESLint on `.`). Output: clean, zero errors and zero warnings.
+10. Verified no leftover hardcoded secrets in the four edited source files (ripgrepped for the old JWT, chat ID, user ID, and `0.0.0.0`/`Access-Control-Allow-Origin: *` — all matches are confined to compiled `index.js` bundles that P1-3 will regenerate, or to the unrelated `X-Scheduler-Key` fallback at `scheduler-service/index.ts:98` which is outside P1-2-a's scope).
+
+### Stage Summary
+- **Files changed**: `mini-services/whatsapp-service/index.ts`, `mini-services/ai-service/index.js`, `mini-services/zai-proxy/index.js`, `mini-services/scheduler-service/index.ts`, `.env`, `.env.example`.
+- **What was done**:
+  - All four mini-services now require `Authorization: Bearer <MINI_SERVICE_KEY>` on every HTTP route except `/health`, returning `401 { error: "Unauthorized" }` on mismatch or absence.
+  - All four now bind to `127.0.0.1` (loopback only — no longer reachable from other hosts on the sandbox network) and emit a startup log line reflecting that.
+  - CORS is now scoped to `process.env.APP_URL` (fallback `http://localhost:3000`) on all four services, replacing the permissive `*`.
+  - All four fail fast at boot if `MINI_SERVICE_KEY` is unset.
+  - The API-key-leaking `console.log("[ai-service] Config:...")` was removed.
+  - The four hardcoded Z.AI credentials in `zai-proxy/index.js` were replaced with `process.env.ZAI_*` reads; the request headers are now built conditionally so empty values are not sent.
+  - The compiled `whatsapp-service/index.js`, `ai-service` already being JS, and `scheduler-service/index.js` bundles still ship the old code — these will be regenerated/redeployed by P1-3 (per the task brief).
+  - `.env` gains `MINI_SERVICE_KEY` (the existing `APP_URL` / `ZAI_*` entries were preserved untouched). `.env.example` gains a documented `MINI_SERVICE_KEY=` placeholder.
+  - Lint: clean.

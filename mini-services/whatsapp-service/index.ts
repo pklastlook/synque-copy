@@ -42,6 +42,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || "3002", 10);
 const SESSIONS_DIR = join(__dirname, "sessions");
 
+// ─── Security config ───────────────────────────────────────────────────────
+// Shared-secret bearer auth — every route except /health requires
+// `Authorization: Bearer <MINI_SERVICE_KEY>`.
+const SERVICE_KEY = process.env.MINI_SERVICE_KEY;
+const APP_URL = process.env.APP_URL || "http://localhost:3000";
+
+if (!SERVICE_KEY) {
+  console.error("[whatsapp-service] FATAL: MINI_SERVICE_KEY env var is required");
+  process.exit(1);
+}
+
 // ─── Per-session state ───────────────────────────────────────────────────
 interface SessionState {
   ownerId: string;
@@ -75,9 +86,9 @@ async function readBody(req: IncomingMessage): Promise<any> {
 function sendJSON(res: ServerResponse, code: number, data: any) {
   res.writeHead(code, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": APP_URL,
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Owner-Id",
+    "Access-Control-Allow-Headers": "Content-Type, X-Owner-Id, Authorization",
   });
   res.end(JSON.stringify(data));
 }
@@ -316,6 +327,15 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // ─── Auth middleware — every route except /health requires a bearer token ───
+  if (url.pathname !== "/health") {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${SERVICE_KEY}`) {
+      sendJSON(res, 401, { error: "Unauthorized" });
+      return;
+    }
+  }
+
   // ─── Session-list endpoint (debug) ───
   if (req.method === "GET" && url.pathname === "/sessions") {
     const list = Array.from(sessions.entries()).map(([id, s]) => ({
@@ -444,8 +464,8 @@ async function main() {
 
   await mkdir(SESSIONS_DIR, { recursive: true });
 
-  server.listen(PORT, () => {
-    console.log(`[whatsapp-service] Multi-session HTTP server on http://localhost:${PORT}`);
+  server.listen(PORT, "127.0.0.1", () => {
+    console.log(`[whatsapp-service] Multi-session HTTP server on http://127.0.0.1:${PORT}`);
     console.log("[whatsapp-service] Sessions are created on-demand when a user requests /status or /qr");
   });
 

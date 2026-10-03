@@ -9,14 +9,25 @@
 import { createServer } from "node:http";
 
 const PORT = 3005;
-const ZAI_BASE_URL = "https://internal-api.z.ai/v1";
-const API_KEY = "Z.ai";
-const CHAT_ID = "chat-b8e092a6-6649-4a04-b709-d6b3d6038f56";
-const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMjhmZWU5OTEtNjczYy00NDc2LWI0ZTYtZDljYWFhZGY5ZWQ1IiwiY2hhdF9pZCI6ImNoYXQtYjhlMDkyYTYtNjY0OS00YTA0LWI3MDktZDZiM2Q2MDM4ZjU2IiwicGxhdGZvcm0iOiJ6YWkifQ.rVhhVlYSk8zQsc2RF56Qri9vv8wtKsJd2UWyLJ1XBqE";
-const USER_ID = "28fee991-673c-4476-b4e6-d9caaadf9ed5";
+const ZAI_BASE_URL = process.env.ZAI_BASE_URL || "https://internal-api.z.ai/v1";
+const API_KEY = process.env.ZAI_API_KEY;
+const CHAT_ID = process.env.ZAI_CHAT_ID;
+const TOKEN = process.env.ZAI_TOKEN;
+const USER_ID = process.env.ZAI_USER_ID;
+
+// ─── Security config ──────────────────────────────────────────────────────
+// Shared-secret bearer auth — every route except /health requires
+// `Authorization: Bearer <MINI_SERVICE_KEY>`.
+const SERVICE_KEY = process.env.MINI_SERVICE_KEY;
+const APP_URL = process.env.APP_URL || "http://localhost:3000";
+
+if (!SERVICE_KEY) {
+  console.error("[zai-proxy] FATAL: MINI_SERVICE_KEY env var is required");
+  process.exit(1);
+}
 
 const server = createServer(async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", APP_URL);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
@@ -26,13 +37,25 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === "/health" && req.method === "GET") {
+  const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
+
+  // ─── Auth middleware — every route except /health requires a bearer token ───
+  if (url.pathname !== "/health") {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${SERVICE_KEY}`) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
+      return;
+    }
+  }
+
+  if (url.pathname === "/health" && req.method === "GET") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "running", service: "zai-proxy" }));
     return;
   }
 
-  if (req.url === "/chat" && req.method === "POST") {
+  if (url.pathname === "/chat" && req.method === "POST") {
     try {
       const body = await readBody(req);
       const { messages = [] } = JSON.parse(body);
@@ -41,10 +64,10 @@ const server = createServer(async (req, res) => {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${API_KEY}`,
         "X-Z-AI-From": "Z",
-        "X-Chat-Id": CHAT_ID,
-        "X-User-Id": USER_ID,
-        "X-Token": TOKEN,
       };
+      if (CHAT_ID) headers["X-Chat-Id"] = CHAT_ID;
+      if (USER_ID) headers["X-User-Id"] = USER_ID;
+      if (TOKEN) headers["X-Token"] = TOKEN;
 
       const zaiRes = await fetch(`${ZAI_BASE_URL}/chat/completions`, {
         method: "POST",
@@ -86,6 +109,6 @@ function readBody(req) {
   });
 }
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`[zai-proxy] Running on http://0.0.0.0:${PORT}`);
+server.listen(PORT, "127.0.0.1", () => {
+  console.log(`[zai-proxy] Running on http://127.0.0.1:${PORT}`);
 });

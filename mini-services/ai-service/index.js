@@ -7,19 +7,22 @@ import { createServer } from "node:http";
 
 const PORT = parseInt(process.env.PORT || "3004", 10);
 
-const API_KEY = process.env.ZAI_API_KEY || "Z.ai";
+// ─── Security config ──────────────────────────────────────────────────────
+// Shared-secret bearer auth — every route except /health requires
+// `Authorization: Bearer <MINI_SERVICE_KEY>`.
+const SERVICE_KEY = process.env.MINI_SERVICE_KEY;
+const APP_URL = process.env.APP_URL || "http://localhost:3000";
+
+if (!SERVICE_KEY) {
+  console.error("[ai-service] FATAL: MINI_SERVICE_KEY env var is required");
+  process.exit(1);
+}
+
+const API_KEY = process.env.ZAI_API_KEY || "";
 const BASE_URL = (process.env.ZAI_BASE_URL || "https://internal-api.z.ai/v1").replace(/\/+$/, "");
 const CHAT_ID = process.env.ZAI_CHAT_ID || "";
 const TOKEN = process.env.ZAI_TOKEN || "";
 const USER_ID = process.env.ZAI_USER_ID || "";
-
-console.log("[ai-service] Config:", JSON.stringify({
-  baseUrl: BASE_URL,
-  apiKey: API_KEY,
-  chatId: CHAT_ID,
-  hasToken: !!TOKEN,
-  userId: USER_ID,
-}));
 
 async function zaiChat(messages) {
   const headers = {
@@ -50,7 +53,7 @@ async function zaiChat(messages) {
 }
 
 const server = createServer(async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", APP_URL);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
@@ -60,7 +63,19 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === "/health" && req.method === "GET") {
+  const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
+
+  // ─── Auth middleware — every route except /health requires a bearer token ───
+  if (url.pathname !== "/health") {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${SERVICE_KEY}`) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
+      return;
+    }
+  }
+
+  if (url.pathname === "/health" && req.method === "GET") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       status: "running",
@@ -71,7 +86,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === "/chat" && req.method === "POST") {
+  if (url.pathname === "/chat" && req.method === "POST") {
     try {
       const body = await readBody(req);
       const { messages = [] } = JSON.parse(body);
@@ -109,6 +124,6 @@ function readBody(req) {
   });
 }
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`[ai-service] HTTP server on http://0.0.0.0:${PORT}`);
+server.listen(PORT, "127.0.0.1", () => {
+  console.log(`[ai-service] HTTP server on http://127.0.0.1:${PORT}`);
 });

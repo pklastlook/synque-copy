@@ -132,8 +132,24 @@ export async function PATCH(req: NextRequest) {
     data.status = status;
   }
 
-  // Optional password change
-  if (typeof password === "string" && password.length >= 8) {
+  // Optional password change (P1-2-c fix).
+  // Admins can reset any user's password. Managers and below must NOT be able
+  // to change another user's password — previously a manager could reset the
+  // super-admin's password and take over the platform.
+  if (typeof password === "string") {
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: "Password must be at least 8 characters" },
+        { status: 400 }
+      );
+    }
+    // Self can change own password. Any other target requires admin.
+    if (!isSelf && !isAdmin) {
+      return NextResponse.json(
+        { error: "Only admins can reset another user's password" },
+        { status: 403 }
+      );
+    }
     data.password = await bcrypt.hash(password, 12);
   }
 
