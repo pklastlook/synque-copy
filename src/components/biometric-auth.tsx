@@ -104,18 +104,37 @@ export function BiometricAuth({
   }
 
   async function registerCredential() {
-    // Step 1: Get registration options from server
-    const optsRes = await fetch("/api/webauthn/register/options", { method: "POST" });
-    if (!optsRes.ok) throw new Error("Failed to generate registration options");
+    // Get the auth token from localStorage (needed by the middleware)
+    const token = (() => {
+      try {
+        const raw = localStorage.getItem("socialflow-auth");
+        return raw ? JSON.parse(raw)?.state?.token ?? null : null;
+      } catch { return null; }
+    })();
+
+    // Step 1: Get registration options from server (needs auth)
+    const optsRes = await fetch("/api/webauthn/register/options", {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!optsRes.ok) {
+      const err = await optsRes.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to generate registration options (${optsRes.status})`);
+    }
     const options = await optsRes.json();
 
     // Step 2: Start the browser's biometric registration
     const attResp = await startRegistration({ optionsJSON: options });
 
-    // Step 3: Verify with the server
+    // Step 3: Verify with the server (needs auth)
     const verifyRes = await fetch("/api/webauthn/register/verify", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ response: attResp }),
     });
 
