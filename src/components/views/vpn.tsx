@@ -521,7 +521,7 @@ export function VPNView() {
       {session && showConfig && (
         <ConfigPanel
           sessionId={session.id}
-          server={connectedServer}
+          server={connectedServer ?? null}
           clientAddress={session.clientAddress}
           publicKey={session.publicKey}
           configReveal={configReveal}
@@ -804,7 +804,7 @@ function ConfigPanel({
               Copy config
             </button>
             <button
-              onClick={() => setConfigReveal((v) => !v)}
+              onClick={() => setConfigReveal(!configReveal)}
               className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-xs font-semibold transition hover:bg-muted/50"
             >
               {configReveal ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}

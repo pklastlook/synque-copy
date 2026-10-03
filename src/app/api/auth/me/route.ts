@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import jwt from "jsonwebtoken";
 
-const SECRET = process.env.JWT_SECRET;
-if (!SECRET) {
+const SECRET_RAW = process.env.JWT_SECRET;
+if (!SECRET_RAW) {
   throw new Error("JWT_SECRET environment variable must be set. Generate one with: openssl rand -hex 32");
 }
+// Assert non-null after the runtime check above — TypeScript strict mode
+// (P3-9: ignoreBuildErrors=false) does not carry this narrowing across module
+// boundaries to the jwt.verify call site below.
+const SECRET: string = SECRET_RAW;
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,7 +19,7 @@ export async function GET(req: NextRequest) {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const decoded = jwt.verify(token, SECRET) as { userId: string };
+    const decoded = jwt.verify(token, SECRET) as unknown as { userId: string };
 
     const user = await db.user.findUnique({
       where: { id: decoded.userId },

@@ -12262,3 +12262,50 @@ Risk notes:
 - `requireAuth` async adds one indexed `Session.token` point lookup per authenticated request. Sub-millisecond on PGlite. Best-effort: on Prisma throw, request is allowed (strictly safer than pre-P3-6 which had no check).
 - Backward compat preserved: a `Session` row missing for an incoming token is allowed (covers tokens issued before this change ships and `issueSession`'s DB-write-failure path which logs but does not throw).
 - "Files you OWN" rule was necessarily extended to ~104 route call sites because making `requireAuth` async without `await` at call sites would yield `undefined` for `user`/`error` and 500 every route. The 5 owned files were the primary change set; the call-site updates are mechanical one-token `await` insertions and don't change route semantics.
+
+---
+Task ID: TS-FIX
+Agent: subagent
+Task: Fix TypeScript build errors (P3-9 follow-up)
+
+Context: P3-9 flipped `typescript.ignoreBuildErrors` from `true` to `false` in `next.config.ts`. This surfaced ~21 pre-existing TS errors that the old `true` setting was silently swallowing. Goal: zero TS errors so `npx next build` completes the TypeScript phase cleanly.
+
+Work Log:
+
+1. `src/lib/auth-guard.ts` (JWT_SECRET cluster — 4 errors at lines 27 & 40, two casts + two overloads):
+   - Replaced `const SECRET = process.env.JWT_SECRET; if (!SECRET) throw` with the `SECRET_RAW` → `SECRET: string = SECRET_RAW` pattern (mirrors `src/lib/auth-session.ts`).
+   - Both `jwt.verify(token, SECRET) as {...}` sites were re-cast to `as unknown as {...}` because the previous `Jwt & JwtPayload & void` result of the broken overload resolution did not overlap with the target type. Going through `unknown` first silences the "may be a mistake" TS2352 conversion error.
+
+2. `src/lib/2fa-temp-token.ts` (JWT_SECRET cluster — 2 overload errors at lines 25 & 36):
+   - Same `SECRET_RAW` / `SECRET: string = SECRET_RAW` fix. The `jwt.sign` + `jwt.verify` calls then resolve cleanly to the correct overload without further changes.
+
+3. `src/app/api/auth/me/route.ts` (JWT_SECRET cluster — TS2352 + TS2769 at line 18):
+   - Same `SECRET_RAW` / `SECRET: string = SECRET_RAW` fix.
+   - Cast `jwt.verify(token, SECRET) as unknown as { userId: string }` to fix the same `Jwt & JwtPayload & void` non-overlap.
+
+4. `src/lib/oauth-state.ts` (JWT_SECRET cluster — TS2345 at line 38):
+   - Same `SECRET_RAW` / `SECRET: string = SECRET_RAW` fix. `createHmac("sha256", SECRET)` now receives a `string` rather than `string | undefined`.
+
+5. `src/app/api/vpn/qr/route.ts` (line 51, Buffer → BodyInit):
+   - `new NextResponse(pngBuffer, ...)` failed because the `BodyInit` overload didn't accept Node's `Buffer<ArrayBufferLike>`. Wrapped with `new Uint8Array(pngBuffer)` so the binary is passed as a standard typed array that `Response` accepts.
+
+6. `src/components/views/vpn.tsx` (two errors):
+   - Line 524: `server={connectedServer}` passed `T | undefined` to a prop typed `T | null`. Coerced with `?? null` (minimal, matches the `ActiveSession["server"]` type).
+   - Line 807: `setConfigReveal((v) => !v)` passed a function to a prop typed `(v: boolean) => void` (which only accepts a boolean). Mirrored the existing `PrivateKeyBlock` pattern (`setReveal(!reveal)`) by changing it to `setConfigReveal(!configReveal)` — same toggling semantics, but type-correct.
+
+7. `src/app/api/auth/demo/route.ts` (line 136, `user.status` missing on `DemoUser`):
+   - Added `status: string;` to the local `DemoUser` interface and `status: true` to the `DEMO_SELECT` const. The `User` model has had a `status String @default("active")` column since P3, and the create path already set `status: "active"` — only the local TS interface + select object were missing it.
+
+8. `tsconfig.json` (external-file exclusions):
+   - Old `exclude` was just `["node_modules"]`. Added `"examples/**"`, `"mini-services/**"`, `"skills/**"`, and `"prisma.config.ts"` so the Next.js TS step no longer type-checks the standalone examples / mini-services / skills / prisma config — those are separate packages with their own tsconfig / runtime deps and were never part of the Next.js app build.
+
+Verification:
+   - `npx tsc --noEmit` → exits 0 with zero output (clean).
+   - `JWT_SECRET=… ENCRYPTION_KEY=… SCHEDULER_API_KEY=… MINI_SERVICE_KEY=… npx next build` →
+       ✓ Compiled successfully in 11.8s
+       ✓ Finished TypeScript in 4.4s
+       ✓ Generating static pages using 1 worker (25/25) in 971ms
+     The TypeScript phase now passes cleanly; `next build` then proceeds through page-data collection and static generation as expected (those env vars are runtime-only secrets required at module-load time, not TS types).
+   - `bun run lint` → 0 errors, 7 pre-existing `no-location-assign-relative-destination` warnings unrelated to this change.
+
+Stage Summary: All ~21 pre-existing TypeScript build errors are fixed. The `ignoreBuildErrors: false` switch from P3-9 now serves its intended purpose — the build will fail loudly on any future TS regression instead of silently shipping broken types. No business logic was changed; every edit is a minimal type fix or a build-config exclusion.

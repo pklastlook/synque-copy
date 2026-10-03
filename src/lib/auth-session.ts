@@ -14,6 +14,10 @@ const SECRET = process.env.JWT_SECRET;
 if (!SECRET) {
   throw new Error("JWT_SECRET environment variable must be set. Generate one with: openssl rand -hex 32");
 }
+// Assert non-null after the runtime check above — TypeScript strict mode
+// (P3-9: ignoreBuildErrors=false) does not carry this narrowing across module
+// boundaries to the jwt.sign/verify call sites below.
+const JWT_SECRET: string = SECRET;
 
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
@@ -62,7 +66,7 @@ export async function issueSession(opts: {
 
   const token = jwt.sign(
     { userId: user.id, email: user.email, role: user.role, customerId: user.customerId },
-    SECRET,
+    JWT_SECRET,
     { expiresIn: "7d" }
   );
 

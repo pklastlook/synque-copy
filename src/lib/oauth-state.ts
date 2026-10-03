@@ -14,12 +14,16 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-const SECRET = process.env.JWT_SECRET;
-if (!SECRET) {
+const SECRET_RAW = process.env.JWT_SECRET;
+if (!SECRET_RAW) {
   throw new Error(
     "JWT_SECRET environment variable must be set. Generate one with: openssl rand -hex 32"
   );
 }
+// Assert non-null after the runtime check above — TypeScript strict mode
+// (P3-9: ignoreBuildErrors=false) does not carry this narrowing across module
+// boundaries to the createHmac call site below.
+const SECRET: string = SECRET_RAW;
 
 export interface OAuthStatePayload {
   userId: string;

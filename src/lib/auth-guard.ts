@@ -3,10 +3,14 @@ import jwt from "jsonwebtoken";
 import { db } from "@/lib/db";
 import { hashToken } from "@/lib/auth-session";
 
-const SECRET = process.env.JWT_SECRET;
-if (!SECRET) {
+const SECRET_RAW = process.env.JWT_SECRET;
+if (!SECRET_RAW) {
   throw new Error("JWT_SECRET environment variable must be set. Generate one with: openssl rand -hex 32");
 }
+// Assert non-null after the runtime check above — TypeScript strict mode
+// (P3-9: ignoreBuildErrors=false) does not carry this narrowing across module
+// boundaries to the jwt.verify call sites below.
+const SECRET: string = SECRET_RAW;
 
 export type Role = "admin" | "manager" | "editor" | "member" | "viewer";
 
@@ -24,7 +28,7 @@ export function getUserFromRequest(req: NextRequest): { userId: string; email: s
   if (authHeader?.startsWith("Bearer ")) {
     try {
       const token = authHeader.replace("Bearer ", "");
-      const decoded = jwt.verify(token, SECRET) as { userId: string; email: string; role: string; customerId?: string | null };
+      const decoded = jwt.verify(token, SECRET) as unknown as { userId: string; email: string; role: string; customerId?: string | null };
       return { userId: decoded.userId, email: decoded.email, role: decoded.role, customerId: decoded.customerId ?? null };
     } catch {
       // Fall through to cookie
@@ -37,7 +41,7 @@ export function getUserFromRequest(req: NextRequest): { userId: string; email: s
     const tokenMatch = cookie.match(/(?:^|;\s*)token=([^;]+)/);
     if (tokenMatch) {
       try {
-        const decoded = jwt.verify(tokenMatch[1], SECRET) as { userId: string; email: string; role: string; customerId?: string | null };
+        const decoded = jwt.verify(tokenMatch[1], SECRET) as unknown as { userId: string; email: string; role: string; customerId?: string | null };
         return { userId: decoded.userId, email: decoded.email, role: decoded.role, customerId: decoded.customerId ?? null };
       } catch {
         return null;

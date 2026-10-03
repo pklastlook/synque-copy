@@ -11,10 +11,14 @@
 
 import jwt from "jsonwebtoken";
 
-const SECRET = process.env.JWT_SECRET;
-if (!SECRET) {
+const SECRET_RAW = process.env.JWT_SECRET;
+if (!SECRET_RAW) {
   throw new Error("JWT_SECRET environment variable must be set. Generate one with: openssl rand -hex 32");
 }
+// Assert non-null after the runtime check above — TypeScript strict mode
+// (P3-9: ignoreBuildErrors=false) does not carry this narrowing across module
+// boundaries to the jwt.sign/verify call sites below.
+const SECRET: string = SECRET_RAW;
 const TEMP_TOKEN_TTL_SECONDS = 5 * 60; // 5 minutes
 
 const TEMP_TOKEN_TYPE = "2fa-pending";
