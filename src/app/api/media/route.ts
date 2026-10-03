@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+
+  try {
   const scope = getTenantScope(user!);
   const { db: targetDb, isTenantIsolated } = await getDbForUser(user!);
   const where = isTenantIsolated ? {} : tenantWhere(scope);
@@ -47,12 +49,21 @@ export async function GET(req: NextRequest) {
       size: f._sum.size ?? 0,
     })),
   });
+  } catch (err) {
+    console.error("[api/media] GET error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to load media assets" },
+      { status: 500 }
+    );
+  }
 }
 
 /** POST /api/media — add a media asset by URL (existing external URL or uploaded elsewhere). */
 export async function POST(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
+
+  try {
   const scope = getTenantScope(user!);
   const { db: targetDb } = await getDbForUser(user!);
 
@@ -75,4 +86,11 @@ export async function POST(req: NextRequest) {
     },
   });
   return NextResponse.json({ id: a.id, ok: true });
+  } catch (err) {
+    console.error("[api/media] POST error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to create media asset" },
+      { status: 500 }
+    );
+  }
 }

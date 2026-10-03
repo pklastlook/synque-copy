@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
   const { user, error } = requireAuth(req);
   if (error) return error;
 
+  try {
   const body = await req.json() as {
     userId?: string;
     accountId?: string;
@@ -521,4 +522,11 @@ export async function POST(req: NextRequest) {
       ownerName: a.owner?.name ?? "Unassigned",
     })),
   });
+  } catch (err) {
+    console.error("[api/reports/custom] error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to generate custom report" },
+      { status: 500 }
+    );
+  }
 }

@@ -293,7 +293,10 @@ export function CustomReportView() {
           search: searchQuery.trim() || undefined,
         }),
       });
-      if (!res.ok) throw new Error("Failed to generate report");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Failed to generate report (${res.status})`);
+      }
       const data = await res.json() as CustomReportData;
       setReport(data);
       // Reset interactivity state on each new report
