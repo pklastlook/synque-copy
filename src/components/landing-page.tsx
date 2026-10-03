@@ -2315,7 +2315,7 @@ function Act7Compare() {
     { label: "Team roles + approval workflow", synque: true, hootsuite: "Premium only", buffer: false, sprout: true },
     { label: "Content calendar (drag & drop)", synque: true, hootsuite: true, buffer: true, sprout: true },
     { label: "Media storage (free tier)", synque: "25 GB", hootsuite: "0 GB", buffer: "0 GB", sprout: "0 GB" },
-    { label: "Starting price", synque: "$0/mo", hootsuite: "$99/mo", buffer: "$6/mo", sprout: "$249/mo" },
+    { label: "Starting price", synque: "$299/mo", hootsuite: "$99/mo", buffer: "$6/mo", sprout: "$249/mo" },
   ];
   function Check({ value }: { value: string | boolean }) {
     if (value === true) return <span className="text-lg font-bold" style={{ color: COLOR.emerald }}>✓</span>;
@@ -2559,13 +2559,13 @@ function Act9FAQ() {
   const COLOR = useColors();
   const [open, setOpen] = React.useState<number | null>(0);
   const faqs = [
-    { q: "How is SYNQUE different from Hootsuite or Buffer?", a: "SYNQUE is built for teams, not solo creators. We include AI per-account caption generation (no other tool does this), anti-suspension account safety guards, a unified inbox with sentiment tagging, and a full approval workflow — all in one calm interface. Hootsuite charges $99/mo for features we include free." },
-    { q: "Do I need a credit card to start the trial?", a: "No. The 15-day trial gives you full access to every module — composer, calendar, inbox, analytics, approvals, team roles — without a credit card. We'll send you a reminder before it expires, and you can downgrade to the free Starter plan anytime." },
+    { q: "How is SYNQUE different from Hootsuite or Buffer?", a: "SYNQUE is built for teams, not solo creators. We include AI per-account caption generation (no other tool does this), anti-suspension account safety guards, a unified inbox with sentiment tagging, and a full approval workflow — all in one calm interface. Hootsuite charges $99/mo for features we include from $299/mo." },
+    { q: "Do I need a credit card to start the trial?", a: "No. The 15-day trial gives you full access to every module — composer, calendar, inbox, analytics, approvals, team roles — without a credit card. We'll send you a reminder before it expires, and you can pick a plan starting at $299/mo anytime." },
     { q: "Which social platforms are supported?", a: "Seven platforms: Instagram, TikTok, LinkedIn, X (Twitter), Facebook, YouTube, and Threads. Each gets its own optimized caption via AI — respecting tone, length, and hashtag conventions per platform." },
     { q: "How does the anti-suspension protection work?", a: "SYNQUE monitors your posting cadence, blocks banned hashtags, enforces smart cooldowns between posts, and flags risky content before you publish. It's like having a compliance officer built into your scheduler — so your accounts stay safe." },
     { q: "Can my team collaborate on content?", a: "Yes. SYNQUE includes full team workflow: roles (Owner, Manager, Member), approval queues with phone-style previews, comment assignment, and per-member activity tracking. Everyone sees what they need to — nothing more." },
     { q: "What happens to my data if I cancel?", a: "You can export all your posts, analytics, and media at any time via CSV/JSON. If you cancel, your data stays accessible for 30 days, then is permanently deleted. No lock-in, ever." },
-    { q: "Is there a free plan?", a: "Yes — the Starter plan is free forever. It includes 1 social account, 25 GB media storage, and core publishing features. Upgrade to Pro ($49/mo) for unlimited accounts, AI composer, and team workflow." },
+    { q: "Is there a free plan?", a: "We offer a 15-day free trial with full access to every module. After the trial, plans start at $299/mo (Starter) or $499/mo (Pro) for unlimited accounts, AI composer, and team workflow." },
   ];
   return (
     <section className="relative w-full overflow-hidden py-24 sm:py-32" style={{ background: "transparent" }}>
@@ -3406,14 +3406,14 @@ function LoginScreen({ onBack }: { onBack: () => void }) {
 const PLANS = [
   {
     name: "Starter",
-    price: "$0",
+    price: "$299",
     desc: "For solo creators & small teams getting started.",
     features: ["3 social accounts", "1 user", "AI composer (100/mo)", "Basic analytics", "Email support"],
     featured: false,
   },
   {
     name: "Pro",
-    price: "$49",
+    price: "$499",
     desc: "For growing teams that publish daily.",
     features: ["15 social accounts", "5 users", "Unlimited AI composer", "Advanced analytics", "Account protection", "Priority support"],
     featured: true,

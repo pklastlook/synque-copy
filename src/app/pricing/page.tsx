@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 const PLANS = [
-  { name: "Starter", price: "$0", desc: "For solo creators & small teams getting started.", features: ["3 social accounts", "1 user", "AI composer (100/mo)", "Basic analytics", "Email support"], featured: false },
-  { name: "Growth", price: "$49", desc: "For growing teams that publish daily.", features: ["15 social accounts", "5 users", "Unlimited AI composer", "Advanced analytics", "Account protection", "Priority support"], featured: true },
+  { name: "Starter", price: "$299", desc: "For solo creators & small teams getting started.", features: ["3 social accounts", "1 user", "AI composer (100/mo)", "Basic analytics", "Email support"], featured: false },
+  { name: "Growth", price: "$499", desc: "For growing teams that publish daily.", features: ["15 social accounts", "5 users", "Unlimited AI composer", "Advanced analytics", "Account protection", "Priority support"], featured: true },
   { name: "Enterprise", price: "Custom", desc: "For large teams with custom needs.", features: ["Unlimited accounts", "Unlimited users", "Custom domain mail server", "SSO + SAML", "Dedicated success manager", "99.9% SLA"], featured: false },
 ];
 
