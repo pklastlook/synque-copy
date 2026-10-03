@@ -187,37 +187,28 @@ export const useAuth = create<AuthState>()(
 
       logout: async () => {
         const token = get().token;
-        // Best-effort — revoke the server-side session so it can't be reused.
-        if (token) {
-          try {
-            await fetch("/api/auth/logout", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-            });
-          } catch {
-            // Ignore — local state will be cleared anyway.
-          }
-        }
-        // P3-10: clear the service-worker Cache API on the client too.
-        //
-        // The /api/auth/logout response sets `Clear-Site-Data: "cache",
-        // "cookies"`, which clears the browser's HTTP cache + cookies, but
-        // does NOT clear the SW's Cache Storage API (where sw.js has been
-        // stashing authenticated HTML snapshots). The new SW (v3) deletes
-        // the old v2 cache on its next `activate`, but that only happens
-        // after the browser fetches the updated sw.js — until then the old
-        // SW might still serve stale authenticated HTML on offline
-        // navigation. Wiping the caches here from the client closes that
-        // window immediately on logout.
-        if (typeof caches !== "undefined") {
-          try {
-            const keys = await caches.keys();
-            await Promise.all(keys.map((k) => caches.delete(k)));
-          } catch {
-            // Ignore — best-effort. Local state is cleared below regardless.
-          }
-        }
+        // Clear local state IMMEDIATELY so the UI responds instantly —
+        // the user sees the login screen without waiting for the server
+        // round-trip or cache deletion. The server-side session revocation
+        // + cache clearing happen in the background (fire-and-forget).
         set({ isAuthenticated: false, user: null, token: null, pending2FA: null });
+
+        // Best-effort — revoke the server-side session so it can't be reused.
+        // No await — fire-and-forget so the UI doesn't wait for the DB write.
+        if (token) {
+          fetch("/api/auth/logout", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => {});
+        }
+
+        // P3-10: clear the service-worker Cache API on the client too.
+        // Fire-and-forget — don't block the logout UI.
+        if (typeof caches !== "undefined") {
+          caches.keys().then((keys) =>
+            Promise.all(keys.map((k) => caches.delete(k)))
+          ).catch(() => {});
+        }
       },
 
       fetchUser: async () => {

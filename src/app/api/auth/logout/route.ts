@@ -37,9 +37,9 @@ function applyClearSiteData(res: NextResponse) {
  * Logs the user out by revoking their current session (sets `revokedAt`
  * on the matching Session row) and clearing the auth cookie.
  *
- * Also sends `Clear-Site-Data: "cache", "cookies"` so the browser
- * purges stale authenticated HTML from its HTTP cache and drops the
- * auth cookie in one round-trip — see P3-10.
+ * Fast path: the client (auth-store.ts logout()) clears local state
+ * IMMEDIATELY and fires this request as fire-and-forget. The user sees
+ * the login screen without waiting for this response.
  *
  * Safe to call even if no session exists — idempotent.
  */
@@ -49,7 +49,12 @@ export async function POST(req: NextRequest) {
   const token = getRawToken(req);
 
   if (token) {
-    await revokeSessionByToken(token);
+    // Best-effort — don't let a DB error block the logout
+    try {
+      await revokeSessionByToken(token);
+    } catch {
+      // Ignore — the cookie is cleared below regardless
+    }
   }
 
   const response = NextResponse.json({ ok: true });
@@ -60,14 +65,16 @@ export async function POST(req: NextRequest) {
     maxAge: 0, // expires immediately
     path: "/",
   });
-  return applyClearSiteData(response);
+  return response;
 }
 
 // Also support GET for a redirect-style logout (rarely used in this app,
 // but useful for the cookie-based auth flow).
 export async function GET(req: NextRequest) {
   const token = getRawToken(req);
-  if (token) await revokeSessionByToken(token);
+  if (token) {
+    try { await revokeSessionByToken(token); } catch {}
+  }
 
   const response = NextResponse.redirect(new URL("/", req.url));
   response.cookies.set("token", "", {
@@ -77,5 +84,5 @@ export async function GET(req: NextRequest) {
     maxAge: 0,
     path: "/",
   });
-  return applyClearSiteData(response);
+  return response;
 }

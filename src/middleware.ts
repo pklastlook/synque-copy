@@ -225,7 +225,7 @@ function addSecurityHeaders(res: NextResponse) {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com https://abs.twimg.com https://pbs.twimg.com https://avatars.githubusercontent.com",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com https://abs.twimg.com https://pbs.twimg.com https://avatars.githubusercontent.com https://images.unsplash.com https://*.unsplash.com",
       "connect-src 'self' https://*.up.railway.app wss://*.up.railway.app https://internal-api.z.ai",
       "media-src 'self' https://res.cloudinary.com",
       "frame-ancestors 'none'",

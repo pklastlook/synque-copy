@@ -50,19 +50,36 @@ export function NameAvatar({
     gender === "male" ? "from-blue-500 to-cyan-400" :
     null;
   const gradient = genderGradient ?? GRADIENTS[c];
+
+  // Track image load errors so we can fall back to initials instead of
+  // showing a broken-image icon (happens when avatar URLs expire, the
+  // storage provider is misconfigured, or the CDN is unreachable).
+  const [imgError, setImgError] = React.useState(false);
+  // Reset error state when src changes (e.g. after re-uploading an avatar)
+  React.useEffect(() => { setImgError(false); }, [src]);
+
+  const showImg = src && !imgError;
+
   return (
     <div
       className={cn(
         "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br font-semibold text-white shadow-inner",
+        // Always keep the gradient as background — if the image fails, the
+        // initials show on top of it (instead of a broken-image icon).
         gradient,
         ring && "ring-2 ring-background",
         className
       )}
       aria-label={name}
     >
-      {src ?
-        <img src={src} alt={name} className="h-full w-full object-cover" />
-      : (
+      {showImg ? (
+        <img
+          src={src}
+          alt={name}
+          className="h-full w-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
         <span className="select-none">{initials(name)}</span>
       )}
     </div>
