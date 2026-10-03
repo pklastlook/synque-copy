@@ -12,6 +12,7 @@ import { useApi, fmt, timeAgo } from "@/lib/hooks";
 import { SectionHeader, MetricRow, Pill, ListRow, type Metric } from "@/components/glass/dense-ui";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { getReportSettings } from "@/components/views/settings";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -1346,6 +1347,34 @@ function PrintLayout({
   const dateRangeLabel = `${startDate} → ${endDate}`;
   const title = "Custom Report";
 
+  // ---- Report settings (accent color, toggles, table style, font size, margins, footer) ----
+  const rs = getReportSettings();
+  const accent = rs.accentColor;
+  const fontScale = rs.fontSize === "large" ? 1.12 : rs.fontSize === "small" ? 0.88 : 1;
+
+  // Table style CSS — striped (default), plain, or bordered.
+  const tableStyleCss = rs.tableStyle === "plain"
+    ? `.report-print-root .report-table tbody tr:nth-child(even) td { background: transparent !important; }`
+    : rs.tableStyle === "bordered"
+      ? `.report-print-root .report-table tbody td { border-bottom: 1px solid #d4d4d8 !important; }
+         .report-print-root .report-table tbody tr:nth-child(even) td { background: transparent !important; }`
+      : "";
+
+  // Margin override
+  const marginCss = `.report-print-root.report-print-root { padding: ${rs.marginTop}mm ${rs.marginRight}mm ${rs.marginBottom}mm ${rs.marginLeft}mm !important; }`;
+
+  // Custom footer derived values.
+  const footerFontScale =
+    rs.footerFontSize === "large" ? 1.25
+      : rs.footerFontSize === "medium" ? 1.05
+      : 0.85;
+  const footerAlign =
+    rs.footerPosition === "left" ? "flex-start"
+      : rs.footerPosition === "right" ? "flex-end"
+      : "center";
+  const effectiveFooterText =
+    rs.customFooterText.trim() !== "" ? rs.customFooterText : rs.footerText;
+
   // Company info from localStorage (set by Settings → Company section)
   const company = getCompany();
   const companyLine = [company.address, company.city, company.country].filter(Boolean).join(", ");
@@ -1385,11 +1414,14 @@ function PrintLayout({
   const kpisTrimmed = kpis.slice(0, 8);
 
   return (
-    <div className="report-print-root hidden print:block">
+    <div className="report-print-root hidden print:block" style={{ fontSize: `calc(9px * ${fontScale})` }}>
+      {/* Inject report settings CSS (table style + margins) */}
+      <style dangerouslySetInnerHTML={{ __html: tableStyleCss + marginCss }} />
+
       {/* ====== BANNER ====== */}
       <div className="report-title-banner">
         <div className="report-title-banner-left">
-          {company.logo ? (
+          {rs.showCompanyLogo && company.logo ? (
             <img src={company.logo} alt={company.name || "Company"} className="report-company-logo" />
           ) : null}
           <div>
@@ -1398,19 +1430,29 @@ function PrintLayout({
           </div>
         </div>
         <div className="report-title-banner-right">
-          <div className="report-title-banner-eyebrow">{groupLabel} Report</div>
+          {rs.showReportTitle && (
+            <div className="report-title-banner-eyebrow">{groupLabel} Report</div>
+          )}
           <div className="report-title-banner-title">{title}</div>
-          <div className="report-title-banner-meta">{now} · {dateRangeLabel}</div>
+          {rs.showDateRange && (
+            <div className="report-title-banner-meta">{now} · {dateRangeLabel}</div>
+          )}
         </div>
       </div>
-      <div className="report-title-accent" style={{ background: "oklch(0.65 0.22 305)" }} />
+      <div className="report-title-accent" style={{ background: accent }} />
 
       {/* ====== CONTENT ====== */}
       <div className="report-content">
-        <h2 className="report-section-title">Executive Summary</h2>
-        <p className="report-text">{summaryText}</p>
+        {rs.showExecutiveSummary && (
+          <>
+            <h2 className="report-section-title">Executive Summary</h2>
+            <p className="report-text">{summaryText}</p>
+          </>
+        )}
 
-        <PrintKpiStrip items={kpisTrimmed} />
+        {rs.showKpiStrip && (
+          <PrintKpiStrip items={kpisTrimmed} />
+        )}
 
         {/* === Filters applied === */}
         <PrintSection title="Filters Applied">
@@ -1597,22 +1639,33 @@ function PrintLayout({
           </PrintSection>
         )}
 
-        {/* === Footer === */}
-        <div className="report-footer-company">
-          {company.logo ? (
-            <img src={company.logo} alt={company.name || "Company"} className="report-footer-logo" />
-          ) : null}
-          <div className="report-footer-company-info">
-            <div className="report-footer-company-name">{company.name || "SYNQUE"}</div>
-            {companyLine && <div className="report-footer-company-line">{companyLine}</div>}
-            {contactLine && <div className="report-footer-company-contact">{contactLine}</div>}
+        {/* === Footer with report settings (position, font size, custom text, toggles) === */}
+        {rs.showFooter && (
+          <div
+            className="report-footer-company"
+            style={{
+              borderTopWidth: rs.showFooterLine ? undefined : 0,
+              paddingTop: rs.showFooterLine ? undefined : 4,
+              fontSize: `calc(7.5px * ${footerFontScale})`,
+              justifyContent: footerAlign,
+            }}
+          >
+            {rs.showCompanyLogo && company.logo ? (
+              <img src={company.logo} alt={company.name || "Company"} className="report-footer-logo" />
+            ) : null}
+            <div className="report-footer-company-info">
+              <div className="report-footer-company-name">{company.name || "SYNQUE"}</div>
+              {rs.showCompanyAddress && companyLine && <div className="report-footer-company-line">{companyLine}</div>}
+              {rs.showCompanyContact && contactLine && <div className="report-footer-company-contact">{contactLine}</div>}
+            </div>
+            <div className="report-footer-meta" style={{ textAlign: rs.footerPosition === "left" ? "left" : rs.footerPosition === "center" ? "center" : "right" }}>
+              <div>Generated on {now}</div>
+              <div>{title}</div>
+              {effectiveFooterText && <div className="report-footer-confidential">{effectiveFooterText}</div>}
+              {rs.showPageNumbers && <div>Page 1 of 1</div>}
+            </div>
           </div>
-          <div className="report-footer-meta">
-            <div>Generated on {now}</div>
-            <div>{title}</div>
-            <div className="report-footer-confidential">Confidential — for internal use only</div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
