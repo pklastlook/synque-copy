@@ -12498,3 +12498,35 @@ Work Log:
 
 Stage Summary:
 The SYNQUE Help module is now a comprehensive, animated Help Center at /help covering onboarding, all 24 modules with auto-advancing step carousels, the cross-posting key-feature illustration, an 8-item FAQ, and a security/privacy section with a 2FA quick-setup panel. Help is reachable from three places: the landing-page footer (existing "Help Center" link), the in-app sidebar Workspace group (new Help item rendered as a Next.js Link), and the in-app header (new HelpCircle icon button that opens /help in a new tab to preserve the user's session). All Framer Motion animations use `useInView` for scroll-triggered fade/slide-up; the module carousels auto-advance every 3.2s with pause-on-hover and clickable progress bars; the cross-posting section features a CSS/SVG radial animation with sequential platform highlighting. Design language follows the existing glass / crystal-card / gold-text system; fully responsive (mobile-first, 1→2→3 column grids); passes `bun run lint` with 0 errors and no new warnings.
+
+---
+Task ID: SLIDES-5-9-RENDER
+Agent: subagent (slides renderer)
+Task: Render slides[5:10] (slide_06 through slide_10) of the SYNQUE 15-slide deck as standalone 1280x720 HTML pages using the Dark Premium / Gold Accent design system.
+
+Work Log:
+1. Read /home/z/my-project/download/slides/slides_brief.json (design tokens, palette, typography, slide briefs) and /home/z/my-project/download/slides/global.css (CSS variables for --bg, --primary, --accent, glass-card, accent-pill, slide-num, brand-mark).
+2. Rendered five slides verbatim against the brief, each linking global.css relatively, loading Tailwind CDN + Material Icons, with speaker notes embedded as a hidden <aside data-notes> as the last body child.
+
+Per-slide summaries:
+- slide_06.html (Cross-Posting): "One Post" gold-bordered card on the left pulsing, AI adapt arrow connector in the center, and a 2-column grid on the right with all 7 platform preview cards (IG/FB/X/in/TT/YT/Th) — each with colored left border, platform badge, and verbatim caption snippet per the brief.
+- slide_07.html (Plans & Limits): Three pricing cards (Starter $299, Growth $499 featured with gold border + "Most Popular" badge + glow pulse, Enterprise Custom) with check-listed feature rows exactly as briefed, plus the cross-posting plan-limit note at the bottom.
+- slide_08.html (Multi-Workspace Architecture): Main Database card (gold border, glowing) at top with "Customer registry · Auth · Audit log" pills, animated flow dots + south arrows down to three tenant DB cards (Client A emerald, Client B blue, Client C violet) each listing "Posts · Accounts · Media · Comments · Analytics", capped by the gold isolation note.
+- slide_09.html (AI Composer): Three caption cards with platform-colored borders (Instagram #E1306C, LinkedIn #0A66C2, X #1DA1F2), each with platform icon header and a monospace caption box rendering the verbatim AI-generated text, plus a meta row showing character/hashtag counts and the platform-conventions note at the bottom.
+- slide_10.html (Account Safety): Left column shows an emerald verified_user shield (120px) inside a pulsing radial glow + dashed rotating ring + "PROACTIVE GUARDS ACTIVE" pill; right column is a 2x2 feature grid (Cadence Monitoring, Hashtag Blocking, Smart Cooldowns, Risk Flags) with gold icon boxes and verbatim descriptions.
+
+All slides: 1280x720 canvas, overflow hidden, only the design palette (#0A0B0F / #F4F4F5 / #D4AF37 + emerald/blue/violet/rose tokens from global.css), Inter typography, page numbers (06/15 through 10/15), SYNQUE brand mark, speaker notes hidden via .hidden class.
+
+---
+Task ID: SLIDES-10-14-RENDER
+Agent: subagent (slides renderer)
+Task: Render slides[10:15] (slide_11 through slide_15) of the SYNQUE 15-slide deck as standalone 1280x720 HTML pages using the Dark Premium / Gold Accent design system.
+
+Per-slide summaries:
+- slide_11.html (Security & Compliance): Gold "Enterprise-grade security." headline with eyebrow pill and "SOC2-Ready" gold pill in the top-right; 4x2 grid of eight security badges (AES-256, bcrypt+JWT, Biometric Auth, 2FA/TOTP, Rate Limiting, Audit Logging, CSP+Headers, Tenant Isolation) with emerald icon chips and verbatim one-line details, decorative ambient glows in corners.
+- slide_12.html (Team Collaboration): Five role pills in a row (Owner/Admin gold, Manager blue, Editor emerald, Viewer muted) under a "Roles & Permissions" label; below, a four-step approval workflow with arrow_forward connectors (Draft Created → Submitted for Review → Approved/Rejected → Published) each card showing step number, gold icon chip, and short description; bottom note "Every action is logged. Every team member sees what they need to."
+- slide_13.html (Analytics & Reports): Three CSS-simulated chart previews cards — Followers Growth area chart (SVG gold gradient fill, 88.7K · +4.2%), Platform Distribution conic-gradient pie with center "7" and 7-platform legend, Engagement bar chart with 7 weekly gold bars (48.2K · +12% MoM); each card has gold icon chip and label; bottom note about exporting PDFs and weekly digests.
+- slide_14.html (Pricing): Three pricing cards — Starter ($299 outline button), Growth featured card with gold border, glow, lift, and "Most Popular" badge ($499 gold-filled button), Enterprise (Custom, outline contact-sales button); each shows plan name, large gold price, description, three check-marked features; bottom note "All plans include the AI composer, account protection, and real-time analytics."
+- slide_15.html (Get Started): Center-aligned closing slide with subtle decorative grid and radial gold glow behind a 56px gold gradient "Start your 15-day free trial" title, white subtitle, large gold filled "Get Started →" button, muted "Or visit synque.vercel.app to learn more" line, SYNQUE brand mark bottom-left, "15 / 15" bottom-right, gold corner accents.
+
+All slides: 1280x720 canvas, overflow hidden, only the design palette (#0A0B0F / #F4F4F5 / #D4AF37 + emerald/blue/violet tokens from global.css), Inter typography, links global.css via relative path, loads Tailwind CDN + Material Icons, page numbers (11/15 through 15/15), SYNQUE brand mark, speaker notes hidden via .hidden class as the last body child.

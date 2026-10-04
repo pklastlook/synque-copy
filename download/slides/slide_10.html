@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SYNQUE — Account Safety</title>
+  <link rel="stylesheet" href="global.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    .slide { display: flex; flex-direction: column; }
+    .shield-wrap {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .shield-glow {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(52,199,89,0.35) 0%, rgba(52,199,89,0.08) 40%, transparent 70%);
+      border-radius: 50%;
+      filter: blur(20px);
+      animation: glowPulse 3.5s ease-in-out infinite;
+    }
+    .shield-ring {
+      position: absolute;
+      inset: 30px;
+      border: 1px solid rgba(52,199,89,0.25);
+      border-radius: 50%;
+    }
+    .shield-ring-2 {
+      position: absolute;
+      inset: 55px;
+      border: 1px dashed rgba(52,199,89,0.18);
+      border-radius: 50%;
+      animation: rotate 30s linear infinite;
+    }
+    .shield-icon {
+      position: relative;
+      z-index: 2;
+    }
+    @keyframes glowPulse {
+      0%, 100% { opacity: 0.7; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      backdrop-filter: blur(20px);
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .feature-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(212,175,55,0.25);
+    }
+    .feature-icon-box {
+      width: 32px; height: 32px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-glow);
+    }
+    .feature-icon-box .material-icons {
+      font-size: 18px;
+      color: var(--accent);
+    }
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(52,199,89,0.12);
+      border: 1px solid rgba(52,199,89,0.3);
+      color: var(--emerald);
+      font-size: 11px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <!-- Header -->
+    <header class="mb-5">
+      <div class="accent-pill mb-3">
+        <span class="material-icons" style="font-size:14px;">verified_user</span>
+        ACCOUNT SAFETY
+      </div>
+      <h1 class="gold-text font-bold tracking-tight" style="font-family:var(--font-heading); font-size:42px; line-height:1.1;">
+        Your accounts are protected.
+      </h1>
+      <p class="mt-2" style="color:var(--primary-muted); font-size:18px;">
+        Anti-suspension guards built into every publish.
+      </p>
+    </header>
+
+    <!-- Main split: shield left, features right -->
+    <div class="flex gap-8 flex-1" style="min-height:0;">
+      <!-- Left: shield visual -->
+      <div class="flex flex-col items-center justify-center" style="width:340px;">
+        <div class="shield-wrap">
+          <div class="shield-glow"></div>
+          <div class="shield-ring"></div>
+          <div class="shield-ring-2"></div>
+          <span class="material-icons shield-icon" style="font-size:120px; color:var(--emerald);">verified_user</span>
+        </div>
+        <div class="mt-4 flex flex-col items-center gap-2">
+          <div class="stat-pill">
+            <span class="material-icons" style="font-size:13px;">shield</span>
+            PROACTIVE GUARDS ACTIVE
+          </div>
+          <div class="text-xs" style="color:var(--primary-muted); text-align:center; max-width:240px;">
+            Built into every publish workflow — not a separate add-on.
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: 2x2 feature grid -->
+      <div class="flex-1 grid grid-cols-2 grid-rows-2 gap-4">
+        <!-- 1. Cadence Monitoring -->
+        <div class="feature-card">
+          <div class="flex items-center gap-3">
+            <div class="feature-icon-box">
+              <span class="material-icons">speed</span>
+            </div>
+            <div class="font-bold text-white" style="font-size:15px;">Cadence Monitoring</div>
+          </div>
+          <div class="text-sm" style="color:var(--primary-muted); font-size:13px; line-height:1.4;">
+            Blocks posts that exceed platform rate limits.
+          </div>
+        </div>
+
+        <!-- 2. Hashtag Blocking -->
+        <div class="feature-card">
+          <div class="flex items-center gap-3">
+            <div class="feature-icon-box">
+              <span class="material-icons">block</span>
+            </div>
+            <div class="font-bold text-white" style="font-size:15px;">Hashtag Blocking</div>
+          </div>
+          <div class="text-sm" style="color:var(--primary-muted); font-size:13px; line-height:1.4;">
+            Flags banned hashtags before you publish.
+          </div>
+        </div>
+
+        <!-- 3. Smart Cooldowns -->
+        <div class="feature-card">
+          <div class="flex items-center gap-3">
+            <div class="feature-icon-box">
+              <span class="material-icons">schedule</span>
+            </div>
+            <div class="font-bold text-white" style="font-size:15px;">Smart Cooldowns</div>
+          </div>
+          <div class="text-sm" style="color:var(--primary-muted); font-size:13px; line-height:1.4;">
+            Enforces safe intervals between posts.
+          </div>
+        </div>
+
+        <!-- 4. Risk Flags -->
+        <div class="feature-card">
+          <div class="flex items-center gap-3">
+            <div class="feature-icon-box">
+              <span class="material-icons">warning</span>
+            </div>
+            <div class="font-bold text-white" style="font-size:15px;">Risk Flags</div>
+          </div>
+          <div class="text-sm" style="color:var(--primary-muted); font-size:13px; line-height:1.4;">
+            Alerts on content patterns that trigger suspensions.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="brand-mark">SYNQUE</div>
+    <div class="slide-num">10 / 15</div>
+  </div>
+
+  <aside data-notes class="hidden">
+    <ul>
+      <li>Emphasize that SYNQUE actively prevents account suspensions.</li>
+      <li>Proactive, not reactive — guards run before every publish.</li>
+      <li>Cadence, hashtag, cooldown, and risk pattern checks.</li>
+      <li>Built into the workflow, not a separate add-on.</li>
+    </ul>
+  </aside>
+</body>
+</html>

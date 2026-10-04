@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SYNQUE — Pricing</title>
+  <link rel="stylesheet" href="global.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: var(--bg); }
+    .canvas {
+      width: 1280px;
+      height: 720px;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+      padding: 56px 72px 64px;
+      font-family: var(--font-body);
+      color: var(--primary);
+    }
+    .glow-1 {
+      position: absolute;
+      width: 560px; height: 560px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(212,175,55,0.12) 0%, rgba(212,175,55,0) 70%);
+      top: -240px; left: 50%;
+      transform: translateX(-50%);
+      filter: blur(20px);
+      pointer-events: none;
+    }
+    .glow-2 {
+      position: absolute;
+      width: 420px; height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,122,255,0.06) 0%, rgba(0,122,255,0) 70%);
+      bottom: -200px; right: -100px;
+      filter: blur(20px);
+      pointer-events: none;
+    }
+    .title {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    .subtitle {
+      font-size: 16px;
+      color: var(--primary-muted);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      margin-top: 10px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(212,175,55,0.10);
+      border: 1px solid rgba(212,175,55,0.25);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .price-card {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 28px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: relative;
+      height: 380px;
+    }
+    .price-card.featured {
+      background: linear-gradient(180deg, rgba(212,175,55,0.10) 0%, rgba(212,175,55,0.02) 100%);
+      border: 1px solid rgba(212,175,55,0.55);
+      box-shadow: 0 0 50px rgba(212,175,55,0.20), inset 0 1px 0 rgba(255,255,255,0.05);
+      transform: translateY(-12px);
+      height: 404px;
+    }
+    .plan-name {
+      font-size: 13px;
+      color: var(--primary-muted);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .featured .plan-name {
+      color: var(--accent);
+    }
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .price-amount {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .price-amount.gold-text {
+      background: linear-gradient(135deg, #D4AF37 0%, #F5D061 50%, #D4AF37 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .price-unit {
+      font-size: 16px;
+      color: var(--primary-muted);
+      font-weight: 500;
+    }
+    .plan-desc {
+      font-size: 13.5px;
+      color: var(--primary);
+      font-weight: 500;
+      line-height: 1.4;
+    }
+    .plan-features {
+      font-size: 12.5px;
+      color: var(--primary-muted);
+      line-height: 1.65;
+      letter-spacing: 0.01em;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding-top: 16px;
+      flex: 1;
+    }
+    .plan-features .check {
+      color: var(--accent);
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.25);
+      color: var(--primary);
+    }
+    .btn-gold {
+      background: linear-gradient(135deg, #D4AF37 0%, #F5D061 100%);
+      border: 1px solid rgba(212,175,55,0.6);
+      color: #0A0B0F;
+      box-shadow: 0 0 30px rgba(212,175,55,0.4);
+    }
+    .btn .material-icons { font-size: 18px; }
+
+    .badge-popular {
+      position: absolute;
+      top: -14px; left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #D4AF37 0%, #F5D061 100%);
+      color: #0A0B0F;
+      padding: 5px 16px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      box-shadow: 0 4px 14px rgba(212,175,55,0.4);
+      white-space: nowrap;
+    }
+
+    .footer-bar {
+      position: absolute;
+      left: 72px; right: 72px;
+      bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--primary-muted);
+      letter-spacing: 0.15em;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .bottom-note {
+      position: absolute;
+      left: 72px; right: 72px;
+      bottom: 60px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--primary-muted);
+      letter-spacing: 0.02em;
+    }
+    .bottom-note .accent { color: var(--accent); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="glow-1" data-decor aria-hidden="true"></div>
+    <div class="glow-2" data-decor aria-hidden="true"></div>
+
+    <!-- Header -->
+    <div>
+      <div class="eyebrow"><span class="material-icons" style="font-size:12px;">payments</span>Pricing</div>
+      <h1 class="title mt-3"><span class="gold-text">Start with a 15-day free trial.</span></h1>
+      <p class="subtitle">No card to explore. Pick a plan when you're ready.</p>
+    </div>
+
+    <!-- Pricing cards -->
+    <div class="grid grid-cols-3 gap-6 mt-12">
+
+      <!-- Starter -->
+      <div class="price-card">
+        <div class="plan-name">Starter</div>
+        <div class="price-row">
+          <span class="price-amount gold-text">$299</span>
+          <span class="price-unit">/mo</span>
+        </div>
+        <div class="plan-desc">For solo creators &amp; small teams</div>
+        <div class="plan-features">
+          <div><span class="check">·</span>3 social accounts</div>
+          <div><span class="check">·</span>1 user</div>
+          <div><span class="check">·</span>AI composer (100/mo)</div>
+        </div>
+        <div class="btn btn-outline">Start trial <span class="material-icons">arrow_forward</span></div>
+      </div>
+
+      <!-- Growth (Featured) -->
+      <div class="price-card featured">
+        <div class="badge-popular">Most Popular</div>
+        <div class="plan-name">Growth</div>
+        <div class="price-row">
+          <span class="price-amount gold-text">$499</span>
+          <span class="price-unit">/mo</span>
+        </div>
+        <div class="plan-desc">For growing teams that publish daily</div>
+        <div class="plan-features">
+          <div><span class="check">·</span>15 social accounts</div>
+          <div><span class="check">·</span>5 users</div>
+          <div><span class="check">·</span>Unlimited AI</div>
+        </div>
+        <div class="btn btn-gold">Start trial <span class="material-icons">arrow_forward</span></div>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="price-card">
+        <div class="plan-name">Enterprise</div>
+        <div class="price-row">
+          <span class="price-amount gold-text">Custom</span>
+        </div>
+        <div class="plan-desc">For large teams with custom needs</div>
+        <div class="plan-features">
+          <div><span class="check">·</span>Unlimited everything</div>
+          <div><span class="check">·</span>SSO + SAML</div>
+          <div><span class="check">·</span>99.9% SLA</div>
+        </div>
+        <div class="btn btn-outline">Contact sales <span class="material-icons">arrow_forward</span></div>
+      </div>
+
+    </div>
+
+    <div class="bottom-note">
+      All plans include the <span class="accent">AI composer</span>, <span class="accent">account protection</span>, and <span class="accent">real-time analytics</span>.
+    </div>
+
+    <div class="footer-bar">
+      <span>SYNQUE</span>
+      <span>14 / 15</span>
+    </div>
+  </div>
+
+  <aside data-notes class="hidden">
+    <ul>
+      <li>Present three tiers — Starter, Growth, Enterprise.</li>
+      <li>Encourage starting with the 15-day free trial — no card required.</li>
+      <li>Highlight Growth as the most popular choice for daily-publishing teams.</li>
+      <li>Enterprise supports SSO, SAML, and a 99.9% SLA.</li>
+      <li>All plans include AI composer, protection, and analytics.</li>
+    </ul>
+  </aside>
+</body>
+</html>

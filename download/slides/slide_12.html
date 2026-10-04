@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SYNQUE — Team Collaboration</title>
+  <link rel="stylesheet" href="global.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: var(--bg); }
+    .canvas {
+      width: 1280px;
+      height: 720px;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+      padding: 56px 72px 64px;
+      font-family: var(--font-body);
+      color: var(--primary);
+    }
+    .glow-1 {
+      position: absolute;
+      width: 540px; height: 540px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(212,175,55,0.10) 0%, rgba(212,175,55,0) 70%);
+      top: -200px; left: -140px;
+      filter: blur(20px);
+      pointer-events: none;
+    }
+    .glow-2 {
+      position: absolute;
+      width: 420px; height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,122,255,0.07) 0%, rgba(0,122,255,0) 70%);
+      bottom: -160px; right: -120px;
+      filter: blur(20px);
+      pointer-events: none;
+    }
+    .title {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    .subtitle {
+      font-size: 16px;
+      color: var(--primary-muted);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      margin-top: 10px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(212,175,55,0.10);
+      border: 1px solid rgba(212,175,55,0.25);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    /* Role pills */
+    .role-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      backdrop-filter: blur(10px);
+    }
+    .role-pill .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .role-gold   { border: 1px solid rgba(212,175,55,0.5); color: #F5D061; }
+    .role-gold   .dot { background: #D4AF37; box-shadow: 0 0 10px rgba(212,175,55,0.7); }
+    .role-blue   { border: 1px solid rgba(0,122,255,0.5); color: #6FB5FF; }
+    .role-blue   .dot { background: #007AFF; box-shadow: 0 0 10px rgba(0,122,255,0.6); }
+    .role-emer   { border: 1px solid rgba(52,199,89,0.5); color: #6FE08A; }
+    .role-emer   .dot { background: #34C759; box-shadow: 0 0 10px rgba(52,199,89,0.6); }
+    .role-muted  { border: 1px solid rgba(255,255,255,0.18); color: rgba(244,244,245,0.7); }
+    .role-muted  .dot { background: rgba(244,244,245,0.55); }
+
+    .role-label {
+      font-size: 11px;
+      color: var(--primary-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    /* Workflow */
+    .flow-card {
+      flex: 1;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: flex-start;
+      position: relative;
+      min-height: 200px;
+    }
+    .flow-card .step-num {
+      position: absolute;
+      top: 14px; right: 16px;
+      font-size: 11px;
+      color: var(--primary-muted);
+      letter-spacing: 0.15em;
+      font-weight: 700;
+    }
+    .flow-icon-wrap {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      background: rgba(212,175,55,0.12);
+      border: 1px solid rgba(212,175,55,0.3);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .flow-icon-wrap .material-icons {
+      font-size: 26px;
+      color: var(--accent);
+    }
+    .flow-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: -0.01em;
+    }
+    .flow-detail {
+      font-size: 12.5px;
+      color: var(--primary-muted);
+      line-height: 1.5;
+    }
+    .arrow {
+      flex: 0 0 36px;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(212,175,55,0.6);
+    }
+    .arrow .material-icons { font-size: 28px; }
+
+    .footer-bar {
+      position: absolute;
+      left: 72px; right: 72px;
+      bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--primary-muted);
+      letter-spacing: 0.15em;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .bottom-note {
+      position: absolute;
+      left: 72px; right: 72px;
+      bottom: 56px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--primary-muted);
+      letter-spacing: 0.02em;
+    }
+    .bottom-note .accent { color: var(--accent); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="glow-1" data-decor aria-hidden="true"></div>
+    <div class="glow-2" data-decor aria-hidden="true"></div>
+
+    <!-- Header -->
+    <div>
+      <div class="eyebrow"><span class="material-icons" style="font-size:12px;">groups</span>Team Workflow</div>
+      <h1 class="title mt-3"><span class="gold-text">Built for teams.</span></h1>
+      <p class="subtitle">Roles, approvals, and accountability — without the chaos.</p>
+    </div>
+
+    <!-- Role pills section -->
+    <div class="mt-7">
+      <div class="role-label">Roles & Permissions</div>
+      <div class="flex items-center gap-3">
+        <span class="role-pill role-gold"><span class="dot"></span>Owner</span>
+        <span class="role-pill role-gold"><span class="dot"></span>Admin</span>
+        <span class="role-pill role-blue"><span class="dot"></span>Manager</span>
+        <span class="role-pill role-emer"><span class="dot"></span>Editor</span>
+        <span class="role-pill role-muted"><span class="dot"></span>Viewer</span>
+      </div>
+    </div>
+
+    <!-- Approval workflow -->
+    <div class="mt-8">
+      <div class="role-label">Approval Workflow</div>
+      <div class="flex items-stretch gap-2">
+        <div class="flow-card">
+          <span class="step-num">01</span>
+          <div class="flow-icon-wrap"><span class="material-icons">edit_note</span></div>
+          <div>
+            <div class="flow-title">Draft Created</div>
+            <div class="flow-detail">Editor starts a post, AI adapts it per platform.</div>
+          </div>
+        </div>
+        <div class="arrow"><span class="material-icons">arrow_forward</span></div>
+        <div class="flow-card">
+          <span class="step-num">02</span>
+          <div class="flow-icon-wrap"><span class="material-icons">rate_review</span></div>
+          <div>
+            <div class="flow-title">Submitted for Review</div>
+            <div class="flow-detail">Manager receives a notification and reviews the draft.</div>
+          </div>
+        </div>
+        <div class="arrow"><span class="material-icons">arrow_forward</span></div>
+        <div class="flow-card">
+          <span class="step-num">03</span>
+          <div class="flow-icon-wrap"><span class="material-icons">check_circle</span></div>
+          <div>
+            <div class="flow-title">Approved / Rejected</div>
+            <div class="flow-detail">Approve to publish or reject with inline feedback.</div>
+          </div>
+        </div>
+        <div class="arrow"><span class="material-icons">arrow_forward</span></div>
+        <div class="flow-card">
+          <span class="step-num">04</span>
+          <div class="flow-icon-wrap"><span class="material-icons">rocket_launch</span></div>
+          <div>
+            <div class="flow-title">Published</div>
+            <div class="flow-detail">Goes live to all 7 platforms — safely and on schedule.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-note">
+      Every action is logged. <span class="accent">Every team member sees what they need to.</span>
+    </div>
+
+    <div class="footer-bar">
+      <span>SYNQUE</span>
+      <span>12 / 15</span>
+    </div>
+  </div>
+
+  <aside data-notes class="hidden">
+    <ul>
+      <li>Explain the role hierarchy and the approval workflow.</li>
+      <li>Drafts go through review before publishing — managers approve or reject.</li>
+      <li>Five roles cover everything from Owner down to read-only Viewer.</li>
+      <li>Every action is logged for full accountability.</li>
+      <li>Safety net: nothing publishes without the right sign-off.</li>
+    </ul>
+  </aside>
+</body>
+</html>

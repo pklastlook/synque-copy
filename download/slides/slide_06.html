@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SYNQUE — Cross-Posting</title>
+  <link rel="stylesheet" href="global.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    .slide { display: flex; flex-direction: column; }
+    .flow-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      transition: all 0.3s ease;
+    }
+    .flow-card:hover { background: var(--bg-card-hover); }
+    .platform-dot {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      font-size: 11px;
+      color: white;
+      flex-shrink: 0;
+    }
+    .arrow-connector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+    }
+    .arrow-line {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      flex: 1;
+    }
+    @keyframes pulseGold {
+      0%, 100% { box-shadow: 0 0 30px var(--accent-glow); }
+      50% { box-shadow: 0 0 50px rgba(212, 175, 55, 0.35); }
+    }
+    .pulse-glow { animation: pulseGold 2.4s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <!-- Header -->
+    <header class="mb-6">
+      <div class="accent-pill mb-3">
+        <span class="material-icons" style="font-size:14px;">bolt</span>
+        CROSS-POSTING ENGINE
+      </div>
+      <h1 class="gold-text font-bold tracking-tight" style="font-family:var(--font-heading); font-size:36px; line-height:1.1;">
+        One post. Seven platform-optimized variants.
+      </h1>
+      <p class="mt-2 text-base" style="color:var(--primary-muted); font-size:18px;">
+        Write once. AI adapts the caption for each platform.
+      </p>
+    </header>
+
+    <!-- Flow diagram -->
+    <div class="flex items-stretch gap-5 flex-1" style="min-height:0;">
+      <!-- Left: One Post card -->
+      <div class="flex flex-col justify-center" style="width:230px;">
+        <div class="glass-card-gold pulse-glow p-5 flex flex-col items-center text-center">
+          <span class="material-icons" style="font-size:42px; color:var(--accent);">edit</span>
+          <div class="mt-3 font-bold text-white" style="font-size:20px;">One Post</div>
+          <div class="mt-1" style="color:var(--primary-muted); font-size:13px;">Single source draft</div>
+          <div class="mt-4 pt-4 w-full" style="border-top:1px solid var(--border);">
+            <div class="text-left text-xs leading-relaxed" style="color:var(--primary-muted);">
+              <div class="mb-1"><span style="color:var(--accent);">●</span> Brand voice locked</div>
+              <div class="mb-1"><span style="color:var(--accent);">●</span> Asset attached</div>
+              <div><span style="color:var(--accent);">●</span> Hashtag pool</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: arrow connector -->
+      <div class="flex flex-col justify-center items-center" style="width:90px;">
+        <div class="arrow-connector w-full">
+          <div class="arrow-line"></div>
+          <span class="material-icons" style="font-size:34px;">arrow_forward</span>
+        </div>
+        <div class="mt-2 text-center">
+          <div class="accent-pill" style="font-size:10px; padding:3px 10px;">AI ADAPT</div>
+        </div>
+      </div>
+
+      <!-- Right: 7 platform cards in grid -->
+      <div class="flex-1 grid grid-cols-2 gap-2.5" style="grid-template-rows: repeat(4, 1fr);">
+        <!-- Instagram -->
+        <div class="flow-card" style="border-left:3px solid #E1306C;">
+          <div class="platform-dot" style="background:#E1306C;">IG</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white" style="font-size:12px;">Instagram</div>
+            <div class="text-ellipsis overflow-hidden" style="color:var(--primary-muted); font-size:11px; line-height:1.3;">
+              Loving the new collection! ✨ Shop now 👉 #fashion #newdrop
+            </div>
+          </div>
+        </div>
+        <!-- Facebook -->
+        <div class="flow-card" style="border-left:3px solid #1877F2;">
+          <div class="platform-dot" style="background:#1877F2;">FB</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white" style="font-size:12px;">Facebook</div>
+            <div class="text-ellipsis overflow-hidden" style="color:var(--primary-muted); font-size:11px; line-height:1.3;">
+              Our new collection is here! Shop the full range on our website today.
+            </div>
+          </div>
+        </div>
+        <!-- X -->
+        <div class="flow-card" style="border-left:3px solid #1DA1F2;">
+          <div class="platform-dot" style="background:#1DA1F2;">X</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white" style="font-size:12px;">X (Twitter)</div>
+            <div class="text-ellipsis overflow-hidden" style="color:var(--primary-muted); font-size:11px; line-height:1.3;">
+              New drop just landed. Shop now → #fashion
+            </div>
+          </div>
+        </div>
+        <!-- LinkedIn -->
+        <div class="flow-card" style="border-left:3px solid #0A66C2;">
+          <div class="platform-dot" style="background:#0A66C2;">in</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white" style="font-size:12px;">LinkedIn</div>
+            <div class="text-ellipsis overflow-hidden" style="color:var(--primary-muted); font-size:11px; line-height:1.3;">
+              Excited to announce our latest collection, designed for the modern professional.
+            </div>
+          </div>
+        </div>
+        <!-- TikTok -->
+        <div class="flow-card" style="border-left:3px solid #000; background:rgba(255,255,255,0.06);">
+          <div class="platform-dot" style="background:#000;">TT</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white" style="font-size:12px;">TikTok</div>
+            <div class="text-ellipsis overflow-hidden" style="color:var(--primary-muted); font-size:11px; line-height:1.3;">
+              POV: you just saw the new drop 🔥 #fyp #fashion
+            </div>
+          </div>
+        </div>
+        <!-- YouTube -->
+        <div class="flow-card" style="border-left:3px solid #FF0000;">
+          <div class="platform-dot" style="background:#FF0000;">YT</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white" style="font-size:12px;">YouTube</div>
+            <div class="text-ellipsis overflow-hidden" style="color:var(--primary-muted); font-size:11px; line-height:1.3;">
+              Watch our new collection showcase video now live on our channel.
+            </div>
+          </div>
+        </div>
+        <!-- Threads (spans 2 cols on last row) -->
+        <div class="flow-card col-span-2" style="border-left:3px solid #000; background:rgba(255,255,255,0.06);">
+          <div class="platform-dot" style="background:#000;">Th</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-white" style="font-size:12px;">Threads</div>
+            <div class="text-ellipsis overflow-hidden" style="color:var(--primary-muted); font-size:11px; line-height:1.3;">
+              New collection just dropped. What do you think?
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom note -->
+    <div class="mt-5 flex items-center gap-2" style="color:var(--accent);">
+      <span class="material-icons" style="font-size:16px;">check_circle</span>
+      <span class="text-sm" style="font-size:14px;">Each variant respects platform tone, length, and hashtag conventions.</span>
+    </div>
+
+    <div class="brand-mark">SYNQUE</div>
+    <div class="slide-num">06 / 15</div>
+  </div>
+
+  <aside data-notes class="hidden">
+    <ul>
+      <li>This is the killer feature — one post becomes 7 AI-optimized variants.</li>
+      <li>Same draft source; AI tailors tone, length, and hashtags per platform.</li>
+      <li>Brand voice stays locked; only expression changes.</li>
+      <li>Saves hours of manual reformatting per campaign.</li>
+    </ul>
+  </aside>
+</body>
+</html>

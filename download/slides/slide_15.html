@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SYNQUE — Get Started</title>
+  <link rel="stylesheet" href="global.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: var(--bg); }
+    .canvas {
+      width: 1280px;
+      height: 720px;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+      padding: 0;
+      font-family: var(--font-body);
+      color: var(--primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Ambient gold glow behind title */
+    .center-glow {
+      position: absolute;
+      width: 760px; height: 560px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(212,175,55,0.18) 0%, rgba(212,175,55,0.06) 35%, rgba(212,175,55,0) 70%);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -55%);
+      filter: blur(30px);
+      pointer-events: none;
+    }
+    .corner-glow-tr {
+      position: absolute;
+      width: 380px; height: 380px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(212,175,55,0.08) 0%, rgba(212,175,55,0) 70%);
+      top: -160px; right: -120px;
+      filter: blur(20px);
+      pointer-events: none;
+    }
+    .corner-glow-bl {
+      position: absolute;
+      width: 380px; height: 380px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,122,255,0.06) 0%, rgba(0,122,255,0) 70%);
+      bottom: -180px; left: -100px;
+      filter: blur(20px);
+      pointer-events: none;
+    }
+    /* Subtle grid lines decoration */
+    .grid-decor {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+      background-size: 80px 80px;
+      mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 70%);
+      -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+    }
+    .content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      max-width: 900px;
+      padding: 0 64px;
+      text-align: center;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 18px;
+      border-radius: 999px;
+      background: rgba(212,175,55,0.10);
+      border: 1px solid rgba(212,175,55,0.30);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .eyebrow .material-icons { font-size: 13px; }
+
+    .title {
+      font-family: 'Inter', sans-serif;
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      line-height: 1.05;
+    }
+    .title-gold {
+      background: linear-gradient(135deg, #D4AF37 0%, #F5D061 45%, #FFFFFF 50%, #F5D061 55%, #D4AF37 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 30px rgba(212,175,55,0.25));
+    }
+    .subtitle {
+      font-size: 20px;
+      color: var(--primary);
+      font-weight: 300;
+      line-height: 1.4;
+      max-width: 720px;
+    }
+
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #D4AF37 0%, #F5D061 100%);
+      color: #0A0B0F;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      box-shadow:
+        0 0 0 1px rgba(212,175,55,0.5),
+        0 12px 40px rgba(212,175,55,0.45),
+        inset 0 1px 0 rgba(255,255,255,0.4);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+    .cta-button .material-icons {
+      font-size: 22px;
+      transition: transform 0.25s ease;
+    }
+    .cta-button:hover .material-icons {
+      transform: translateX(4px);
+    }
+
+    .visit-line {
+      font-size: 14px;
+      color: var(--primary-muted);
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .visit-line .url {
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .visit-line .material-icons { font-size: 14px; color: var(--primary-muted); }
+
+    .brand-mark {
+      position: absolute;
+      bottom: 32px; left: 48px;
+      font-size: 11px;
+      color: var(--primary-muted);
+      letter-spacing: 0.20em;
+      font-weight: 700;
+      text-transform: uppercase;
+      z-index: 3;
+    }
+    .slide-num {
+      position: absolute;
+      bottom: 32px; right: 48px;
+      font-size: 11px;
+      color: var(--primary-muted);
+      letter-spacing: 0.10em;
+      font-weight: 700;
+      z-index: 3;
+    }
+    .corner-accent-tl {
+      position: absolute;
+      top: 32px; left: 48px;
+      width: 36px; height: 36px;
+      border-top: 1px solid rgba(212,175,55,0.4);
+      border-left: 1px solid rgba(212,175,55,0.4);
+      border-top-left-radius: 6px;
+      pointer-events: none;
+    }
+    .corner-accent-br {
+      position: absolute;
+      bottom: 70px; right: 48px;
+      width: 36px; height: 36px;
+      border-bottom: 1px solid rgba(212,175,55,0.4);
+      border-right: 1px solid rgba(212,175,55,0.4);
+      border-bottom-right-radius: 6px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="grid-decor" data-decor aria-hidden="true"></div>
+    <div class="center-glow" data-decor aria-hidden="true"></div>
+    <div class="corner-glow-tr" data-decor aria-hidden="true"></div>
+    <div class="corner-glow-bl" data-decor aria-hidden="true"></div>
+    <div class="corner-accent-tl" data-decor aria-hidden="true"></div>
+    <div class="corner-accent-br" data-decor aria-hidden="true"></div>
+
+    <div class="content">
+      <div class="eyebrow">
+        <span class="material-icons">rocket_launch</span>
+        Get Started
+      </div>
+
+      <h1 class="title title-gold">Start your 15-day free trial</h1>
+
+      <p class="subtitle">Full access to every module. No card to explore. Cancel anytime.</p>
+
+      <button class="cta-button">
+        Get Started
+        <span class="material-icons">arrow_forward</span>
+      </button>
+
+      <div class="visit-line">
+        <span class="material-icons">language</span>
+        Or visit <span class="url">synque.vercel.app</span> to learn more
+      </div>
+    </div>
+
+    <div class="brand-mark">SYNQUE</div>
+    <div class="slide-num">15 / 15</div>
+  </div>
+
+  <aside data-notes class="hidden">
+    <ul>
+      <li>Close with a strong call to action.</li>
+      <li>Invite the audience to start their 15-day free trial today.</li>
+      <li>No credit card required to explore the platform.</li>
+      <li>Direct them to synque.vercel.app for more details.</li>
+      <li>Thank the audience and offer to answer questions.</li>
+    </ul>
+  </aside>
+</body>
+</html>

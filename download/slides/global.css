@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap');
+
+:root {
+  /* Palette */
+  --bg: #0A0B0F;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.08);
+  --primary: #F4F4F5;
+  --primary-muted: rgba(244, 244, 245, 0.6);
+  --accent: #D4AF37;
+  --accent-glow: rgba(212, 175, 55, 0.15);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-gold: rgba(212, 175, 55, 0.3);
+  --emerald: #34C759;
+  --rose: #FF3B30;
+  --blue: #007AFF;
+  --violet: #AF52DE;
+
+  /* Typography tokens */
+  --font-heading: 'Inter', sans-serif;
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-num: 'Inter', sans-serif;
+
+  --fs-display: 72px;
+  --fs-h1: 48px;
+  --fs-h2: 36px;
+  --fs-h3: 24px;
+  --fs-body: 18px;
+  --fs-small: 14px;
+  --fs-micro: 11px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+.slide {
+  width: 1280px;
+  min-height: 720px;
+  max-height: 720px;
+  overflow: hidden;
+  padding: 64px;
+  background: var(--bg);
+  color: var(--primary);
+  font-family: var(--font-body);
+  position: relative;
+}
+
+/* Gold gradient text */
+.gold-text {
+  background: linear-gradient(135deg, #D4AF37 0%, #F5D061 50%, #D4AF37 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass card */
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  transition: all 0.3s ease;
+}
+
+.glass-card-gold {
+  background: var(--bg-card);
+  border: 1px solid var(--border-gold);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 0 40px var(--accent-glow);
+}
+
+/* Accent pill */
+.accent-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Slide number badge */
+.slide-num {
+  position: absolute;
+  bottom: 32px;
+  right: 48px;
+  font-size: var(--fs-micro);
+  color: var(--primary-muted);
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
+/* Brand mark */
+.brand-mark {
+  position: absolute;
+  bottom: 32px;
+  left: 48px;
+  font-size: var(--fs-micro);
+  color: var(--primary-muted);
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  text-transform: uppercase;
+}

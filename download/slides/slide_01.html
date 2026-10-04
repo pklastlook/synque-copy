@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SYNQUE — Cover</title>
+<link rel="stylesheet" href="global.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; background: #000; }
+  .slide-cover { position: relative; }
+  .radial-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -55%);
+    width: 900px; height: 540px;
+    background: radial-gradient(ellipse at center, rgba(212,175,55,0.28) 0%, rgba(212,175,55,0.10) 35%, rgba(212,175,55,0) 70%);
+    pointer-events: none;
+    filter: blur(4px);
+  }
+  .grid-overlay {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 80px 80px;
+    pointer-events: none;
+  }
+  .wordmark {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 144px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    background: linear-gradient(135deg, #D4AF37 0%, #F5D061 45%, #FFF2C6 55%, #D4AF37 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 60px rgba(212,175,55,0.25);
+  }
+  .hairline {
+    width: 60px; height: 1px;
+    background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+  }
+  .corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: absolute;
+    width: 18px; height: 18px;
+    border-color: rgba(212,175,55,0.45);
+  }
+  .corner-tl { top: 28px; left: 28px; border-top: 1px solid; border-left: 1px solid; }
+  .corner-tr { top: 28px; right: 28px; border-top: 1px solid; border-right: 1px solid; }
+  .corner-bl { bottom: 28px; left: 28px; border-bottom: 1px solid; border-left: 1px solid; }
+  .corner-br { bottom: 28px; right: 28px; border-bottom: 1px solid; border-right: 1px solid; }
+</style>
+</head>
+<body>
+<div class="slide slide-cover flex flex-col items-center justify-center text-center">
+  <!-- decorative grid + glow -->
+  <div class="grid-overlay" data-decor aria-hidden="true"></div>
+  <div class="radial-glow" data-decor aria-hidden="true"></div>
+  <div class="corner-tl" data-decor aria-hidden="true"></div>
+  <div class="corner-tr" data-decor aria-hidden="true"></div>
+  <div class="corner-bl" data-decor aria-hidden="true"></div>
+  <div class="corner-br" data-decor aria-hidden="true"></div>
+
+  <!-- top accent pill -->
+  <div class="accent-pill mb-12 relative z-10">
+    <span class="material-icons" style="font-size:14px;">auto_awesome</span>
+    Product Overview
+  </div>
+
+  <!-- wordmark + tagline -->
+  <div class="relative z-10 flex flex-col items-center">
+    <h1 class="wordmark">SYNQUE</h1>
+    <div class="hairline my-8"></div>
+    <p style="font-family:'Inter',sans-serif; font-weight:300; font-size:32px; color:#F4F4F5; letter-spacing:0.04em;">
+      Orchestrate Your Social
+    </p>
+    <p class="mt-4" style="font-family:'Inter',sans-serif; font-weight:400; font-size:18px; color:rgba(244,244,245,0.55); letter-spacing:0.06em;">
+      The Enterprise Command Center for Modern Social Teams
+    </p>
+  </div>
+
+  <!-- brand + slide num -->
+  <div class="brand-mark">SYNQUE</div>
+  <div class="slide-num">01 / 15</div>
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>Welcome the audience and set the tone — premium, calm, confident.</li>
+    <li>Introduce SYNQUE as the enterprise social media command center.</li>
+    <li>Frame the deck: problem, solution, features, security, pricing, CTA.</li>
+    <li>Pause on the wordmark — let it land before moving on.</li>
+  </ul>
+</aside>
+</body>
+</html>

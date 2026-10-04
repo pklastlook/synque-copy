@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SYNQUE — Key Features</title>
+<link rel="stylesheet" href="global.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; background: #000; }
+  .feat-card {
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 20px 18px;
+    backdrop-filter: blur(20px);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .feat-card:hover { border-color: rgba(212,175,55,0.35); }
+  .feat-icon-wrap {
+    width: 40px; height: 40px;
+    border-radius: 11px;
+    background: rgba(212,175,55,0.10);
+    border: 1px solid rgba(212,175,55,0.25);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .feat-icon-wrap .material-icons {
+    color: #F5D061; font-size: 22px;
+  }
+  .feat-num {
+    font-size: 10px; letter-spacing: 0.2em; font-weight: 700;
+    color: rgba(212,175,55,0.6); font-family: 'Inter', sans-serif;
+  }
+  .feat-title {
+    font-size: 16px; font-weight: 700; color: #F4F4F5; letter-spacing:-0.01em;
+  }
+  .feat-desc {
+    font-size: 13px; line-height: 1.45; color: rgba(244,244,245,0.58);
+  }
+  .ghost-num {
+    position: absolute;
+    bottom: -18px; right: -6px;
+    font-size: 90px; font-weight: 900;
+    color: rgba(212,175,55,0.05);
+    line-height: 1; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div class="slide flex flex-col">
+  <!-- header -->
+  <div class="flex items-end justify-between mb-7">
+    <div>
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-icons" style="color:#D4AF37; font-size:18px;">grid_view</span>
+        <span style="font-size:11px; letter-spacing:0.2em; font-weight:700; color:rgba(244,244,245,0.5); text-transform:uppercase;">Key Features · 03</span>
+      </div>
+      <h1 style="font-family:'Inter',sans-serif; font-weight:800; font-size:36px; line-height:1.05; color:#F4F4F5; letter-spacing:-0.02em;">
+        Everything you need. Nothing you don't.
+      </h1>
+      <p class="mt-2" style="font-size:16px; color:rgba(244,244,245,0.55); font-weight:400;">
+        24 modules. One workspace. Zero chaos.
+      </p>
+    </div>
+    <div class="accent-pill">
+      <span class="material-icons" style="font-size:14px;">extension</span>
+      8 of 24 Modules
+    </div>
+  </div>
+
+  <!-- 4x2 grid -->
+  <div class="grid grid-cols-4 gap-4 flex-1">
+    <!-- row 1 -->
+    <div class="feat-card">
+      <div class="flex items-start justify-between mb-3">
+        <div class="feat-icon-wrap"><span class="material-icons">edit_note</span></div>
+        <span class="feat-num">01</span>
+      </div>
+      <div class="feat-title">AI Composer</div>
+      <div class="feat-desc mt-1">Generate platform-specific captions</div>
+      <div class="ghost-num" data-decor aria-hidden="true">01</div>
+    </div>
+    <div class="feat-card">
+      <div class="flex items-start justify-between mb-3">
+        <div class="feat-icon-wrap"><span class="material-icons">calendar_month</span></div>
+        <span class="feat-num">02</span>
+      </div>
+      <div class="feat-title">Content Calendar</div>
+      <div class="feat-desc mt-1">Drag-and-drop scheduling</div>
+      <div class="ghost-num" data-decor aria-hidden="true">02</div>
+    </div>
+    <div class="feat-card">
+      <div class="flex items-start justify-between mb-3">
+        <div class="feat-icon-wrap"><span class="material-icons">inbox</span></div>
+        <span class="feat-num">03</span>
+      </div>
+      <div class="feat-title">Unified Inbox</div>
+      <div class="feat-desc mt-1">All comments in one place</div>
+      <div class="ghost-num" data-decor aria-hidden="true">03</div>
+    </div>
+    <div class="feat-card">
+      <div class="flex items-start justify-between mb-3">
+        <div class="feat-icon-wrap"><span class="material-icons">shield</span></div>
+        <span class="feat-num">04</span>
+      </div>
+      <div class="feat-title">Account Safety</div>
+      <div class="feat-desc mt-1">Anti-suspension protection</div>
+      <div class="ghost-num" data-decor aria-hidden="true">04</div>
+    </div>
+    <!-- row 2 -->
+    <div class="feat-card">
+      <div class="flex items-start justify-between mb-3">
+        <div class="feat-icon-wrap"><span class="material-icons">groups</span></div>
+        <span class="feat-num">05</span>
+      </div>
+      <div class="feat-title">Team Workflow</div>
+      <div class="feat-desc mt-1">Roles, approvals, assignments</div>
+      <div class="ghost-num" data-decor aria-hidden="true">05</div>
+    </div>
+    <div class="feat-card">
+      <div class="flex items-start justify-between mb-3">
+        <div class="feat-icon-wrap"><span class="material-icons">bar_chart</span></div>
+        <span class="feat-num">06</span>
+      </div>
+      <div class="feat-title">Analytics</div>
+      <div class="feat-desc mt-1">Cross-platform insights</div>
+      <div class="ghost-num" data-decor aria-hidden="true">06</div>
+    </div>
+    <div class="feat-card">
+      <div class="flex items-start justify-between mb-3">
+        <div class="feat-icon-wrap"><span class="material-icons">campaign</span></div>
+        <span class="feat-num">07</span>
+      </div>
+      <div class="feat-title">Campaigns</div>
+      <div class="feat-desc mt-1">Track marketing campaigns</div>
+      <div class="ghost-num" data-decor aria-hidden="true">07</div>
+    </div>
+    <div class="feat-card">
+      <div class="flex items-start justify-between mb-3">
+        <div class="feat-icon-wrap"><span class="material-icons">visibility</span></div>
+        <span class="feat-num">08</span>
+      </div>
+      <div class="feat-title">Competitor Tracking</div>
+      <div class="feat-desc mt-1">Monitor the competition</div>
+      <div class="ghost-num" data-decor aria-hidden="true">08</div>
+    </div>
+  </div>
+
+  <div class="brand-mark">SYNQUE</div>
+  <div class="slide-num">04 / 15</div>
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>Highlight the breadth of features — 24 modules covering every social media need.</li>
+    <li>Don't read each card; group them: compose, schedule, engage, protect, analyze.</li>
+    <li>Mention this is a curated subset — 8 of 24 modules shown.</li>
+    <li>Tee up the next slide on multi-platform publishing.</li>
+  </ul>
+</aside>
+</body>
+</html>

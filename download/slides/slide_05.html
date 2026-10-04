@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SYNQUE — Supported Platforms</title>
+<link rel="stylesheet" href="global.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; background: #000; }
+  .platform-card {
+    flex: 1;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 22px 14px 18px;
+    backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    text-align: center;
+    min-width: 0;
+  }
+  .platform-card .top-bar {
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .platform-code {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 800; font-size: 18px;
+    margin-bottom: 14px;
+    letter-spacing: -0.01em;
+  }
+  .platform-name {
+    font-size: 15px; font-weight: 700; color: #F4F4F5; letter-spacing:-0.01em;
+  }
+  .platform-limit {
+    font-size: 12px; color: rgba(244,244,245,0.50); margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .platform-num {
+    position: absolute; top: 8px; right: 10px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.15em;
+    color: rgba(244,244,245,0.25);
+  }
+  .cta-pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 14px 32px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #D4AF37 0%, #F5D061 100%);
+    color: #0A0B0F;
+    font-size: 15px; font-weight: 700; letter-spacing: 0.02em;
+    box-shadow: 0 8px 30px rgba(212,175,55,0.35);
+  }
+</style>
+</head>
+<body>
+<div class="slide flex flex-col">
+  <!-- header -->
+  <div class="flex items-end justify-between mb-7">
+    <div>
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-icons" style="color:#D4AF37; font-size:18px;">share</span>
+        <span style="font-size:11px; letter-spacing:0.2em; font-weight:700; color:rgba(244,244,245,0.5); text-transform:uppercase;">Supported Platforms · 04</span>
+      </div>
+      <h1 class="gold-text" style="font-family:'Inter',sans-serif; font-weight:800; font-size:42px; line-height:1.05; letter-spacing:-0.02em;">
+        7 platforms. One click.
+      </h1>
+      <p class="mt-2" style="font-size:16px; color:rgba(244,244,245,0.55); font-weight:400;">
+        Publish to every major social network from a single composer.
+      </p>
+    </div>
+    <div class="accent-pill">
+      <span class="material-icons" style="font-size:14px;">hub</span>
+      7 Networks · 1 Composer
+    </div>
+  </div>
+
+  <!-- 7 platform cards in a row -->
+  <div class="flex gap-3 mb-7">
+    <!-- Instagram -->
+    <div class="platform-card">
+      <div class="top-bar" style="background:#E1306C;"></div>
+      <span class="platform-num">01</span>
+      <div class="platform-code" style="background:rgba(225,48,108,0.15); color:#F5A0B8; border:1px solid rgba(225,48,108,0.4);">IG</div>
+      <div class="platform-name">Instagram</div>
+      <div class="platform-limit">2,200 chars</div>
+    </div>
+    <!-- Facebook -->
+    <div class="platform-card">
+      <div class="top-bar" style="background:#1877F2;"></div>
+      <span class="platform-num">02</span>
+      <div class="platform-code" style="background:rgba(24,119,242,0.15); color:#7AAEF5; border:1px solid rgba(24,119,242,0.4);">FB</div>
+      <div class="platform-name">Facebook</div>
+      <div class="platform-limit">63,206 chars</div>
+    </div>
+    <!-- X -->
+    <div class="platform-card">
+      <div class="top-bar" style="background:#1DA1F2;"></div>
+      <span class="platform-num">03</span>
+      <div class="platform-code" style="background:rgba(29,161,242,0.15); color:#7CC8F5; border:1px solid rgba(29,161,242,0.4);">X</div>
+      <div class="platform-name">X (Twitter)</div>
+      <div class="platform-limit">280 chars</div>
+    </div>
+    <!-- LinkedIn -->
+    <div class="platform-card">
+      <div class="top-bar" style="background:#0A66C2;"></div>
+      <span class="platform-num">04</span>
+      <div class="platform-code" style="background:rgba(10,102,194,0.18); color:#7AA9DD; border:1px solid rgba(10,102,194,0.4);">in</div>
+      <div class="platform-name">LinkedIn</div>
+      <div class="platform-limit">3,000 chars</div>
+    </div>
+    <!-- TikTok -->
+    <div class="platform-card">
+      <div class="top-bar" style="background:#000; box-shadow:0 0 0 1px rgba(255,255,255,0.18);"></div>
+      <span class="platform-num">05</span>
+      <div class="platform-code" style="background:rgba(255,255,255,0.10); color:#F4F4F5; border:1px solid rgba(255,255,255,0.25);">TT</div>
+      <div class="platform-name">TikTok</div>
+      <div class="platform-limit">2,200 chars</div>
+    </div>
+    <!-- YouTube -->
+    <div class="platform-card">
+      <div class="top-bar" style="background:#FF0000;"></div>
+      <span class="platform-num">06</span>
+      <div class="platform-code" style="background:rgba(255,0,0,0.15); color:#FF7A7A; border:1px solid rgba(255,0,0,0.4);">YT</div>
+      <div class="platform-name">YouTube</div>
+      <div class="platform-limit">5,000 chars</div>
+    </div>
+    <!-- Threads -->
+    <div class="platform-card">
+      <div class="top-bar" style="background:#000; box-shadow:0 0 0 1px rgba(255,255,255,0.18);"></div>
+      <span class="platform-num">07</span>
+      <div class="platform-code" style="background:rgba(255,255,255,0.10); color:#F4F4F5; border:1px solid rgba(255,255,255,0.25);">Th</div>
+      <div class="platform-name">Threads</div>
+      <div class="platform-limit">500 chars</div>
+    </div>
+  </div>
+
+  <!-- CTA + note -->
+  <div class="flex flex-col items-center gap-4 mt-2">
+    <div class="cta-pill">
+      <span class="material-icons" style="font-size:18px;">rocket_launch</span>
+      Post to all 7 in one click
+    </div>
+    <p style="font-size:13px; color:rgba(244,244,245,0.50); letter-spacing:0.04em;">
+      Each platform's character limit and tone respected automatically by the AI composer.
+    </p>
+  </div>
+
+  <div class="brand-mark">SYNQUE</div>
+  <div class="slide-num">05 / 15</div>
+</div>
+
+<aside data-notes class="hidden">
+  <ul>
+    <li>Emphasize that SYNQUE supports all 7 major platforms and you can cross-post to all simultaneously.</li>
+    <li>Call out the wide variance in character limits — from 280 on X to 63,206 on Facebook.</li>
+    <li>The composer adapts content automatically; users never have to manually trim.</li>
+    <li>Transition into the cross-posting flow on the next slide.</li>
+  </ul>
+</aside>
+</body>
+</html>

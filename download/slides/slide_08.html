@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SYNQUE — Multi-Workspace Architecture</title>
+  <link rel="stylesheet" href="global.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    .slide { display: flex; flex-direction: column; }
+    .arch-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 18px 20px;
+      backdrop-filter: blur(20px);
+      transition: all 0.3s ease;
+    }
+    .main-card {
+      border: 1px solid var(--border-gold);
+      box-shadow: 0 0 40px var(--accent-glow);
+      background: rgba(212,175,55,0.04);
+    }
+    .tenant-card-a { border: 1px solid rgba(52,199,89,0.5); box-shadow: 0 0 25px rgba(52,199,89,0.15); }
+    .tenant-card-b { border: 1px solid rgba(0,122,255,0.5); box-shadow: 0 0 25px rgba(0,122,255,0.15); }
+    .tenant-card-c { border: 1px solid rgba(175,82,222,0.5); box-shadow: 0 0 25px rgba(175,82,222,0.15); }
+    .connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .connector-line {
+      width: 2px;
+      height: 18px;
+      background: linear-gradient(180deg, var(--accent), transparent);
+    }
+    .tenant-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-right: 4px;
+    }
+    @keyframes flowDown {
+      0% { transform: translateY(-8px); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: translateY(8px); opacity: 0; }
+    }
+    .flow-dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: flowDown 2s linear infinite;
+    }
+    .flow-dot:nth-child(2) { animation-delay: 0.4s; }
+    .flow-dot:nth-child(3) { animation-delay: 0.8s; }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <!-- Header -->
+    <header class="mb-6">
+      <div class="accent-pill mb-3">
+        <span class="material-icons" style="font-size:14px;">storage</span>
+        MULTI-WORKSPACE ARCHITECTURE
+      </div>
+      <h1 class="font-bold tracking-tight text-white" style="font-family:var(--font-heading); font-size:36px; line-height:1.1;">
+        Isolated databases. Zero data mixing.
+      </h1>
+      <p class="mt-2" style="color:var(--primary-muted); font-size:18px;">
+        Every client gets their own dedicated Neon PostgreSQL database.
+      </p>
+    </header>
+
+    <!-- Architecture diagram -->
+    <div class="flex flex-col items-center flex-1" style="min-height:0;">
+      <!-- Top: Main Database -->
+      <div class="arch-card main-card" style="width:520px;">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:var(--accent-glow);">
+            <span class="material-icons" style="font-size:22px; color:var(--accent);">database</span>
+          </div>
+          <div>
+            <div class="font-bold text-white" style="font-size:18px;">Main Database</div>
+            <div class="text-xs" style="color:var(--primary-muted);">Central control plane</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-1 mt-2">
+          <span class="tenant-pill" style="background:var(--accent-glow); color:var(--accent);">Customer registry</span>
+          <span class="tenant-pill" style="background:var(--accent-glow); color:var(--accent);">Auth</span>
+          <span class="tenant-pill" style="background:var(--accent-glow); color:var(--accent);">Audit log</span>
+        </div>
+      </div>
+
+      <!-- Connector with arrows down -->
+      <div class="connector my-2">
+        <div class="flex justify-around w-[820px]">
+          <div class="connector"></div>
+          <div class="connector"></div>
+          <div class="connector"></div>
+        </div>
+        <div class="flex justify-around w-[820px]">
+          <div class="connector">
+            <div class="flow-dot"></div>
+            <span class="material-icons" style="font-size:24px; color:var(--accent);">south</span>
+          </div>
+          <div class="connector">
+            <div class="flow-dot"></div>
+            <span class="material-icons" style="font-size:24px; color:var(--accent);">south</span>
+          </div>
+          <div class="connector">
+            <div class="flow-dot"></div>
+            <span class="material-icons" style="font-size:24px; color:var(--accent);">south</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Three tenant cards -->
+      <div class="grid grid-cols-3 gap-5 w-full" style="max-width:1080px;">
+        <!-- Client A -->
+        <div class="arch-card tenant-card-a">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 rounded-md flex items-center justify-center" style="background:rgba(52,199,89,0.15);">
+              <span class="material-icons" style="font-size:16px; color:var(--emerald);">storage</span>
+            </div>
+            <div class="font-bold text-white" style="font-size:15px;">Tenant DB — Client A</div>
+          </div>
+          <div class="text-xs leading-relaxed" style="color:var(--primary-muted);">
+            Posts · Accounts · Media · Comments · Analytics
+          </div>
+        </div>
+        <!-- Client B -->
+        <div class="arch-card tenant-card-b">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 rounded-md flex items-center justify-center" style="background:rgba(0,122,255,0.15);">
+              <span class="material-icons" style="font-size:16px; color:var(--blue);">storage</span>
+            </div>
+            <div class="font-bold text-white" style="font-size:15px;">Tenant DB — Client B</div>
+          </div>
+          <div class="text-xs leading-relaxed" style="color:var(--primary-muted);">
+            Posts · Accounts · Media · Comments · Analytics
+          </div>
+        </div>
+        <!-- Client C -->
+        <div class="arch-card tenant-card-c">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 rounded-md flex items-center justify-center" style="background:rgba(175,82,222,0.15);">
+              <span class="material-icons" style="font-size:16px; color:var(--violet);">storage</span>
+            </div>
+            <div class="font-bold text-white" style="font-size:15px;">Tenant DB — Client C</div>
+          </div>
+          <div class="text-xs leading-relaxed" style="color:var(--primary-muted);">
+            Posts · Accounts · Media · Comments · Analytics
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom note -->
+    <div class="mt-4 flex items-center gap-2 px-4 py-3 rounded-xl" style="background:rgba(212,175,55,0.06); border:1px solid var(--border-gold);">
+      <span class="material-icons" style="font-size:18px; color:var(--accent);">shield</span>
+      <span class="text-sm gold-text font-medium" style="font-size:14px;">
+        Each client's data lives in a completely separate database — your data never mixes with anyone else's.
+      </span>
+    </div>
+
+    <div class="brand-mark">SYNQUE</div>
+    <div class="slide-num">08 / 15</div>
+  </div>
+
+  <aside data-notes class="hidden">
+    <ul>
+      <li>Emphasize the enterprise-grade isolation — each client gets their own database.</li>
+      <li>Main DB holds customer registry, auth, and audit log only.</li>
+      <li>Tenant DBs hold all post content, media, comments, and analytics.</li>
+      <li>Built on Neon PostgreSQL for instant provisioning and scale.</li>
+    </ul>
+  </aside>
+</body>
+</html>

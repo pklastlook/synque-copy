@@ -1,0 +1,105 @@
+{
+  "design": {
+    "title": "SYNQUE — Enterprise Social Media Command Center",
+    "style_name": "Dark Premium / Gold Accent",
+    "palette": { "background": "#0A0B0F", "primary": "#F4F4F5", "accent": "#D4AF37" },
+    "typography": { "heading": "Inter", "body": "Inter", "numeric": "Inter" },
+    "reference": "Apple Keynote dark + gold luxury accent"
+  },
+  "global_css_path": "/home/z/my-project/download/slides/global.css",
+  "slides_dir": "/home/z/my-project/download/slides",
+  "language": "en",
+  "speaker_notes": "short",
+  "slides": [
+    {
+      "title": "SYNQUE",
+      "layout": "cover",
+      "output_path": "/home/z/my-project/download/slides/slide_01.html",
+      "task_brief": "Cover slide. Center-aligned. Large 'SYNQUE' wordmark in gold gradient text (Playfair Display, 96px). Below it: 'Orchestrate Your Social' in white (Inter, 32px, weight 300). Below that: 'The Enterprise Command Center for Modern Social Teams' in muted gray (18px). Add a subtle gold accent pill at top that says 'PRODUCT OVERVIEW'. Bottom-left brand mark: 'SYNQUE'. Bottom-right: '01 / 15'. The slide should feel premium and cinematic — dark background with a subtle radial gold glow behind the wordmark. Speaker notes: Welcome the audience, introduce SYNQUE as the enterprise social media command center."
+    },
+    {
+      "title": "The Problem",
+      "layout": "section header with 3 pain points",
+      "output_path": "/home/z/my-project/download/slides/slide_02.html",
+      "task_brief": "Slide title: 'Social media is broken' (h1, 48px, white). Subtitle: 'Managing 7 platforms shouldn't feel like herding cats' (muted, 18px). Three glass cards in a row, each with an icon (use Material Icons), a bold headline, and 2-line description:\n1. Icon: 'scatter_plot' (rose color). Title: 'Scattered Platforms'. Text: '7 platforms, 7 logins, 7 dashboards. Your team wastes hours switching context.'\n2. Icon: 'gpp_bad' (rose color). Title: 'No Safety Net'. Text: 'Accounts get suspended overnight. No warnings, no protection, no recourse.'\n3. Icon: 'analytics' (rose color). Title: 'Blind Spots'. Text: 'You can\\'t see what competitors are doing. You can\\'t measure what works.'\nBottom-right: '02 / 15'. Speaker notes: Frame the pain — teams juggle too many tools, accounts are at risk, and insights are missing."
+    },
+    {
+      "title": "The Solution",
+      "layout": "3-column solution cards",
+      "output_path": "/home/z/my-project/download/slides/slide_03.html",
+      "task_brief": "Title: 'One flow. Every platform. Zero chaos.' (gold gradient text, 48px). Subtitle: 'SYNQUE brings your entire social media workflow into one calm, powerful interface.' Three glass cards with gold borders:\n1. Icon: 'hub' (gold). Title: 'Unified Publishing'. Text: 'Compose once, publish to 7 platforms simultaneously. AI optimizes each caption per platform.'\n2. Icon: 'auto_awesome' (gold). Title: 'AI-Powered Content'. Text: 'Generate platform-specific captions, hashtags, and content variations with a single click.'\n3. Icon: 'shield' (gold). Title: 'Built-in Protection'. Text: 'Anti-suspension guards, banned-hashtag blocking, and smart cooldowns keep your accounts safe.'\nBottom-right: '03 / 15'. Speaker notes: Introduce the three pillars — unified publishing, AI content, and account safety."
+    },
+    {
+      "title": "Key Features",
+      "layout": "4x2 bento grid",
+      "output_path": "/home/z/my-project/download/slides/slide_04.html",
+      "task_brief": "Title: 'Everything you need. Nothing you don\\'t.' (white, 36px). Subtitle: '24 modules. One workspace. Zero chaos.' (muted, 16px). 8 feature cards in a 4-column x 2-row grid. Each card: Material icon (gold), title (bold, 16px), 1-line description (muted, 13px):\n1. 'edit_note' — AI Composer — 'Generate platform-specific captions'\n2. 'calendar_month' — Content Calendar — 'Drag-and-drop scheduling'\n3. 'inbox' — Unified Inbox — 'All comments in one place'\n4. 'shield' — Account Safety — 'Anti-suspension protection'\n5. 'groups' — Team Workflow — 'Roles, approvals, assignments'\n6. 'bar_chart' — Analytics — 'Cross-platform insights'\n7. 'campaign' — Campaigns — 'Track marketing campaigns'\n8. 'visibility' — Competitor Tracking — 'Monitor the competition'\nBottom-right: '04 / 15'. Speaker notes: Highlight the breadth of features — 24 modules covering every social media need."
+    },
+    {
+      "title": "Supported Platforms",
+      "layout": "7 platform cards + CTA",
+      "output_path": "/home/z/my-project/download/slides/slide_05.html",
+      "task_brief": "Title: '7 platforms. One click.' (gold text, 42px). Subtitle: 'Publish to every major social network from a single composer.' 7 platform cards in a row (use flex, evenly spaced). Each card: platform name (bold), short code (IG, FB, X, in, TT, YT, Th), and character limit (muted, 12px). Use colored top borders per platform:\n1. Instagram — IG — 2,200 chars — border: #E1306C\n2. Facebook — FB — 63,206 chars — border: #1877F2\n3. X (Twitter) — X — 280 chars — border: #1DA1F2\n4. LinkedIn — in — 3,000 chars — border: #0A66C2\n5. TikTok — TT — 2,200 chars — border: #000\n6. YouTube — YT — 5,000 chars — border: #FF0000\n7. Threads — Th — 500 chars — border: #000\nBelow: a gold pill that says 'Post to all 7 in one click'. Bottom-right: '05 / 15'. Speaker notes: Emphasize that SYNQUE supports all 7 major platforms and you can cross-post to all simultaneously."
+    },
+    {
+      "title": "Cross-Posting",
+      "layout": "animated flow diagram",
+      "output_path": "/home/z/my-project/download/slides/slide_06.html",
+      "task_brief": "Title: 'One post. Seven platform-optimized variants.' (gold text, 36px). Subtitle: 'Write once. AI adapts the caption for each platform.' Create a visual flow: left side has a single 'One Post' card (gold border, icon: 'edit'). Center has an arrow/connector (use CSS border or Material icon 'arrow_forward'). Right side has 7 small cards stacked or in a grid, each showing a platform icon + a sample caption preview:\n- Instagram: 'Loving the new collection! ✨ Shop now 👉 #fashion #newdrop'\n- Facebook: 'Our new collection is here! Shop the full range on our website today.'\n- X: 'New drop just landed. Shop now → #fashion'\n- LinkedIn: 'Excited to announce our latest collection, designed for the modern professional.'\n- TikTok: 'POV: you just saw the new drop 🔥 #fyp #fashion'\n- YouTube: 'Watch our new collection showcase video now live on our channel.'\n- Threads: 'New collection just dropped. What do you think?'\nBottom: a note 'Each variant respects platform tone, length, and hashtag conventions.' Bottom-right: '06 / 15'. Speaker notes: This is the killer feature — one post becomes 7 AI-optimized variants."
+    },
+    {
+      "title": "Plan Limits & Pricing",
+      "layout": "3-column comparison table",
+      "output_path": "/home/z/my-project/download/slides/slide_07.html",
+      "task_brief": "Title: 'Plans & Limits' (gold text, 42px). Subtitle: 'How many accounts and pages you can manage.' Three pricing cards side by side. The middle card (Growth) has a gold border + 'Most Popular' badge.\n\nCard 1 — Starter ($299/mo):\n- 3 social accounts\n- 1 user\n- AI composer (100/mo)\n- Basic analytics\n- Email support\n\nCard 2 — Growth ($499/mo) [FEATURED, gold border, glow]:\n- 15 social accounts\n- 5 users\n- Unlimited AI composer\n- Advanced analytics\n- Account protection\n- Priority support\n\nCard 3 — Enterprise (Custom):\n- Unlimited accounts\n- Unlimited users\n- Custom domain mail server\n- SSO + SAML\n- Dedicated success manager\n- 99.9% SLA\n\nBelow the cards, add a note: 'Each plan supports cross-posting to all 7 platforms. Select up to your plan\\'s account limit per post.' Bottom-right: '07 / 15'. Speaker notes: Walk through the pricing tiers — Starter for solo creators, Growth for teams, Enterprise for large orgs."
+    },
+    {
+      "title": "Multi-Workspace Architecture",
+      "layout": "architecture diagram",
+      "output_path": "/home/z/my-project/download/slides/slide_08.html",
+      "task_brief": "Title: 'Isolated databases. Zero data mixing.' (white, 36px). Subtitle: 'Every client gets their own dedicated Neon PostgreSQL database.' Create a visual architecture diagram using CSS:\n\nTop: a central card labeled 'Main Database' with sub-text 'Customer registry · Auth · Audit log'. Gold border.\n\nBelow: three arrows pointing down (use Material icon 'south' or CSS borders) to three separate cards side by side:\n- 'Tenant DB — Client A' (border: emerald)\n- 'Tenant DB — Client B' (border: blue)\n- 'Tenant DB — Client C' (border: violet)\n\nEach tenant card lists: 'Posts · Accounts · Media · Comments · Analytics'.\n\nBelow: a note in gold text: 'Each client\\'s data lives in a completely separate database — your data never mixes with anyone else\\'s.'\n\nBottom-right: '08 / 15'. Speaker notes: Emphasize the enterprise-grade isolation — each client gets their own database."
+    },
+    {
+      "title": "AI Composer",
+      "layout": "3 platform-specific examples",
+      "output_path": "/home/z/my-project/download/slides/slide_09.html",
+      "task_brief": "Title: 'AI writes the right caption for every platform.' (gold text, 36px). Subtitle: 'Same brief. Different tone. Platform-perfect output.' Three glass cards side by side, each showing a platform + AI-generated caption:\n\nCard 1 — Instagram (border: #E1306C):\nIcon: 'photo_camera'. Caption (in a monospace-style box): 'New collection just dropped! ✨ Swipe to see the full lookbook → Which piece is your favorite? 💬 #fashion #newdrop #style'\n\nCard 2 — LinkedIn (border: #0A66C2):\nIcon: 'business_center'. Caption: 'We\\'re excited to launch our latest collection — a result of months of research into what modern professionals need. Explore the full range on our website.'\n\nCard 3 — X/Twitter (border: #1DA1F2):\nIcon: 'chat'. Caption: 'New drop just landed. 7 pieces. 1 collection. 0 compromises. Shop now → #fashion'\n\nBelow: 'The AI respects each platform\\'s character limit, tone, and hashtag conventions.' Bottom-right: '09 / 15'. Speaker notes: Show how the same brief becomes 3 completely different captions optimized per platform."
+    },
+    {
+      "title": "Account Safety",
+      "layout": "shield + 4 features",
+      "output_path": "/home/z/my-project/download/slides/slide_10.html",
+      "task_brief": "Title: 'Your accounts are protected.' (gold text, 42px). Subtitle: 'Anti-suspension guards built into every publish.' Left side: large Material icon 'verified_user' (emerald color, 120px) with a subtle glow. Right side: 4 feature cards in a 2x2 grid:\n1. Icon: 'speed' — Cadence Monitoring — 'Blocks posts that exceed platform rate limits'\n2. Icon: 'block' — Hashtag Blocking — 'Flags banned hashtags before you publish'\n3. Icon: 'schedule' — Smart Cooldowns — 'Enforces safe intervals between posts'\n4. Icon: 'warning' — Risk Flags — 'Alerts on content patterns that trigger suspensions'\nBottom-right: '10 / 15'. Speaker notes: Emphasize that SYNQUE actively prevents account suspensions — not just reactive but proactive."
+    },
+    {
+      "title": "Security & Compliance",
+      "layout": "8 security badges grid",
+      "output_path": "/home/z/my-project/download/slides/slide_11.html",
+      "task_brief": "Title: 'Enterprise-grade security.' (gold text, 42px). Subtitle: 'Your data is protected at every layer.' 8 security badge cards in a 4x2 grid. Each card: Material icon (emerald) + label + 1-line detail:\n1. 'lock' — AES-256 Encryption — 'All sensitive data encrypted at rest'\n2. 'key' — bcrypt + JWT — 'Password hashing (cost 12) + token auth'\n3. 'fingerprint' — Biometric Auth — 'Face ID / Fingerprint via WebAuthn'\n4. 'shield' — 2FA / TOTP — 'Two-factor authentication support'\n5. 'speed' — Rate Limiting — 'Auth, AI, and write endpoints throttled'\n6. 'history' — Audit Logging — 'Every security event tracked'\n7. 'security' — CSP + Headers — 'Strict Content-Security-Policy'\n8. 'domain' — Tenant Isolation — 'Per-client isolated databases'\nBelow: a pill that says 'SOC2-Ready'. Bottom-right: '11 / 15'. Speaker notes: Walk through the security layers — encryption, auth, rate limiting, audit, isolation."
+    },
+    {
+      "title": "Team Collaboration",
+      "layout": "roles + approval workflow",
+      "output_path": "/home/z/my-project/download/slides/slide_12.html",
+      "task_brief": "Title: 'Built for teams.' (gold text, 42px). Subtitle: 'Roles, approvals, and accountability — without the chaos.' Top section: 5 role pills in a row (use accent-pill style):\n- Owner (gold border)\n- Admin (gold border)\n- Manager (blue border)\n- Editor (emerald border)\n- Viewer (muted border)\n\nBelow: an approval workflow diagram using 4 cards with arrows between them:\n1. 'Draft Created' (icon: 'edit_note') → 2. 'Submitted for Review' (icon: 'rate_review') → 3. 'Approved / Rejected' (icon: 'check_circle') → 4. 'Published' (icon: 'rocket_launch')\n\nUse Material icon 'arrow_forward' between cards.\n\nBottom note: 'Every action is logged. Every team member sees what they need to.' Bottom-right: '12 / 15'. Speaker notes: Explain the role hierarchy and the approval workflow — drafts go through review before publishing."
+    },
+    {
+      "title": "Analytics & Reports",
+      "layout": "3 chart previews",
+      "output_path": "/home/z/my-project/download/slides/slide_13.html",
+      "task_brief": "Title: 'Measure what matters.' (gold text, 42px). Subtitle: 'Cross-platform analytics + custom report builder.' Three chart preview cards side by side (use CSS to simulate charts — do NOT use real chart libraries):\n\nCard 1 — 'Followers Growth' (icon: 'trending_up'):\nDraw a simple area-chart shape using CSS gradients/clips. Label: '88.7K followers · +4.2% this week'\n\nCard 2 — 'Platform Distribution' (icon: 'pie_chart'):\nDraw a simple pie-chart using CSS conic-gradient. Label: '7 platforms connected'\n\nCard 3 — 'Engagement' (icon: 'favorite'):\nDraw simple bar shapes using CSS divs. Label: '48.2K total engagement · +12% MoM'\n\nBelow: 'Export custom reports as PDF. Schedule weekly digests. Share with stakeholders.' Bottom-right: '13 / 15'. Speaker notes: Show the analytics capabilities — followers, engagement, platform distribution, custom reports."
+    },
+    {
+      "title": "Pricing",
+      "layout": "3-tier pricing with CTA",
+      "output_path": "/home/z/my-project/download/slides/slide_14.html",
+      "task_brief": "Title: 'Start with a 15-day free trial.' (gold text, 42px). Subtitle: 'No card to explore. Pick a plan when you\\'re ready.' Three pricing cards:\n\nCard 1 — Starter:\n'$299' (large, gold) + '/mo' (muted)\n'For solo creators & small teams'\n3 social accounts · 1 user · AI composer (100/mo)\nButton: 'Start trial' (outline style)\n\nCard 2 — Growth [FEATURED, gold border + glow + 'Most Popular' badge]:\n'$499' (large, gold) + '/mo' (muted)\n'For growing teams that publish daily'\n15 social accounts · 5 users · Unlimited AI\nButton: 'Start trial' (gold filled)\n\nCard 3 — Enterprise:\n'Custom' (large, gold)\n'For large teams with custom needs'\nUnlimited everything · SSO + SAML · 99.9% SLA\nButton: 'Contact sales' (outline style)\n\nBelow all cards: 'All plans include the AI composer, account protection, and real-time analytics.' (muted, centered).\nBottom-right: '14 / 15'. Speaker notes: Present the three tiers and encourage starting with the 15-day free trial."
+    },
+    {
+      "title": "Get Started",
+      "layout": "closing CTA",
+      "output_path": "/home/z/my-project/download/slides/slide_15.html",
+      "task_brief": "Closing slide. Center-aligned. Large title: 'Start your 15-day free trial' (gold gradient text, 56px). Subtitle: 'Full access to every module. No card to explore. Cancel anytime.' (white, 20px). Below: a large gold button (gold background, dark text, rounded-xl, padding 16px 48px) that says 'Get Started →'. Below the button: 'Or visit synque.vercel.app to learn more' (muted, 14px). Add a subtle radial gold glow behind the title. Bottom-left brand mark: 'SYNQUE'. Bottom-right: '15 / 15'. Speaker notes: Close with a strong call to action — invite the audience to start their free trial today."
+    }
+  ]
+}
