@@ -28,7 +28,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import type { ViewId } from "@/lib/types";
-import Link from "next/link";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: "Dashboard", subtitle: "Your social universe at a glance" },
@@ -53,6 +52,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   "team-performance": { title: "Performance", subtitle: "Team content activity — posts, tweets, comments & engagement" },
   admin: { title: "Admin Panel", subtitle: "Team performance, workflow & oversight" },
   owner: { title: "Owner Panel", subtitle: "Clients, invoices, serial keys, devices, finance & API keys" },
+  guide: { title: "Guide", subtitle: "Help · About · How-to — onboarding, modules, architecture & FAQs" },
 };
 
 // Role → dense-ui Pill color mapping. Admin uses `blue` (matches primary accent in
@@ -84,6 +84,7 @@ const COMMAND_ITEMS: { id: ViewId; label: string; icon: LucideIcon; group: strin
   { id: "team", label: "Team", icon: Users, group: "Workspace" },
   { id: "mail", label: "Mail Server", icon: Mail, group: "Workspace" },
   { id: "settings", label: "Settings", icon: Settings, group: "Workspace" },
+  { id: "guide", label: "Guide", icon: HelpCircle, group: "Workspace" },
 ];
 
 export function AppHeader({ onMenu }: { onMenu: () => void }) {
@@ -176,17 +177,15 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           <ConnectionStatus />
         </div>
 
-        {/* Help — quick-access icon linking to the /help route */}
-        <Link
-          href="/help"
-          target="_blank"
-          rel="noopener noreferrer"
+        {/* Guide — opens the in-app Guide view (help · about · how-to) */}
+        <button
+          onClick={() => setView("guide")}
           className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10]"
-          aria-label="Help center"
-          title="Open the Help center"
+          aria-label="Open the Guide"
+          title="Open the Guide"
         >
           <HelpCircle className="h-[18px] w-[18px]" />
-        </Link>
+        </button>
 
         {/* Notification bell — always visible */}
         <NotificationsBell onNavigate={() => setView("inbox")} />

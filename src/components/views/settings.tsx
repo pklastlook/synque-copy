@@ -6095,7 +6095,7 @@ export function getLandingSettings(): LandingSettings {
 const LANDING_LINK_DEFS: { key: LandingLinkKey; label: string; href: string; desc: string }[] = [
   { key: "showBlogLink", label: "Blog", href: "/blog", desc: "Company blog posts and announcements." },
   { key: "showDocsLink", label: "Documentation", href: "/docs", desc: "User-facing product documentation." },
-  { key: "showHelpLink", label: "Help Center", href: "/help", desc: "Support articles and contact form." },
+  { key: "showHelpLink", label: "Guide", href: "/docs", desc: "In-app guide covers help, about, and how-to." },
   { key: "showStatusLink", label: "Status", href: "/status", desc: "Live uptime and incident history." },
   { key: "showChangelogLink", label: "Changelog", href: "/changelog", desc: "Release notes per version." },
   { key: "showCareersLink", label: "Careers", href: "/careers", desc: "Open positions and company culture." },

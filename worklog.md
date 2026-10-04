@@ -12530,3 +12530,53 @@ Per-slide summaries:
 - slide_15.html (Get Started): Center-aligned closing slide with subtle decorative grid and radial gold glow behind a 56px gold gradient "Start your 15-day free trial" title, white subtitle, large gold filled "Get Started →" button, muted "Or visit synque.vercel.app to learn more" line, SYNQUE brand mark bottom-left, "15 / 15" bottom-right, gold corner accents.
 
 All slides: 1280x720 canvas, overflow hidden, only the design palette (#0A0B0F / #F4F4F5 / #D4AF37 + emerald/blue/violet tokens from global.css), Inter typography, links global.css via relative path, loads Tailwind CDN + Material Icons, page numbers (11/15 through 15/15), SYNQUE brand mark, speaker notes hidden via .hidden class as the last body child.
+
+---
+Task ID: GUIDE-MODULE
+Agent: subagent
+Task: Transform Help into in-app Guide view with submodules + About System
+
+Work Log:
+1. Read existing project structure: worklog.md, src/components/views/settings.tsx (in-app view pattern), src/components/app-sidebar.tsx (help special-casing), src/components/glass/dense-ui.tsx + glass-card.tsx (available components), src/components/app-shell.tsx, src/components/app-header.tsx, src/app/help/page.tsx (the old landing-style standalone page).
+
+2. Created `src/components/views/guide.tsx` — a proper in-app view component (`"use client"`) that mirrors the Settings/Dashboard view pattern:
+   - Imports: GlassCard, SectionHeader, Pill, ListRow from glass/dense-ui; useNav from store; shadcn/ui Accordion + Tabs; framer-motion for transitions.
+   - Six sub-tabs in a sticky top tab strip (scrollable on mobile):
+     * Tab 1: Getting Started (Rocket icon) — 4 numbered onboarding cards + "Jump back in" CTA row with quick links to Accounts / Composer / Calendar.
+     * Tab 2: Modules (LayoutGrid icon) — all 24 modules grouped by Overview / Content / Insights / Workspace, each in a GlassCard with icon, "What it does" summary, and an expandable step-by-step "How to use it" section with an "Open module" button that calls setView(). Includes search filter.
+     * Tab 3: About System (Info icon) — NEW: explains multi-tenant architecture (main DB for customer registry/auth/audit + per-client isolated Neon PostgreSQL databases), data isolation callout, security stack chips (AES-256, JWT, 2FA, WebAuthn, tenant isolation, audit logging, rate limiting, CSP, sessions), account limits table (Starter 3 accounts/1 user, Growth 15/5, Enterprise unlimited), supported platforms table with character limits, cross-posting summary, team roles list, and an architecture diagram (Main DB → Gateway → Tenant DBs).
+     * Tab 4: Cross-Posting (Share2 icon) — animated radial cross-posting illustration, 4-step flow, plan limits cards, platform character limits table.
+     * Tab 5: FAQ (HelpCircle icon) — shadcn/ui Accordion with 8 questions (account limits, profile selection, supported platforms, AI caption generation, data security, team invites, scheduling, cancellation/data retention).
+     * Tab 6: Security (Shield icon) — 6 security feature cards, 2FA quick-setup guide with rotating Fingerprint animation, session management quick-link to Settings.
+   - Uses framer-motion AnimatePresence for smooth tab transitions and card entry animations.
+   - Responsive: stacked on mobile, multi-column grids on sm/lg.
+
+3. Registered GuideView in `src/components/app-shell.tsx`:
+   - Added `import { GuideView } from "@/components/views/guide";`
+   - Added `{view === "guide" && <ViewErrorBoundary viewName="Guide"><GuideView /></ViewErrorBoundary>}` to the view renderer.
+
+4. Updated `src/lib/types.ts`:
+   - Renamed `"help"` to `"guide"` in the `ViewId` union.
+
+5. Updated `src/components/app-sidebar.tsx`:
+   - Replaced the `HelpCircle` import with `BookOpen`.
+   - Removed `import Link from "next/link"` (no longer needed since the help Link special-case is gone).
+   - Changed nav item from `{ id: "help", label: "Help", icon: HelpCircle, ... }` to `{ id: "guide", label: "Guide", icon: BookOpen, ... }` with an accent of `oklch(0.62 0 22 258)`.
+   - Removed the entire `if (n.id === "help") { return <Link href="/help">…</Link> }` special-case — guide now navigates like every other view via `setView(n.id)`.
+
+6. Updated `src/components/app-header.tsx`:
+   - Removed `import Link from "next/link"` (no longer needed).
+   - Replaced the `<Link href="/help" target="_blank">` help icon button with a regular `<button onClick={() => setView("guide")}>` (still uses the HelpCircle icon, which fits semantically).
+   - Added `guide: { title: "Guide", subtitle: "Help · About · How-to — onboarding, modules, architecture & FAQs" }` to the TITLES map so the header shows the proper title/subtitle when the Guide view is active.
+   - Added `{ id: "guide", label: "Guide", icon: HelpCircle, group: "Workspace" }` to COMMAND_ITEMS so it appears in the ⌘K command palette.
+
+7. Deleted `src/app/help/page.tsx` (the old landing-style standalone page) and removed the now-empty `src/app/help/` directory.
+
+8. Cleaned up dangling references to `/help`:
+   - `src/components/landing-shared.tsx`: footer "Help Center" link replaced with "Documentation" → /docs.
+   - `src/components/landing-page.tsx`: footer "Help|/help" replaced with "Documentation|/docs".
+   - `src/components/views/settings.tsx`: LANDING_LINK_DEFS "Help Center" → "Guide" pointing to /docs (since the in-app guide is reachable only when authenticated; the public landing page can't link to a client-side route).
+
+9. Ran `bun run lint` — 0 errors, 7 pre-existing warnings (all `@next/next/no-location-assign-relative-destination` warnings in unrelated files: landing-page.tsx, landing-shared.tsx, accounts.tsx, settings.tsx).
+
+Stage Summary: Help is no longer a standalone landing-style Next.js page — it is now the in-app "Guide" view, rendered inside the AppShell with six sub-tabs (Getting Started, Modules, About System, Cross-Posting, FAQ, Security). The new About System submodule explains the multi-tenant Neon PostgreSQL architecture, per-client database isolation, security stack (AES-256 / JWT / 2FA / WebAuthn / tenant isolation / audit / rate limiting / CSP), account limits & plan tiers, supported platforms with character limits, cross-posting flow, and the five team roles. The sidebar entry uses the BookOpen icon and navigates via `setView("guide")` like every other view; the header's help button now opens the Guide view in-place instead of opening `/help` in a new tab; the ⌘K command palette includes Guide. The old `/help` route and its directory have been removed; all lingering `/help` references across the landing footer and Settings landing-link config have been repointed to `/docs` to avoid 404s.

@@ -205,9 +205,8 @@ export function LandingFooter() {
           <FooterCol title="Resources" links={[
             { label: "Documentation", href: "/docs" },
             { label: "API Reference", href: "/api-reference" },
-            { label: "Help Center", href: "/help" },
-            { label: "Status", href: "/status" },
             { label: "Changelog", href: "/changelog" },
+            { label: "Status", href: "/status" },
           ]} />
         </div>
         <div

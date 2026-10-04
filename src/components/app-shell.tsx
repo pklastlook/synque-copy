@@ -30,6 +30,7 @@ import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { OrganizationView } from "@/components/views/organization";
 import { ApprovalsView } from "@/components/views/approvals";
 import { AccountSafetyView } from "@/components/views/account-safety";
+import { GuideView } from "@/components/views/guide";
 import {
   LayoutDashboard, PenSquare, Inbox as InboxIcon, BarChart3, MoreHorizontal,
   CalendarDays, MessageCircle, ListTodo, AtSign,
@@ -273,6 +274,7 @@ export function AppShell() {
               {view === "account-safety" && <ViewErrorBoundary viewName="Account Safety"><AccountSafetyView /></ViewErrorBoundary>}
               {view === "vpn" && <ViewErrorBoundary viewName="VPN"><VPNView /></ViewErrorBoundary>}
               {view === "settings" && <ViewErrorBoundary viewName="Settings"><SettingsView /></ViewErrorBoundary>}
+              {view === "guide" && <ViewErrorBoundary viewName="Guide"><GuideView /></ViewErrorBoundary>}
             </div>
           </main>
           <AppFooter />

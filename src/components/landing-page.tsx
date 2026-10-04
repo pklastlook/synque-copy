@@ -2779,7 +2779,7 @@ function Act11Footer() {
           </div>
           <FooterCol title="Product" links={["Features|/features", "Pricing|/pricing", "Compare|/compare", "Integrations|/integrations"]} open={openCol === "Product"} onToggle={() => toggle("Product")} />
           <FooterCol title="Company" links={["About|/about", "Blog|/blog", "Careers|/careers", "Contact|/contact"]} open={openCol === "Company"} onToggle={() => toggle("Company")} />
-          <FooterCol title="Resources" links={["Docs|/docs", "Help|/help", "Status|/status", "Changelog|/changelog"]} open={openCol === "Resources"} onToggle={() => toggle("Resources")} />
+          <FooterCol title="Resources" links={["Docs|/docs", "Documentation|/docs", "Status|/status", "Changelog|/changelog"]} open={openCol === "Resources"} onToggle={() => toggle("Resources")} />
           <FooterCol title="Legal" links={["Privacy|/privacy", "Terms|/terms", "Security|/security", "DPA|/dpa"]} open={openCol === "Legal"} onToggle={() => toggle("Legal")} />
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t pt-6 text-xs sm:flex-row" style={{ borderColor: COLOR.border, color: COLOR.textBody }}>
