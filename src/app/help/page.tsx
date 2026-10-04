@@ -374,7 +374,7 @@ function CrossPostingIllustration() {
             animate={isActive ? { scale: [1, 1.18, 1] } : { scale: 1 }}
             transition={{ duration: 0.6 }}
           >
-            <p.Icon className="h-5 w-5" style={{ color: isActive ? p.color : "currentColor", opacity: isActive ? 1 : 0.6 }} />
+            <p.Icon className="h-5 w-5" />
             {isActive && (
               <motion.span
                 className="absolute inset-0 rounded-2xl"

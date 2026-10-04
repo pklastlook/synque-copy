@@ -359,7 +359,7 @@ const PAIN_POINTS = [
   { icon: Eye, title: "No insights", desc: "You can't see what competitors are posting. Blind to what's working in your market.", stat: "0", statLabel: "visibility" },
 ];
 
-function ShieldAlert(props: React.SVGProps<React.SVGElement>) {
+function ShieldAlert(props: React.SVGProps<SVGSVGElement>) {
   return <AlertTriangle {...props} />;
 }
 
@@ -1578,8 +1578,8 @@ export default function PresentationPage() {
             exit="exit"
             transition={{
               opacity: { duration: 0.3 },
-              x: prefersReduced ? 0 : { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
-              scale: prefersReduced ? 1 : { duration: 0.4 },
+              x: prefersReduced ? { duration: 0 } : { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const },
+              scale: prefersReduced ? { duration: 0 } : { duration: 0.4 },
             }}
             className="h-full w-full"
           >
