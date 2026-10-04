@@ -44,7 +44,9 @@ import {
   QrCode,
   Star,
   Shield,
+  HelpCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
@@ -90,6 +92,9 @@ const NAV: { id: ViewId; label: string; icon: React.ElementType; group: string; 
   // Rendered as an expandable parent below (see <OrganizationGroup /> inside
   // the Workspace group render). No flat NAV entry is needed.
   { id: "mail", label: "Mail Server", icon: Mail, group: "Workspace", accent: "oklch(0.66 0.18 200)" },
+  // Help — links to the external /help route (Next.js page, not a client view).
+  // Rendered as a Link in the Workspace group below.
+  { id: "help", label: "Help", icon: HelpCircle, group: "Workspace", accent: "oklch(0.62 0 0)" },
   // Owner Panel + Settings are rendered as expandable parent groups below
   // (see <MediaGroup /> inside the Content group render) — it is no
   // longer a flat NAV entry so it can expand into its sub-sections.
@@ -216,6 +221,26 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               {visibleNav.filter((n) => n.group === g).map((n) => {
                 const Icon = n.icon;
                 const active = view === n.id;
+                // Special-case: "help" navigates to the external /help route
+                // (a Next.js page), so we render a <Link> instead of using
+                // client-side setView().
+                if (n.id === "help") {
+                  return (
+                    <Link
+                      key={n.id}
+                      href="/help"
+                      onClick={() => onNavigate?.()}
+                      className="group crystal-sweep relative flex w-full items-center gap-2.5 rounded-lg border-b-0 border-l-0 px-2.5 py-2 text-sm font-medium text-foreground/55 transition-all duration-200 hover:bg-muted/50 hover:text-foreground"
+                    >
+                      <Icon
+                        className="relative h-[18px] w-[18px] shrink-0 transition-transform group-hover:scale-110"
+                        style={{ color: n.accent, opacity: 0.85 }}
+                      />
+                      <span className="relative flex-1 min-w-0 truncate">{n.label}</span>
+                      <ChevronRight className="relative ml-auto h-3.5 w-3.5 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  );
+                }
                 return (
                   <ListRow
                     key={n.id}

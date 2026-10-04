@@ -12423,3 +12423,78 @@ Risk notes:
 - The `provisionTenantDatabase` call in `POST /api/tenant-databases` is slow (creates a Neon DB + pushes the Prisma schema — typically 30–60 seconds). The CustomersTab button shows a spinner and is disabled for the duration. There is no background-job queue; the request blocks until provisioning completes.
 - Trial conversion rate is a heuristic (active subs with `trialEnds` set / trial + converted). A customer who upgraded without ever going through a trial (e.g. enterprise direct sale) won't be counted. This is a KPI, not a billing number.
 - Churn-risk computation uses `User.lastActive` — only tenant-scoped users (customerId != null) are considered. A tenant with zero users (created but no logins provisioned yet) won't appear in churn-risk (correct — they're not "churning", they're "not yet onboarded").
+
+---
+Task ID: PRESENTATION
+Agent: subagent
+Task: Create interactive presentation slide deck (15 slides)
+
+Work Log:
+- Read project context: worklog.md, src/components/landing-shared.tsx (COLOR tokens, LandingBg, LandingNav, TrialCTA patterns), src/app/pricing/page.tsx (page structure pattern), src/components/glass/logo.tsx (SYNQUE logo), src/app/globals.css (gold/blue design tokens, dark mode palette), src/app/layout.tsx.
+- Created standalone route src/app/presentation/page.tsx (~1650 lines, self-contained, no dependency on app shell).
+- Built 15 fully-animated slides:
+  1. Title — SYNQUE logo reveal with 3D rotateX entrance, gold gradient text, particle background, keyboard nav hints.
+  2. Problem — 3 pain-point glass cards with rose accents and staggered reveal (Scattered platforms / No safety / No insights).
+  3. Solution — 3 solution cards, center card gold-elevated with glow, hover rotate on icons.
+  4. Feature grid — 8 feature cards (2x4 on desktop, 2x2 on mobile), gold icon tiles, staggered entrance with hover lift.
+  5. Supported platforms — 7 platform cards (IG/FB/X/LinkedIn/TikTok/YouTube/Threads) with brand colors, character limits, plus a "Post to all 7" gold CTA card.
+  6. Cross-posting killer feature — animated diagram: source draft → AI generates 7 platform-specific variants (tone tags) → "Publish to all 7 in one click" CTA. Staggered reveal of each platform row.
+  7. Plan limits table — 10-row comparison table (Starter $299 / Growth $499 highlighted gold / Enterprise Custom) with check/x icons, animated row reveals, horizontal scroll on mobile.
+  8. Multi-workspace architecture — Main DB (gold) → SVG animated connector paths → 3 tenant Neon PostgreSQL cards (emerald accents), isolation messaging.
+  9. AI Composer — 3 sample cards (Instagram emoji-rich / LinkedIn professional / X punchy) with typewriter text animation per card.
+  10. Account safety — pulsing emerald shield visual + 4 safety feature cards (cadence monitoring, banned hashtag blocking, smart cooldowns, risky content flags).
+  11. Security & compliance — 8 security badge cards (AES-256, bcrypt cost 12, JWT httpOnly, 2FA/WebAuthn/Biometric, rate limiting, audit logging, CSP headers, tenant isolation) + SOC2-ready footer pill.
+  12. Team collaboration — 5 roles list (Owner/Manager/Editor/Member/Viewer) + approval workflow diagram (Draft→Review→Approve→Publish) with audit log note.
+  13. Analytics — Recharts: revenue AreaChart (gold gradient, 8-month trend +321% YoY), platform distribution donut PieChart (5 segments), engagement grouped BarChart (likes vs comments across 5 platforms). All with custom dark tooltips.
+  14. Pricing — 3 pricing tiers (Starter $299 / Growth $499 featured gold / Enterprise Custom), feature checklists, gold gradient CTA on featured plan.
+  15. CTA — "Start Your Free Trial" with rocket badge, gold gradient primary button (sheen sweep on hover) linking to /, secondary "See pricing" button linking to /pricing, trust badges (no card required / cancel anytime / 7 platforms).
+- Navigation system:
+  - Arrow keys (← →), Space to advance, number keys 1-9 to jump, F for fullscreen, Esc to exit fullscreen.
+  - Click zones: left/right 1/4 of screen (desktop), side arrow buttons, clickable progress dots at bottom.
+  - Top progress bar (gold gradient, animates width).
+  - Slide counter (01/15 format) in glass pill.
+  - Auto-advance toggle (Play/Pause) — 6s per slide.
+  - Fullscreen toggle (Maximize/Minimize) using Fullscreen API.
+  - AnimatePresence mode="wait" with directional slide transitions (custom direction state).
+  - useReducedMotion respected for x/scale transitions and particle animation.
+- Design system:
+  - Dark theme #0A0B0F base, gold accent oklch(0.78 0.16 80), emerald for safety/success, rose for problems.
+  - GlassCard component (translucent surface, backdrop-blur-xl, ring borders, optional gold elevation with glow shadow).
+  - GoldText gradient text component for emphasized words.
+  - PresentationBg — animated mesh gradient blobs (gold/indigo/emerald), 18 floating gold particles with staggered opacity, subtle grid overlay.
+  - Consistent SlideShell / SlideKicker / SlideTitle / SlideSubtitle layout primitives.
+  - Staggered motion variants (delay = i * base + 0.1, ease [0.22, 1, 0.36, 1]).
+- Removed unused imports (LandingBg, fadeUp) for clean lint.
+- Ran `bun run lint` — 0 errors, 0 warnings in presentation file (7 pre-existing warnings in other files).
+
+Stage Summary:
+Delivered a stunning, production-ready 15-slide interactive presentation deck at /presentation. Self-contained route (no app-shell dependency), uses framer-motion for all animations, recharts for the analytics slide, lucide-react icons, and a custom animated particle/mesh background. Full keyboard + click navigation, auto-advance, fullscreen, progress bar, clickable dots, and slide counter. Dark glass-morphism aesthetic with gold accents matching the SYNQUE brand. Lint passes cleanly.
+
+---
+Task ID: HELP-MODULE
+Agent: subagent
+Task: Create comprehensive Help module with animated module guides
+
+Work Log:
+1. Rewrote `src/app/help/page.tsx` into a full 5-section Help Center using the same LandingNav + LandingBg + LandingFooter pattern as /pricing. Sections:
+   - Hero: badge, gold-text title, subtitle, ⌘/-focusable search bar that live-filters the module grid, and 5 quick-jump anchor pills.
+   - Section 1 — Getting Started: 4 numbered cards (Welcome, Connect account, AI first post, Schedule).
+   - Section 2 — Module Guides: All 24 modules grouped by Overview / Content / Insights / Workspace, each rendered as a crystal-card with module icon, "What it does" one-liner, and an auto-advancing step carousel (3.2s per step, pause-on-hover, clickable progress bars, AnimatePresence slide transitions).
+   - Section 3 — Cross-posting: animated SVG/CSS illustration with a central pulsing "One Post" node radiating dashed signal lines to 7 platform brand icons (Instagram, Facebook, X, LinkedIn, TikTok, YouTube, Threads) that light up sequentially; paired with a 4-step flow (Select accounts → AI optimizes → Publish → Measure) and a 3-tier plan-limits strip (Starter 3 / Growth 15 / Enterprise unlimited).
+   - Section 4 — FAQ: 8-item accordion with height-animated expand/collapse (Framer Motion) covering account limits, profile selection, supported platforms, AI caption generation, data security, team invites, scheduling, cancellation.
+   - Section 5 — Security & Privacy: 6 cards (AES-256 at rest, JWT auth, tenant isolation, 2FA, biometric WebAuthn, session management) plus a 4-step 2FA quick-setup panel with a rotating dashed ring around a Fingerprint glyph.
+   - CTA + footer linking to /docs, /contact, /status.
+   Animations: Framer Motion `motion` + `useInView` for fade-in / slide-up on scroll, plus CSS `crystal-in` entrance staggers; full responsive grid (1→2→3→4 cols); respects gold accent + glass design language.
+2. Added `"help"` to the `ViewId` union in `src/lib/types.ts` so the NAV entry type-checks.
+3. In `src/components/app-sidebar.tsx`:
+   - Imported `HelpCircle` from lucide-react and `Link` from next/link.
+   - Added NAV entry `{ id: "help", label: "Help", icon: HelpCircle, group: "Workspace", accent: "oklch(0.62 0 0)" }`.
+   - Special-cased the render loop: when `n.id === "help"`, render a `<Link href="/help">` with the same visual treatment as other rows (icon, label, chevron, crystal-sweep hover) instead of calling `setView()`.
+4. In `src/components/app-header.tsx`:
+   - Imported `HelpCircle` and `Link` from next/link.
+   - Added a Help icon button (placed between ConnectionStatus and NotificationsBell) that opens `/help` in a new tab (`target="_blank"`) so the user's in-app session is preserved. Uses the same pill-button styling as the theme and bell buttons.
+5. Cleaned up unused lucide imports in the Help page (removed Rocket, Users, Clock, EyeOff, Cpu, Globe, Monitor, Smartphone, Server; kept Boxes which is used by the tenant-isolation card).
+6. Ran `bun run lint` — 0 errors, 7 pre-existing warnings (all `window.location.href` warnings in unrelated files: landing-page.tsx, landing-shared.tsx, views/accounts.tsx, views/settings.tsx). No new warnings introduced.
+
+Stage Summary:
+The SYNQUE Help module is now a comprehensive, animated Help Center at /help covering onboarding, all 24 modules with auto-advancing step carousels, the cross-posting key-feature illustration, an 8-item FAQ, and a security/privacy section with a 2FA quick-setup panel. Help is reachable from three places: the landing-page footer (existing "Help Center" link), the in-app sidebar Workspace group (new Help item rendered as a Next.js Link), and the in-app header (new HelpCircle icon button that opens /help in a new tab to preserve the user's session). All Framer Motion animations use `useInView` for scroll-triggered fade/slide-up; the module carousels auto-advance every 3.2s with pause-on-hover and clickable progress bars; the cross-posting section features a CSS/SVG radial animation with sequential platform highlighting. Design language follows the existing glass / crystal-card / gold-text system; fully responsive (mobile-first, 1→2→3 column grids); passes `bun run lint` with 0 errors and no new warnings.

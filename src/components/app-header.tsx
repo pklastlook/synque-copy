@@ -6,7 +6,7 @@ import {
   ChevronDown, MessageCircle, CheckCircle2, PenLine, Inbox as InboxIcon,
   Calendar, BarChart3, Users, AtSign, Megaphone, Radio, Hash, Crosshair,
   FileBarChart, Link2, Mail, MessageCircle as WhatsAppIcon, Globe, Zap,
-  Activity, Clock, Wifi, WifiOff, type LucideIcon,
+  Activity, Clock, Wifi, WifiOff, HelpCircle, type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useNav } from "@/lib/store";
@@ -28,6 +28,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import type { ViewId } from "@/lib/types";
+import Link from "next/link";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: "Dashboard", subtitle: "Your social universe at a glance" },
@@ -174,6 +175,18 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
         <div className="hidden lg:block">
           <ConnectionStatus />
         </div>
+
+        {/* Help — quick-access icon linking to the /help route */}
+        <Link
+          href="/help"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10]"
+          aria-label="Help center"
+          title="Open the Help center"
+        >
+          <HelpCircle className="h-[18px] w-[18px]" />
+        </Link>
 
         {/* Notification bell — always visible */}
         <NotificationsBell onNavigate={() => setView("inbox")} />
