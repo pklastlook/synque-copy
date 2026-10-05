@@ -168,6 +168,18 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // OAuth connect/callback: also accept token as a URL query parameter.
+  // Browser navigation (window.location.href) sends cookies but NOT the
+  // Authorization header. The httpOnly sameSite:lax cookie may not be
+  // sent on cross-origin OAuth redirects, so we pass the JWT as ?token=xxx
+  // as a fallback. This is safe because:
+  // 1. The token is already in localStorage (client-side)
+  // 2. The URL is HTTPS-encrypted in production
+  // 3. The token expires in 7 days
+  if (!token && req.nextUrl.searchParams.has("token")) {
+    token = req.nextUrl.searchParams.get("token");
+  }
+
   if (!token) {
     return NextResponse.json(
       { error: "Authentication required" },
