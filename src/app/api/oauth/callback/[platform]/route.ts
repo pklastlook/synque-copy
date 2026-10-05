@@ -267,14 +267,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
         const metrics = user.public_metrics;
 
         const existing = await db.account.findFirst({
-          where: { platform: "x", handle: `@${user.username}` },
+          where: { platform: "x", handle: user.username ?? "twitter_user" },
         }).catch((e) => console.error("[api]", e));
 
         if (!existing) {
           const account = await db.account.create({
             data: {
               platform: "x",
-              handle: `@${user.username}`,
+              handle: user.username ?? "twitter_user",
               displayName: user.name,
               followers: metrics?.followers_count ?? 0,
               postsCount: metrics?.tweet_count ?? 0,
@@ -302,7 +302,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
             data: {
               userId,
               type: "account_connected",
-              description: `connected @${user.username} on X/Twitter`,
+              description: `connected ${user.name ?? user.username} on X/Twitter`,
             },
           }).catch((e) => console.error("[api]", e));
         } else {
@@ -491,42 +491,58 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
       if (tokenJson.access_token) {
         accessToken = tokenJson.access_token;
 
-        // Fetch YouTube channel info
+        // Fetch YouTube channel info. Use the pageId from PlatformCredential
+        // (the channel ID) as a fallback if "mine=true" returns empty (this
+        // happens when the user's YouTube account doesn't have a channel yet
+        // or the channel API requires an explicit ID).
         const channelRes = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true", {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const channelJson = await channelRes.json();
 
-        if (channelJson.items?.[0]) {
-          const ch = channelJson.items[0];
-          const existing = await db.account.findFirst({
-            where: { platform: "youtube", handle: ch.snippet?.title ?? "YouTube Channel" },
-          }).catch((e) => console.error("[api]", e));
-
-          if (!existing) {
-            await db.account.create({
-              data: {
-                platform: "youtube",
-                handle: ch.snippet?.title ?? "YouTube Channel",
-                displayName: ch.snippet?.title ?? "YouTube Channel",
-                followers: parseInt(ch.statistics?.subscriberCount ?? "0"),
-                postsCount: parseInt(ch.statistics?.videoCount ?? "0"),
-                verified: false,
-                ownerId: userId,
-                avatar: ch.snippet?.thumbnails?.default?.url ?? null,
-                health: { create: { riskScore: 5, riskLevel: "safe", status: "healthy", riskReasons: "[]" } },
-                protection: { create: { enabled: true } },
-              },
-            });
-
-            await db.activity.create({
-              data: { userId, type: "account_connected", description: `connected ${ch.snippet?.title} on YouTube` },
-            }).catch((e) => console.error("[api]", e));
-          }
-          pageId = ch.id;
+        // If "mine=true" didn't return any items, try fetching by the
+        // pageId (channel ID) that was stored during the token exchange.
+        let ch = channelJson.items?.[0];
+        if (!ch && cred.pageId) {
+          const channelRes2 = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${cred.pageId}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          const channelJson2 = await channelRes2.json();
+          ch = channelJson2.items?.[0];
         }
+
+        // Determine the channel name — use the channel title, or fall back
+        // to the user's YouTube account email, or "YouTube Channel".
+        const channelName = ch?.snippet?.title ?? "YouTube Channel";
+
+        // Check if the account already exists
+        const existing = await db.account.findFirst({
+          where: { platform: "youtube", ownerId: userId },
+        }).catch((e) => console.error("[api]", e));
+
+        if (!existing) {
+          await db.account.create({
+            data: {
+              platform: "youtube",
+              handle: ch?.snippet?.customUrl ?? channelName,
+              displayName: channelName,
+              followers: parseInt(ch?.statistics?.subscriberCount ?? "0"),
+              postsCount: parseInt(ch?.statistics?.videoCount ?? "0"),
+              verified: false,
+              ownerId: userId,
+              avatar: ch?.snippet?.thumbnails?.default?.url ?? null,
+              health: { create: { riskScore: 5, riskLevel: "safe", status: "healthy", riskReasons: "[]" } },
+              protection: { create: { enabled: true } },
+            },
+          });
+
+          await db.activity.create({
+            data: { userId, type: "account_connected", description: `connected ${channelName} on YouTube` },
+          }).catch((e) => console.error("[api]", e));
+        }
+        pageId = ch?.id ?? cred.pageId ?? "";
       } else {
-        return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(tokenJson.error?.message ?? "youtube_token_failed")}`, req.url));
+        return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(tokenJson.error?.message ?? tokenJson.error ?? "youtube_token_failed")}`, req.url));
       }
     }
 
