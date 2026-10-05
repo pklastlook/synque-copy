@@ -125,7 +125,7 @@ export async function issueSession(opts: {
 export function setAuthCookie(res: NextResponse, token: string) {
   res.cookies.set("token", token, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     maxAge: SESSION_TTL_SECONDS,
     path: "/",

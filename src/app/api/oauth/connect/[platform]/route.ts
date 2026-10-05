@@ -75,6 +75,21 @@ const OAUTH_CONFIG: Record<string, {
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
+  // The OAuth connect route is accessed via browser navigation (window.location.href),
+  // which sends cookies but NOT the Authorization header. The httpOnly + sameSite:strict
+  // cookie may not be sent in all cases, so we also accept the token as a query parameter
+  // as a fallback. This is safe because:
+  // 1. The token is already in localStorage (client-side) — not more exposed
+  // 2. The URL is HTTPS-encrypted in production
+  // 3. The token expires in 7 days
+  const queryToken = req.nextUrl.searchParams.get("token");
+  if (queryToken) {
+    // Set the Authorization header from the query param so requireAuth can read it
+    const headers = new Headers(req.headers);
+    headers.set("Authorization", `Bearer ${queryToken}`);
+    req = new NextRequest(req.url, { method: req.method, headers, body: req.body });
+  }
+
   const { user, error } = await requireAuth(req);
   if (error) return error;
   const { platform } = await params;

@@ -915,8 +915,12 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
       const res = await fetch(`/api/oauth/check?platform=${apiPlatform}&userId=${user.id}`);
       const json = await res.json();
       if (json.configured) {
-        // Redirect browser to the platform's login page (like Later)
-        const redirectUrl = `/api/oauth/connect/${apiPlatform}?userId=${user.id}`;
+        // Redirect browser to the platform's login page.
+        // Pass the JWT token as a query param because browser navigation
+        // (window.location.href) doesn't send the Authorization header,
+        // and the httpOnly sameSite:strict cookie may not be sent reliably.
+        const authToken = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+        const redirectUrl = `/api/oauth/connect/${apiPlatform}?userId=${user.id}${authToken ? `&token=${authToken}` : ""}`;
         setTimeout(() => { window.location.href = redirectUrl; }, 100);
       } else {
         // OAuth not configured — show manual entry with a clear explanation
@@ -1144,7 +1148,8 @@ function ConnectAccountDialog({ open, onOpenChange, onConnected }: ConnectAccoun
                 <button
                   onClick={() => {
                     const apiPlatform = platform === "x" ? "twitter" : platform;
-                    window.location.href = `/api/oauth/connect/${apiPlatform}?userId=${user.id}`;
+                    const authToken = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+                    window.location.href = `/api/oauth/connect/${apiPlatform}?userId=${user.id}${authToken ? `&token=${authToken}` : ""}`;
                   }}
                   className="liquid-gold flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold sm:flex-none"
                 >
