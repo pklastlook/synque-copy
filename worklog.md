@@ -12580,3 +12580,59 @@ Work Log:
 9. Ran `bun run lint` — 0 errors, 7 pre-existing warnings (all `@next/next/no-location-assign-relative-destination` warnings in unrelated files: landing-page.tsx, landing-shared.tsx, accounts.tsx, settings.tsx).
 
 Stage Summary: Help is no longer a standalone landing-style Next.js page — it is now the in-app "Guide" view, rendered inside the AppShell with six sub-tabs (Getting Started, Modules, About System, Cross-Posting, FAQ, Security). The new About System submodule explains the multi-tenant Neon PostgreSQL architecture, per-client database isolation, security stack (AES-256 / JWT / 2FA / WebAuthn / tenant isolation / audit / rate limiting / CSP), account limits & plan tiers, supported platforms with character limits, cross-posting flow, and the five team roles. The sidebar entry uses the BookOpen icon and navigates via `setView("guide")` like every other view; the header's help button now opens the Guide view in-place instead of opening `/help` in a new tab; the ⌘K command palette includes Guide. The old `/help` route and its directory have been removed; all lingering `/help` references across the landing footer and Settings landing-link config have been repointed to `/docs` to avoid 404s.
+
+---
+Task ID: SYNC-ACCOUNTS
+Agent: subagent
+Task: Unified account sync — import existing posts from all platforms
+
+Work Log:
+
+**Files delivered:**
+1. `src/lib/sync-platforms.ts` (NEW) — per-platform "import existing posts" syncers
+2. `src/app/api/accounts/sync/route.ts` (NEW) — unified POST endpoint
+3. `src/components/views/accounts.tsx` (EDITED) — added Sync buttons + state
+
+**`src/lib/sync-platforms.ts`** exports:
+- `SyncAccount` interface (minimal account shape)
+- `SyncResult` interface (`{ accountId, platform, accountName, synced, updated, total, error? }`)
+- `getCredForAccount(account)` — looks up the user's `PlatformCredential` row by `userId + platform` (with `x → twitter` alias fallback), decrypts it via `decryptPlatformCredential()`, and returns it only if `oauth2UserToken` is present.
+- `syncAccount(account, cred)` — dispatcher that switches on `account.platform` and delegates to the right syncer.
+- Per-platform syncers:
+  - `syncTwitterPosts` — Twitter API v2 `/users/by/username/{handle}` → `/users/{id}/tweets` (max_results=100, exclude retweets+replies). Maps `public_metrics.impression_count → reach + impressions`, `like_count → likes`, `reply_count → comments`, `retweet_count → shares`. Also refreshes the Account row's `followers` + `postsCount` from `/users/{id}?user.fields=public_metrics`.
+  - `syncYouTubePosts` — two-step: `/youtube/v3/search?forMine=true&type=video&maxResults=50` (snippet) then batched `/youtube/v3/videos?part=statistics&id=…` for `viewCount → reach + impressions`, `likeCount → likes`, `commentCount → comments`. Sets `mediaType=video`, `mediaUrl=thumbnail`.
+  - `syncInstagramPosts` — Graph API `/me/media?fields=…,like_count,comments_count,timestamp,…&limit=50`. Sets `mediaType` based on `media_type` (VIDEO/REEL → video, else image), `mediaUrl=thumbnail_url ?? media_url`.
+  - `syncFacebookPosts` — Graph API `/me/posts?fields=message,created_time,permalink_url,likes.summary(true),comments.summary(true),shares&limit=50`. Maps `likes.summary.total_count → likes`, `comments.summary.total_count → comments`, `shares.count → shares`.
+  - `syncLinkedInPosts` — `/v2/shares?q=owners&owners=urn:li:person:{personId}&count=50`. Reads `profileId` from the cred row (LinkedIn URN), strips the `urn:li:person:` prefix, rebuilds the URN in the format the API expects. Maps `numLikes → likes`, `numComments → comments`, `totalShareCount → shares`. Uses `created.time` (ms epoch) for `publishedAt`.
+  - `syncTikTokPosts` — POST to `/v2/video/list/?fields=cover_image_url,create_time,share_count,view_count,like_count,comment_count,title` with JSON body `{ max_count: 50 }`. Maps `create_time` (unix seconds × 1000 → ms) to `publishedAt`, `view_count → reach + impressions`, `like_count → likes`, `comment_count → comments`, `share_count → shares`. Sets `mediaType=video`, `mediaUrl=cover_image_url`.
+- Internal `upsertImportedPost()` helper — dedups by `findFirst({ where: { accountId, content } })`. If exists, updates only the metric columns (`likes`, `comments`, `shares`, `reach`, `impressions`) + sets `status="published"` + backfills `publishedAt` if missing. If new, creates a Post (with `status="published"`, `createdAt=publishedAt`) + nested PostVariant (with `status="published"`, `publishedAt`, `createdAt=publishedAt`, all metrics), and logs a `post_published` Activity row.
+- Per-platform syncers NEVER throw on API errors — they return a `SyncResult` with `error` populated, so the caller can continue syncing the rest of the user's accounts.
+
+**`src/app/api/accounts/sync/route.ts`** — POST handler:
+- Uses `requireAuth(req)` for JWT auth (Bearer or cookie).
+- Accepts `{ accountId }` (sync one account) OR `{ platform }` (`"instagram" | "youtube" | "x" | "facebook" | "linkedin" | "tiktok" | "all"`).
+- Builds a tenant-scoped Prisma `where` clause via `tenantWhere(scope, …)` — super-admins see all accounts; tenant users see only their client's accounts.
+- Sequentially syncs each matching account (up to 50) — avoids hammering platform APIs + avoids concurrent Prisma write deadlocks on SQLite/PGlite.
+- For each account: `getCredForAccount()` → if no `oauth2UserToken`, pushes an error result; else `syncAccount()` and pushes the result.
+- Returns `{ ok, synced, updated, total, accounts, results, message }`. The `message` field is built for the client toast (e.g. `"Synced 15 new + 3 updated posts from 2 accounts. 1 account skipped."`).
+- `export const maxDuration = 60` for batch processing headroom.
+
+**`src/components/views/accounts.tsx`** changes:
+- Added `Download` to lucide-react imports.
+- Added `syncingPostsId: string | null` state in `AccountsView` (values: `null` idle, `"all"` global sync in flight, `"<accountId>"` per-account sync in flight). Used to disable other Sync buttons + show a spinner on the active one.
+- Added `syncPosts(accountId?, accountName?)` method that calls `POST /api/accounts/sync` with either `{ platform: "all" }` or `{ accountId }`, shows info/success/error toasts, and calls `reload()` to refresh the accounts list (so `postsCount`, `impressions`, `engagement` reflect the newly imported posts).
+- Added a global "Sync All Posts" button next to the existing "Sync & Refresh" button in the `SectionHeader` action cluster. Shows `Loader2 animate-spin` while `syncingPostsId === "all"`.
+- Added a per-account "Sync posts" icon button (Download icon) in `AccountListRow`'s action cluster (between "Recalculate health" and "Remove account"). The button is disabled (and shows a spinner) whenever any sync is in flight. The `AccountListRow` component now takes `syncingPostsId` + `onSyncPosts` props.
+
+**Rules followed:**
+- `requireAuth` on the sync route ✓
+- `decryptPlatformCredential()` from `@/lib/platform-credential-crypto` used for token decryption ✓
+- Dedup by `findFirst({ where: { accountId, content } })` (mirrors the existing `/api/sync/twitter` pattern) ✓
+- Existing variants get metric refresh only; new ones get Post + PostVariant created with `status="published"` ✓
+- `publishedAt` set to the post's actual creation date from the platform API ✓
+- `createdAt` set to the post's actual creation date ✓ (both on Post and on PostVariant)
+- Twitter pattern followed from `src/app/api/sync/twitter/route.ts` ✓
+- `bun run lint` runs clean — 0 errors, 7 pre-existing warnings (all `window.location.reload` calls in other files; 2 in `accounts.tsx` lines 1031 + 1259 from existing "Recalculate health" / "Remove account" handlers, NOT introduced by this task) ✓
+- Dev server (`bun run dev`) NOT started by this task ✓
+
+Stage Summary: The unified `/api/accounts/sync` endpoint can now import the user's REAL historical posts from all 6 supported platforms (Twitter/X, YouTube, Instagram, Facebook, LinkedIn, TikTok) into SYNQUE as Post + PostVariant records with backfilled `publishedAt` + analytics metrics. The Accounts page exposes both a global "Sync All Posts" button and a per-account "Sync posts" icon button, with shared `syncingPostsId` state so only one sync runs at a time across the whole view. After sync, the accounts list reloads automatically so the imported posts appear in `postsCount` / `impressions` / `engagement` KPIs. This solves the original problem statement: "I published a post on [Twitter/YouTube/Instagram/Facebook/LinkedIn/TikTok] directly but it doesn't show in SYNQUE analytics."

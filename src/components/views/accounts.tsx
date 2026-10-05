@@ -47,6 +47,7 @@ import {
   BarChart3,
   RefreshCw,
   MessageCircle,
+  Download,
 } from "lucide-react";
 import { useApi, fmt } from "@/lib/hooks";
 import {
@@ -201,6 +202,68 @@ export function AccountsView() {
   >("followers");
   const [syncing, setSyncing] = React.useState(false);
   const [refreshingHealth, setRefreshingHealth] = React.useState(false);
+  // Which account is currently having its existing posts imported?
+  // Values: null (idle) | "all" (global sync) | "<accountId>" (per-account).
+  // Used to disable other sync buttons + show a spinner on the active one.
+  const [syncingPostsId, setSyncingPostsId] = React.useState<string | null>(null);
+
+  // Import existing posts/videos/tweets from a single account OR all of
+  // them. Calls the unified `/api/accounts/sync` endpoint, which
+  // dispatches to the right per-platform syncer (Twitter, YouTube, IG,
+  // FB, LinkedIn, TikTok).
+  async function syncPosts(accountId?: string, accountName?: string) {
+    const isAll = !accountId;
+    setSyncingPostsId(isAll ? "all" : accountId!);
+    try {
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      toast.info(
+        isAll
+          ? "Importing posts from all connected accounts…"
+          : `Importing posts from ${accountName ?? "account"}…`
+      );
+
+      const body = isAll ? { platform: "all" } : { accountId };
+      const res = await fetch("/api/accounts/sync", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.ok) {
+        toast.error("Sync failed", {
+          description: data?.error ?? `Request failed (${res.status})`,
+        });
+        return;
+      }
+
+      // Reload accounts list so postsCount / impressions reflect the
+      // newly imported posts. The Posts view (separate route) will
+      // re-fetch on its own next render.
+      await reload();
+
+      const { synced = 0, updated = 0, total = 0, accounts = 0, message } = data;
+      toast.success(
+        isAll
+          ? `Synced posts from ${accounts} account${accounts > 1 ? "s" : ""}`
+          : `${accountName ?? "Account"} synced`,
+        {
+          description:
+            message ??
+            `${synced} new + ${updated} updated (of ${total} fetched)`,
+        }
+      );
+    } catch {
+      toast.error("Network error — sync failed");
+    } finally {
+      setSyncingPostsId(null);
+    }
+  }
 
   // Sync comments from all connected platforms + recalculate health
   async function syncAllData() {
@@ -374,6 +437,21 @@ export function AccountsView() {
         action={
           <div className="flex items-center gap-2">
             <button
+              onClick={() => syncPosts(undefined)}
+              disabled={syncingPostsId !== null}
+              className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-xs font-semibold transition hover:bg-muted/50 disabled:opacity-50"
+              title="Import your existing posts/tweets/videos from all connected platforms into SYNQUE"
+            >
+              {syncingPostsId === "all" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">
+                {syncingPostsId === "all" ? "Importing…" : "Sync All Posts"}
+              </span>
+            </button>
+            <button
               onClick={syncAllData}
               disabled={syncing}
               className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-xs font-semibold transition hover:bg-muted/50 disabled:opacity-50"
@@ -517,7 +595,12 @@ export function AccountsView() {
               </div>
             )}
             {filtered.map((a) => (
-              <AccountListRow key={a.id} account={a} />
+              <AccountListRow
+                key={a.id}
+                account={a}
+                syncingPostsId={syncingPostsId}
+                onSyncPosts={(id, name) => syncPosts(id, name)}
+              />
             ))}
           </div>
         </BentoTile>
@@ -597,7 +680,15 @@ export function AccountsView() {
 
 /* ===================== Account list row (dense, replaces AccountCard) ===================== */
 
-function AccountListRow({ account }: { account: AccountData }) {
+interface AccountListRowProps {
+  account: AccountData;
+  /** Current sync target — disables buttons while a sync is in flight. */
+  syncingPostsId: string | null;
+  /** Trigger per-account post import. */
+  onSyncPosts: (accountId: string, accountName: string) => void;
+}
+
+function AccountListRow({ account, syncingPostsId, onSyncPosts }: AccountListRowProps) {
   const { setView } = useNav();
   const [healthOpen, setHealthOpen] = React.useState(false);
 
@@ -721,6 +812,22 @@ function AccountListRow({ account }: { account: AccountData }) {
             aria-label="Recalculate health"
           >
             <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSyncPosts(account.id, account.displayName);
+            }}
+            disabled={syncingPostsId !== null}
+            className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-primary disabled:opacity-50"
+            title={`Import existing posts from ${PLATFORMS[account.platform]?.name ?? account.platform}`}
+            aria-label="Sync posts"
+          >
+            {syncingPostsId === account.id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
           </button>
           <button
             onClick={async (e) => {
