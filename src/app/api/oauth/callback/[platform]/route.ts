@@ -59,14 +59,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     return NextResponse.redirect(new URL("/?oauth_error=app_not_configured", req.url));
   }
 
-  // Build the redirect URI (must match the one used in the connect step)
-  const requestUrl = new URL(req.url);
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  const hostHeader = req.headers.get("host");
-  const host = forwardedHost || hostHeader || requestUrl.host;
-  const forwardedProto = req.headers.get("x-forwarded-proto");
-  const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
-  const redirectUri = `${protocol}://${host}/api/oauth/callback/${platform}`;
+  // Build the redirect URI — MUST match the one used in the connect step.
+  // Uses APP_URL env var (most reliable) or falls back to request headers.
+  const APP_URL = process.env.APP_URL;
+  let redirectUri: string;
+
+  if (APP_URL) {
+    redirectUri = `${APP_URL.replace(/\/$/, "")}/api/oauth/callback/${platform}`;
+  } else {
+    const requestUrl = new URL(req.url);
+    const forwardedHost = req.headers.get("x-forwarded-host");
+    const hostHeader = req.headers.get("host");
+    const host = forwardedHost || hostHeader || requestUrl.host;
+    const forwardedProto = req.headers.get("x-forwarded-proto");
+    const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
+    redirectUri = `${protocol}://${host}/api/oauth/callback/${platform}`;
+  }
 
   try {
     // Step 1: Exchange the code for an access token

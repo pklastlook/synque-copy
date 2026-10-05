@@ -103,14 +103,33 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     }, { status: 400 });
   }
 
-  // Build the redirect URI — use the request URL to get the correct host
-  const requestUrl = new URL(req.url);
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  const hostHeader = req.headers.get("host");
-  const host = forwardedHost || hostHeader || requestUrl.host;
-  const forwardedProto = req.headers.get("x-forwarded-proto");
-  const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
-  const redirectUri = `${protocol}://${host}/api/oauth/callback/${platform}`;
+  // Build the redirect URI.
+  //
+  // Priority:
+  //   1. APP_URL env var (most reliable — set explicitly in .env / Vercel)
+  //   2. x-forwarded-host + x-forwarded-proto (Vercel proxy headers)
+  //   3. host header
+  //   4. request URL host
+  //
+  // The redirect URI MUST match EXACTLY what's registered in the OAuth
+  // provider's developer portal (Google, TikTok, etc.). A mismatch causes
+  // "Error 400: redirect_uri_mismatch".
+  const APP_URL = process.env.APP_URL;
+  let redirectUri: string;
+
+  if (APP_URL) {
+    // Use the explicitly-configured app URL — most reliable
+    redirectUri = `${APP_URL.replace(/\/$/, "")}/api/oauth/callback/${platform}`;
+  } else {
+    // Fall back to request headers (works in most Vercel deployments)
+    const requestUrl = new URL(req.url);
+    const forwardedHost = req.headers.get("x-forwarded-host");
+    const hostHeader = req.headers.get("host");
+    const host = forwardedHost || hostHeader || requestUrl.host;
+    const forwardedProto = req.headers.get("x-forwarded-proto");
+    const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
+    redirectUri = `${protocol}://${host}/api/oauth/callback/${platform}`;
+  }
 
   // Build the OAuth authorize URL.
   // State is HMAC-SHA256 signed with JWT_SECRET to prevent CSRF / forgery.
