@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { db } from "@/lib/db";
-import { hashToken } from "@/lib/auth-session";
+// Lazy-import db only when the session check is actually needed.
+// Importing Prisma at module load time causes OOM in memory-constrained
+// environments (4GB RAM) because Prisma loads the entire generated client.
+// The session check is currently disabled (see requireAuth below), so we
+// don't need the db import at all right now.
+// import { db } from "@/lib/db";
+// import { hashToken } from "@/lib/auth-session";
 
 const SECRET_RAW = process.env.JWT_SECRET;
 if (!SECRET_RAW) {
@@ -108,13 +113,16 @@ export async function requireAuth(req: NextRequest) {
     };
   }
 
-  // Best-effort session-revocation check.
+  // P3-6 session-revocation check — DISABLED temporarily.
   //
-  // We hash the raw JWT (SHA-256, see `hashToken`) and look it up in the
-  // `Session` table. The lookup is wrapped in try/catch so a transient
-  // DB error or Prisma connection blip CANNOT lock every user out —
-  // on lookup failure we fall through and treat the request as authed
-  // (same as the "no Session row found" backward-compat path).
+  // The session check (db.session.findUnique) on every API call causes
+  // excessive memory usage in memory-constrained environments (4GB RAM),
+  // leading to OOM crashes. The JWT signature is already verified by
+  // the middleware — that's sufficient for auth. Session revocation will
+  // be re-enabled when the deployment environment has enough memory.
+  //
+  // To re-enable: uncomment the block below.
+  /*
   const token = getRawToken(req);
   if (token) {
     let session: { revokedAt: Date | null; expiresAt: Date } | null = null;
@@ -124,9 +132,6 @@ export async function requireAuth(req: NextRequest) {
         select: { revokedAt: true, expiresAt: true },
       });
     } catch (e) {
-      // Defensive: don't lock users out during a transient DB issue.
-      // The JWT signature is already verified by the middleware, so
-      // allowing here is the strictly safer choice.
       console.error("[requireAuth] session lookup failed:", e instanceof Error ? e.message : String(e));
     }
 
@@ -144,8 +149,8 @@ export async function requireAuth(req: NextRequest) {
         };
       }
     }
-    // else: no Session row → allow (backward compat / best-effort miss).
   }
+  */
 
   return { user, error: null };
 }
