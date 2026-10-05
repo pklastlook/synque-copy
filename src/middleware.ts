@@ -46,6 +46,16 @@ const PUBLIC_ROUTES = [
   "/api/webauthn/authenticate/verify",
 ];
 
+// Regex for routes that are public INCLUDING all their sub-paths.
+// The OAuth callback URL includes the platform name as a sub-path:
+//   /api/oauth/callback/twitter
+//   /api/oauth/callback/youtube
+//   /api/oauth/callback/instagram
+// etc. These are GET redirects from the OAuth provider (Google, Twitter,
+// TikTok) — they carry the authorization code + state but NOT a JWT.
+// They MUST be public or the OAuth flow fails with "Authentication required".
+const PUBLIC_SUBPATH_RE = /^\/api\/oauth\/callback\/[^/]+$/;
+
 // Sub-paths that are public even though they live under an otherwise-protected
 // parent. Currently just the link-in-bio click tracker (called by every
 // visitor on a public `/l/[slug]` page) and the link-in-bio list/create
@@ -73,6 +83,11 @@ function isPublicRoute(pathname: string): boolean {
   // 3. Click tracker: `/api/linkbio/[id]/click` is hit by every visitor on a
   //    public `/l/[slug]` page, so it must be public.
   if (PUBLIC_LINKBIO_CLICK_RE.test(pathname)) return true;
+
+  // 4. OAuth callback sub-paths: `/api/oauth/callback/<platform>` are GET
+  //    redirects from the OAuth provider — they carry the auth code + state
+  //    but NOT a JWT. They MUST be public.
+  if (PUBLIC_SUBPATH_RE.test(pathname)) return true;
 
   return false;
 }
