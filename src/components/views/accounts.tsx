@@ -1843,7 +1843,7 @@ function PostCard({
       </div>
       <div className="mt-2 flex-1">
         <div className="line-clamp-2 text-xs font-semibold leading-snug">
-          {post.title || v?.content?.slice(0, 80) ?? "Untitled post"}
+          {post.title || (v?.content?.slice(0, 80) ?? "Untitled post")}
         </div>
         <div className="mt-1 text-[10px] text-muted-foreground">
           {publishedAt ? new Date(publishedAt).toLocaleDateString(undefined, {
