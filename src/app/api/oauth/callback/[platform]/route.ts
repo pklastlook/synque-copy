@@ -373,12 +373,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
       }
     }
 
-    // === TIKTOK OAuth 2.0 ===
+    // === TIKTOK Login Kit OAuth 2.0 ===
+    // Docs: https://developers.tiktok.com/doc/login-kit-web/
+    // Token endpoint: https://open.tiktokapis.com/v2/oauth/token/
+    // User info endpoint: https://open.tiktokapis.com/v2/user/info/
     if (platform === "tiktok") {
-      const tokenRes = await fetch("https://open-api.tiktok.com/oauth/access_token/", {
+      const tokenRes = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
           client_key: cred.clientId,
           client_secret: cred.clientSecret,
           code,
@@ -388,18 +391,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
       });
       const tokenJson = await tokenRes.json();
 
-      if (tokenJson.data?.access_token) {
-        accessToken = tokenJson.data.access_token;
-        const openId = tokenJson.data.open_id;
+      if (tokenJson.access_token) {
+        accessToken = tokenJson.access_token;
+        const openId = tokenJson.open_id;
 
-        // Fetch user profile
-        const userRes = await fetch(`https://open-api.tiktok.com/user/info/`, {
+        // Fetch user profile via TikTok User Info API (v2)
+        const userRes = await fetch("https://open.tiktokapis.com/v2/user/info/", {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ open_id: openId, fields: ["open_id", "union_id", "display_name", "avatar_url", "follower_count", "likes_count", "video_count"] }),
+          body: JSON.stringify({
+            open_id: openId,
+            fields: ["open_id", "union_id", "display_name", "avatar_url", "follower_count", "likes_count", "video_count"],
+          }),
         });
         const userJson = await userRes.json();
 
@@ -431,8 +437,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
           }
         }
         pageId = openId;
+
+        // Store the access token + refresh token in PlatformCredential
+        // (encrypted at rest via encryptIfPresent — see P2-2-a)
+        await db.platformCredential.upsert({
+          where: { userId_platform: { userId, platform: "tiktok" } },
+          create: {
+            userId,
+            platform: "tiktok",
+            clientId: cred.clientId,
+            clientSecret: encryptIfPresent(cred.clientSecret),
+            accessToken: encryptIfPresent(accessToken),
+            pageId: openId,
+            connected: true,
+          },
+          update: {
+            clientId: cred.clientId,
+            clientSecret: encryptIfPresent(cred.clientSecret),
+            accessToken: encryptIfPresent(accessToken),
+            refreshToken: tokenJson.refresh_token ? encryptIfPresent(tokenJson.refresh_token) : undefined,
+            pageId: openId,
+            connected: true,
+          },
+        });
       } else {
-        return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(tokenJson.error?.message ?? "tiktok_token_failed")}`, req.url));
+        return NextResponse.redirect(new URL(`/?oauth_error=${encodeURIComponent(tokenJson.error?.message ?? tokenJson.error ?? "tiktok_token_failed")}`, req.url));
       }
     }
 
