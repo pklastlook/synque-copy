@@ -12636,3 +12636,154 @@ Work Log:
 - Dev server (`bun run dev`) NOT started by this task ✓
 
 Stage Summary: The unified `/api/accounts/sync` endpoint can now import the user's REAL historical posts from all 6 supported platforms (Twitter/X, YouTube, Instagram, Facebook, LinkedIn, TikTok) into SYNQUE as Post + PostVariant records with backfilled `publishedAt` + analytics metrics. The Accounts page exposes both a global "Sync All Posts" button and a per-account "Sync posts" icon button, with shared `syncingPostsId` state so only one sync runs at a time across the whole view. After sync, the accounts list reloads automatically so the imported posts appear in `postsCount` / `impressions` / `engagement` KPIs. This solves the original problem statement: "I published a post on [Twitter/YouTube/Instagram/Facebook/LinkedIn/TikTok] directly but it doesn't show in SYNQUE analytics."
+
+---
+Task ID: ACCOUNTS-MODULE
+Agent: subagent
+Task: Rebuild Accounts module with submodules (Overview, Detail, Pages, Analytics)
+
+Work Log:
+
+Read the prior worklog, existing `src/components/views/accounts.tsx` (2029 lines), `guide.tsx`
+(for the tab pattern: sticky glass Tabs bar + AnimatePresence motion transitions),
+`glass/platform-badge.tsx`, `glass/glass-card.tsx`, `glass/dense-ui.tsx`, `glass/safe-image.tsx`,
+`glass/name-avatar.tsx`, `lib/platforms.tsx`, `lib/hooks.ts` (useApi + fmt), `lib/store.ts`,
+`lib/types.ts`, `app/api/accounts/route.ts`, `app/api/posts/route.ts`, and
+`app/api/analytics/route.ts` to understand the available shapes and APIs.
+
+Then completely rewrote `src/components/views/accounts.tsx`. The new file is ~3,480 lines.
+
+### New module architecture
+
+`AccountsView` is now a tabbed module mirroring `GuideView` / `SettingsView` — sticky
+glass `Tabs` bar at the top, framer-motion `AnimatePresence` for cross-tab transitions,
+shadcn `Tabs`/`TabsList`/`TabsTrigger` for the navigation. Four sub-tabs:
+
+1. **Overview** (`LayoutGrid` icon)
+   - Top `MetricRow` strip: Accounts, Followers, Impressions, Engagement, Posts, Avg growth
+     with real sparklines driven by `buildAggregateSeries(accounts)`.
+   - Search input (filters by name / handle / platform) + platform filter pills (`FilterPill`).
+   - Responsive grid of `AccountCard`s (1 col mobile → 2 cols sm → 3 cols lg).
+   - Empty state with a "Connect Account" CTA.
+
+2. **Account Detail** (`ChartBar` icon)
+   - When no account is selected, shows an `AccountPicker` (search + grid of platforms)
+     so the user can drill into one.
+   - When selected, renders `AccountDetailBody`:
+     - Large glass header card: Avatar (shadcn `Avatar` with platform-colored fallback) +
+       PlatformBadge + VerifiedTick + PlatformPill + health pill, identity, owner, connected date,
+       "Sync Posts" + "Health" action buttons.
+     - 4-up stats row: Followers (with growth delta), Following, Posts, Engagement rate.
+     - `HeroChart` with recharts `AreaChart` for followers growth over time, gradient-filled.
+     - `HeroChart` with recharts `PieChart` (donut) for engagement breakdown: likes vs
+       comments vs shares.
+     - `BentoGrid` health-details row: risk score gauge, account status, sentiment bars,
+       risk-reason chips.
+     - Recent posts grid (`PostCard`) — last 12 posts filtered client-side from
+       `/api/posts` by `variants[].accountId === account.id`. Each card shows media
+       thumbnail, title, date, likes/comments/shares/impressions, status pill.
+   - "Back to Overview" button at the top.
+
+3. **Pages & Profiles** (`Users` icon)
+   - Cross-platform directory grouped by platform (Instagram, Facebook, X, LinkedIn, …).
+   - Each platform section has a header (badge + profile count + total followers +
+     engagement rate) and a responsive grid of `ProfileCard`s.
+   - `ProfileCard`: avatar, displayName + handle + verified tick + category badge
+     (Verified / Managed / Connected), 2x2 stats grid (followers / engagement / posts /
+     impressions), last activity + owner, and an "Open on platform" external link
+     (per-platform URL — `instagram.com/<handle>`, `x.com/<handle>`, etc.).
+
+4. **Analytics** (`TrendingUp` icon)
+   - Cross-account dashboard powered by `/api/analytics?days=30`.
+   - KPI `MetricRow`: Followers, Posts, Engagement, Engagement rate (computed from
+     `perAccount` totals).
+   - "Best performing post (last 30d)" hero card — pulls `analytics.topContent[0]`,
+     shows media thumbnail, author, date, and 4 KPI cells (engagement / impressions /
+     reach / eng rate).
+   - `GrowthTrendChart` (`HeroChart` + `AreaChart`) — combined followers/impressions/
+     engagement over time, with a metric toggle.
+   - Two-up chart row:
+     - `BarChart` of followers by platform (Cell-colored per platform color).
+     - `LineChart` of engagement rate by platform (single series, platform on X axis).
+   - Per-account table (sticky glass header, scrollable body) with followers / posts /
+     likes / comments / shares / engagement / engagement-rate (color-coded pill).
+
+### State management
+
+Per the task spec, `AccountsView` uses React `useState` for:
+- `activeTab`: `"overview" | "detail" | "pages" | "analytics"`
+- `selectedAccountId`: `string | null` — set by `viewAccountDetails(id)` which also
+  flips `activeTab` to `"detail"`.
+- `syncing`: `string | false` — `false` (idle), `"all"` (global sync), or `"<accountId>"`
+  (per-account). Buttons check `syncing !== false` to disable themselves and show a spinner
+  on the active target.
+- `connectOpen`, `refreshingHealth`.
+
+Sync / refresh / remove handlers are hoisted into the parent via `React.useCallback` so all
+tabs (Overview, Account Detail) can share them — `syncPosts(accountId?, accountName?)`,
+`refreshAccountHealth`, `removeAccount`, `viewAccountDetails`. Each tab receives only the
+callbacks it needs as props.
+
+### What was preserved (unchanged behavior)
+
+The full OAuth multi-step `ConnectAccountDialog` (platform picker → consent → handle entry
+→ connecting → success), `AccountHealthDialog` (with its `health` / `advisor` / `protection`
+inner tabs), `SuspensionAdvisor`, `ProtectionPanel` + helpers (`ProtectionSection`,
+`NumberSetting`, `ToggleSetting`, `SentimentStat`, `ConnectingStep`), the `RISK_STYLE` /
+`RISK_PILL_COLOR` / `RISK_REASON_LABELS` / `PERMISSION_SCOPES` constants, the `HealthData` /
+`ProtectionData` types, and the `buildSparkValues` / `buildAggregateSeries` helpers were all
+carried over verbatim. The "Add Account" button still opens the same OAuth dialog and calls
+the same `/api/accounts` POST handler.
+
+### New helper types & utilities
+
+Added `PostData` (shape of `/api/posts` response) and `AnalyticsData` (shape of
+`/api/analytics` response with `series`, `perAccount`, `topContent`, `followerSeries`).
+Added `engagementRate(engagement, impressions)` helper used in 4 places (AccountCard,
+AccountDetailBody, PagesProfilesTab, AnalyticsTabBody). Extended `AccountData` with optional
+`avatar`, `ownerId`, `ownerAvatar`, `createdAt` (all returned by the API but previously
+absent from the interface).
+
+### Styling & accessibility
+
+- Glass morphism throughout: `GlassCard`, `HeroChart`, `BentoGrid`, `BentoTile`,
+  `SectionHeader`, `Pill`, `MetricRow` from `@/components/glass/*`.
+- shadcn/ui components: `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent`, `Avatar`,
+  `AvatarImage`, `AvatarFallback`, `Dialog`, `Input`, `Label`, `Switch`, `Badge`.
+- recharts: `AreaChart` (followers growth + growth trend), `BarChart` (followers by
+  platform), `LineChart` (engagement rate by platform), `PieChart` (engagement breakdown)
+  with proper CartesianGrid / XAxis / YAxis / Tooltip / Legend / Cell / linearGradient
+  definitions matching the macOS-27 glass aesthetic.
+- framer-motion: card entrance animations (staggered), tab transitions via AnimatePresence
+  keyed by `activeTab + selectedAccountId` so re-entering Detail for a different account
+  re-animates.
+- Responsive: 1-col mobile → 2-col sm → 3-col lg grids; mobile-only action row in the
+  header (since the toolbar is hidden on small screens); sticky tab bar with horizontal
+  scroll on mobile (`scroll-liquid`).
+- `aria-label`s on icon-only buttons (external link, more-actions, refresh health, sync
+  posts). `line-clamp-2` on post titles. `tabular-nums` on all numeric displays.
+
+### Lint outcome
+
+`bun run lint` reports **0 errors, 7 warnings** — all 7 are the pre-existing
+`@next/next/no-location-assign-relative-destination` warnings about `window.location.href`
+inside the preserved `ConnectAccountDialog` (3 in landing-page.tsx, 1 in landing-shared.tsx,
+2 in accounts.tsx, 1 in settings.tsx). These are pre-existing patterns in the OAuth flow and
+not introduced by this task. Exit code 0.
+
+Initial lint run flagged 3 `react-hooks/rules-of-hooks` errors in `AnalyticsTab` — the
+`useMemo` calls for `followersByPlatform`, `engRateByPlatform`, and `growthTrend` were
+positioned after the `if (loading || !analytics) return …;` early-return guard. Fixed by
+splitting `AnalyticsTab` into a thin data-fetching wrapper (calls `useApi`, returns skeleton
+or `<AnalyticsTabBody accounts analytics />`) and a `AnalyticsTabBody` that owns all the
+`useMemo`s + render logic — no conditional hook calls.
+
+Stage Summary:
+
+The Accounts module is now a 4-tab module (Overview, Account Detail, Pages & Profiles,
+Analytics) with a sticky glass tab bar, framer-motion transitions, recharts visualizations,
+and a fully preserved OAuth connect flow. Each tab uses real data from the existing
+`/api/accounts`, `/api/posts`, and `/api/analytics` endpoints — no new API routes were
+needed. The AccountCard / AccountDetailBody / ProfileCard / AnalyticsTabBody components are
+new; `ConnectAccountDialog`, `AccountHealthDialog`, `SuspensionAdvisor`, `ProtectionPanel`,
+and all their helpers are preserved verbatim. `bun run lint` exits 0.
