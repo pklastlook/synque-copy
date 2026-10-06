@@ -54,6 +54,21 @@ export function getUserFromRequest(req: NextRequest): { userId: string; email: s
     }
   }
 
+  // Browser navigation (window.open / window.location.href) cannot send the
+  // Authorization header and may not send the cookie on cross-origin requests.
+  // For these flows (e.g. CSV export download) the JWT is passed as ?token=xxx
+  // in the URL query string. The middleware already accepts this form — we
+  // mirror it here so route handlers can re-authenticate the user.
+  const queryToken = req.nextUrl?.searchParams?.get("token");
+  if (queryToken) {
+    try {
+      const decoded = jwt.verify(queryToken, SECRET) as unknown as { userId: string; email: string; role: string; customerId?: string | null };
+      return { userId: decoded.userId, email: decoded.email, role: decoded.role, customerId: decoded.customerId ?? null };
+    } catch {
+      return null;
+    }
+  }
+
   return null;
 }
 

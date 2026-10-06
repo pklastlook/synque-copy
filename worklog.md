@@ -13411,3 +13411,97 @@ invoice for the current billing period, credits the owner's default bank
 account, and audit-logs the event. `bun run lint` exits 0 with only
 pre-existing warnings; `npx prisma validate` passes; the Prisma Client
 was regenerated so the TypeScript types match the new Payment model.
+
+---
+Task ID: INVOICE-ENHANCE
+Agent: subagent
+Task: Enhance InvoicesTab with regenerate, export CSV, and payment breakdown print
+
+Work Log:
+
+1. Read `worklog.md`, the full `owner.tsx` InvoicesTab + InvoicePrintLayout,
+   and the existing `api()` helper to understand the JWT-from-localStorage
+   pattern (`JSON.parse(localStorage.getItem("socialflow-auth"))?.state?.token`).
+2. Verified the `/api/invoices/regenerate` and `/api/invoices/export` routes
+   already exist on disk. The regenerate route accepts `{ customerId }` and
+   returns the regenerated invoice; the export route streams a CSV attachment.
+3. The export route uses `requireAuth(req)` → `getUserFromRequest(req)`, which
+   only checked the `Authorization` header + cookie. `window.open()` can't
+   send those. Added a third fallback to `getUserFromRequest` in
+   `src/lib/auth-guard.ts` that verifies the JWT from the `?token=xxx` URL
+   query parameter — mirroring the pattern already used by `src/middleware.ts`
+   for OAuth callbacks. This unblocks CSV export via browser navigation.
+4. Reworked `InvoicePrintLayout` totals block to the requested payment
+   breakdown:
+   - Subtotal (always shown, separated by a thin border)
+   - Discount (X%) shown in **rose/red** with a `−` prefix — only when
+     `discountAmount > 0`
+   - Taxable Base (subtotal − discount) shown in neutral — only when
+     `discountAmount > 0` (when discount is 0 it equals the subtotal, so
+     hiding avoids redundancy)
+   - Tax (X%) shown in **emerald/green** with a `+` prefix — only when
+     `taxAmount > 0`
+   - **Total Receivable** in a larger font (`text-lg`, `font-bold`) under a
+     2px accent-colored rule, with the total amount tinted in the accent
+     color, so it stands out as the final payable figure
+5. Added a new `InvoiceStatusBadge` component (plus `invoiceStatusTone`
+   helper) to render the requested invoice-specific color mapping:
+   `draft=gray`, `sent=blue`, `paid=green`, `overdue=red`. Deliberately
+   not modifying the global `StatusPill`/`statusTone` so other tabs
+   (subscriptions, quotations, etc.) are unaffected.
+6. Replaced the card-list UI in `InvoicesTab` with a `Table` (already
+   imported from `@/components/ui/table`). Columns:
+   `Invoice # | Client | Status | Issue Date | Due Date | Subtotal |
+   Discount | Tax | Total | Actions`. The table is wrapped in a
+   `max-h-[560px] overflow-auto` container with `min-w-[860px]` on the
+   `<table>` so it scrolls horizontally on mobile (`overflow-x-auto`) and
+   has a sticky header (`sticky top-0 z-10 bg-background/95 backdrop-blur`).
+   The Discount column shows `−$amt` in rose and the Tax column shows
+   `+$amt` in emerald (matching the print layout), with `—` placeholders
+   when the value is zero.
+7. Added an `Export CSV` button next to the renamed `Add invoice` button in
+   the `SectionHeader` action slot. Both buttons share the existing
+   `liquid-pill glow-ring` styling.
+8. Added the `regenerate` handler that POSTs to `/api/invoices/regenerate`
+   with `{ customerId: inv.customerId }`, fires the requested success toast
+   ("Invoice regenerated with updated subscription details"), and reloads
+   the invoice list. Wired it into the per-row dropdown menu, shown only
+   when `inv.status === "draft"` (per the rule that paid/sent invoices
+   cannot be regenerated).
+9. Added the `exportCsv` handler that reads the JWT from `localStorage`,
+   URL-encodes it, and calls `window.open('/api/invoices/export?token=…')`
+   in a new tab — triggering the CSV download.
+10. Per-row dropdown now contains the full set: **Print / Export PDF**,
+    **Regenerate** (draft only), **Mark sent** (draft only), **Mark paid**
+    (sent/overdue), **Mark overdue** (non-overdue), **Delete**.
+11. `cd /home/z/my-project && bun run lint` → 0 errors, 7 warnings, all
+    pre-existing `no-location-assign-relative-destination` warnings in
+    unrelated files (`landing-page.tsx`, `landing-shared.tsx`,
+    `accounts.tsx`, `settings.tsx`). My new `window.open()` call doesn't
+    trip that rule (it's a separate API for opening tabs / downloads).
+12. Did NOT start the dev server, per the task instructions.
+
+Stage Summary:
+
+The Owner → Invoices tab now exposes three workflow additions: a visible
+`Export CSV` button in the section header (downloads all invoices via
+`window.open('/api/invoices/export?token=…')` — the JWT is passed as a
+query param because browser navigation can't send the Authorization
+header; this required a one-line extension to `getUserFromRequest` in
+`auth-guard.ts` to also accept `?token=xxx` so the route handler can
+re-authenticate), a per-row `Regenerate` dropdown item (draft only) that
+POSTs to `/api/invoices/regenerate` with the invoice's `customerId` and
+shows the success toast "Invoice regenerated with updated subscription
+details", and a completely rewritten invoice list: the card grid is now
+a proper 10-column `Table` (Invoice #, Client, Status, Issue Date, Due
+Date, Subtotal, Discount, Tax, Total, Actions) inside a `max-h-[560px]`
+scroll container with a sticky header and `min-w-[860px]` so it scrolls
+horizontally on small screens. Status badges use a dedicated
+`InvoiceStatusBadge` (gray/blue/green/red for draft/sent/paid/overdue),
+and the Discount/Tax columns render `−`/`+`-prefixed colored amounts to
+match the print layout. The `InvoicePrintLayout` totals block was
+upgraded to the standard payment breakdown: Subtotal → Discount (X%)
+in red with `−` → Taxable Base → Tax (X%) in green with `+` → a bold,
+larger-font **Total Receivable** row in the accent color. Zero-value
+lines are hidden. `bun run lint` exits with 0 errors; the only warnings
+are pre-existing `window.location.href` lint rules in unrelated files.

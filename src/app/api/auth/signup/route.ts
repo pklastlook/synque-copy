@@ -89,7 +89,10 @@ export async function POST(req: NextRequest) {
           startDate: now,
           trialEnds,
           billingCycle: "monthly",
+          discountType: null,
+          discountValue: null,
           discountAmount: 0,
+          taxRate: null,
           taxAmount: 0,
           totalAmount: STARTER_PRICE,
           // endDate is left null until the trial converts to active.
@@ -100,17 +103,32 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      // Draft invoice — will be sent to the client when the trial ends.
+      // Draft invoice with full payment breakdown:
+      // - Line item: Starter Plan — Monthly ($299)
+      // - Discount: none (0)
+      // - Tax: none (0%) — owner can add tax rate from Subscriptions tab
+      // - Subtotal: $299
+      // - Discount amount: $0
+      // - Taxable base: $299
+      // - Tax amount: $0
+      // - Total receivable: $299
       const itemCount = await db.invoice.count();
       const invoiceNumber = `INV-${String(itemCount + 1).padStart(4, "0")}`;
       const lineItems = [
         {
-          description: "Starter Plan — Monthly",
+          description: "Starter Plan — Monthly Subscription",
           qty: 1,
           price: STARTER_PRICE,
           amount: STARTER_PRICE,
         },
       ];
+      const subtotal = STARTER_PRICE;
+      const discountAmount = 0;
+      const taxableBase = subtotal - discountAmount;
+      const taxRate = 0;
+      const taxAmount = 0;
+      const total = taxableBase + taxAmount;
+
       await db.invoice.create({
         data: {
           number: invoiceNumber,
@@ -118,12 +136,15 @@ export async function POST(req: NextRequest) {
           status: "draft",
           issueDate: now,
           dueDate: trialEnds,
-          subtotal: STARTER_PRICE,
-          discountAmount: 0,
-          taxRate: 0,
-          taxAmount: 0,
-          total: STARTER_PRICE,
+          subtotal,
+          discountType: null,
+          discountValue: null,
+          discountAmount,
+          taxRate,
+          taxAmount,
+          total,
           items: JSON.stringify(lineItems),
+          notes: `Trial subscription invoice — due ${trialEnds.toLocaleDateString()}. Payment required when trial ends.`,
         },
       });
     } catch (e) {

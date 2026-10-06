@@ -278,6 +278,59 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
+/** Invoice-specific status badge — uses a stricter palette than the generic
+ *  StatusPill so the owner can quickly scan a long invoice list:
+ *    draft   → gray
+ *    sent    → blue
+ *    paid    → green
+ *    overdue → red
+ *  The mapping is deliberately distinct from `statusTone` so it doesn't
+ *  bleed into other tabs (subscriptions, quotations, etc.). */
+function invoiceStatusTone(status: Invoice["status"]) {
+  switch (status) {
+    case "draft":
+      return {
+        className: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300",
+        dot: "bg-zinc-500",
+      };
+    case "sent":
+      return {
+        className: "bg-sky-500/15 text-sky-600 dark:text-sky-300",
+        dot: "bg-sky-500",
+      };
+    case "paid":
+      return {
+        className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+        dot: "bg-emerald-500",
+      };
+    case "overdue":
+      return {
+        className: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+        dot: "bg-rose-500",
+      };
+    default:
+      return {
+        className: "bg-muted text-muted-foreground",
+        dot: "bg-muted-foreground",
+      };
+  }
+}
+
+function InvoiceStatusBadge({ status }: { status: Invoice["status"] }) {
+  const tone = invoiceStatusTone(status);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        tone.className,
+      )}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-full", tone.dot)} />
+      {status}
+    </span>
+  );
+}
+
 function planTone(plan: string) {
   switch (plan) {
     case "enterprise":
@@ -2539,21 +2592,29 @@ function InvoicePrintLayout({
         </tbody>
       </table>
 
-      {/* Totals — stays with last item across page break */}
+      {/* Totals — payment breakdown. Stays with last item across page break.
+          Layout follows the standard invoice payment summary:
+            Subtotal
+            Discount (X%)   −$amt   (only when discount > 0)
+            Taxable Base    $amt    (only when discount > 0)
+            Tax (X%)        +$amt   (only when tax > 0)
+            ═══════════════════════
+            Total Receivable  $amt  (bold, larger font)
+            ═══════════════════════ */}
       <div className="totals-block mt-4 flex justify-end">
-        <div className="w-64 text-[11px]">
-          <div className="flex justify-between py-1">
+        <div className="w-72 text-[11px]">
+          <div className="flex justify-between border-b border-neutral-200 py-1">
             <span className="text-neutral-600">Subtotal</span>
             <span className="tabular-nums">{money(doc.subtotal)}</span>
           </div>
           {discountAmount > 0 && (
-            <div className="flex justify-between py-1 text-emerald-700">
-              <span className="text-neutral-600">
+            <div className="flex justify-between py-1 text-rose-600">
+              <span>
                 Discount
                 {doc.discountType === "percentage" &&
                   ` (${doc.discountValue ?? 0}%)`}
               </span>
-              <span className="tabular-nums">-{money(discountAmount)}</span>
+              <span className="tabular-nums">−{money(discountAmount)}</span>
             </div>
           )}
           {discountAmount > 0 && (
@@ -2562,15 +2623,22 @@ function InvoicePrintLayout({
               <span className="tabular-nums">{money(taxableBase)}</span>
             </div>
           )}
-          <div className="flex justify-between py-1">
-            <span className="text-neutral-600">
-              Tax ({doc.taxRate}%)
+          {doc.taxAmount > 0 && (
+            <div className="flex justify-between py-1 text-emerald-600">
+              <span>
+                Tax ({doc.taxRate}%)
+              </span>
+              <span className="tabular-nums">+{money(doc.taxAmount)}</span>
+            </div>
+          )}
+          <div
+            className="mt-1 flex items-center justify-between border-t-2 px-1 py-2 text-lg font-bold"
+            style={{ borderColor: accent }}
+          >
+            <span>Total Receivable</span>
+            <span className="tabular-nums" style={{ color: accent }}>
+              {money(doc.total)}
             </span>
-            <span className="tabular-nums">{money(doc.taxAmount)}</span>
-          </div>
-          <div className="mt-1 flex justify-between border-t-2 pt-2 text-base font-bold" style={{ borderColor: accent }}>
-            <span>Total</span>
-            <span className="tabular-nums">{money(doc.total)}</span>
           </div>
         </div>
       </div>
@@ -2756,6 +2824,41 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
     }
   };
 
+  // Regenerate a draft invoice from the client's current subscription. The
+  // backend (`POST /api/invoices/regenerate`) updates the latest draft (or
+  // creates a new one) with the subscription's latest amount/discount/tax.
+  const regenerate = async (inv: Invoice) => {
+    if (!inv.customerId) {
+      toast.error("Invoice is not linked to a client");
+      return;
+    }
+    try {
+      await api("POST", "/api/invoices/regenerate", { customerId: inv.customerId });
+      toast.success("Invoice regenerated with updated subscription details");
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  // CSV export — backend streams a CSV file as an attachment. Browser
+  // navigation (`window.open`) cannot send the Authorization header, so we
+  // append the JWT as a ?token= query param. The middleware + auth-guard
+  // both honor this form (see `getUserFromRequest`).
+  const exportCsv = () => {
+    let token: string | null = null;
+    try {
+      token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null;
+    } catch {
+      token = null;
+    }
+    if (!token) {
+      toast.error("Sign in again to export invoices");
+      return;
+    }
+    window.open(`/api/invoices/export?token=${encodeURIComponent(token)}`, "_blank");
+  };
+
   const totals = docTotals(form);
   // Issue OWNER-FIXES #1: the currently-selected client (used by the
   // "Bill To" preview card so the user sees the auto-filled customer
@@ -2783,15 +2886,23 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
           desc="Bill clients for plans & services"
           icon={FileText}
           action={
-            <button
-              onClick={() => {
-                setForm(EMPTY_DOC);
-                setOpen(true);
-              }}
-              className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold"
-            >
-              <Plus className="h-4 w-4" /> New invoice
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportCsv}
+                className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold"
+              >
+                <Download className="h-4 w-4" /> Export CSV
+              </button>
+              <button
+                onClick={() => {
+                  setForm(EMPTY_DOC);
+                  setOpen(true);
+                }}
+                className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold"
+              >
+                <Plus className="h-4 w-4" /> Add invoice
+              </button>
+            </div>
           }
         />
 
@@ -2812,87 +2923,129 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
             </p>
           </div>
         ) : (
-          <div className="max-h-[560px] space-y-2 overflow-y-auto scroll-liquid pr-1">
-            {invoices.map((inv) => (
-              <div
-                key={inv.id}
-                className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/40 bg-background/50 p-3 transition hover:border-primary/30"
-              >
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold">
-                      {inv.number}
-                    </span>
-                    <StatusPill status={inv.status} />
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                    <span>{inv.customerName}</span>
-                    <span>·</span>
-                    <span>
-                      issued {format(new Date(inv.issueDate), "MMM d, yyyy")}
-                    </span>
-                    {inv.dueDate && (
-                      <>
-                        <span>·</span>
-                        <span>
-                          due {format(new Date(inv.dueDate), "MMM d, yyyy")}
+          <div className="max-h-[560px] overflow-auto scroll-liquid rounded-2xl border border-border/40">
+            <Table className="w-full min-w-[860px]">
+              <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+                <TableRow className="border-border/40 hover:bg-transparent">
+                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Invoice #</TableHead>
+                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Client</TableHead>
+                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Issue Date</TableHead>
+                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Due Date</TableHead>
+                  <TableHead className="h-9 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Subtotal</TableHead>
+                  <TableHead className="h-9 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Discount</TableHead>
+                  <TableHead className="h-9 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tax</TableHead>
+                  <TableHead className="h-9 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total</TableHead>
+                  <TableHead className="h-9 w-10 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoices.map((inv) => (
+                  <TableRow
+                    key={inv.id}
+                    className="border-border/40 text-[12px] transition hover:border-primary/30 hover:bg-primary/[0.03]"
+                  >
+                    <TableCell className="px-3 py-2.5">
+                      <span className="font-mono text-[11px] font-semibold">
+                        {inv.number}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                          <FileText className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{inv.customerName}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {inv.items.length} item{inv.items.length === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-3 py-2.5">
+                      <InvoiceStatusBadge status={inv.status} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground">
+                      {format(new Date(inv.issueDate), "MMM d, yyyy")}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground">
+                      {inv.dueDate
+                        ? format(new Date(inv.dueDate), "MMM d, yyyy")
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+                      {money(inv.subtotal)}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                      {inv.discountAmount > 0 ? (
+                        <span className="text-rose-600 dark:text-rose-400">
+                          −{money(inv.discountAmount)}
                         </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold tabular-nums">
-                    {money(inv.total)}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {inv.items.length} item{inv.items.length === 1 ? "" : "s"}
-                  </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
-                      aria-label="Actions"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setPrintDoc(inv)}>
-                      <Printer className="h-3.5 w-3.5" /> Export PDF
-                    </DropdownMenuItem>
-                    {inv.status === "draft" && (
-                      <DropdownMenuItem onClick={() => setStatus(inv, "sent")}>
-                        <Send className="h-3.5 w-3.5" /> Mark sent
-                      </DropdownMenuItem>
-                    )}
-                    {(inv.status === "sent" || inv.status === "overdue") && (
-                      <DropdownMenuItem onClick={() => setStatus(inv, "paid")}>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Mark paid
-                      </DropdownMenuItem>
-                    )}
-                    {inv.status !== "overdue" && (
-                      <DropdownMenuItem
-                        onClick={() => setStatus(inv, "overdue")}
-                      >
-                        <ShieldAlert className="h-3.5 w-3.5" /> Mark overdue
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => remove(inv)}
-                      className="text-rose-500 focus:text-rose-600"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                      {inv.taxAmount > 0 ? (
+                        <span className="text-emerald-600 dark:text-emerald-400">
+                          +{money(inv.taxAmount)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-right font-bold tabular-nums">
+                      {money(inv.total)}
+                    </TableCell>
+                    <TableCell className="px-3 py-2.5 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                            aria-label={`Actions for ${inv.number}`}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-[180px]">
+                          <DropdownMenuItem onClick={() => setPrintDoc(inv)}>
+                            <Printer className="h-3.5 w-3.5" /> Print / Export PDF
+                          </DropdownMenuItem>
+                          {inv.status === "draft" && (
+                            <DropdownMenuItem onClick={() => regenerate(inv)}>
+                              <RefreshCw className="h-3.5 w-3.5" /> Regenerate
+                            </DropdownMenuItem>
+                          )}
+                          {inv.status === "draft" && (
+                            <DropdownMenuItem onClick={() => setStatus(inv, "sent")}>
+                              <Send className="h-3.5 w-3.5" /> Mark sent
+                            </DropdownMenuItem>
+                          )}
+                          {(inv.status === "sent" || inv.status === "overdue") && (
+                            <DropdownMenuItem onClick={() => setStatus(inv, "paid")}>
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Mark paid
+                            </DropdownMenuItem>
+                          )}
+                          {inv.status !== "overdue" && (
+                            <DropdownMenuItem onClick={() => setStatus(inv, "overdue")}>
+                              <ShieldAlert className="h-3.5 w-3.5" /> Mark overdue
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => remove(inv)}
+                            className="text-rose-500 focus:text-rose-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </section>
