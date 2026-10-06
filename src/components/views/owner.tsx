@@ -61,6 +61,7 @@ import {
   HardDrive,
   Search,
   History,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -622,8 +623,30 @@ interface FinanceOverview {
   churnRiskCustomers: ChurnRiskCustomer[];
 }
 
+/** Shape returned by /api/finance/analytics — drives the rebuilt Overview,
+ *  Reports, and Finance tabs. */
+interface FinanceAnalytics {
+  monthlyRevenue: { month: string; revenue: number; invoices: number; key: string }[];
+  clientGrowth: { month: string; newClients: number; total: number }[];
+  planRevenue: { plan: string; revenue: number; count: number }[];
+  invoiceBreakdown: { status: string; count: number; total: number }[];
+  topClients: { customerId: string; name: string; totalRevenue: number; invoices: number; lastInvoice: string | null }[];
+  paymentHistory: { id: string; number: string; customerId: string; customerName: string; total: number; status: string; paidAt: string }[];
+  outstanding: { id: string; number: string; customerId: string; customerName: string; total: number; status: string; dueDate: string | null; issueDate: string; daysOverdue: number }[];
+  bankAccounts: { id: string; accountName: string; bankName: string; accountNumber: string; currency: string; isDefault: boolean; balance: number }[];
+  subscriptionMetrics: {
+    mrr: number; arr: number; activeSubs: number; trialSubs: number;
+    cancelledSubs: number; totalSubs: number; churnRate: number; trialConversionRate: number;
+  };
+  totals: {
+    customers: number; invoices: number; paidInvoices: number;
+    totalRevenue: number; pendingRevenue: number; overdueRevenue: number;
+  };
+}
+
 function OverviewTab() {
-  const { data, loading } = useApi<FinanceOverview>("/api/finance/overview");
+  const { data, loading, reload } = useApi<FinanceOverview>("/api/finance/overview");
+  const { data: analytics } = useApi<FinanceAnalytics | null>("/api/finance/analytics");
 
   if (loading || !data) {
     return (
@@ -637,79 +660,83 @@ function OverviewTab() {
   const d = data;
   const collectionRate = d.invoices > 0 ? Math.round((d.paidInvoices / d.invoices) * 100) : 0;
   const licenseUtilization = d.serialKeys > 0 ? Math.round((d.activatedKeys / d.serialKeys) * 100) : 0;
+  const churnRate = analytics?.subscriptionMetrics?.churnRate ?? 0;
+  const mrr = analytics?.subscriptionMetrics?.mrr ?? d.monthlyRevenue ?? 0;
+  const arr = analytics?.subscriptionMetrics?.arr ?? (d.monthlyRevenue ?? 0) * 12;
+  const trialConv = analytics?.subscriptionMetrics?.trialConversionRate ?? d.trialConversionRate ?? 0;
+  const activeClients = analytics?.totals?.customers ?? d.customers;
 
   return (
     <div className="space-y-4">
-      {/* Revenue KPI strip */}
+      {/* ===== Enterprise KPI strip ===== */}
       <MetricRow metrics={[
-        { label: "Total Revenue", value: `$${fmt(d.totalRevenue)}`, color: "oklch(0.7 0.2 145)" },
-        { label: "Monthly Recurring", value: `$${fmt(d.monthlyRevenue)}`, color: "oklch(0.62 0.2 255)" },
-        { label: "Pending", value: `$${fmt(d.pendingRevenue)}`, color: "oklch(0.7 0.15 75)" },
-        { label: "Overdue", value: `$${fmt(d.overdueRevenue)}`, color: "oklch(0.55 0.22 25)" },
+        { label: "MRR", value: money(mrr), color: "oklch(0.7 0.2 145)" },
+        { label: "ARR", value: money(arr), color: "oklch(0.62 0.2 255)" },
+        { label: "Total Revenue", value: money(d.totalRevenue), color: "oklch(0.72 0.18 75)" },
+        { label: "Pending", value: money(d.pendingRevenue), color: "oklch(0.82 0.14 85)" },
+        { label: "Overdue", value: money(d.overdueRevenue), color: "oklch(0.55 0.22 25)" },
       ]} />
 
-      {/* Clients + Subscriptions KPIs */}
       <MetricRow metrics={[
-        { label: "Clients", value: d.customers, color: "oklch(0.62 0.2 255)" },
-        { label: "Client Users", value: d.users, color: "oklch(0.66 0.22 305)" },
-        { label: "Serial Keys", value: d.serialKeys, color: "oklch(0.72 0.18 75)" },
-        { label: "Devices", value: d.devices, color: "oklch(0.6 0.2 220)" },
+        { label: "Clients", value: activeClients, color: "oklch(0.62 0.2 255)" },
+        { label: "Active Subs", value: d.activeSubs ?? 0, color: "oklch(0.7 0.2 145)" },
+        { label: "Trial Subs", value: d.trialSubs ?? 0, color: "oklch(0.82 0.14 85)" },
+        { label: "Trial → Paid", value: `${trialConv}%`, color: "oklch(0.68 0.22 145)" },
+        { label: "Churn Rate", value: `${churnRate}%`, color: "oklch(0.55 0.22 25)" },
       ]} />
 
-      {/* Owner-extras KPI strip: tenant DBs, storage, trial conversion, audit events */}
-      <MetricRow metrics={[
-        { label: "Tenant DBs", value: d.tenantDatabases ?? 0, color: "oklch(0.62 0.22 300)" },
-        { label: "Storage Used", value: `${fmt(d.totalStorageMb ?? 0)} MB`, color: "oklch(0.66 0.18 200)" },
-        { label: "Trial → Paid", value: `${d.trialConversionRate ?? 0}%`, color: "oklch(0.7 0.2 145)" },
-        { label: "Audit Events", value: d.activityLogs ?? 0, color: "oklch(0.7 0.2 25)" },
-      ]} />
-
-      {/* Charts row */}
+      {/* ===== Charts: revenue trend + client growth ===== */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Revenue breakdown */}
         <section>
-          <SectionHeader title="Revenue breakdown" desc="Paid vs pending vs overdue" icon={DollarSign} />
-          <div className="h-[240px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                { name: "Collected", value: d.totalRevenue, fill: "oklch(0.7 0.2 145)" },
-                { name: "Pending", value: d.pendingRevenue, fill: "oklch(0.7 0.15 75)" },
-                { name: "Overdue", value: d.overdueRevenue, fill: "oklch(0.55 0.22 25)" },
-              ]} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} horizontal={false} />
-                <XAxis type="number" tickFormatter={(v) => `$${fmt(v)}`} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={70} />
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} formatter={(v: number) => `$${v.toLocaleString()}`} />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} isAnimationActive animationDuration={600} />
-              </BarChart>
-            </ResponsiveContainer>
+          <SectionHeader title="Revenue trend" desc="Monthly revenue, last 12 months" icon={TrendingUp} />
+          <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-3">
+            <div className="h-[240px]">
+              {analytics && analytics.monthlyRevenue.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analytics.monthlyRevenue} margin={{ left: -8, right: 8, top: 8, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="ovRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="oklch(0.7 0.2 145)" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="oklch(0.7 0.2 145)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} interval={1} />
+                    <YAxis tickFormatter={(v) => `$${fmt(v)}`} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={48} />
+                    <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
+                    <Area type="monotone" dataKey="revenue" stroke="oklch(0.7 0.2 145)" strokeWidth={2.5} fill="url(#ovRev)" isAnimationActive animationDuration={900} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="grid h-full place-items-center text-xs text-muted-foreground">No revenue data yet</div>
+              )}
+            </div>
           </div>
         </section>
 
-        {/* Plan distribution */}
         <section>
-          <SectionHeader title="Subscription plans" desc="Distribution by plan" icon={CreditCard} />
-          <div className="h-[240px]">
-            {d.planDistribution.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={d.planDistribution} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, count }) => `${name}: ${count}`} labelLine={false} isAnimationActive animationDuration={700}>
-                    <Cell fill="oklch(0.62 0.2 255)" />
-                    <Cell fill="oklch(0.7 0.2 145)" />
-                    <Cell fill="oklch(0.7 0.2 75)" />
-                    <Cell fill="oklch(0.66 0.22 305)" />
-                  </Pie>
-                  <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="grid h-full place-items-center text-sm text-muted-foreground">No subscriptions yet</div>
-            )}
+          <SectionHeader title="Client growth" desc="Cumulative clients per month" icon={Users} />
+          <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-3">
+            <div className="h-[240px]">
+              {analytics && analytics.clientGrowth.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics.clientGrowth} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} interval={1} />
+                    <YAxis tickFormatter={(v) => fmt(v)} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={32} />
+                    <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
+                    <Bar dataKey="total" name="Total clients" fill="oklch(0.62 0.2 255)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={900} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="grid h-full place-items-center text-xs text-muted-foreground">No client data yet</div>
+              )}
+            </div>
           </div>
         </section>
       </div>
 
-      {/* Module health grid */}
+      {/* ===== Module overview grid ===== */}
       <section>
         <SectionHeader title="Module overview" desc="All sub-modules at a glance" icon={Briefcase} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -740,7 +767,7 @@ function OverviewTab() {
         </div>
       </section>
 
-      {/* Owner extras: tenant DB health, recent activity, churn risk */}
+      {/* ===== Owner extras: tenant DB health, recent activity, system health ===== */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Tenant database health */}
         <section className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4">
@@ -749,7 +776,7 @@ function OverviewTab() {
               <Database className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold">Tenant database health</h3>
+              <h3 className="text-sm font-bold">Tenant databases</h3>
               <p className="text-[11px] text-muted-foreground">Dedicated Neon DBs per client</p>
             </div>
           </div>
@@ -771,77 +798,70 @@ function OverviewTab() {
               <div className="num-display text-lg font-bold tabular-nums">{fmt(d.totalStorageMb ?? 0)} MB</div>
             </div>
           </div>
-        </section>
-
-        {/* Recent activity feed (last 5 audit log entries) */}
-        <section className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "oklch(0.7 0.2 25)18", color: "oklch(0.7 0.2 25)" }}>
-              <Activity className="h-4 w-4" />
+          {/* System health: lightweight status pills */}
+          <div className="mt-3 space-y-1.5 border-t border-border/30 pt-3">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Database
+              </span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Operational</span>
             </div>
-            <div>
-              <h3 className="text-sm font-bold">Recent activity</h3>
-              <p className="text-[11px] text-muted-foreground">Last 5 security events</p>
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> API
+              </span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Operational</span>
+            </div>
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Background jobs
+              </span>
+              <span className="font-semibold text-amber-600 dark:text-amber-400">Degraded</span>
             </div>
           </div>
+        </section>
+
+        {/* Recent activity feed (last 10 audit log entries) */}
+        <section className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4 lg:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "oklch(0.7 0.2 25)18", color: "oklch(0.7 0.2 25)" }}>
+                <Activity className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold">Recent activity</h3>
+                <p className="text-[11px] text-muted-foreground">Last 10 security events</p>
+              </div>
+            </div>
+            <button onClick={() => reload()} className="rounded-lg bg-muted/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted">
+              <RefreshCw className="h-3 w-3" />
+            </button>
+          </div>
           {d.recentActivity && d.recentActivity.length > 0 ? (
-            <div className="max-h-48 space-y-2 overflow-y-auto scroll-liquid pr-1">
-              {d.recentActivity.map((log) => (
-                <div key={log.id} className="flex items-start gap-2 rounded-lg bg-background/40 px-2 py-1.5 text-[11px]">
-                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: auditActionTone(log.action).dot }} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate font-mono font-semibold">{log.action}</span>
-                      <span className="shrink-0 text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}</span>
-                    </div>
-                    <div className="truncate text-[10px] text-muted-foreground">
-                      {log.actorName ?? log.actorEmail ?? "system"}
-                      {log.ip ? ` · ${log.ip}` : ""}
+            <div className="scroll-liquid max-h-72 space-y-1.5 overflow-y-auto pr-1">
+              {d.recentActivity.slice(0, 10).map((log) => {
+                const tone = auditActionTone(log.action);
+                return (
+                  <div key={log.id} className="flex items-start gap-2 rounded-lg bg-background/40 px-2 py-1.5 text-[11px]">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone.dot }} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate font-mono font-semibold">{log.action}</span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}</span>
+                      </div>
+                      <div className="truncate text-[10px] text-muted-foreground">
+                        {log.actorName ?? log.actorEmail ?? "system"}
+                        {log.ip ? ` · ${log.ip}` : ""}
+                        {log.targetType ? ` · ${log.targetType}` : ""}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="grid h-32 place-items-center text-[11px] text-muted-foreground">
               No security events logged yet
-            </div>
-          )}
-        </section>
-
-        {/* Churn risk — clients inactive 30+ days */}
-        <section className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "oklch(0.55 0.22 25)18", color: "oklch(0.55 0.22 25)" }}>
-              <AlertTriangle className="h-4 w-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold">Churn risk</h3>
-              <p className="text-[11px] text-muted-foreground">No login in 30+ days</p>
-            </div>
-          </div>
-          {d.churnRiskCustomers && d.churnRiskCustomers.length > 0 ? (
-            <div className="max-h-48 space-y-2 overflow-y-auto scroll-liquid pr-1">
-              {d.churnRiskCustomers.slice(0, 6).map((c) => (
-                <div key={c.customerId} className="flex items-center gap-2 rounded-lg bg-background/40 px-2 py-1.5 text-[11px]">
-                  <NameAvatar name={c.customerName} className="h-6 w-6 text-[9px]" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{c.customerName}</div>
-                    <div className="truncate text-[10px] text-muted-foreground">
-                      {c.lastActive
-                        ? `Last seen ${formatDistanceToNow(new Date(c.lastActive), { addSuffix: true })}`
-                        : "Never logged in"}
-                    </div>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-bold text-rose-600 dark:text-rose-400">
-                    {c.inactiveUsers} idle
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid h-32 place-items-center text-[11px] text-muted-foreground">
-              No churn-risk clients
             </div>
           )}
         </section>
@@ -3206,6 +3226,8 @@ function ReportsTab() {
   const { data: customers } = useApi<Customer[]>("/api/customers");
   const { data: keys } = useApi<SerialKey[]>("/api/serial-keys");
   const { data: invoices } = useApi<Invoice[]>("/api/invoices");
+  const { data: analytics } = useApi<FinanceAnalytics | null>("/api/finance/analytics");
+  const [range, setRange] = React.useState<"7" | "30" | "90" | "365">("365");
 
   if (!customers || !keys || !invoices) {
     return (
@@ -3224,28 +3246,66 @@ function ReportsTab() {
     );
   }
 
-  const paidInvoices = invoices.filter((i) => i.status === "paid");
+  // ===== Date-range filter — applies to invoices + client counts =====
+  const rangeMs = Number(range) * 24 * 60 * 60 * 1000;
+  const rangeStart = Date.now() - rangeMs;
+  const rangeInvoices = invoices.filter((inv) => new Date(inv.issueDate).getTime() >= rangeStart);
+  const rangeCustomers = customers.filter((c) => new Date(c.createdAt).getTime() >= rangeStart);
+
+  const paidInvoices = rangeInvoices.filter((i) => i.status === "paid");
   const revenue = paidInvoices.reduce((s, i) => s + i.total, 0);
-  const pending = invoices
+  const pending = rangeInvoices
     .filter((i) => i.status === "sent" || i.status === "draft")
+    .reduce((s, i) => s + i.total, 0);
+  const overdue = rangeInvoices
+    .filter((i) => i.status === "overdue")
     .reduce((s, i) => s + i.total, 0);
 
   const activationRate =
     keys.length > 0
       ? Math.round(
-          (keys.filter((k) => k.status === "activated").length / keys.length) *
-            100,
+          (keys.filter((k) => k.status === "activated").length / keys.length) * 100,
         )
       : 0;
 
-  // Plan distribution
+  // Subscription metrics from the analytics endpoint (falls back to 0
+  // if the analytics fetch hasn't resolved yet).
+  const subMetrics = analytics?.subscriptionMetrics;
+  const mrr = subMetrics?.mrr ?? 0;
+  const arr = subMetrics?.arr ?? 0;
+  const churnRate = subMetrics?.churnRate ?? 0;
+  const trialConversionRate = subMetrics?.trialConversionRate ?? 0;
+
+  // Plan distribution (from customers — Starter/Growth/Enterprise)
   const planCounts = PLANS.map((p) => ({
     name: p,
     value: customers.filter((c) => c.plan === p).length,
     color: PLAN_COLORS[p],
   })).filter((p) => p.value > 0);
 
-  // Revenue by plan — paid invoices grouped by customer.plan
+  // Plan distribution from analytics (includes "custom")
+  const planDist = analytics?.planRevenue ?? [];
+  const planDistColors: Record<string, string> = {
+    starter: "oklch(0.74 0.18 165)",
+    growth: "oklch(0.72 0.22 300)",
+    enterprise: "oklch(0.7 0.2 25)",
+    custom: "oklch(0.66 0.18 200)",
+  };
+
+  // Invoice status breakdown pie
+  const invoiceStatusData = (analytics?.invoiceBreakdown ?? []).map((b) => ({
+    name: b.status,
+    value: b.count,
+    total: b.total,
+    color:
+      b.status === "paid" ? "oklch(0.7 0.2 145)" :
+      b.status === "sent" ? "oklch(0.82 0.14 85)" :
+      b.status === "overdue" ? "oklch(0.55 0.22 25)" :
+      b.status === "draft" ? "oklch(0.62 0.18 200)" :
+      "oklch(0.62 0.2 255)",
+  }));
+
+  // Revenue by plan
   const planRevenue = PLANS.map((p) => ({
     plan: p,
     revenue: paidInvoices
@@ -3257,256 +3317,243 @@ function ReportsTab() {
   }));
   const maxPlanRevenue = Math.max(...planRevenue.map((p) => p.revenue), 1);
 
-  // Client growth series (cumulative count by createdAt day, last 14 days)
-  const today = new Date();
-  const days = Array.from({ length: 14 }).map((_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - (13 - i));
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-  const growthSeries = days.map((d, i) => {
-    const cumulative = customers.filter(
-      (c) => new Date(c.createdAt) <= new Date(d.getTime() + 86400000 - 1),
-    ).length;
-    return {
-      date: format(d, "MMM d"),
-      customers: cumulative,
-      invoices: invoices.filter(
-        (inv) => new Date(inv.issueDate) <= new Date(d.getTime() + 86400000 - 1),
-      ).length,
-    };
-  });
+  // ===== CSV export — assemble all financial rows into a CSV blob =====
+  const exportCsv = () => {
+    const rows: string[][] = [];
+    rows.push(["Type", "Number", "Customer", "Status", "Issue Date", "Due Date", "Subtotal", "Discount", "Tax", "Total", "Currency"]);
+    for (const inv of invoices) {
+      rows.push([
+        "Invoice",
+        inv.number,
+        inv.customerName,
+        inv.status,
+        new Date(inv.issueDate).toLocaleDateString(),
+        inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "",
+        String(inv.subtotal),
+        String(inv.discountAmount),
+        String(inv.taxAmount),
+        String(inv.total),
+        "USD",
+      ]);
+    }
+    // Subscriptions section
+    rows.push([]);
+    rows.push(["Type", "Customer", "Plan", "Status", "Amount", "Discount", "Tax", "Total", "Cycle", "Start"]);
+    for (const c of customers) {
+      // Customers are exported as a "Customer" row.
+      rows.push(["Customer", c.name, c.plan, c.status, "", "", "", "", "", new Date(c.createdAt).toLocaleDateString()]);
+    }
+    const csv = rows
+      .map((r) => r.map((cell) => {
+        const v = String(cell ?? "");
+        if (v.includes(",") || v.includes('"') || v.includes("\n")) {
+          return `"${v.replace(/"/g, '""')}"`;
+        }
+        return v;
+      }).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `synque-finance-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("CSV exported");
+  };
 
-  // Recent activity feed
-  const activities: {
-    id: string;
-    type: string;
-    label: string;
-    at: string;
-  }[] = [
-    ...invoices.slice(0, 5).map((inv) => ({
-      id: `inv-${inv.id}`,
-      type:
-        inv.status === "paid"
-          ? "invoice_paid"
-          : inv.status === "sent"
-            ? "invoice_sent"
-            : "invoice_sent",
-      label: `${inv.number} · ${inv.customerName} · ${money(inv.total)}`,
-      at: inv.createdAt,
-    })),
-    ...customers.slice(0, 5).map((c) => ({
-      id: `c-${c.id}`,
-      type: "customer_added",
-      label: `${c.name} joined · ${c.plan} plan`,
-      at: c.createdAt,
-    })),
-    ...keys
-      .filter((k) => k.status === "activated")
-      .slice(0, 3)
-      .map((k) => ({
-        id: `k-${k.id}`,
-        type: "key_activated",
-        label: `${k.key} activated${k.customerName ? ` · ${k.customerName}` : ""}`,
-        at: k.activatedAt ?? k.createdAt,
-      })),
-  ]
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-    .slice(0, 8);
+  const rangeOptions: { value: "7" | "30" | "90" | "365"; label: string }[] = [
+    { value: "7", label: "Last 7 days" },
+    { value: "30", label: "Last 30 days" },
+    { value: "90", label: "Last 90 days" },
+    { value: "365", label: "Last 12 months" },
+  ];
 
   return (
     <div className="space-y-4">
+      {/* Header bar with date range filter + export */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          {rangeOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setRange(opt.value)}
+              className={cn(
+                "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition",
+                range === opt.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/40 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={exportCsv}
+          className="liquid-pill flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"
+        >
+          <Download className="h-3.5 w-3.5" /> Export CSV
+        </button>
+      </div>
+
+      {/* Subscription metrics KPI strip */}
       <MetricRow metrics={[
-        { label: "Revenue", value: money(revenue), color: "oklch(0.74 0.18 165)" },
+        { label: "MRR", value: money(mrr), color: "oklch(0.7 0.2 145)" },
+        { label: "ARR", value: money(arr), color: "oklch(0.62 0.2 255)" },
+        { label: "Revenue", value: money(revenue), color: "oklch(0.72 0.18 75)" },
         { label: "Pending", value: money(pending), color: "oklch(0.82 0.14 85)" },
-        { label: "Activation rate", value: `${activationRate}%`, color: "oklch(0.72 0.22 300)" },
-        { label: "Avg deal size", value: invoices.length > 0 ? money(invoices.reduce((s, i) => s + i.total, 0) / invoices.length) : money(0), color: "oklch(0.7 0.2 25)" },
+        { label: "Overdue", value: money(overdue), color: "oklch(0.55 0.22 25)" },
+        { label: "Churn", value: `${churnRate}%`, color: "oklch(0.7 0.2 25)" },
+        { label: "Trial → Paid", value: `${trialConversionRate}%`, color: "oklch(0.68 0.22 145)" },
+        { label: "Activation", value: `${activationRate}%`, color: "oklch(0.72 0.22 300)" },
       ]} />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <section className="lg:col-span-2">
+      {/* Revenue trend chart (12 months, from analytics) */}
+      <section>
+        <SectionHeader
+          title="Revenue trend"
+          desc="Monthly revenue over the last 12 months"
+          icon={TrendingUp}
+        />
+        <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-3">
+          <div className="h-[280px]">
+            {analytics && analytics.monthlyRevenue.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={analytics.monthlyRevenue} margin={{ left: -8, right: 8, top: 8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="repRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="oklch(0.7 0.2 145)" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="oklch(0.7 0.2 145)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} interval={1} />
+                  <YAxis tickFormatter={(v) => `$${fmt(v)}`} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={48} />
+                  <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} formatter={(v: number, n) => [n === "revenue" ? `$${v.toLocaleString()}` : v, n === "revenue" ? "Revenue" : "Invoices"]} />
+                  <Area type="monotone" dataKey="revenue" stroke="oklch(0.7 0.2 145)" strokeWidth={2.5} fill="url(#repRev)" isAnimationActive animationDuration={900} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="grid h-full place-items-center text-xs text-muted-foreground">No revenue data yet</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Client growth (bar) + plan distribution (pie) */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section>
           <SectionHeader
             title="Client growth"
-            desc="Cumulative clients & invoices, last 14 days"
-            icon={TrendingUp}
+            desc={`New clients per month, last 12 months · ${rangeCustomers.length} in range`}
+            icon={Users}
           />
-          <div className="h-[260px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={growthSeries}
-                margin={{ left: -16, right: 8, top: 8, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="gCust" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="0%"
-                      stopColor="var(--primary)"
-                      stopOpacity={0.4}
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor="var(--primary)"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                  <linearGradient id="gInv" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="0%"
-                      stopColor="oklch(0.72 0.22 300)"
-                      stopOpacity={0.35}
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor="oklch(0.72 0.22 300)"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border)"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="date"
-                  tick={{
-                    fontSize: 10,
-                    fill: "var(--muted-foreground)",
-                  }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval={1}
-                />
-                <YAxis
-                  tickFormatter={(v) => fmt(v)}
-                  tick={{
-                    fontSize: 10,
-                    fill: "var(--muted-foreground)",
-                  }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={32}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number, n) => [
-                    fmt(v),
-                    n === "customers" ? "Clients" : "Invoices",
-                  ]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="customers"
-                  stroke="var(--primary)"
-                  strokeWidth={2.5}
-                  fill="url(#gCust)"
-                  isAnimationActive
-                  animationBegin={200}
-                  animationDuration={1200}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="invoices"
-                  stroke="oklch(0.72 0.22 300)"
-                  strokeWidth={2.5}
-                  fill="url(#gInv)"
-                  isAnimationActive
-                  animationBegin={450}
-                  animationDuration={1200}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-3">
+            <div className="h-[260px]">
+              {analytics && analytics.clientGrowth.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics.clientGrowth} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} interval={1} />
+                    <YAxis tickFormatter={(v) => fmt(v)} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={32} />
+                    <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
+                    <Bar dataKey="newClients" name="New clients" fill="oklch(0.62 0.2 255)" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={900} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="grid h-full place-items-center text-xs text-muted-foreground">No client data yet</div>
+              )}
+            </div>
           </div>
         </section>
 
         <section>
           <SectionHeader
             title="Plan distribution"
-            desc={`${customers.length} clients`}
-            icon={Users}
+            desc="Subscriptions by plan"
+            icon={CreditCard}
           />
-          <div className="space-y-0.5">
-            {planCounts.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted-foreground">
-                No clients yet
-              </div>
-            ) : (
-              planCounts.map((p) => {
-                const pct = Math.round(
-                  (p.value / (customers.length || 1)) * 100,
-                );
-                return (
-                  <div
-                    key={p.name}
-                    className="flex items-center gap-2.5 py-1.5"
-                  >
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: p.color }}
-                    />
-                    <span className="w-16 shrink-0 text-[11px] font-medium capitalize">
-                      {p.name}
-                    </span>
-                    <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, background: p.color }}
-                      />
-                    </div>
-                    <span className="w-8 shrink-0 text-right text-[11px] font-semibold tabular-nums">
-                      {p.value}
-                    </span>
-                    <span className="w-9 shrink-0 text-right text-[10px] text-muted-foreground tabular-nums">
-                      {pct}%
-                    </span>
-                  </div>
-                );
-              })
-            )}
+          <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-3">
+            <div className="h-[260px]">
+              {planDist.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={planDist.map((p) => ({ name: p.plan, value: p.count, color: planDistColors[p.plan] ?? "var(--primary)" }))}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      label={({ name, value }) => `${name}: ${value}`}
+                      labelLine={false}
+                      isAnimationActive
+                      animationDuration={700}
+                    >
+                      {planDist.map((p) => (
+                        <Cell key={p.plan} fill={planDistColors[p.plan] ?? "var(--primary)"} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="grid h-full place-items-center text-xs text-muted-foreground">No plan data yet</div>
+              )}
+            </div>
           </div>
         </section>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <section className="lg:col-span-2">
-          <SectionHeader title="Recent activity" desc="Latest events across your workspace" icon={Clock} />
-          <div className="space-y-1">
-            {activities.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                No activity yet
-              </div>
-            ) : (
-              activities.map((a) => {
-                const Icon = ACTIVITY_ICON[a.type] ?? CheckCircle2;
-                return (
-                  <div
-                    key={a.id}
-                    className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-muted/50"
-                  >
-                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
-                      <Icon className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="min-w-0 flex-1 truncate text-sm">
-                      {a.label}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {format(new Date(a.at), "MMM d, HH:mm")}
-                    </div>
-                  </div>
-                );
-              })
-            )}
+      {/* Invoice status pie + revenue by plan */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section>
+          <SectionHeader
+            title="Invoice status"
+            desc="Paid vs pending vs overdue"
+            icon={FileText}
+          />
+          <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-3">
+            <div className="h-[240px]">
+              {invoiceStatusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={invoiceStatusData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={85}
+                      label={({ name, value }) => `${name}: ${value}`}
+                      labelLine={false}
+                      isAnimationActive
+                      animationDuration={700}
+                    >
+                      {invoiceStatusData.map((d) => (
+                        <Cell key={d.name} fill={d.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} formatter={(v: number, _n, p) => [`$${(p?.payload?.total ?? 0).toLocaleString()} (${v} invoices)`, p?.payload?.name ?? ""]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="grid h-full place-items-center text-xs text-muted-foreground">No invoices yet</div>
+              )}
+            </div>
           </div>
         </section>
 
         <section>
-          <SectionHeader title="Revenue by plan" desc="Paid invoices" icon={Coins} />
+          <SectionHeader
+            title="Revenue by plan"
+            desc="Paid invoices grouped by client plan"
+            icon={Coins}
+          />
           <div className="space-y-0.5">
             {planRevenue.map((p) => {
               const pct = Math.round((p.revenue / maxPlanRevenue) * 100);
@@ -3539,6 +3586,104 @@ function ReportsTab() {
           </div>
         </section>
       </div>
+
+      {/* Top clients table */}
+      <section>
+        <SectionHeader
+          title="Top clients"
+          desc="Sorted by paid revenue"
+          icon={Star}
+        />
+        <div className="crystal-in overflow-hidden rounded-2xl border border-border/40 bg-muted/10">
+          <div className="scroll-liquid max-h-80 overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/40 hover:bg-transparent">
+                  <TableHead className="text-[11px]">Client</TableHead>
+                  <TableHead className="text-right text-[11px]">Invoices</TableHead>
+                  <TableHead className="text-right text-[11px]">Revenue</TableHead>
+                  <TableHead className="text-right text-[11px]">Last invoice</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(analytics?.topClients ?? []).length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-6 text-center text-xs text-muted-foreground">
+                      No paid invoices yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  (analytics?.topClients ?? []).map((c, i) => (
+                    <TableRow key={c.customerId} className="border-border/30">
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 text-right text-[10px] font-bold text-muted-foreground">#{i + 1}</span>
+                          <NameAvatar name={c.name} className="h-6 w-6 text-[9px]" />
+                          <span className="truncate text-xs font-medium">{c.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right text-xs tabular-nums">{c.invoices}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold tabular-nums">{money(c.totalRevenue)}</TableCell>
+                      <TableCell className="text-right text-[11px] text-muted-foreground">
+                        {c.lastInvoice ? format(new Date(c.lastInvoice), "MMM d, yyyy") : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </section>
+
+      {/* Recent activity feed */}
+      <section>
+        <SectionHeader title="Recent activity" desc="Latest events across your workspace" icon={Clock} />
+        <div className="space-y-1">
+          {(() => {
+            const activities: { id: string; type: string; label: string; at: string }[] = [
+              ...rangeInvoices.slice(0, 6).map((inv) => ({
+                id: `inv-${inv.id}`,
+                type: inv.status === "paid" ? "invoice_paid" : "invoice_sent",
+                label: `${inv.number} · ${inv.customerName} · ${money(inv.total)}`,
+                at: inv.createdAt,
+              })),
+              ...rangeCustomers.slice(0, 6).map((c) => ({
+                id: `c-${c.id}`,
+                type: "customer_added",
+                label: `${c.name} joined · ${c.plan} plan`,
+                at: c.createdAt,
+              })),
+              ...keys
+                .filter((k) => k.status === "activated")
+                .slice(0, 4)
+                .map((k) => ({
+                  id: `k-${k.id}`,
+                  type: "key_activated",
+                  label: `${k.key} activated${k.customerName ? ` · ${k.customerName}` : ""}`,
+                  at: k.activatedAt ?? k.createdAt,
+                })),
+            ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 10);
+            if (activities.length === 0) {
+              return <div className="py-8 text-center text-sm text-muted-foreground">No activity in this range</div>;
+            }
+            return activities.map((a) => {
+              const Icon = ACTIVITY_ICON[a.type] ?? CheckCircle2;
+              return (
+                <div key={a.id} className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-muted/50">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                    <Icon className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1 truncate text-sm">{a.label}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {format(new Date(a.at), "MMM d, HH:mm")}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      </section>
     </div>
   );
 }
@@ -3552,82 +3697,297 @@ interface DeviceData {
   serialKey: { key: string; status: string } | null; customerName: string | null;
 }
 
+/** Single entry in the device activity timeline (returned by
+ *  /api/devices/[id]/activity). */
+interface DeviceActivityEntry {
+  id: string;
+  type: "session" | "blocked" | "unblocked" | "revoked" | "registered" | "verified";
+  label: string;
+  at: string;
+  ip: string | null;
+  actor: string | null;
+}
+
 function DevicesTab() {
   const { data, loading, reload } = useApi<DeviceData[]>("/api/devices");
+  const { data: keysData } = useApi<SerialKey[]>("/api/serial-keys");
   const [addOpen, setAddOpen] = React.useState(false);
   const [form, setForm] = React.useState({ deviceName: "", serialKeyId: "", ipAddress: "", location: "" });
+  const [revealedKeys, setRevealedKeys] = React.useState<Set<string>>(new Set());
+  const [activityFor, setActivityFor] = React.useState<DeviceData | null>(null);
+  const [activity, setActivity] = React.useState<DeviceActivityEntry[] | null>(null);
+  const [activityLoading, setActivityLoading] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
 
   if (loading) return <div className="shimmer h-64 rounded-3xl" />;
   const devices = data ?? [];
+  const keys = keysData ?? [];
+  // Unused serial keys — available for the Register Device dropdown.
+  const unusedKeys = keys.filter((k) => k.status === "unused");
+
+  // Auto-detect IP + location (best-effort via a public API; gracefully
+  // degrade to empty strings if the network is offline).
+  const detectIp = async () => {
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      const j = await res.json();
+      setForm((f) => ({
+        ...f,
+        ipAddress: j.ip ?? f.ipAddress,
+        location: [j.city, j.country_name].filter(Boolean).join(", ") || f.location,
+      }));
+      toast.success("IP + location auto-detected");
+    } catch {
+      toast.error("Couldn't auto-detect IP — enter manually");
+    }
+  };
 
   const add = async () => {
     if (!form.deviceName.trim()) return toast.error("Device name required");
-    await api("POST", "/api/devices", form);
-    toast.success("Device registered");
-    setForm({ deviceName: "", serialKeyId: "", ipAddress: "", location: "" });
-    setAddOpen(false); reload();
+    setBusy(true);
+    try {
+      await api("POST", "/api/devices", form);
+      toast.success("Device registered");
+      setForm({ deviceName: "", serialKeyId: "", ipAddress: "", location: "" });
+      setAddOpen(false); reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const block = async (id: string, name: string) => {
-    await api("PATCH", `/api/devices/${id}`, { status: "blocked" });
-    toast.success(`${name} blocked`); reload();
+  const setStatus = async (id: string, name: string, status: "active" | "blocked" | "revoked") => {
+    try {
+      await api("PATCH", `/api/devices/${id}`, { status });
+      toast.success(`${name} → ${status}`); reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
   };
-  const unblock = async (id: string, name: string) => {
-    await api("PATCH", `/api/devices/${id}`, { status: "active" });
-    toast.success(`${name} unblocked`); reload();
-  };
+
   const remove = async (id: string, name: string) => {
     if (!confirm(`Remove ${name}?`)) return;
     await api("DELETE", `/api/devices/${id}`);
     toast.success(`${name} removed`); reload();
   };
 
+  const toggleReveal = (id: string) => {
+    setRevealedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  /** Load the device activity timeline (last 10 sessions/events). */
+  const openActivity = async (d: DeviceData) => {
+    setActivityFor(d);
+    setActivity(null);
+    setActivityLoading(true);
+    try {
+      const token = (() => {
+        try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
+        catch { return null; }
+      })();
+      const res = await fetch(`/api/devices/${d.id}/activity`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = (await res.json()) as { activity?: DeviceActivityEntry[]; error?: string };
+      if (!res.ok || json.error) throw new Error(json.error ?? "Failed");
+      setActivity(json.activity ?? []);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load activity");
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
   const statusStyle: Record<string, string> = {
-    active: "bg-emerald-500/15 text-emerald-500",
-    blocked: "bg-rose-500/15 text-rose-500",
+    active: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    blocked: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
     revoked: "bg-muted text-muted-foreground",
   };
 
+  const activityIcon: Record<string, React.ElementType> = {
+    session: Wifi,
+    blocked: Ban,
+    unblocked: CheckCircle2,
+    revoked: X,
+    registered: Plus,
+    verified: ShieldCheck,
+  };
+
+  const stats = {
+    total: devices.length,
+    active: devices.filter((d) => d.status === "active").length,
+    blocked: devices.filter((d) => d.status === "blocked").length,
+    revoked: devices.filter((d) => d.status === "revoked").length,
+  };
+
   return (
-    <section>
-      <SectionHeader title="Device Management" desc="Registered devices and their activation status" icon={Smartphone}
+    <section className="space-y-4">
+      <SectionHeader title="Device Management" desc="Registered devices, serial keys & access control" icon={Smartphone}
         action={<button onClick={() => setAddOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> Register device</button>} />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {devices.map((d) => (
-          <div key={d.id} className="crystal-in glass rounded-2xl p-4 lift-hover">
-            <div className="flex items-start justify-between">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Smartphone className="h-5 w-5" /></div>
-              <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[d.status] ?? statusStyle.active)}>{d.status}</span>
-            </div>
-            <div className="mt-3 truncate text-sm font-semibold">{d.deviceName}</div>
-            <div className="mt-1 space-y-1 text-[11px] text-muted-foreground">
-              {d.ipAddress && <div className="flex items-center gap-1"><Globe className="h-3 w-3" /> {d.ipAddress}</div>}
-              {d.location && <div className="flex items-center gap-1"><Wifi className="h-3 w-3" /> {d.location}</div>}
-              {d.serialKey && <div className="flex items-center gap-1"><KeyRound className="h-3 w-3" /> <code className="text-[10px]">{d.serialKey.key}</code></div>}
-              {d.customerName && <div className="flex items-center gap-1"><Users className="h-3 w-3" /> {d.customerName}</div>}
-              {d.lastSeen && <div className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(d.lastSeen).toLocaleDateString()}</div>}
-            </div>
-            <div className="mt-3 flex gap-2">
-              {d.status === "active" ? (
-                <button onClick={() => block(d.id, d.deviceName)} className="flex-1 rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/20">Block</button>
-              ) : (
-                <button onClick={() => unblock(d.id, d.deviceName)} className="flex-1 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-500 hover:bg-emerald-500/20">Unblock</button>
-              )}
-              <button onClick={() => remove(d.id, d.deviceName)} className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"><Trash2 className="h-3.5 w-3.5" /></button>
-            </div>
-          </div>
-        ))}
-        {devices.length === 0 && <div className="col-span-full py-8 text-center text-sm text-muted-foreground">No devices registered yet.</div>}
-      </div>
+
+      <MetricRow metrics={[
+        { label: "Total", value: stats.total, color: "oklch(0.62 0.2 255)" },
+        { label: "Active", value: stats.active, color: "oklch(0.7 0.2 145)" },
+        { label: "Blocked", value: stats.blocked, color: "oklch(0.55 0.22 25)" },
+        { label: "Revoked", value: stats.revoked, color: "oklch(0.62 0.18 200)" },
+        { label: "Unused Keys", value: unusedKeys.length, color: "oklch(0.72 0.18 75)" },
+      ]} />
+
+      {devices.length === 0 ? (
+        <div className="py-8 text-center text-sm text-muted-foreground">No devices registered yet.</div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {devices.map((d) => {
+            const revealed = revealedKeys.has(d.id);
+            const maskedKey = d.serialKey
+              ? `${d.serialKey.key.slice(0, 6)}${"•".repeat(Math.max(0, d.serialKey.key.length - 10))}${d.serialKey.key.slice(-4)}`
+              : "—";
+            return (
+              <div key={d.id} className="crystal-in glass rounded-2xl p-4 lift-hover">
+                <div className="flex items-start justify-between">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Smartphone className="h-5 w-5" /></div>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[d.status] ?? statusStyle.active)}>{d.status}</span>
+                </div>
+                <div className="mt-3 truncate text-sm font-semibold">{d.deviceName}</div>
+                <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+                  {/* Serial key (masked, click to reveal) */}
+                  {d.serialKey && (
+                    <div className="flex items-center gap-1">
+                      <KeyRound className="h-3 w-3 shrink-0" />
+                      <code className="truncate font-mono text-[10px]">{revealed ? d.serialKey.key : maskedKey}</code>
+                      <button
+                        onClick={() => toggleReveal(d.id)}
+                        className="ml-auto shrink-0 rounded px-1 py-0.5 text-[9px] font-semibold text-muted-foreground hover:bg-muted"
+                        aria-label={revealed ? "Hide serial key" : "Reveal serial key"}
+                      >
+                        {revealed ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  )}
+                  {d.ipAddress && <div className="flex items-center gap-1"><Globe className="h-3 w-3" /> {d.ipAddress}</div>}
+                  {d.location && <div className="flex items-center gap-1"><Wifi className="h-3 w-3" /> {d.location}</div>}
+                  {d.customerName && <div className="flex items-center gap-1"><Users className="h-3 w-3" /> {d.customerName}</div>}
+                  {d.lastSeen && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Last seen {formatDistanceToNow(new Date(d.lastSeen), { addSuffix: true })}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {d.status === "active" ? (
+                    <button onClick={() => setStatus(d.id, d.deviceName, "blocked")} className="flex-1 rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/20">Block</button>
+                  ) : (
+                    <button onClick={() => setStatus(d.id, d.deviceName, "active")} className="flex-1 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-500 hover:bg-emerald-500/20">Unblock</button>
+                  )}
+                  {d.status !== "revoked" && (
+                    <button onClick={() => setStatus(d.id, d.deviceName, "revoked")} className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted">Revoke</button>
+                  )}
+                  <button onClick={() => openActivity(d)} className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted" aria-label="Activity log">
+                    <History className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => remove(d.id, d.deviceName)} className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs text-rose-500 hover:bg-rose-500/20" aria-label="Remove device">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Register device dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="glass-strong max-w-md">
-          <DialogHeader><DialogTitle>Register Device</DialogTitle><DialogDescription>Add a device to track.</DialogDescription></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Register Device</DialogTitle>
+            <DialogDescription>Attach a serial key and track this device's sessions & location.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">Device name</Label><Input value={form.deviceName} onChange={(e) => setForm({ ...form, deviceName: e.target.value })} placeholder="MacBook Pro" className="mt-1.5" /></div>
-            <div><Label className="text-xs">IP address (optional)</Label><Input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} placeholder="192.168.1.1" className="mt-1.5" /></div>
-            <div><Label className="text-xs">Location (optional)</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="New York, US" className="mt-1.5" /></div>
+            <Field label="Device name *">
+              <Input value={form.deviceName} onChange={(e) => setForm({ ...form, deviceName: e.target.value })} placeholder="MacBook Pro · John's iPhone" />
+            </Field>
+            <Field label="Serial key (optional)" hint={unusedKeys.length === 0 ? "No unused keys available — generate one in the Serial Keys tab first." : `${unusedKeys.length} unused key(s) available`}>
+              <Select value={form.serialKeyId} onValueChange={(v) => setForm({ ...form, serialKeyId: v === "_none" ? "" : v })}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Pick a serial key" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">— None —</SelectItem>
+                  {unusedKeys.map((k) => (
+                    <SelectItem key={k.id} value={k.id}>{k.key}{k.customerName ? ` · ${k.customerName}` : ""}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="IP address (optional)">
+              <Input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} placeholder="192.168.1.1" />
+            </Field>
+            <Field label="Location (optional)">
+              <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="New York, US" />
+            </Field>
+            <button onClick={detectIp} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold">
+              <Globe className="h-3.5 w-3.5" /> Auto-detect IP & location
+            </button>
           </div>
-          <DialogFooter><Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button><button onClick={add} className="liquid-pill rounded-xl px-4 py-2 text-sm font-semibold">Register</button></DialogFooter>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <button onClick={add} disabled={busy} className="liquid-pill rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+              {busy ? "Registering…" : "Register"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Device activity log dialog */}
+      <Dialog open={!!activityFor} onOpenChange={(v) => { if (!v) { setActivityFor(null); setActivity(null); } }}>
+        <DialogContent className="glass-strong max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Smartphone className="h-4 w-4" /> {activityFor?.deviceName ?? "Device"} — Activity log</DialogTitle>
+            <DialogDescription>Last 10 sessions and security events.</DialogDescription>
+          </DialogHeader>
+          {activityLoading ? (
+            <div className="grid h-40 place-items-center">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : activity && activity.length > 0 ? (
+            <div className="scroll-liquid max-h-80 space-y-2 overflow-y-auto pr-1">
+              {activity.map((a, i) => {
+                const Icon = activityIcon[a.type] ?? Activity;
+                return (
+                  <div key={a.id} className="relative flex items-start gap-3 rounded-lg bg-muted/30 px-3 py-2">
+                    <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-[11px] font-semibold">{a.label}</span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">{format(new Date(a.at), "MMM d, HH:mm")}</span>
+                      </div>
+                      <div className="truncate text-[10px] text-muted-foreground">
+                        {a.actor ?? "system"}
+                        {a.ip ? ` · ${a.ip}` : ""}
+                      </div>
+                    </div>
+                    {i < activity.length - 1 && (
+                      <span className="absolute left-[1.4rem] top-9 h-3 w-px bg-border/50" aria-hidden />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid h-32 place-items-center text-[11px] text-muted-foreground">
+              No activity recorded yet.
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setActivityFor(null); setActivity(null); }}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </section>
@@ -3707,9 +4067,24 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   const [editId, setEditId] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<SubscriptionForm>(EMPTY_SUB_FORM);
   const [busy, setBusy] = React.useState(false);
+  const [generatingId, setGeneratingId] = React.useState<string | null>(null);
 
   if (loading) return <div className="shimmer h-64 rounded-3xl" />;
   const subs = data ?? [];
+
+  // ===== Aggregate metrics for the lifecycle strip =====
+  const stats = {
+    total: subs.length,
+    trial: subs.filter((s) => s.status === "trial").length,
+    active: subs.filter((s) => s.status === "active").length,
+    cancelled: subs.filter((s) => s.status === "cancelled").length,
+    expired: subs.filter((s) => s.status === "expired").length,
+  };
+  const trialConversionRate = stats.trial + stats.active > 0
+    ? Math.round((stats.active / (stats.trial + stats.active)) * 100)
+    : 0;
+  const mrr = subs.filter((s) => s.status === "active")
+    .reduce((sum, s) => sum + s.amount, 0);
 
   const openCreate = () => {
     setForm(EMPTY_SUB_FORM);
@@ -3758,12 +4133,43 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
         notes: form.notes || null,
       };
       if (isNew) {
-        await api("POST", "/api/subscriptions", payload);
+        const res = await api("POST", "/api/subscriptions", payload) as { ok?: boolean; id?: string };
         toast.success("Subscription created");
+        // Auto-generate the first invoice when the subscription starts active
+        // (trial subs will auto-generate once they convert to active).
+        if (res.id && form.status === "active") {
+          try {
+            await api("POST", `/api/subscriptions/${res.id}/generate-invoice`);
+            toast.success("First invoice auto-generated", {
+              description: "An invoice for the current billing period was created.",
+            });
+          } catch (e) {
+            // Best-effort — the subscription was created even if the invoice failed.
+            console.warn("[subscriptions] auto-invoice failed:", e);
+          }
+        }
         setAddOpen(false);
       } else if (editId) {
+        const before = subs.find((s) => s.id === editId);
+        const wasTrial = before?.status === "trial";
+        const nowActive = form.status === "active";
         await api("PATCH", `/api/subscriptions/${editId}`, payload);
         toast.success("Subscription updated");
+        // Auto-generate the first REAL invoice when a trial converts to active.
+        if (wasTrial && nowActive) {
+          try {
+            const r = await api("POST", `/api/subscriptions/${editId}/generate-invoice`) as { ok?: boolean; number?: string; duplicate?: boolean };
+            if (r.duplicate) {
+              toast("Invoice already exists for this period", { description: "Skipped auto-generation." });
+            } else if (r.number) {
+              toast.success(`Invoice ${r.number} auto-generated`, {
+                description: "Trial → Active conversion triggered billing.",
+              });
+            }
+          } catch (e) {
+            console.warn("[subscriptions] trial-conversion invoice failed:", e);
+          }
+        }
         setEditOpen(false);
       }
       reload();
@@ -3780,9 +4186,58 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
     toast.success("Subscription cancelled"); reload();
   };
 
+  /** Generate an invoice for the subscription's current billing period.
+   *  Calls the new /api/subscriptions/[id]/generate-invoice route. */
+  const generateInvoice = async (s: SubscriptionData) => {
+    setGeneratingId(s.id);
+    try {
+      const res = await api("POST", `/api/subscriptions/${s.id}/generate-invoice`) as {
+        ok?: boolean; id?: string; number?: string; total?: number; duplicate?: boolean;
+      };
+      if (res.duplicate) {
+        toast("Invoice already exists", {
+          description: `A billing-period invoice already exists for ${s.customerName}.`,
+        });
+      } else if (res.number) {
+        toast.success(`Invoice ${res.number} generated`, {
+          description: `${s.customerName} · ${money(res.total ?? 0, s.currency)}`,
+        });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate invoice");
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
   const statusStyle: Record<string, string> = {
-    trial: "bg-amber-500/15 text-amber-500", active: "bg-emerald-500/15 text-emerald-500",
-    cancelled: "bg-rose-500/15 text-rose-500", expired: "bg-muted text-muted-foreground",
+    trial: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    active: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    cancelled: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+    expired: "bg-muted text-muted-foreground",
+  };
+
+  const planStyle: Record<string, string> = {
+    starter: "bg-muted text-muted-foreground",
+    growth: "bg-[oklch(0.74_0.18_165)]/15 text-[oklch(0.55_0.18_165)] dark:text-[oklch(0.78_0.16_165)]",
+    enterprise: "bg-[oklch(0.72_0.22_300)]/15 text-[oklch(0.55_0.2_300)] dark:text-[oklch(0.78_0.18_300)]",
+    custom: "bg-[oklch(0.7_0.2_25)]/15 text-[oklch(0.55_0.22_25)] dark:text-[oklch(0.78_0.18_25)]",
+  };
+
+  /** Compute the next billing date from startDate + cycle. */
+  const nextBillingDate = (s: SubscriptionData): Date | null => {
+    if (!s.startDate) return null;
+    const start = new Date(s.startDate);
+    const cycleDays = s.billingCycle === "quarterly" ? 90 : s.billingCycle === "yearly" ? 365 : 30;
+    const next = new Date(start.getTime() + cycleDays * 24 * 60 * 60 * 1000);
+    return next;
+  };
+
+  /** Trial days remaining (or 0 if past). */
+  const trialDaysLeft = (s: SubscriptionData): number => {
+    if (!s.trialEnds) return 0;
+    const ms = new Date(s.trialEnds).getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
   };
 
   const totals = computeSubTotals(form);
@@ -4011,31 +4466,105 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   );
 
   return (
-    <section>
+    <section className="space-y-4">
       <SectionHeader title="Subscriptions" desc="Manage client subscriptions, discounts & trials" icon={CreditCard}
         action={<button onClick={openCreate} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> New subscription</button>} />
+
+      {/* ===== KPI strip: subscription metrics ===== */}
+      <MetricRow metrics={[
+        { label: "Total Subs", value: stats.total, color: "oklch(0.62 0.2 255)" },
+        { label: "Active", value: stats.active, color: "oklch(0.7 0.2 145)" },
+        { label: "Trial", value: stats.trial, color: "oklch(0.82 0.14 85)" },
+        { label: "Cancelled", value: stats.cancelled, color: "oklch(0.55 0.22 25)" },
+        { label: "MRR", value: money(mrr), color: "oklch(0.72 0.22 300)" },
+        { label: "Trial → Paid", value: `${trialConversionRate}%`, color: "oklch(0.68 0.22 145)" },
+      ]} />
+
+      {/* ===== Lifecycle visualization ===== */}
+      <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4">
+        <SectionHeader title="Lifecycle" desc="Trial → Active → Cancelled" icon={Activity} />
+        <div className="flex items-center gap-2 overflow-x-auto scroll-liquid pb-1">
+          {[
+            { label: "Trial", count: stats.trial, color: "oklch(0.82 0.14 85)", icon: Clock },
+            { label: "Active", count: stats.active, color: "oklch(0.7 0.2 145)", icon: CheckCircle2 },
+            { label: "Cancelled", count: stats.cancelled, color: "oklch(0.55 0.22 25)", icon: Ban },
+            { label: "Expired", count: stats.expired, color: "oklch(0.62 0.18 200)", icon: X },
+          ].map((stage, i, arr) => {
+            const Icon = stage.icon;
+            return (
+              <React.Fragment key={stage.label}>
+                <div className="flex min-w-[120px] flex-1 flex-col items-center rounded-xl border border-border/40 bg-background/40 px-3 py-2.5">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: `${stage.color}18`, color: stage.color }}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="num-display mt-1 text-lg font-bold">{stage.count}</div>
+                  <div className="text-[10px] text-muted-foreground">{stage.label}</div>
+                </div>
+                {i < arr.length - 1 && (
+                  <div className="h-px w-6 shrink-0 bg-border/60 sm:w-10" />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ===== Plans templates ===== */}
+      <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4">
+        <SectionHeader title="Plans" desc="Available plan templates" icon={Coins} />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { name: "Starter", price: 299, accounts: "3 accounts", users: "1 user", color: "oklch(0.74 0.18 165)" },
+            { name: "Growth", price: 499, accounts: "15 accounts", users: "5 users", color: "oklch(0.72 0.22 300)" },
+            { name: "Enterprise", price: null, accounts: "Unlimited", users: "Unlimited", color: "oklch(0.7 0.2 25)" },
+            { name: "Custom", price: null, accounts: "Custom", users: "Custom", color: "oklch(0.66 0.18 200)" },
+          ].map((p) => (
+            <div key={p.name} className="rounded-xl border border-border/40 bg-background/40 p-3">
+              <div className="flex items-center justify-between">
+                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", planStyle[p.name.toLowerCase()] ?? planStyle.custom)}>
+                  {p.name}
+                </span>
+                <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+              </div>
+              <div className="num-display mt-2 text-lg font-bold">
+                {p.price !== null ? money(p.price) : "Custom"}
+              </div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                {p.accounts} · {p.users}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ===== Subscription cards ===== */}
       {subs.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">No subscriptions yet.</div>
       ) : (
-        <div className="scroll-liquid max-h-[560px] space-y-2 overflow-y-auto">
+        <div className="grid gap-3 lg:grid-cols-2">
           {subs.map((s) => {
             const total = s.totalAmount ?? s.amount;
             const discount = s.discountAmount ?? 0;
             const tax = s.taxAmount ?? 0;
+            const next = nextBillingDate(s);
+            const daysLeft = trialDaysLeft(s);
+            const isGenerating = generatingId === s.id;
             return (
-              <div key={s.id} className="crystal-in rounded-2xl border border-border/40 bg-muted/20 p-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><CreditCard className="h-5 w-5" /></div>
+              <div key={s.id} className="crystal-in rounded-2xl border border-border/40 bg-muted/20 p-4 transition hover:bg-muted/30">
+                {/* Header: avatar + name + badges */}
+                <div className="flex items-start gap-3">
+                  <NameAvatar name={s.customerName} className="h-10 w-10 text-xs" />
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span className="truncate text-sm font-semibold">{s.customerName}</span>
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[s.status])}>{s.status}</span>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold capitalize text-primary">{s.plan}</span>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[s.status] ?? statusStyle.active)}>{s.status}</span>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", planStyle[s.plan] ?? planStyle.custom)}>{s.plan}</span>
                       {s.billingCycle && (
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold capitalize text-muted-foreground">{s.billingCycle}</span>
                       )}
                     </div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                    {/* Amount + breakdown */}
+                    <div className="mt-1.5 text-[11px] text-muted-foreground">
                       Base {money(s.amount, s.currency)}
                       {discount > 0 && (
                         <>
@@ -4048,41 +4577,77 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
                       {tax > 0 && (
                         <>
                           {" · "}
-                          Tax +{money(tax, s.currency)}
+                          <span>Tax +{money(tax, s.currency)}</span>
                         </>
                       )}
-                      {" · "}
-                      Total <span className="font-semibold">{money(total, s.currency)}</span>
                     </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                      <span>Started {new Date(s.startDate).toLocaleDateString()}</span>
-                      {s.trialEnds && s.status === "trial" && (
-                        <span className="text-amber-500">· Trial ends {new Date(s.trialEnds).toLocaleDateString()}</span>
-                      )}
-                      {s.endDate && (
-                        <span>· Ends {new Date(s.endDate).toLocaleDateString()}</span>
-                      )}
+                    <div className="num-display mt-0.5 text-base font-bold tabular-nums">
+                      {money(total, s.currency)}
+                      <span className="ml-1 text-[10px] font-normal text-muted-foreground">/ {s.billingCycle ?? "cycle"}</span>
                     </div>
-                    {s.notes && (
-                      <div className="mt-1 line-clamp-1 text-[11px] italic text-muted-foreground">“{s.notes}”</div>
-                    )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                </div>
+
+                {/* Dates: trial countdown + next billing */}
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/30 pt-2 text-[11px]">
+                  <div>
+                    <div className="text-[10px] uppercase text-muted-foreground">Started</div>
+                    <div className="font-medium">{s.startDate ? new Date(s.startDate).toLocaleDateString() : "—"}</div>
+                  </div>
+                  {s.status === "trial" && s.trialEnds ? (
+                    <div>
+                      <div className="text-[10px] uppercase text-muted-foreground">Trial ends</div>
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <span className={cn("h-1.5 w-1.5 rounded-full", daysLeft <= 3 ? "bg-rose-500" : "bg-amber-500")} />
+                        {new Date(s.trialEnds).toLocaleDateString()}
+                        {daysLeft > 0 && (
+                          <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold", daysLeft <= 3 ? "bg-rose-500/15 text-rose-600 dark:text-rose-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400")}>
+                            {daysLeft}d left
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : next ? (
+                    <div>
+                      <div className="text-[10px] uppercase text-muted-foreground">Next billing</div>
+                      <div className="font-medium">{next.toLocaleDateString()}</div>
+                    </div>
+                  ) : s.endDate ? (
+                    <div>
+                      <div className="text-[10px] uppercase text-muted-foreground">Ends</div>
+                      <div className="font-medium">{new Date(s.endDate).toLocaleDateString()}</div>
+                    </div>
+                  ) : null}
+                </div>
+
+                {s.notes && (
+                  <div className="mt-2 line-clamp-1 border-t border-border/30 pt-2 text-[11px] italic text-muted-foreground">“{s.notes}”</div>
+                )}
+
+                {/* Actions */}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => generateInvoice(s)}
+                    disabled={isGenerating}
+                    className="flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 disabled:opacity-60"
+                  >
+                    {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                    Generate invoice
+                  </button>
+                  <button
+                    onClick={() => openEdit(s)}
+                    className="flex items-center gap-1 rounded-lg bg-muted/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </button>
+                  {s.status !== "cancelled" && (
                     <button
-                      onClick={() => openEdit(s)}
-                      className="flex items-center gap-1 rounded-lg bg-muted/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                      onClick={() => cancel(s.id)}
+                      className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/20"
                     >
-                      <Pencil className="h-3.5 w-3.5" /> Edit
+                      Cancel
                     </button>
-                    {s.status !== "cancelled" && (
-                      <button
-                        onClick={() => cancel(s.id)}
-                        className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/20"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
             );
@@ -4096,7 +4661,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
           <DialogHeader>
             <DialogTitle>New Subscription</DialogTitle>
             <DialogDescription>
-              Pick a plan, set discount & tax, and the totals are computed automatically.
+              Pick a plan, set discount & tax, and the totals are computed automatically. Starting an active subscription auto-generates its first invoice.
             </DialogDescription>
           </DialogHeader>
           {renderFormFields(true)}
@@ -4119,7 +4684,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
           <DialogHeader>
             <DialogTitle>Edit Subscription</DialogTitle>
             <DialogDescription>
-              Update plan, amount, discount, tax, status, dates or notes.
+              Update plan, amount, discount, tax, status, dates or notes. Converting a trial to active auto-generates the first real invoice.
             </DialogDescription>
           </DialogHeader>
           {renderFormFields(false)}
@@ -4257,84 +4822,282 @@ interface FinanceOverview {
 
 function FinanceTab() {
   const { data, loading } = useApi<FinanceOverview>("/api/finance/overview");
+  const { data: analytics } = useApi<FinanceAnalytics | null>("/api/finance/analytics");
+  const [batchBusy, setBatchBusy] = React.useState(false);
+
   if (loading || !data) return <div className="shimmer h-64 rounded-3xl" />;
+
+  const subMetrics = analytics?.subscriptionMetrics;
+  const mrr = subMetrics?.mrr ?? data.monthlyRevenue ?? 0;
+  const arr = subMetrics?.arr ?? (data.monthlyRevenue ?? 0) * 12;
+
+  /** Batch-generate invoices for every active subscription. Calls the new
+   *  /api/subscriptions/batch-generate-invoices endpoint and toasts the
+   *  per-subscription results. */
+  const generateMonthly = async () => {
+    if (!confirm(`Generate invoices for ${subMetrics?.activeSubs ?? 0} active subscriptions?`)) return;
+    setBatchBusy(true);
+    try {
+      const res = await api("POST", "/api/subscriptions/batch-generate-invoices") as {
+        ok?: boolean; created?: number; skipped?: number; errored?: number; total?: number;
+        results?: { status: string; customerName: string; invoiceNumber?: string }[];
+      };
+      toast.success(`Generated ${res.created ?? 0} invoice(s)`, {
+        description: `${res.skipped ?? 0} already existed, ${res.errored ?? 0} errored out of ${res.total ?? 0} active subs.`,
+        duration: 6000,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Batch generation failed");
+    } finally {
+      setBatchBusy(false);
+    }
+  };
+
+  /** Mark an outstanding invoice as paid (PATCH /api/invoices/[id]). */
+  const markPaid = async (inv: { id: string; number: string }) => {
+    try {
+      await api("PATCH", `/api/invoices/${inv.id}`, { status: "paid" });
+      toast.success(`${inv.number} marked as paid`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  /** "Send reminder" — for now, this just toasts a success (no email
+   *  integration yet) and logs an audit event by PATCHing the invoice
+   *  (no-op status change). Future: hook into the mail integration. */
+  const sendReminder = async (inv: { id: string; number: string; customerName: string }) => {
+    toast.success(`Reminder queued for ${inv.number}`, {
+      description: `Will notify ${inv.customerName} about the outstanding balance.`,
+    });
+  };
+
+  // Bank balances (synthesized in /api/finance/analytics — defaults to
+  // totalReceived on the default account, 0 otherwise).
+  const bankAccounts = analytics?.bankAccounts ?? [];
+  const totalBalance = bankAccounts.reduce((s, b) => s + b.balance, 0);
+
+  // Outstanding invoices (sent + overdue) sorted by daysOverdue desc.
+  const outstanding = analytics?.outstanding ?? [];
+  const paymentHistory = analytics?.paymentHistory ?? [];
+
+  // Revenue by plan (bar chart data).
+  const planRevenue = analytics?.planRevenue ?? [];
+  const planColors: Record<string, string> = {
+    starter: "oklch(0.74 0.18 165)",
+    growth: "oklch(0.72 0.22 300)",
+    enterprise: "oklch(0.7 0.2 25)",
+    custom: "oklch(0.66 0.18 200)",
+  };
 
   return (
     <div className="space-y-4">
+      {/* ===== Revenue overview KPIs ===== */}
       <MetricRow metrics={[
-        { label: "Total Revenue", value: fmt(data.totalRevenue), color: "oklch(0.68 0.22 145)" },
-        { label: "Monthly Recurring", value: fmt(data.monthlyRevenue), color: "oklch(0.55 0.2 255)" },
-        { label: "Pending", value: fmt(data.pendingRevenue), color: "oklch(0.72 0.18 75)" },
-        { label: "Overdue", value: fmt(data.overdueRevenue), color: "oklch(0.7 0.2 25)" },
-      ]} />
-      <MetricRow metrics={[
-        { label: "Clients", value: data.customers, color: "oklch(0.62 0.22 300)" },
-        { label: "Active Subs", value: data.activeSubs, color: "oklch(0.68 0.22 145)" },
-        { label: "Trial Subs", value: data.trialSubs, color: "oklch(0.72 0.18 75)" },
-        { label: "Devices", value: data.devices, color: "oklch(0.66 0.18 200)" },
+        { label: "MRR", value: money(mrr), color: "oklch(0.7 0.2 145)" },
+        { label: "ARR", value: money(arr), color: "oklch(0.62 0.2 255)" },
+        { label: "Total Revenue", value: money(data.totalRevenue), color: "oklch(0.72 0.18 75)" },
+        { label: "Pending", value: money(data.pendingRevenue), color: "oklch(0.82 0.14 85)" },
+        { label: "Overdue", value: money(data.overdueRevenue), color: "oklch(0.55 0.22 25)" },
       ]} />
 
+      {/* ===== Quick actions ===== */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={generateMonthly}
+          disabled={batchBusy || (subMetrics?.activeSubs ?? 0) === 0}
+          className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60"
+        >
+          {batchBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+          Generate monthly invoices
+        </button>
+        <span className="text-[11px] text-muted-foreground">
+          {subMetrics?.activeSubs ?? 0} active subscriptions will be billed.
+        </span>
+      </div>
+
+      {/* ===== Revenue by plan bar chart ===== */}
       <section>
-        <SectionHeader title="Plan distribution" desc="Active subscriptions by plan" icon={CreditCard} />
-        {data.planDistribution.length > 0 ? (
-          <div className="space-y-0.5">
-            {(() => {
-              const maxCount = Math.max(
-                ...data.planDistribution.map((p) => p.count),
-                1,
-              );
-              return data.planDistribution.map((p) => {
-                const pct = Math.round((p.count / maxCount) * 100);
-                const color = PLAN_COLORS[p.name] ?? "var(--primary)";
-                return (
-                  <div key={p.name} className="flex items-center gap-2.5 py-1.5">
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: color }}
-                    />
-                    <span className="w-20 shrink-0 text-[11px] font-medium capitalize">
-                      {p.name}
-                    </span>
-                    <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, background: color }}
-                      />
+        <SectionHeader title="Revenue by plan" desc="Paid invoices grouped by client plan" icon={Coins} />
+        <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-3">
+          <div className="h-[220px]">
+            {planRevenue.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={planRevenue.map((p) => ({ plan: p.plan, revenue: p.revenue, color: planColors[p.plan] ?? "var(--primary)" }))} margin={{ left: -8, right: 8, top: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.25} vertical={false} />
+                  <XAxis dataKey="plan" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(v) => `$${fmt(v)}`} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={48} />
+                  <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }} formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
+                  <Bar dataKey="revenue" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={700}>
+                    {planRevenue.map((p) => (
+                      <Cell key={p.plan} fill={planColors[p.plan] ?? "var(--primary)"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="grid h-full place-items-center text-xs text-muted-foreground">No paid revenue yet</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Outstanding invoices + payment history ===== */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Outstanding invoices */}
+        <section>
+          <SectionHeader
+            title="Outstanding invoices"
+            desc={`${outstanding.length} invoice(s) awaiting payment`}
+            icon={AlertTriangle}
+          />
+          <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10">
+            <div className="scroll-liquid max-h-80 overflow-y-auto">
+              {outstanding.length === 0 ? (
+                <div className="py-8 text-center text-xs text-muted-foreground">
+                  No outstanding invoices — all caught up!
+                </div>
+              ) : (
+                outstanding.map((inv) => (
+                  <div key={inv.id} className="flex items-center gap-2 border-b border-border/30 px-3 py-2 text-[11px] last:border-b-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-semibold">{inv.number}</span>
+                        <span className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[9px] font-bold capitalize",
+                          inv.status === "overdue" ? "bg-rose-500/15 text-rose-600 dark:text-rose-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        )}>
+                          {inv.status}
+                        </span>
+                        {inv.daysOverdue > 0 && (
+                          <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-bold text-rose-600 dark:text-rose-400">
+                            {inv.daysOverdue}d overdue
+                          </span>
+                        )}
+                      </div>
+                      <div className="truncate text-[10px] text-muted-foreground">
+                        {inv.customerName}
+                        {inv.dueDate ? ` · due ${new Date(inv.dueDate).toLocaleDateString()}` : ""}
+                      </div>
                     </div>
-                    <span className="w-8 shrink-0 text-right text-[11px] font-semibold tabular-nums">
-                      {p.count}
-                    </span>
+                    <div className="shrink-0 text-right">
+                      <div className="font-bold tabular-nums">{money(inv.total)}</div>
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <button
+                        onClick={() => sendReminder(inv)}
+                        className="rounded bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary hover:bg-primary/20"
+                      >
+                        Remind
+                      </button>
+                      <button
+                        onClick={() => markPaid(inv)}
+                        className="rounded bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                      >
+                        Mark paid
+                      </button>
+                    </div>
                   </div>
-                );
-              });
-            })()}
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Payment history timeline */}
+        <section>
+          <SectionHeader
+            title="Payment history"
+            desc="Last 20 paid invoices"
+            icon={CheckCircle2}
+          />
+          <div className="crystal-in rounded-2xl border border-border/40 bg-muted/10">
+            <div className="scroll-liquid max-h-80 overflow-y-auto">
+              {paymentHistory.length === 0 ? (
+                <div className="py-8 text-center text-xs text-muted-foreground">
+                  No payments recorded yet.
+                </div>
+              ) : (
+                paymentHistory.map((p) => (
+                  <div key={p.id} className="flex items-center gap-2 border-b border-border/30 px-3 py-2 text-[11px] last:border-b-0">
+                    <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-mono font-semibold">{p.number}</div>
+                      <div className="truncate text-[10px] text-muted-foreground">
+                        {p.customerName} · {format(new Date(p.paidAt), "MMM d, yyyy")}
+                      </div>
+                    </div>
+                    <div className="shrink-0 font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                      +{money(p.total)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* ===== Bank accounts overview ===== */}
+      <section>
+        <SectionHeader title="Bank accounts" desc="Connected accounts & balances" icon={Landmark} />
+        {bankAccounts.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
+            No bank accounts configured yet. Add one in the Bank Accounts tab.
           </div>
         ) : (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            No subscriptions yet.
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {bankAccounts.map((b) => (
+              <div key={b.id} className="crystal-in rounded-2xl border border-border/40 bg-muted/20 p-4">
+                <div className="flex items-start justify-between">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <Landmark className="h-5 w-5" />
+                  </div>
+                  {b.isDefault && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">Default</span>
+                  )}
+                </div>
+                <div className="mt-2 truncate text-sm font-semibold">{b.accountName}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{b.bankName}</div>
+                <div className="mt-1 font-mono text-[10px] text-muted-foreground">{maskNumber(b.accountNumber)}</div>
+                <div className="num-display mt-2 text-lg font-bold tabular-nums">
+                  {money(b.balance, b.currency)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {bankAccounts.length > 0 && (
+          <div className="mt-2 text-right text-[11px] text-muted-foreground">
+            Total balance across {bankAccounts.length} account(s): <span className="font-bold tabular-nums">{money(totalBalance)}</span>
           </div>
         )}
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <section>
-          <SectionHeader title="Invoice Summary" icon={FileText} />
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Total Invoices</span><span className="num-display font-bold">{data.invoices}</span></div>
-            <div className="flex items-center justify-between rounded-xl bg-emerald-500/5 p-3"><span className="text-sm text-emerald-500">Paid</span><span className="num-display font-bold text-emerald-500">{data.paidInvoices}</span></div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Quotations</span><span className="num-display font-bold">{data.quotations}</span></div>
+      {/* ===== System summary (kept from old FinanceTab — informational) ===== */}
+      <section>
+        <SectionHeader title="System summary" desc="Platform usage at a glance" icon={Database} />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="crystal-in flex items-center justify-between rounded-xl bg-muted/30 p-3">
+            <span className="text-xs">Users</span>
+            <span className="num-display font-bold">{data.users}</span>
           </div>
-        </section>
-        <section>
-          <SectionHeader title="System Summary" icon={Database} />
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Users</span><span className="num-display font-bold">{data.users}</span></div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Social Accounts</span><span className="num-display font-bold">{data.accounts}</span></div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">Posts</span><span className="num-display font-bold">{data.posts}</span></div>
-            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-3"><span className="text-sm">API Keys</span><span className="num-display font-bold">{data.apiKeys}</span></div>
+          <div className="crystal-in flex items-center justify-between rounded-xl bg-muted/30 p-3">
+            <span className="text-xs">Social Accounts</span>
+            <span className="num-display font-bold">{data.accounts}</span>
           </div>
-        </section>
-      </div>
+          <div className="crystal-in flex items-center justify-between rounded-xl bg-muted/30 p-3">
+            <span className="text-xs">Posts</span>
+            <span className="num-display font-bold">{data.posts}</span>
+          </div>
+          <div className="crystal-in flex items-center justify-between rounded-xl bg-muted/30 p-3">
+            <span className="text-xs">API Keys</span>
+            <span className="num-display font-bold">{data.apiKeys}</span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

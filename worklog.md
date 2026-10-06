@@ -13087,3 +13087,26 @@ discount + tax pricing model end-to-end:
 passes; `bun run db:generate` regenerated the Prisma Client so TypeScript
 types match the new schema. The main agent should run `bun run db:push`
 to materialize the schema in pglite.
+
+---
+Task ID: OWNER-ENTERPRISE
+Agent: subagent
+Task: Rebuild Owner Panel as enterprise-grade with complete modules
+
+Work Log:
+- Read existing owner.tsx (5246 lines), prisma/schema.prisma, and all relevant API routes (subscriptions, invoices, devices, customers, bank-accounts, finance/overview, audit-logs, tenant-databases) to understand data shapes + auth patterns.
+- Created `POST /api/subscriptions/[id]/generate-invoice` — idempotently mints an Invoice for the subscription's current billing period using its plan/amount/discount/tax; stamps `notes` JSON with `subscription:<id>|period:<YYYY-MM-DD>` fingerprint for dedup; logs `invoice.generated_from_subscription` audit entry.
+- Created `POST /api/subscriptions/batch-generate-invoices` — iterates all active subs in caller's tenant scope, generates billing-period invoices (idempotent per the same fingerprint), returns per-subscription results + totals.
+- Created `GET /api/devices/[id]/activity` — returns the device's metadata + last 10 audit log entries (sessions/blocks/revokes/registrations) for the activity log dialog.
+- Created `GET /api/finance/analytics` — aggregated time-series + cohort data: monthlyRevenue (12 months), clientGrowth (12 months), planRevenue, invoiceBreakdown, topClients (top 10 by paid revenue), paymentHistory (last 20 paid invoices), outstanding (sent/overdue with daysOverdue), bankAccounts (with synthesized balances), subscriptionMetrics (MRR/ARR/churn/trial-conversion). Tenant-scoped (Customer rows scoped by `id = customerId` for tenant users; FK tables scoped via `tenantWhere`).
+- Added `FinanceAnalytics` + `DeviceActivityEntry` interfaces to owner.tsx.
+- Rebuilt `OverviewTab` — two KPI strips (MRR/ARR/Revenue/Pending/Overdue + Clients/Active/Trial/Trial→Paid/Churn), revenue trend AreaChart + client growth BarChart (both from /api/finance/analytics), module overview grid, tenant DB health card with system-health status pills, recent activity feed expanded from 5 to 10 audit entries with a refresh button.
+- Rebuilt `SubscriptionsTab` — subscription CARDS (2-col responsive) with avatar, plan badge, status badge with color coding, billing cycle, amount + discount/tax breakdown, trial countdown pill ("3d left" with red/amber), next billing date, Generate Invoice / Edit / Cancel actions. Added KPI strip, lifecycle visualization (Trial → Active → Cancelled → Expired with stage counts), Plans templates section (Starter $299 / Growth $499 / Enterprise Custom / Custom). Edit dialog auto-generates the first real invoice when a trial converts to active; new active subs auto-generate their first invoice on creation.
+- Rebuilt `DevicesTab` — device CARDS with masked serial key (click Show/Hide), status badge, IP+location, last seen (relative), associated client. Block/Unblock/Revoke/Activity/Remove actions. Register Device dialog with serial key dropdown (filtered to unused keys), device name, IP, location + Auto-detect IP & location button (calls ipapi.co). Activity log dialog calling the new /api/devices/[id]/activity endpoint with a vertical timeline of the last 10 sessions/events.
+- Rebuilt `ReportsTab` — date range filter pills (7/30/90/365 days) applied to invoice + client counts, KPI strip with subscription metrics (MRR/ARR/Revenue/Pending/Overdue/Churn/Trial→Paid/Activation), Revenue trend AreaChart (12 months), Client growth BarChart (new clients/month), Plan distribution PieChart (Starter/Growth/Enterprise/Custom), Invoice status PieChart (paid/sent/overdue/draft donut), Revenue by plan bar chart, Top clients table (sorted by paid revenue, top 10 with avatar + rank), Recent activity feed, CSV export button (downloads invoices + customers as CSV).
+- Rebuilt `FinanceTab` — KPI strip (MRR/ARR/Total/Pending/Overdue), "Generate monthly invoices" quick action calling the batch endpoint, Revenue by plan bar chart, Outstanding invoices list (sorted by daysOverdue with per-row Remind + Mark paid buttons), Payment history timeline (last 20 paid), Bank accounts overview cards with synthesized balances + total, System summary tiles.
+- Lint clean: `bun run lint` → 0 errors (7 pre-existing warnings about `window.location.href` in other files).
+- TypeScript clean: `npx tsc --noEmit --skipLibCheck` → no errors in any of the modified or new files.
+
+Stage Summary:
+Owner Panel is now enterprise-grade. Every previously-stub tab (Overview, Subscriptions, Reports, Devices, Finance) is rebuilt with real data, charts, lifecycle visualization, and the auto-invoice pipeline. New `/api/finance/analytics` powers the rebuilt Overview, Reports, and Finance tabs with 12-month trends + cohort metrics. New `/api/subscriptions/[id]/generate-invoice` + `batch-generate-invoices` enable both per-subscription billing (manual from card) and bulk monthly billing (one-click from Finance). New `/api/devices/[id]/activity` drives the device activity timeline dialog. All new routes are tenant-scoped, audit-logged where appropriate, and idempotent (invoice-generate routes dedupe via JSON fingerprint stored in Invoice `notes`).
