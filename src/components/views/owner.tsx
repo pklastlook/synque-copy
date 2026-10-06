@@ -2047,6 +2047,9 @@ function InvoicePrintLayout({
 function InvoicesTab({ customers }: { customers: Customer[] }) {
   const { data: invs, loading, reload } = useApi<Invoice[]>("/api/invoices");
   const { data: banks } = useApi<BankAccount[]>("/api/bank-accounts");
+  // Issue OWNER-FIXES #1: fetch all subscriptions so we can auto-fill the
+  // invoice items, tax rate, and discount from the selected client's plan.
+  const { data: subsData } = useApi<SubscriptionData[]>("/api/subscriptions");
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState<DocForm>(EMPTY_DOC);
   const [busy, setBusy] = React.useState(false);
@@ -2054,6 +2057,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
 
   const invoices = invs ?? [];
   const bank = (banks ?? []).find((b) => b.isDefault) ?? (banks ?? [])[0];
+  const subscriptions = subsData ?? [];
 
   const stats = {
     total: invoices.length,
@@ -2078,6 +2082,50 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
       window.removeEventListener("afterprint", onAfter);
     };
   }, [printDoc]);
+
+  // Issue OWNER-FIXES #1: when the selected client changes, auto-fill the
+  // invoice form with the client's subscription details (line item + tax +
+  // discount). If no subscription exists, leave items empty so the owner
+  // can enter them manually. We watch `form.customerId` only — running
+  // whenever the user picks a different client in the dropdown.
+  React.useEffect(() => {
+    if (!form.customerId) return;
+    const cust = customers.find((c) => c.id === form.customerId);
+    if (!cust) return;
+    // Find the client's subscription — prefer active, then trial, then any.
+    const clientSubs = subscriptions.filter((s) => s.customerId === form.customerId);
+    const sub =
+      clientSubs.find((s) => s.status === "active") ??
+      clientSubs.find((s) => s.status === "trial") ??
+      clientSubs[0];
+
+    setForm((f) => {
+      const next: DocForm = {
+        ...f,
+        customerId: form.customerId,
+      };
+      if (sub) {
+        const planLabel = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
+        const cycleLabel = sub.billingCycle ? sub.billingCycle.charAt(0).toUpperCase() + sub.billingCycle.slice(1) : "";
+        const unit = typeof sub.totalAmount === "number" && Number.isFinite(sub.totalAmount)
+          ? sub.totalAmount
+          : sub.amount ?? 0;
+        const description = cycleLabel
+          ? `${planLabel} Plan — ${cycleLabel}`
+          : `${planLabel} Plan`;
+        next.items = [{
+          description,
+          qty: 1,
+          price: unit,
+          amount: unit,
+        }];
+        next.taxRate = sub.taxRate ?? 0;
+        next.discountType = sub.discountType ?? null;
+        next.discountValue = sub.discountValue ?? 0;
+      }
+      return next;
+    });
+  }, [form.customerId]);
 
   const submit = async () => {
     if (!form.customerId) {
@@ -2134,6 +2182,15 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
   };
 
   const totals = docTotals(form);
+  // Issue OWNER-FIXES #1: the currently-selected client (used by the
+  // "Bill To" preview card so the user sees the auto-filled customer
+  // details immediately after picking a client).
+  const selectedCustomer = customers.find((c) => c.id === form.customerId);
+  const selectedSubscription = form.customerId
+    ? (subscriptions.filter((s) => s.customerId === form.customerId).find((s) => s.status === "active")
+        ?? subscriptions.filter((s) => s.customerId === form.customerId).find((s) => s.status === "trial")
+        ?? subscriptions.filter((s) => s.customerId === form.customerId)[0])
+    : undefined;
 
   return (
     <div className="space-y-4">
@@ -2310,6 +2367,60 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                 />
               </Field>
             </div>
+            {/* Issue OWNER-FIXES #1: "Bill To" preview card — auto-filled from
+                the selected client's record. Updates as soon as the client
+                dropdown changes (the useEffect above also fills line items,
+                tax, and discount from the subscription). */}
+            {selectedCustomer && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <CircleUserRound className="h-3 w-3" /> Bill To
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <Sparkles className="h-2.5 w-2.5" /> Auto-filled
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                  <div className="col-span-2 text-sm font-semibold">{selectedCustomer.name}</div>
+                  {selectedCustomer.email && (
+                    <div className="truncate text-muted-foreground">{selectedCustomer.email}</div>
+                  )}
+                  {selectedCustomer.company && (
+                    <div className="truncate text-muted-foreground">{selectedCustomer.company}</div>
+                  )}
+                  {selectedCustomer.address && (
+                    <div className="col-span-2 truncate text-muted-foreground">{selectedCustomer.address}</div>
+                  )}
+                  <div className="truncate text-muted-foreground">
+                    {[selectedCustomer.city, selectedCustomer.country].filter(Boolean).join(", ")}
+                  </div>
+                  {selectedCustomer.phone && (
+                    <div className="truncate text-muted-foreground">{selectedCustomer.phone}</div>
+                  )}
+                </div>
+                {selectedSubscription ? (
+                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                    <CreditCard className="h-3 w-3" />
+                    Linked subscription:
+                    <span className="font-semibold capitalize">{selectedSubscription.plan}</span>
+                    {selectedSubscription.billingCycle && (
+                      <>
+                        <span>·</span>
+                        <span className="capitalize">{selectedSubscription.billingCycle}</span>
+                      </>
+                    )}
+                    <span>·</span>
+                    <span className="font-semibold tabular-nums">
+                      {money(selectedSubscription.totalAmount ?? selectedSubscription.amount)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    No active subscription — line items left empty for manual entry.
+                  </div>
+                )}
+              </div>
+            )}
             <Field label="Line items">
               <LineItemsEditor
                 items={form.items}
@@ -2466,6 +2577,9 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
     "/api/quotations",
   );
   const { data: banks } = useApi<BankAccount[]>("/api/bank-accounts");
+  // Issue OWNER-FIXES #2: fetch all subscriptions so we can auto-fill the
+  // quotation items, tax rate, and discount from the client's plan.
+  const { data: subsData } = useApi<SubscriptionData[]>("/api/subscriptions");
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState<DocForm>(EMPTY_DOC);
   const [busy, setBusy] = React.useState(false);
@@ -2473,6 +2587,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
 
   const quotations = quotes ?? [];
   const bank = (banks ?? []).find((b) => b.isDefault) ?? (banks ?? [])[0];
+  const subscriptions = subsData ?? [];
 
   const stats = {
     total: quotations.length,
@@ -2496,6 +2611,48 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
       window.removeEventListener("afterprint", onAfter);
     };
   }, [printDoc]);
+
+  // Issue OWNER-FIXES #2: when the selected client changes, auto-fill the
+  // quotation form with the client's subscription details (suggested line
+  // item + tax + discount). If no subscription exists, leave items empty so
+  // the owner can enter them manually.
+  React.useEffect(() => {
+    if (!form.customerId) return;
+    const cust = customers.find((c) => c.id === form.customerId);
+    if (!cust) return;
+    const clientSubs = subscriptions.filter((s) => s.customerId === form.customerId);
+    const sub =
+      clientSubs.find((s) => s.status === "active") ??
+      clientSubs.find((s) => s.status === "trial") ??
+      clientSubs[0];
+
+    setForm((f) => {
+      const next: DocForm = {
+        ...f,
+        customerId: form.customerId,
+      };
+      if (sub) {
+        const planLabel = sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1);
+        const cycleLabel = sub.billingCycle ? sub.billingCycle.charAt(0).toUpperCase() + sub.billingCycle.slice(1) : "";
+        const unit = typeof sub.totalAmount === "number" && Number.isFinite(sub.totalAmount)
+          ? sub.totalAmount
+          : sub.amount ?? 0;
+        const description = cycleLabel
+          ? `${planLabel} Plan — ${cycleLabel} (suggested)`
+          : `${planLabel} Plan (suggested)`;
+        next.items = [{
+          description,
+          qty: 1,
+          price: unit,
+          amount: unit,
+        }];
+        next.taxRate = sub.taxRate ?? 0;
+        next.discountType = sub.discountType ?? null;
+        next.discountValue = sub.discountValue ?? 0;
+      }
+      return next;
+    });
+  }, [form.customerId]);
 
   const submit = async () => {
     if (!form.customerId) {
@@ -2552,6 +2709,15 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
   };
 
   const totals = docTotals(form);
+  // Issue OWNER-FIXES #2: the currently-selected client (used by the
+  // "Bill To" preview card so the user sees the auto-filled customer
+  // details immediately after picking a client).
+  const selectedCustomer = customers.find((c) => c.id === form.customerId);
+  const selectedSubscription = form.customerId
+    ? (subscriptions.filter((s) => s.customerId === form.customerId).find((s) => s.status === "active")
+        ?? subscriptions.filter((s) => s.customerId === form.customerId).find((s) => s.status === "trial")
+        ?? subscriptions.filter((s) => s.customerId === form.customerId)[0])
+    : undefined;
 
   return (
     <div className="space-y-4">
@@ -2732,6 +2898,60 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                 />
               </Field>
             </div>
+            {/* Issue OWNER-FIXES #2: "Bill To" preview card — auto-filled from
+                the selected client's record. Updates as soon as the client
+                dropdown changes (the useEffect above also fills suggested
+                line items, tax, and discount from the subscription). */}
+            {selectedCustomer && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <CircleUserRound className="h-3 w-3" /> Bill To
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <Sparkles className="h-2.5 w-2.5" /> Auto-filled
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                  <div className="col-span-2 text-sm font-semibold">{selectedCustomer.name}</div>
+                  {selectedCustomer.email && (
+                    <div className="truncate text-muted-foreground">{selectedCustomer.email}</div>
+                  )}
+                  {selectedCustomer.company && (
+                    <div className="truncate text-muted-foreground">{selectedCustomer.company}</div>
+                  )}
+                  {selectedCustomer.address && (
+                    <div className="col-span-2 truncate text-muted-foreground">{selectedCustomer.address}</div>
+                  )}
+                  <div className="truncate text-muted-foreground">
+                    {[selectedCustomer.city, selectedCustomer.country].filter(Boolean).join(", ")}
+                  </div>
+                  {selectedCustomer.phone && (
+                    <div className="truncate text-muted-foreground">{selectedCustomer.phone}</div>
+                  )}
+                </div>
+                {selectedSubscription ? (
+                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                    <CreditCard className="h-3 w-3" />
+                    Suggested from subscription:
+                    <span className="font-semibold capitalize">{selectedSubscription.plan}</span>
+                    {selectedSubscription.billingCycle && (
+                      <>
+                        <span>·</span>
+                        <span className="capitalize">{selectedSubscription.billingCycle}</span>
+                      </>
+                    )}
+                    <span>·</span>
+                    <span className="font-semibold tabular-nums">
+                      {money(selectedSubscription.totalAmount ?? selectedSubscription.amount)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    No active subscription — line items left empty for manual entry.
+                  </div>
+                )}
+              </div>
+            )}
             <Field label="Line items">
               <LineItemsEditor
                 items={form.items}
@@ -3228,6 +3448,30 @@ function ReportsTab() {
   const { data: invoices } = useApi<Invoice[]>("/api/invoices");
   const { data: analytics } = useApi<FinanceAnalytics | null>("/api/finance/analytics");
   const [range, setRange] = React.useState<"7" | "30" | "90" | "365">("365");
+  // Issue OWNER-FIXES #4: state for the print-ready report dialog. The
+  // hooks are declared BEFORE the loading-state early return so React's
+  // rules-of-hooks invariant holds.
+  const [reportOpen, setReportOpen] = React.useState(false);
+  const [reportDoc, setReportDoc] = React.useState<{ range: string; generatedAt: string } | null>(null);
+
+  // Issue OWNER-FIXES #4: when the user clicks "Print" inside the report
+  // dialog, we close the dialog and render the print-ready report layout
+  // (with `.print-area` class) at the top level. The useEffect then triggers
+  // window.print() after the layout has mounted, and clears `reportDoc`
+  // after the browser's "afterprint" event fires. This is the same pattern
+  // InvoicePrintLayout uses.
+  React.useEffect(() => {
+    if (!reportDoc) return;
+    const t = setTimeout(() => {
+      window.print();
+    }, 80);
+    const onAfter = () => setReportDoc(null);
+    window.addEventListener("afterprint", onAfter);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("afterprint", onAfter);
+    };
+  }, [reportDoc]);
 
   if (!customers || !keys || !invoices) {
     return (
@@ -3371,6 +3615,17 @@ function ReportsTab() {
     { value: "365", label: "Last 12 months" },
   ];
 
+  // Report-specific computed rows (built from the same data as the charts).
+  const rangeLabel = rangeOptions.find((o) => o.value === range)?.label ?? "Custom range";
+  const invoiceSummary = [
+    { label: "Total", count: rangeInvoices.length, amount: rangeInvoices.reduce((s, i) => s + i.total, 0) },
+    { label: "Paid", count: rangeInvoices.filter((i) => i.status === "paid").length, amount: rangeInvoices.filter((i) => i.status === "paid").reduce((s, i) => s + i.total, 0) },
+    { label: "Pending", count: rangeInvoices.filter((i) => i.status === "sent" || i.status === "draft").length, amount: rangeInvoices.filter((i) => i.status === "sent" || i.status === "draft").reduce((s, i) => s + i.total, 0) },
+    { label: "Overdue", count: rangeInvoices.filter((i) => i.status === "overdue").length, amount: rangeInvoices.filter((i) => i.status === "overdue").reduce((s, i) => s + i.total, 0) },
+  ];
+  const topClients = (analytics?.topClients ?? []).slice(0, 10);
+  const totalRevenue = analytics?.totals?.totalRevenue ?? revenue;
+
   return (
     <div className="space-y-4">
       {/* Header bar with date range filter + export */}
@@ -3391,12 +3646,20 @@ function ReportsTab() {
             </button>
           ))}
         </div>
-        <button
-          onClick={exportCsv}
-          className="liquid-pill flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"
-        >
-          <Download className="h-3.5 w-3.5" /> Export CSV
-        </button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => setReportOpen(true)}
+            className="liquid-pill flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"
+          >
+            <Printer className="h-3.5 w-3.5" /> Generate Report
+          </button>
+          <button
+            onClick={exportCsv}
+            className="liquid-pill flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"
+          >
+            <Download className="h-3.5 w-3.5" /> Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Subscription metrics KPI strip */}
@@ -3684,6 +3947,412 @@ function ReportsTab() {
           })()}
         </div>
       </section>
+
+      {/* Issue OWNER-FIXES #4: Generate Report dialog — print-ready
+          financial summary report. */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scroll-liquid">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-4 w-4" /> Financial Summary Report
+            </DialogTitle>
+            <DialogDescription>
+              Print-ready summary of revenue, clients, and invoices. Click "Print"
+              to send to a printer or save as PDF.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-border/40 bg-white text-neutral-900">
+            <FinancialReportLayout
+              range={rangeLabel}
+              generatedAt={new Date().toISOString()}
+              mrr={mrr}
+              arr={arr}
+              totalRevenue={totalRevenue}
+              pending={pending}
+              overdue={overdue}
+              planRevenue={planRevenue}
+              topClients={topClients}
+              customers={customers}
+              invoiceSummary={invoiceSummary}
+              invoiceStatusData={(analytics?.invoiceBreakdown ?? []).map((b) => ({
+                status: b.status,
+                count: b.count,
+                total: b.total,
+              }))}
+            />
+          </div>
+          <DialogFooter className="flex-wrap">
+            <Button variant="ghost" onClick={() => setReportOpen(false)}>
+              Close
+            </Button>
+            <Button
+              variant="outline"
+              onClick={exportCsv}
+              className="flex items-center gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" /> Download CSV
+            </Button>
+            <Button
+              onClick={() => {
+                setReportDoc({ range: rangeLabel, generatedAt: new Date().toISOString() });
+                setReportOpen(false);
+              }}
+              className="liquid-pill flex items-center gap-1.5"
+            >
+              <Printer className="h-3.5 w-3.5" /> Print
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print-only report layout — rendered as a top-level sibling (NOT
+          inside the Dialog portal) so the global @media print rules in
+          globals.css (which hide body > *:not(.print-area)) keep it visible.
+          Same pattern as InvoicePrintLayout uses for invoices. */}
+      {reportDoc && (
+        <>
+          <style>{`
+            @media screen {
+              .print-area {
+                position: fixed;
+                inset: 0;
+                z-index: 9999;
+                overflow: auto;
+                background: white;
+              }
+            }
+          `}</style>
+          <FinancialReportLayout
+            range={reportDoc.range}
+            generatedAt={reportDoc.generatedAt}
+            mrr={mrr}
+            arr={arr}
+            totalRevenue={totalRevenue}
+            pending={pending}
+            overdue={overdue}
+            planRevenue={planRevenue}
+            topClients={topClients}
+            customers={customers}
+            invoiceSummary={invoiceSummary}
+            invoiceStatusData={(analytics?.invoiceBreakdown ?? []).map((b) => ({
+              status: b.status,
+              count: b.count,
+              total: b.total,
+            }))}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Issue OWNER-FIXES #4: Financial Summary Report — print-ready layout.
+// Rendered inside the "Generate Report" dialog (on-screen preview) and again
+// as a top-level sibling when the user clicks Print (so @media print rules
+// in globals.css isolate it correctly). Uses the same `.print-area` class
+// as InvoicePrintLayout so the existing print CSS applies.
+// ============================================================================
+interface ReportClientRow {
+  customerId: string;
+  name: string;
+  totalRevenue: number;
+  invoices: number;
+  lastInvoice: string | null;
+}
+
+interface FinancialReportLayoutProps {
+  range: string;
+  generatedAt: string;
+  mrr: number;
+  arr: number;
+  totalRevenue: number;
+  pending: number;
+  overdue: number;
+  planRevenue: { plan: string; revenue: number; color: string }[];
+  topClients: ReportClientRow[];
+  customers: Customer[];
+  invoiceSummary: { label: string; count: number; amount: number }[];
+  invoiceStatusData: { status: string; count: number; total: number }[];
+}
+
+function FinancialReportLayout({
+  range,
+  generatedAt,
+  mrr,
+  arr,
+  totalRevenue,
+  pending,
+  overdue,
+  planRevenue,
+  topClients,
+  customers,
+  invoiceSummary,
+  invoiceStatusData,
+}: FinancialReportLayoutProps) {
+  const reportTitle = "Financial Summary Report";
+  const reportId = `RPT-${new Date(generatedAt).toISOString().slice(0, 10).replace(/-/g, "")}`;
+  const totalPlanRevenue = planRevenue.reduce((s, p) => s + p.revenue, 0);
+  const totalInvoices = invoiceSummary.reduce((s, i) => s + i.count, 0);
+  const totalAmount = invoiceSummary.reduce((s, i) => s + i.amount, 0);
+  const activeClients = customers.filter((c) => c.status === "active").length;
+  const trialClients = customers.filter((c) => c.status === "trial").length;
+
+  return (
+    <div className="print-area mx-auto max-w-[8.5in] bg-white p-10 text-[12px] leading-relaxed text-neutral-900">
+      {/* ===== Header ===== */}
+      <div className="flex items-start justify-between border-b border-neutral-300 pb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="grid h-10 w-10 place-items-center rounded-lg bg-neutral-900 text-white">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xl font-bold tracking-tight text-neutral-900">
+                SYNQUE
+              </div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+                Orchestrate Your Social.
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 text-[11px] text-neutral-600">
+            SYNQUE HQ · 100 Market Street
+            <br />
+            San Francisco, CA 94105
+            <br />
+            billing@synque.cloud
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold tracking-tight text-neutral-900">
+            {reportTitle}
+          </div>
+          <div className="mt-1 text-sm font-mono text-neutral-700">
+            {reportId}
+          </div>
+          <div className="mt-2 text-[11px] text-neutral-600">
+            Range: {range}
+            <br />
+            Generated: {format(new Date(generatedAt), "MMM d, yyyy · HH:mm")}
+          </div>
+        </div>
+      </div>
+
+      {/* ===== Summary KPIs ===== */}
+      <div className="py-6">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Executive Summary
+        </div>
+        <div className="mt-3 grid grid-cols-5 gap-3">
+          {[
+            { label: "MRR", value: money(mrr) },
+            { label: "ARR", value: money(arr) },
+            { label: "Total Revenue", value: money(totalRevenue) },
+            { label: "Pending", value: money(pending) },
+            { label: "Overdue", value: money(overdue) },
+          ].map((kpi) => (
+            <div key={kpi.label} className="rounded-lg border border-neutral-200 p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                {kpi.label}
+              </div>
+              <div className="mt-1 text-lg font-bold tabular-nums text-neutral-900">
+                {kpi.value}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-4 gap-3 text-[11px] text-neutral-700">
+          <div className="rounded-lg bg-neutral-100 px-3 py-2">
+            <div className="text-[10px] uppercase text-neutral-500">Total Clients</div>
+            <div className="num-display text-base font-bold tabular-nums">{customers.length}</div>
+          </div>
+          <div className="rounded-lg bg-emerald-50 px-3 py-2">
+            <div className="text-[10px] uppercase text-neutral-500">Active Clients</div>
+            <div className="num-display text-base font-bold tabular-nums text-emerald-700">{activeClients}</div>
+          </div>
+          <div className="rounded-lg bg-amber-50 px-3 py-2">
+            <div className="text-[10px] uppercase text-neutral-500">Trial Clients</div>
+            <div className="num-display text-base font-bold tabular-nums text-amber-700">{trialClients}</div>
+          </div>
+          <div className="rounded-lg bg-neutral-100 px-3 py-2">
+            <div className="text-[10px] uppercase text-neutral-500">Total Invoices</div>
+            <div className="num-display text-base font-bold tabular-nums">{totalInvoices}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== Revenue by plan table ===== */}
+      <div className="notes-block">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Revenue Breakdown by Plan
+        </div>
+        <table className="mt-2 w-full border-collapse">
+          <thead>
+            <tr className="border-b-2 border-neutral-900 text-left text-[10px] uppercase tracking-wider text-neutral-700">
+              <th className="py-2 pr-2">Plan</th>
+              <th className="w-32 py-2 pr-2 text-right">Paid Revenue</th>
+              <th className="w-20 py-2 pr-2 text-right">Share</th>
+              <th className="w-40 py-2 text-right">Share Bar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {planRevenue.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-4 text-center italic text-neutral-500">
+                  No paid revenue recorded yet
+                </td>
+              </tr>
+            )}
+            {planRevenue.map((p) => {
+              const pct = totalPlanRevenue > 0 ? Math.round((p.revenue / totalPlanRevenue) * 100) : 0;
+              return (
+                <tr key={p.plan} className="border-b border-neutral-200 align-top text-[11px]">
+                  <td className="py-2 pr-2 capitalize font-semibold">{p.plan}</td>
+                  <td className="py-2 pr-2 text-right tabular-nums">{money(p.revenue)}</td>
+                  <td className="py-2 pr-2 text-right tabular-nums text-neutral-600">{pct}%</td>
+                  <td className="py-2">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${pct}%`, background: p.color }}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {planRevenue.length > 0 && (
+              <tr className="border-t-2 border-neutral-900 text-[11px] font-bold">
+                <td className="py-2 pr-2">Total</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{money(totalPlanRevenue)}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">100%</td>
+                <td className="py-2" />
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ===== Top 10 clients table ===== */}
+      <div className="notes-block mt-6">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Top 10 Clients by Revenue
+        </div>
+        <table className="mt-2 w-full border-collapse">
+          <thead>
+            <tr className="border-b-2 border-neutral-900 text-left text-[10px] uppercase tracking-wider text-neutral-700">
+              <th className="w-8 py-2 pr-2 text-right">#</th>
+              <th className="py-2 pr-2">Client</th>
+              <th className="w-20 py-2 pr-2 text-right">Invoices</th>
+              <th className="w-28 py-2 pr-2 text-right">Revenue</th>
+              <th className="w-32 py-2 text-right">Last Invoice</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topClients.length === 0 && (
+              <tr>
+                <td colSpan={5} className="py-4 text-center italic text-neutral-500">
+                  No paid invoices yet
+                </td>
+              </tr>
+            )}
+            {topClients.map((c, i) => (
+              <tr key={c.customerId} className="border-b border-neutral-200 align-top text-[11px]">
+                <td className="py-2 pr-2 text-right tabular-nums font-bold text-neutral-500">{i + 1}</td>
+                <td className="py-2 pr-2 font-semibold">
+                  {c.name}
+                  {(() => {
+                    const cust = customers.find((cu) => cu.id === c.customerId);
+                    if (!cust) return null;
+                    return (
+                      <span className="ml-1 text-[10px] font-normal text-neutral-500">
+                        ({cust.plan} · {cust.status})
+                      </span>
+                    );
+                  })()}
+                </td>
+                <td className="py-2 pr-2 text-right tabular-nums">{c.invoices}</td>
+                <td className="py-2 pr-2 text-right tabular-nums font-semibold">{money(c.totalRevenue)}</td>
+                <td className="py-2 text-right text-[10px] text-neutral-600">
+                  {c.lastInvoice ? format(new Date(c.lastInvoice), "MMM d, yyyy") : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ===== Invoice summary table ===== */}
+      <div className="notes-block mt-6">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Invoice Summary
+        </div>
+        <div className="mt-3 grid grid-cols-4 gap-3">
+          {invoiceSummary.map((row) => (
+            <div key={row.label} className="rounded-lg border border-neutral-200 p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                {row.label}
+              </div>
+              <div className="mt-1 text-base font-bold tabular-nums text-neutral-900">
+                {money(row.amount)}
+              </div>
+              <div className="mt-0.5 text-[10px] text-neutral-600">
+                {row.count} invoice{row.count === 1 ? "" : "s"}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Status breakdown table */}
+        <table className="mt-4 w-full border-collapse">
+          <thead>
+            <tr className="border-b-2 border-neutral-900 text-left text-[10px] uppercase tracking-wider text-neutral-700">
+              <th className="py-2 pr-2">Status</th>
+              <th className="w-20 py-2 pr-2 text-right">Count</th>
+              <th className="w-32 py-2 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoiceStatusData.length === 0 && (
+              <tr>
+                <td colSpan={3} className="py-4 text-center italic text-neutral-500">
+                  No invoices in this range
+                </td>
+              </tr>
+            )}
+            {invoiceStatusData.map((b) => (
+              <tr key={b.status} className="border-b border-neutral-200 align-top text-[11px]">
+                <td className="py-2 pr-2 capitalize font-semibold">{b.status}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{b.count}</td>
+                <td className="py-2 text-right tabular-nums">{money(b.total)}</td>
+              </tr>
+            ))}
+            {invoiceStatusData.length > 0 && (
+              <tr className="border-t-2 border-neutral-900 text-[11px] font-bold">
+                <td className="py-2 pr-2">Total</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{totalInvoices}</td>
+                <td className="py-2 text-right tabular-nums">{money(totalAmount)}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ===== Footer ===== */}
+      <div className="notes-block mt-8 border-t border-neutral-300 pt-4 text-[10px] text-neutral-500">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            Report generated by SYNQUE Owner Panel · {format(new Date(generatedAt), "PPpp")}
+          </div>
+          <div className="font-mono">{reportId}</div>
+        </div>
+        <p className="mt-2">
+          This report is auto-generated from the SYNQUE finance module. Figures are
+          derived from the invoice + subscription records in the selected date range.
+          For questions, contact billing@synque.cloud.
+        </p>
+      </div>
     </div>
   );
 }
@@ -3694,7 +4363,9 @@ function ReportsTab() {
 interface DeviceData {
   id: string; deviceName: string; fingerprint: string | null; ipAddress: string | null;
   location: string | null; status: string; lastSeen: string | null; createdAt: string;
-  serialKey: { key: string; status: string } | null; customerName: string | null;
+  serialKey: { key: string; status: string } | null;
+  customerId: string | null; customerName: string | null; customerEmail: string | null;
+  userName: string | null; userEmail: string | null;
 }
 
 /** Single entry in the device activity timeline (returned by
@@ -3718,6 +4389,8 @@ function DevicesTab() {
   const [activity, setActivity] = React.useState<DeviceActivityEntry[] | null>(null);
   const [activityLoading, setActivityLoading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  // Issue OWNER-FIXES #3B: per-device loading state for the active/blocked toggle.
+  const [togglingId, setTogglingId] = React.useState<string | null>(null);
 
   if (loading) return <div className="shimmer h-64 rounded-3xl" />;
   const devices = data ?? [];
@@ -3758,12 +4431,23 @@ function DevicesTab() {
   };
 
   const setStatus = async (id: string, name: string, status: "active" | "blocked" | "revoked") => {
+    setTogglingId(id);
     try {
       await api("PATCH", `/api/devices/${id}`, { status });
       toast.success(`${name} → ${status}`); reload();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setTogglingId(null);
     }
+  };
+
+  /** Issue OWNER-FIXES #3B: Toggle a device between active and blocked.
+   *  If the device is revoked, the toggle is disabled (use the Revoke/Restore
+   *  button actions instead). */
+  const toggleActive = async (d: DeviceData) => {
+    const next = d.status === "active" ? "blocked" : "active";
+    await setStatus(d.id, d.deviceName, next);
   };
 
   const remove = async (id: string, name: string) => {
@@ -3855,7 +4539,7 @@ function DevicesTab() {
                   <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[d.status] ?? statusStyle.active)}>{d.status}</span>
                 </div>
                 <div className="mt-3 truncate text-sm font-semibold">{d.deviceName}</div>
-                <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+                <div className="mt-3 space-y-1 text-[11px] text-muted-foreground">
                   {/* Serial key (masked, click to reveal) */}
                   {d.serialKey && (
                     <div className="flex items-center gap-1">
@@ -3870,9 +4554,21 @@ function DevicesTab() {
                       </button>
                     </div>
                   )}
+                  {d.serialKey?.status && (
+                    <div className="flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3 shrink-0" />
+                      <span className="capitalize">Key: {d.serialKey.status}</span>
+                    </div>
+                  )}
                   {d.ipAddress && <div className="flex items-center gap-1"><Globe className="h-3 w-3" /> {d.ipAddress}</div>}
                   {d.location && <div className="flex items-center gap-1"><Wifi className="h-3 w-3" /> {d.location}</div>}
-                  {d.customerName && <div className="flex items-center gap-1"><Users className="h-3 w-3" /> {d.customerName}</div>}
+                  {d.customerName && <div className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {d.customerName}</div>}
+                  {d.userName && (
+                    <div className="flex items-center gap-1">
+                      <CircleUserRound className="h-3 w-3" />
+                      <span className="truncate">{d.userName}{d.userEmail ? ` · ${d.userEmail}` : ""}</span>
+                    </div>
+                  )}
                   {d.lastSeen && (
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
@@ -3880,14 +4576,49 @@ function DevicesTab() {
                     </div>
                   )}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {d.status === "active" ? (
-                    <button onClick={() => setStatus(d.id, d.deviceName, "blocked")} className="flex-1 rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/20">Block</button>
-                  ) : (
-                    <button onClick={() => setStatus(d.id, d.deviceName, "active")} className="flex-1 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-500 hover:bg-emerald-500/20">Unblock</button>
-                  )}
+                {/* Issue OWNER-FIXES #3B: iOS-style toggle for active/blocked.
+                    Active = green toggle (on). Blocked = gray toggle (off).
+                    Clicking calls PATCH /api/devices/[id] with the new status.
+                    A spinner overlays the toggle while the request is in flight. */}
+                <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold leading-tight">
+                      {d.status === "active" ? "Active" : d.status === "blocked" ? "Blocked" : "Revoked"}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {d.status === "active" ? "Device can connect" : d.status === "blocked" ? "Access denied" : "Permanently revoked"}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={d.status === "active"}
+                    aria-label={d.status === "active" ? "Block device" : "Activate device"}
+                    disabled={d.status === "revoked" || togglingId === d.id}
+                    onClick={() => toggleActive(d)}
+                    className={cn(
+                      "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                      d.status === "active"
+                        ? "bg-emerald-500"
+                        : "bg-muted-foreground/30",
+                    )}
+                  >
+                    {togglingId === d.id ? (
+                      <span className="absolute inset-0 grid place-items-center">
+                        <Loader2 className="h-3 w-3 animate-spin text-white" />
+                      </span>
+                    ) : null}
+                    <span
+                      className={cn(
+                        "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                        d.status === "active" ? "translate-x-4" : "translate-x-0.5",
+                      )}
+                    />
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   {d.status !== "revoked" && (
-                    <button onClick={() => setStatus(d.id, d.deviceName, "revoked")} className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted">Revoke</button>
+                    <button onClick={() => setStatus(d.id, d.deviceName, "revoked")} className="flex-1 rounded-lg bg-muted/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted">Revoke</button>
                   )}
                   <button onClick={() => openActivity(d)} className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted" aria-label="Activity log">
                     <History className="h-3.5 w-3.5" />

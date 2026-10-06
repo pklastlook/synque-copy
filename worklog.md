@@ -13110,3 +13110,49 @@ Work Log:
 
 Stage Summary:
 Owner Panel is now enterprise-grade. Every previously-stub tab (Overview, Subscriptions, Reports, Devices, Finance) is rebuilt with real data, charts, lifecycle visualization, and the auto-invoice pipeline. New `/api/finance/analytics` powers the rebuilt Overview, Reports, and Finance tabs with 12-month trends + cohort metrics. New `/api/subscriptions/[id]/generate-invoice` + `batch-generate-invoices` enable both per-subscription billing (manual from card) and bulk monthly billing (one-click from Finance). New `/api/devices/[id]/activity` drives the device activity timeline dialog. All new routes are tenant-scoped, audit-logged where appropriate, and idempotent (invoice-generate routes dedupe via JSON fingerprint stored in Invoice `notes`).
+
+---
+Task ID: OWNER-FIXES
+Agent: subagent
+Task: Auto-fetch client details in invoices/quotations + device toggle + print reports
+
+Work Log:
+- Issue 1 (InvoicesTab): added /api/subscriptions fetch + useEffect on form.customerId
+  that auto-fills the line item ({Plan} Plan — {Billing Cycle} @ subscription.totalAmount),
+  taxRate, discountType, and discountValue from the selected client's subscription.
+  Added a "Bill To" preview card showing the auto-filled client details (name, email,
+  company, address, city, country, phone) plus a footer indicating whether a linked
+  subscription was found. If no subscription exists, items are left empty for manual
+  entry.
+- Issue 2 (QuotationsTab): mirrored the InvoicesTab implementation — same useEffect +
+  Bill To preview card. The suggested line item is suffixed " (suggested)" to signal
+  it is editable.
+- Issue 3A (devices API): switched GET/POST/PATCH/DELETE to requireRole("admin").
+  GET now returns ALL devices with customerId/customerName/customerEmail/userName/
+  userEmail (the most-recently-active user belonging to that client's tenant) plus
+  the existing serialKey {key, status}. Pre-fetched users as a Map to avoid N+1.
+- Issue 3B (DevicesTab): replaced Block/Unblock buttons with an iOS-style toggle
+  (translate-x-4 = on/green, translate-x-0.5 = off/gray) that calls PATCH
+  /api/devices/[id]. Shows a Loader2 spinner overlay while togglingId matches.
+  Added userName/userEmail rows + a "Key: {status}" row to the device card metadata.
+- Issue 4 (ReportsTab): added "Generate Report" button + FinancialReportLayout
+  component (in owner.tsx, no new file). Layout uses the .print-area class so the
+  existing @media print rules in globals.css isolate it during printing. Includes
+  SYNQUE header, RPT-YYYYMMDD ID, date range, executive summary KPIs, revenue-by-plan
+  table with share bars, top-10 clients table, invoice summary cards + status table,
+  and a footer with generated timestamp. Dialog footer has Close / Download CSV /
+  Print buttons. Print flow: closes dialog → renders FinancialReportLayout as a
+  top-level sibling → useEffect fires window.print() after 80ms → afterprint
+  event clears state.
+
+Stage Summary:
+All four owner-panel issues are fixed end-to-end. Picking a client in the invoice or
+quotation dialog now auto-populates the Bill To section and (when the client has a
+subscription) the suggested line item + tax rate + discount. The Devices tab now
+shows every device across every client (including ones activated by end users) with
+the operator's name + email joined in, and uses a polished iOS-style toggle instead
+of two separate Block/Unblock buttons. The Reports tab gains a "Generate Report"
+dialog with a print-ready Financial Summary Report (KPIs + revenue-by-plan + top-10
+clients + invoice summary) plus Print and Download CSV actions. `bun run lint` →
+0 errors, 7 pre-existing warnings (all in unrelated files). `npx tsc --noEmit` →
+no errors in any modified file.
