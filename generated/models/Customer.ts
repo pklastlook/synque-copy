@@ -242,6 +242,7 @@ export type CustomerWhereInput = {
   invoices?: Prisma.InvoiceListRelationFilter
   quotations?: Prisma.QuotationListRelationFilter
   subscriptions?: Prisma.SubscriptionListRelationFilter
+  payments?: Prisma.PaymentListRelationFilter
 }
 
 export type CustomerOrderByWithRelationInput = {
@@ -261,6 +262,7 @@ export type CustomerOrderByWithRelationInput = {
   invoices?: Prisma.InvoiceOrderByRelationAggregateInput
   quotations?: Prisma.QuotationOrderByRelationAggregateInput
   subscriptions?: Prisma.SubscriptionOrderByRelationAggregateInput
+  payments?: Prisma.PaymentOrderByRelationAggregateInput
 }
 
 export type CustomerWhereUniqueInput = Prisma.AtLeast<{
@@ -283,6 +285,7 @@ export type CustomerWhereUniqueInput = Prisma.AtLeast<{
   invoices?: Prisma.InvoiceListRelationFilter
   quotations?: Prisma.QuotationListRelationFilter
   subscriptions?: Prisma.SubscriptionListRelationFilter
+  payments?: Prisma.PaymentListRelationFilter
 }, "id" | "email">
 
 export type CustomerOrderByWithAggregationInput = {
@@ -338,6 +341,7 @@ export type CustomerCreateInput = {
   invoices?: Prisma.InvoiceCreateNestedManyWithoutCustomerInput
   quotations?: Prisma.QuotationCreateNestedManyWithoutCustomerInput
   subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerUncheckedCreateInput = {
@@ -357,6 +361,7 @@ export type CustomerUncheckedCreateInput = {
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutCustomerInput
   quotations?: Prisma.QuotationUncheckedCreateNestedManyWithoutCustomerInput
   subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerUpdateInput = {
@@ -376,6 +381,7 @@ export type CustomerUpdateInput = {
   invoices?: Prisma.InvoiceUpdateManyWithoutCustomerNestedInput
   quotations?: Prisma.QuotationUpdateManyWithoutCustomerNestedInput
   subscriptions?: Prisma.SubscriptionUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutCustomerNestedInput
 }
 
 export type CustomerUncheckedUpdateInput = {
@@ -395,6 +401,7 @@ export type CustomerUncheckedUpdateInput = {
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutCustomerNestedInput
   quotations?: Prisma.QuotationUncheckedUpdateManyWithoutCustomerNestedInput
   subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutCustomerNestedInput
 }
 
 export type CustomerCreateManyInput = {
@@ -555,6 +562,20 @@ export type CustomerUpdateOneRequiredWithoutSubscriptionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.CustomerUpdateToOneWithWhereWithoutSubscriptionsInput, Prisma.CustomerUpdateWithoutSubscriptionsInput>, Prisma.CustomerUncheckedUpdateWithoutSubscriptionsInput>
 }
 
+export type CustomerCreateNestedOneWithoutPaymentsInput = {
+  create?: Prisma.XOR<Prisma.CustomerCreateWithoutPaymentsInput, Prisma.CustomerUncheckedCreateWithoutPaymentsInput>
+  connectOrCreate?: Prisma.CustomerCreateOrConnectWithoutPaymentsInput
+  connect?: Prisma.CustomerWhereUniqueInput
+}
+
+export type CustomerUpdateOneRequiredWithoutPaymentsNestedInput = {
+  create?: Prisma.XOR<Prisma.CustomerCreateWithoutPaymentsInput, Prisma.CustomerUncheckedCreateWithoutPaymentsInput>
+  connectOrCreate?: Prisma.CustomerCreateOrConnectWithoutPaymentsInput
+  upsert?: Prisma.CustomerUpsertWithoutPaymentsInput
+  connect?: Prisma.CustomerWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CustomerUpdateToOneWithWhereWithoutPaymentsInput, Prisma.CustomerUpdateWithoutPaymentsInput>, Prisma.CustomerUncheckedUpdateWithoutPaymentsInput>
+}
+
 export type CustomerCreateWithoutSerialKeyInput = {
   id?: string
   name: string
@@ -571,6 +592,7 @@ export type CustomerCreateWithoutSerialKeyInput = {
   invoices?: Prisma.InvoiceCreateNestedManyWithoutCustomerInput
   quotations?: Prisma.QuotationCreateNestedManyWithoutCustomerInput
   subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerUncheckedCreateWithoutSerialKeyInput = {
@@ -589,6 +611,7 @@ export type CustomerUncheckedCreateWithoutSerialKeyInput = {
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutCustomerInput
   quotations?: Prisma.QuotationUncheckedCreateNestedManyWithoutCustomerInput
   subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerCreateOrConnectWithoutSerialKeyInput = {
@@ -623,6 +646,7 @@ export type CustomerUpdateWithoutSerialKeyInput = {
   invoices?: Prisma.InvoiceUpdateManyWithoutCustomerNestedInput
   quotations?: Prisma.QuotationUpdateManyWithoutCustomerNestedInput
   subscriptions?: Prisma.SubscriptionUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutCustomerNestedInput
 }
 
 export type CustomerUncheckedUpdateWithoutSerialKeyInput = {
@@ -641,6 +665,7 @@ export type CustomerUncheckedUpdateWithoutSerialKeyInput = {
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutCustomerNestedInput
   quotations?: Prisma.QuotationUncheckedUpdateManyWithoutCustomerNestedInput
   subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutCustomerNestedInput
 }
 
 export type CustomerCreateWithoutInvoicesInput = {
@@ -659,6 +684,7 @@ export type CustomerCreateWithoutInvoicesInput = {
   serialKey?: Prisma.SerialKeyCreateNestedOneWithoutCustomerInput
   quotations?: Prisma.QuotationCreateNestedManyWithoutCustomerInput
   subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerUncheckedCreateWithoutInvoicesInput = {
@@ -677,6 +703,7 @@ export type CustomerUncheckedCreateWithoutInvoicesInput = {
   serialKey?: Prisma.SerialKeyUncheckedCreateNestedOneWithoutCustomerInput
   quotations?: Prisma.QuotationUncheckedCreateNestedManyWithoutCustomerInput
   subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerCreateOrConnectWithoutInvoicesInput = {
@@ -711,6 +738,7 @@ export type CustomerUpdateWithoutInvoicesInput = {
   serialKey?: Prisma.SerialKeyUpdateOneWithoutCustomerNestedInput
   quotations?: Prisma.QuotationUpdateManyWithoutCustomerNestedInput
   subscriptions?: Prisma.SubscriptionUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutCustomerNestedInput
 }
 
 export type CustomerUncheckedUpdateWithoutInvoicesInput = {
@@ -729,6 +757,7 @@ export type CustomerUncheckedUpdateWithoutInvoicesInput = {
   serialKey?: Prisma.SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput
   quotations?: Prisma.QuotationUncheckedUpdateManyWithoutCustomerNestedInput
   subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutCustomerNestedInput
 }
 
 export type CustomerCreateWithoutQuotationsInput = {
@@ -747,6 +776,7 @@ export type CustomerCreateWithoutQuotationsInput = {
   serialKey?: Prisma.SerialKeyCreateNestedOneWithoutCustomerInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutCustomerInput
   subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerUncheckedCreateWithoutQuotationsInput = {
@@ -765,6 +795,7 @@ export type CustomerUncheckedCreateWithoutQuotationsInput = {
   serialKey?: Prisma.SerialKeyUncheckedCreateNestedOneWithoutCustomerInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutCustomerInput
   subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerCreateOrConnectWithoutQuotationsInput = {
@@ -799,6 +830,7 @@ export type CustomerUpdateWithoutQuotationsInput = {
   serialKey?: Prisma.SerialKeyUpdateOneWithoutCustomerNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutCustomerNestedInput
   subscriptions?: Prisma.SubscriptionUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutCustomerNestedInput
 }
 
 export type CustomerUncheckedUpdateWithoutQuotationsInput = {
@@ -817,6 +849,7 @@ export type CustomerUncheckedUpdateWithoutQuotationsInput = {
   serialKey?: Prisma.SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutCustomerNestedInput
   subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutCustomerNestedInput
 }
 
 export type CustomerCreateWithoutSubscriptionsInput = {
@@ -835,6 +868,7 @@ export type CustomerCreateWithoutSubscriptionsInput = {
   serialKey?: Prisma.SerialKeyCreateNestedOneWithoutCustomerInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutCustomerInput
   quotations?: Prisma.QuotationCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerUncheckedCreateWithoutSubscriptionsInput = {
@@ -853,6 +887,7 @@ export type CustomerUncheckedCreateWithoutSubscriptionsInput = {
   serialKey?: Prisma.SerialKeyUncheckedCreateNestedOneWithoutCustomerInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutCustomerInput
   quotations?: Prisma.QuotationUncheckedCreateNestedManyWithoutCustomerInput
+  payments?: Prisma.PaymentUncheckedCreateNestedManyWithoutCustomerInput
 }
 
 export type CustomerCreateOrConnectWithoutSubscriptionsInput = {
@@ -887,6 +922,7 @@ export type CustomerUpdateWithoutSubscriptionsInput = {
   serialKey?: Prisma.SerialKeyUpdateOneWithoutCustomerNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutCustomerNestedInput
   quotations?: Prisma.QuotationUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUpdateManyWithoutCustomerNestedInput
 }
 
 export type CustomerUncheckedUpdateWithoutSubscriptionsInput = {
@@ -905,6 +941,99 @@ export type CustomerUncheckedUpdateWithoutSubscriptionsInput = {
   serialKey?: Prisma.SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutCustomerNestedInput
   quotations?: Prisma.QuotationUncheckedUpdateManyWithoutCustomerNestedInput
+  payments?: Prisma.PaymentUncheckedUpdateManyWithoutCustomerNestedInput
+}
+
+export type CustomerCreateWithoutPaymentsInput = {
+  id?: string
+  name: string
+  email: string
+  phone?: string | null
+  company?: string | null
+  address?: string | null
+  city?: string | null
+  country?: string | null
+  status?: string
+  plan?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  serialKey?: Prisma.SerialKeyCreateNestedOneWithoutCustomerInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutCustomerInput
+  quotations?: Prisma.QuotationCreateNestedManyWithoutCustomerInput
+  subscriptions?: Prisma.SubscriptionCreateNestedManyWithoutCustomerInput
+}
+
+export type CustomerUncheckedCreateWithoutPaymentsInput = {
+  id?: string
+  name: string
+  email: string
+  phone?: string | null
+  company?: string | null
+  address?: string | null
+  city?: string | null
+  country?: string | null
+  status?: string
+  plan?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  serialKey?: Prisma.SerialKeyUncheckedCreateNestedOneWithoutCustomerInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutCustomerInput
+  quotations?: Prisma.QuotationUncheckedCreateNestedManyWithoutCustomerInput
+  subscriptions?: Prisma.SubscriptionUncheckedCreateNestedManyWithoutCustomerInput
+}
+
+export type CustomerCreateOrConnectWithoutPaymentsInput = {
+  where: Prisma.CustomerWhereUniqueInput
+  create: Prisma.XOR<Prisma.CustomerCreateWithoutPaymentsInput, Prisma.CustomerUncheckedCreateWithoutPaymentsInput>
+}
+
+export type CustomerUpsertWithoutPaymentsInput = {
+  update: Prisma.XOR<Prisma.CustomerUpdateWithoutPaymentsInput, Prisma.CustomerUncheckedUpdateWithoutPaymentsInput>
+  create: Prisma.XOR<Prisma.CustomerCreateWithoutPaymentsInput, Prisma.CustomerUncheckedCreateWithoutPaymentsInput>
+  where?: Prisma.CustomerWhereInput
+}
+
+export type CustomerUpdateToOneWithWhereWithoutPaymentsInput = {
+  where?: Prisma.CustomerWhereInput
+  data: Prisma.XOR<Prisma.CustomerUpdateWithoutPaymentsInput, Prisma.CustomerUncheckedUpdateWithoutPaymentsInput>
+}
+
+export type CustomerUpdateWithoutPaymentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  plan?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  serialKey?: Prisma.SerialKeyUpdateOneWithoutCustomerNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutCustomerNestedInput
+  quotations?: Prisma.QuotationUpdateManyWithoutCustomerNestedInput
+  subscriptions?: Prisma.SubscriptionUpdateManyWithoutCustomerNestedInput
+}
+
+export type CustomerUncheckedUpdateWithoutPaymentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  plan?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  serialKey?: Prisma.SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutCustomerNestedInput
+  quotations?: Prisma.QuotationUncheckedUpdateManyWithoutCustomerNestedInput
+  subscriptions?: Prisma.SubscriptionUncheckedUpdateManyWithoutCustomerNestedInput
 }
 
 
@@ -916,12 +1045,14 @@ export type CustomerCountOutputType = {
   invoices: number
   quotations: number
   subscriptions: number
+  payments: number
 }
 
 export type CustomerCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   invoices?: boolean | CustomerCountOutputTypeCountInvoicesArgs
   quotations?: boolean | CustomerCountOutputTypeCountQuotationsArgs
   subscriptions?: boolean | CustomerCountOutputTypeCountSubscriptionsArgs
+  payments?: boolean | CustomerCountOutputTypeCountPaymentsArgs
 }
 
 /**
@@ -955,6 +1086,13 @@ export type CustomerCountOutputTypeCountSubscriptionsArgs<ExtArgs extends runtim
   where?: Prisma.SubscriptionWhereInput
 }
 
+/**
+ * CustomerCountOutputType without action
+ */
+export type CustomerCountOutputTypeCountPaymentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.PaymentWhereInput
+}
+
 
 export type CustomerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -973,6 +1111,7 @@ export type CustomerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   invoices?: boolean | Prisma.Customer$invoicesArgs<ExtArgs>
   quotations?: boolean | Prisma.Customer$quotationsArgs<ExtArgs>
   subscriptions?: boolean | Prisma.Customer$subscriptionsArgs<ExtArgs>
+  payments?: boolean | Prisma.Customer$paymentsArgs<ExtArgs>
   _count?: boolean | Prisma.CustomerCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["customer"]>
 
@@ -1027,6 +1166,7 @@ export type CustomerInclude<ExtArgs extends runtime.Types.Extensions.InternalArg
   invoices?: boolean | Prisma.Customer$invoicesArgs<ExtArgs>
   quotations?: boolean | Prisma.Customer$quotationsArgs<ExtArgs>
   subscriptions?: boolean | Prisma.Customer$subscriptionsArgs<ExtArgs>
+  payments?: boolean | Prisma.Customer$paymentsArgs<ExtArgs>
   _count?: boolean | Prisma.CustomerCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type CustomerIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1039,6 +1179,7 @@ export type $CustomerPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     invoices: Prisma.$InvoicePayload<ExtArgs>[]
     quotations: Prisma.$QuotationPayload<ExtArgs>[]
     subscriptions: Prisma.$SubscriptionPayload<ExtArgs>[]
+    payments: Prisma.$PaymentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1451,6 +1592,7 @@ export interface Prisma__CustomerClient<T, Null = never, ExtArgs extends runtime
   invoices<T extends Prisma.Customer$invoicesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Customer$invoicesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvoicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   quotations<T extends Prisma.Customer$quotationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Customer$quotationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$QuotationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   subscriptions<T extends Prisma.Customer$subscriptionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Customer$subscriptionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubscriptionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  payments<T extends Prisma.Customer$paymentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Customer$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1973,6 +2115,30 @@ export type Customer$subscriptionsArgs<ExtArgs extends runtime.Types.Extensions.
   take?: number
   skip?: number
   distinct?: Prisma.SubscriptionScalarFieldEnum | Prisma.SubscriptionScalarFieldEnum[]
+}
+
+/**
+ * Customer.payments
+ */
+export type Customer$paymentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Payment
+   */
+  select?: Prisma.PaymentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Payment
+   */
+  omit?: Prisma.PaymentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PaymentInclude<ExtArgs> | null
+  where?: Prisma.PaymentWhereInput
+  orderBy?: Prisma.PaymentOrderByWithRelationInput | Prisma.PaymentOrderByWithRelationInput[]
+  cursor?: Prisma.PaymentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.PaymentScalarFieldEnum | Prisma.PaymentScalarFieldEnum[]
 }
 
 /**

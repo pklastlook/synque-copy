@@ -85,6 +85,7 @@ export const ModelName = {
   ApiKey: 'ApiKey',
   Device: 'Device',
   Subscription: 'Subscription',
+  Payment: 'Payment',
   WorkspaceSettings: 'WorkspaceSettings',
   PlatformCredential: 'PlatformCredential',
   Integration: 'Integration',
@@ -743,6 +744,25 @@ export const SubscriptionScalarFieldEnum = {
 } as const
 
 export type SubscriptionScalarFieldEnum = (typeof SubscriptionScalarFieldEnum)[keyof typeof SubscriptionScalarFieldEnum]
+
+
+export const PaymentScalarFieldEnum = {
+  id: 'id',
+  subscriptionId: 'subscriptionId',
+  invoiceId: 'invoiceId',
+  customerId: 'customerId',
+  amount: 'amount',
+  currency: 'currency',
+  method: 'method',
+  cardLast4: 'cardLast4',
+  cardBrand: 'cardBrand',
+  status: 'status',
+  transactionId: 'transactionId',
+  bankAccountId: 'bankAccountId',
+  createdAt: 'createdAt'
+} as const
+
+export type PaymentScalarFieldEnum = (typeof PaymentScalarFieldEnum)[keyof typeof PaymentScalarFieldEnum]
 
 
 export const WorkspaceSettingsScalarFieldEnum = {

@@ -591,6 +591,7 @@ model Customer {
   invoices      Invoice[]
   quotations    Quotation[]
   subscriptions Subscription[]
+  payments      Payment[]
 }
 
 model SerialKey {
@@ -717,6 +718,32 @@ model Subscription {
   createdAt       DateTime @default(now())
 
   @@index([customerId])
+}
+
+// ===== Payment (client subscription purchase / invoice payment) =====
+// Records every payment that flows through the system: subscription
+// purchases from /billing, manual invoice payments, etc. Each row ties
+// back to a Customer (mandatory) + optionally a Subscription / Invoice /
+// BankAccount so the owner panel can reconcile balances.
+model Payment {
+  id              String   @id @default(cuid())
+  subscriptionId  String?
+  invoiceId       String?
+  customerId      String
+  amount          Float
+  currency        String   @default("USD")
+  method          String   @default("card") // card | bank_transfer | cash
+  cardLast4       String?
+  cardBrand       String?  // visa | mastercard | amex
+  status          String   @default("pending") // pending | completed | failed | refunded
+  transactionId   String?
+  bankAccountId   String?
+  createdAt       DateTime @default(now())
+
+  customer        Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([subscriptionId])
 }
 
 // ===== Workspace Settings (one row per workspace, keyed by owner) =====

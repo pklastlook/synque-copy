@@ -188,6 +188,11 @@ export type Device = Prisma.DeviceModel
  */
 export type Subscription = Prisma.SubscriptionModel
 /**
+ * Model Payment
+ * 
+ */
+export type Payment = Prisma.PaymentModel
+/**
  * Model WorkspaceSettings
  * 
  */

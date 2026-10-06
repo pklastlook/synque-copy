@@ -13156,3 +13156,258 @@ dialog with a print-ready Financial Summary Report (KPIs + revenue-by-plan + top
 clients + invoice summary) plus Print and Download CSV actions. `bun run lint` →
 0 errors, 7 pre-existing warnings (all in unrelated files). `npx tsc --noEmit` →
 no errors in any modified file.
+
+---
+Task ID: OWNER-FINAL
+Agent: subagent
+Task: Drop serial keys + report settings print + enhance all sections + subscription payment flow
+
+Work Log:
+
+Read prior worklog entries for OWNER-COMPLETE, SUBSCRIPTION-ENHANCE,
+OWNER-ENTERPRISE, and OWNER-FIXES to understand the existing owner panel
+architecture, the report settings system in `src/components/views/settings.tsx`
+(`getReportSettings()` + the `ReportSettings` interface), and the print layout
+pattern in `src/components/views/custom-report.tsx` (lines 1354-1422).
+
+### Task 1 — Drop Serial Keys section (owner.tsx)
+- Removed the `{ id: "keys", label: "Serial Keys", ... }` entry from the
+  `OWNER_SECTIONS` array (the 14-item nav registry).
+- Removed the `{tab === "keys" && <SerialKeysTab />}` render line from the
+  `OwnerView` switch.
+- Left the `SerialKeysTab` function in the file (per "don't delete — just
+  remove from render"). It's now unreachable code but compiles cleanly
+  (verified by `bun run lint`).
+- Removed the "Serial Keys" tile from the OverviewTab module overview grid
+  (replaced with a "Tenant DBs" tile to keep the 8-tile layout balanced).
+- Removed the now-unused `licenseUtilization` derived value.
+
+### Task 2 — Report settings print layout (owner.tsx)
+- Imported `getReportSettings` from `@/components/views/settings`.
+- Added three module-scope helpers near the top of owner.tsx:
+  - `getCompany()` — mirrors the same-named helper in custom-report.tsx,
+    reading the `socialflow-company` localStorage key set by Settings →
+    Company.
+  - `buildReportPrintCss({...})` — builds the dynamic CSS string from the
+    report settings: `@page { size: <paper> <orientation>; margin: 0; }`,
+    `padding` from `marginTop/Right/Bottom/Left`, accent-color CSS variables
+    (`.report-accent-bar`, `.report-accent-text`, `.report-accent-border`),
+    the three table styles (striped/bordered/minimal), and the watermark
+    overlay (fixed-position rotated text).
+  - `reportFontScale(size)` — small/medium/large → 0.88 / 1 / 1.12.
+- Rewrote `InvoicePrintLayout`:
+  - Now reads `getReportSettings()` at the top of the component.
+  - Renders a `<style>` block with the dynamic print CSS, plus a watermark
+    `<div>` when enabled.
+  - Header: accent-colored border, logo (or Sparkles fallback when
+    `rs.showCompanyLogo` is on but no company logo is set), company
+    address + contact lines gated by `rs.showCompanyAddress` /
+    `rs.showCompanyContact`. Title gated by `rs.showReportTitle`. Date
+    row gated by `rs.showDateRange`.
+  - Tables use the `report-table` class so the table-style CSS applies.
+  - Totals border + section header borders use the accent color.
+  - Footer rendered only when `rs.showFooter`; honors `rs.showFooterLine`,
+    `rs.footerPosition`, `rs.footerFontSize` (via the `effectiveFooterText`
+    derived from `rs.customFooterText` or `rs.footerText`), and
+    `rs.showPageNumbers` ("Page 1 of 1").
+- Mirrored the same settings in `FinancialReportLayout`:
+  - Added an optional `reportKind?: "financial" | "clients" | "subscriptions"`
+    prop. The visible report title and report ID prefix change based on it.
+  - Same accent/logo/margins/table-style/watermark treatment as
+    InvoicePrintLayout.
+  - Section visibility gated by `rs.showExecutiveSummary` and
+    `rs.showKpiStrip` (the latter controls the secondary 4-tile strip).
+  - Footer honors `rs.showFooter`, `rs.showFooterLine`, `rs.showPageNumbers`,
+    and `rs.customFooterText`/`rs.footerText`.
+
+### Task 3 — Enhance all owner panel sections
+- **OverviewTab**: added a Quick Actions row (4 cards: Add Client → switches
+  to "customers" tab; Generate Invoices → switches to "finance" tab; View
+  Reports → switches to "reports" tab; Manage Plans → switches to
+  "subscriptions" tab). Added a live System Status probe: a `useEffect`
+  that pings `/api/finance/overview` (DB round-trip) and `/api/auth/me`
+  (session lookup) on mount, then sets `systemStatus` to
+  `{ database: "operational"|"degraded"|"checking", api: ..., sessions: <count> }`.
+  The "System Status" sub-card now shows live database / API / active
+  sessions indicators instead of the previous hardcoded values.
+- **ClientsTab**: added a "View details" item at the top of the kebab
+  dropdown menu, plus a new detail dialog (max-w-3xl, scrollable) that
+  shows:
+  - Client info (name, email, phone, company, address, city, country,
+    created date, invoices count).
+  - Subscription status + plan (up to 3 most recent subs, with amount).
+  - Database status (name + status + created date) or "No dedicated
+    database" message.
+  - Invoice history (paid/pending/overdue counts, list of last 20 invoices
+    with number, status, total, issue date, plus "Total billed" and
+    "Paid" totals at the bottom).
+  - Users count + last 10 users (name, email, role).
+  - Footer actions: Close / Edit / Suspend / Delete (which close the
+    detail dialog first and then dispatch to the existing openEdit /
+    setStatus / remove handlers).
+  The dialog lazy-loads invoices + subscriptions + users in a `useEffect`
+  when opened (so the initial ClientsTab render isn't slowed).
+- **SubscriptionsTab**: added a `useApi<Invoice[]>("/api/invoices")` fetch
+  and a `paymentStatusFor(s)` helper. The helper prefers invoices
+  carrying the `subscription:<id>` fingerprint in their notes (i.e. those
+  generated by `/api/subscriptions/[id]/generate-invoice`), falling back
+  to any invoice for the same client as a proxy for legacy data. Each
+  subscription card now shows a "Paid" / "Payment due" / "Overdue" badge
+  (or nothing when no invoices exist).
+- **InvoicesTab**: verified the workflow Draft → Sent → Paid → Overdue
+  is wired up (Mark sent, Mark paid, Mark overdue all call
+  PATCH `/api/invoices/[id]` with `{ status }`).
+- **QuotationsTab**: added a "Convert to invoice" dropdown item that
+  POSTs the quotation's items + totals to `/api/invoices`, then PATCHes
+  the quotation to `status: "accepted"`. Also added a "Mark rejected"
+  item that's available when the quotation is already accepted (so the
+  workflow Draft → Sent → Accepted/Rejected is fully navigable).
+- **DevicesTab**: verified the iOS-style toggle (active ↔ blocked), the
+  Revoke button (sets status to "revoked"), the Activity log dialog, and
+  the Auto-detect IP button are all wired up — no changes needed.
+- **BankAccountsTab**: verified CRUD + Set Default + currency badge —
+  no changes needed.
+- **FinanceTab**: verified batch invoice generation (POST
+  `/api/subscriptions/batch-generate-invoices`) + payment history
+  timeline + bank accounts overview — no changes needed.
+- **ReportsTab**: added a `reportType` state (`"financial" | "clients" |
+  "subscriptions"`) and a `Select` next to the date-range pills. The
+  selected type drives:
+  - The dialog title ("Financial Summary Report" / "Client Revenue
+    Report" / "Subscription Analytics Report").
+  - The `reportKind` prop passed to `FinancialReportLayout` (which in
+    turn drives the visible report title text).
+  - The `reportTitle` variable inside `FinancialReportLayout`.
+- **DatabasesTab**: verified suspend/activate/re-push schema — no
+  changes needed.
+- **ActivityLogTab**: verified action/actor/date filtering — no changes
+  needed.
+
+### Task 4 — Subscription payment flow
+#### Prisma schema (prisma/schema.prisma)
+- Added a new `Payment` model:
+  - `id` (cuid), `subscriptionId?`, `invoiceId?`, `customerId` (required),
+    `amount`, `currency` (default USD), `method` (default "card"),
+    `cardLast4?`, `cardBrand?`, `status` (default "pending"),
+    `transactionId?`, `bankAccountId?`, `createdAt`.
+  - `customer Customer @relation(...)` — many-to-one back to Customer.
+  - Indexed by `[customerId]` and `[subscriptionId]`.
+- Added `payments Payment[]` to the `Customer` model so the relation
+  resolves cleanly.
+- `npx prisma validate` → "The schema at prisma/schema.prisma is valid 🚀".
+- `bun run db:generate` regenerated the Prisma Client so TS types match.
+  Did NOT run `prisma db push` (per task rules — main agent will handle it).
+
+#### API routes
+- **`src/app/api/payments/route.ts`** (new file):
+  - **GET**: super-admins see all payments; tenant users see only their
+    own. Uses the existing `requireAuth` + `getTenantScope` + `tenantWhere`
+    pattern from the other billing routes. Returns the full row set with
+    ISO-formatted `createdAt`.
+  - **POST**: records a payment + side effects:
+    1. Validates `amount > 0`, binds `customerId` to the caller's tenant
+       (super-admins can pass a body `customerId` for cross-tenant
+       billing).
+    2. Resolves the owner's default bank account (looks for
+       `customerId: null, isDefault: true` — i.e. the global pool owned
+       by the super-admin). Falls back to the caller's tenant-scoped
+       default if no global default exists. Records `bankAccountId` on
+       the payment so `/api/finance/analytics` can sum balances.
+    3. Creates the `Payment` row with the validated fields
+       (`subscriptionId`, `invoiceId`, `amount`, `currency`, `method`,
+       `cardLast4` (validated as 4 digits), `cardBrand`, `status`,
+       `transactionId`, `bankAccountId`).
+    4. When `status === "completed"` AND a `subscriptionId` was provided:
+       - Flips the linked subscription's status to `"active"`.
+       - Generates a paid invoice for the current billing period using
+         the same discount/tax math as
+         `/api/subscriptions/[id]/generate-invoice` (via
+         `computeBillingTotals`). The invoice carries a
+         `subscription:<id>|payment:<paymentId>` fingerprint in its notes
+         for dedup. The new invoice is then linked back to the payment
+         via `invoiceId`.
+    5. Audit-logs the payment via
+       `audit(req, user.userId, "payment.created", { targetType: "payment",
+       targetId, metadata: {...} })`.
+    6. Returns `{ ok, id, status, amount, currency, updatedSubscription,
+       invoiceId, invoiceNumber }`.
+
+#### Client page (src/app/billing/page.tsx, new)
+- Auth-gated: if not signed in (`!isAuthenticated`), shows a friendly
+  sign-in prompt with a link to `/login` and `/pricing`.
+- Loads the caller's subscriptions + payments on mount (only when
+  authenticated) in parallel via `Promise.all`.
+- **Current plan card**: shows the caller's active/trial subscription
+  with billing cycle, next billing date, trial countdown, and a
+  Base/Discount/Tax breakdown. Renders an empty state when no
+  subscription exists yet.
+- **Plan options**: 3 cards (Starter $299, Growth $499 featured,
+  Enterprise Custom). The current plan is tagged "Current" and its
+  Subscribe button is disabled. Non-current plans show:
+  - Subscribe (when no current plan)
+  - Upgrade (when target price > current price)
+  - Downgrade (when target price < current price)
+  - Contact sales (Enterprise / Custom plans → mailto link)
+- **Payment dialog**: collects card name, card number (auto-formatted
+  into 4-digit groups), expiry (auto-formatted as `MM / YY`), and CVC
+  (digits only, max 4). Detects card brand (visa / mastercard / amex)
+  from the card number prefix and shows it as a badge. Validates all
+  fields before enabling the Pay button. On submit: POSTs to
+  `/api/payments` with `{ amount, currency: "USD", method: "card",
+  cardLast4, cardBrand, status: "completed", transactionId: "txn_..." }`.
+  On success: shows a success state with a check icon, toasts the new
+  invoice number, and re-fetches subscriptions + payments so the page
+  updates instantly.
+- **Payment history**: table of past payments with transaction id,
+  status badge (paid/pending/failed/refunded), card last 4 + brand,
+  method, timestamp, and amount.
+- Includes the standard `LandingNav` + `LandingBg` + `LandingFooter`
+  chrome from `landing-shared.tsx` so it visually matches the rest of
+  the public site.
+
+### Verification
+- `npx prisma validate` → "The schema at prisma/schema.prisma is valid 🚀".
+- `bun run db:generate` → "✔ Generated Prisma Client (7.10.0)" — the new
+  `Payment` model is in the generated types and `db.payment.findMany` /
+  `db.payment.create` resolve correctly.
+- `bun run lint` → **0 errors, 7 warnings** (all 7 are pre-existing
+  `@next/next/no-location-assign-relative-destination` warnings about
+  `window.location.href` in landing-page.tsx, landing-shared.tsx,
+  accounts.tsx, and settings.tsx — none of the files this task touched).
+  Exit code 0.
+- `npx tsc --noEmit --skipLibCheck` → no errors in any modified file
+  (owner.tsx, payments/route.ts, billing/page.tsx). Two pre-existing
+  errors remain in unrelated files:
+  - `src/app/api/oauth/callback/[platform]/route.ts:466` (refreshToken
+    not in PlatformCredentialUpdateInput).
+  - `src/lib/sync-platforms.ts:167` (null assignment to
+    PlatformCredentialRow).
+  Both are unrelated to this task.
+- Dev server NOT started (per task rules).
+- `prisma db push` NOT run (per task rules — main agent will handle it).
+
+Stage Summary:
+
+The Owner Panel no longer surfaces Serial Keys (the section was dropped
+from `OWNER_SECTIONS` and the render switch; the function itself is left
+in the file but unreachable). Every print layout in owner.tsx
+(`InvoicePrintLayout` + `FinancialReportLayout`) now honors the persisted
+Report Settings — accent color, logo + position, report title visibility,
+date range, footer text + position + line + page numbers, paper size,
+orientation, font size, table style (striped/bordered/minimal), margins
+(mm), and watermark — via a shared `buildReportPrintCss` helper that
+generates the dynamic `@media print` CSS. The OverviewTab gained a
+live System Status probe (database + API + active sessions) and a Quick
+Actions row. The ClientsTab gained a full detail dialog with invoice
+history, subscription status, database status, and users count.
+The SubscriptionsTab gained a Payment Status badge per card (paid /
+payment due / overdue). The QuotationsTab gained a "Convert to invoice"
+action. The ReportsTab gained a report-type selector (Financial Summary
+/ Client Revenue / Subscription Analytics). The new `/billing` page
+provides an end-to-end client-side subscription purchase flow with a
+card-form dialog that POSTs to the new `/api/payments` route, which
+records the payment, flips the subscription to active, generates a paid
+invoice for the current billing period, credits the owner's default bank
+account, and audit-logs the event. `bun run lint` exits 0 with only
+pre-existing warnings; `npx prisma validate` passes; the Prisma Client
+was regenerated so the TypeScript types match the new Payment model.

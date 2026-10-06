@@ -62,6 +62,7 @@ import {
   Search,
   History,
   Download,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -70,6 +71,7 @@ import { MetricRow, SectionHeader } from "@/components/glass/dense-ui";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { ModuleAccessSelector } from "@/components/glass/module-access-selector";
 import { describePermissions, isAllModules, defaultPermissionsForRole } from "@/lib/module-permissions";
+import { getReportSettings } from "@/components/views/settings";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
 import {
@@ -367,7 +369,6 @@ const OWNER_SECTIONS: OwnerSection[] = [
   { id: "subscriptions", label: "Subscriptions",  icon: CreditCard,      accent: "oklch(0.68 0.22 145)", desc: "Active & trial plans",  countKey: "subscriptions" },
   { id: "invoices",      label: "Invoices",       icon: FileText,        accent: "oklch(0.72 0.18 75)",  desc: "Bill clients",           countKey: "invoices" },
   { id: "quotations",    label: "Quotations",     icon: FileSignature,   accent: "oklch(0.7 0.2 25)",    desc: "Proposals & quotes",    countKey: "quotations" },
-  { id: "keys",          label: "Serial Keys",    icon: KeyRound,        accent: "oklch(0.66 0.18 200)", desc: "License keys",          countKey: "serialKeys" },
   { id: "devices",       label: "Devices",         icon: Smartphone,      accent: "oklch(0.62 0.22 300)", desc: "Registered devices",    countKey: "devices" },
   { id: "apikeys",       label: "API Keys",        icon: Lock,            accent: "oklch(0.72 0.18 75)",  desc: "Integration keys",      countKey: "apiKeys" },
   { id: "bank",          label: "Bank Accounts",   icon: Landmark,        accent: "oklch(0.68 0.22 145)", desc: "Accounts for invoices", countKey: "bankAccounts" },
@@ -409,6 +410,109 @@ function MobileNavSelect({
       </Select>
     </div>
   );
+}
+
+// ============================================================================
+// Report settings helpers — mirrors the pattern in custom-report.tsx so the
+// owner panel's print layouts honour the same Report Settings as the
+// social-media reports (accent color, logo, margins, table style, etc.).
+// ============================================================================
+
+/** Read company info from localStorage — set by Settings → Company section. */
+function getCompany() {
+  if (typeof window === "undefined") {
+    return { name: "", logo: null, address: "", city: "", country: "", phone: "", website: "" };
+  }
+  try {
+    const stored = JSON.parse(localStorage.getItem("socialflow-company") ?? "{}");
+    return {
+      name: stored.companyName ?? "",
+      logo: stored.companyLogo ?? null,
+      address: stored.address ?? "",
+      city: stored.city ?? "",
+      country: stored.country ?? "",
+      phone: stored.phone ?? "",
+      website: stored.website ?? "",
+    };
+  } catch {
+    return { name: "", logo: null, address: "", city: "", country: "", phone: "", website: "" };
+  }
+}
+
+/** Build the dynamic CSS for a print layout — accent color, page size,
+ *  margins, table style, watermark — driven by the persisted ReportSettings. */
+function buildReportPrintCss(opts: {
+  accent: string;
+  marginTop: number;
+  marginRight: number;
+  marginBottom: number;
+  marginLeft: number;
+  paperSize: string;
+  orientation: string;
+  tableStyle: string;
+  showWatermark: boolean;
+  watermarkText: string;
+  scopeClass?: string;
+}): string {
+  const scope = opts.scopeClass ?? ".print-area";
+  const pageSize =
+    opts.paperSize === "a4"
+      ? "A4"
+      : opts.paperSize === "legal"
+        ? "legal"
+        : "letter";
+  const orientation = opts.orientation === "landscape" ? "landscape" : "portrait";
+  let css = `
+@page { size: ${pageSize} ${orientation}; margin: 0; }
+${scope} {
+  padding: ${opts.marginTop}mm ${opts.marginRight}mm ${opts.marginBottom}mm ${opts.marginLeft}mm !important;
+  --report-accent: ${opts.accent};
+}
+${scope} .report-accent-bar,
+${scope} .report-accent-rule {
+  background: ${opts.accent} !important;
+}
+${scope} .report-accent-text {
+  color: ${opts.accent} !important;
+}
+${scope} .report-accent-border {
+  border-color: ${opts.accent} !important;
+}`;
+  // Table styles: striped (default), bordered, minimal.
+  if (opts.tableStyle === "bordered") {
+    css += `
+${scope} .report-table tbody td { border-bottom: 1px solid #d4d4d8 !important; }
+${scope} .report-table tbody tr:nth-child(even) td { background: transparent !important; }`;
+  } else if (opts.tableStyle === "minimal") {
+    css += `
+${scope} .report-table tbody td { border-bottom: 0 !important; }
+${scope} .report-table tbody tr:nth-child(even) td { background: transparent !important; }
+${scope} .report-table thead th { border-bottom: 1px solid #71717a !important; }`;
+  } else {
+    css += `
+${scope} .report-table tbody tr:nth-child(even) td { background: #f4f4f5 !important; }
+${scope} .report-table tbody tr:nth-child(odd) td { background: transparent !important; }`;
+  }
+  // Watermark overlay.
+  if (opts.showWatermark && opts.watermarkText) {
+    css += `
+${scope} { position: relative; }
+${scope} .report-watermark {
+  position: fixed; inset: 0; z-index: 0;
+  display: grid; place-items: center;
+  pointer-events: none;
+  font-size: 96px; font-weight: 900; letter-spacing: 0.15em;
+  color: rgba(0,0,0,0.06);
+  transform: rotate(-30deg);
+}
+${scope} > * { position: relative; z-index: 1; }`;
+  }
+  return css;
+}
+
+/** Return the font-size scale that mirrors ReportSettings.fontSize. */
+function reportFontScale(size: string): number {
+  return size === "large" ? 1.12 : size === "small" ? 0.88 : 1;
 }
 
 // ============================================================================
@@ -647,6 +751,49 @@ interface FinanceAnalytics {
 function OverviewTab() {
   const { data, loading, reload } = useApi<FinanceOverview>("/api/finance/overview");
   const { data: analytics } = useApi<FinanceAnalytics | null>("/api/finance/analytics");
+  const { setOwnerTab } = useNav();
+  const [systemStatus, setSystemStatus] = React.useState<{
+    database: "operational" | "degraded" | "checking";
+    api: "operational" | "degraded" | "checking";
+    sessions: number;
+  }>({ database: "checking", api: "checking", sessions: 0 });
+
+  // ===== System Status probe — pings /api/finance/overview (which requires
+  // a real DB round-trip) and /api/auth/me (which requires a session lookup).
+  // If both respond, all three indicators flip to "operational"; if the
+  // finance call fails the DB indicator goes red, if the auth call fails
+  // the API indicator goes red. Active session count comes from the auth
+  // response (when available). Runs once on mount.
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const token = (() => {
+        try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
+        catch { return null; }
+      })();
+      try {
+        const finRes = await fetch("/api/finance/overview", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        const dbState = finRes.ok ? "operational" : "degraded";
+        let sessions = 0;
+        let apiState: "operational" | "degraded" = "operational";
+        try {
+          const meRes = await fetch("/api/auth/me", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+          if (meRes.ok) {
+            const me = (await meRes.json()) as { activeSessions?: number };
+            sessions = typeof me.activeSessions === "number" ? me.activeSessions : 0;
+          } else {
+            apiState = "degraded";
+          }
+        } catch {
+          apiState = "degraded";
+        }
+        if (!cancelled) setSystemStatus({ database: dbState, api: apiState, sessions });
+      } catch {
+        if (!cancelled) setSystemStatus({ database: "degraded", api: "degraded", sessions: 0 });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   if (loading || !data) {
     return (
@@ -659,7 +806,6 @@ function OverviewTab() {
 
   const d = data;
   const collectionRate = d.invoices > 0 ? Math.round((d.paidInvoices / d.invoices) * 100) : 0;
-  const licenseUtilization = d.serialKeys > 0 ? Math.round((d.activatedKeys / d.serialKeys) * 100) : 0;
   const churnRate = analytics?.subscriptionMetrics?.churnRate ?? 0;
   const mrr = analytics?.subscriptionMetrics?.mrr ?? d.monthlyRevenue ?? 0;
   const arr = analytics?.subscriptionMetrics?.arr ?? (d.monthlyRevenue ?? 0) * 12;
@@ -684,6 +830,62 @@ function OverviewTab() {
         { label: "Trial → Paid", value: `${trialConv}%`, color: "oklch(0.68 0.22 145)" },
         { label: "Churn Rate", value: `${churnRate}%`, color: "oklch(0.55 0.22 25)" },
       ]} />
+
+      {/* ===== Quick Actions row — owner can jump straight to common tasks ===== */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <button
+          onClick={() => setOwnerTab("customers")}
+          className="crystal-in group flex items-center gap-3 rounded-2xl border border-border/40 bg-background/60 p-3 text-left transition hover:border-primary/40 hover:shadow-md"
+        >
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <UserPlus className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold">Add Client</div>
+            <div className="truncate text-[11px] text-muted-foreground">Register a new tenant + DB</div>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+        </button>
+        <button
+          onClick={() => setOwnerTab("finance")}
+          className="crystal-in group flex items-center gap-3 rounded-2xl border border-border/40 bg-background/60 p-3 text-left transition hover:border-primary/40 hover:shadow-md"
+        >
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <FileText className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold">Generate Invoices</div>
+            <div className="truncate text-[11px] text-muted-foreground">Bill all active subscriptions</div>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+        </button>
+        <button
+          onClick={() => setOwnerTab("reports")}
+          className="crystal-in group flex items-center gap-3 rounded-2xl border border-border/40 bg-background/60 p-3 text-left transition hover:border-primary/40 hover:shadow-md"
+        >
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[oklch(0.72_0.18_75)]/15 text-[oklch(0.6_0.16_55)]">
+            <BarChart3 className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold">View Reports</div>
+            <div className="truncate text-[11px] text-muted-foreground">Revenue, plans, top clients</div>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+        </button>
+        <button
+          onClick={() => setOwnerTab("subscriptions")}
+          className="crystal-in group flex items-center gap-3 rounded-2xl border border-border/40 bg-background/60 p-3 text-left transition hover:border-primary/40 hover:shadow-md"
+        >
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[oklch(0.72_0.22_300)]/15 text-[oklch(0.55_0.2_300)] dark:text-[oklch(0.78_0.18_300)]">
+            <CreditCard className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold">Manage Plans</div>
+            <div className="truncate text-[11px] text-muted-foreground">Subscriptions &amp; trials</div>
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+        </button>
+      </div>
 
       {/* ===== Charts: revenue trend + client growth ===== */}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -744,10 +946,10 @@ function OverviewTab() {
             { label: "Invoices", value: d.invoices, sub: `${d.paidInvoices} paid · ${collectionRate}% collected`, icon: FileText, color: "oklch(0.62 0.2 255)" },
             { label: "Quotations", value: d.quotations, sub: "Pending proposals", icon: FileSignature, color: "oklch(0.68 0.18 145)" },
             { label: "Subscriptions", value: d.subscriptions, sub: `${d.activeSubs} active · ${d.trialSubs} trial`, icon: CreditCard, color: "oklch(0.7 0.2 75)" },
-            { label: "Serial Keys", value: d.serialKeys, sub: `${d.activatedKeys} activated · ${licenseUtilization}%`, icon: KeyRound, color: "oklch(0.72 0.18 75)" },
             { label: "Devices", value: d.devices, sub: "Registered", icon: Smartphone, color: "oklch(0.6 0.2 220)" },
             { label: "API Keys", value: d.apiKeys, sub: "Active integrations", icon: Lock, color: "oklch(0.55 0.22 25)" },
             { label: "Bank Accounts", value: d.bankAccounts, sub: "Connected", icon: Landmark, color: "oklch(0.6 0.15 200)" },
+            { label: "Tenant DBs", value: d.tenantDatabases ?? 0, sub: `${d.activeDatabases ?? 0} active`, icon: Database, color: "oklch(0.62 0.22 300)" },
             { label: "Social Accounts", value: d.accounts, sub: `${d.posts} posts published`, icon: Globe, color: "oklch(0.62 0.22 300)" },
           ].map((m, i) => {
             const Icon = m.icon;
@@ -798,25 +1000,77 @@ function OverviewTab() {
               <div className="num-display text-lg font-bold tabular-nums">{fmt(d.totalStorageMb ?? 0)} MB</div>
             </div>
           </div>
-          {/* System health: lightweight status pills */}
+          {/* System health: live status pills — driven by the systemStatus
+              probe in OverviewTab. Database + API are pinged on mount;
+              active sessions come from /api/auth/me. */}
           <div className="mt-3 space-y-1.5 border-t border-border/30 pt-3">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Database
-              </span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Operational</span>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              System Status
             </div>
             <div className="flex items-center justify-between text-[11px]">
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> API
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    systemStatus.database === "operational"
+                      ? "bg-emerald-500"
+                      : systemStatus.database === "degraded"
+                        ? "bg-rose-500"
+                        : "bg-amber-500 animate-pulse",
+                  )}
+                /> Database
               </span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Operational</span>
+              <span
+                className={cn(
+                  "font-semibold capitalize",
+                  systemStatus.database === "operational"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : systemStatus.database === "degraded"
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-amber-600 dark:text-amber-400",
+                )}
+              >
+                {systemStatus.database === "checking" ? "Checking…" : systemStatus.database}
+              </span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Background jobs
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    systemStatus.api === "operational"
+                      ? "bg-emerald-500"
+                      : systemStatus.api === "degraded"
+                        ? "bg-rose-500"
+                        : "bg-amber-500 animate-pulse",
+                  )}
+                /> API
               </span>
-              <span className="font-semibold text-amber-600 dark:text-amber-400">Degraded</span>
+              <span
+                className={cn(
+                  "font-semibold capitalize",
+                  systemStatus.api === "operational"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : systemStatus.api === "degraded"
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-amber-600 dark:text-amber-400",
+                )}
+              >
+                {systemStatus.api === "checking" ? "Checking…" : systemStatus.api}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    systemStatus.sessions > 0 ? "bg-emerald-500" : "bg-muted-foreground",
+                  )}
+                /> Active sessions
+              </span>
+              <span className="font-semibold tabular-nums">
+                {systemStatus.sessions}
+              </span>
             </div>
           </div>
         </section>
@@ -885,6 +1139,14 @@ function ClientsTab() {
   // database provisioned (POST /api/tenant-databases). The button shows
   // a spinner and is disabled while the request is in flight.
   const [provisioningId, setProvisioningId] = React.useState<string | null>(null);
+  // ===== View Details dialog state — opens when the owner clicks "View
+  // details" on a client card. The dialog pulls invoice + subscription +
+  // user records on demand (via useEffect) so opening it doesn't slow
+  // down the initial ClientsTab render. =====
+  const [detailsFor, setDetailsFor] = React.useState<Customer | null>(null);
+  const [detailsInvoices, setDetailsInvoices] = React.useState<Invoice[] | null>(null);
+  const [detailsSubs, setDetailsSubs] = React.useState<SubscriptionData[] | null>(null);
+  const [detailsUsers, setDetailsUsers] = React.useState<ClientUser[] | null>(null);
 
   const customers = data ?? [];
   const stats = {
@@ -1018,6 +1280,56 @@ function ClientsTab() {
     setLoginForm({ name: c.name, email: c.email, password: "", role: "member" });
     setLoginOpen(true);
   };
+
+  // ===== View Details — opens the client detail dialog and lazy-loads the
+  // client's invoices, subscriptions, and users. The fetches are tenant-
+  // scoped (the caller's JWT determines what they see). =====
+  const openDetails = (c: Customer) => {
+    setDetailsFor(c);
+    setDetailsInvoices(null);
+    setDetailsSubs(null);
+    setDetailsUsers(null);
+  };
+
+  React.useEffect(() => {
+    if (!detailsFor) return;
+    let cancelled = false;
+    (async () => {
+      const token = (() => {
+        try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
+        catch { return null; }
+      })();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      try {
+        const [invRes, subRes, userRes] = await Promise.all([
+          fetch("/api/invoices", { headers }),
+          fetch("/api/subscriptions", { headers }),
+          fetch("/api/team", { headers }),
+        ]);
+        const allInvoices: Invoice[] = invRes.ok ? await invRes.json() : [];
+        const allSubs: SubscriptionData[] = subRes.ok ? await subRes.json() : [];
+        const allUsers: ClientUser[] = userRes.ok ? await userRes.json() : [];
+        if (cancelled) return;
+        setDetailsInvoices(allInvoices.filter((i) => i.customerId === detailsFor.id));
+        setDetailsSubs(allSubs.filter((s) => s.customerId === detailsFor.id));
+        // Filter users that belong to this client — try customerId field if present,
+        // otherwise fall back to matching department/company.
+        setDetailsUsers(
+          allUsers.filter((u) => {
+            const cu = u as ClientUser & { customerId?: string };
+            return cu.customerId === detailsFor.id || cu.department === detailsFor.company;
+          }),
+        );
+      } catch {
+        if (!cancelled) {
+          setDetailsInvoices([]);
+          setDetailsSubs([]);
+          setDetailsUsers([]);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [detailsFor]);
 
   const createLogin = async () => {
     if (!loginForm.name.trim() || !loginForm.email.includes("@")) {
@@ -1178,6 +1490,9 @@ function ClientsTab() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openDetails(c)}>
+                        <CircleUserRound className="h-3.5 w-3.5" /> View details
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openEdit(c)}>
                         <Pencil className="h-3.5 w-3.5" /> Edit
                       </DropdownMenuItem>
@@ -1525,6 +1840,211 @@ function ClientsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ===== Client Details Dialog — shows client info, subscription
+          status, invoice history, database status, users count, created
+          date, plus Edit / Suspend / Delete actions. ===== */}
+      <Dialog open={!!detailsFor} onOpenChange={(o) => { if (!o) setDetailsFor(null); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto scroll-liquid">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleUserRound className="h-5 w-5 text-primary" />
+              Client details
+            </DialogTitle>
+            <DialogDescription>
+              Full record for {detailsFor?.name} — info, subscription, invoices, users.
+            </DialogDescription>
+          </DialogHeader>
+          {detailsFor && (
+            <div className="space-y-4 py-1">
+              {/* ===== Client info ===== */}
+              <div className="flex items-start gap-3">
+                <NameAvatar name={detailsFor.name} className="h-14 w-14 text-base" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-base font-semibold">{detailsFor.name}</span>
+                    <StatusPill status={detailsFor.status} />
+                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", planTone(detailsFor.plan))}>
+                      {detailsFor.plan} plan
+                    </span>
+                  </div>
+                  <div className="mt-1 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                    <div className="truncate"><span className="font-medium text-foreground">Email:</span> {detailsFor.email}</div>
+                    <div className="truncate"><span className="font-medium text-foreground">Phone:</span> {detailsFor.phone ?? "—"}</div>
+                    <div className="truncate"><span className="font-medium text-foreground">Company:</span> {detailsFor.company ?? "—"}</div>
+                    <div className="truncate"><span className="font-medium text-foreground">Address:</span> {detailsFor.address ?? "—"}</div>
+                    <div className="truncate"><span className="font-medium text-foreground">City:</span> {detailsFor.city ?? "—"}</div>
+                    <div className="truncate"><span className="font-medium text-foreground">Country:</span> {detailsFor.country ?? "—"}</div>
+                    <div className="truncate"><span className="font-medium text-foreground">Created:</span> {format(new Date(detailsFor.createdAt), "MMM d, yyyy")}</div>
+                    <div className="truncate"><span className="font-medium text-foreground">Invoices:</span> {detailsFor.invoicesCount}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ===== Subscription + Database status ===== */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Subscription</div>
+                  {detailsSubs === null ? (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                    </div>
+                  ) : detailsSubs.length === 0 ? (
+                    <div className="mt-2 text-xs text-muted-foreground">No subscription on record.</div>
+                  ) : (
+                    <div className="mt-2 space-y-1.5">
+                      {detailsSubs.slice(0, 3).map((s) => (
+                        <div key={s.id} className="flex items-center justify-between text-xs">
+                          <span className="flex items-center gap-1.5">
+                            <StatusPill status={s.status} />
+                            <span className="font-semibold capitalize">{s.plan}</span>
+                          </span>
+                          <span className="font-semibold tabular-nums">
+                            {money(s.totalAmount ?? s.amount, s.currency)}
+                          </span>
+                        </div>
+                      ))}
+                      {detailsSubs.length > 3 && (
+                        <div className="text-[10px] text-muted-foreground">
+                          +{detailsSubs.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Database</div>
+                  {detailsFor.database ? (
+                    <div className="mt-2 space-y-1 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <Database className="h-3 w-3 text-emerald-500" />
+                        <code className="font-mono text-[11px]">{detailsFor.database.dbName}</code>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn("h-1.5 w-1.5 rounded-full", detailsFor.database.status === "active" ? "bg-emerald-500" : "bg-amber-500")} />
+                        <span className="capitalize">{detailsFor.database.status}</span>
+                        <span className="ml-auto text-[10px] text-muted-foreground">
+                          Created {format(new Date(detailsFor.database.createdAt), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-xs text-muted-foreground">No dedicated database.</div>
+                  )}
+                  <div className="mt-2 text-[10px] text-muted-foreground">
+                    <span className="font-medium text-foreground">Users:</span> {detailsUsers?.length ?? 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* ===== Invoice history ===== */}
+              <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Invoice history
+                  </div>
+                  {detailsInvoices && detailsInvoices.length > 0 && (
+                    <div className="flex gap-3 text-[10px]">
+                      <span className="text-emerald-600 dark:text-emerald-400">
+                        {detailsInvoices.filter((i) => i.status === "paid").length} paid
+                      </span>
+                      <span className="text-amber-600 dark:text-amber-400">
+                        {detailsInvoices.filter((i) => i.status === "sent" || i.status === "draft").length} pending
+                      </span>
+                      <span className="text-rose-600 dark:text-rose-400">
+                        {detailsInvoices.filter((i) => i.status === "overdue").length} overdue
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {detailsInvoices === null ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading invoices…
+                  </div>
+                ) : detailsInvoices.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-muted-foreground">
+                    No invoices yet.
+                  </div>
+                ) : (
+                  <div className="scroll-liquid max-h-48 space-y-1 overflow-y-auto pr-1">
+                    {detailsInvoices.slice(0, 20).map((inv) => (
+                      <div key={inv.id} className="flex items-center gap-2 rounded-lg bg-background/60 px-2 py-1 text-[11px]">
+                        <code className="font-mono font-semibold">{inv.number}</code>
+                        <StatusPill status={inv.status} />
+                        <span className="ml-auto font-semibold tabular-nums">{money(inv.total)}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(new Date(inv.issueDate), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {detailsInvoices && detailsInvoices.length > 0 && (
+                  <div className="mt-2 border-t border-border/30 pt-2 text-[11px] text-muted-foreground">
+                    Total billed: <span className="font-semibold tabular-nums">{money(detailsInvoices.reduce((s, i) => s + i.total, 0))}</span>
+                    {" · "}
+                    Paid: <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{money(detailsInvoices.filter((i) => i.status === "paid").reduce((s, i) => s + i.total, 0))}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* ===== Users ===== */}
+              <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Users ({detailsUsers?.length ?? 0})
+                </div>
+                {detailsUsers === null ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading users…
+                  </div>
+                ) : detailsUsers.length === 0 ? (
+                  <div className="py-3 text-center text-xs text-muted-foreground">
+                    No users created for this client yet. Use “Create login” to add one.
+                  </div>
+                ) : (
+                  <div className="scroll-liquid max-h-32 space-y-1 overflow-y-auto pr-1">
+                    {detailsUsers.slice(0, 10).map((u) => (
+                      <div key={u.id} className="flex items-center gap-2 rounded-lg bg-background/60 px-2 py-1 text-[11px]">
+                        <NameAvatar name={u.name} className="h-5 w-5 text-[9px]" />
+                        <span className="truncate font-medium">{u.name}</span>
+                        <span className="truncate text-[10px] text-muted-foreground">{u.email}</span>
+                        <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold capitalize">{u.role}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter className="flex-wrap gap-2">
+            <Button variant="ghost" onClick={() => setDetailsFor(null)}>Close</Button>
+            {detailsFor && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => { const c = detailsFor; setDetailsFor(null); openEdit(c); }}
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { const c = detailsFor; setDetailsFor(null); setStatus(c, "suspended"); }}
+                  className="text-amber-600 dark:text-amber-400"
+                >
+                  <Ban className="h-3.5 w-3.5" /> Suspend
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { const c = detailsFor; setDetailsFor(null); remove(c); }}
+                  className="text-rose-600 dark:text-rose-400"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1846,6 +2366,16 @@ function InvoicePrintLayout({
   bank: BankAccount | undefined;
   kind: "invoice" | "quotation";
 }) {
+  // ===== Report settings — accent color, logo, margins, table style, footer =====
+  const rs = getReportSettings();
+  const accent = rs.accentColor;
+  const fontScale = reportFontScale(rs.fontSize);
+  const company = getCompany();
+  const companyName = company.name || "SYNQUE";
+  const companyLine = [company.address, company.city, company.country].filter(Boolean).join(", ");
+  const contactLine = [company.phone, company.website].filter(Boolean).join(" · ");
+  const effectiveFooterText = rs.customFooterText.trim() !== "" ? rs.customFooterText : rs.footerText;
+
   const title = kind === "invoice" ? "INVOICE" : "QUOTATION";
   const dateLabel = kind === "invoice" ? "Due date" : "Valid until";
   const dateField =
@@ -1855,43 +2385,72 @@ function InvoicePrintLayout({
   const discountAmount = doc.discountAmount || 0;
   const taxableBase = Math.max(doc.subtotal - discountAmount, 0);
 
+  const printCss = buildReportPrintCss({
+    accent,
+    marginTop: rs.marginTop,
+    marginRight: rs.marginRight,
+    marginBottom: rs.marginBottom,
+    marginLeft: rs.marginLeft,
+    paperSize: rs.paperSize,
+    orientation: rs.orientation,
+    tableStyle: rs.tableStyle,
+    showWatermark: rs.showWatermark,
+    watermarkText: rs.watermarkText,
+  });
+
   return (
-    <div className="print-area mx-auto max-w-[8.5in] bg-white p-10 text-[12px] leading-relaxed text-neutral-900">
+    <div className="print-area mx-auto max-w-[8.5in] bg-white p-10 text-neutral-900" style={{ fontSize: `calc(12px * ${fontScale})` }}>
+      <style dangerouslySetInnerHTML={{ __html: printCss }} />
+      {rs.showWatermark && rs.watermarkText && (
+        <div className="report-watermark" aria-hidden>{rs.watermarkText}</div>
+      )}
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-neutral-300 pb-6">
+      <div className="flex items-start justify-between border-b report-accent-border pb-6" style={{ borderColor: accent }}>
         <div>
           <div className="flex items-center gap-2">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-neutral-900 text-white">
-              <Sparkles className="h-5 w-5" />
-            </div>
+            {rs.showCompanyLogo ? (
+              company.logo ? (
+                <img src={company.logo} alt={companyName} className="h-10 w-10 rounded-lg object-contain" />
+              ) : (
+                <div className="grid h-10 w-10 place-items-center rounded-lg text-white" style={{ background: accent }}>
+                  <Sparkles className="h-5 w-5" />
+                </div>
+              )
+            ) : null}
             <div>
               <div className="text-xl font-bold tracking-tight text-neutral-900">
-                SYNQUE
+                {companyName}
               </div>
               <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">
                 Orchestrate Your Social.
               </div>
             </div>
           </div>
-          <div className="mt-3 text-[11px] text-neutral-600">
-            SYNQUE HQ · 100 Market Street
-            <br />
-            San Francisco, CA 94105
-            <br />
-            billing@synque.cloud
-          </div>
+          {rs.showCompanyAddress && (
+            <div className="mt-3 text-[11px] text-neutral-600">
+              {company.address || "SYNQUE HQ · 100 Market Street"}
+              <br />
+              {companyLine || "San Francisco, CA 94105"}
+              <br />
+              {rs.showCompanyContact
+                ? (contactLine || "billing@synque.cloud")
+                : null}
+            </div>
+          )}
         </div>
         <div className="text-right">
-          <div className="text-3xl font-bold tracking-tight text-neutral-900">
-            {title}
-          </div>
+          {rs.showReportTitle && (
+            <div className="text-3xl font-bold tracking-tight report-accent-text" style={{ color: accent }}>
+              {title}
+            </div>
+          )}
           <div className="mt-1 text-sm font-mono text-neutral-700">
             {doc.number}
           </div>
           <div className="mt-2 text-[11px] text-neutral-600">
             Issued: {format(new Date(doc.issueDate), "MMM d, yyyy")}
             <br />
-            {dateField
+            {rs.showDateRange && dateField
               ? `${dateLabel}: ${format(new Date(dateField), "MMM d, yyyy")}`
               : `${dateLabel}: —`}
             <br />
@@ -1945,9 +2504,9 @@ function InvoicePrintLayout({
       </div>
 
       {/* Items table */}
-      <table className="w-full border-collapse">
+      <table className="report-table w-full border-collapse">
         <thead>
-          <tr className="border-b-2 border-neutral-900 text-left text-[10px] uppercase tracking-wider text-neutral-700">
+          <tr className="border-b-2 text-left text-[10px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
             <th className="py-2 pr-2">Description</th>
             <th className="w-12 py-2 pr-2 text-right">Qty</th>
             <th className="w-24 py-2 pr-2 text-right">Unit price</th>
@@ -2009,7 +2568,7 @@ function InvoicePrintLayout({
             </span>
             <span className="tabular-nums">{money(doc.taxAmount)}</span>
           </div>
-          <div className="mt-1 flex justify-between border-t-2 border-neutral-900 pt-2 text-base font-bold">
+          <div className="mt-1 flex justify-between border-t-2 pt-2 text-base font-bold" style={{ borderColor: accent }}>
             <span>Total</span>
             <span className="tabular-nums">{money(doc.total)}</span>
           </div>
@@ -2035,9 +2594,25 @@ function InvoicePrintLayout({
             : "This quotation is valid for 30 days from the issue date. Prices are subject to change after expiration."}
         </p>
         <p className="mt-3 font-semibold text-neutral-900">
-          Thank you for your business — SYNQUE.
+          Thank you for your business — {companyName}.
         </p>
       </div>
+
+      {/* Footer — driven by report settings */}
+      {rs.showFooter && (
+        <div className="notes-block mt-8 border-t pt-4 text-[10px] text-neutral-500" style={{ borderColor: rs.showFooterLine ? "#d4d4d8" : "transparent" }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              {effectiveFooterText && <div className="font-semibold">{effectiveFooterText}</div>}
+              <div>Generated on {format(new Date(), "MMM d, yyyy · HH:mm")}</div>
+            </div>
+            <div className="text-right">
+              <div>{companyName}</div>
+              {rs.showPageNumbers && <div className="font-mono">Page 1 of 1</div>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2697,6 +3272,37 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
     }
   };
 
+  /** Convert a quotation into a paid-or-draft invoice by POSTing the
+   *  quotation's items + totals to /api/invoices. The quotation is then
+   *  marked "accepted" (since it was converted) so the workflow reflects
+   *  that the proposal was acted upon. */
+  const convertToInvoice = async (q: Quotation) => {
+    if (!confirm(`Convert quotation ${q.number} into an invoice?`)) return;
+    try {
+      const res = await api("POST", "/api/invoices", {
+        customerId: q.customerId,
+        items: q.items,
+        taxRate: q.taxRate,
+        dueDate: null,
+        notes: q.notes ? `${q.notes}\n\n— Converted from quotation ${q.number}` : `Converted from quotation ${q.number}`,
+        subtotal: q.subtotal,
+        discountType: q.discountType,
+        discountValue: q.discountValue,
+        discountAmount: q.discountAmount,
+        taxAmount: q.taxAmount,
+        total: q.total,
+      }) as { ok?: boolean; number?: string };
+      // Mark the quotation as accepted (so it doesn't appear "open" forever).
+      await api("PATCH", `/api/quotations/${q.id}`, { status: "accepted" });
+      toast.success(`Invoice ${res.number ?? ""} created`, {
+        description: `Quotation ${q.number} → ${q.customerName}. Status set to accepted.`,
+      });
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to convert");
+    }
+  };
+
   const remove = async (q: Quotation) => {
     if (!confirm(`Delete quotation ${q.number}?`)) return;
     try {
@@ -2818,6 +3424,9 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                     <DropdownMenuItem onClick={() => setPrintDoc(q)}>
                       <Printer className="h-3.5 w-3.5" /> Export PDF
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => convertToInvoice(q)}>
+                      <FileText className="h-3.5 w-3.5" /> Convert to invoice
+                    </DropdownMenuItem>
                     {q.status === "draft" && (
                       <DropdownMenuItem onClick={() => setStatus(q, "sent")}>
                         <Send className="h-3.5 w-3.5" /> Mark sent
@@ -2837,6 +3446,13 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                           <Ban className="h-3.5 w-3.5" /> Mark rejected
                         </DropdownMenuItem>
                       </>
+                    )}
+                    {q.status === "accepted" && (
+                      <DropdownMenuItem
+                        onClick={() => setStatus(q, "rejected")}
+                      >
+                        <Ban className="h-3.5 w-3.5" /> Mark rejected
+                      </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -3448,6 +4064,10 @@ function ReportsTab() {
   const { data: invoices } = useApi<Invoice[]>("/api/invoices");
   const { data: analytics } = useApi<FinanceAnalytics | null>("/api/finance/analytics");
   const [range, setRange] = React.useState<"7" | "30" | "90" | "365">("365");
+  // Report-type selector — "Financial Summary" (default) drives the existing
+  // FinancialReportLayout. The other two types filter the rendered sections
+  // + the CSV export scope so the owner can export a focused report.
+  const [reportType, setReportType] = React.useState<"financial" | "clients" | "subscriptions">("financial");
   // Issue OWNER-FIXES #4: state for the print-ready report dialog. The
   // hooks are declared BEFORE the loading-state early return so React's
   // rules-of-hooks invariant holds.
@@ -3628,23 +4248,36 @@ function ReportsTab() {
 
   return (
     <div className="space-y-4">
-      {/* Header bar with date range filter + export */}
+      {/* Header bar with date range filter + report type + export */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1">
-          {rangeOptions.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setRange(opt.value)}
-              className={cn(
-                "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition",
-                range === opt.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/40 text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1">
+            {rangeOptions.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setRange(opt.value)}
+                className={cn(
+                  "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition",
+                  range === opt.value
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="h-4 w-px bg-border/40" />
+          <Select value={reportType} onValueChange={(v) => setReportType(v as "financial" | "clients" | "subscriptions")}>
+            <SelectTrigger className="h-8 w-44 text-[11px] font-semibold">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="financial">Financial Summary</SelectItem>
+              <SelectItem value="clients">Client Revenue</SelectItem>
+              <SelectItem value="subscriptions">Subscription Analytics</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
@@ -3954,7 +4587,10 @@ function ReportsTab() {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scroll-liquid">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Printer className="h-4 w-4" /> Financial Summary Report
+              <Printer className="h-4 w-4" />
+              {reportType === "financial" ? "Financial Summary Report"
+                : reportType === "clients" ? "Client Revenue Report"
+                : "Subscription Analytics Report"}
             </DialogTitle>
             <DialogDescription>
               Print-ready summary of revenue, clients, and invoices. Click "Print"
@@ -3974,6 +4610,7 @@ function ReportsTab() {
               topClients={topClients}
               customers={customers}
               invoiceSummary={invoiceSummary}
+              reportKind={reportType}
               invoiceStatusData={(analytics?.invoiceBreakdown ?? []).map((b) => ({
                 status: b.status,
                 count: b.count,
@@ -4034,6 +4671,7 @@ function ReportsTab() {
             topClients={topClients}
             customers={customers}
             invoiceSummary={invoiceSummary}
+            reportKind={reportType}
             invoiceStatusData={(analytics?.invoiceBreakdown ?? []).map((b) => ({
               status: b.status,
               count: b.count,
@@ -4074,6 +4712,11 @@ interface FinancialReportLayoutProps {
   customers: Customer[];
   invoiceSummary: { label: string; count: number; amount: number }[];
   invoiceStatusData: { status: string; count: number; total: number }[];
+  /** Optional report-type label — drives the visible report title and
+   *  which sections get rendered (e.g. "clients" hides the invoice
+   *  summary and emphasizes the top clients table). Defaults to the
+   *  financial summary. */
+  reportKind?: "financial" | "clients" | "subscriptions";
 }
 
 function FinancialReportLayout({
@@ -4089,8 +4732,24 @@ function FinancialReportLayout({
   customers,
   invoiceSummary,
   invoiceStatusData,
+  reportKind = "financial",
 }: FinancialReportLayoutProps) {
-  const reportTitle = "Financial Summary Report";
+  // ===== Report settings — accent color, logo, margins, table style, footer =====
+  const rs = getReportSettings();
+  const accent = rs.accentColor;
+  const fontScale = reportFontScale(rs.fontSize);
+  const company = getCompany();
+  const companyName = company.name || "SYNQUE";
+  const companyLine = [company.address, company.city, company.country].filter(Boolean).join(", ");
+  const contactLine = [company.phone, company.website].filter(Boolean).join(" · ");
+  const effectiveFooterText = rs.customFooterText.trim() !== "" ? rs.customFooterText : rs.footerText;
+
+  const reportTitle =
+    reportKind === "clients"
+      ? "Client Revenue Report"
+      : reportKind === "subscriptions"
+        ? "Subscription Analytics Report"
+        : "Financial Summary Report";
   const reportId = `RPT-${new Date(generatedAt).toISOString().slice(0, 10).replace(/-/g, "")}`;
   const totalPlanRevenue = planRevenue.reduce((s, p) => s + p.revenue, 0);
   const totalInvoices = invoiceSummary.reduce((s, i) => s + i.count, 0);
@@ -4098,98 +4757,133 @@ function FinancialReportLayout({
   const activeClients = customers.filter((c) => c.status === "active").length;
   const trialClients = customers.filter((c) => c.status === "trial").length;
 
+  const printCss = buildReportPrintCss({
+    accent,
+    marginTop: rs.marginTop,
+    marginRight: rs.marginRight,
+    marginBottom: rs.marginBottom,
+    marginLeft: rs.marginLeft,
+    paperSize: rs.paperSize,
+    orientation: rs.orientation,
+    tableStyle: rs.tableStyle,
+    showWatermark: rs.showWatermark,
+    watermarkText: rs.watermarkText,
+  });
+
   return (
-    <div className="print-area mx-auto max-w-[8.5in] bg-white p-10 text-[12px] leading-relaxed text-neutral-900">
+    <div className="print-area mx-auto max-w-[8.5in] bg-white p-10 text-neutral-900" style={{ fontSize: `calc(12px * ${fontScale})` }}>
+      <style dangerouslySetInnerHTML={{ __html: printCss }} />
+      {rs.showWatermark && rs.watermarkText && (
+        <div className="report-watermark" aria-hidden>{rs.watermarkText}</div>
+      )}
       {/* ===== Header ===== */}
-      <div className="flex items-start justify-between border-b border-neutral-300 pb-6">
+      <div className="flex items-start justify-between border-b report-accent-border pb-6" style={{ borderColor: accent }}>
         <div>
           <div className="flex items-center gap-2">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-neutral-900 text-white">
-              <Sparkles className="h-5 w-5" />
-            </div>
+            {rs.showCompanyLogo ? (
+              company.logo ? (
+                <img src={company.logo} alt={companyName} className="h-10 w-10 rounded-lg object-contain" />
+              ) : (
+                <div className="grid h-10 w-10 place-items-center rounded-lg text-white" style={{ background: accent }}>
+                  <Sparkles className="h-5 w-5" />
+                </div>
+              )
+            ) : null}
             <div>
               <div className="text-xl font-bold tracking-tight text-neutral-900">
-                SYNQUE
+                {companyName}
               </div>
               <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">
                 Orchestrate Your Social.
               </div>
             </div>
           </div>
-          <div className="mt-3 text-[11px] text-neutral-600">
-            SYNQUE HQ · 100 Market Street
-            <br />
-            San Francisco, CA 94105
-            <br />
-            billing@synque.cloud
-          </div>
+          {rs.showCompanyAddress && (
+            <div className="mt-3 text-[11px] text-neutral-600">
+              {company.address || "SYNQUE HQ · 100 Market Street"}
+              <br />
+              {companyLine || "San Francisco, CA 94105"}
+              <br />
+              {rs.showCompanyContact ? (contactLine || "billing@synque.cloud") : null}
+            </div>
+          )}
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold tracking-tight text-neutral-900">
-            {reportTitle}
-          </div>
+          {rs.showReportTitle && (
+            <div className="text-2xl font-bold tracking-tight report-accent-text" style={{ color: accent }}>
+              {reportTitle}
+            </div>
+          )}
           <div className="mt-1 text-sm font-mono text-neutral-700">
             {reportId}
           </div>
-          <div className="mt-2 text-[11px] text-neutral-600">
-            Range: {range}
-            <br />
-            Generated: {format(new Date(generatedAt), "MMM d, yyyy · HH:mm")}
-          </div>
+          {rs.showDateRange && (
+            <div className="mt-2 text-[11px] text-neutral-600">
+              Range: {range}
+              <br />
+              Generated: {format(new Date(generatedAt), "MMM d, yyyy · HH:mm")}
+            </div>
+          )}
         </div>
       </div>
+      {/* Accent rule under the header — visible only in print */}
+      <div className="report-accent-bar mt-0 h-1 w-full" style={{ background: accent }} />
 
       {/* ===== Summary KPIs ===== */}
-      <div className="py-6">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-          Executive Summary
-        </div>
-        <div className="mt-3 grid grid-cols-5 gap-3">
-          {[
-            { label: "MRR", value: money(mrr) },
-            { label: "ARR", value: money(arr) },
-            { label: "Total Revenue", value: money(totalRevenue) },
-            { label: "Pending", value: money(pending) },
-            { label: "Overdue", value: money(overdue) },
-          ].map((kpi) => (
-            <div key={kpi.label} className="rounded-lg border border-neutral-200 p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
-                {kpi.label}
+      {rs.showExecutiveSummary && (
+        <div className="py-6">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+            Executive Summary
+          </div>
+          <div className="mt-3 grid grid-cols-5 gap-3">
+            {[
+              { label: "MRR", value: money(mrr) },
+              { label: "ARR", value: money(arr) },
+              { label: "Total Revenue", value: money(totalRevenue) },
+              { label: "Pending", value: money(pending) },
+              { label: "Overdue", value: money(overdue) },
+            ].map((kpi) => (
+              <div key={kpi.label} className="rounded-lg border report-accent-border p-3" style={{ borderColor: `${accent}40` }}>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                  {kpi.label}
+                </div>
+                <div className="mt-1 text-lg font-bold tabular-nums text-neutral-900">
+                  {kpi.value}
+                </div>
               </div>
-              <div className="mt-1 text-lg font-bold tabular-nums text-neutral-900">
-                {kpi.value}
+            ))}
+          </div>
+          {rs.showKpiStrip && (
+            <div className="mt-3 grid grid-cols-4 gap-3 text-[11px] text-neutral-700">
+              <div className="rounded-lg bg-neutral-100 px-3 py-2">
+                <div className="text-[10px] uppercase text-neutral-500">Total Clients</div>
+                <div className="num-display text-base font-bold tabular-nums">{customers.length}</div>
+              </div>
+              <div className="rounded-lg bg-emerald-50 px-3 py-2">
+                <div className="text-[10px] uppercase text-neutral-500">Active Clients</div>
+                <div className="num-display text-base font-bold tabular-nums text-emerald-700">{activeClients}</div>
+              </div>
+              <div className="rounded-lg bg-amber-50 px-3 py-2">
+                <div className="text-[10px] uppercase text-neutral-500">Trial Clients</div>
+                <div className="num-display text-base font-bold tabular-nums text-amber-700">{trialClients}</div>
+              </div>
+              <div className="rounded-lg bg-neutral-100 px-3 py-2">
+                <div className="text-[10px] uppercase text-neutral-500">Total Invoices</div>
+                <div className="num-display text-base font-bold tabular-nums">{totalInvoices}</div>
               </div>
             </div>
-          ))}
+          )}
         </div>
-        <div className="mt-3 grid grid-cols-4 gap-3 text-[11px] text-neutral-700">
-          <div className="rounded-lg bg-neutral-100 px-3 py-2">
-            <div className="text-[10px] uppercase text-neutral-500">Total Clients</div>
-            <div className="num-display text-base font-bold tabular-nums">{customers.length}</div>
-          </div>
-          <div className="rounded-lg bg-emerald-50 px-3 py-2">
-            <div className="text-[10px] uppercase text-neutral-500">Active Clients</div>
-            <div className="num-display text-base font-bold tabular-nums text-emerald-700">{activeClients}</div>
-          </div>
-          <div className="rounded-lg bg-amber-50 px-3 py-2">
-            <div className="text-[10px] uppercase text-neutral-500">Trial Clients</div>
-            <div className="num-display text-base font-bold tabular-nums text-amber-700">{trialClients}</div>
-          </div>
-          <div className="rounded-lg bg-neutral-100 px-3 py-2">
-            <div className="text-[10px] uppercase text-neutral-500">Total Invoices</div>
-            <div className="num-display text-base font-bold tabular-nums">{totalInvoices}</div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* ===== Revenue by plan table ===== */}
       <div className="notes-block">
         <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
           Revenue Breakdown by Plan
         </div>
-        <table className="mt-2 w-full border-collapse">
+        <table className="report-table mt-2 w-full border-collapse">
           <thead>
-            <tr className="border-b-2 border-neutral-900 text-left text-[10px] uppercase tracking-wider text-neutral-700">
+            <tr className="border-b-2 report-accent-border text-left text-[10px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
               <th className="py-2 pr-2">Plan</th>
               <th className="w-32 py-2 pr-2 text-right">Paid Revenue</th>
               <th className="w-20 py-2 pr-2 text-right">Share</th>
@@ -4223,7 +4917,7 @@ function FinancialReportLayout({
               );
             })}
             {planRevenue.length > 0 && (
-              <tr className="border-t-2 border-neutral-900 text-[11px] font-bold">
+              <tr className="border-t-2 report-accent-border text-[11px] font-bold" style={{ borderColor: accent }}>
                 <td className="py-2 pr-2">Total</td>
                 <td className="py-2 pr-2 text-right tabular-nums">{money(totalPlanRevenue)}</td>
                 <td className="py-2 pr-2 text-right tabular-nums">100%</td>
@@ -4239,9 +4933,9 @@ function FinancialReportLayout({
         <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
           Top 10 Clients by Revenue
         </div>
-        <table className="mt-2 w-full border-collapse">
+        <table className="report-table mt-2 w-full border-collapse">
           <thead>
-            <tr className="border-b-2 border-neutral-900 text-left text-[10px] uppercase tracking-wider text-neutral-700">
+            <tr className="border-b-2 report-accent-border text-left text-[10px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
               <th className="w-8 py-2 pr-2 text-right">#</th>
               <th className="py-2 pr-2">Client</th>
               <th className="w-20 py-2 pr-2 text-right">Invoices</th>
@@ -4290,7 +4984,7 @@ function FinancialReportLayout({
         </div>
         <div className="mt-3 grid grid-cols-4 gap-3">
           {invoiceSummary.map((row) => (
-            <div key={row.label} className="rounded-lg border border-neutral-200 p-3">
+            <div key={row.label} className="rounded-lg border report-accent-border p-3" style={{ borderColor: `${accent}40` }}>
               <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
                 {row.label}
               </div>
@@ -4305,9 +4999,9 @@ function FinancialReportLayout({
         </div>
 
         {/* Status breakdown table */}
-        <table className="mt-4 w-full border-collapse">
+        <table className="report-table mt-4 w-full border-collapse">
           <thead>
-            <tr className="border-b-2 border-neutral-900 text-left text-[10px] uppercase tracking-wider text-neutral-700">
+            <tr className="border-b-2 report-accent-border text-left text-[10px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
               <th className="py-2 pr-2">Status</th>
               <th className="w-20 py-2 pr-2 text-right">Count</th>
               <th className="w-32 py-2 text-right">Total</th>
@@ -4329,7 +5023,7 @@ function FinancialReportLayout({
               </tr>
             ))}
             {invoiceStatusData.length > 0 && (
-              <tr className="border-t-2 border-neutral-900 text-[11px] font-bold">
+              <tr className="border-t-2 report-accent-border text-[11px] font-bold" style={{ borderColor: accent }}>
                 <td className="py-2 pr-2">Total</td>
                 <td className="py-2 pr-2 text-right tabular-nums">{totalInvoices}</td>
                 <td className="py-2 text-right tabular-nums">{money(totalAmount)}</td>
@@ -4339,20 +5033,26 @@ function FinancialReportLayout({
         </table>
       </div>
 
-      {/* ===== Footer ===== */}
-      <div className="notes-block mt-8 border-t border-neutral-300 pt-4 text-[10px] text-neutral-500">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            Report generated by SYNQUE Owner Panel · {format(new Date(generatedAt), "PPpp")}
+      {/* ===== Footer — driven by report settings (footerText, footerPosition,
+          showFooterLine, footerFontSize, showPageNumbers, showFooter) ===== */}
+      {rs.showFooter && (
+        <div className="notes-block mt-8 border-t pt-4 text-[10px] text-neutral-500" style={{ borderColor: rs.showFooterLine ? "#d4d4d8" : "transparent" }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              {effectiveFooterText && <div className="font-semibold">{effectiveFooterText}</div>}
+              <div>Report generated by {companyName} Owner Panel · {format(new Date(generatedAt), "PPpp")}</div>
+              <p className="mt-2">
+                This report is auto-generated from the finance module. Figures are derived from the
+                invoice + subscription records in the selected date range.
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="font-mono">{reportId}</div>
+              {rs.showPageNumbers && <div className="font-mono">Page 1 of 1</div>}
+            </div>
           </div>
-          <div className="font-mono">{reportId}</div>
         </div>
-        <p className="mt-2">
-          This report is auto-generated from the SYNQUE finance module. Figures are
-          derived from the invoice + subscription records in the selected date range.
-          For questions, contact billing@synque.cloud.
-        </p>
-      </div>
+      )}
     </div>
   );
 }
@@ -4793,6 +5493,12 @@ function computeSubTotals(form: SubscriptionForm) {
 
 function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   const { data, loading, reload } = useApi<SubscriptionData[]>("/api/subscriptions");
+  // Payment-status probe: fetch all invoices so we can show a "Payment
+  // Status" badge on each subscription card. Current-period invoices
+  // generated for the subscription carry a `subscription:<id>` fingerprint
+  // in their notes; older invoices fall back to "any invoice for this
+  // client" so the badge still reflects reality for legacy data.
+  const { data: invoicesData } = useApi<Invoice[]>("/api/invoices");
   const [addOpen, setAddOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [editId, setEditId] = React.useState<string | null>(null);
@@ -4802,6 +5508,25 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
 
   if (loading) return <div className="shimmer h-64 rounded-3xl" />;
   const subs = data ?? [];
+  const allInvoices = invoicesData ?? [];
+
+  /** Payment status for the current billing period of a subscription:
+   *  paid / pending / overdue / none. */
+  const paymentStatusFor = (s: SubscriptionData): "paid" | "pending" | "overdue" | "none" => {
+    // Prefer invoices that explicitly link to this subscription (newer
+    // ones carry `subscription:<id>` in notes); fall back to ANY invoice
+    // for the same client as a proxy (covers legacy + manually-created
+    // invoices).
+    const linked = allInvoices.filter(
+      (i) => i.customerId === s.customerId && (i.notes ?? "").includes(`subscription:${s.id}`),
+    );
+    const pool = linked.length > 0 ? linked : allInvoices.filter((i) => i.customerId === s.customerId);
+    if (pool.some((i) => i.status === "overdue")) return "overdue";
+    if (pool.some((i) => i.status === "paid")) return "paid";
+    if (pool.some((i) => i.status === "sent" || i.status === "draft")) return "pending";
+    return "none";
+  };
+
 
   // ===== Aggregate metrics for the lifecycle strip =====
   const stats = {
@@ -5293,6 +6018,21 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
                       {s.billingCycle && (
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold capitalize text-muted-foreground">{s.billingCycle}</span>
                       )}
+                      {(() => {
+                        const p = paymentStatusFor(s);
+                        if (p === "none") return null;
+                        const cls = p === "paid"
+                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                          : p === "pending"
+                            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                            : "bg-rose-500/15 text-rose-600 dark:text-rose-400";
+                        return (
+                          <span className={cn("inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold capitalize", cls)} title="Payment status for the current billing period">
+                            <span className={cn("h-1 w-1 rounded-full", p === "paid" ? "bg-emerald-500" : p === "pending" ? "bg-amber-500" : "bg-rose-500")} />
+                            {p === "paid" ? "Paid" : p === "pending" ? "Payment due" : "Overdue"}
+                          </span>
+                        );
+                      })()}
                     </div>
                     {/* Amount + breakdown */}
                     <div className="mt-1.5 text-[11px] text-muted-foreground">
@@ -6723,7 +7463,6 @@ export function OwnerView() {
         {tab === "subscriptions" && <SubscriptionsTab customers={customerList} />}
         {tab === "invoices" && <InvoicesTab customers={customerList} />}
         {tab === "quotations" && <QuotationsTab customers={customerList} />}
-        {tab === "keys" && <SerialKeysTab customers={customerList} />}
         {tab === "devices" && <DevicesTab />}
         {tab === "apikeys" && <ApiKeysTab />}
         {tab === "bank" && <BankAccountsTab />}
