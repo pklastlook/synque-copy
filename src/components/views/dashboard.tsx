@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import {
-  Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
   Users, TrendingUp, FileText, Send, Clock, Reply,
@@ -384,13 +385,8 @@ export function DashboardView() {
               {pendingInbox} unread
             </button>
           )}
-          <button
-            onClick={() => setView("composer")}
-            className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[12px] font-semibold sm:px-4"
-          >
-            <Wand2 className="h-4 w-4" />
-            <span className="whitespace-nowrap">Compose with AI</span>
-          </button>
+          {/* "Compose with AI" button removed — admin/manager accounts don't
+              need a compose shortcut on the dashboard. Use the sidebar instead. */}
         </div>
       </div>
 
@@ -767,10 +763,10 @@ export function DashboardView() {
           </div>
         </BentoTile>
 
-        {/* ── Tile 5: CHART (3×1, full-bleed on lg) — the one trend chart ── */}
+        {/* ── Tile 5: CHARTS (3×1, full-bleed on lg) — diverse multi-chart view ── */}
         <BentoTile span="3x1" className="overflow-hidden p-0 lg:col-span-4">
           <HeroChart
-            title="Performance trend"
+            title="Performance analytics"
             action={
               <div className="scroll-liquid flex items-center gap-1 overflow-x-auto">
                 {CHART_METRICS.map((m) => (
@@ -789,44 +785,138 @@ export function DashboardView() {
               </div>
             }
           >
-            <div className="h-[180px] w-full sm:h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.series} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gMetric" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.4} />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
-                    tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                    axisLine={false} tickLine={false} interval={2}
-                  />
-                  <YAxis
-                    tickFormatter={(v) => fmt(v)}
-                    tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                    axisLine={false} tickLine={false} width={40}
-                  />
-                  <Tooltip
-                    contentStyle={TOOLTIP_STYLE}
-                    labelFormatter={(d) => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={chartMetric}
-                    name={chartMetric}
-                    stroke="var(--primary)"
-                    strokeWidth={2.5}
-                    fill="url(#gMetric)"
-                    isAnimationActive
-                    animationBegin={200}
-                    animationDuration={1200}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+            {/* Hierarchical chart layout: top = trend (area), bottom = two side-by-side (bar + donut) */}
+            <div className="space-y-3">
+              {/* Top: Trend area chart (same metric as before but with comparison line) */}
+              <div className="h-[160px] w-full sm:h-[180px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.series} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gMetric" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.4} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                      axisLine={false} tickLine={false} interval={2}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => fmt(v)}
+                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                      axisLine={false} tickLine={false} width={40}
+                    />
+                    <Tooltip
+                      contentStyle={TOOLTIP_STYLE}
+                      labelFormatter={(d) => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={chartMetric}
+                      name={chartMetric}
+                      stroke="var(--primary)"
+                      strokeWidth={2.5}
+                      fill="url(#gMetric)"
+                      isAnimationActive
+                      animationBegin={200}
+                      animationDuration={1200}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Bottom: Two diverse charts side by side */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {/* Left: Bar chart — daily engagement breakdown */}
+                <div className="rounded-xl border border-border/30 bg-muted/10 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Engagement by day</span>
+                    <span className="text-[9px] text-muted-foreground">Likes + Comments + Shares</span>
+                  </div>
+                  <div className="h-[100px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data.series.slice(-7)} margin={{ left: -20, right: 0, top: 4, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="2 2" stroke="var(--border)" vertical={false} opacity={0.3} />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { weekday: "short" })}
+                          tick={{ fontSize: 8, fill: "var(--muted-foreground)" }}
+                          axisLine={false} tickLine={false}
+                        />
+                        <YAxis tick={{ fontSize: 8, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={28} />
+                        <Tooltip
+                          contentStyle={TOOLTIP_STYLE}
+                          labelFormatter={(d) => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                          formatter={(v: number) => fmt(v)}
+                        />
+                        <Bar dataKey="comments" stackId="eng" fill="oklch(0.7 0.2 25)" radius={[0, 0, 0, 0]} isAnimationActive animationDuration={600} />
+                        <Bar dataKey="published" stackId="eng" fill="oklch(0.68 0.2 145)" radius={[0, 0, 0, 0]} isAnimationActive animationDuration={800} />
+                        <Bar dataKey="postsCreated" stackId="eng" fill="oklch(0.74 0.18 165)" radius={[3, 3, 0, 0]} isAnimationActive animationDuration={1000} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Right: Platform distribution donut */}
+                <div className="rounded-xl border border-border/30 bg-muted/10 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Platform mix</span>
+                    <span className="text-[9px] text-muted-foreground">{data.kpis.accounts} accounts</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-[100px] w-[100px] shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: "Instagram", value: data.kpis.today.platformBreakdown["instagram"] ?? 1, fill: "#E1306C" },
+                              { name: "Facebook", value: data.kpis.today.platformBreakdown["facebook"] ?? 1, fill: "#1877F2" },
+                              { name: "X/Twitter", value: data.kpis.today.platformBreakdown["x"] ?? 1, fill: "#1DA1F2" },
+                              { name: "LinkedIn", value: data.kpis.today.platformBreakdown["linkedin"] ?? 1, fill: "#0A66C2" },
+                              { name: "TikTok", value: data.kpis.today.platformBreakdown["tiktok"] ?? 0, fill: "#000000" },
+                              { name: "YouTube", value: data.kpis.today.platformBreakdown["youtube"] ?? 0, fill: "#FF0000" },
+                              { name: "Threads", value: data.kpis.today.platformBreakdown["threads"] ?? 0, fill: "#65676B" },
+                            ].filter((d) => d.value > 0)}
+                            dataKey="value"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={28}
+                            outerRadius={45}
+                            isAnimationActive
+                            animationDuration={800}
+                          >
+                            {[
+                              "#E1306C", "#1877F2", "#1DA1F2", "#0A66C2",
+                              "#000000", "#FF0000", "#65676B",
+                            ].map((color, i) => (
+                              <Cell key={i} fill={color} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={TOOLTIP_STYLE} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      {Object.entries(data.kpis.today.platformBreakdown).filter(([_, v]) => v > 0).map(([platform, count]) => (
+                        <div key={platform} className="flex items-center gap-2 text-[10px]">
+                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: {
+                            instagram: "#E1306C", facebook: "#1877F2", x: "#1DA1F2",
+                            linkedin: "#0A66C2", tiktok: "#000", youtube: "#FF0000", threads: "#65676B",
+                          }[platform] ?? "#888" }} />
+                          <span className="capitalize text-muted-foreground">{platform}</span>
+                          <span className="ml-auto font-bold tabular-nums">{count}</span>
+                        </div>
+                      ))}
+                      {Object.keys(data.kpis.today.platformBreakdown).length === 0 && (
+                        <div className="text-[10px] text-muted-foreground">No platform data yet</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </HeroChart>
         </BentoTile>

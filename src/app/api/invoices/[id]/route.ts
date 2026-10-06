@@ -5,6 +5,32 @@ import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 export const dynamic = "force-dynamic";
 
 /**
+ * GET /api/invoices/[id]
+ *
+ * Auth required. Target invoice must belong to the caller's tenant
+ * (super-admins can read any invoice).
+ */
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { user, error } = await requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
+  const inv = await db.invoice.findFirst({
+    where: { id, ...tenantWhere(scope) as { customerId?: string } },
+    include: { customer: true },
+  });
+  if (!inv) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json({
+    id: inv.id, number: inv.number, customerId: inv.customerId, customerName: inv.customer?.name ?? "Unknown",
+    status: inv.status, issueDate: inv.issueDate.toISOString(), dueDate: inv.dueDate?.toISOString() ?? null,
+    subtotal: inv.subtotal, taxRate: inv.taxRate, taxAmount: inv.taxAmount, total: inv.total,
+    notes: inv.notes, items: JSON.parse(inv.items), createdAt: inv.createdAt.toISOString(),
+  });
+}
+
+/**
  * PATCH /api/invoices/[id]
  *
  * Auth required. Target invoice must belong to the caller's tenant

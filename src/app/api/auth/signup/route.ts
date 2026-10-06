@@ -65,6 +65,64 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // === 1b. Auto-generate the trial Subscription + draft Invoice ===
+    // Trial signup creates a Starter plan ($299/mo) subscription on a 15-day
+    // trial. A draft invoice is created so the owner can send it the moment
+    // the trial ends. Both records are best-effort: a failure here MUST NOT
+    // block the signup (the user is already created in step 3+).
+    const TRIAL_DAYS = 15;
+    const STARTER_PRICE = 299;
+    const now = new Date();
+    const trialEnds = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
+    try {
+      // Subscription (status=trial, plan=starter, amount=299 USD)
+      await db.subscription.create({
+        data: {
+          customerId: customer.id,
+          plan: "starter",
+          status: "trial",
+          amount: STARTER_PRICE,
+          currency: "USD",
+          startDate: now,
+          trialEnds,
+          // endDate is left null until the trial converts to active.
+        },
+      });
+    } catch (e) {
+      console.error("[auth/signup] Subscription creation failed (non-fatal):", e instanceof Error ? e.message : String(e));
+    }
+
+    try {
+      // Draft invoice — will be sent to the client when the trial ends.
+      const itemCount = await db.invoice.count();
+      const invoiceNumber = `INV-${String(itemCount + 1).padStart(4, "0")}`;
+      const lineItems = [
+        {
+          description: "Starter Plan — Monthly",
+          qty: 1,
+          price: STARTER_PRICE,
+          amount: STARTER_PRICE,
+        },
+      ];
+      await db.invoice.create({
+        data: {
+          number: invoiceNumber,
+          customerId: customer.id,
+          status: "draft",
+          issueDate: now,
+          dueDate: trialEnds,
+          subtotal: STARTER_PRICE,
+          taxRate: 0,
+          taxAmount: 0,
+          total: STARTER_PRICE,
+          items: JSON.stringify(lineItems),
+        },
+      });
+    } catch (e) {
+      console.error("[auth/signup] Invoice creation failed (non-fatal):", e instanceof Error ? e.message : String(e));
+    }
+
     // === 2. Provision a dedicated Neon database for this client ===
     // Same flow as the Owner module's POST /api/customers with createDatabase: true
     let tenantDbCreated = false;

@@ -354,9 +354,9 @@ interface OwnerSection {
 }
 
 const OWNER_SECTIONS: OwnerSection[] = [
-  { id: "customers",     label: "Customers",     icon: Users,           accent: "oklch(0.55 0.2 255)",  desc: "CRM records & plans",   countKey: "customers" },
+  { id: "customers",     label: "Clients",        icon: Users,           accent: "oklch(0.55 0.2 255)",  desc: "Client records & plans",  countKey: "customers" },
   { id: "subscriptions", label: "Subscriptions",  icon: CreditCard,      accent: "oklch(0.68 0.22 145)", desc: "Active & trial plans",  countKey: "subscriptions" },
-  { id: "invoices",      label: "Invoices",       icon: FileText,        accent: "oklch(0.72 0.18 75)",  desc: "Bill customers",        countKey: "invoices" },
+  { id: "invoices",      label: "Invoices",       icon: FileText,        accent: "oklch(0.72 0.18 75)",  desc: "Bill clients",           countKey: "invoices" },
   { id: "quotations",    label: "Quotations",     icon: FileSignature,   accent: "oklch(0.7 0.2 25)",    desc: "Proposals & quotes",    countKey: "quotations" },
   { id: "keys",          label: "Serial Keys",    icon: KeyRound,        accent: "oklch(0.66 0.18 200)", desc: "License keys",          countKey: "serialKeys" },
   { id: "devices",       label: "Devices",         icon: Smartphone,      accent: "oklch(0.62 0.22 300)", desc: "Registered devices",    countKey: "devices" },
@@ -533,8 +533,8 @@ function LineItemsEditor({
 }
 
 // ============================================================================
-// Customers tab
-// ============================================================================
+// Clients tab
+// =============================================================================
 
 interface CustomerForm {
   name: string;
@@ -640,9 +640,9 @@ function OverviewTab() {
         { label: "Overdue", value: `$${fmt(d.overdueRevenue)}`, color: "oklch(0.55 0.22 25)" },
       ]} />
 
-      {/* Customers + Subscriptions KPIs */}
+      {/* Clients + Subscriptions KPIs */}
       <MetricRow metrics={[
-        { label: "Customers", value: d.customers, color: "oklch(0.62 0.2 255)" },
+        { label: "Clients", value: d.customers, color: "oklch(0.62 0.2 255)" },
         { label: "Client Users", value: d.users, color: "oklch(0.66 0.22 305)" },
         { label: "Serial Keys", value: d.serialKeys, color: "oklch(0.72 0.18 75)" },
         { label: "Devices", value: d.devices, color: "oklch(0.6 0.2 220)" },
@@ -801,7 +801,7 @@ function OverviewTab() {
           )}
         </section>
 
-        {/* Churn risk — customers inactive 30+ days */}
+        {/* Churn risk — clients inactive 30+ days */}
         <section className="crystal-in rounded-2xl border border-border/40 bg-muted/10 p-4">
           <div className="mb-3 flex items-center gap-2">
             <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "oklch(0.55 0.22 25)18", color: "oklch(0.55 0.22 25)" }}>
@@ -833,7 +833,7 @@ function OverviewTab() {
             </div>
           ) : (
             <div className="grid h-32 place-items-center text-[11px] text-muted-foreground">
-              No churn-risk customers
+              No churn-risk clients
             </div>
           )}
         </section>
@@ -842,7 +842,7 @@ function OverviewTab() {
   );
 }
 
-function CustomersTab() {
+function ClientsTab() {
   const { data, loading, reload } = useApi<Customer[]>("/api/customers");
   const { setOwnerTab, setOwnerDbFilter } = useNav();
   const [open, setOpen] = React.useState(false);
@@ -896,7 +896,7 @@ function CustomersTab() {
     try {
       if (editId) {
         await api("PATCH", `/api/customers/${editId}`, form);
-        toast.success("Customer updated");
+        toast.success("Client updated");
       } else {
         const res = await api("POST", "/api/customers", form);
         const json = res as { ok?: boolean; databaseCreated?: boolean; dbName?: string; dbError?: string };
@@ -911,7 +911,7 @@ function CustomersTab() {
             duration: 6000,
           });
         } else {
-          toast.success("Customer created");
+          toast.success("Client created");
         }
       }
       setOpen(false);
@@ -928,7 +928,7 @@ function CustomersTab() {
       return;
     try {
       await api("DELETE", `/api/customers/${c.id}`);
-      toast.success("Customer deleted");
+      toast.success("Client deleted");
       reload();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete");
@@ -945,14 +945,14 @@ function CustomersTab() {
     }
   };
 
-  /** Switch to the Databases tab with this customer pre-selected in the
+  /** Switch to the Databases tab with this client pre-selected in the
    *  filter — fired by the per-card "View Database" action. */
   const viewDatabase = (c: Customer) => {
     setOwnerDbFilter(c.id);
     setOwnerTab("databases");
   };
 
-  /** Provision a dedicated Neon database for a customer that doesn't have
+  /** Provision a dedicated Neon database for a client that doesn't have
    *  one yet. Mirrors the create-DB flow on the POST /api/customers route
    *  but operates on an existing Customer row. */
   const provisionDatabase = async (c: Customer) => {
@@ -976,9 +976,9 @@ function CustomersTab() {
     }
   };
 
-  /** Trial days remaining for a trial-status customer. Trial window is
+  /** Trial days remaining for a trial-status client. Trial window is
    *  18 days from customer.createdAt (matches the example "15 days ago →
-   *  3 days left"). Returns null when the customer is not on trial. */
+   *  3 days left"). Returns null when the client is not on trial. */
   const trialDaysLeft = (c: Customer): number | null => {
     if (c.status !== "trial") return null;
     const trialEnd = new Date(c.createdAt).getTime() + 18 * 24 * 60 * 60 * 1000;
@@ -1055,7 +1055,7 @@ function CustomersTab() {
   return (
     <div className="space-y-4">
       <MetricRow metrics={[
-        { label: "Total customers", value: stats.total, color: "oklch(0.55 0.2 255)" },
+        { label: "Total clients", value: stats.total, color: "oklch(0.55 0.2 255)" },
         { label: "Active", value: stats.active, color: "oklch(0.74 0.18 165)" },
         { label: "Trial", value: stats.trial, color: "oklch(0.82 0.14 85)" },
         { label: "Suspended", value: stats.suspended, color: "oklch(0.7 0.2 25)" },
@@ -1063,15 +1063,15 @@ function CustomersTab() {
 
       <section>
         <SectionHeader
-          title="Customers"
-          desc="Manage CRM records, plans & license assignments"
+          title="Clients"
+          desc="Manage client records, plans & license assignments"
           icon={Users}
           action={
             <button
               onClick={openCreate}
               className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold"
             >
-              <Plus className="h-4 w-4" /> Add customer
+              <Plus className="h-4 w-4" /> Add Client
             </button>
           }
         />
@@ -1087,9 +1087,9 @@ function CustomersTab() {
             <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
               <Users className="h-5 w-5" />
             </div>
-            <p className="mt-3 text-sm font-medium">No customers yet</p>
+            <p className="mt-3 text-sm font-medium">No clients yet</p>
             <p className="text-xs text-muted-foreground">
-              Add your first customer to get started.
+              Add your first client to get started.
             </p>
           </div>
         ) : (
@@ -1189,7 +1189,7 @@ function CustomersTab() {
                   </DropdownMenu>
                 </div>
 
-                {/* Trial days remaining banner — only for trial-status customers */}
+                {/* Trial days remaining banner — only for trial-status clients */}
                 {(() => {
                   const daysLeft = trialDaysLeft(c);
                   if (daysLeft === null) return null;
@@ -1309,11 +1309,11 @@ function CustomersTab() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editId ? "Edit customer" : "Register new client"}
+              {editId ? "Edit client" : "Register new client"}
             </DialogTitle>
             <DialogDescription>
               {editId
-                ? "Update customer profile & plan."
+                ? "Update client profile & plan."
                 : "Create a new client record. A dedicated database can be provisioned automatically."}
             </DialogDescription>
           </DialogHeader>
@@ -1404,7 +1404,7 @@ function CustomersTab() {
               </Field>
             </div>
 
-            {/* Database creation toggle — only on new customer, not edit */}
+            {/* Database creation toggle — only on new client, not edit */}
             {!editId && (
               <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
                 <button
@@ -1456,7 +1456,7 @@ function CustomersTab() {
               <UserPlus className="h-5 w-5 text-[var(--gold)]" /> Create login for {loginCustomer?.name}
             </DialogTitle>
             <DialogDescription>
-              Create a user account so this customer can sign in at /login. They&apos;ll use their email + the password you set.
+              Create a user account so this client can sign in at /login. They&apos;ll use their email + the password you set.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1485,7 +1485,7 @@ function CustomersTab() {
             </div>
             <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
-              <span>The customer will sign in at <code className="font-mono text-foreground">/login</code> with these credentials. You can change their role or suspend them anytime.</span>
+              <span>The client will sign in at <code className="font-mono text-foreground">/login</code> with these credentials. You can change their role or suspend them anytime.</span>
             </div>
           </div>
           <DialogFooter>
@@ -1557,7 +1557,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
 
   const assign = async () => {
     if (!assignFor || !assignCustomer) {
-      toast.error("Pick a customer first");
+      toast.error("Pick a client first");
       return;
     }
     try {
@@ -1594,7 +1594,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
       <section>
         <SectionHeader
           title="Serial keys"
-          desc="Generate & manage license keys for customer devices"
+          desc="Generate & manage license keys for client devices"
           icon={KeyRound}
           action={
             <button
@@ -1691,7 +1691,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
                         setAssignCustomer(k.customerId ?? "");
                       }}
                     >
-                      <Users className="h-3.5 w-3.5" /> Assign to customer
+                      <Users className="h-3.5 w-3.5" /> Assign to client
                     </DropdownMenuItem>
                     {k.status !== "revoked" && (
                       <DropdownMenuItem onClick={() => revoke(k)}>
@@ -1718,7 +1718,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
           <DialogHeader>
             <DialogTitle>Assign serial key</DialogTitle>
             <DialogDescription>
-              Bind this key to a customer record. The key will be activated on
+              Bind this key to a client record. The key will be activated on
               first device sign-in.
             </DialogDescription>
           </DialogHeader>
@@ -1729,18 +1729,18 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
               </code>
             </div>
           )}
-          <Field label="Customer">
+          <Field label="Client">
             <Select
               value={assignCustomer}
               onValueChange={setAssignCustomer}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a customer" />
+                <SelectValue placeholder="Select a client" />
               </SelectTrigger>
               <SelectContent>
                 {customers.length === 0 ? (
                   <SelectItem value="_none" disabled>
-                    No customers available
+                    No clients available
                   </SelectItem>
                 ) : (
                   customers.map((c) => (
@@ -2023,7 +2023,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
 
   const submit = async () => {
     if (!form.customerId) {
-      toast.error("Pick a customer");
+      toast.error("Pick a client");
       return;
     }
     setBusy(true);
@@ -2087,7 +2087,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
       <section>
         <SectionHeader
           title="Invoices"
-          desc="Bill customers for plans & services"
+          desc="Bill clients for plans & services"
           icon={FileText}
           action={
             <button
@@ -2214,7 +2214,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Customer *">
+              <Field label="Client *">
                 <Select
                   value={form.customerId}
                   onValueChange={(v) =>
@@ -2222,12 +2222,12 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a customer" />
+                    <SelectValue placeholder="Select a client" />
                   </SelectTrigger>
                   <SelectContent>
                     {customers.length === 0 ? (
                       <SelectItem value="_none" disabled>
-                        No customers available
+                        No clients available
                       </SelectItem>
                     ) : (
                       customers.map((c) => (
@@ -2380,7 +2380,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
 
   const submit = async () => {
     if (!form.customerId) {
-      toast.error("Pick a customer");
+      toast.error("Pick a client");
       return;
     }
     setBusy(true);
@@ -2444,7 +2444,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
       <section>
         <SectionHeader
           title="Quotations"
-          desc="Send proposals to prospective customers"
+          desc="Send proposals to prospective clients"
           icon={FileSignature}
           action={
             <button
@@ -2575,7 +2575,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Customer *">
+              <Field label="Client *">
                 <Select
                   value={form.customerId}
                   onValueChange={(v) =>
@@ -2583,12 +2583,12 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a customer" />
+                    <SelectValue placeholder="Select a client" />
                   </SelectTrigger>
                   <SelectContent>
                     {customers.length === 0 ? (
                       <SelectItem value="_none" disabled>
-                        No customers available
+                        No clients available
                       </SelectItem>
                     ) : (
                       customers.map((c) => (
@@ -3097,7 +3097,7 @@ function ReportsTab() {
   }));
   const maxPlanRevenue = Math.max(...planRevenue.map((p) => p.revenue), 1);
 
-  // Customer growth series (cumulative count by createdAt day, last 14 days)
+  // Client growth series (cumulative count by createdAt day, last 14 days)
   const today = new Date();
   const days = Array.from({ length: 14 }).map((_, i) => {
     const d = new Date(today);
@@ -3167,8 +3167,8 @@ function ReportsTab() {
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="lg:col-span-2">
           <SectionHeader
-            title="Customer growth"
-            desc="Cumulative customers & invoices, last 14 days"
+            title="Client growth"
+            desc="Cumulative clients & invoices, last 14 days"
             icon={TrendingUp}
           />
           <div className="h-[260px] w-full">
@@ -3237,7 +3237,7 @@ function ReportsTab() {
                   }}
                   formatter={(v: number, n) => [
                     fmt(v),
-                    n === "customers" ? "Customers" : "Invoices",
+                    n === "customers" ? "Clients" : "Invoices",
                   ]}
                 />
                 <Area
@@ -3268,13 +3268,13 @@ function ReportsTab() {
         <section>
           <SectionHeader
             title="Plan distribution"
-            desc={`${customers.length} customers`}
+            desc={`${customers.length} clients`}
             icon={Users}
           />
           <div className="space-y-0.5">
             {planCounts.length === 0 ? (
               <div className="py-8 text-center text-xs text-muted-foreground">
-                No customers yet
+                No clients yet
               </div>
             ) : (
               planCounts.map((p) => {
@@ -3491,7 +3491,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   const subs = data ?? [];
 
   const add = async () => {
-    if (!form.customerId) return toast.error("Select a customer");
+    if (!form.customerId) return toast.error("Select a client");
     await api("POST", "/api/subscriptions", form);
     toast.success("Subscription created"); setAddOpen(false); reload();
   };
@@ -3509,7 +3509,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
 
   return (
     <section>
-      <SectionHeader title="Subscriptions" desc="Manage customer subscriptions and trials" icon={CreditCard}
+      <SectionHeader title="Subscriptions" desc="Manage client subscriptions and trials" icon={CreditCard}
         action={<button onClick={() => setAddOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> New subscription</button>} />
       {subs.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">No subscriptions yet.</div>
@@ -3535,9 +3535,9 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
       )}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="glass-strong max-w-md">
-          <DialogHeader><DialogTitle>New Subscription</DialogTitle><DialogDescription>Create a subscription for a customer.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>New Subscription</DialogTitle><DialogDescription>Create a subscription for a client.</DialogDescription></DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">Customer</Label><Select value={form.customerId} onValueChange={(v) => setForm({ ...form, customerId: v })}><SelectTrigger className="mt-1.5"><SelectValue placeholder="Select customer" /></SelectTrigger><SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Client</Label><Select value={form.customerId} onValueChange={(v) => setForm({ ...form, customerId: v })}><SelectTrigger className="mt-1.5"><SelectValue placeholder="Select client" /></SelectTrigger><SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
             <div><Label className="text-xs">Plan</Label><Select value={form.plan} onValueChange={(v) => setForm({ ...form, plan: v, amount: v === "starter" ? 29 : v === "enterprise" ? 0 : 89 })}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="starter">Starter ($29/mo)</SelectItem><SelectItem value="growth">Growth ($89/mo)</SelectItem><SelectItem value="enterprise">Enterprise (Custom)</SelectItem></SelectContent></Select></div>
           </div>
           <DialogFooter><Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button><button onClick={add} className="liquid-pill rounded-xl px-4 py-2 text-sm font-semibold">Create</button></DialogFooter>
@@ -3676,7 +3676,7 @@ function FinanceTab() {
         { label: "Overdue", value: fmt(data.overdueRevenue), color: "oklch(0.7 0.2 25)" },
       ]} />
       <MetricRow metrics={[
-        { label: "Customers", value: data.customers, color: "oklch(0.62 0.22 300)" },
+        { label: "Clients", value: data.customers, color: "oklch(0.62 0.22 300)" },
         { label: "Active Subs", value: data.activeSubs, color: "oklch(0.68 0.22 145)" },
         { label: "Trial Subs", value: data.trialSubs, color: "oklch(0.72 0.18 75)" },
         { label: "Devices", value: data.devices, color: "oklch(0.66 0.18 200)" },
@@ -4002,20 +4002,20 @@ function ClientUsersTab() {
             </div>
             <div><Label className="text-xs">Department / Company</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="Acme Inc." className="mt-1.5" /></div>
 
-            {/* Customer / Tenant selector — links user to a customer's database */}
+            {/* Client / Tenant selector — links user to a client's database */}
             {customerList && customerList.length > 0 && (
               <div>
-                <Label className="text-xs">Link to Customer (Tenant)</Label>
+                <Label className="text-xs">Link to Client (Tenant)</Label>
                 <Select value={form.customerId || "__none__"} onValueChange={(v) => setForm({ ...form, customerId: v === "__none__" ? "" : v })}>
-                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select customer" /></SelectTrigger>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select client" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">No customer (super-admin)</SelectItem>
+                    <SelectItem value="__none__">No client (super-admin)</SelectItem>
                     {customerList.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.company ?? c.name}{c.database ? ` · ${c.database.dbName}` : ""}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="mt-1 text-[10px] text-muted-foreground">Links the user to the selected customer's tenant database. They will only see that customer's data.</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">Links the user to the selected client's tenant database. They will only see that client's data.</p>
               </div>
             )}
             <div>
@@ -4102,7 +4102,7 @@ function ClientUsersTab() {
 }
 
 // ============================================================================
-// Databases Tab — tenant DB registry (one Neon DB per customer)
+// Databases Tab — tenant DB registry (one Neon DB per client)
 // ============================================================================
 
 function DatabasesTab() {
@@ -4110,8 +4110,8 @@ function DatabasesTab() {
   const { ownerDbFilter, setOwnerDbFilter } = useNav();
   const [search, setSearch] = React.useState("");
   // Clear the cross-tab filter once the user starts typing — we keep the
-  // filter around for the initial render (set by CustomersTab → "View
-  // Database") so the table shows the right customer on first paint.
+  // filter around for the initial render (set by ClientsTab → "View
+  // Database") so the table shows the right client on first paint.
   React.useEffect(() => {
     if (ownerDbFilter && search) setOwnerDbFilter(null);
   }, [search, ownerDbFilter, setOwnerDbFilter]);
@@ -4175,7 +4175,7 @@ function DatabasesTab() {
       <section>
         <SectionHeader
           title="Tenant databases"
-          desc="One dedicated Neon PostgreSQL database per customer. View health, suspend, or re-push schema."
+          desc="One dedicated Neon PostgreSQL database per client. View health, suspend, or re-push schema."
           icon={Database}
           action={
             <div className="flex items-center gap-2">
@@ -4192,7 +4192,7 @@ function DatabasesTab() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by DB or customer…"
+                  placeholder="Search by DB or client…"
                   className="h-9 w-56 pl-8 text-xs"
                 />
               </div>
@@ -4212,12 +4212,12 @@ function DatabasesTab() {
               <Database className="h-5 w-5" />
             </div>
             <p className="mt-3 text-sm font-medium">
-              {ownerDbFilter ? "No database for this customer" : "No tenant databases yet"}
+              {ownerDbFilter ? "No database for this client" : "No tenant databases yet"}
             </p>
             <p className="text-xs text-muted-foreground">
               {ownerDbFilter
-                ? "Provision one from the Customers tab."
-                : "Provision a database when creating a customer."}
+                ? "Provision one from the Clients tab."
+                : "Provision a database when creating a client."}
             </p>
           </div>
         ) : (
@@ -4227,7 +4227,7 @@ function DatabasesTab() {
                 <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
                   <TableRow className="border-border/40 hover:bg-transparent">
                     <TableHead className="text-[11px] uppercase">Database</TableHead>
-                    <TableHead className="text-[11px] uppercase">Customer</TableHead>
+                    <TableHead className="text-[11px] uppercase">Client</TableHead>
                     <TableHead className="text-[11px] uppercase">Status</TableHead>
                     <TableHead className="text-[11px] uppercase">Size</TableHead>
                     <TableHead className="text-[11px] uppercase">Health</TableHead>
@@ -4546,6 +4546,8 @@ function ActivityLogTab() {
 export function OwnerView() {
   const { ownerTab, setOwnerTab } = useNav();
   // Default to "customers" on first load (also enforced by the store initializer).
+  // The internal `id` stays "customers" for nav-state compatibility; the
+  // user-facing label is "Clients" (see OWNER_SECTIONS).
   const tab = ownerTab || "customers";
   const { data: customers } = useApi<Customer[]>("/api/customers");
   // One overview fetch drives the MobileNavSelect count badges. Sub-tabs
@@ -4561,7 +4563,7 @@ export function OwnerView() {
 
       {/* Detail panel — renders only the active tab content, full-width. */}
       <main className="min-w-0 space-y-4">
-        {tab === "customers" && <CustomersTab />}
+        {tab === "customers" && <ClientsTab />}
         {tab === "subscriptions" && <SubscriptionsTab customers={customerList} />}
         {tab === "invoices" && <InvoicesTab customers={customerList} />}
         {tab === "quotations" && <QuotationsTab customers={customerList} />}

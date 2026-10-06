@@ -5,6 +5,32 @@ import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 export const dynamic = "force-dynamic";
 
 /**
+ * GET /api/quotations/[id]
+ *
+ * Auth required. Target quotation must belong to the caller's tenant
+ * (super-admins can read any quotation).
+ */
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { user, error } = await requireAuth(req);
+  if (error) return error;
+  const scope = getTenantScope(user!);
+
+  const q = await db.quotation.findFirst({
+    where: { id, ...tenantWhere(scope) as { customerId?: string } },
+    include: { customer: true },
+  });
+  if (!q) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json({
+    id: q.id, number: q.number, customerId: q.customerId, customerName: q.customer?.name ?? "Unknown",
+    status: q.status, issueDate: q.issueDate.toISOString(), validUntil: q.validUntil?.toISOString() ?? null,
+    subtotal: q.subtotal, taxRate: q.taxRate, taxAmount: q.taxAmount, total: q.total,
+    notes: q.notes, items: JSON.parse(q.items), createdAt: q.createdAt.toISOString(),
+  });
+}
+
+/**
  * PATCH /api/quotations/[id]
  *
  * Auth required. Target quotation must belong to the caller's tenant
