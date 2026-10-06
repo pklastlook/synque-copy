@@ -97,7 +97,7 @@ export function MetricRow({ metrics, className }: { metrics: Metric[]; className
         <div
           key={i}
           role="listitem"
-          aria-label={`${m.label}: ${typeof m.value === "number" ? m.value.toLocaleString() : m.value}${m.delta !== undefined ? ` (${m.delta >= 0 ? "+" : ""}${m.delta}%)` : ""}`}
+          aria-label={`${m.label}: ${typeof m.value === "number" ? m.value.toLocaleString() : m.value}${m.delta !== undefined && m.delta !== 0 ? ` (${m.delta >= 0 ? "+" : ""}${m.delta}%)` : ""}`}
           className={cn(
             "flex shrink-0 items-center gap-2 rounded-lg bg-muted/20 px-3 py-2.5 sm:min-w-[140px] sm:flex-1 sm:gap-3 sm:rounded-none sm:px-4",
             i < metrics.length - 1 && "sm:border-r sm:border-border/40"
@@ -108,7 +108,7 @@ export function MetricRow({ metrics, className }: { metrics: Metric[]; className
               <span className="num-display text-base font-bold leading-none tabular-nums sm:text-lg">
                 {typeof m.value === "number" ? m.value.toLocaleString() : m.value}
               </span>
-              {m.delta !== undefined && (
+              {m.delta !== undefined && m.delta !== 0 && (
                 <span
                   className={cn(
                     "text-[10px] font-semibold tabular-nums",
