@@ -28,6 +28,8 @@ export type AggregateQuotation = {
 
 export type QuotationAvgAggregateOutputType = {
   subtotal: number | null
+  discountValue: number | null
+  discountAmount: number | null
   taxRate: number | null
   taxAmount: number | null
   total: number | null
@@ -35,6 +37,8 @@ export type QuotationAvgAggregateOutputType = {
 
 export type QuotationSumAggregateOutputType = {
   subtotal: number | null
+  discountValue: number | null
+  discountAmount: number | null
   taxRate: number | null
   taxAmount: number | null
   total: number | null
@@ -48,6 +52,9 @@ export type QuotationMinAggregateOutputType = {
   issueDate: Date | null
   validUntil: Date | null
   subtotal: number | null
+  discountType: string | null
+  discountValue: number | null
+  discountAmount: number | null
   taxRate: number | null
   taxAmount: number | null
   total: number | null
@@ -65,6 +72,9 @@ export type QuotationMaxAggregateOutputType = {
   issueDate: Date | null
   validUntil: Date | null
   subtotal: number | null
+  discountType: string | null
+  discountValue: number | null
+  discountAmount: number | null
   taxRate: number | null
   taxAmount: number | null
   total: number | null
@@ -82,6 +92,9 @@ export type QuotationCountAggregateOutputType = {
   issueDate: number
   validUntil: number
   subtotal: number
+  discountType: number
+  discountValue: number
+  discountAmount: number
   taxRate: number
   taxAmount: number
   total: number
@@ -95,6 +108,8 @@ export type QuotationCountAggregateOutputType = {
 
 export type QuotationAvgAggregateInputType = {
   subtotal?: true
+  discountValue?: true
+  discountAmount?: true
   taxRate?: true
   taxAmount?: true
   total?: true
@@ -102,6 +117,8 @@ export type QuotationAvgAggregateInputType = {
 
 export type QuotationSumAggregateInputType = {
   subtotal?: true
+  discountValue?: true
+  discountAmount?: true
   taxRate?: true
   taxAmount?: true
   total?: true
@@ -115,6 +132,9 @@ export type QuotationMinAggregateInputType = {
   issueDate?: true
   validUntil?: true
   subtotal?: true
+  discountType?: true
+  discountValue?: true
+  discountAmount?: true
   taxRate?: true
   taxAmount?: true
   total?: true
@@ -132,6 +152,9 @@ export type QuotationMaxAggregateInputType = {
   issueDate?: true
   validUntil?: true
   subtotal?: true
+  discountType?: true
+  discountValue?: true
+  discountAmount?: true
   taxRate?: true
   taxAmount?: true
   total?: true
@@ -149,6 +172,9 @@ export type QuotationCountAggregateInputType = {
   issueDate?: true
   validUntil?: true
   subtotal?: true
+  discountType?: true
+  discountValue?: true
+  discountAmount?: true
   taxRate?: true
   taxAmount?: true
   total?: true
@@ -253,6 +279,9 @@ export type QuotationGroupByOutputType = {
   issueDate: Date
   validUntil: Date | null
   subtotal: number
+  discountType: string | null
+  discountValue: number | null
+  discountAmount: number
   taxRate: number
   taxAmount: number
   total: number
@@ -293,6 +322,9 @@ export type QuotationWhereInput = {
   issueDate?: Prisma.DateTimeFilter<"Quotation"> | Date | string
   validUntil?: Prisma.DateTimeNullableFilter<"Quotation"> | Date | string | null
   subtotal?: Prisma.FloatFilter<"Quotation"> | number
+  discountType?: Prisma.StringNullableFilter<"Quotation"> | string | null
+  discountValue?: Prisma.FloatNullableFilter<"Quotation"> | number | null
+  discountAmount?: Prisma.FloatFilter<"Quotation"> | number
   taxRate?: Prisma.FloatFilter<"Quotation"> | number
   taxAmount?: Prisma.FloatFilter<"Quotation"> | number
   total?: Prisma.FloatFilter<"Quotation"> | number
@@ -311,6 +343,9 @@ export type QuotationOrderByWithRelationInput = {
   issueDate?: Prisma.SortOrder
   validUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   subtotal?: Prisma.SortOrder
+  discountType?: Prisma.SortOrderInput | Prisma.SortOrder
+  discountValue?: Prisma.SortOrderInput | Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
   taxAmount?: Prisma.SortOrder
   total?: Prisma.SortOrder
@@ -332,6 +367,9 @@ export type QuotationWhereUniqueInput = Prisma.AtLeast<{
   issueDate?: Prisma.DateTimeFilter<"Quotation"> | Date | string
   validUntil?: Prisma.DateTimeNullableFilter<"Quotation"> | Date | string | null
   subtotal?: Prisma.FloatFilter<"Quotation"> | number
+  discountType?: Prisma.StringNullableFilter<"Quotation"> | string | null
+  discountValue?: Prisma.FloatNullableFilter<"Quotation"> | number | null
+  discountAmount?: Prisma.FloatFilter<"Quotation"> | number
   taxRate?: Prisma.FloatFilter<"Quotation"> | number
   taxAmount?: Prisma.FloatFilter<"Quotation"> | number
   total?: Prisma.FloatFilter<"Quotation"> | number
@@ -350,6 +388,9 @@ export type QuotationOrderByWithAggregationInput = {
   issueDate?: Prisma.SortOrder
   validUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   subtotal?: Prisma.SortOrder
+  discountType?: Prisma.SortOrderInput | Prisma.SortOrder
+  discountValue?: Prisma.SortOrderInput | Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
   taxAmount?: Prisma.SortOrder
   total?: Prisma.SortOrder
@@ -375,6 +416,9 @@ export type QuotationScalarWhereWithAggregatesInput = {
   issueDate?: Prisma.DateTimeWithAggregatesFilter<"Quotation"> | Date | string
   validUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"Quotation"> | Date | string | null
   subtotal?: Prisma.FloatWithAggregatesFilter<"Quotation"> | number
+  discountType?: Prisma.StringNullableWithAggregatesFilter<"Quotation"> | string | null
+  discountValue?: Prisma.FloatNullableWithAggregatesFilter<"Quotation"> | number | null
+  discountAmount?: Prisma.FloatWithAggregatesFilter<"Quotation"> | number
   taxRate?: Prisma.FloatWithAggregatesFilter<"Quotation"> | number
   taxAmount?: Prisma.FloatWithAggregatesFilter<"Quotation"> | number
   total?: Prisma.FloatWithAggregatesFilter<"Quotation"> | number
@@ -391,6 +435,9 @@ export type QuotationCreateInput = {
   issueDate?: Date | string
   validUntil?: Date | string | null
   subtotal?: number
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number
   taxRate?: number
   taxAmount?: number
   total?: number
@@ -409,6 +456,9 @@ export type QuotationUncheckedCreateInput = {
   issueDate?: Date | string
   validUntil?: Date | string | null
   subtotal?: number
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number
   taxRate?: number
   taxAmount?: number
   total?: number
@@ -425,6 +475,9 @@ export type QuotationUpdateInput = {
   issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   validUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   subtotal?: Prisma.FloatFieldUpdateOperationsInput | number
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
   taxAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   total?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -443,6 +496,9 @@ export type QuotationUncheckedUpdateInput = {
   issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   validUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   subtotal?: Prisma.FloatFieldUpdateOperationsInput | number
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
   taxAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   total?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -460,6 +516,9 @@ export type QuotationCreateManyInput = {
   issueDate?: Date | string
   validUntil?: Date | string | null
   subtotal?: number
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number
   taxRate?: number
   taxAmount?: number
   total?: number
@@ -476,6 +535,9 @@ export type QuotationUpdateManyMutationInput = {
   issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   validUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   subtotal?: Prisma.FloatFieldUpdateOperationsInput | number
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
   taxAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   total?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -493,6 +555,9 @@ export type QuotationUncheckedUpdateManyInput = {
   issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   validUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   subtotal?: Prisma.FloatFieldUpdateOperationsInput | number
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
   taxAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   total?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -520,6 +585,9 @@ export type QuotationCountOrderByAggregateInput = {
   issueDate?: Prisma.SortOrder
   validUntil?: Prisma.SortOrder
   subtotal?: Prisma.SortOrder
+  discountType?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
   taxAmount?: Prisma.SortOrder
   total?: Prisma.SortOrder
@@ -531,6 +599,8 @@ export type QuotationCountOrderByAggregateInput = {
 
 export type QuotationAvgOrderByAggregateInput = {
   subtotal?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
   taxAmount?: Prisma.SortOrder
   total?: Prisma.SortOrder
@@ -544,6 +614,9 @@ export type QuotationMaxOrderByAggregateInput = {
   issueDate?: Prisma.SortOrder
   validUntil?: Prisma.SortOrder
   subtotal?: Prisma.SortOrder
+  discountType?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
   taxAmount?: Prisma.SortOrder
   total?: Prisma.SortOrder
@@ -561,6 +634,9 @@ export type QuotationMinOrderByAggregateInput = {
   issueDate?: Prisma.SortOrder
   validUntil?: Prisma.SortOrder
   subtotal?: Prisma.SortOrder
+  discountType?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
   taxAmount?: Prisma.SortOrder
   total?: Prisma.SortOrder
@@ -572,6 +648,8 @@ export type QuotationMinOrderByAggregateInput = {
 
 export type QuotationSumOrderByAggregateInput = {
   subtotal?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
   taxRate?: Prisma.SortOrder
   taxAmount?: Prisma.SortOrder
   total?: Prisma.SortOrder
@@ -626,6 +704,9 @@ export type QuotationCreateWithoutCustomerInput = {
   issueDate?: Date | string
   validUntil?: Date | string | null
   subtotal?: number
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number
   taxRate?: number
   taxAmount?: number
   total?: number
@@ -642,6 +723,9 @@ export type QuotationUncheckedCreateWithoutCustomerInput = {
   issueDate?: Date | string
   validUntil?: Date | string | null
   subtotal?: number
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number
   taxRate?: number
   taxAmount?: number
   total?: number
@@ -688,6 +772,9 @@ export type QuotationScalarWhereInput = {
   issueDate?: Prisma.DateTimeFilter<"Quotation"> | Date | string
   validUntil?: Prisma.DateTimeNullableFilter<"Quotation"> | Date | string | null
   subtotal?: Prisma.FloatFilter<"Quotation"> | number
+  discountType?: Prisma.StringNullableFilter<"Quotation"> | string | null
+  discountValue?: Prisma.FloatNullableFilter<"Quotation"> | number | null
+  discountAmount?: Prisma.FloatFilter<"Quotation"> | number
   taxRate?: Prisma.FloatFilter<"Quotation"> | number
   taxAmount?: Prisma.FloatFilter<"Quotation"> | number
   total?: Prisma.FloatFilter<"Quotation"> | number
@@ -704,6 +791,9 @@ export type QuotationCreateManyCustomerInput = {
   issueDate?: Date | string
   validUntil?: Date | string | null
   subtotal?: number
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number
   taxRate?: number
   taxAmount?: number
   total?: number
@@ -720,6 +810,9 @@ export type QuotationUpdateWithoutCustomerInput = {
   issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   validUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   subtotal?: Prisma.FloatFieldUpdateOperationsInput | number
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
   taxAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   total?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -736,6 +829,9 @@ export type QuotationUncheckedUpdateWithoutCustomerInput = {
   issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   validUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   subtotal?: Prisma.FloatFieldUpdateOperationsInput | number
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
   taxAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   total?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -752,6 +848,9 @@ export type QuotationUncheckedUpdateManyWithoutCustomerInput = {
   issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   validUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   subtotal?: Prisma.FloatFieldUpdateOperationsInput | number
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   taxRate?: Prisma.FloatFieldUpdateOperationsInput | number
   taxAmount?: Prisma.FloatFieldUpdateOperationsInput | number
   total?: Prisma.FloatFieldUpdateOperationsInput | number
@@ -771,6 +870,9 @@ export type QuotationSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   issueDate?: boolean
   validUntil?: boolean
   subtotal?: boolean
+  discountType?: boolean
+  discountValue?: boolean
+  discountAmount?: boolean
   taxRate?: boolean
   taxAmount?: boolean
   total?: boolean
@@ -789,6 +891,9 @@ export type QuotationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   issueDate?: boolean
   validUntil?: boolean
   subtotal?: boolean
+  discountType?: boolean
+  discountValue?: boolean
+  discountAmount?: boolean
   taxRate?: boolean
   taxAmount?: boolean
   total?: boolean
@@ -807,6 +912,9 @@ export type QuotationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   issueDate?: boolean
   validUntil?: boolean
   subtotal?: boolean
+  discountType?: boolean
+  discountValue?: boolean
+  discountAmount?: boolean
   taxRate?: boolean
   taxAmount?: boolean
   total?: boolean
@@ -825,6 +933,9 @@ export type QuotationSelectScalar = {
   issueDate?: boolean
   validUntil?: boolean
   subtotal?: boolean
+  discountType?: boolean
+  discountValue?: boolean
+  discountAmount?: boolean
   taxRate?: boolean
   taxAmount?: boolean
   total?: boolean
@@ -834,7 +945,7 @@ export type QuotationSelectScalar = {
   updatedAt?: boolean
 }
 
-export type QuotationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "number" | "customerId" | "status" | "issueDate" | "validUntil" | "subtotal" | "taxRate" | "taxAmount" | "total" | "notes" | "items" | "createdAt" | "updatedAt", ExtArgs["result"]["quotation"]>
+export type QuotationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "number" | "customerId" | "status" | "issueDate" | "validUntil" | "subtotal" | "discountType" | "discountValue" | "discountAmount" | "taxRate" | "taxAmount" | "total" | "notes" | "items" | "createdAt" | "updatedAt", ExtArgs["result"]["quotation"]>
 export type QuotationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   customer?: boolean | Prisma.CustomerDefaultArgs<ExtArgs>
 }
@@ -858,6 +969,9 @@ export type $QuotationPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     issueDate: Date
     validUntil: Date | null
     subtotal: number
+    discountType: string | null
+    discountValue: number | null
+    discountAmount: number
     taxRate: number
     taxAmount: number
     total: number
@@ -1296,6 +1410,9 @@ export interface QuotationFieldRefs {
   readonly issueDate: Prisma.FieldRef<"Quotation", 'DateTime'>
   readonly validUntil: Prisma.FieldRef<"Quotation", 'DateTime'>
   readonly subtotal: Prisma.FieldRef<"Quotation", 'Float'>
+  readonly discountType: Prisma.FieldRef<"Quotation", 'String'>
+  readonly discountValue: Prisma.FieldRef<"Quotation", 'Float'>
+  readonly discountAmount: Prisma.FieldRef<"Quotation", 'Float'>
   readonly taxRate: Prisma.FieldRef<"Quotation", 'Float'>
   readonly taxAmount: Prisma.FieldRef<"Quotation", 'Float'>
   readonly total: Prisma.FieldRef<"Quotation", 'Float'>

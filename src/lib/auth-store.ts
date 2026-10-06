@@ -17,6 +17,10 @@ export interface AuthUser {
   customerId?: string | null;
   emailVerified?: string | null; // ISO date string — null until the user verifies
   twoFactorEnabled?: boolean;
+  /** Module rights — JSON array of module IDs (or `["*"]` for all).
+   *  Empty/null means "no restriction" (backward compat). The sidebar
+   *  uses this list to hide unauthorized nav items. */
+  permissions?: string[];
 }
 
 interface AuthState {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { defaultPermissionsForRole, parsePermissions } from "@/lib/module-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
         variantCount: uVariantIds.length,
         engagement,
         followers,
+        permissions: parsePermissions(u.permissions),
       };
     })
   );
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { name, email, role, title, department, password, gender, birthDate, phone } = body as {
+  const { name, email, role, title, department, password, gender, birthDate, phone, permissions } = body as {
     name: string;
     email: string;
     role?: string;
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
     gender?: string;
     birthDate?: string;
     phone?: string;
+    permissions?: string[];
   };
 
   if (!name || !email) {
@@ -115,6 +118,18 @@ export async function POST(req: NextRequest) {
     ? scope.customerId // Non-super-admin: always own tenant, ignore body.customerId
     : (body as { customerId?: string }).customerId ?? null; // Super-admin: optional override
 
+  // Module rights — store the requested list as JSON. If the caller did not
+  // provide one, fall back to the role-based default (admin → all, manager →
+  // all except admin/owner, editor → content+communication, member → core
+  // four, viewer → dashboard). Empty arrays are normalized to "all" so old
+  // callers that omit `permissions` keep their existing "see everything"
+  // behavior.
+  const perms =
+    Array.isArray(permissions) && permissions.length > 0
+      ? permissions
+      : defaultPermissionsForRole(requestedRole);
+  const permissionsJson = JSON.stringify(perms);
+
   const user = await db.user.create({
     data: {
       name,
@@ -128,6 +143,7 @@ export async function POST(req: NextRequest) {
       gender: gender ?? null,
       birthDate: birthDate ? new Date(birthDate) : null,
       phone: phone ?? null,
+      permissions: permissionsJson,
     },
   });
 

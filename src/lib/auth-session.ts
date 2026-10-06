@@ -9,6 +9,7 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { db } from "@/lib/db";
+import { parsePermissions } from "@/lib/module-permissions";
 
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET) {
@@ -58,6 +59,8 @@ export async function issueSession(opts: {
     customerId: string | null;
     emailVerified: Date | null;
     twoFactorEnabled: boolean;
+    /** Module rights — raw JSON string from the DB (parsed here). */
+    permissions?: string | null;
   };
   req?: Request;
   res?: NextResponse;
@@ -114,6 +117,10 @@ export async function issueSession(opts: {
     customerId: user.customerId,
     emailVerified: user.emailVerified,
     twoFactorEnabled: user.twoFactorEnabled,
+    // Parse the permissions JSON string here so every caller gets a
+    // clean string[] (or [] on parse failure) — the sidebar relies on
+    // this to gate nav items by module rights.
+    permissions: parsePermissions(user.permissions),
   };
 
   return { token, sessionExpiresAt: expiresAt, userPublic };

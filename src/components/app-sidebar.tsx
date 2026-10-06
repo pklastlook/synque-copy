@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
 import { useAuth } from "@/lib/auth-store";
 import type { ViewId } from "@/lib/types";
+import { hasModuleAccess } from "@/lib/module-permissions";
 import { SETTINGS_TABS, type SettingsTab } from "@/components/views/settings";
 import { ORG_TABS, type OrgTab } from "@/components/views/organization";
 import { NameAvatar } from "@/components/glass/name-avatar";
@@ -166,7 +167,17 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   // Filter nav items by role — items without `roles` are visible to everyone.
   // Items with `roles` are only shown to users with a matching role.
   const userRole = (user?.role ?? "member") as NavRole;
-  const visibleNav = NAV.filter((n) => !n.roles || n.roles.includes(userRole));
+  // Module rights — hide nav items the current user has no permission to see.
+  // Empty/null permissions means "no restriction" (backward compat for
+  // users created before the module rights feature shipped).
+  const userPermissions = user?.permissions;
+  const visibleNav = NAV.filter((n) => {
+    // Role-based gate (e.g. Performance is managers+ only).
+    if (n.roles && !n.roles.includes(userRole)) return false;
+    // Module rights gate (per-user permission grants/revokes).
+    if (!hasModuleAccess(userPermissions, n.id)) return false;
+    return true;
+  });
   const groups = Array.from(new Set(visibleNav.map((n) => n.group)));
   const settingsActive = view === "settings";
   const mediaActive = view === "media";
@@ -180,22 +191,25 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         <LogoWordmark size="text-[18px]" logoSize={30} />
       </div>
 
-      {/* New Post — prominent primary action */}
-      <button
-        onClick={() => {
-          setView("composer");
-          onNavigate?.();
-        }}
-        className="liquid-pill glow-ring crystal-sweep mb-1 flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
-      >
-        <PenSquare className="h-4 w-4" />
-        New Post
-      </button>
+      {/* New Post — prominent primary action.
+          Hidden when the current user has no `composer` module access. */}
+      {hasModuleAccess(userPermissions, "composer") && (
+        <button
+          onClick={() => {
+            setView("composer");
+            onNavigate?.();
+          }}
+          className="liquid-pill glow-ring crystal-sweep mb-1 flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
+        >
+          <PenSquare className="h-4 w-4" />
+          New Post
+        </button>
+      )}
 
       {/* Nav groups */}
       <nav className="scroll-liquid mt-1 flex-1 space-y-3 overflow-y-auto pr-1">
-        {/* Owner Panel — only for owner, shown first */}
-        {isOwner && (
+        {/* Owner Panel — only for owner (and the user must have `owner` module access). */}
+        {isOwner && hasModuleAccess(userPermissions, "owner") && (
           <div>
             <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
               Owner
@@ -263,8 +277,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 );
               })}
 
-              {/* Expandable Media Library parent — rendered at the end of the Content group */}
-              {g === "Content" && (
+              {/* Expandable Media Library parent — rendered at the end of the Content group.
+                  Hidden when the current user has no `media` module access. */}
+              {g === "Content" && hasModuleAccess(userPermissions, "media") && (
                 <MediaGroup
                   active={mediaActive}
                   expanded={mediaExpanded}
@@ -276,27 +291,32 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 />
               )}
 
-              {/* Expandable Settings parent — managers+ only */}
+              {/* Expandable Settings + Organization parents — managers+ only,
+                  AND the user must have the corresponding module access. */}
               {g === "Workspace" && isManager && (
                 <>
-                  <OrganizationGroup
-                    active={orgActive}
-                    expanded={orgExpanded}
-                    toggle={toggleOrg}
-                    setView={setView}
-                    orgTab={orgTab}
-                    setOrgTab={setOrgTab}
-                    onNavigate={onNavigate}
-                  />
-                  <SettingsGroup
-                    active={settingsActive}
-                    expanded={settingsExpanded}
-                    toggle={toggleSettings}
-                    setView={setView}
-                    settingsTab={settingsTab}
-                    setSettingsTab={setSettingsTab}
-                    onNavigate={onNavigate}
-                  />
+                  {hasModuleAccess(userPermissions, "organization") && (
+                    <OrganizationGroup
+                      active={orgActive}
+                      expanded={orgExpanded}
+                      toggle={toggleOrg}
+                      setView={setView}
+                      orgTab={orgTab}
+                      setOrgTab={setOrgTab}
+                      onNavigate={onNavigate}
+                    />
+                  )}
+                  {hasModuleAccess(userPermissions, "settings") && (
+                    <SettingsGroup
+                      active={settingsActive}
+                      expanded={settingsExpanded}
+                      toggle={toggleSettings}
+                      setView={setView}
+                      settingsTab={settingsTab}
+                      setSettingsTab={setSettingsTab}
+                      onNavigate={onNavigate}
+                    />
+                  )}
                 </>
               )}
             </div>
@@ -316,8 +336,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
           <div className="truncate text-[11px] text-muted-foreground">{user?.title ?? "Team Member"}</div>
         </div>
-        {/* Settings gear — managers+ only */}
-        {isManager && (
+        {/* Settings gear — managers+ only AND user must have settings module access. */}
+        {isManager && hasModuleAccess(userPermissions, "settings") && (
         <button
           onClick={() => {
             setView("settings");

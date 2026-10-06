@@ -1,8 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { computeBillingTotals } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Compute the discount + tax totals for an invoice / quotation.
+ *
+ * - discountAmount = percentage?  subtotal * discountValue / 100  :  discountValue
+ * - taxableBase    = max(subtotal - discountAmount, 0)
+ * - taxAmount      = taxableBase * taxRate / 100
+ * - total          = subtotal - discountAmount + taxAmount
+ */
+export function computeDocTotals(opts: {
+  subtotal: number;
+  discountType?: string | null;
+  discountValue?: number | null;
+  taxRate?: number;
+}) {
+  return computeBillingTotals({
+    base: opts.subtotal,
+    discountType: opts.discountType,
+    discountValue: opts.discountValue,
+    taxRate: opts.taxRate ?? 0,
+  });
+}
 
 /**
  * GET /api/invoices
@@ -23,7 +46,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(invoices.map((inv) => ({
     id: inv.id, number: inv.number, customerId: inv.customerId, customerName: inv.customer?.name ?? "Unknown",
     status: inv.status, issueDate: inv.issueDate.toISOString(), dueDate: inv.dueDate?.toISOString() ?? null,
-    subtotal: inv.subtotal, taxRate: inv.taxRate, taxAmount: inv.taxAmount, total: inv.total,
+    subtotal: inv.subtotal,
+    discountType: inv.discountType ?? null,
+    discountValue: inv.discountValue ?? null,
+    discountAmount: inv.discountAmount,
+    taxRate: inv.taxRate, taxAmount: inv.taxAmount, total: inv.total,
     notes: inv.notes, items: JSON.parse(inv.items), createdAt: inv.createdAt.toISOString(),
   })));
 }
@@ -54,12 +81,41 @@ export async function POST(req: NextRequest) {
   }));
   const subtotal = parsedItems.reduce((s: number, i: { amount: number }) => s + (i.amount || 0), 0);
   const tax = taxRate || 0;
-  const taxAmount = Math.round(subtotal * tax) / 100;
-  const total = subtotal + taxAmount;
+
+  // Discount fields (optional). When discountType is null/unknown, no discount
+  // is applied. discountValue is the percentage OR fixed amount depending on
+  // discountType.
+  const discountType: string | null =
+    body.discountType === "percentage" || body.discountType === "fixed"
+      ? body.discountType
+      : null;
+  const discountValue: number | null =
+    typeof body.discountValue === "number" ? body.discountValue : null;
+
+  const { discountAmount, taxAmount, total } = computeDocTotals({
+    subtotal,
+    discountType,
+    discountValue,
+    taxRate: tax,
+  });
+
   const count = await db.invoice.count();
   const number = `INV-${String(count + 1).padStart(4, "0")}`;
   const invoice = await db.invoice.create({
-    data: { number, customerId, items: JSON.stringify(parsedItems), subtotal, taxRate: tax, taxAmount, total, notes, dueDate: dueDate ? new Date(dueDate) : null },
+    data: {
+      number,
+      customerId,
+      items: JSON.stringify(parsedItems),
+      subtotal,
+      discountType,
+      discountValue,
+      discountAmount,
+      taxRate: tax,
+      taxAmount,
+      total,
+      notes,
+      dueDate: dueDate ? new Date(dueDate) : null,
+    },
   });
   return NextResponse.json({ id: invoice.id, number, ok: true });
 }

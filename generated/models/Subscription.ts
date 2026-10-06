@@ -28,10 +28,20 @@ export type AggregateSubscription = {
 
 export type SubscriptionAvgAggregateOutputType = {
   amount: number | null
+  discountValue: number | null
+  discountAmount: number | null
+  taxRate: number | null
+  taxAmount: number | null
+  totalAmount: number | null
 }
 
 export type SubscriptionSumAggregateOutputType = {
   amount: number | null
+  discountValue: number | null
+  discountAmount: number | null
+  taxRate: number | null
+  taxAmount: number | null
+  totalAmount: number | null
 }
 
 export type SubscriptionMinAggregateOutputType = {
@@ -44,6 +54,14 @@ export type SubscriptionMinAggregateOutputType = {
   trialEnds: Date | null
   amount: number | null
   currency: string | null
+  discountType: string | null
+  discountValue: number | null
+  discountAmount: number | null
+  taxRate: number | null
+  taxAmount: number | null
+  totalAmount: number | null
+  billingCycle: string | null
+  notes: string | null
   createdAt: Date | null
 }
 
@@ -57,6 +75,14 @@ export type SubscriptionMaxAggregateOutputType = {
   trialEnds: Date | null
   amount: number | null
   currency: string | null
+  discountType: string | null
+  discountValue: number | null
+  discountAmount: number | null
+  taxRate: number | null
+  taxAmount: number | null
+  totalAmount: number | null
+  billingCycle: string | null
+  notes: string | null
   createdAt: Date | null
 }
 
@@ -70,6 +96,14 @@ export type SubscriptionCountAggregateOutputType = {
   trialEnds: number
   amount: number
   currency: number
+  discountType: number
+  discountValue: number
+  discountAmount: number
+  taxRate: number
+  taxAmount: number
+  totalAmount: number
+  billingCycle: number
+  notes: number
   createdAt: number
   _all: number
 }
@@ -77,10 +111,20 @@ export type SubscriptionCountAggregateOutputType = {
 
 export type SubscriptionAvgAggregateInputType = {
   amount?: true
+  discountValue?: true
+  discountAmount?: true
+  taxRate?: true
+  taxAmount?: true
+  totalAmount?: true
 }
 
 export type SubscriptionSumAggregateInputType = {
   amount?: true
+  discountValue?: true
+  discountAmount?: true
+  taxRate?: true
+  taxAmount?: true
+  totalAmount?: true
 }
 
 export type SubscriptionMinAggregateInputType = {
@@ -93,6 +137,14 @@ export type SubscriptionMinAggregateInputType = {
   trialEnds?: true
   amount?: true
   currency?: true
+  discountType?: true
+  discountValue?: true
+  discountAmount?: true
+  taxRate?: true
+  taxAmount?: true
+  totalAmount?: true
+  billingCycle?: true
+  notes?: true
   createdAt?: true
 }
 
@@ -106,6 +158,14 @@ export type SubscriptionMaxAggregateInputType = {
   trialEnds?: true
   amount?: true
   currency?: true
+  discountType?: true
+  discountValue?: true
+  discountAmount?: true
+  taxRate?: true
+  taxAmount?: true
+  totalAmount?: true
+  billingCycle?: true
+  notes?: true
   createdAt?: true
 }
 
@@ -119,6 +179,14 @@ export type SubscriptionCountAggregateInputType = {
   trialEnds?: true
   amount?: true
   currency?: true
+  discountType?: true
+  discountValue?: true
+  discountAmount?: true
+  taxRate?: true
+  taxAmount?: true
+  totalAmount?: true
+  billingCycle?: true
+  notes?: true
   createdAt?: true
   _all?: true
 }
@@ -219,6 +287,14 @@ export type SubscriptionGroupByOutputType = {
   trialEnds: Date | null
   amount: number
   currency: string
+  discountType: string | null
+  discountValue: number | null
+  discountAmount: number | null
+  taxRate: number | null
+  taxAmount: number | null
+  totalAmount: number | null
+  billingCycle: string | null
+  notes: string | null
   createdAt: Date
   _count: SubscriptionCountAggregateOutputType | null
   _avg: SubscriptionAvgAggregateOutputType | null
@@ -255,6 +331,14 @@ export type SubscriptionWhereInput = {
   trialEnds?: Prisma.DateTimeNullableFilter<"Subscription"> | Date | string | null
   amount?: Prisma.FloatFilter<"Subscription"> | number
   currency?: Prisma.StringFilter<"Subscription"> | string
+  discountType?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  discountValue?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  discountAmount?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  taxRate?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  taxAmount?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  totalAmount?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  billingCycle?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  notes?: Prisma.StringNullableFilter<"Subscription"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Subscription"> | Date | string
   customer?: Prisma.XOR<Prisma.CustomerScalarRelationFilter, Prisma.CustomerWhereInput>
 }
@@ -269,6 +353,14 @@ export type SubscriptionOrderByWithRelationInput = {
   trialEnds?: Prisma.SortOrderInput | Prisma.SortOrder
   amount?: Prisma.SortOrder
   currency?: Prisma.SortOrder
+  discountType?: Prisma.SortOrderInput | Prisma.SortOrder
+  discountValue?: Prisma.SortOrderInput | Prisma.SortOrder
+  discountAmount?: Prisma.SortOrderInput | Prisma.SortOrder
+  taxRate?: Prisma.SortOrderInput | Prisma.SortOrder
+  taxAmount?: Prisma.SortOrderInput | Prisma.SortOrder
+  totalAmount?: Prisma.SortOrderInput | Prisma.SortOrder
+  billingCycle?: Prisma.SortOrderInput | Prisma.SortOrder
+  notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   customer?: Prisma.CustomerOrderByWithRelationInput
 }
@@ -286,6 +378,14 @@ export type SubscriptionWhereUniqueInput = Prisma.AtLeast<{
   trialEnds?: Prisma.DateTimeNullableFilter<"Subscription"> | Date | string | null
   amount?: Prisma.FloatFilter<"Subscription"> | number
   currency?: Prisma.StringFilter<"Subscription"> | string
+  discountType?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  discountValue?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  discountAmount?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  taxRate?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  taxAmount?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  totalAmount?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  billingCycle?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  notes?: Prisma.StringNullableFilter<"Subscription"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Subscription"> | Date | string
   customer?: Prisma.XOR<Prisma.CustomerScalarRelationFilter, Prisma.CustomerWhereInput>
 }, "id">
@@ -300,6 +400,14 @@ export type SubscriptionOrderByWithAggregationInput = {
   trialEnds?: Prisma.SortOrderInput | Prisma.SortOrder
   amount?: Prisma.SortOrder
   currency?: Prisma.SortOrder
+  discountType?: Prisma.SortOrderInput | Prisma.SortOrder
+  discountValue?: Prisma.SortOrderInput | Prisma.SortOrder
+  discountAmount?: Prisma.SortOrderInput | Prisma.SortOrder
+  taxRate?: Prisma.SortOrderInput | Prisma.SortOrder
+  taxAmount?: Prisma.SortOrderInput | Prisma.SortOrder
+  totalAmount?: Prisma.SortOrderInput | Prisma.SortOrder
+  billingCycle?: Prisma.SortOrderInput | Prisma.SortOrder
+  notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.SubscriptionCountOrderByAggregateInput
   _avg?: Prisma.SubscriptionAvgOrderByAggregateInput
@@ -321,6 +429,14 @@ export type SubscriptionScalarWhereWithAggregatesInput = {
   trialEnds?: Prisma.DateTimeNullableWithAggregatesFilter<"Subscription"> | Date | string | null
   amount?: Prisma.FloatWithAggregatesFilter<"Subscription"> | number
   currency?: Prisma.StringWithAggregatesFilter<"Subscription"> | string
+  discountType?: Prisma.StringNullableWithAggregatesFilter<"Subscription"> | string | null
+  discountValue?: Prisma.FloatNullableWithAggregatesFilter<"Subscription"> | number | null
+  discountAmount?: Prisma.FloatNullableWithAggregatesFilter<"Subscription"> | number | null
+  taxRate?: Prisma.FloatNullableWithAggregatesFilter<"Subscription"> | number | null
+  taxAmount?: Prisma.FloatNullableWithAggregatesFilter<"Subscription"> | number | null
+  totalAmount?: Prisma.FloatNullableWithAggregatesFilter<"Subscription"> | number | null
+  billingCycle?: Prisma.StringNullableWithAggregatesFilter<"Subscription"> | string | null
+  notes?: Prisma.StringNullableWithAggregatesFilter<"Subscription"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Subscription"> | Date | string
 }
 
@@ -333,6 +449,14 @@ export type SubscriptionCreateInput = {
   trialEnds?: Date | string | null
   amount?: number
   currency?: string
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number | null
+  taxRate?: number | null
+  taxAmount?: number | null
+  totalAmount?: number | null
+  billingCycle?: string | null
+  notes?: string | null
   createdAt?: Date | string
   customer: Prisma.CustomerCreateNestedOneWithoutSubscriptionsInput
 }
@@ -347,6 +471,14 @@ export type SubscriptionUncheckedCreateInput = {
   trialEnds?: Date | string | null
   amount?: number
   currency?: string
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number | null
+  taxRate?: number | null
+  taxAmount?: number | null
+  totalAmount?: number | null
+  billingCycle?: string | null
+  notes?: string | null
   createdAt?: Date | string
 }
 
@@ -359,6 +491,14 @@ export type SubscriptionUpdateInput = {
   trialEnds?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   currency?: Prisma.StringFieldUpdateOperationsInput | string
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   customer?: Prisma.CustomerUpdateOneRequiredWithoutSubscriptionsNestedInput
 }
@@ -373,6 +513,14 @@ export type SubscriptionUncheckedUpdateInput = {
   trialEnds?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   currency?: Prisma.StringFieldUpdateOperationsInput | string
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -386,6 +534,14 @@ export type SubscriptionCreateManyInput = {
   trialEnds?: Date | string | null
   amount?: number
   currency?: string
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number | null
+  taxRate?: number | null
+  taxAmount?: number | null
+  totalAmount?: number | null
+  billingCycle?: string | null
+  notes?: string | null
   createdAt?: Date | string
 }
 
@@ -398,6 +554,14 @@ export type SubscriptionUpdateManyMutationInput = {
   trialEnds?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   currency?: Prisma.StringFieldUpdateOperationsInput | string
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -411,6 +575,14 @@ export type SubscriptionUncheckedUpdateManyInput = {
   trialEnds?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   currency?: Prisma.StringFieldUpdateOperationsInput | string
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -434,11 +606,24 @@ export type SubscriptionCountOrderByAggregateInput = {
   trialEnds?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   currency?: Prisma.SortOrder
+  discountType?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
+  taxRate?: Prisma.SortOrder
+  taxAmount?: Prisma.SortOrder
+  totalAmount?: Prisma.SortOrder
+  billingCycle?: Prisma.SortOrder
+  notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type SubscriptionAvgOrderByAggregateInput = {
   amount?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
+  taxRate?: Prisma.SortOrder
+  taxAmount?: Prisma.SortOrder
+  totalAmount?: Prisma.SortOrder
 }
 
 export type SubscriptionMaxOrderByAggregateInput = {
@@ -451,6 +636,14 @@ export type SubscriptionMaxOrderByAggregateInput = {
   trialEnds?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   currency?: Prisma.SortOrder
+  discountType?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
+  taxRate?: Prisma.SortOrder
+  taxAmount?: Prisma.SortOrder
+  totalAmount?: Prisma.SortOrder
+  billingCycle?: Prisma.SortOrder
+  notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -464,11 +657,24 @@ export type SubscriptionMinOrderByAggregateInput = {
   trialEnds?: Prisma.SortOrder
   amount?: Prisma.SortOrder
   currency?: Prisma.SortOrder
+  discountType?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
+  taxRate?: Prisma.SortOrder
+  taxAmount?: Prisma.SortOrder
+  totalAmount?: Prisma.SortOrder
+  billingCycle?: Prisma.SortOrder
+  notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type SubscriptionSumOrderByAggregateInput = {
   amount?: Prisma.SortOrder
+  discountValue?: Prisma.SortOrder
+  discountAmount?: Prisma.SortOrder
+  taxRate?: Prisma.SortOrder
+  taxAmount?: Prisma.SortOrder
+  totalAmount?: Prisma.SortOrder
 }
 
 export type SubscriptionCreateNestedManyWithoutCustomerInput = {
@@ -522,6 +728,14 @@ export type SubscriptionCreateWithoutCustomerInput = {
   trialEnds?: Date | string | null
   amount?: number
   currency?: string
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number | null
+  taxRate?: number | null
+  taxAmount?: number | null
+  totalAmount?: number | null
+  billingCycle?: string | null
+  notes?: string | null
   createdAt?: Date | string
 }
 
@@ -534,6 +748,14 @@ export type SubscriptionUncheckedCreateWithoutCustomerInput = {
   trialEnds?: Date | string | null
   amount?: number
   currency?: string
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number | null
+  taxRate?: number | null
+  taxAmount?: number | null
+  totalAmount?: number | null
+  billingCycle?: string | null
+  notes?: string | null
   createdAt?: Date | string
 }
 
@@ -576,6 +798,14 @@ export type SubscriptionScalarWhereInput = {
   trialEnds?: Prisma.DateTimeNullableFilter<"Subscription"> | Date | string | null
   amount?: Prisma.FloatFilter<"Subscription"> | number
   currency?: Prisma.StringFilter<"Subscription"> | string
+  discountType?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  discountValue?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  discountAmount?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  taxRate?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  taxAmount?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  totalAmount?: Prisma.FloatNullableFilter<"Subscription"> | number | null
+  billingCycle?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  notes?: Prisma.StringNullableFilter<"Subscription"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Subscription"> | Date | string
 }
 
@@ -588,6 +818,14 @@ export type SubscriptionCreateManyCustomerInput = {
   trialEnds?: Date | string | null
   amount?: number
   currency?: string
+  discountType?: string | null
+  discountValue?: number | null
+  discountAmount?: number | null
+  taxRate?: number | null
+  taxAmount?: number | null
+  totalAmount?: number | null
+  billingCycle?: string | null
+  notes?: string | null
   createdAt?: Date | string
 }
 
@@ -600,6 +838,14 @@ export type SubscriptionUpdateWithoutCustomerInput = {
   trialEnds?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   currency?: Prisma.StringFieldUpdateOperationsInput | string
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -612,6 +858,14 @@ export type SubscriptionUncheckedUpdateWithoutCustomerInput = {
   trialEnds?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   currency?: Prisma.StringFieldUpdateOperationsInput | string
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -624,6 +878,14 @@ export type SubscriptionUncheckedUpdateManyWithoutCustomerInput = {
   trialEnds?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   currency?: Prisma.StringFieldUpdateOperationsInput | string
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discountValue?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  discountAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  taxAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalAmount?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -639,6 +901,14 @@ export type SubscriptionSelect<ExtArgs extends runtime.Types.Extensions.Internal
   trialEnds?: boolean
   amount?: boolean
   currency?: boolean
+  discountType?: boolean
+  discountValue?: boolean
+  discountAmount?: boolean
+  taxRate?: boolean
+  taxAmount?: boolean
+  totalAmount?: boolean
+  billingCycle?: boolean
+  notes?: boolean
   createdAt?: boolean
   customer?: boolean | Prisma.CustomerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["subscription"]>
@@ -653,6 +923,14 @@ export type SubscriptionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   trialEnds?: boolean
   amount?: boolean
   currency?: boolean
+  discountType?: boolean
+  discountValue?: boolean
+  discountAmount?: boolean
+  taxRate?: boolean
+  taxAmount?: boolean
+  totalAmount?: boolean
+  billingCycle?: boolean
+  notes?: boolean
   createdAt?: boolean
   customer?: boolean | Prisma.CustomerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["subscription"]>
@@ -667,6 +945,14 @@ export type SubscriptionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   trialEnds?: boolean
   amount?: boolean
   currency?: boolean
+  discountType?: boolean
+  discountValue?: boolean
+  discountAmount?: boolean
+  taxRate?: boolean
+  taxAmount?: boolean
+  totalAmount?: boolean
+  billingCycle?: boolean
+  notes?: boolean
   createdAt?: boolean
   customer?: boolean | Prisma.CustomerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["subscription"]>
@@ -681,10 +967,18 @@ export type SubscriptionSelectScalar = {
   trialEnds?: boolean
   amount?: boolean
   currency?: boolean
+  discountType?: boolean
+  discountValue?: boolean
+  discountAmount?: boolean
+  taxRate?: boolean
+  taxAmount?: boolean
+  totalAmount?: boolean
+  billingCycle?: boolean
+  notes?: boolean
   createdAt?: boolean
 }
 
-export type SubscriptionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "customerId" | "plan" | "status" | "startDate" | "endDate" | "trialEnds" | "amount" | "currency" | "createdAt", ExtArgs["result"]["subscription"]>
+export type SubscriptionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "customerId" | "plan" | "status" | "startDate" | "endDate" | "trialEnds" | "amount" | "currency" | "discountType" | "discountValue" | "discountAmount" | "taxRate" | "taxAmount" | "totalAmount" | "billingCycle" | "notes" | "createdAt", ExtArgs["result"]["subscription"]>
 export type SubscriptionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   customer?: boolean | Prisma.CustomerDefaultArgs<ExtArgs>
 }
@@ -710,6 +1004,14 @@ export type $SubscriptionPayload<ExtArgs extends runtime.Types.Extensions.Intern
     trialEnds: Date | null
     amount: number
     currency: string
+    discountType: string | null
+    discountValue: number | null
+    discountAmount: number | null
+    taxRate: number | null
+    taxAmount: number | null
+    totalAmount: number | null
+    billingCycle: string | null
+    notes: string | null
     createdAt: Date
   }, ExtArgs["result"]["subscription"]>
   composites: {}
@@ -1144,6 +1446,14 @@ export interface SubscriptionFieldRefs {
   readonly trialEnds: Prisma.FieldRef<"Subscription", 'DateTime'>
   readonly amount: Prisma.FieldRef<"Subscription", 'Float'>
   readonly currency: Prisma.FieldRef<"Subscription", 'String'>
+  readonly discountType: Prisma.FieldRef<"Subscription", 'String'>
+  readonly discountValue: Prisma.FieldRef<"Subscription", 'Float'>
+  readonly discountAmount: Prisma.FieldRef<"Subscription", 'Float'>
+  readonly taxRate: Prisma.FieldRef<"Subscription", 'Float'>
+  readonly taxAmount: Prisma.FieldRef<"Subscription", 'Float'>
+  readonly totalAmount: Prisma.FieldRef<"Subscription", 'Float'>
+  readonly billingCycle: Prisma.FieldRef<"Subscription", 'String'>
+  readonly notes: Prisma.FieldRef<"Subscription", 'String'>
   readonly createdAt: Prisma.FieldRef<"Subscription", 'DateTime'>
 }
     

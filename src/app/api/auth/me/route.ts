@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import jwt from "jsonwebtoken";
+import { parsePermissions } from "@/lib/module-permissions";
 
 const SECRET_RAW = process.env.JWT_SECRET;
 if (!SECRET_RAW) {
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
         customerId: true,
         emailVerified: true,
         twoFactorEnabled: true,
+        permissions: true,
       },
     });
 
@@ -45,7 +47,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ user: null }, { status: 200 });
     }
 
-    return NextResponse.json({ user });
+    return NextResponse.json({
+      user: {
+        ...user,
+        permissions: parsePermissions(user.permissions),
+      },
+    });
   } catch {
     return NextResponse.json({ user: null }, { status: 200 });
   }

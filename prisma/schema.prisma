@@ -608,41 +608,47 @@ model SerialKey {
 }
 
 model Invoice {
-  id          String   @id @default(cuid())
-  number      String   @unique
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  status      String   @default("draft") // draft | sent | paid | overdue
-  issueDate   DateTime @default(now())
-  dueDate     DateTime?
-  subtotal    Float    @default(0)
-  taxRate     Float    @default(0)
-  taxAmount   Float    @default(0)
-  total       Float    @default(0)
-  notes       String?
-  items       String   // JSON array: [{description, qty, price, amount}]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  number          String   @unique
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status          String   @default("draft") // draft | sent | paid | overdue
+  issueDate       DateTime @default(now())
+  dueDate         DateTime?
+  subtotal        Float    @default(0)
+  discountType    String?  // "percentage" | "fixed"
+  discountValue   Float?   // percentage or fixed amount
+  discountAmount   Float    @default(0) // computed discount amount
+  taxRate         Float    @default(0)
+  taxAmount       Float    @default(0)
+  total           Float    @default(0)
+  notes           String?
+  items           String   // JSON array: [{description, qty, price, amount}]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([customerId])
 }
 
 model Quotation {
-  id          String   @id @default(cuid())
-  number      String   @unique
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  status      String   @default("draft") // draft | sent | accepted | rejected
-  issueDate   DateTime @default(now())
-  validUntil  DateTime?
-  subtotal    Float    @default(0)
-  taxRate     Float    @default(0)
-  taxAmount   Float    @default(0)
-  total       Float    @default(0)
-  notes       String?
-  items       String   // JSON array
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  number          String   @unique
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status          String   @default("draft") // draft | sent | accepted | rejected
+  issueDate       DateTime @default(now())
+  validUntil      DateTime?
+  subtotal        Float    @default(0)
+  discountType    String?  // "percentage" | "fixed"
+  discountValue   Float?   // percentage or fixed amount
+  discountAmount   Float    @default(0) // computed discount amount
+  taxRate         Float    @default(0)
+  taxAmount       Float    @default(0)
+  total           Float    @default(0)
+  notes           String?
+  items           String   // JSON array
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([customerId])
 }
@@ -690,17 +696,25 @@ model Device {
 
 // ===== Subscription =====
 model Subscription {
-  id          String   @id @default(cuid())
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  plan        String   @default("growth") // starter | growth | enterprise
-  status      String   @default("trial") // trial | active | cancelled | expired
-  startDate   DateTime @default(now())
-  endDate     DateTime?
-  trialEnds   DateTime?
-  amount      Float    @default(0)
-  currency    String   @default("USD")
-  createdAt   DateTime @default(now())
+  id              String   @id @default(cuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  plan            String   @default("growth") // starter | growth | enterprise | custom
+  status          String   @default("trial") // trial | active | cancelled | expired
+  startDate       DateTime @default(now())
+  endDate         DateTime?
+  trialEnds       DateTime?
+  amount          Float    @default(0)
+  currency        String   @default("USD")
+  discountType    String?  // "percentage" | "fixed" | null
+  discountValue   Float?   // the percentage or fixed amount
+  discountAmount   Float?   // computed discount amount
+  taxRate         Float?   // tax percentage (e.g. 10 = 10%)
+  taxAmount       Float?   // computed tax amount
+  totalAmount     Float?   // amount - discount + tax
+  billingCycle    String?  // "monthly" | "quarterly" | "yearly"
+  notes           String?  // admin notes
+  createdAt       DateTime @default(now())
 
   @@index([customerId])
 }

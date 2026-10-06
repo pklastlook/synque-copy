@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
         totpSecret: true,
         password: true,
         status: true,
+        permissions: true,
       },
     });
 

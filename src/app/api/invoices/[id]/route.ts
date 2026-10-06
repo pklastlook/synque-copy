@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { computeBillingTotals } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({
     id: inv.id, number: inv.number, customerId: inv.customerId, customerName: inv.customer?.name ?? "Unknown",
     status: inv.status, issueDate: inv.issueDate.toISOString(), dueDate: inv.dueDate?.toISOString() ?? null,
-    subtotal: inv.subtotal, taxRate: inv.taxRate, taxAmount: inv.taxAmount, total: inv.total,
+    subtotal: inv.subtotal,
+    discountType: inv.discountType ?? null,
+    discountValue: inv.discountValue ?? null,
+    discountAmount: inv.discountAmount,
+    taxRate: inv.taxRate, taxAmount: inv.taxAmount, total: inv.total,
     notes: inv.notes, items: JSON.parse(inv.items), createdAt: inv.createdAt.toISOString(),
   });
 }
@@ -44,28 +49,67 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const existing = await db.invoice.findFirst({
     where: { id, ...tenantWhere(scope) as { customerId?: string } },
-    select: { id: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const allowed = ["status", "notes", "dueDate", "taxRate"];
   const data: Record<string, unknown> = {};
-  for (const k of allowed) {
-    if (k in body) {
-      if (k === "dueDate") data[k] = body[k] ? new Date(body[k]) : null;
-      else data[k] = body[k];
-    }
+
+  if (body.status !== undefined) data.status = body.status;
+  if (body.notes !== undefined) data.notes = body.notes ?? null;
+  if (body.dueDate !== undefined) {
+    data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
   }
-  if (body.items) {
+
+  // Recompute subtotal + discount + tax + total whenever items / discount /
+  // taxRate fields are touched.
+  let recompute = false;
+  if (body.items !== undefined) {
     const parsedItems = body.items;
-    const subtotal = parsedItems.reduce((s: number, i: { amount: number }) => s + (i.amount || 0), 0);
-    const tax = body.taxRate ?? 0;
+    const subtotal = parsedItems.reduce(
+      (s: number, i: { amount: number }) => s + (i.amount || 0),
+      0,
+    );
     data.items = JSON.stringify(parsedItems);
     data.subtotal = subtotal;
-    data.taxAmount = Math.round(subtotal * tax) / 100;
-    data.total = subtotal + (data.taxAmount as number);
+    recompute = true;
   }
+  if (body.taxRate !== undefined) {
+    data.taxRate = Number(body.taxRate) || 0;
+    recompute = true;
+  }
+  if (body.discountType !== undefined) {
+    data.discountType =
+      body.discountType === "percentage" || body.discountType === "fixed"
+        ? body.discountType
+        : null;
+    recompute = true;
+  }
+  if (body.discountValue !== undefined) {
+    data.discountValue =
+      typeof body.discountValue === "number" ? body.discountValue : null;
+    recompute = true;
+  }
+
+  if (recompute) {
+    const subtotal = (data.subtotal as number | undefined) ?? existing.subtotal;
+    const discountType =
+      (data.discountType as string | null | undefined) ?? existing.discountType;
+    const discountValue =
+      (data.discountValue as number | null | undefined) ?? existing.discountValue;
+    const taxRate =
+      (data.taxRate as number | undefined) ?? existing.taxRate;
+    const { discountAmount, taxAmount, total } = computeBillingTotals({
+      base: subtotal,
+      discountType,
+      discountValue,
+      taxRate,
+    });
+    data.discountAmount = discountAmount;
+    data.taxAmount = taxAmount;
+    data.total = total;
+  }
+
   await db.invoice.update({ where: { id }, data });
   return NextResponse.json({ ok: true });
 }

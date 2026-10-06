@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
             emailVerified: true,
             totpSecret: true,
             twoFactorEnabled: true,
+            permissions: true,
           },
         });
         break; // success

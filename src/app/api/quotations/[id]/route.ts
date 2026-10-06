@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { computeBillingTotals } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({
     id: q.id, number: q.number, customerId: q.customerId, customerName: q.customer?.name ?? "Unknown",
     status: q.status, issueDate: q.issueDate.toISOString(), validUntil: q.validUntil?.toISOString() ?? null,
-    subtotal: q.subtotal, taxRate: q.taxRate, taxAmount: q.taxAmount, total: q.total,
+    subtotal: q.subtotal,
+    discountType: q.discountType ?? null,
+    discountValue: q.discountValue ?? null,
+    discountAmount: q.discountAmount,
+    taxRate: q.taxRate, taxAmount: q.taxAmount, total: q.total,
     notes: q.notes, items: JSON.parse(q.items), createdAt: q.createdAt.toISOString(),
   });
 }
@@ -44,19 +49,67 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const existing = await db.quotation.findFirst({
     where: { id, ...tenantWhere(scope) as { customerId?: string } },
-    select: { id: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const allowed = ["status", "notes", "validUntil"];
   const data: Record<string, unknown> = {};
-  for (const k of allowed) {
-    if (k in body) {
-      if (k === "validUntil") data[k] = body[k] ? new Date(body[k]) : null;
-      else data[k] = body[k];
-    }
+
+  if (body.status !== undefined) data.status = body.status;
+  if (body.notes !== undefined) data.notes = body.notes ?? null;
+  if (body.validUntil !== undefined) {
+    data.validUntil = body.validUntil ? new Date(body.validUntil) : null;
   }
+
+  // Recompute subtotal + discount + tax + total when items / discount / taxRate
+  // change.
+  let recompute = false;
+  if (body.items !== undefined) {
+    const parsedItems = body.items;
+    const subtotal = parsedItems.reduce(
+      (s: number, i: { amount: number }) => s + (i.amount || 0),
+      0,
+    );
+    data.items = JSON.stringify(parsedItems);
+    data.subtotal = subtotal;
+    recompute = true;
+  }
+  if (body.taxRate !== undefined) {
+    data.taxRate = Number(body.taxRate) || 0;
+    recompute = true;
+  }
+  if (body.discountType !== undefined) {
+    data.discountType =
+      body.discountType === "percentage" || body.discountType === "fixed"
+        ? body.discountType
+        : null;
+    recompute = true;
+  }
+  if (body.discountValue !== undefined) {
+    data.discountValue =
+      typeof body.discountValue === "number" ? body.discountValue : null;
+    recompute = true;
+  }
+
+  if (recompute) {
+    const subtotal = (data.subtotal as number | undefined) ?? existing.subtotal;
+    const discountType =
+      (data.discountType as string | null | undefined) ?? existing.discountType;
+    const discountValue =
+      (data.discountValue as number | null | undefined) ?? existing.discountValue;
+    const taxRate =
+      (data.taxRate as number | undefined) ?? existing.taxRate;
+    const { discountAmount, taxAmount, total } = computeBillingTotals({
+      base: subtotal,
+      discountType,
+      discountValue,
+      taxRate,
+    });
+    data.discountAmount = discountAmount;
+    data.taxAmount = taxAmount;
+    data.total = total;
+  }
+
   await db.quotation.update({ where: { id }, data });
   return NextResponse.json({ ok: true });
 }

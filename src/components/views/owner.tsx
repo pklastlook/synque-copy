@@ -67,6 +67,8 @@ import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
 import { MetricRow, SectionHeader } from "@/components/glass/dense-ui";
 import { NameAvatar } from "@/components/glass/name-avatar";
+import { ModuleAccessSelector } from "@/components/glass/module-access-selector";
+import { describePermissions, isAllModules, defaultPermissionsForRole } from "@/lib/module-permissions";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
 import {
@@ -159,6 +161,9 @@ interface Invoice {
   issueDate: string;
   dueDate: string | null;
   subtotal: number;
+  discountType: string | null; // "percentage" | "fixed" | null
+  discountValue: number | null; // percentage or fixed amount
+  discountAmount: number; // computed discount amount
   taxRate: number;
   taxAmount: number;
   total: number;
@@ -176,6 +181,9 @@ interface Quotation {
   issueDate: string;
   validUntil: string | null;
   subtotal: number;
+  discountType: string | null;
+  discountValue: number | null;
+  discountAmount: number;
   taxRate: number;
   taxAmount: number;
   total: number;
@@ -1776,6 +1784,9 @@ interface DocForm {
   taxRate: number;
   dueOrValid: string; // dueDate for invoice, validUntil for quotation
   notes: string;
+  // Discount — discountType is "percentage" | "fixed" | null (None).
+  discountType: string | null;
+  discountValue: number; // percentage or fixed amount (0 when none)
 }
 
 const EMPTY_DOC: DocForm = {
@@ -1784,13 +1795,22 @@ const EMPTY_DOC: DocForm = {
   taxRate: 0,
   dueOrValid: "",
   notes: "",
+  discountType: null,
+  discountValue: 0,
 };
 
 function docTotals(form: DocForm) {
   const subtotal = form.items.reduce((s, i) => s + (i.amount || 0), 0);
-  const taxAmount = Math.round(subtotal * form.taxRate) / 100;
-  const total = subtotal + taxAmount;
-  return { subtotal, taxAmount, total };
+  let discountAmount = 0;
+  if (form.discountType === "percentage") {
+    discountAmount = Math.round(subtotal * (form.discountValue || 0)) / 100;
+  } else if (form.discountType === "fixed") {
+    discountAmount = Math.min(form.discountValue || 0, subtotal);
+  }
+  const taxableBase = Math.max(subtotal - discountAmount, 0);
+  const taxAmount = Math.round(taxableBase * form.taxRate) / 100;
+  const total = Math.max(subtotal - discountAmount + taxAmount, 0);
+  return { subtotal, discountAmount, taxAmount, total };
 }
 
 // ----- InvoicePrintLayout (used for both invoices and quotations) -----
@@ -1812,6 +1832,8 @@ function InvoicePrintLayout({
     kind === "invoice"
       ? (doc as Invoice).dueDate
       : (doc as Quotation).validUntil;
+  const discountAmount = doc.discountAmount || 0;
+  const taxableBase = Math.max(doc.subtotal - discountAmount, 0);
 
   return (
     <div className="print-area mx-auto max-w-[8.5in] bg-white p-10 text-[12px] leading-relaxed text-neutral-900">
@@ -1945,6 +1967,22 @@ function InvoicePrintLayout({
             <span className="text-neutral-600">Subtotal</span>
             <span className="tabular-nums">{money(doc.subtotal)}</span>
           </div>
+          {discountAmount > 0 && (
+            <div className="flex justify-between py-1 text-emerald-700">
+              <span className="text-neutral-600">
+                Discount
+                {doc.discountType === "percentage" &&
+                  ` (${doc.discountValue ?? 0}%)`}
+              </span>
+              <span className="tabular-nums">-{money(discountAmount)}</span>
+            </div>
+          )}
+          {discountAmount > 0 && (
+            <div className="flex justify-between py-1">
+              <span className="text-neutral-600">Taxable base</span>
+              <span className="tabular-nums">{money(taxableBase)}</span>
+            </div>
+          )}
           <div className="flex justify-between py-1">
             <span className="text-neutral-600">
               Tax ({doc.taxRate}%)
@@ -2028,7 +2066,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
     }
     setBusy(true);
     try {
-      const { subtotal, taxAmount, total } = docTotals(form);
+      const { subtotal, discountAmount, taxAmount, total } = docTotals(form);
       const payload = {
         customerId: form.customerId,
         items: form.items,
@@ -2036,6 +2074,9 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
         dueDate: form.dueOrValid || null,
         notes: form.notes,
         subtotal,
+        discountType: form.discountType,
+        discountValue: form.discountValue,
+        discountAmount,
         taxAmount,
         total,
       };
@@ -2256,6 +2297,52 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
+              <Field label="Discount type">
+                <Select
+                  value={form.discountType ?? "none"}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      discountType: v === "none" ? null : v,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed amount</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field
+                label="Discount value"
+                hint={
+                  form.discountType === "percentage"
+                    ? "Percent of subtotal"
+                    : form.discountType === "fixed"
+                      ? "Flat amount off"
+                      : "Pick a discount type first"
+                }
+              >
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  disabled={form.discountType === null}
+                  value={form.discountValue}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      discountValue: Number(e.target.value) || 0,
+                    }))
+                  }
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Tax rate (%)">
                 <Input
                   type="number"
@@ -2276,6 +2363,18 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                   <span className="text-muted-foreground">Subtotal</span>
                   <span className="tabular-nums">{money(totals.subtotal)}</span>
                 </div>
+                {totals.discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                    <span className="text-muted-foreground">
+                      Discount
+                      {form.discountType === "percentage" &&
+                        ` (${form.discountValue}%)`}
+                    </span>
+                    <span className="tabular-nums">
+                      -{money(totals.discountAmount)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
                     Tax ({form.taxRate}%)
@@ -2385,7 +2484,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
     }
     setBusy(true);
     try {
-      const { subtotal, taxAmount, total } = docTotals(form);
+      const { subtotal, discountAmount, taxAmount, total } = docTotals(form);
       const payload = {
         customerId: form.customerId,
         items: form.items,
@@ -2393,6 +2492,9 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
         validUntil: form.dueOrValid || null,
         notes: form.notes,
         subtotal,
+        discountType: form.discountType,
+        discountValue: form.discountValue,
+        discountAmount,
         taxAmount,
         total,
       };
@@ -2617,6 +2719,52 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
+              <Field label="Discount type">
+                <Select
+                  value={form.discountType ?? "none"}
+                  onValueChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      discountType: v === "none" ? null : v,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed amount</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field
+                label="Discount value"
+                hint={
+                  form.discountType === "percentage"
+                    ? "Percent of subtotal"
+                    : form.discountType === "fixed"
+                      ? "Flat amount off"
+                      : "Pick a discount type first"
+                }
+              >
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  disabled={form.discountType === null}
+                  value={form.discountValue}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      discountValue: Number(e.target.value) || 0,
+                    }))
+                  }
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Tax rate (%)">
                 <Input
                   type="number"
@@ -2637,6 +2785,18 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                   <span className="text-muted-foreground">Subtotal</span>
                   <span className="tabular-nums">{money(totals.subtotal)}</span>
                 </div>
+                {totals.discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                    <span className="text-muted-foreground">
+                      Discount
+                      {form.discountType === "percentage" &&
+                        ` (${form.discountValue}%)`}
+                    </span>
+                    <span className="tabular-nums">
+                      -{money(totals.discountAmount)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
                     Tax ({form.taxRate}%)
@@ -3480,20 +3640,138 @@ function DevicesTab() {
 interface SubscriptionData {
   id: string; customerId: string; customerName: string; plan: string; status: string;
   amount: number; currency: string; startDate: string; endDate: string | null; trialEnds: string | null;
+  discountType: string | null; discountValue: number | null; discountAmount: number | null;
+  taxRate: number | null; taxAmount: number | null; totalAmount: number | null;
+  billingCycle: string | null; notes: string | null;
+}
+
+interface SubscriptionForm {
+  customerId: string;
+  plan: string;            // starter | growth | enterprise | custom
+  amount: number;
+  currency: string;
+  status: string;          // trial | active | cancelled | expired
+  billingCycle: string;    // monthly | quarterly | yearly
+  startDate: string;
+  endDate: string;
+  trialEnds: string;
+  discountType: string | null; // "percentage" | "fixed" | null
+  discountValue: number;
+  taxRate: number;
+  notes: string;
+}
+
+const SUB_PLAN_AMOUNTS: Record<string, number> = {
+  starter: 299,
+  growth: 499,
+  enterprise: 0,
+  custom: 0,
+};
+
+const EMPTY_SUB_FORM: SubscriptionForm = {
+  customerId: "",
+  plan: "growth",
+  amount: SUB_PLAN_AMOUNTS.growth,
+  currency: "USD",
+  status: "trial",
+  billingCycle: "monthly",
+  startDate: new Date().toISOString().slice(0, 10),
+  endDate: "",
+  trialEnds: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10),
+  discountType: null,
+  discountValue: 0,
+  taxRate: 0,
+  notes: "",
+};
+
+function computeSubTotals(form: SubscriptionForm) {
+  const amount = Number.isFinite(form.amount) ? form.amount : 0;
+  let discountAmount = 0;
+  if (form.discountType === "percentage") {
+    discountAmount = Math.round(amount * (form.discountValue || 0)) / 100;
+  } else if (form.discountType === "fixed") {
+    discountAmount = Math.min(form.discountValue || 0, amount);
+  }
+  const taxableBase = Math.max(amount - discountAmount, 0);
+  const taxAmount = Math.round(taxableBase * (form.taxRate || 0)) / 100;
+  const totalAmount = Math.max(amount - discountAmount + taxAmount, 0);
+  return { discountAmount, taxableBase, taxAmount, totalAmount };
 }
 
 function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   const { data, loading, reload } = useApi<SubscriptionData[]>("/api/subscriptions");
   const [addOpen, setAddOpen] = React.useState(false);
-  const [form, setForm] = React.useState({ customerId: "", plan: "growth", amount: 89 });
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editId, setEditId] = React.useState<string | null>(null);
+  const [form, setForm] = React.useState<SubscriptionForm>(EMPTY_SUB_FORM);
+  const [busy, setBusy] = React.useState(false);
 
   if (loading) return <div className="shimmer h-64 rounded-3xl" />;
   const subs = data ?? [];
 
-  const add = async () => {
+  const openCreate = () => {
+    setForm(EMPTY_SUB_FORM);
+    setEditId(null);
+    setAddOpen(true);
+  };
+
+  const openEdit = (s: SubscriptionData) => {
+    setForm({
+      customerId: s.customerId,
+      plan: s.plan,
+      amount: s.amount,
+      currency: s.currency,
+      status: s.status,
+      billingCycle: s.billingCycle ?? "monthly",
+      startDate: s.startDate ? new Date(s.startDate).toISOString().slice(0, 10) : "",
+      endDate: s.endDate ? new Date(s.endDate).toISOString().slice(0, 10) : "",
+      trialEnds: s.trialEnds ? new Date(s.trialEnds).toISOString().slice(0, 10) : "",
+      discountType: s.discountType ?? null,
+      discountValue: s.discountValue ?? 0,
+      taxRate: s.taxRate ?? 0,
+      notes: s.notes ?? "",
+    });
+    setEditId(s.id);
+    setEditOpen(true);
+  };
+
+  const submit = async (isNew: boolean) => {
     if (!form.customerId) return toast.error("Select a client");
-    await api("POST", "/api/subscriptions", form);
-    toast.success("Subscription created"); setAddOpen(false); reload();
+    setBusy(true);
+    try {
+      const totals = computeSubTotals(form);
+      const payload = {
+        customerId: form.customerId,
+        plan: form.plan,
+        amount: form.amount,
+        currency: form.currency,
+        status: form.status,
+        billingCycle: form.billingCycle || null,
+        startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
+        endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
+        trialEnds: form.trialEnds ? new Date(form.trialEnds).toISOString() : null,
+        discountType: form.discountType,
+        discountValue: form.discountValue,
+        taxRate: form.taxRate,
+        notes: form.notes || null,
+      };
+      if (isNew) {
+        await api("POST", "/api/subscriptions", payload);
+        toast.success("Subscription created");
+        setAddOpen(false);
+      } else if (editId) {
+        await api("PATCH", `/api/subscriptions/${editId}`, payload);
+        toast.success("Subscription updated");
+        setEditOpen(false);
+      }
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const cancel = async (id: string) => {
@@ -3507,40 +3785,354 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
     cancelled: "bg-rose-500/15 text-rose-500", expired: "bg-muted text-muted-foreground",
   };
 
+  const totals = computeSubTotals(form);
+  const isCustomPlan = form.plan === "custom" || form.plan === "enterprise";
+
+  const renderFormFields = (isNew: boolean) => (
+    <div className="space-y-3">
+      <Field label="Client *">
+        <Select
+          value={form.customerId}
+          onValueChange={(v) => setForm((f) => ({ ...f, customerId: v }))}
+          disabled={!isNew}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a client" />
+          </SelectTrigger>
+          <SelectContent>
+            {customers.length === 0 ? (
+              <SelectItem value="_none" disabled>
+                No clients available
+              </SelectItem>
+            ) : (
+              customers.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name} — {c.email}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Plan">
+          <Select
+            value={form.plan}
+            onValueChange={(v) =>
+              setForm((f) => ({
+                ...f,
+                plan: v,
+                amount: SUB_PLAN_AMOUNTS[v] ?? f.amount,
+              }))
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="starter">Starter ($299/mo)</SelectItem>
+              <SelectItem value="growth">Growth ($499/mo)</SelectItem>
+              <SelectItem value="enterprise">Enterprise (Custom)</SelectItem>
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Billing cycle">
+          <Select
+            value={form.billingCycle}
+            onValueChange={(v) => setForm((f) => ({ ...f, billingCycle: v }))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="quarterly">Quarterly</SelectItem>
+              <SelectItem value="yearly">Yearly</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field
+          label={isCustomPlan ? "Custom amount *" : "Base amount"}
+          hint={isCustomPlan ? "Required for Custom / Enterprise plans" : undefined}
+        >
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.amount}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, amount: Number(e.target.value) || 0 }))
+            }
+          />
+        </Field>
+        <Field label="Status">
+          <Select
+            value={form.status}
+            onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="trial">Trial</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="expired">Expired</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Start date">
+          <Input
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+          />
+        </Field>
+        <Field label="Trial ends">
+          <Input
+            type="date"
+            value={form.trialEnds}
+            onChange={(e) => setForm((f) => ({ ...f, trialEnds: e.target.value }))}
+          />
+        </Field>
+        <Field label="End date">
+          <Input
+            type="date"
+            value={form.endDate}
+            onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Discount type">
+          <Select
+            value={form.discountType ?? "none"}
+            onValueChange={(v) =>
+              setForm((f) => ({
+                ...f,
+                discountType: v === "none" ? null : v,
+              }))
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="percentage">Percentage (%)</SelectItem>
+              <SelectItem value="fixed">Fixed amount</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field
+          label="Discount value"
+          hint={
+            form.discountType === "percentage"
+              ? "Percent of base amount"
+              : form.discountType === "fixed"
+                ? "Flat amount off"
+                : "Pick a discount type first"
+          }
+        >
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            disabled={form.discountType === null}
+            value={form.discountValue}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, discountValue: Number(e.target.value) || 0 }))
+            }
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Tax rate (%)">
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            step="0.01"
+            value={form.taxRate}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, taxRate: Number(e.target.value) || 0 }))
+            }
+          />
+        </Field>
+        {/* Live preview of the computed totals */}
+        <div className="rounded-lg bg-muted/40 p-2 text-xs">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Base amount</span>
+            <span className="tabular-nums">{money(form.amount, form.currency)}</span>
+          </div>
+          {totals.discountAmount > 0 && (
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+              <span className="text-muted-foreground">
+                Discount
+                {form.discountType === "percentage" && ` (${form.discountValue}%)`}
+              </span>
+              <span className="tabular-nums">-{money(totals.discountAmount, form.currency)}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="tabular-nums">{money(totals.taxableBase, form.currency)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Tax ({form.taxRate}%)</span>
+            <span className="tabular-nums">+{money(totals.taxAmount, form.currency)}</span>
+          </div>
+          <div className="mt-1 flex justify-between border-t border-border/40 pt-1 text-sm font-bold">
+            <span>Total</span>
+            <span className="tabular-nums">{money(totals.totalAmount, form.currency)}</span>
+          </div>
+        </div>
+      </div>
+
+      <Field label="Notes">
+        <Textarea
+          rows={3}
+          value={form.notes}
+          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+          placeholder="Internal notes — contract terms, discount reason, etc."
+        />
+      </Field>
+    </div>
+  );
+
   return (
     <section>
-      <SectionHeader title="Subscriptions" desc="Manage client subscriptions and trials" icon={CreditCard}
-        action={<button onClick={() => setAddOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> New subscription</button>} />
+      <SectionHeader title="Subscriptions" desc="Manage client subscriptions, discounts & trials" icon={CreditCard}
+        action={<button onClick={openCreate} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> New subscription</button>} />
       {subs.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">No subscriptions yet.</div>
       ) : (
         <div className="scroll-liquid max-h-[560px] space-y-2 overflow-y-auto">
-          {subs.map((s) => (
-            <div key={s.id} className="crystal-in flex items-center gap-3 rounded-2xl border border-border/40 bg-muted/20 p-4">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><CreditCard className="h-5 w-5" /></div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-semibold">{s.customerName}</span>
-                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[s.status])}>{s.status}</span>
+          {subs.map((s) => {
+            const total = s.totalAmount ?? s.amount;
+            const discount = s.discountAmount ?? 0;
+            const tax = s.taxAmount ?? 0;
+            return (
+              <div key={s.id} className="crystal-in rounded-2xl border border-border/40 bg-muted/20 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><CreditCard className="h-5 w-5" /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-sm font-semibold">{s.customerName}</span>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[s.status])}>{s.status}</span>
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold capitalize text-primary">{s.plan}</span>
+                      {s.billingCycle && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold capitalize text-muted-foreground">{s.billingCycle}</span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      Base {money(s.amount, s.currency)}
+                      {discount > 0 && (
+                        <>
+                          {" · "}
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            Discount -{money(discount, s.currency)}
+                          </span>
+                        </>
+                      )}
+                      {tax > 0 && (
+                        <>
+                          {" · "}
+                          Tax +{money(tax, s.currency)}
+                        </>
+                      )}
+                      {" · "}
+                      Total <span className="font-semibold">{money(total, s.currency)}</span>
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                      <span>Started {new Date(s.startDate).toLocaleDateString()}</span>
+                      {s.trialEnds && s.status === "trial" && (
+                        <span className="text-amber-500">· Trial ends {new Date(s.trialEnds).toLocaleDateString()}</span>
+                      )}
+                      {s.endDate && (
+                        <span>· Ends {new Date(s.endDate).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                    {s.notes && (
+                      <div className="mt-1 line-clamp-1 text-[11px] italic text-muted-foreground">“{s.notes}”</div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => openEdit(s)}
+                      className="flex items-center gap-1 rounded-lg bg-muted/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </button>
+                    {s.status !== "cancelled" && (
+                      <button
+                        onClick={() => cancel(s.id)}
+                        className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/20"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="text-[11px] text-muted-foreground">{s.plan} · ${s.amount}/{s.currency} · Started {new Date(s.startDate).toLocaleDateString()}</div>
-                {s.trialEnds && s.status === "trial" && (
-                  <div className="text-[11px] text-amber-500">Trial ends: {new Date(s.trialEnds).toLocaleDateString()}</div>
-                )}
               </div>
-              {s.status !== "cancelled" && <button onClick={() => cancel(s.id)} className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/20">Cancel</button>}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      {/* Create dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="glass-strong max-w-md">
-          <DialogHeader><DialogTitle>New Subscription</DialogTitle><DialogDescription>Create a subscription for a client.</DialogDescription></DialogHeader>
-          <div className="space-y-3">
-            <div><Label className="text-xs">Client</Label><Select value={form.customerId} onValueChange={(v) => setForm({ ...form, customerId: v })}><SelectTrigger className="mt-1.5"><SelectValue placeholder="Select client" /></SelectTrigger><SelectContent>{customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label className="text-xs">Plan</Label><Select value={form.plan} onValueChange={(v) => setForm({ ...form, plan: v, amount: v === "starter" ? 29 : v === "enterprise" ? 0 : 89 })}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="starter">Starter ($29/mo)</SelectItem><SelectItem value="growth">Growth ($89/mo)</SelectItem><SelectItem value="enterprise">Enterprise (Custom)</SelectItem></SelectContent></Select></div>
-          </div>
-          <DialogFooter><Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button><button onClick={add} className="liquid-pill rounded-xl px-4 py-2 text-sm font-semibold">Create</button></DialogFooter>
+        <DialogContent className="glass-strong max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>New Subscription</DialogTitle>
+            <DialogDescription>
+              Pick a plan, set discount & tax, and the totals are computed automatically.
+            </DialogDescription>
+          </DialogHeader>
+          {renderFormFields(true)}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => submit(true)}
+              disabled={busy}
+              className="liquid-pill"
+            >
+              {busy ? "Creating…" : "Create subscription"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="glass-strong max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Subscription</DialogTitle>
+            <DialogDescription>
+              Update plan, amount, discount, tax, status, dates or notes.
+            </DialogDescription>
+          </DialogHeader>
+          {renderFormFields(false)}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => submit(false)}
+              disabled={busy}
+              className="liquid-pill"
+            >
+              {busy ? "Saving…" : "Save changes"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </section>
@@ -3764,6 +4356,7 @@ interface ClientUser {
   phone: string | null;
   lastActive: string | null;
   createdAt: string;
+  permissions?: string[];
 }
 
 function ClientUsersTab() {
@@ -3773,6 +4366,12 @@ function ClientUsersTab() {
   const [editUser, setEditUser] = React.useState<ClientUser | null>(null);
   const [editOpen, setEditOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "", customerId: "" });
+  // Module rights selection for the create-user dialog. Defaults to the
+  // role-based preset (member → dashboard/composer/calendar/inbox). It
+  // re-syncs whenever the user picks a different role in the dropdown.
+  const [formPermissions, setFormPermissions] = React.useState<string[]>(
+    defaultPermissionsForRole("member"),
+  );
   const [busy, setBusy] = React.useState(false);
 
   if (loading) return <div className="shimmer h-64 rounded-3xl" />;
@@ -3801,9 +4400,11 @@ function ClientUsersTab() {
         birthDate: form.birthDate || undefined,
         phone: form.phone || undefined,
         customerId: form.customerId || undefined,
+        permissions: formPermissions,
       });
       toast.success("User created!", { description: `${form.name} can sign in at /login` });
       setForm({ name: "", email: "", password: "", role: "member", company: "", gender: "", birthDate: "", phone: "", customerId: "" });
+      setFormPermissions(defaultPermissionsForRole("member"));
       setLoginOpen(false);
       reload();
     } catch (e) {
@@ -3827,6 +4428,7 @@ function ClientUsersTab() {
         gender: editUser.gender,
         birthDate: editUser.birthDate,
         phone: editUser.phone,
+        permissions: editUser.permissions ?? [],
       });
       toast.success("User updated");
       setEditOpen(false);
@@ -3938,6 +4540,23 @@ function ClientUsersTab() {
                   {u.lastActive && <span>Active: {new Date(u.lastActive).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
                 </div>
               </div>
+              {/* Modules pill — summarizes the user's module rights. */}
+              <button
+                type="button"
+                onClick={() => { setEditUser({ ...u }); setEditOpen(true); }}
+                title={isAllModules(u.permissions) ? "All modules" : (u.permissions?.length ?? 0) > 0 ? `${u.permissions!.length} module${u.permissions!.length === 1 ? "" : "s"}` : "No module access"}
+                className={cn(
+                  "hidden shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition sm:flex",
+                  isAllModules(u.permissions)
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : (u.permissions?.length ?? 0) > 0
+                      ? "border-border/50 bg-muted/40 text-muted-foreground"
+                      : "border-rose-500/30 bg-rose-500/10 text-rose-500",
+                )}
+              >
+                <ShieldCheck className="h-3 w-3" />
+                {describePermissions(u.permissions)}
+              </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted" aria-label="Actions">
@@ -3971,7 +4590,7 @@ function ClientUsersTab() {
 
       {/* Create User Dialog */}
       <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-        <DialogContent className="glass-strong max-w-md">
+        <DialogContent className="glass-strong max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-[var(--gold)]" /> Add User
@@ -4020,14 +4639,40 @@ function ClientUsersTab() {
             )}
             <div>
               <Label className="text-xs">Role</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+              <Select
+                value={form.role}
+                onValueChange={(v) => {
+                  setForm({ ...form, role: v });
+                  // Reset module rights to the role-based default whenever
+                  // the user picks a different role — the admin can still
+                  // fine-tune via the Module Access section below.
+                  setFormPermissions(defaultPermissionsForRole(v));
+                }}
+              >
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="viewer">Viewer — read-only</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="editor">Editor</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Module Access — pick which sidebar modules this user can open. */}
+            <div className="rounded-2xl border border-border/40 bg-muted/10 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                <Label className="text-xs font-semibold">Module Access</Label>
+                <span className="ml-auto text-[10px] text-muted-foreground">
+                  Controls which sidebar items this user can open
+                </span>
+              </div>
+              <ModuleAccessSelector
+                permissions={formPermissions}
+                onChange={setFormPermissions}
+              />
             </div>
             <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
@@ -4046,7 +4691,7 @@ function ClientUsersTab() {
 
       {/* Edit User Dialog */}
       <Dialog open={editOpen} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditUser(null); } }}>
-        <DialogContent className="glass-strong max-w-md">
+        <DialogContent className="glass-strong max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-5 w-5 text-primary" /> Edit User
@@ -4080,11 +4725,28 @@ function ClientUsersTab() {
                 <Select value={editUser.role} onValueChange={(v) => setEditUser({ ...editUser, role: v })}>
                   <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="viewer">Viewer</SelectItem>
                     <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="editor">Editor</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Module Access — pick which sidebar modules this user can open. */}
+              <div className="rounded-2xl border border-border/40 bg-muted/10 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                  <Label className="text-xs font-semibold">Module Access</Label>
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    Currently: {describePermissions(editUser.permissions)}
+                  </span>
+                </div>
+                <ModuleAccessSelector
+                  permissions={editUser.permissions ?? []}
+                  onChange={(next) => setEditUser({ ...editUser, permissions: next })}
+                />
               </div>
             </div>
           )}

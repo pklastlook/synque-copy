@@ -76,7 +76,9 @@ export async function POST(req: NextRequest) {
     const trialEnds = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
 
     try {
-      // Subscription (status=trial, plan=starter, amount=299 USD)
+      // Subscription (status=trial, plan=starter, amount=299 USD/mo). The
+      // discount + tax fields are left null/0 (no discount applied to trials;
+      // owner can edit later from the Subscriptions tab).
       await db.subscription.create({
         data: {
           customerId: customer.id,
@@ -86,6 +88,10 @@ export async function POST(req: NextRequest) {
           currency: "USD",
           startDate: now,
           trialEnds,
+          billingCycle: "monthly",
+          discountAmount: 0,
+          taxAmount: 0,
+          totalAmount: STARTER_PRICE,
           // endDate is left null until the trial converts to active.
         },
       });
@@ -113,6 +119,7 @@ export async function POST(req: NextRequest) {
           issueDate: now,
           dueDate: trialEnds,
           subtotal: STARTER_PRICE,
+          discountAmount: 0,
           taxRate: 0,
           taxAmount: 0,
           total: STARTER_PRICE,
@@ -177,6 +184,7 @@ export async function POST(req: NextRequest) {
         customerId: true,
         emailVerified: true,
         twoFactorEnabled: true,
+        permissions: true,
       },
     });
 

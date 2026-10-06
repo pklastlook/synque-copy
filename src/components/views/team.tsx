@@ -18,6 +18,7 @@ import {
   UserPlus,
   MoreVertical,
   Shield,
+  ShieldCheck,
   Eye,
   Trash2,
   Send,
@@ -33,6 +34,8 @@ import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { HelpText } from "@/components/glass/help-text";
+import { ModuleAccessSelector } from "@/components/glass/module-access-selector";
+import { describePermissions, defaultPermissionsForRole, isAllModules } from "@/lib/module-permissions";
 import { useAuth } from "@/lib/auth-store";
 import { useNav } from "@/lib/store";
 import {
@@ -86,6 +89,7 @@ interface TeamMember {
   variantCount: number;
   engagement: number;
   followers: number;
+  permissions?: string[];
 }
 
 const ADMIN_COLOR = "var(--primary)";
@@ -128,6 +132,11 @@ export function TeamView() {
   const [mBirthDate, setMBirthDate] = React.useState("");
   const [mPhone, setMPhone] = React.useState("");
   const [mCustomerId, setMCustomerId] = React.useState("");
+  // Module rights selection for the new member (defaults to the role-based
+  // preset). Re-synced whenever the role dropdown changes.
+  const [mPermissions, setMPermissions] = React.useState<string[]>(
+    defaultPermissionsForRole("member"),
+  );
   const [showPassword, setShowPassword] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   // Success dialog — shows the created credentials so admin can share them
@@ -255,6 +264,7 @@ export function TeamView() {
           birthDate: mBirthDate || undefined,
           phone: mPhone.trim() || undefined,
           customerId: mCustomerId || undefined,
+          permissions: mPermissions,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -268,6 +278,7 @@ export function TeamView() {
       setMName(""); setMEmail(""); setMPassword(""); setMTitle(""); setMDepartment("");
       setMGender(""); setMBirthDate(""); setMPhone(""); setMCustomerId("");
       setMRole("member"); setShowPassword(false);
+      setMPermissions(defaultPermissionsForRole("member"));
       setAddOpen(false);
       reload();
     } catch (e: unknown) {
@@ -383,7 +394,7 @@ export function TeamView() {
 
       {/* Add Member dialog — admin creates a login with credentials */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="h-4 w-4 text-primary" />
@@ -492,7 +503,16 @@ export function TeamView() {
 
             <div className="space-y-1.5">
               <Label htmlFor="m-role">Role</Label>
-              <Select value={mRole} onValueChange={(v) => setMRole(v as typeof mRole)}>
+              <Select
+                value={mRole}
+                onValueChange={(v) => {
+                  setMRole(v as typeof mRole);
+                  // Reset module rights to the role-based default whenever
+                  // the user picks a different role — the admin can still
+                  // fine-tune via the Module Access section below.
+                  setMPermissions(defaultPermissionsForRole(v));
+                }}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -504,6 +524,21 @@ export function TeamView() {
                   <SelectItem value="admin">Admin — full workspace access</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Module Access — pick which sidebar modules this user can open. */}
+            <div className="rounded-2xl border border-border/40 bg-muted/10 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                <Label className="text-xs font-semibold">Module Access</Label>
+                <span className="ml-auto text-[10px] text-muted-foreground">
+                  Controls which sidebar items this member can open
+                </span>
+              </div>
+              <ModuleAccessSelector
+                permissions={mPermissions}
+                onChange={setMPermissions}
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -880,6 +915,15 @@ function MemberRow({
       {/* Department / title */}
       <div className="hidden w-28 truncate text-xs md:block">
         {deptLabel ?? <span className="text-muted-foreground">—</span>}
+      </div>
+
+      {/* Modules — a compact pill summarizing the user's module rights.
+          Hidden on small screens so the row stays scrollable. */}
+      <div className="hidden w-24 lg:block" title={describePermissions(member.permissions)}>
+        <Pill color={isAllModules(member.permissions) ? "blue" : "neutral"}>
+          <ShieldCheck className="h-2.5 w-2.5" />
+          <span>{describePermissions(member.permissions)}</span>
+        </Pill>
       </div>
 
       {/* Posts */}

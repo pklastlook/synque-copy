@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
+import { computeBillingTotals } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(quotations.map((q) => ({
     id: q.id, number: q.number, customerId: q.customerId, customerName: q.customer?.name ?? "Unknown",
     status: q.status, issueDate: q.issueDate.toISOString(), validUntil: q.validUntil?.toISOString() ?? null,
-    subtotal: q.subtotal, taxRate: q.taxRate, taxAmount: q.taxAmount, total: q.total,
+    subtotal: q.subtotal,
+    discountType: q.discountType ?? null,
+    discountValue: q.discountValue ?? null,
+    discountAmount: q.discountAmount,
+    taxRate: q.taxRate, taxAmount: q.taxAmount, total: q.total,
     notes: q.notes, items: JSON.parse(q.items), createdAt: q.createdAt.toISOString(),
   })));
 }
@@ -54,12 +59,39 @@ export async function POST(req: NextRequest) {
   }));
   const subtotal = parsedItems.reduce((s: number, i: { amount: number }) => s + (i.amount || 0), 0);
   const tax = taxRate || 0;
-  const taxAmount = Math.round(subtotal * tax) / 100;
-  const total = subtotal + taxAmount;
+
+  // Discount fields (optional).
+  const discountType: string | null =
+    body.discountType === "percentage" || body.discountType === "fixed"
+      ? body.discountType
+      : null;
+  const discountValue: number | null =
+    typeof body.discountValue === "number" ? body.discountValue : null;
+
+  const { discountAmount, taxAmount, total } = computeBillingTotals({
+    base: subtotal,
+    discountType,
+    discountValue,
+    taxRate: tax,
+  });
+
   const count = await db.quotation.count();
   const number = `QUO-${String(count + 1).padStart(4, "0")}`;
   const quotation = await db.quotation.create({
-    data: { number, customerId, items: JSON.stringify(parsedItems), subtotal, taxRate: tax, taxAmount, total, notes, validUntil: validUntil ? new Date(validUntil) : null },
+    data: {
+      number,
+      customerId,
+      items: JSON.stringify(parsedItems),
+      subtotal,
+      discountType,
+      discountValue,
+      discountAmount,
+      taxRate: tax,
+      taxAmount,
+      total,
+      notes,
+      validUntil: validUntil ? new Date(validUntil) : null,
+    },
   });
   return NextResponse.json({ id: quotation.id, number, ok: true });
 }

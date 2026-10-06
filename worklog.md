@@ -12905,3 +12905,185 @@ Invoices tabs were empty for trial signups), and the previously-unauthenticated
 requireAuth + tenant isolation matching the existing invoices/quotations
 pattern. Both invoices/[id] and quotations/[id] routes also gained GET
 handlers per the task spec. After all edits, `bun run lint` exits 0.
+
+---
+Task ID: MODULE-RIGHTS
+Agent: subagent
+Task: Module rights selector in user creation + sidebar enforcement
+
+Work Log:
+1. Created `src/lib/module-permissions.ts` — central registry of 28 sidebar modules grouped into 6 categories (Overview, Content, Communication, Insights, Workspace, Admin). Includes `defaultPermissionsForRole`, `hasModuleAccess`, `parsePermissions`, `describePermissions`, and `isAllModules` helpers. Backward-compat: empty/null permissions means all access; legacy `"module:action"` strings are prefix-matched.
+2. Created `src/components/glass/module-access-selector.tsx` — reusable glass-morphism picker with per-group checkboxes + Select-all/Clear-all chips. Auto-upgrades to `["*"]` when every module is ticked.
+3. Updated `src/lib/auth-store.ts` — added `permissions?: string[]` to the `AuthUser` interface.
+4. Updated `src/lib/auth-session.ts` — `issueSession` accepts + parses the raw DB string and includes the array in `userPublic` so every login path returns permissions.
+5. Updated all 5 auth endpoints (login, 2fa, me, signup, demo) to `select: { permissions: true }` so the field flows through to the client.
+6. Updated `src/app/api/team/route.ts` — POST accepts `permissions` from the body and falls back to `defaultPermissionsForRole(role)` when omitted; GET returns `permissions` (parsed) per member.
+7. Updated `src/app/api/team/[id]/route.ts` — PATCH accepts `permissions` (admin-only, mirrors the existing role guard).
+8. Updated `src/components/views/owner.tsx` `ClientUsersTab` — added Module Access selector to both the Add User and Edit User dialogs (widened to `sm:max-w-2xl`); added a Modules pill to each user row (primary-tinted for "All modules", red for "No module access", otherwise "N modules").
+9. Updated `src/components/views/team.tsx` — Add Member dialog now includes the Module Access selector (also widened); MemberRow shows a compact Modules pill on `lg+` screens.
+10. Updated `src/components/app-sidebar.tsx` — `visibleNav` now filters by both role AND module rights. New Post button, Owner Panel, Media Library, Settings, Organization parents, and the settings gear all gated by their respective module permissions.
+
+Stage Summary: Per-user module rights are now first-class — admins can grant/revoke individual sidebar modules per user (Owner Panel + Team view), the selection is stored in `User.permissions`, propagated to the client via every auth endpoint, and the sidebar hides unauthorized items. Existing users (empty/null permissions) keep full access for backward compatibility; the demo viewer's legacy `"module:read"` strings still work via prefix matching.
+
+Verification: `bun run lint` — 0 errors, 7 pre-existing warnings (unrelated). `bunx tsc --noEmit` — 3 pre-existing errors (unrelated). My code introduces no new lint or TypeScript issues.
+
+---
+Task ID: SUBSCRIPTION-ENHANCE
+Agent: subagent
+Task: Custom subscription plans + discount/tax across billing modules
+
+Work Log:
+
+Read prior worklog + worklog for OWNER-COMPLETE (which established the
+subscription/invoice/quotation APIs + SubscriptionsTab/InvoicesTab/
+QuotationsTab in `src/components/views/owner.tsx`). Read current schema,
+all 6 billing API routes, and the relevant tab components to understand
+existing shape.
+
+### Prisma schema changes (prisma/schema.prisma)
+- Subscription model: +8 fields (discountType String?, discountValue Float?,
+  discountAmount Float?, taxRate Float?, taxAmount Float?, totalAmount Float?,
+  billingCycle String?, notes String?). Plan comment updated to include
+  "custom".
+- Invoice model: +3 fields (discountType String?, discountValue Float?,
+  discountAmount Float @default(0)).
+- Quotation model: +3 fields (same as Invoice).
+- `npx prisma validate` → "The schema at prisma/schema.prisma is valid 🚀".
+- Ran `bun run db:generate` (prisma generate) so the TS types reflect the new
+  schema — did NOT run `bun run db:push` per task rules (main agent will
+  handle it).
+
+### New shared lib (src/lib/billing.ts)
+- Single `computeBillingTotals({ base, discountType, discountValue, taxRate })`
+  helper. Returns `{ discountAmount, taxableBase, taxAmount, total }`. Used by
+  all 6 billing API routes. Extracted into a non-route file because importing
+  a function from one Next.js App Router route into another (e.g.
+  `/api/quotations/[id]/route.ts` importing from `../invoices/route`) triggers
+  a `TS2307: Cannot find module` error in the App Router type system; a plain
+  `src/lib/*.ts` file resolves cleanly.
+
+### API routes
+- `src/app/api/subscriptions/route.ts`:
+  - POST: accepts { plan, amount, currency, status, startDate, endDate,
+    trialEnds, discountType, discountValue, taxRate, billingCycle, notes }.
+    Normalizes discountType to "percentage" | "fixed" | null. Computes
+    discountAmount, taxAmount, totalAmount via `computeBillingTotals`.
+    Persists all computed totals.
+  - GET: returns the same set including all 8 new fields.
+  - Default plan amounts bumped to Starter $299, Growth $499 (was $29/$89)
+    to match the UI + the task spec.
+  - Exports `computeSubscriptionTotals` (thin wrapper around
+    `computeBillingTotals`) for the [id] route.
+- `src/app/api/subscriptions/[id]/route.ts`:
+  - PATCH accepts the full editable set. Recomputes discountAmount / taxAmount
+    / totalAmount on every PATCH (using the patched-or-existing values) so
+    partial edits keep totals consistent.
+  - endDate + trialEnds accept null to clear.
+- `src/app/api/invoices/route.ts` + `src/app/api/quotations/route.ts`:
+  - POST: accept `discountType` + `discountValue`, compute discountAmount +
+    taxAmount + total via `computeBillingTotals` (tax applied to post-discount
+    base).
+  - GET: returns the 3 new fields.
+  - Export a thin `computeDocTotals` wrapper for the [id] routes.
+- `src/app/api/invoices/[id]/route.ts` + `src/app/api/quotations/[id]/route.ts`:
+  - GET returns the new fields.
+  - PATCH recomputes totals when items / taxRate / discountType /
+    discountValue change.
+- `src/app/api/auth/signup/route.ts`: trial-signup Subscription now sets
+  `billingCycle="monthly"`, `discountAmount=0`, `taxAmount=0`,
+  `totalAmount=STARTER_PRICE`; the auto-generated Invoice sets
+  `discountAmount=0`. Older trial rows (created before this task) will fall
+  back to the legacy `amount` value via the UI's `totalAmount ?? amount`
+  fallback.
+
+### Owner panel (src/components/views/owner.tsx)
+- `Invoice` + `Quotation` interfaces: + `discountType: string | null`,
+  `discountValue: number | null`, `discountAmount: number`.
+- `DocForm` + `EMPTY_DOC`: + `discountType: string | null` (default null),
+  `discountValue: number` (default 0).
+- `docTotals(form)`: now returns `{ subtotal, discountAmount, taxAmount, total }`
+  with tax computed on `max(subtotal - discountAmount, 0)`.
+- `InvoicePrintLayout` (used for both invoices and quotations print/PDF):
+  now shows a "Discount (X%)" line in green when a discount was applied, plus
+  a "Taxable base" line, before the Tax + Total lines.
+- `InvoicesTab` + `QuotationsTab` create dialogs: gained a new "Discount type"
+  Select (None / Percentage / Fixed amount) + "Discount value" Input. The
+  totals preview pane shows the discount line (green) before the tax line.
+  The discount value Input is disabled when type=None, with a contextual
+  hint ("Percent of subtotal" / "Flat amount off" / "Pick a discount type
+  first"). POST payload now includes discountType, discountValue,
+  discountAmount.
+- `SubscriptionsTab` was completely rewritten:
+  - `SubscriptionData` interface expanded with all new fields.
+  - New `SubscriptionForm` type + `EMPTY_SUB_FORM` constant (defaults:
+    plan=growth, amount=$499, status=trial, billingCycle=monthly,
+    startDate=today, trialEnds=today+15d).
+  - `computeSubTotals(form)` helper (mirrors server math; used for the live
+    preview).
+  - Add + Edit dialogs share a `renderFormFields(isNew)` renderer so the
+    fields stay in sync. Client select is disabled in edit mode (customerId
+    is immutable post-create).
+  - Fields exposed: Plan (Starter $299 / Growth $499 / Enterprise Custom /
+    Custom), Billing cycle (Monthly / Quarterly / Yearly), Base amount
+    (label switches to "Custom amount *" with hint when plan is Custom /
+    Enterprise), Status (trial / active / cancelled / expired), Start date,
+    Trial ends, End date, Discount type, Discount value, Tax rate, Notes.
+  - Live preview pane in the dialog showing: Base amount → Discount −X →
+    Subtotal → Tax +X → Total (matches the example in the task spec).
+  - Subscription rows in the list now show: status pill, plan pill, billing
+    cycle pill, base + discount + tax + total line, start date, trial end
+    date (when status=trial), end date (when set), notes (truncated to 1
+    line). New "Edit" button per row that opens the edit dialog pre-populated.
+- Styling: all new fields use existing shadcn/ui primitives (`Select`,
+  `Input`, `Textarea`, `Field`, `Label`) + the existing `money()` helper
+  for currency formatting. Discount lines are green (`text-emerald-600
+  dark:text-emerald-400`) to differentiate from positive amounts. Discount
+  type Select + value Input are in a 2-col grid; Tax rate + totals preview
+  pane are in another 2-col grid (same layout as the existing tax + totals
+  row, just expanded with one new row above it).
+
+### Verification
+- `npx prisma validate` → "The schema at prisma/schema.prisma is valid 🚀"
+- `bun run db:generate` → "✔ Generated Prisma Client (7.10.0)"
+- `bun run lint` → **0 errors, 7 warnings** (all 7 are pre-existing
+  `@next/next/no-location-assign-relative-destination` warnings about
+  `window.location.href` in landing-page.tsx, landing-shared.tsx,
+  accounts.tsx, settings.tsx — none of these files were touched by this
+  task). Exit code 0.
+- `npx tsc --noEmit -p tsconfig.json` → 2 pre-existing errors unrelated to
+  this task (`oauth/callback/[platform]/route.ts:466` refreshToken + 
+  `sync-platforms.ts:167` null assignment). All TS errors introduced by the
+  schema change were resolved by `prisma generate` + extracting
+  `computeBillingTotals` into `src/lib/billing.ts`.
+- Dev server NOT started (per task rules).
+- `prisma db push` NOT run (per task rules — main agent will handle it).
+
+Stage Summary:
+
+The Subscription, Invoice, and Quotation modules now support a complete
+discount + tax pricing model end-to-end:
+- Schema: all 3 models gained the discount fields; Subscription also gained
+  billingCycle, notes, and the computed totals (discountAmount, taxAmount,
+  totalAmount).
+- API: all 6 billing routes accept the new fields, validate them, and
+  compute totals server-side via the shared `src/lib/billing.ts`
+  `computeBillingTotals` helper (so the UI can never lie about totals).
+  PATCH routes recompute totals on every mutation so partial edits stay
+  consistent.
+- UI: InvoicesTab and QuotationsTab create dialogs expose a "Discount type"
+  Select (None / Percentage / Fixed amount) + value Input, with the totals
+  preview pane showing the discount line + tax line. The print/PDF layout
+  (`InvoicePrintLayout`) shows the same breakdown. SubscriptionsTab was
+  rewritten with a full Add + Edit dialog: plan selector (incl. Custom),
+  custom amount, billing cycle, status, start/trial-end/end dates, discount
+  type + value, tax rate, notes — plus a live preview pane showing
+  Base → Discount → Subtotal → Tax → Total. Subscription rows in the list
+  now display all computed totals inline.
+- A new `src/lib/billing.ts` file consolidates the math so all routes stay
+  DRY (and avoids the cross-route-import issue that the App Router has with
+  importing non-handler exports from one route.ts into another).
+
+`bun run lint` exits 0 with only pre-existing warnings; `npx prisma validate`
+passes; `bun run db:generate` regenerated the Prisma Client so TypeScript
+types match the new schema. The main agent should run `bun run db:push`
+to materialize the schema in pglite.

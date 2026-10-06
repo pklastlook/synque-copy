@@ -50,6 +50,7 @@ interface DemoUser {
   emailVerified: Date | null;
   twoFactorEnabled: boolean;
   status: string;
+  permissions: string | null;
 }
 
 const DEMO_SELECT = {
@@ -67,6 +68,7 @@ const DEMO_SELECT = {
   emailVerified: true,
   twoFactorEnabled: true,
   status: true,
+  permissions: true,
 } as const;
 
 /**

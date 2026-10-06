@@ -60,6 +60,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data.status = body.status;
   }
 
+  // Module rights — admin-only (mirrors the role guard above). A manager
+  // cannot widen or narrow a teammate's module access via this route.
+  if (body.permissions !== undefined) {
+    if (user!.role !== "admin") {
+      return NextResponse.json(
+        { error: "Only admins can change user permissions" },
+        { status: 403 }
+      );
+    }
+    const perms = Array.isArray(body.permissions) ? body.permissions : [];
+    data.permissions = JSON.stringify(perms);
+  }
+
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "No updatable fields supplied" }, { status: 400 });
   }
