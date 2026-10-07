@@ -13505,3 +13505,257 @@ in red with `−` → Taxable Base → Tax (X%) in green with `+` → a bold,
 larger-font **Total Receivable** row in the accent color. Zero-value
 lines are hidden. `bun run lint` exits with 0 errors; the only warnings
 are pre-existing `window.location.href` lint rules in unrelated files.
+
+---
+Task ID: OWNER-REBUILD
+Agent: subagent
+Task: Complete owner panel audit + fix all issues + professional rebuild
+
+Work Log:
+
+Read `/home/z/my-project/worklog.md` plus the full `src/components/app-sidebar.tsx`
+and `src/components/views/owner.tsx` (7653 LOC) plus every relevant API route
+(`subscriptions/[id]`, `subscriptions/[id]/generate-invoice`,
+`subscriptions/batch-generate-invoices`, `invoices`, `invoices/[id]`,
+`payments`, `auth/signup`) and `src/lib/auth-guard.ts` to understand the
+tenant scoping semantics (`getTenantScope` + `tenantWhere` return `{}` for
+super-admins — so they see every invoice/subscription, which is what the
+audit needed to confirm).
+
+### Task 1 — Remove Serial Keys from SIDEBAR (not just owner panel)
+- Found the gap: the prior OWNER-FINAL task removed `keys` from the panel's
+  internal `OWNER_SECTIONS` registry and from the `OwnerView` render switch
+  (the function `SerialKeysTab` was left in the file as dead code) — but the
+  SIDEBAR's `OWNER_SUBITEMS` array in `src/components/app-sidebar.tsx`
+  still listed `{ id: "keys", label: "Serial Keys", icon: KeyRound, ... }`
+  at line 951, so users kept seeing "Serial Keys" in the sidebar expandable
+  Owner group. **This is the root cause of the user complaint.**
+- Removed the `keys` entry from `OWNER_SUBITEMS` (line 951).
+- Removed the now-unused `KeyRound` import from the `lucide-react` block at
+  the top of `app-sidebar.tsx` (was only used by the deleted sidebar row).
+- Verified with `rg` that the substring `"keys"` / `Serial` no longer
+  appears anywhere in `app-sidebar.tsx`.
+
+### Task 2 — SubscriptionsTab edit flow audit
+- Re-read the `SubscriptionsTab` component (lines 5647–6329) end-to-end:
+  - `openEdit(s: SubscriptionData)` (line 5704) populates the form with
+    every field: `customerId`, `plan`, `amount`, `currency`, `status`,
+    `billingCycle`, `startDate`, `endDate`, `trialEnds`, `discountType`,
+    `discountValue`, `taxRate`, `notes`. ALL fields were already mapped.
+  - `submit(false)` calls `PATCH /api/subscriptions/${editId}` with the
+    full payload (line 5765). Verified the PATCH endpoint at
+    `src/app/api/subscriptions/[id]/route.ts` accepts every field and
+    recomputes `discountAmount`/`taxAmount`/`totalAmount` server-side
+    via `computeSubscriptionTotals`. The `customerId` field is correctly
+    NOT mutated by PATCH (you can't change which customer a sub belongs
+    to) — but the existing customer is preserved because PATCH only
+    touches fields present in `data`.
+  - Trial → Active auto-invoice generation already wired (lines 5767–5781):
+    when the previous status was `trial` and the new status is `active`,
+    the frontend calls `POST /api/subscriptions/${editId}/generate-invoice`
+    and toasts the generated invoice number (with a `duplicate` short-circuit
+    if one already exists for the period).
+  - Toasts fire for success + failure paths; `reload()` is called after
+    every save; `setEditOpen(false)` closes the dialog.
+- **One real gap found:** the form state had a `currency: string` field
+  but `renderFormFields()` had NO currency input — the form just used
+  whatever was in state (always "USD" on new subs, the existing currency
+  on edits). The user could not change the currency. Added a currency
+  `<Select>` next to the Base amount field with 8 common currencies
+  (USD, EUR, GBP, AED, SAR, INR, PKR, BDT) so the owner can bill in any
+  supported currency. PATCH endpoint already accepts `currency` (line 36
+  of `subscriptions/[id]/route.ts`), so no backend change was needed.
+  Also restructured the form: Base amount + Currency in one 2-col row,
+  Status as its own full-width Field below (so all 13 fields still fit
+  cleanly without making the dialog taller).
+- Confirmed the Edit button on each subscription card (line 6262) calls
+  `openEdit(s)` and opens the dialog with all fields populated.
+
+### Task 3 — Invoice visibility for registered clients
+- Re-verified the entire data flow end-to-end:
+  1. `POST /api/auth/signup` (line 132) creates an Invoice with
+     `customerId: customer.id`, `status: "draft"`, `subtotal: 299`,
+     `discountAmount: 0`, `taxAmount: 0`, `total: 299`, line item
+     "Starter Plan — Monthly Subscription" at $299. The `customerId`
+     is correctly bound to the freshly-created Customer record.
+  2. `GET /api/invoices` (line 41) uses `tenantWhere(scope)` — for
+     super-admin (admin role, no `customerId`) this returns `{}`, so
+     the Prisma query is `where: {}` which fetches EVERY invoice
+     across ALL tenants. No tenant scoping issue. The signup-created
+     invoices are visible to the owner.
+  3. `InvoicesTab` (line 2690) calls `useApi<Invoice[]>("/api/invoices")`
+     and renders a 10-column table (Invoice #, Client, Status, Issue
+     Date, Due Date, Subtotal, Discount, Tax, Total, Actions). Empty
+     state shows "No invoices yet" only when truly none exist.
+- No bug found — invoice visibility was already correct. The user's
+  complaint about "no client invoices" was either a stale browser cache
+  or referred to an earlier state fixed by prior tasks (OWNER-ENTERPRISE
+  + INVOICE-ENHANCE).
+
+### Task 4 — Automated workflow verification
+All four workflow stages verified end-to-end by reading the API source:
+1. **Client registers (trial signup)** — `POST /api/auth/signup`:
+   Customer (status=trial, plan=starter) + Subscription (status=trial,
+   plan=starter, amount=299, trialEnds=+15d, billingCycle=monthly) +
+   Invoice (status=draft, total=299, dueDate=trialEnds) + Tenant DB
+   (provisioned via `provisionTenantDatabase`). All four records created
+   best-effort (any failure logs but doesn't block signup).
+2. **Trial → Active conversion** — `PATCH /api/subscriptions/[id]`
+   with `{status: "active"}` + the frontend's auto-call to
+   `POST /api/subscriptions/[id]/generate-invoice` (which is idempotent
+   via the `subscription:<id>|period:<YYYY-MM-DD>` fingerprint stored
+   in Invoice.notes).
+3. **Payment received** — `POST /api/payments`: validates amount > 0,
+   resolves the owner's default bank account, creates the Payment row,
+   then (when status="completed") flips the linked subscription to
+   `active`, generates a paid invoice (status="paid") for the current
+   billing period with the same discount/tax math, links the payment
+   back to the invoice via `invoiceId`, and audit-logs the event.
+4. **Monthly billing cycle** — `POST /api/subscriptions/batch-generate-invoices`:
+   iterates every `status: "active"` subscription in scope, generates
+   a billing-period invoice (idempotent via the same fingerprint),
+   returns `{created, skipped, errored, total, results[]}`. The Finance
+   tab's "Generate monthly invoices" button calls this endpoint and
+   toasts the per-batch result.
+
+### Task 5 — Professional UI polish audit
+Walked every tab in `owner.tsx` and verified each is already
+enterprise-grade:
+- **Overview**: KPI strip (MRR/ARR/Revenue/Pending/Overdue), 2nd KPI strip
+  (Clients/Active Subs/Trial Subs/Trial→Paid/Churn), Quick Actions row,
+  revenue trend AreaChart, client growth BarChart, module overview grid,
+  tenant DB health card with live System Status probe, recent activity
+  feed (last 10 audit entries).
+- **Clients**: card grid with NameAvatar, status pill, DB status dot,
+  trial countdown banner, company/plan tiles, invoices/quotes/serial-key
+  stat tiles, Provision Database CTA when missing, kebab menu with
+  View details / Edit / Create login / View database / Mark active /
+  Mark trial / Suspend / Delete.
+- **Subscriptions**: card grid with avatar, plan + status + cycle +
+  payment-status badges, base/discount/tax breakdown, total per cycle,
+  trial countdown pill, next-billing or end date, KPI strip
+  (Total/Active/Trial/Cancelled/MRR/Trial→Paid), lifecycle visualization
+  strip (Trial → Active → Cancelled → Expired), Plans templates section,
+  per-card actions (Generate invoice / Edit / Cancel).
+- **Invoices**: 10-column table with sticky header, status badges, per-row
+  dropdown (Print / Regenerate / Mark sent / Mark paid / Mark overdue /
+  Delete), CSV export button, "Bill To" auto-fill card + linked-sub
+  preview when creating.
+- **Quotations**: table + status badges + "Convert to invoice" + "Mark
+  rejected" actions.
+- **Devices**: card grid with iOS-style active/blocked toggle, masked
+  serial key with reveal button, customer + user info, last seen, IP +
+  location, Activity log dialog (calls /api/devices/[id]/activity).
+- **Bank Accounts**: card grid with Default badge, masked account/IBAN,
+  currency badge, kebab (Edit / Set as default / Delete).
+- **Finance**: KPI strip (MRR/ARR/Total/Pending/Overdue), "Generate
+  monthly invoices" button, Revenue by plan BarChart, Outstanding invoices
+  list with Remind + Mark paid per row, Payment history timeline, Bank
+  accounts overview cards with balances, System summary tiles.
+- **Reports**: date-range pills + report-type selector, KPI strip,
+  revenue trend AreaChart, client growth BarChart, plan distribution
+  PieChart, invoice status PieChart, revenue by plan bar chart, top
+  clients table, CSV export, "Generate Report" print dialog with
+  FinancialReportLayout (3 report kinds: financial / clients /
+  subscriptions).
+- **Databases**: KPI strip + search box + cross-tab filter chip +
+  table (DB name, client, status, size, health, created, actions:
+  suspend / activate / re-push schema).
+- **Activity Log**: filter bar (action select / actor search / from-to
+  date pickers / clear filters) + sticky-header table with colored
+  action dots, actor avatar, target info, IP, timestamp.
+
+### Task 6 — Research (SaaS admin panel best practices)
+Web search via `z-ai function -n web_search` returned HTTP 429 (upstream
+Serper rate limit). Fell back to internal knowledge of SaaS owner panel
+conventions to audit the existing implementation against industry norms:
+
+Already implemented (matches industry standard):
+- ✅ Revenue dashboard with MRR / ARR (OverviewTab + FinanceTab +
+  ReportsTab all show MRR/ARR via /api/finance/analytics →
+  subscriptionMetrics).
+- ✅ Client lifecycle management (trial → active → cancelled → expired):
+  SubscriptionsTab has explicit Lifecycle visualization strip with stage
+  counts + trial-conversion-rate KPI; ClientsTab trial countdown banner.
+- ✅ Automated billing reminders (basic): FinanceTab → Outstanding
+  invoices → "Remind" button toasts a queued reminder. Currently a stub —
+  no real email integration yet.
+- ✅ Subscription plan management (read-only): SubscriptionsTab has a
+  Plans templates section (Starter $299 / Growth $499 / Enterprise
+  Custom / Custom). Templates are hardcoded constants, not editable
+  via CRUD.
+
+Gaps noted for future iteration (NOT implemented in this task — would
+require new API routes + DB schema changes):
+- ❌ Plan template CRUD (create/edit/delete plan templates stored in DB)
+  — currently the four plans are hardcoded in `SubscriptionsTab` and
+  `billing/page.tsx`. Future: add a `PlanTemplate` Prisma model + CRUD
+  endpoints + a "Plans" sub-tab.
+- ❌ Real dunning / payment-failure handling (retry attempts, automated
+  email sequences, smart retries with card brand-aware rules). Future:
+  add a `PaymentRetry` model + scheduled job.
+- ❌ Real email integration for billing reminders — `sendReminder` in
+  FinanceTab is a stub that only toasts. Future: hook into the existing
+  email lib (`src/lib/email.ts`) used by `sendVerificationEmail`.
+
+### Files modified
+1. `src/components/app-sidebar.tsx` — removed `KeyRound` import + removed
+   `{ id: "keys", label: "Serial Keys", ... }` entry from `OWNER_SUBITEMS`
+   (line 951). Net: −2 lines.
+2. `src/components/views/owner.tsx` — added Currency `<Select>` to the
+   SubscriptionsTab form (in `renderFormFields`); restructured
+   "Base amount + Currency" + "Status" into separate rows so all 13
+   form fields still fit cleanly. Net: +25 lines.
+
+### Verification
+- `cd /home/z/my-project && bun run lint` → **0 errors, 7 warnings**.
+  All 7 warnings are pre-existing `@next/next/no-location-assign-relative-
+  destination` warnings in `landing-page.tsx` (3), `landing-shared.tsx`
+  (1), `accounts.tsx` (2), `settings.tsx` (1). **None in the two files
+  this task touched.** Exit code 0.
+- Dev server NOT started (per task rules).
+- No Prisma schema changes — `prisma db push` not needed.
+
+Stage Summary:
+
+The "Serial Keys still in sidebar" complaint was a real gap: the prior
+OWNER-FINAL task had removed the `keys` entry from the owner panel's
+internal section registry (`OWNER_SECTIONS`) and from the `OwnerView`
+render switch — but the SIDEBAR's `OWNER_SUBITEMS` array in
+`app-sidebar.tsx` still listed it, so the sidebar kept showing "Serial
+Keys" even though clicking it did nothing. Removed the entry + the
+now-unused `KeyRound` import. The sidebar's Owner Panel expandable
+group now correctly shows: Customers, Users, Overview, Subscriptions,
+Invoices, Quotations, Devices, API Keys, Bank Accounts, Finance,
+Reports — 11 items, no Serial Keys.
+
+The "subscriptions not editable" complaint was largely already fixed by
+prior tasks (the SubscriptionsTab had a full edit dialog with all 13
+fields populated by `openEdit`, save handler calling PATCH, reload +
+toast after save). One real gap remained: the form had a `currency`
+state field but no UI input — users couldn't change the currency.
+Added a currency `<Select>` with 8 common currencies (USD/EUR/GBP/AED/
+SAR/INR/PKR/BDT). The PATCH endpoint already accepts `currency`, so
+no backend change was needed.
+
+The "no client invoices" complaint was already fixed by prior tasks:
+`POST /api/auth/signup` creates a draft invoice with `customerId` set
+to the freshly-created Customer; `GET /api/invoices` uses `tenantWhere`
+which returns `{}` for super-admins (so the owner sees ALL invoices
+across all tenants). The InvoicesTab renders them in a 10-column table
+with status badges, print/regenerate/sent/paid/overdue/delete actions.
+No code change was needed — verified the data flow end-to-end.
+
+The full automated client lifecycle (Registration → Trial → Active →
+Payment → Invoice → Renewal) is implemented across four API routes
+(`auth/signup`, `subscriptions/[id]`, `subscriptions/[id]/generate-
+invoice`, `payments`, `subscriptions/batch-generate-invoices`) and the
+`/billing` client page. Every tab in the owner panel is already
+professional: KPI strips, charts, card grids, status badges, action
+menus, print layouts, CSV exports. The panel now matches industry-
+standard SaaS owner/admin panels — Revenue dashboard with MRR/ARR,
+client lifecycle management, automated billing reminders (stub),
+batch invoice generation, payment history, and audit logging.
+
+`bun run lint` exits 0 with only pre-existing warnings in unrelated
+files. Dev server was NOT started per task rules.

@@ -5934,23 +5934,44 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
             }
           />
         </Field>
-        <Field label="Status">
+        <Field label="Currency" hint="ISO 4217 code (e.g. USD, EUR, GBP)">
           <Select
-            value={form.status}
-            onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
+            value={form.currency}
+            onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}
           >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="trial">Trial</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="expired">Expired</SelectItem>
+              <SelectItem value="USD">USD — US Dollar</SelectItem>
+              <SelectItem value="EUR">EUR — Euro</SelectItem>
+              <SelectItem value="GBP">GBP — British Pound</SelectItem>
+              <SelectItem value="AED">AED — UAE Dirham</SelectItem>
+              <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
+              <SelectItem value="INR">INR — Indian Rupee</SelectItem>
+              <SelectItem value="PKR">PKR — Pakistani Rupee</SelectItem>
+              <SelectItem value="BDT">BDT — Bangladeshi Taka</SelectItem>
             </SelectContent>
           </Select>
         </Field>
       </div>
+
+      <Field label="Status">
+        <Select
+          value={form.status}
+          onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="trial">Trial</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
 
       <div className="grid grid-cols-3 gap-3">
         <Field label="Start date">
