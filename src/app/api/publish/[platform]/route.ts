@@ -553,38 +553,104 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
   }
 
   // === YOUTUBE posting ===
+  // YouTube uses the OAuth 2.0 user token (stored in oauth2UserToken after
+  // the "Login with Google" flow). The accessToken field may also contain
+  // the token — check both.
   if (platform === "youtube") {
-    if (!cred.accessToken) {
+    const ytToken = cred.oauth2UserToken ?? cred.accessToken;
+    if (!ytToken) {
       return NextResponse.json({
         error: "YouTube posting requires OAuth login. Go to Accounts → Connect account → YouTube → Login with Google.",
       }, { status: 400 });
     }
 
     try {
-      // YouTube Data API v3 — create a video post (community post or video)
-      // Community posts (text) use: POST /youtube/v3/channelSections
-      // Video uploads use: POST /upload/youtube/v3/videos (multipart)
-      // For text-only, we'll use the channel's community tab
-      const channelRes = await fetch("https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true", {
-        headers: { Authorization: `Bearer ${cred.accessToken}` },
-      });
-      const channelJson = await channelRes.json();
+      // Check if the post has a media file (video) attached — YouTube ONLY
+      // supports video uploads, not text posts.
+      const hasMedia = post?.mediaUrl && post.mediaType === "video";
+      const videoUrl = post?.mediaUrl;
 
-      if (channelJson.items?.[0]) {
-        // YouTube doesn't have a simple "post text" API — it requires video upload.
-        // We do NOT increment postsCount or log a post_published activity here
-        // because nothing was actually published. Just direct the user to
-        // YouTube Studio to upload a video manually.
+      if (!hasMedia) {
+        // YouTube doesn't support text-only posts via the API — the user
+        // must attach a video. Return a helpful message.
         return NextResponse.json({
-          error: "YouTube requires a video upload — text posts aren't supported via the API. Open YouTube Studio to upload.",
+          error: "YouTube requires a video file. Attach a video in the Composer, or open YouTube Studio to upload manually.",
           manualUrl: "https://studio.youtube.com/",
           savedContent: content,
         }, { status: 200 });
       }
 
-      return NextResponse.json({
-        error: "Could not access YouTube channel. Reconnect your YouTube account.",
-      }, { status: 500 });
+      // === Video upload via YouTube Data API v3 ===
+      // Step 1: Fetch the video file from the mediaUrl (could be a
+      // Cloudinary URL or a local /uploads/ path).
+      const videoRes = await fetch(videoUrl!);
+      if (!videoRes.ok) {
+        return NextResponse.json({ error: "Failed to fetch the video file for upload." }, { status: 500 });
+      }
+      const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+
+      // Step 2: Upload the video via the YouTube Data API v3
+      // POST https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status
+      // This is a multipart/related request.
+      const metadata = {
+        snippet: {
+          title: content.slice(0, 100) || "Uploaded via SYNQUE",
+          description: content,
+          categoryId: "22", // People & Blogs
+        },
+        status: {
+          privacyStatus: "public",
+        },
+      };
+
+      const boundary = "synque_boundary_" + Date.now();
+      const body = Buffer.concat([
+        Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`),
+        Buffer.from(JSON.stringify(metadata)),
+        Buffer.from(`\r\n--${boundary}\r\nContent-Type: video/*\r\n\r\n`),
+        videoBuffer,
+        Buffer.from(`\r\n--${boundary}--\r\n`),
+      ]);
+
+      const uploadRes = await fetch(
+        "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${ytToken}`,
+            "Content-Type": `multipart/related; boundary=${boundary}`,
+            "Content-Length": body.length.toString(),
+          },
+          body,
+        }
+      );
+
+      const uploadJson = await uploadRes.json();
+
+      if (uploadRes.ok && uploadJson.id) {
+        // Success — log activity
+        await db.activity.create({
+          data: {
+            userId,
+            type: "post_published",
+            description: `published video "${metadata.snippet.title}" on YouTube (ID: ${uploadJson.id})`,
+          },
+        }).catch(() => {});
+
+        return NextResponse.json({
+          ok: true,
+          published: true,
+          platform: "youtube",
+          postId: uploadJson.id,
+          url: `https://www.youtube.com/watch?v=${uploadJson.id}`,
+          message: "Video uploaded to YouTube successfully!",
+        });
+      } else {
+        return NextResponse.json({
+          error: uploadJson.error?.message ?? "YouTube upload failed",
+          details: uploadJson.error?.errors?.[0]?.message ?? undefined,
+        }, { status: 500 });
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "YouTube API error";
       return NextResponse.json({ error: message }, { status: 500 });
