@@ -5603,6 +5603,7 @@ interface SubscriptionForm {
   discountValue: number;
   taxRate: number;
   notes: string;
+  modules: string[];       // module IDs the client can access (["*"] = all)
 }
 
 const SUB_PLAN_AMOUNTS: Record<string, number> = {
@@ -5628,6 +5629,7 @@ const EMPTY_SUB_FORM: SubscriptionForm = {
   discountValue: 0,
   taxRate: 0,
   notes: "",
+  modules: ["*"],  // default: all modules
 };
 
 function computeSubTotals(form: SubscriptionForm) {
@@ -5716,6 +5718,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
       discountValue: s.discountValue ?? 0,
       taxRate: s.taxRate ?? 0,
       notes: s.notes ?? "",
+      modules: ["*"],  // TODO: fetch from the client's user permissions
     });
     setEditId(s.id);
     setEditOpen(true);
@@ -5793,6 +5796,50 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
     if (!confirm("Cancel this subscription?")) return;
     await api("PATCH", `/api/subscriptions/${id}`, { status: "cancelled" });
     toast.success("Subscription cancelled"); reload();
+  };
+
+  /** Renew a subscription — extends the end date by one billing cycle and
+   *  auto-generates a new invoice for the renewed period. */
+  const renew = async (s: SubscriptionData) => {
+    if (!confirm(`Renew ${s.customerName}'s ${s.plan} subscription for another ${s.billingCycle ?? "monthly"} cycle?`)) return;
+    setGeneratingId(s.id);
+    try {
+      // Calculate new end date based on billing cycle
+      const cycle = s.billingCycle ?? "monthly";
+      const currentEnd = s.endDate ? new Date(s.endDate) : new Date();
+      const newEnd = new Date(currentEnd);
+      if (cycle === "yearly") newEnd.setFullYear(newEnd.getFullYear() + 1);
+      else if (cycle === "quarterly") newEnd.setMonth(newEnd.getMonth() + 3);
+      else newEnd.setMonth(newEnd.getMonth() + 1);
+
+      // Update subscription with new end date + ensure active status
+      await api("PATCH", `/api/subscriptions/${s.id}`, {
+        status: "active",
+        endDate: newEnd.toISOString(),
+      });
+
+      // Auto-generate invoice for the renewed period
+      const res = await api("POST", `/api/subscriptions/${s.id}/generate-invoice`) as {
+        ok?: boolean; id?: string; number?: string; total?: number; duplicate?: boolean;
+      };
+
+      if (res.duplicate) {
+        toast("Invoice already exists for this period", {
+          description: `Subscription renewed until ${newEnd.toLocaleDateString()}, but invoice was skipped (duplicate).`,
+        });
+      } else if (res.number) {
+        toast.success(`Subscription renewed + Invoice ${res.number} generated`, {
+          description: `${s.customerName} · renewed until ${newEnd.toLocaleDateString()} · ${money(res.total ?? 0, s.currency)}`,
+        });
+      } else {
+        toast.success(`Subscription renewed until ${newEnd.toLocaleDateString()}`);
+      }
+      reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to renew subscription");
+    } finally {
+      setGeneratingId(null);
+    }
   };
 
   /** Generate an invoice for the subscription's current billing period.
@@ -6092,6 +6139,20 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
           placeholder="Internal notes — contract terms, discount reason, etc."
         />
       </Field>
+
+      {/* Module access — select which modules the client can access */}
+      <div>
+        <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Module Access
+        </label>
+        <p className="mb-2 text-[11px] text-muted-foreground">
+          Select which modules this client's users can access. "All" gives access to every module.
+        </p>
+        <ModuleAccessSelector
+          value={form.modules}
+          onChange={(mods) => setForm((f) => ({ ...f, modules: mods }))}
+        />
+      </div>
     </div>
   );
 
@@ -6285,6 +6346,16 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
                   >
                     <Pencil className="h-3.5 w-3.5" /> Edit
                   </button>
+                  {s.status !== "cancelled" && s.status !== "expired" && (
+                    <button
+                      onClick={() => renew(s)}
+                      disabled={isGenerating}
+                      className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-500/20 disabled:opacity-60 dark:text-emerald-400"
+                    >
+                      {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                      Renew
+                    </button>
+                  )}
                   {s.status !== "cancelled" && (
                     <button
                       onClick={() => cancel(s.id)}
