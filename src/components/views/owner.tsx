@@ -6149,7 +6149,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
           Select which modules this client's users can access. "All" gives access to every module.
         </p>
         <ModuleAccessSelector
-          value={form.modules}
+          permissions={form.modules}
           onChange={(mods) => setForm((f) => ({ ...f, modules: mods }))}
         />
       </div>
