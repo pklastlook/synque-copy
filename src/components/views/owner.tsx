@@ -68,6 +68,7 @@ import {
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
 import { MetricRow, SectionHeader } from "@/components/glass/dense-ui";
+import { EmptyState } from "@/components/glass/empty-state";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { ModuleAccessSelector } from "@/components/glass/module-access-selector";
 import { describePermissions, isAllModules, defaultPermissionsForRole } from "@/lib/module-permissions";
@@ -268,7 +269,7 @@ function StatusPill({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize",
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold capitalize",
         tone.className,
       )}
     >
@@ -321,7 +322,7 @@ function InvoiceStatusBadge({ status }: { status: Invoice["status"] }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide",
         tone.className,
       )}
     >
@@ -415,23 +416,44 @@ interface OwnerSection {
   accent: string;
   desc: string;
   countKey?: Exclude<keyof FinanceOverview, "planDistribution">;
+  /** Visual grouping — Dashboard / Clients / System. Adjacent items
+   *  with the same category are rendered together; a small gap + label
+   *  is inserted when the category changes. */
+  category: "dashboard" | "clients" | "system";
 }
 
+// Sections grouped visually into 3 categories. Items inside each
+// group are rendered adjacently; a divider + group label separates
+// groups in the MobileNavSelect dropdown.
+//
+//   Dashboard  → Overview, Reports, Finance
+//   Clients    → Clients, Subscriptions, Invoices, Quotations, Client Users
+//   System     → Databases, Devices, API Keys, Bank Accounts, Activity Log
 const OWNER_SECTIONS: OwnerSection[] = [
-  { id: "customers",     label: "Clients",        icon: Users,           accent: "oklch(0.55 0.2 255)",  desc: "Client records & plans",  countKey: "customers" },
-  { id: "subscriptions", label: "Subscriptions",  icon: CreditCard,      accent: "oklch(0.68 0.22 145)", desc: "Active & trial plans",  countKey: "subscriptions" },
-  { id: "invoices",      label: "Invoices",       icon: FileText,        accent: "oklch(0.72 0.18 75)",  desc: "Bill clients",           countKey: "invoices" },
-  { id: "quotations",    label: "Quotations",     icon: FileSignature,   accent: "oklch(0.7 0.2 25)",    desc: "Proposals & quotes",    countKey: "quotations" },
-  { id: "devices",       label: "Devices",         icon: Smartphone,      accent: "oklch(0.62 0.22 300)", desc: "Registered devices",    countKey: "devices" },
-  { id: "apikeys",       label: "API Keys",        icon: Lock,            accent: "oklch(0.72 0.18 75)",  desc: "Integration keys",      countKey: "apiKeys" },
-  { id: "bank",          label: "Bank Accounts",   icon: Landmark,        accent: "oklch(0.68 0.22 145)", desc: "Accounts for invoices", countKey: "bankAccounts" },
-  { id: "users",         label: "Client Users",    icon: CircleUserRound, accent: "oklch(0.62 0.22 300)", desc: "Login accounts",        countKey: "users" },
-  { id: "databases",     label: "Databases",       icon: Database,        accent: "oklch(0.62 0.22 300)", desc: "Tenant DB registry",    countKey: "tenantDatabases" },
-  { id: "activity",      label: "Activity Log",    icon: Activity,        accent: "oklch(0.7 0.2 25)",    desc: "Security events",       countKey: "activityLogs" },
-  { id: "overview",      label: "Overview",        icon: Briefcase,       accent: "oklch(0.72 0.18 75)",  desc: "Enterprise cockpit" },
-  { id: "finance",       label: "Finance",          icon: DollarSign,      accent: "oklch(0.55 0.2 255)",  desc: "Revenue & MRR" },
-  { id: "reports",       label: "Reports",          icon: BarChart3,       accent: "oklch(0.7 0.2 25)",    desc: "Growth & activity" },
+  // ---- Dashboard group ----
+  { id: "overview",      label: "Overview",        icon: Briefcase,       accent: "oklch(0.72 0.18 75)",  desc: "Enterprise cockpit",     category: "dashboard" },
+  { id: "reports",       label: "Reports",          icon: BarChart3,       accent: "oklch(0.7 0.2 25)",    desc: "Growth & activity",      category: "dashboard" },
+  { id: "finance",       label: "Finance",          icon: DollarSign,      accent: "oklch(0.55 0.2 255)",  desc: "Revenue & MRR",          category: "dashboard" },
+  // ---- Clients group ----
+  { id: "customers",     label: "Clients",         icon: Users,           accent: "oklch(0.55 0.2 255)",  desc: "Client records & plans",  countKey: "customers",  category: "clients" },
+  { id: "subscriptions", label: "Subscriptions",    icon: CreditCard,      accent: "oklch(0.68 0.22 145)", desc: "Active & trial plans",    countKey: "subscriptions", category: "clients" },
+  { id: "invoices",      label: "Invoices",         icon: FileText,        accent: "oklch(0.72 0.18 75)",  desc: "Bill clients",           countKey: "invoices",    category: "clients" },
+  { id: "quotations",    label: "Quotations",       icon: FileSignature,   accent: "oklch(0.7 0.2 25)",    desc: "Proposals & quotes",     countKey: "quotations",  category: "clients" },
+  { id: "users",         label: "Client Users",     icon: CircleUserRound, accent: "oklch(0.62 0.22 300)", desc: "Login accounts",         countKey: "users",       category: "clients" },
+  // ---- System group ----
+  { id: "databases",     label: "Databases",        icon: Database,        accent: "oklch(0.62 0.22 300)", desc: "Tenant DB registry",      countKey: "tenantDatabases", category: "system" },
+  { id: "devices",       label: "Devices",          icon: Smartphone,      accent: "oklch(0.62 0.22 300)", desc: "Registered devices",      countKey: "devices",     category: "system" },
+  { id: "apikeys",       label: "API Keys",          icon: Lock,            accent: "oklch(0.72 0.18 75)",  desc: "Integration keys",       countKey: "apiKeys",     category: "system" },
+  { id: "bank",          label: "Bank Accounts",     icon: Landmark,        accent: "oklch(0.68 0.22 145)", desc: "Accounts for invoices", countKey: "bankAccounts", category: "system" },
+  { id: "activity",      label: "Activity Log",     icon: Activity,        accent: "oklch(0.7 0.2 25)",    desc: "Security events",         countKey: "activityLogs", category: "system" },
 ];
+
+// Visual labels + accent colors for each group header in the mobile dropdown.
+const OWNER_CATEGORY_META: Record<OwnerSection["category"], { label: string; accent: string }> = {
+  dashboard: { label: "Dashboard", accent: "oklch(0.72 0.18 75)" },
+  clients:   { label: "Clients",   accent: "oklch(0.55 0.2 255)" },
+  system:    { label: "System",    accent: "oklch(0.62 0.22 300)" },
+};
 
 function MobileNavSelect({
   active,
@@ -449,14 +471,34 @@ function MobileNavSelect({
           <SelectValue placeholder="Pick a section" />
         </SelectTrigger>
         <SelectContent>
-          {OWNER_SECTIONS.map((s) => {
+          {/* Render sections grouped by category — a non-clickable header
+              item separates each group so related sections stay together
+              visually. */}
+          {OWNER_SECTIONS.map((s, i) => {
             const count =
               s.countKey && overview ? overview[s.countKey] : undefined;
+            const prev = OWNER_SECTIONS[i - 1];
+            const showGroupHeader = !prev || prev.category !== s.category;
+            const meta = OWNER_CATEGORY_META[s.category];
             return (
-              <SelectItem key={s.id} value={s.id}>
-                {s.label}
-                {count !== undefined ? ` · ${count}` : ""}
-              </SelectItem>
+              <React.Fragment key={s.id}>
+                {showGroupHeader && (
+                  <div
+                    className="pointer-events-none flex items-center gap-2 px-2 py-1.5 text-[13px] font-bold uppercase tracking-wider text-muted-foreground"
+                    aria-hidden
+                  >
+                    <span
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ background: meta.accent }}
+                    />
+                    {meta.label}
+                  </div>
+                )}
+                <SelectItem value={s.id}>
+                  {s.label}
+                  {count !== undefined ? ` · ${count}` : ""}
+                </SelectItem>
+              </React.Fragment>
             );
           })}
         </SelectContent>
@@ -585,7 +627,7 @@ function Field({
     <div className="space-y-1.5">
       <Label className="text-xs font-medium">{label}</Label>
       {children}
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-[13px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -629,7 +671,7 @@ function LineItemsEditor({
     <div className="space-y-2">
       <div className="overflow-x-auto scroll-liquid -mx-1 px-1 pb-1">
         <div className="min-w-[460px] space-y-2">
-          <div className="grid grid-cols-[1fr_64px_96px_96px_32px] gap-2 text-[11px] font-medium text-muted-foreground">
+          <div className="grid grid-cols-[1fr_64px_96px_96px_32px] gap-2 text-[13px] font-medium text-muted-foreground">
             <span>Description</span>
             <span className="text-right">Qty</span>
             <span className="text-right">Unit price</span>
@@ -895,7 +937,7 @@ function OverviewTab() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">Add Client</div>
-            <div className="truncate text-[11px] text-muted-foreground">Register a new tenant + DB</div>
+            <div className="truncate text-[13px] text-muted-foreground">Register a new tenant + DB</div>
           </div>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
         </button>
@@ -908,7 +950,7 @@ function OverviewTab() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">Generate Invoices</div>
-            <div className="truncate text-[11px] text-muted-foreground">Bill all active subscriptions</div>
+            <div className="truncate text-[13px] text-muted-foreground">Bill all active subscriptions</div>
           </div>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
         </button>
@@ -921,7 +963,7 @@ function OverviewTab() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">View Reports</div>
-            <div className="truncate text-[11px] text-muted-foreground">Revenue, plans, top clients</div>
+            <div className="truncate text-[13px] text-muted-foreground">Revenue, plans, top clients</div>
           </div>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
         </button>
@@ -934,7 +976,7 @@ function OverviewTab() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">Manage Plans</div>
-            <div className="truncate text-[11px] text-muted-foreground">Subscriptions &amp; trials</div>
+            <div className="truncate text-[13px] text-muted-foreground">Subscriptions &amp; trials</div>
           </div>
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
         </button>
@@ -1012,10 +1054,10 @@ function OverviewTab() {
                   <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: `${m.color}18`, color: m.color }}>
                     <Icon className="h-4 w-4" />
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{m.label}</span>
+                  <span className="text-[12px] font-bold uppercase tracking-wide text-muted-foreground">{m.label}</span>
                 </div>
                 <div className="num-display mt-2 text-2xl font-bold">{m.value}</div>
-                <div className="mt-0.5 text-[10px] text-muted-foreground">{m.sub}</div>
+                <div className="mt-0.5 text-[12px] text-muted-foreground">{m.sub}</div>
               </div>
             );
           })}
@@ -1032,24 +1074,24 @@ function OverviewTab() {
             </div>
             <div>
               <h3 className="text-sm font-bold">Tenant databases</h3>
-              <p className="text-[11px] text-muted-foreground">Dedicated Neon DBs per client</p>
+              <p className="text-[13px] text-muted-foreground">Dedicated Neon DBs per client</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg bg-muted/40 px-3 py-2">
-              <div className="text-[10px] uppercase text-muted-foreground">Total</div>
+              <div className="text-[12px] uppercase text-muted-foreground">Total</div>
               <div className="num-display text-lg font-bold tabular-nums">{d.tenantDatabases ?? 0}</div>
             </div>
             <div className="rounded-lg bg-emerald-500/5 px-3 py-2">
-              <div className="text-[10px] uppercase text-muted-foreground">Active</div>
+              <div className="text-[12px] uppercase text-muted-foreground">Active</div>
               <div className="num-display text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{d.activeDatabases ?? 0}</div>
             </div>
             <div className="rounded-lg bg-rose-500/5 px-3 py-2">
-              <div className="text-[10px] uppercase text-muted-foreground">Suspended</div>
+              <div className="text-[12px] uppercase text-muted-foreground">Suspended</div>
               <div className="num-display text-lg font-bold tabular-nums text-rose-600 dark:text-rose-400">{d.suspendedDatabases ?? 0}</div>
             </div>
             <div className="rounded-lg bg-muted/40 px-3 py-2">
-              <div className="text-[10px] uppercase text-muted-foreground">Storage</div>
+              <div className="text-[12px] uppercase text-muted-foreground">Storage</div>
               <div className="num-display text-lg font-bold tabular-nums">{fmt(d.totalStorageMb ?? 0)} MB</div>
             </div>
           </div>
@@ -1057,10 +1099,10 @@ function OverviewTab() {
               probe in OverviewTab. Database + API are pinged on mount;
               active sessions come from /api/auth/me. */}
           <div className="mt-3 space-y-1.5 border-t border-border/30 pt-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
               System Status
             </div>
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-[13px]">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <span
                   className={cn(
@@ -1086,7 +1128,7 @@ function OverviewTab() {
                 {systemStatus.database === "checking" ? "Checking…" : systemStatus.database}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-[13px]">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <span
                   className={cn(
@@ -1112,7 +1154,7 @@ function OverviewTab() {
                 {systemStatus.api === "checking" ? "Checking…" : systemStatus.api}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-[13px]">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <span
                   className={cn(
@@ -1137,10 +1179,10 @@ function OverviewTab() {
               </div>
               <div>
                 <h3 className="text-sm font-bold">Recent activity</h3>
-                <p className="text-[11px] text-muted-foreground">Last 10 security events</p>
+                <p className="text-[13px] text-muted-foreground">Last 10 security events</p>
               </div>
             </div>
-            <button onClick={() => reload()} className="rounded-lg bg-muted/60 px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted">
+            <button onClick={() => reload()} className="rounded-lg bg-muted/60 px-2 py-1 text-[12px] font-semibold text-muted-foreground hover:bg-muted">
               <RefreshCw className="h-3 w-3" />
             </button>
           </div>
@@ -1149,14 +1191,14 @@ function OverviewTab() {
               {d.recentActivity.slice(0, 10).map((log) => {
                 const tone = auditActionTone(log.action);
                 return (
-                  <div key={log.id} className="flex items-start gap-2 rounded-lg bg-background/40 px-2 py-1.5 text-[11px]">
+                  <div key={log.id} className="flex items-start gap-2 rounded-lg bg-background/40 px-2 py-1.5 text-[13px]">
                     <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone.dot }} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate font-mono font-semibold">{log.action}</span>
-                        <span className="shrink-0 text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}</span>
+                        <span className="shrink-0 text-[12px] text-muted-foreground">{formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}</span>
                       </div>
-                      <div className="truncate text-[10px] text-muted-foreground">
+                      <div className="truncate text-[12px] text-muted-foreground">
                         {log.actorName ?? log.actorEmail ?? "system"}
                         {log.ip ? ` · ${log.ip}` : ""}
                         {log.targetType ? ` · ${log.targetType}` : ""}
@@ -1167,7 +1209,7 @@ function OverviewTab() {
               })}
             </div>
           ) : (
-            <div className="grid h-32 place-items-center text-[11px] text-muted-foreground">
+            <div className="grid h-32 place-items-center text-[13px] text-muted-foreground">
               No security events logged yet
             </div>
           )}
@@ -1476,15 +1518,13 @@ function ClientsTab() {
             ))}
           </div>
         ) : customers.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
-              <Users className="h-5 w-5" />
-            </div>
-            <p className="mt-3 text-sm font-medium">No clients yet</p>
-            <p className="text-xs text-muted-foreground">
-              Add your first client to get started.
-            </p>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No clients yet"
+            description="Register your first client to get started"
+            actionLabel="Add Client"
+            onAction={() => setOpen(true)}
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {customers.map((c) => (
@@ -1504,7 +1544,7 @@ function ClientsTab() {
                       {c.database ? (
                         <span
                           className={cn(
-                            "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                            "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase",
                             c.database.status === "active"
                               ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                               : "bg-amber-500/15 text-amber-600 dark:text-amber-400",
@@ -1521,7 +1561,7 @@ function ClientsTab() {
                         </span>
                       ) : (
                         <span
-                          className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold uppercase text-muted-foreground"
+                          className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-bold uppercase text-muted-foreground"
                           title="No dedicated database — click Provision to create one"
                         >
                           <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
@@ -1592,7 +1632,7 @@ function ClientsTab() {
                   return (
                     <div
                       className={cn(
-                        "flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px]",
+                        "flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px]",
                         daysLeft > 0
                           ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                           : "bg-rose-500/10 text-rose-600 dark:text-rose-400",
@@ -1610,7 +1650,7 @@ function ClientsTab() {
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-lg bg-muted/40 px-2 py-1.5">
-                    <div className="text-[10px] uppercase text-muted-foreground">
+                    <div className="text-[12px] uppercase text-muted-foreground">
                       Company
                     </div>
                     <div className="truncate font-medium">
@@ -1618,12 +1658,12 @@ function ClientsTab() {
                     </div>
                   </div>
                   <div className="rounded-lg bg-muted/40 px-2 py-1.5">
-                    <div className="text-[10px] uppercase text-muted-foreground">
+                    <div className="text-[12px] uppercase text-muted-foreground">
                       Plan
                     </div>
                     <span
                       className={cn(
-                        "mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
+                        "mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[12px] font-bold capitalize",
                         planTone(c.plan),
                       )}
                     >
@@ -1632,7 +1672,7 @@ function ClientsTab() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 border-t border-border/40 pt-3 text-center text-[11px]">
+                <div className="grid grid-cols-3 gap-2 border-t border-border/40 pt-3 text-center text-[13px]">
                   <div>
                     <div className="font-bold tabular-nums">
                       {c.serialKey ? (
@@ -1641,7 +1681,7 @@ function ClientsTab() {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-[12px] text-muted-foreground">
                       Serial key
                     </div>
                   </div>
@@ -1649,7 +1689,7 @@ function ClientsTab() {
                     <div className="font-bold tabular-nums">
                       {c.invoicesCount}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-[12px] text-muted-foreground">
                       Invoices
                     </div>
                   </div>
@@ -1657,7 +1697,7 @@ function ClientsTab() {
                     <div className="font-bold tabular-nums">
                       {c.quotationsCount}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-[12px] text-muted-foreground">
                       Quotes
                     </div>
                   </div>
@@ -1666,16 +1706,16 @@ function ClientsTab() {
                 {/* Database status badge + action button — View DB (active) or Provision (none) */}
                 {c.database ? (
                   <div className="flex items-center gap-2">
-                    <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-[10px]">
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-[12px]">
                       <Database className="h-3 w-3 shrink-0 text-emerald-500" />
                       <span className="truncate font-mono font-semibold text-emerald-600 dark:text-emerald-400">{c.database.dbName}</span>
-                      <span className="ml-auto shrink-0 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                      <span className="ml-auto shrink-0 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
                         {c.database.status}
                       </span>
                     </div>
                     <button
                       onClick={() => viewDatabase(c)}
-                      className="shrink-0 rounded-lg border border-border/60 bg-background/60 px-2 py-1 text-[10px] font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5"
+                      className="shrink-0 rounded-lg border border-border/60 bg-background/60 px-2 py-1 text-[12px] font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5"
                       title="Open this database in the Databases tab"
                     >
                       View
@@ -1685,7 +1725,7 @@ function ClientsTab() {
                   <button
                     onClick={() => provisionDatabase(c)}
                     disabled={provisioningId === c.id}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-2 py-1.5 text-[10px] font-semibold text-primary transition hover:border-primary hover:bg-primary/10 disabled:opacity-60"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-2 py-1.5 text-[12px] font-semibold text-primary transition hover:border-primary hover:bg-primary/10 disabled:opacity-60"
                   >
                     {provisioningId === c.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -1821,10 +1861,10 @@ function ClientsTab() {
                     <Database className="h-3.5 w-3.5 text-primary" />
                     Create dedicated database
                   </div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">
+                  <div className="mt-0.5 text-[13px] text-muted-foreground">
                     Creates a separate Neon database for this client. Users created for this client will log into their own isolated database.
                     {form.company && (
-                      <span className="mt-1 block font-mono text-[10px] text-primary">
+                      <span className="mt-1 block font-mono text-[12px] text-primary">
                         DB name: {form.company.toLowerCase().replace(/[^a-z0-9]/g, "_")}
                       </span>
                     )}
@@ -1879,7 +1919,7 @@ function ClientsTab() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
+            <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[13px] text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
               <span>The client will sign in at <code className="font-mono text-foreground">/login</code> with these credentials. You can change their role or suspend them anytime.</span>
             </div>
@@ -1917,7 +1957,7 @@ function ClientsTab() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-base font-semibold">{detailsFor.name}</span>
                     <StatusPill status={detailsFor.status} />
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", planTone(detailsFor.plan))}>
+                    <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-bold capitalize", planTone(detailsFor.plan))}>
                       {detailsFor.plan} plan
                     </span>
                   </div>
@@ -1937,7 +1977,7 @@ function ClientsTab() {
               {/* ===== Subscription + Database status ===== */}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Subscription</div>
+                  <div className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Subscription</div>
                   {detailsSubs === null ? (
                     <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                       <Loader2 className="h-3 w-3 animate-spin" /> Loading…
@@ -1958,7 +1998,7 @@ function ClientsTab() {
                         </div>
                       ))}
                       {detailsSubs.length > 3 && (
-                        <div className="text-[10px] text-muted-foreground">
+                        <div className="text-[12px] text-muted-foreground">
                           +{detailsSubs.length - 3} more
                         </div>
                       )}
@@ -1966,17 +2006,17 @@ function ClientsTab() {
                   )}
                 </div>
                 <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Database</div>
+                  <div className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Database</div>
                   {detailsFor.database ? (
                     <div className="mt-2 space-y-1 text-xs">
                       <div className="flex items-center gap-1.5">
                         <Database className="h-3 w-3 text-emerald-500" />
-                        <code className="font-mono text-[11px]">{detailsFor.database.dbName}</code>
+                        <code className="font-mono text-[13px]">{detailsFor.database.dbName}</code>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className={cn("h-1.5 w-1.5 rounded-full", detailsFor.database.status === "active" ? "bg-emerald-500" : "bg-amber-500")} />
                         <span className="capitalize">{detailsFor.database.status}</span>
-                        <span className="ml-auto text-[10px] text-muted-foreground">
+                        <span className="ml-auto text-[12px] text-muted-foreground">
                           Created {format(new Date(detailsFor.database.createdAt), "MMM d, yyyy")}
                         </span>
                       </div>
@@ -1984,7 +2024,7 @@ function ClientsTab() {
                   ) : (
                     <div className="mt-2 text-xs text-muted-foreground">No dedicated database.</div>
                   )}
-                  <div className="mt-2 text-[10px] text-muted-foreground">
+                  <div className="mt-2 text-[12px] text-muted-foreground">
                     <span className="font-medium text-foreground">Users:</span> {detailsUsers?.length ?? 0}
                   </div>
                 </div>
@@ -1993,11 +2033,11 @@ function ClientsTab() {
               {/* ===== Invoice history ===== */}
               <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
                 <div className="mb-2 flex items-center justify-between">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Invoice history
                   </div>
                   {detailsInvoices && detailsInvoices.length > 0 && (
-                    <div className="flex gap-3 text-[10px]">
+                    <div className="flex gap-3 text-[12px]">
                       <span className="text-emerald-600 dark:text-emerald-400">
                         {detailsInvoices.filter((i) => i.status === "paid").length} paid
                       </span>
@@ -2021,11 +2061,11 @@ function ClientsTab() {
                 ) : (
                   <div className="scroll-liquid max-h-48 space-y-1 overflow-y-auto pr-1">
                     {detailsInvoices.slice(0, 20).map((inv) => (
-                      <div key={inv.id} className="flex items-center gap-2 rounded-lg bg-background/60 px-2 py-1 text-[11px]">
+                      <div key={inv.id} className="flex items-center gap-2 rounded-lg bg-background/60 px-2 py-1 text-[13px]">
                         <code className="font-mono font-semibold">{inv.number}</code>
                         <StatusPill status={inv.status} />
                         <span className="ml-auto font-semibold tabular-nums">{money(inv.total)}</span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[12px] text-muted-foreground">
                           {format(new Date(inv.issueDate), "MMM d, yyyy")}
                         </span>
                       </div>
@@ -2033,7 +2073,7 @@ function ClientsTab() {
                   </div>
                 )}
                 {detailsInvoices && detailsInvoices.length > 0 && (
-                  <div className="mt-2 border-t border-border/30 pt-2 text-[11px] text-muted-foreground">
+                  <div className="mt-2 border-t border-border/30 pt-2 text-[13px] text-muted-foreground">
                     Total billed: <span className="font-semibold tabular-nums">{money(detailsInvoices.reduce((s, i) => s + i.total, 0))}</span>
                     {" · "}
                     Paid: <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{money(detailsInvoices.filter((i) => i.status === "paid").reduce((s, i) => s + i.total, 0))}</span>
@@ -2043,7 +2083,7 @@ function ClientsTab() {
 
               {/* ===== Users ===== */}
               <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Users ({detailsUsers?.length ?? 0})
                 </div>
                 {detailsUsers === null ? (
@@ -2057,11 +2097,11 @@ function ClientsTab() {
                 ) : (
                   <div className="scroll-liquid max-h-32 space-y-1 overflow-y-auto pr-1">
                     {detailsUsers.slice(0, 10).map((u) => (
-                      <div key={u.id} className="flex items-center gap-2 rounded-lg bg-background/60 px-2 py-1 text-[11px]">
-                        <NameAvatar name={u.name} className="h-5 w-5 text-[9px]" />
+                      <div key={u.id} className="flex items-center gap-2 rounded-lg bg-background/60 px-2 py-1 text-[13px]">
+                        <NameAvatar name={u.name} className="h-5 w-5 text-[11px]" />
                         <span className="truncate font-medium">{u.name}</span>
-                        <span className="truncate text-[10px] text-muted-foreground">{u.email}</span>
-                        <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold capitalize">{u.role}</span>
+                        <span className="truncate text-[12px] text-muted-foreground">{u.email}</span>
+                        <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-bold capitalize">{u.role}</span>
                       </div>
                     ))}
                   </div>
@@ -2248,7 +2288,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
                         <Copy className="h-3 w-3" />
                       </button>
                     </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-muted-foreground">
                       <StatusPill status={k.status} />
                       <span>·</span>
                       <span>
@@ -2474,13 +2514,13 @@ function InvoicePrintLayout({
               <div className="text-xl font-bold tracking-tight text-neutral-900">
                 {companyName}
               </div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+              <div className="text-[12px] uppercase tracking-[0.2em] text-neutral-500">
                 Orchestrate Your Social.
               </div>
             </div>
           </div>
           {rs.showCompanyAddress && (
-            <div className="mt-3 text-[11px] text-neutral-600">
+            <div className="mt-3 text-[13px] text-neutral-600">
               {company.address || "SYNQUE HQ · 100 Market Street"}
               <br />
               {companyLine || "San Francisco, CA 94105"}
@@ -2500,7 +2540,7 @@ function InvoicePrintLayout({
           <div className="mt-1 text-sm font-mono text-neutral-700">
             {doc.number}
           </div>
-          <div className="mt-2 text-[11px] text-neutral-600">
+          <div className="mt-2 text-[13px] text-neutral-600">
             Issued: {format(new Date(doc.issueDate), "MMM d, yyyy")}
             <br />
             {rs.showDateRange && dateField
@@ -2515,7 +2555,7 @@ function InvoicePrintLayout({
       {/* Bill To */}
       <div className="grid grid-cols-2 gap-6 py-6">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          <div className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500">
             Bill To
           </div>
           <div className="mt-1 text-base font-semibold text-neutral-900">
@@ -2532,11 +2572,11 @@ function InvoicePrintLayout({
           )}
         </div>
         <div className="text-right">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          <div className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500">
             Payment details
           </div>
           {bank ? (
-            <div className="mt-1 text-[11px] text-neutral-700">
+            <div className="mt-1 text-[13px] text-neutral-700">
               <div className="font-semibold text-neutral-900">
                 {bank.bankName}
               </div>
@@ -2544,12 +2584,12 @@ function InvoicePrintLayout({
               <div>Account: {bank.accountNumber}</div>
               {bank.iban && <div>IBAN: {bank.iban}</div>}
               {bank.swift && <div>SWIFT: {bank.swift}</div>}
-              <div className="mt-1 inline-flex rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+              <div className="mt-1 inline-flex rounded bg-neutral-100 px-1.5 py-0.5 text-[12px] font-semibold uppercase">
                 {bank.currency}
               </div>
             </div>
           ) : (
-            <div className="mt-1 text-[11px] italic text-neutral-500">
+            <div className="mt-1 text-[13px] italic text-neutral-500">
               No bank account configured.
             </div>
           )}
@@ -2559,7 +2599,7 @@ function InvoicePrintLayout({
       {/* Items table */}
       <table className="report-table w-full border-collapse">
         <thead>
-          <tr className="border-b-2 text-left text-[10px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
+          <tr className="border-b-2 text-left text-[12px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
             <th className="py-2 pr-2">Description</th>
             <th className="w-12 py-2 pr-2 text-right">Qty</th>
             <th className="w-24 py-2 pr-2 text-right">Unit price</th>
@@ -2577,7 +2617,7 @@ function InvoicePrintLayout({
           {doc.items.map((it, i) => (
             <tr
               key={i}
-              className="border-b border-neutral-200 align-top text-[11px]"
+              className="border-b border-neutral-200 align-top text-[13px]"
             >
               <td className="py-2 pr-2">{it.description || "—"}</td>
               <td className="py-2 pr-2 text-right tabular-nums">{it.qty}</td>
@@ -2602,7 +2642,7 @@ function InvoicePrintLayout({
             Total Receivable  $amt  (bold, larger font)
             ═══════════════════════ */}
       <div className="totals-block mt-4 flex justify-end">
-        <div className="w-72 text-[11px]">
+        <div className="w-72 text-[13px]">
           <div className="flex justify-between border-b border-neutral-200 py-1">
             <span className="text-neutral-600">Subtotal</span>
             <span className="tabular-nums">{money(doc.subtotal)}</span>
@@ -2645,17 +2685,17 @@ function InvoicePrintLayout({
 
       {doc.notes && (
         <div className="notes-block mt-6 border-t border-neutral-200 pt-4">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          <div className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500">
             Notes
           </div>
-          <p className="mt-1 whitespace-pre-line text-[11px] text-neutral-700">
+          <p className="mt-1 whitespace-pre-line text-[13px] text-neutral-700">
             {doc.notes}
           </p>
         </div>
       )}
 
       {/* Notes & payment terms — kept together on one page */}
-      <div className="notes-block mt-6 border-t border-neutral-200 pt-4 text-[11px] text-neutral-600">
+      <div className="notes-block mt-6 border-t border-neutral-200 pt-4 text-[13px] text-neutral-600">
         <p>
           {kind === "invoice"
             ? "Payment is due within 15 days of issue date. Late payments may incur a 1.5% monthly fee."
@@ -2668,7 +2708,7 @@ function InvoicePrintLayout({
 
       {/* Footer — driven by report settings */}
       {rs.showFooter && (
-        <div className="notes-block mt-8 border-t pt-4 text-[10px] text-neutral-500" style={{ borderColor: rs.showFooterLine ? "#d4d4d8" : "transparent" }}>
+        <div className="notes-block mt-8 border-t pt-4 text-[12px] text-neutral-500" style={{ borderColor: rs.showFooterLine ? "#d4d4d8" : "transparent" }}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               {effectiveFooterText && <div className="font-semibold">{effectiveFooterText}</div>}
@@ -2913,30 +2953,28 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
             ))}
           </div>
         ) : invoices.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
-              <FileText className="h-5 w-5" />
-            </div>
-            <p className="mt-3 text-sm font-medium">No invoices yet</p>
-            <p className="text-xs text-muted-foreground">
-              Create your first invoice to start billing.
-            </p>
-          </div>
+          <EmptyState
+            icon={FileText}
+            title="No invoices yet"
+            description="Create your first invoice to start billing"
+            actionLabel="New invoice"
+            onAction={() => setOpen(true)}
+          />
         ) : (
           <div className="max-h-[560px] overflow-auto scroll-liquid rounded-2xl border border-border/40">
             <Table className="w-full min-w-[860px]">
               <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
                 <TableRow className="border-border/40 hover:bg-transparent">
-                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Invoice #</TableHead>
-                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Client</TableHead>
-                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Issue Date</TableHead>
-                  <TableHead className="h-9 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Due Date</TableHead>
-                  <TableHead className="h-9 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Subtotal</TableHead>
-                  <TableHead className="h-9 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Discount</TableHead>
-                  <TableHead className="h-9 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tax</TableHead>
-                  <TableHead className="h-9 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total</TableHead>
-                  <TableHead className="h-9 w-10 px-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Actions</TableHead>
+                  <TableHead className="h-9 px-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Invoice #</TableHead>
+                  <TableHead className="h-9 px-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Client</TableHead>
+                  <TableHead className="h-9 px-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                  <TableHead className="h-9 px-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Issue Date</TableHead>
+                  <TableHead className="h-9 px-3 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Due Date</TableHead>
+                  <TableHead className="h-9 px-3 text-right text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Subtotal</TableHead>
+                  <TableHead className="h-9 px-3 text-right text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Discount</TableHead>
+                  <TableHead className="h-9 px-3 text-right text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Tax</TableHead>
+                  <TableHead className="h-9 px-3 text-right text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Total</TableHead>
+                  <TableHead className="h-9 w-10 px-3 text-right text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -2946,7 +2984,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                     className="border-border/40 text-[12px] transition hover:border-primary/30 hover:bg-primary/[0.03]"
                   >
                     <TableCell className="px-3 py-2.5">
-                      <span className="font-mono text-[11px] font-semibold">
+                      <span className="font-mono text-[13px] font-semibold">
                         {inv.number}
                       </span>
                     </TableCell>
@@ -2957,7 +2995,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                         </div>
                         <div className="min-w-0">
                           <div className="truncate font-medium">{inv.customerName}</div>
-                          <div className="text-[10px] text-muted-foreground">
+                          <div className="text-[12px] text-muted-foreground">
                             {inv.items.length} item{inv.items.length === 1 ? "" : "s"}
                           </div>
                         </div>
@@ -2966,10 +3004,10 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                     <TableCell className="px-3 py-2.5">
                       <InvoiceStatusBadge status={inv.status} />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground">
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[13px] text-muted-foreground">
                       {format(new Date(inv.issueDate), "MMM d, yyyy")}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[11px] text-muted-foreground">
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[13px] text-muted-foreground">
                       {inv.dueDate
                         ? format(new Date(inv.dueDate), "MMM d, yyyy")
                         : "—"}
@@ -3101,13 +3139,13 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                 tax, and discount from the subscription). */}
             {selectedCustomer && (
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-                <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <CircleUserRound className="h-3 w-3" /> Bill To
-                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                     <Sparkles className="h-2.5 w-2.5" /> Auto-filled
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[13px]">
                   <div className="col-span-2 text-sm font-semibold">{selectedCustomer.name}</div>
                   {selectedCustomer.email && (
                     <div className="truncate text-muted-foreground">{selectedCustomer.email}</div>
@@ -3126,7 +3164,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                   )}
                 </div>
                 {selectedSubscription ? (
-                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[12px] text-muted-foreground">
                     <CreditCard className="h-3 w-3" />
                     Linked subscription:
                     <span className="font-semibold capitalize">{selectedSubscription.plan}</span>
@@ -3142,7 +3180,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                     </span>
                   </div>
                 ) : (
-                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[12px] text-muted-foreground">
                     <AlertTriangle className="h-3 w-3 text-amber-500" />
                     No active subscription — line items left empty for manual entry.
                   </div>
@@ -3513,15 +3551,13 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
             ))}
           </div>
         ) : quotations.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
-              <FileSignature className="h-5 w-5" />
-            </div>
-            <p className="mt-3 text-sm font-medium">No quotations yet</p>
-            <p className="text-xs text-muted-foreground">
-              Draft your first proposal.
-            </p>
-          </div>
+          <EmptyState
+            icon={FileSignature}
+            title="No quotations yet"
+            description="Draft your first proposal to send to a prospective client"
+            actionLabel="New quotation"
+            onAction={() => { setForm(EMPTY_DOC); setOpen(true); }}
+          />
         ) : (
           <div className="max-h-[560px] space-y-2 overflow-y-auto scroll-liquid pr-1">
             {quotations.map((q) => (
@@ -3539,7 +3575,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                     </span>
                     <StatusPill status={q.status} />
                   </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-muted-foreground">
                     <span>{q.customerName}</span>
                     <span>·</span>
                     <span>
@@ -3560,7 +3596,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                   <div className="text-sm font-semibold tabular-nums">
                     {money(q.total)}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-[12px] text-muted-foreground">
                     {q.items.length} item{q.items.length === 1 ? "" : "s"}
                   </div>
                 </div>
@@ -3673,13 +3709,13 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                 line items, tax, and discount from the subscription). */}
             {selectedCustomer && (
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-                <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <CircleUserRound className="h-3 w-3" /> Bill To
-                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                     <Sparkles className="h-2.5 w-2.5" /> Auto-filled
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[13px]">
                   <div className="col-span-2 text-sm font-semibold">{selectedCustomer.name}</div>
                   {selectedCustomer.email && (
                     <div className="truncate text-muted-foreground">{selectedCustomer.email}</div>
@@ -3698,7 +3734,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                   )}
                 </div>
                 {selectedSubscription ? (
-                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[12px] text-muted-foreground">
                     <CreditCard className="h-3 w-3" />
                     Suggested from subscription:
                     <span className="font-semibold capitalize">{selectedSubscription.plan}</span>
@@ -3714,7 +3750,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                     </span>
                   </div>
                 ) : (
-                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-1.5 border-t border-border/40 pt-2 text-[12px] text-muted-foreground">
                     <AlertTriangle className="h-3 w-3 text-amber-500" />
                     No active subscription — line items left empty for manual entry.
                   </div>
@@ -3990,15 +4026,13 @@ function BankAccountsTab() {
             ))}
           </div>
         ) : accounts.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
-              <Landmark className="h-5 w-5" />
-            </div>
-            <p className="mt-3 text-sm font-medium">No bank accounts yet</p>
-            <p className="text-xs text-muted-foreground">
-              Add an account so invoices can show payment details.
-            </p>
-          </div>
+          <EmptyState
+            icon={Landmark}
+            title="No bank accounts yet"
+            description="Add an account so invoices can show payment details"
+            actionLabel="Add account"
+            onAction={() => setOpen(true)}
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {accounts.map((a) => (
@@ -4410,7 +4444,7 @@ function ReportsTab() {
                 key={opt.value}
                 onClick={() => setRange(opt.value)}
                 className={cn(
-                  "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition",
+                  "rounded-lg px-2.5 py-1 text-[13px] font-semibold transition",
                   range === opt.value
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted/40 text-muted-foreground hover:bg-muted"
@@ -4422,7 +4456,7 @@ function ReportsTab() {
           </div>
           <div className="h-4 w-px bg-border/40" />
           <Select value={reportType} onValueChange={(v) => setReportType(v as "financial" | "clients" | "subscriptions")}>
-            <SelectTrigger className="h-8 w-44 text-[11px] font-semibold">
+            <SelectTrigger className="h-8 w-44 text-[13px] font-semibold">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -4612,7 +4646,7 @@ function ReportsTab() {
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={{ background: p.color }}
                   />
-                  <span className="w-20 shrink-0 text-[11px] font-medium capitalize">
+                  <span className="w-20 shrink-0 text-[13px] font-medium capitalize">
                     {p.plan}
                   </span>
                   <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
@@ -4621,7 +4655,7 @@ function ReportsTab() {
                       style={{ width: `${pct}%`, background: p.color }}
                     />
                   </div>
-                  <span className="w-16 shrink-0 text-right text-[11px] font-semibold tabular-nums">
+                  <span className="w-16 shrink-0 text-right text-[13px] font-semibold tabular-nums">
                     {money(p.revenue)}
                   </span>
                 </div>
@@ -4648,10 +4682,10 @@ function ReportsTab() {
             <Table>
               <TableHeader>
                 <TableRow className="border-border/40 hover:bg-transparent">
-                  <TableHead className="text-[11px]">Client</TableHead>
-                  <TableHead className="text-right text-[11px]">Invoices</TableHead>
-                  <TableHead className="text-right text-[11px]">Revenue</TableHead>
-                  <TableHead className="text-right text-[11px]">Last invoice</TableHead>
+                  <TableHead className="text-[13px]">Client</TableHead>
+                  <TableHead className="text-right text-[13px]">Invoices</TableHead>
+                  <TableHead className="text-right text-[13px]">Revenue</TableHead>
+                  <TableHead className="text-right text-[13px]">Last invoice</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -4666,14 +4700,14 @@ function ReportsTab() {
                     <TableRow key={c.customerId} className="border-border/30">
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span className="w-5 text-right text-[10px] font-bold text-muted-foreground">#{i + 1}</span>
-                          <NameAvatar name={c.name} className="h-6 w-6 text-[9px]" />
+                          <span className="w-5 text-right text-[12px] font-bold text-muted-foreground">#{i + 1}</span>
+                          <NameAvatar name={c.name} className="h-6 w-6 text-[11px]" />
                           <span className="truncate text-xs font-medium">{c.name}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right text-xs tabular-nums">{c.invoices}</TableCell>
                       <TableCell className="text-right text-xs font-semibold tabular-nums">{money(c.totalRevenue)}</TableCell>
-                      <TableCell className="text-right text-[11px] text-muted-foreground">
+                      <TableCell className="text-right text-[13px] text-muted-foreground">
                         {c.lastInvoice ? format(new Date(c.lastInvoice), "MMM d, yyyy") : "—"}
                       </TableCell>
                     </TableRow>
@@ -4724,7 +4758,7 @@ function ReportsTab() {
                     <Icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0 flex-1 truncate text-sm">{a.label}</div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-[13px] text-muted-foreground">
                     {format(new Date(a.at), "MMM d, HH:mm")}
                   </div>
                 </div>
@@ -4946,13 +4980,13 @@ function FinancialReportLayout({
               <div className="text-xl font-bold tracking-tight text-neutral-900">
                 {companyName}
               </div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+              <div className="text-[12px] uppercase tracking-[0.2em] text-neutral-500">
                 Orchestrate Your Social.
               </div>
             </div>
           </div>
           {rs.showCompanyAddress && (
-            <div className="mt-3 text-[11px] text-neutral-600">
+            <div className="mt-3 text-[13px] text-neutral-600">
               {company.address || "SYNQUE HQ · 100 Market Street"}
               <br />
               {companyLine || "San Francisco, CA 94105"}
@@ -4971,7 +5005,7 @@ function FinancialReportLayout({
             {reportId}
           </div>
           {rs.showDateRange && (
-            <div className="mt-2 text-[11px] text-neutral-600">
+            <div className="mt-2 text-[13px] text-neutral-600">
               Range: {range}
               <br />
               Generated: {format(new Date(generatedAt), "MMM d, yyyy · HH:mm")}
@@ -4985,7 +5019,7 @@ function FinancialReportLayout({
       {/* ===== Summary KPIs ===== */}
       {rs.showExecutiveSummary && (
         <div className="py-6">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          <div className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500">
             Executive Summary
           </div>
           <div className="mt-3 grid grid-cols-5 gap-3">
@@ -4997,7 +5031,7 @@ function FinancialReportLayout({
               { label: "Overdue", value: money(overdue) },
             ].map((kpi) => (
               <div key={kpi.label} className="rounded-lg border report-accent-border p-3" style={{ borderColor: `${accent}40` }}>
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                <div className="text-[12px] font-semibold uppercase tracking-wide text-neutral-500">
                   {kpi.label}
                 </div>
                 <div className="mt-1 text-lg font-bold tabular-nums text-neutral-900">
@@ -5007,21 +5041,21 @@ function FinancialReportLayout({
             ))}
           </div>
           {rs.showKpiStrip && (
-            <div className="mt-3 grid grid-cols-4 gap-3 text-[11px] text-neutral-700">
+            <div className="mt-3 grid grid-cols-4 gap-3 text-[13px] text-neutral-700">
               <div className="rounded-lg bg-neutral-100 px-3 py-2">
-                <div className="text-[10px] uppercase text-neutral-500">Total Clients</div>
+                <div className="text-[12px] uppercase text-neutral-500">Total Clients</div>
                 <div className="num-display text-base font-bold tabular-nums">{customers.length}</div>
               </div>
               <div className="rounded-lg bg-emerald-50 px-3 py-2">
-                <div className="text-[10px] uppercase text-neutral-500">Active Clients</div>
+                <div className="text-[12px] uppercase text-neutral-500">Active Clients</div>
                 <div className="num-display text-base font-bold tabular-nums text-emerald-700">{activeClients}</div>
               </div>
               <div className="rounded-lg bg-amber-50 px-3 py-2">
-                <div className="text-[10px] uppercase text-neutral-500">Trial Clients</div>
+                <div className="text-[12px] uppercase text-neutral-500">Trial Clients</div>
                 <div className="num-display text-base font-bold tabular-nums text-amber-700">{trialClients}</div>
               </div>
               <div className="rounded-lg bg-neutral-100 px-3 py-2">
-                <div className="text-[10px] uppercase text-neutral-500">Total Invoices</div>
+                <div className="text-[12px] uppercase text-neutral-500">Total Invoices</div>
                 <div className="num-display text-base font-bold tabular-nums">{totalInvoices}</div>
               </div>
             </div>
@@ -5031,12 +5065,12 @@ function FinancialReportLayout({
 
       {/* ===== Revenue by plan table ===== */}
       <div className="notes-block">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+        <div className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500">
           Revenue Breakdown by Plan
         </div>
         <table className="report-table mt-2 w-full border-collapse">
           <thead>
-            <tr className="border-b-2 report-accent-border text-left text-[10px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
+            <tr className="border-b-2 report-accent-border text-left text-[12px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
               <th className="py-2 pr-2">Plan</th>
               <th className="w-32 py-2 pr-2 text-right">Paid Revenue</th>
               <th className="w-20 py-2 pr-2 text-right">Share</th>
@@ -5054,7 +5088,7 @@ function FinancialReportLayout({
             {planRevenue.map((p) => {
               const pct = totalPlanRevenue > 0 ? Math.round((p.revenue / totalPlanRevenue) * 100) : 0;
               return (
-                <tr key={p.plan} className="border-b border-neutral-200 align-top text-[11px]">
+                <tr key={p.plan} className="border-b border-neutral-200 align-top text-[13px]">
                   <td className="py-2 pr-2 capitalize font-semibold">{p.plan}</td>
                   <td className="py-2 pr-2 text-right tabular-nums">{money(p.revenue)}</td>
                   <td className="py-2 pr-2 text-right tabular-nums text-neutral-600">{pct}%</td>
@@ -5070,7 +5104,7 @@ function FinancialReportLayout({
               );
             })}
             {planRevenue.length > 0 && (
-              <tr className="border-t-2 report-accent-border text-[11px] font-bold" style={{ borderColor: accent }}>
+              <tr className="border-t-2 report-accent-border text-[13px] font-bold" style={{ borderColor: accent }}>
                 <td className="py-2 pr-2">Total</td>
                 <td className="py-2 pr-2 text-right tabular-nums">{money(totalPlanRevenue)}</td>
                 <td className="py-2 pr-2 text-right tabular-nums">100%</td>
@@ -5083,12 +5117,12 @@ function FinancialReportLayout({
 
       {/* ===== Top 10 clients table ===== */}
       <div className="notes-block mt-6">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+        <div className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500">
           Top 10 Clients by Revenue
         </div>
         <table className="report-table mt-2 w-full border-collapse">
           <thead>
-            <tr className="border-b-2 report-accent-border text-left text-[10px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
+            <tr className="border-b-2 report-accent-border text-left text-[12px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
               <th className="w-8 py-2 pr-2 text-right">#</th>
               <th className="py-2 pr-2">Client</th>
               <th className="w-20 py-2 pr-2 text-right">Invoices</th>
@@ -5105,7 +5139,7 @@ function FinancialReportLayout({
               </tr>
             )}
             {topClients.map((c, i) => (
-              <tr key={c.customerId} className="border-b border-neutral-200 align-top text-[11px]">
+              <tr key={c.customerId} className="border-b border-neutral-200 align-top text-[13px]">
                 <td className="py-2 pr-2 text-right tabular-nums font-bold text-neutral-500">{i + 1}</td>
                 <td className="py-2 pr-2 font-semibold">
                   {c.name}
@@ -5113,7 +5147,7 @@ function FinancialReportLayout({
                     const cust = customers.find((cu) => cu.id === c.customerId);
                     if (!cust) return null;
                     return (
-                      <span className="ml-1 text-[10px] font-normal text-neutral-500">
+                      <span className="ml-1 text-[12px] font-normal text-neutral-500">
                         ({cust.plan} · {cust.status})
                       </span>
                     );
@@ -5121,7 +5155,7 @@ function FinancialReportLayout({
                 </td>
                 <td className="py-2 pr-2 text-right tabular-nums">{c.invoices}</td>
                 <td className="py-2 pr-2 text-right tabular-nums font-semibold">{money(c.totalRevenue)}</td>
-                <td className="py-2 text-right text-[10px] text-neutral-600">
+                <td className="py-2 text-right text-[12px] text-neutral-600">
                   {c.lastInvoice ? format(new Date(c.lastInvoice), "MMM d, yyyy") : "—"}
                 </td>
               </tr>
@@ -5132,19 +5166,19 @@ function FinancialReportLayout({
 
       {/* ===== Invoice summary table ===== */}
       <div className="notes-block mt-6">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+        <div className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500">
           Invoice Summary
         </div>
         <div className="mt-3 grid grid-cols-4 gap-3">
           {invoiceSummary.map((row) => (
             <div key={row.label} className="rounded-lg border report-accent-border p-3" style={{ borderColor: `${accent}40` }}>
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+              <div className="text-[12px] font-semibold uppercase tracking-wide text-neutral-500">
                 {row.label}
               </div>
               <div className="mt-1 text-base font-bold tabular-nums text-neutral-900">
                 {money(row.amount)}
               </div>
-              <div className="mt-0.5 text-[10px] text-neutral-600">
+              <div className="mt-0.5 text-[12px] text-neutral-600">
                 {row.count} invoice{row.count === 1 ? "" : "s"}
               </div>
             </div>
@@ -5154,7 +5188,7 @@ function FinancialReportLayout({
         {/* Status breakdown table */}
         <table className="report-table mt-4 w-full border-collapse">
           <thead>
-            <tr className="border-b-2 report-accent-border text-left text-[10px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
+            <tr className="border-b-2 report-accent-border text-left text-[12px] uppercase tracking-wider text-neutral-700" style={{ borderColor: accent }}>
               <th className="py-2 pr-2">Status</th>
               <th className="w-20 py-2 pr-2 text-right">Count</th>
               <th className="w-32 py-2 text-right">Total</th>
@@ -5169,14 +5203,14 @@ function FinancialReportLayout({
               </tr>
             )}
             {invoiceStatusData.map((b) => (
-              <tr key={b.status} className="border-b border-neutral-200 align-top text-[11px]">
+              <tr key={b.status} className="border-b border-neutral-200 align-top text-[13px]">
                 <td className="py-2 pr-2 capitalize font-semibold">{b.status}</td>
                 <td className="py-2 pr-2 text-right tabular-nums">{b.count}</td>
                 <td className="py-2 text-right tabular-nums">{money(b.total)}</td>
               </tr>
             ))}
             {invoiceStatusData.length > 0 && (
-              <tr className="border-t-2 report-accent-border text-[11px] font-bold" style={{ borderColor: accent }}>
+              <tr className="border-t-2 report-accent-border text-[13px] font-bold" style={{ borderColor: accent }}>
                 <td className="py-2 pr-2">Total</td>
                 <td className="py-2 pr-2 text-right tabular-nums">{totalInvoices}</td>
                 <td className="py-2 text-right tabular-nums">{money(totalAmount)}</td>
@@ -5189,7 +5223,7 @@ function FinancialReportLayout({
       {/* ===== Footer — driven by report settings (footerText, footerPosition,
           showFooterLine, footerFontSize, showPageNumbers, showFooter) ===== */}
       {rs.showFooter && (
-        <div className="notes-block mt-8 border-t pt-4 text-[10px] text-neutral-500" style={{ borderColor: rs.showFooterLine ? "#d4d4d8" : "transparent" }}>
+        <div className="notes-block mt-8 border-t pt-4 text-[12px] text-neutral-500" style={{ borderColor: rs.showFooterLine ? "#d4d4d8" : "transparent" }}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               {effectiveFooterText && <div className="font-semibold">{effectiveFooterText}</div>}
@@ -5377,7 +5411,11 @@ function DevicesTab() {
       ]} />
 
       {devices.length === 0 ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">No devices registered yet.</div>
+        <EmptyState
+          icon={Smartphone}
+          title="No devices registered yet"
+          description="Activations of client licenses will appear here"
+        />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {devices.map((d) => {
@@ -5389,18 +5427,18 @@ function DevicesTab() {
               <div key={d.id} className="crystal-in glass rounded-2xl p-4 lift-hover">
                 <div className="flex items-start justify-between">
                   <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><Smartphone className="h-5 w-5" /></div>
-                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[d.status] ?? statusStyle.active)}>{d.status}</span>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-bold capitalize", statusStyle[d.status] ?? statusStyle.active)}>{d.status}</span>
                 </div>
                 <div className="mt-3 truncate text-sm font-semibold">{d.deviceName}</div>
-                <div className="mt-3 space-y-1 text-[11px] text-muted-foreground">
+                <div className="mt-3 space-y-1 text-[13px] text-muted-foreground">
                   {/* Serial key (masked, click to reveal) */}
                   {d.serialKey && (
                     <div className="flex items-center gap-1">
                       <KeyRound className="h-3 w-3 shrink-0" />
-                      <code className="truncate font-mono text-[10px]">{revealed ? d.serialKey.key : maskedKey}</code>
+                      <code className="truncate font-mono text-[12px]">{revealed ? d.serialKey.key : maskedKey}</code>
                       <button
                         onClick={() => toggleReveal(d.id)}
-                        className="ml-auto shrink-0 rounded px-1 py-0.5 text-[9px] font-semibold text-muted-foreground hover:bg-muted"
+                        className="ml-auto shrink-0 rounded px-1 py-0.5 text-[11px] font-semibold text-muted-foreground hover:bg-muted"
                         aria-label={revealed ? "Hide serial key" : "Reveal serial key"}
                       >
                         {revealed ? "Hide" : "Show"}
@@ -5435,10 +5473,10 @@ function DevicesTab() {
                     A spinner overlays the toggle while the request is in flight. */}
                 <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-muted/30 px-3 py-2">
                   <div className="min-w-0">
-                    <div className="text-[11px] font-semibold leading-tight">
+                    <div className="text-[13px] font-semibold leading-tight">
                       {d.status === "active" ? "Active" : d.status === "blocked" ? "Blocked" : "Revoked"}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-[12px] text-muted-foreground">
                       {d.status === "active" ? "Device can connect" : d.status === "blocked" ? "Access denied" : "Permanently revoked"}
                     </div>
                   </div>
@@ -5549,10 +5587,10 @@ function DevicesTab() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-[11px] font-semibold">{a.label}</span>
-                        <span className="shrink-0 text-[10px] text-muted-foreground">{format(new Date(a.at), "MMM d, HH:mm")}</span>
+                        <span className="truncate text-[13px] font-semibold">{a.label}</span>
+                        <span className="shrink-0 text-[12px] text-muted-foreground">{format(new Date(a.at), "MMM d, HH:mm")}</span>
                       </div>
-                      <div className="truncate text-[10px] text-muted-foreground">
+                      <div className="truncate text-[12px] text-muted-foreground">
                         {a.actor ?? "system"}
                         {a.ip ? ` · ${a.ip}` : ""}
                       </div>
@@ -5565,7 +5603,7 @@ function DevicesTab() {
               })}
             </div>
           ) : (
-            <div className="grid h-32 place-items-center text-[11px] text-muted-foreground">
+            <div className="grid h-32 place-items-center text-[13px] text-muted-foreground">
               No activity recorded yet.
             </div>
           )}
@@ -5660,6 +5698,9 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   const [form, setForm] = React.useState<SubscriptionForm>(EMPTY_SUB_FORM);
   const [busy, setBusy] = React.useState(false);
   const [generatingId, setGeneratingId] = React.useState<string | null>(null);
+  // 3-step wizard state — shared by the create + edit dialogs. Resets to 1
+  // whenever a dialog opens (see openCreate / openEdit).
+  const [step, setStep] = React.useState<1 | 2 | 3>(1);
 
   if (loading) return <div className="shimmer h-64 rounded-3xl" />;
   const subs = data ?? [];
@@ -5700,6 +5741,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   const openCreate = () => {
     setForm(EMPTY_SUB_FORM);
     setEditId(null);
+    setStep(1);
     setAddOpen(true);
   };
 
@@ -5721,6 +5763,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
       modules: ["*"],  // TODO: fetch from the client's user permissions
     });
     setEditId(s.id);
+    setStep(1);
     setEditOpen(true);
   };
 
@@ -5899,7 +5942,69 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   const totals = computeSubTotals(form);
   const isCustomPlan = form.plan === "custom" || form.plan === "enterprise";
 
-  const renderFormFields = (isNew: boolean) => (
+  // ============================================================================
+  // 3-STEP WIZARD
+  // Step 1: Plan       — client, plan, custom amount, billing cycle, currency
+  // Step 2: Pricing    — discount, tax, live totals preview, notes
+  // Step 3: Access     — module access, status, dates, final submit
+  //
+  // The dialog footer renders Next/Back/Create-or-Save depending on the step.
+  // ============================================================================
+  const WIZARD_STEPS: { n: 1 | 2 | 3; label: string; icon: LucideIcon }[] = [
+    { n: 1, label: "Plan",    icon: CreditCard },
+    { n: 2, label: "Pricing", icon: DollarSign },
+    { n: 3, label: "Access",  icon: Lock },
+  ];
+
+  const StepIndicator = () => (
+    <ol
+      className="flex items-center justify-center gap-2 sm:gap-3"
+      aria-label="Subscription wizard progress"
+    >
+      {WIZARD_STEPS.map((s, i) => {
+        const Icon = s.icon;
+        const isCurrent = step === s.n;
+        const isDone = step > s.n;
+        return (
+          <React.Fragment key={s.n}>
+            <li
+              className={cn(
+                "flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition",
+                isCurrent && "border-primary/40 bg-primary/10 text-primary",
+                isDone && "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                !isCurrent && !isDone && "border-border/40 bg-muted/40 text-muted-foreground"
+              )}
+              aria-current={isCurrent ? "step" : undefined}
+            >
+              <span
+                className={cn(
+                  "grid h-5 w-5 place-items-center rounded-full text-[11px] font-bold tabular-nums",
+                  isCurrent && "bg-primary text-primary-foreground",
+                  isDone && "bg-emerald-500 text-white",
+                  !isCurrent && !isDone && "bg-muted-foreground/20 text-muted-foreground"
+                )}
+              >
+                {isDone ? <CheckCircle2 className="h-3 w-3" /> : s.n}
+              </span>
+              <Icon className="hidden h-3.5 w-3.5 sm:block" aria-hidden />
+              <span className="hidden sm:inline">{s.label}</span>
+            </li>
+            {i < WIZARD_STEPS.length - 1 && (
+              <span
+                className={cn(
+                  "h-px w-6 sm:w-10",
+                  step > s.n ? "bg-emerald-500/50" : "bg-border/60"
+                )}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </ol>
+  );
+
+  /** Step 1 — Plan: client, plan, amount, cycle, currency. */
+  const renderStep1 = (isNew: boolean) => (
     <div className="space-y-3">
       <Field label="Client *">
         <Select
@@ -6002,48 +6107,12 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
           </Select>
         </Field>
       </div>
+    </div>
+  );
 
-      <Field label="Status">
-        <Select
-          value={form.status}
-          onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="trial">Trial</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-            <SelectItem value="expired">Expired</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-
-      <div className="grid grid-cols-3 gap-3">
-        <Field label="Start date">
-          <Input
-            type="date"
-            value={form.startDate}
-            onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-          />
-        </Field>
-        <Field label="Trial ends">
-          <Input
-            type="date"
-            value={form.trialEnds}
-            onChange={(e) => setForm((f) => ({ ...f, trialEnds: e.target.value }))}
-          />
-        </Field>
-        <Field label="End date">
-          <Input
-            type="date"
-            value={form.endDate}
-            onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-          />
-        </Field>
-      </div>
-
+  /** Step 2 — Pricing: discount, tax, live totals, notes. */
+  const renderStep2 = () => (
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <Field label="Discount type">
           <Select
@@ -6139,22 +6208,75 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
           placeholder="Internal notes — contract terms, discount reason, etc."
         />
       </Field>
+    </div>
+  );
 
+  /** Step 3 — Access: module access, status, dates, submit. */
+  const renderStep3 = () => (
+    <div className="space-y-3">
       {/* Module access — select which modules the client can access */}
       <div>
         <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Module Access
         </label>
-        <p className="mb-2 text-[11px] text-muted-foreground">
-          Select which modules this client's users can access. "All" gives access to every module.
+        <p className="mb-2 text-[13px] text-muted-foreground">
+          Select which modules this client&apos;s users can access. &quot;All&quot; gives access to every module.
         </p>
         <ModuleAccessSelector
           permissions={form.modules}
           onChange={(mods) => setForm((f) => ({ ...f, modules: mods }))}
         />
       </div>
+
+      <Field label="Status">
+        <Select
+          value={form.status}
+          onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="trial">Trial</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Start date">
+          <Input
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+          />
+        </Field>
+        <Field label="Trial ends">
+          <Input
+            type="date"
+            value={form.trialEnds}
+            onChange={(e) => setForm((f) => ({ ...f, trialEnds: e.target.value }))}
+          />
+        </Field>
+        <Field label="End date">
+          <Input
+            type="date"
+            value={form.endDate}
+            onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+          />
+        </Field>
+      </div>
     </div>
   );
+
+  /** Render only the fields for the current wizard step. */
+  const renderStepFields = (isNew: boolean) => {
+    if (step === 1) return renderStep1(isNew);
+    if (step === 2) return renderStep2();
+    return renderStep3();
+  };
 
   return (
     <section className="space-y-4">
@@ -6189,7 +6311,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="num-display mt-1 text-lg font-bold">{stage.count}</div>
-                  <div className="text-[10px] text-muted-foreground">{stage.label}</div>
+                  <div className="text-[12px] text-muted-foreground">{stage.label}</div>
                 </div>
                 {i < arr.length - 1 && (
                   <div className="h-px w-6 shrink-0 bg-border/60 sm:w-10" />
@@ -6212,7 +6334,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
           ].map((p) => (
             <div key={p.name} className="rounded-xl border border-border/40 bg-background/40 p-3">
               <div className="flex items-center justify-between">
-                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", planStyle[p.name.toLowerCase()] ?? planStyle.custom)}>
+                <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-bold", planStyle[p.name.toLowerCase()] ?? planStyle.custom)}>
                   {p.name}
                 </span>
                 <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
@@ -6220,7 +6342,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
               <div className="num-display mt-2 text-lg font-bold">
                 {p.price !== null ? money(p.price) : "Custom"}
               </div>
-              <div className="mt-0.5 text-[10px] text-muted-foreground">
+              <div className="mt-0.5 text-[12px] text-muted-foreground">
                 {p.accounts} · {p.users}
               </div>
             </div>
@@ -6230,7 +6352,13 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
 
       {/* ===== Subscription cards ===== */}
       {subs.length === 0 ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">No subscriptions yet.</div>
+        <EmptyState
+          icon={CreditCard}
+          title="No subscriptions yet"
+          description="Create a subscription to bill a client on a recurring cycle"
+          actionLabel="New subscription"
+          onAction={() => openCreate()}
+        />
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           {subs.map((s) => {
@@ -6248,10 +6376,10 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="truncate text-sm font-semibold">{s.customerName}</span>
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusStyle[s.status] ?? statusStyle.active)}>{s.status}</span>
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", planStyle[s.plan] ?? planStyle.custom)}>{s.plan}</span>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-bold capitalize", statusStyle[s.status] ?? statusStyle.active)}>{s.status}</span>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-bold capitalize", planStyle[s.plan] ?? planStyle.custom)}>{s.plan}</span>
                       {s.billingCycle && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold capitalize text-muted-foreground">{s.billingCycle}</span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[12px] font-semibold capitalize text-muted-foreground">{s.billingCycle}</span>
                       )}
                       {(() => {
                         const p = paymentStatusFor(s);
@@ -6262,7 +6390,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
                             ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                             : "bg-rose-500/15 text-rose-600 dark:text-rose-400";
                         return (
-                          <span className={cn("inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold capitalize", cls)} title="Payment status for the current billing period">
+                          <span className={cn("inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold capitalize", cls)} title="Payment status for the current billing period">
                             <span className={cn("h-1 w-1 rounded-full", p === "paid" ? "bg-emerald-500" : p === "pending" ? "bg-amber-500" : "bg-rose-500")} />
                             {p === "paid" ? "Paid" : p === "pending" ? "Payment due" : "Overdue"}
                           </span>
@@ -6270,7 +6398,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
                       })()}
                     </div>
                     {/* Amount + breakdown */}
-                    <div className="mt-1.5 text-[11px] text-muted-foreground">
+                    <div className="mt-1.5 text-[13px] text-muted-foreground">
                       Base {money(s.amount, s.currency)}
                       {discount > 0 && (
                         <>
@@ -6289,25 +6417,25 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
                     </div>
                     <div className="num-display mt-0.5 text-base font-bold tabular-nums">
                       {money(total, s.currency)}
-                      <span className="ml-1 text-[10px] font-normal text-muted-foreground">/ {s.billingCycle ?? "cycle"}</span>
+                      <span className="ml-1 text-[12px] font-normal text-muted-foreground">/ {s.billingCycle ?? "cycle"}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Dates: trial countdown + next billing */}
-                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/30 pt-2 text-[11px]">
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/30 pt-2 text-[13px]">
                   <div>
-                    <div className="text-[10px] uppercase text-muted-foreground">Started</div>
+                    <div className="text-[12px] uppercase text-muted-foreground">Started</div>
                     <div className="font-medium">{s.startDate ? new Date(s.startDate).toLocaleDateString() : "—"}</div>
                   </div>
                   {s.status === "trial" && s.trialEnds ? (
                     <div>
-                      <div className="text-[10px] uppercase text-muted-foreground">Trial ends</div>
+                      <div className="text-[12px] uppercase text-muted-foreground">Trial ends</div>
                       <div className="flex items-center gap-1.5 font-medium">
                         <span className={cn("h-1.5 w-1.5 rounded-full", daysLeft <= 3 ? "bg-rose-500" : "bg-amber-500")} />
                         {new Date(s.trialEnds).toLocaleDateString()}
                         {daysLeft > 0 && (
-                          <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold", daysLeft <= 3 ? "bg-rose-500/15 text-rose-600 dark:text-rose-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400")}>
+                          <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold", daysLeft <= 3 ? "bg-rose-500/15 text-rose-600 dark:text-rose-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400")}>
                             {daysLeft}d left
                           </span>
                         )}
@@ -6315,19 +6443,19 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
                     </div>
                   ) : next ? (
                     <div>
-                      <div className="text-[10px] uppercase text-muted-foreground">Next billing</div>
+                      <div className="text-[12px] uppercase text-muted-foreground">Next billing</div>
                       <div className="font-medium">{next.toLocaleDateString()}</div>
                     </div>
                   ) : s.endDate ? (
                     <div>
-                      <div className="text-[10px] uppercase text-muted-foreground">Ends</div>
+                      <div className="text-[12px] uppercase text-muted-foreground">Ends</div>
                       <div className="font-medium">{new Date(s.endDate).toLocaleDateString()}</div>
                     </div>
                   ) : null}
                 </div>
 
                 {s.notes && (
-                  <div className="mt-2 line-clamp-1 border-t border-border/30 pt-2 text-[11px] italic text-muted-foreground">“{s.notes}”</div>
+                  <div className="mt-2 line-clamp-1 border-t border-border/30 pt-2 text-[13px] italic text-muted-foreground">“{s.notes}”</div>
                 )}
 
                 {/* Actions */}
@@ -6371,7 +6499,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
         </div>
       )}
 
-      {/* Create dialog */}
+      {/* Create dialog — 3-step wizard */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="glass-strong max-w-2xl">
           <DialogHeader>
@@ -6380,21 +6508,41 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
               Pick a plan, set discount & tax, and the totals are computed automatically. Starting an active subscription auto-generates its first invoice.
             </DialogDescription>
           </DialogHeader>
-          {renderFormFields(true)}
-          <DialogFooter>
+          <StepIndicator />
+          {renderStepFields(true)}
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button
-              onClick={() => submit(true)}
-              disabled={busy}
-              className="liquid-pill"
-            >
-              {busy ? "Creating…" : "Create subscription"}
-            </Button>
+            {step > 1 && (
+              <Button
+                variant="outline"
+                onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s))}
+                disabled={busy}
+              >
+                ← Back
+              </Button>
+            )}
+            {step < 3 ? (
+              <Button
+                onClick={() => setStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s))}
+                disabled={busy || !form.customerId}
+                className="liquid-pill"
+              >
+                Next →
+              </Button>
+            ) : (
+              <Button
+                onClick={() => submit(true)}
+                disabled={busy}
+                className="liquid-pill"
+              >
+                {busy ? "Creating…" : "Create subscription"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit dialog */}
+      {/* Edit dialog — 3-step wizard */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="glass-strong max-w-2xl">
           <DialogHeader>
@@ -6403,16 +6551,36 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
               Update plan, amount, discount, tax, status, dates or notes. Converting a trial to active auto-generates the first real invoice.
             </DialogDescription>
           </DialogHeader>
-          {renderFormFields(false)}
-          <DialogFooter>
+          <StepIndicator />
+          {renderStepFields(false)}
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button
-              onClick={() => submit(false)}
-              disabled={busy}
-              className="liquid-pill"
-            >
-              {busy ? "Saving…" : "Save changes"}
-            </Button>
+            {step > 1 && (
+              <Button
+                variant="outline"
+                onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s))}
+                disabled={busy}
+              >
+                ← Back
+              </Button>
+            )}
+            {step < 3 ? (
+              <Button
+                onClick={() => setStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s))}
+                disabled={busy}
+                className="liquid-pill"
+              >
+                Next →
+              </Button>
+            ) : (
+              <Button
+                onClick={() => submit(false)}
+                disabled={busy}
+                className="liquid-pill"
+              >
+                {busy ? "Saving…" : "Save changes"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -6467,7 +6635,13 @@ function ApiKeysTab() {
       <SectionHeader title="API Keys" desc="Generate and manage API keys for integrations" icon={Lock}
         action={<button onClick={() => setGenOpen(true)} className="liquid-pill flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> Generate key</button>} />
       {keys.length === 0 ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">No API keys generated yet.</div>
+        <EmptyState
+          icon={Lock}
+          title="No API keys generated yet"
+          description="Generate a key to authenticate integrations against the API"
+          actionLabel="Generate key"
+          onAction={() => setGenOpen(true)}
+        />
       ) : (
         <div className="space-y-2">
           {keys.map((k) => (
@@ -6476,10 +6650,10 @@ function ApiKeysTab() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-semibold">{k.name}</span>
-                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", k.status === "active" ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500")}>{k.status}</span>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-bold capitalize", k.status === "active" ? "bg-emerald-500/15 text-emerald-500" : "bg-rose-500/15 text-rose-500")}>{k.status}</span>
                 </div>
-                <code className="text-[11px] text-muted-foreground">{k.key.slice(0, 8)}...{k.key.slice(-4)}</code>
-                {k.lastUsed && <div className="text-[10px] text-muted-foreground">Last used: {new Date(k.lastUsed).toLocaleString()}</div>}
+                <code className="text-[13px] text-muted-foreground">{k.key.slice(0, 8)}...{k.key.slice(-4)}</code>
+                {k.lastUsed && <div className="text-[12px] text-muted-foreground">Last used: {new Date(k.lastUsed).toLocaleString()}</div>}
               </div>
               <button onClick={() => { navigator.clipboard.writeText(k.key); toast.success("Key copied"); }} className="rounded-lg bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"><Copy className="h-3.5 w-3.5" /></button>
               {k.status === "active" && <button onClick={() => revoke(k.id)} className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-500 hover:bg-amber-500/20">Revoke</button>}
@@ -6627,7 +6801,7 @@ function FinanceTab() {
           {batchBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
           Generate monthly invoices
         </button>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-[13px] text-muted-foreground">
           {subMetrics?.activeSubs ?? 0} active subscriptions will be billed.
         </span>
       </div>
@@ -6675,23 +6849,23 @@ function FinanceTab() {
                 </div>
               ) : (
                 outstanding.map((inv) => (
-                  <div key={inv.id} className="flex items-center gap-2 border-b border-border/30 px-3 py-2 text-[11px] last:border-b-0">
+                  <div key={inv.id} className="flex items-center gap-2 border-b border-border/30 px-3 py-2 text-[13px] last:border-b-0">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono font-semibold">{inv.number}</span>
                         <span className={cn(
-                          "rounded-full px-1.5 py-0.5 text-[9px] font-bold capitalize",
+                          "rounded-full px-1.5 py-0.5 text-[11px] font-bold capitalize",
                           inv.status === "overdue" ? "bg-rose-500/15 text-rose-600 dark:text-rose-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                         )}>
                           {inv.status}
                         </span>
                         {inv.daysOverdue > 0 && (
-                          <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-bold text-rose-600 dark:text-rose-400">
+                          <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[11px] font-bold text-rose-600 dark:text-rose-400">
                             {inv.daysOverdue}d overdue
                           </span>
                         )}
                       </div>
-                      <div className="truncate text-[10px] text-muted-foreground">
+                      <div className="truncate text-[12px] text-muted-foreground">
                         {inv.customerName}
                         {inv.dueDate ? ` · due ${new Date(inv.dueDate).toLocaleDateString()}` : ""}
                       </div>
@@ -6702,13 +6876,13 @@ function FinanceTab() {
                     <div className="flex shrink-0 flex-col gap-1">
                       <button
                         onClick={() => sendReminder(inv)}
-                        className="rounded bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary hover:bg-primary/20"
+                        className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20"
                       >
                         Remind
                       </button>
                       <button
                         onClick={() => markPaid(inv)}
-                        className="rounded bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                        className="rounded bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
                       >
                         Mark paid
                       </button>
@@ -6735,13 +6909,13 @@ function FinanceTab() {
                 </div>
               ) : (
                 paymentHistory.map((p) => (
-                  <div key={p.id} className="flex items-center gap-2 border-b border-border/30 px-3 py-2 text-[11px] last:border-b-0">
+                  <div key={p.id} className="flex items-center gap-2 border-b border-border/30 px-3 py-2 text-[13px] last:border-b-0">
                     <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-mono font-semibold">{p.number}</div>
-                      <div className="truncate text-[10px] text-muted-foreground">
+                      <div className="truncate text-[12px] text-muted-foreground">
                         {p.customerName} · {format(new Date(p.paidAt), "MMM d, yyyy")}
                       </div>
                     </div>
@@ -6772,12 +6946,12 @@ function FinanceTab() {
                     <Landmark className="h-5 w-5" />
                   </div>
                   {b.isDefault && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">Default</span>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">Default</span>
                   )}
                 </div>
                 <div className="mt-2 truncate text-sm font-semibold">{b.accountName}</div>
-                <div className="truncate text-[11px] text-muted-foreground">{b.bankName}</div>
-                <div className="mt-1 font-mono text-[10px] text-muted-foreground">{maskNumber(b.accountNumber)}</div>
+                <div className="truncate text-[13px] text-muted-foreground">{b.bankName}</div>
+                <div className="mt-1 font-mono text-[12px] text-muted-foreground">{maskNumber(b.accountNumber)}</div>
                 <div className="num-display mt-2 text-lg font-bold tabular-nums">
                   {money(b.balance, b.currency)}
                 </div>
@@ -6786,7 +6960,7 @@ function FinanceTab() {
           </div>
         )}
         {bankAccounts.length > 0 && (
-          <div className="mt-2 text-right text-[11px] text-muted-foreground">
+          <div className="mt-2 text-right text-[13px] text-muted-foreground">
             Total balance across {bankAccounts.length} account(s): <span className="font-bold tabular-nums">{money(totalBalance)}</span>
           </div>
         )}
@@ -7004,16 +7178,16 @@ function ClientUsersTab() {
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-semibold">{u.name}</span>
                   {isBirthdayToday && <span title="Birthday today!" className="text-base">🎂</span>}
-                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", roleBadge[u.role] ?? roleBadge.member)}>{u.role}</span>
-                  <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize", statusBadge[u.status] ?? statusBadge.active)}>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-bold capitalize", roleBadge[u.role] ?? roleBadge.member)}>{u.role}</span>
+                  <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-bold capitalize", statusBadge[u.status] ?? statusBadge.active)}>
                     <span className={cn("h-1.5 w-1.5 rounded-full", u.status === "active" ? "bg-emerald-500" : u.status === "suspended" ? "bg-rose-500" : "bg-amber-500")} />
                     {u.status}
                   </span>
                 </div>
-                <div className="truncate text-[11px] text-muted-foreground">
+                <div className="truncate text-[13px] text-muted-foreground">
                   {u.email}{u.phone ? ` · ${u.phone}` : ""}{u.department ? ` · ${u.department}` : ""}{u.title ? ` · ${u.title}` : ""}
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
+                <div className="flex items-center gap-3 text-[12px] text-muted-foreground/60">
                   {u.gender && <span className="capitalize">{u.gender}</span>}
                   {u.birthDate && <span>{new Date(u.birthDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
                   {u.lastActive && <span>Active: {new Date(u.lastActive).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>}
@@ -7025,7 +7199,7 @@ function ClientUsersTab() {
                 onClick={() => { setEditUser({ ...u }); setEditOpen(true); }}
                 title={isAllModules(u.permissions) ? "All modules" : (u.permissions?.length ?? 0) > 0 ? `${u.permissions!.length} module${u.permissions!.length === 1 ? "" : "s"}` : "No module access"}
                 className={cn(
-                  "hidden shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition sm:flex",
+                  "hidden shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold transition sm:flex",
                   isAllModules(u.permissions)
                     ? "border-primary/30 bg-primary/10 text-primary"
                     : (u.permissions?.length ?? 0) > 0
@@ -7113,7 +7287,7 @@ function ClientUsersTab() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="mt-1 text-[10px] text-muted-foreground">Links the user to the selected client's tenant database. They will only see that client's data.</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">Links the user to the selected client's tenant database. They will only see that client's data.</p>
               </div>
             )}
             <div>
@@ -7144,7 +7318,7 @@ function ClientUsersTab() {
               <div className="mb-2 flex items-center gap-2">
                 <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                 <Label className="text-xs font-semibold">Module Access</Label>
-                <span className="ml-auto text-[10px] text-muted-foreground">
+                <span className="ml-auto text-[12px] text-muted-foreground">
                   Controls which sidebar items this user can open
                 </span>
               </div>
@@ -7153,7 +7327,7 @@ function ClientUsersTab() {
                 onChange={setFormPermissions}
               />
             </div>
-            <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[11px] text-muted-foreground">
+            <div className="flex items-start gap-2 rounded-xl bg-[var(--gold)]/5 p-3 text-[13px] text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--gold)]" />
               <span>User can sign in at <code className="font-mono text-foreground">/login</code> with these credentials. Gender determines the avatar color. Birth date triggers birthday notifications.</span>
             </div>
@@ -7218,7 +7392,7 @@ function ClientUsersTab() {
                 <div className="mb-2 flex items-center gap-2">
                   <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                   <Label className="text-xs font-semibold">Module Access</Label>
-                  <span className="ml-auto text-[10px] text-muted-foreground">
+                  <span className="ml-auto text-[12px] text-muted-foreground">
                     Currently: {describePermissions(editUser.permissions)}
                   </span>
                 </div>
@@ -7323,7 +7497,7 @@ function DatabasesTab() {
               {ownerDbFilter && (
                 <button
                   onClick={() => setOwnerDbFilter(null)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[13px] font-semibold text-primary"
                 >
                   <X className="h-3 w-3" /> Clear filter
                 </button>
@@ -7367,13 +7541,13 @@ function DatabasesTab() {
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
                   <TableRow className="border-border/40 hover:bg-transparent">
-                    <TableHead className="text-[11px] uppercase">Database</TableHead>
-                    <TableHead className="text-[11px] uppercase">Client</TableHead>
-                    <TableHead className="text-[11px] uppercase">Status</TableHead>
-                    <TableHead className="text-[11px] uppercase">Size</TableHead>
-                    <TableHead className="text-[11px] uppercase">Health</TableHead>
-                    <TableHead className="text-[11px] uppercase">Created</TableHead>
-                    <TableHead className="text-right text-[11px] uppercase">Actions</TableHead>
+                    <TableHead className="text-[13px] uppercase">Database</TableHead>
+                    <TableHead className="text-[13px] uppercase">Client</TableHead>
+                    <TableHead className="text-[13px] uppercase">Status</TableHead>
+                    <TableHead className="text-[13px] uppercase">Size</TableHead>
+                    <TableHead className="text-[13px] uppercase">Health</TableHead>
+                    <TableHead className="text-[13px] uppercase">Created</TableHead>
+                    <TableHead className="text-right text-[13px] uppercase">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -7386,7 +7560,7 @@ function DatabasesTab() {
                           </div>
                           <div className="min-w-0">
                             <div className="truncate font-mono font-semibold">{row.dbName}</div>
-                            <div className="truncate text-[10px] text-muted-foreground">
+                            <div className="truncate text-[12px] text-muted-foreground">
                               {row.customerPlan ? row.customerPlan : "no plan"}
                             </div>
                           </div>
@@ -7395,13 +7569,13 @@ function DatabasesTab() {
                       <TableCell>
                         <div className="min-w-0">
                           <div className="truncate font-medium">{row.customerName}</div>
-                          <div className="truncate text-[10px] text-muted-foreground">{row.customerEmail}</div>
+                          <div className="truncate text-[12px] text-muted-foreground">{row.customerEmail}</div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <span
                           className={cn(
-                            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize",
+                            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold capitalize",
                             row.status === "active"
                               ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                               : "bg-rose-500/10 text-rose-600 dark:text-rose-400",
@@ -7424,20 +7598,20 @@ function DatabasesTab() {
                       </TableCell>
                       <TableCell>
                         {row.status === "active" && row.healthy ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
                             <CheckCircle2 className="h-3 w-3" /> Healthy
                           </span>
                         ) : row.status === "suspended" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[12px] font-semibold text-rose-600 dark:text-rose-400">
                             <Pause className="h-3 w-3" /> Suspended
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[12px] font-semibold text-amber-600 dark:text-amber-400">
                             <AlertTriangle className="h-3 w-3" /> No size data
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-[11px] text-muted-foreground">
+                      <TableCell className="text-[13px] text-muted-foreground">
                         {format(new Date(row.createdAt), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell className="text-right">
@@ -7539,7 +7713,7 @@ function ActivityLogTab() {
           desc="Logins, role changes, 2FA, password changes, deletions — every security-sensitive event."
           icon={History}
           action={
-            <Badge variant="secondary" className="text-[11px]">
+            <Badge variant="secondary" className="text-[13px]">
               {logs.length} event{logs.length === 1 ? "" : "s"}
             </Badge>
           }
@@ -7548,7 +7722,7 @@ function ActivityLogTab() {
         {/* Filter bar */}
         <div className="mb-3 flex flex-wrap items-end gap-2 rounded-2xl border border-border/40 bg-background/60 p-3">
           <div className="space-y-1">
-            <Label className="text-[10px] uppercase text-muted-foreground">Action</Label>
+            <Label className="text-[12px] uppercase text-muted-foreground">Action</Label>
             <Select value={action || "__all__"} onValueChange={(v) => setAction(v === "__all__" ? "" : v)}>
               <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder="All actions" /></SelectTrigger>
               <SelectContent>
@@ -7560,7 +7734,7 @@ function ActivityLogTab() {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[10px] uppercase text-muted-foreground">Actor (name/email)</Label>
+            <Label className="text-[12px] uppercase text-muted-foreground">Actor (name/email)</Label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -7572,11 +7746,11 @@ function ActivityLogTab() {
             </div>
           </div>
           <div className="space-y-1">
-            <Label className="text-[10px] uppercase text-muted-foreground">From</Label>
+            <Label className="text-[12px] uppercase text-muted-foreground">From</Label>
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-8 w-36 text-xs" />
           </div>
           <div className="space-y-1">
-            <Label className="text-[10px] uppercase text-muted-foreground">To</Label>
+            <Label className="text-[12px] uppercase text-muted-foreground">To</Label>
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-8 w-36 text-xs" />
           </div>
           {hasFilters ? (
@@ -7613,11 +7787,11 @@ function ActivityLogTab() {
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-background/95 backdrop-blur">
                   <TableRow className="border-border/40 hover:bg-transparent">
-                    <TableHead className="text-[11px] uppercase">Action</TableHead>
-                    <TableHead className="text-[11px] uppercase">Actor</TableHead>
-                    <TableHead className="text-[11px] uppercase">Target</TableHead>
-                    <TableHead className="text-[11px] uppercase">IP</TableHead>
-                    <TableHead className="text-right text-[11px] uppercase">When</TableHead>
+                    <TableHead className="text-[13px] uppercase">Action</TableHead>
+                    <TableHead className="text-[13px] uppercase">Actor</TableHead>
+                    <TableHead className="text-[13px] uppercase">Target</TableHead>
+                    <TableHead className="text-[13px] uppercase">IP</TableHead>
+                    <TableHead className="text-right text-[13px] uppercase">When</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -7630,11 +7804,11 @@ function ActivityLogTab() {
                             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tone.dot }} />
                             <div className="min-w-0">
                               <div className="font-semibold">{prettyAction(log.action)}</div>
-                              <div className="font-mono text-[10px] text-muted-foreground">{log.action}</div>
+                              <div className="font-mono text-[12px] text-muted-foreground">{log.action}</div>
                             </div>
                           </div>
                           {log.metadata && (
-                            <div className="mt-1.5 max-w-xs truncate rounded bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                            <div className="mt-1.5 max-w-xs truncate rounded bg-muted/40 px-1.5 py-0.5 font-mono text-[12px] text-muted-foreground">
                               {log.metadata}
                             </div>
                           )}
@@ -7642,14 +7816,14 @@ function ActivityLogTab() {
                         <TableCell>
                           {log.actorName || log.actorEmail ? (
                             <div className="flex items-center gap-2">
-                              <NameAvatar name={log.actorName ?? log.actorEmail ?? "?"} className="h-6 w-6 text-[9px]" />
+                              <NameAvatar name={log.actorName ?? log.actorEmail ?? "?"} className="h-6 w-6 text-[11px]" />
                               <div className="min-w-0">
                                 <div className="truncate font-medium">{log.actorName ?? "—"}</div>
-                                <div className="truncate text-[10px] text-muted-foreground">{log.actorEmail}</div>
+                                <div className="truncate text-[12px] text-muted-foreground">{log.actorEmail}</div>
                               </div>
                             </div>
                           ) : (
-                            <span className="text-[11px] italic text-muted-foreground">system</span>
+                            <span className="text-[13px] italic text-muted-foreground">system</span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -7657,17 +7831,17 @@ function ActivityLogTab() {
                             <div className="min-w-0">
                               <div className="font-medium capitalize">{log.targetType}</div>
                               {log.targetId && (
-                                <div className="truncate font-mono text-[10px] text-muted-foreground">{log.targetId}</div>
+                                <div className="truncate font-mono text-[12px] text-muted-foreground">{log.targetId}</div>
                               )}
                             </div>
                           ) : (
-                            <span className="text-[11px] italic text-muted-foreground">—</span>
+                            <span className="text-[13px] italic text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="font-mono text-[11px]">
+                        <TableCell className="font-mono text-[13px]">
                           {log.ip ?? <span className="italic text-muted-foreground">—</span>}
                         </TableCell>
-                        <TableCell className="text-right text-[11px] text-muted-foreground">
+                        <TableCell className="text-right text-[13px] text-muted-foreground">
                           <div>{format(new Date(log.createdAt), "MMM d, yyyy")}</div>
                           <div>{format(new Date(log.createdAt), "HH:mm:ss")}</div>
                         </TableCell>

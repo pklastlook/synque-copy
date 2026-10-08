@@ -207,6 +207,9 @@
   }
   body {
     min-height: 100dvh;
+    /* Minimum body text bumped to 13px (was 12px in many places) for
+       readability. Component-level utility classes can still override. */
+    font-size: 13px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -422,19 +425,22 @@
     0 2px 4px 0 var(--glass-shadow);
 }
 
-/* Premium display number — large, light weight, tabular */
-.num-display {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-/* Premium stat label — small caps */
+/* Premium stat label — small caps
+   Minimum label text bumped to 11px (was 10px / 0.625rem) so labels
+   pairing with KPI numbers stay legible at small sizes. */
 .label-caps {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 600;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
+}
+
+/* KPI numbers — minimum 18px (was 16px). Reused by dense-ui MetricRow
+   and various cards across the app. */
+.num-display {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 /* Premium gradient ring for active selection */

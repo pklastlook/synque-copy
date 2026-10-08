@@ -11,7 +11,7 @@ import {
   FileEdit, XCircle, Layers, Inbox, Activity, Globe,
   Lightbulb, AlertCircle, AtSign, Check,
   BarChart3, Calendar, Zap, Share2, PenSquare,
-  Smile, Frown,
+  Smile, Frown, Circle, CreditCard,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -29,6 +29,8 @@ import {
   HeroChart, ListRow, DeltaBadge, Pill, NavCard,
   type Metric,
 } from "@/components/glass/dense-ui";
+import { EmptyState } from "@/components/glass/empty-state";
+import { OnboardingChecklist, type OnboardingStep } from "@/components/glass/onboarding-checklist";
 
 // ============ Types ============
 
@@ -201,6 +203,9 @@ export function DashboardView() {
   const { adminMode } = useNav();
   const scope = adminMode ? "team" : "me";
   const { data, loading } = useApi<DashboardData>(`/api/dashboard?range=${range}&scope=${scope}`);
+  // Onboarding checklist — fetch the user's subscriptions so step 4
+  // ("Set up billing") can be marked complete when one exists.
+  const { data: subsData } = useApi<{ id: string; status: string }[]>("/api/subscriptions");
   const { setView, openComposerWithPost } = useNav();
   const { user } = useAuth();
   const firstName = user?.name?.split(" ")[0] || "there";
@@ -262,8 +267,49 @@ export function DashboardView() {
     { id: "month", label: "Month" },
   ];
 
+  // Onboarding checklist — derived from the dashboard data + subscriptions
+  // fetch. Each step is "done" if its gating predicate is true.
+  const onboardingSteps: OnboardingStep[] = [
+    {
+      id: "connect-account",
+      icon: Share2,
+      label: "Connect a social account",
+      view: "accounts",
+      done: k.accounts > 0,
+    },
+    {
+      id: "first-post",
+      icon: FileText,
+      label: "Create your first post",
+      view: "composer",
+      done: k.postsCreated.value > 0,
+    },
+    {
+      id: "invite-team",
+      icon: UserPlus,
+      label: "Invite a team member",
+      view: "team",
+      done: data.topContributors.length > 1,
+    },
+    {
+      id: "set-up-billing",
+      icon: CreditCard,
+      label: "Set up billing",
+      view: "owner",
+      done: (subsData?.length ?? 0) > 0,
+    },
+  ];
+
   return (
     <div className="space-y-4">
+      {/* === 0. Onboarding checklist (dismissible) ===
+          Sits above the hero so it's the first thing new users see.
+          Auto-hides once all 4 steps are complete or after dismiss. */}
+      <OnboardingChecklist
+        steps={onboardingSteps}
+        onNavigate={(v) => setView(v as ViewId)}
+      />
+
       {/* === 1. Hero header strip — compact, no empty space ===
           Clean 2-section row: [greeting + quick stats] [inbox shortcut if unread] */}
       <div className="flex items-center justify-between gap-3 px-1">
@@ -272,7 +318,7 @@ export function DashboardView() {
             <Globe className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <Sparkles className="h-3 w-3 shrink-0 text-primary" />
               <span className="truncate">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</span>
             </div>
@@ -301,7 +347,7 @@ export function DashboardView() {
             key={tab.id}
             onClick={() => setRange(tab.id)}
             className={cn(
-              "shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition",
+              "shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition",
               range === tab.id
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -333,10 +379,10 @@ export function DashboardView() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[12px] font-bold leading-tight">{insight.title}</div>
-                  <div className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">{insight.desc}</div>
+                  <div className="mt-0.5 truncate text-[13px] leading-tight text-muted-foreground">{insight.desc}</div>
                 </div>
                 {insight.action && (
-                  <div className={cn("flex shrink-0 items-center gap-0.5 text-[11px] font-semibold", meta.color)}>
+                  <div className={cn("flex shrink-0 items-center gap-0.5 text-[13px] font-semibold", meta.color)}>
                     {insight.action} <ChevronRight className="h-3 w-3" />
                   </div>
                 )}
@@ -357,7 +403,7 @@ export function DashboardView() {
             action={
               <button
                 onClick={() => setView("team-performance")}
-                className="flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline"
+                className="flex items-center gap-0.5 text-[13px] font-semibold text-primary hover:underline"
               >
                 Team <ArrowUpRight className="h-3 w-3" />
               </button>
@@ -370,12 +416,12 @@ export function DashboardView() {
               {data.topContributors.reduce((s, c) => s + c.posts, 0)}
             </div>
             <div className="mb-1.5 flex flex-col gap-1">
-              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[12px] font-bold text-emerald-600 dark:text-emerald-400">
                 {data.topContributors.reduce((s, c) => s + c.published, 0)} published
               </span>
             </div>
           </div>
-          <div className="text-[11px] text-muted-foreground">
+          <div className="text-[13px] text-muted-foreground">
             across <span className="font-semibold text-foreground">{data.topContributors.length}</span> active {data.topContributors.length === 1 ? "member" : "members"} · last 30 days
           </div>
 
@@ -409,16 +455,16 @@ export function DashboardView() {
                         name={c.name}
                         color={(c.color as any) ?? "blue"}
                         src={c.avatar ?? undefined}
-                        className="h-7 w-7 shrink-0 text-[9px]"
+                        className="h-7 w-7 shrink-0 text-[11px]"
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <span className="truncate text-xs font-bold">{c.name}</span>
-                          <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                          <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary">
                             {c.posts} {c.posts === 1 ? "post" : "posts"}
                           </span>
                           {c.published > 0 && (
-                            <span className="shrink-0 text-[9px] font-medium text-emerald-600 dark:text-emerald-400">
+                            <span className="shrink-0 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                               · {c.published} live
                             </span>
                           )}
@@ -443,7 +489,7 @@ export function DashboardView() {
                     {expanded && (
                       <div className="mt-2 space-y-1 border-t border-border/30 pt-2">
                         {c.recentPosts.length === 0 ? (
-                          <div className="text-[10px] text-muted-foreground">No posts yet.</div>
+                          <div className="text-[12px] text-muted-foreground">No posts yet.</div>
                         ) : (
                           c.recentPosts.map((p) => (
                             <button
@@ -478,7 +524,7 @@ export function DashboardView() {
                             >
                               <span
                                 className={cn(
-                                  "shrink-0 rounded px-1 py-0.5 text-[8px] font-bold uppercase",
+                                  "shrink-0 rounded px-1 py-0.5 text-[10px] font-bold uppercase",
                                   p.status === "published" && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
                                   p.status === "draft" && "bg-amber-500/15 text-amber-600 dark:text-amber-400",
                                   p.status === "scheduled" && "bg-blue-500/15 text-blue-600 dark:text-blue-400",
@@ -487,7 +533,7 @@ export function DashboardView() {
                               >
                                 {p.status.slice(0, 4)}
                               </span>
-                              <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
+                              <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                                 {p.title || "Untitled"}
                               </span>
                               <div className="flex shrink-0 items-center gap-0.5">
@@ -495,7 +541,7 @@ export function DashboardView() {
                                   <PlatformBadge key={idx} platform={pl} size={11} />
                                 ))}
                               </div>
-                              <span className="shrink-0 text-[9px] text-muted-foreground">
+                              <span className="shrink-0 text-[11px] text-muted-foreground">
                                 {timeAgo(p.createdAt)}
                               </span>
                             </button>
@@ -519,7 +565,7 @@ export function DashboardView() {
               action={
                 <button
                   onClick={() => setView("team-performance")}
-                  className="flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline"
+                  className="flex items-center gap-0.5 text-[13px] font-semibold text-primary hover:underline"
                 >
                   All <ArrowUpRight className="h-3 w-3" />
                 </button>
@@ -532,7 +578,7 @@ export function DashboardView() {
                 const Icon = ACTIVITY_ICON[a.type] ?? CheckCircle2;
                 return (
                   <ListRow key={a.id} onClick={() => setView("team-performance")}>
-                    <NameAvatar name={a.userName} color={a.userColor ?? "blue"} src={a.userAvatar} className="h-7 w-7 text-[9px]" />
+                    <NameAvatar name={a.userName} color={a.userColor ?? "blue"} src={a.userAvatar} className="h-7 w-7 text-[11px]" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[12px] leading-tight">
                         <span className="font-semibold">{a.userName}</span>{" "}
@@ -542,7 +588,7 @@ export function DashboardView() {
                     <div className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
                       <Icon className="h-3 w-3" />
                     </div>
-                    <span className="hidden w-12 shrink-0 text-right text-[10px] text-muted-foreground sm:block">
+                    <span className="hidden w-12 shrink-0 text-right text-[12px] text-muted-foreground sm:block">
                       {timeAgo(a.createdAt)}
                     </span>
                   </ListRow>
@@ -554,7 +600,7 @@ export function DashboardView() {
                   <Activity className="h-5 w-5" />
                 </div>
                 <div className="text-[12px] font-semibold">No recent activity</div>
-                <div className="text-[11px] text-muted-foreground">Workspace activity will appear here</div>
+                <div className="text-[13px] text-muted-foreground">Workspace activity will appear here</div>
               </div>
             )}
           </div>
@@ -569,7 +615,7 @@ export function DashboardView() {
               className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-muted/40"
             >
               <AtSign className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-              <span className="flex-1 truncate text-[11px] font-medium text-muted-foreground">Accounts</span>
+              <span className="flex-1 truncate text-[13px] font-medium text-muted-foreground">Accounts</span>
               <Pill color="blue">{k.accounts}</Pill>
             </button>
             <button
@@ -577,7 +623,7 @@ export function DashboardView() {
               className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-muted/40"
             >
               <Calendar className="h-3.5 w-3.5 shrink-0 text-purple-500" />
-              <span className="flex-1 truncate text-[11px] font-medium text-muted-foreground">Scheduled</span>
+              <span className="flex-1 truncate text-[13px] font-medium text-muted-foreground">Scheduled</span>
               <Pill color="violet">{k.scheduled}</Pill>
             </button>
             <button
@@ -585,7 +631,7 @@ export function DashboardView() {
               className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-muted/40"
             >
               <FileEdit className="h-3.5 w-3.5 shrink-0 text-purple-500" />
-              <span className="flex-1 truncate text-[11px] font-medium text-muted-foreground">Drafts</span>
+              <span className="flex-1 truncate text-[13px] font-medium text-muted-foreground">Drafts</span>
               <Pill color="violet">{k.drafts}</Pill>
             </button>
             <button
@@ -593,7 +639,7 @@ export function DashboardView() {
               className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-muted/40"
             >
               <Inbox className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-              <span className="flex-1 truncate text-[11px] font-medium text-muted-foreground">Unread</span>
+              <span className="flex-1 truncate text-[13px] font-medium text-muted-foreground">Unread</span>
               <Pill color={pendingInbox > 0 ? "amber" : "neutral"}>{pendingInbox}</Pill>
             </button>
             {failedCount > 0 && (
@@ -602,7 +648,7 @@ export function DashboardView() {
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-muted/40"
               >
                 <XCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
-                <span className="flex-1 truncate text-[11px] font-medium text-muted-foreground">Failed</span>
+                <span className="flex-1 truncate text-[13px] font-medium text-muted-foreground">Failed</span>
                 <Pill color="rose">{failedCount}</Pill>
               </button>
             )}
@@ -621,7 +667,7 @@ export function DashboardView() {
                   name={c.name}
                   color={c.color ?? "blue"}
                   src={c.avatar}
-                  className="h-7 w-7 text-[9px] ring-2 ring-background"
+                  className="h-7 w-7 text-[11px] ring-2 ring-background"
                 />
               ))}
               {data.topContributors.length === 0 && (
@@ -632,7 +678,7 @@ export function DashboardView() {
             </div>
             <div className="min-w-0">
               <div className="num-display text-lg font-bold leading-none">{k.today.activeMembers}</div>
-              <div className="label-caps mt-0.5 text-[9px] text-muted-foreground">active now</div>
+              <div className="label-caps mt-0.5 text-[11px] text-muted-foreground">active now</div>
             </div>
           </div>
 
@@ -651,8 +697,8 @@ export function DashboardView() {
                   <g.icon className="h-3 w-3 shrink-0 text-muted-foreground" />
                   <div className="flex-1">
                     <div className="mb-0.5 flex items-baseline justify-between gap-1">
-                      <span className="truncate text-[9px] font-medium text-muted-foreground">{goal.label}</span>
-                      <span className="num-display text-[9px] font-bold tabular-nums">{goal.current}/{goal.target}</span>
+                      <span className="truncate text-[11px] font-medium text-muted-foreground">{goal.label}</span>
+                      <span className="num-display text-[11px] font-bold tabular-nums">{goal.current}/{goal.target}</span>
                     </div>
                     <div className="h-1 w-full overflow-hidden rounded-full bg-muted/60">
                       <div
@@ -678,7 +724,7 @@ export function DashboardView() {
                     key={m.key}
                     onClick={() => setChartMetric(m.key)}
                     className={cn(
-                      "shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold transition",
+                      "shrink-0 rounded-md px-2 py-0.5 text-[12px] font-semibold transition",
                       chartMetric === m.key ? "text-white" : "bg-muted/60 text-muted-foreground hover:bg-muted"
                     )}
                     style={chartMetric === m.key ? { background: m.color } : {}}
@@ -737,8 +783,8 @@ export function DashboardView() {
                 {/* Left: Bar chart — daily engagement breakdown */}
                 <div className="rounded-xl border border-border/30 bg-muted/10 p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Engagement by day</span>
-                    <span className="text-[9px] text-muted-foreground">Likes + Comments + Shares</span>
+                    <span className="text-[12px] font-bold uppercase tracking-wide text-muted-foreground">Engagement by day</span>
+                    <span className="text-[11px] text-muted-foreground">Likes + Comments + Shares</span>
                   </div>
                   <div className="h-[100px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -767,8 +813,8 @@ export function DashboardView() {
                 {/* Right: Platform distribution donut */}
                 <div className="rounded-xl border border-border/30 bg-muted/10 p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Platform mix</span>
-                    <span className="text-[9px] text-muted-foreground">{data.kpis.accounts} accounts</span>
+                    <span className="text-[12px] font-bold uppercase tracking-wide text-muted-foreground">Platform mix</span>
+                    <span className="text-[11px] text-muted-foreground">{data.kpis.accounts} accounts</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="h-[100px] w-[100px] shrink-0">
@@ -805,7 +851,7 @@ export function DashboardView() {
                     </div>
                     <div className="flex-1 space-y-1">
                       {Object.entries(data.kpis.today.platformBreakdown).filter(([_, v]) => v > 0).map(([platform, count]) => (
-                        <div key={platform} className="flex items-center gap-2 text-[10px]">
+                        <div key={platform} className="flex items-center gap-2 text-[12px]">
                           <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: {
                             instagram: "#E1306C", facebook: "#1877F2", x: "#1DA1F2",
                             linkedin: "#0A66C2", tiktok: "#000", youtube: "#FF0000", threads: "#65676B",
@@ -815,7 +861,7 @@ export function DashboardView() {
                         </div>
                       ))}
                       {Object.keys(data.kpis.today.platformBreakdown).length === 0 && (
-                        <div className="text-[10px] text-muted-foreground">No platform data yet</div>
+                        <div className="text-[12px] text-muted-foreground">No platform data yet</div>
                       )}
                     </div>
                   </div>
@@ -834,7 +880,7 @@ export function DashboardView() {
             title="Recent posts"
             desc="Click to edit & republish"
             action={
-              <button onClick={() => setView("composer")} className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline">
+              <button onClick={() => setView("composer")} className="flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline">
                 Composer <ArrowUpRight className="h-3 w-3" />
               </button>
             }
@@ -875,7 +921,7 @@ export function DashboardView() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[12px] font-semibold">{p.title}</div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted-foreground">
                         <NameAvatar name={p.authorName} color={p.authorColor ?? "blue"} className="h-3.5 w-3.5 text-[6px]" />
                         <span className="truncate">{p.authorName}</span>
                         <span>·</span>
@@ -887,33 +933,29 @@ export function DashboardView() {
                             <PlatformBadge key={i} platform={pl} size={12} />
                           ))}
                           {p.platforms.length > 4 && (
-                            <span className="ml-1 text-[9px] text-muted-foreground">+{p.platforms.length - 4}</span>
+                            <span className="ml-1 text-[11px] text-muted-foreground">+{p.platforms.length - 4}</span>
                           )}
                         </div>
                       )}
                     </div>
-                    <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-bold uppercase", status.bg, status.color)}>
+                    <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-bold uppercase", status.bg, status.color)}>
                       {status.label}
                     </span>
-                    <div className="hidden shrink-0 items-center gap-0.5 text-[10px] font-semibold text-primary opacity-0 transition group-hover:opacity-100 sm:flex">
+                    <div className="hidden shrink-0 items-center gap-0.5 text-[12px] font-semibold text-primary opacity-0 transition group-hover:opacity-100 sm:flex">
                       Edit <ChevronRight className="h-3 w-3" />
                     </div>
                   </button>
                 );
               })
             ) : (
-              <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
-                <div className="grid h-9 w-9 place-items-center rounded-xl bg-muted text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div className="text-[12px] font-semibold">No posts yet</div>
-                <button
-                  onClick={() => setView("composer")}
-                  className="rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
-                >
-                  Open composer
-                </button>
-              </div>
+              <EmptyState
+                icon={FileText}
+                title="No posts yet"
+                description="Create your first post with AI Composer"
+                actionLabel="Compose with AI"
+                onAction={() => setView("composer")}
+                className="py-6"
+              />
             )}
           </div>
         </GlassCard>
@@ -925,7 +967,7 @@ export function DashboardView() {
               title="Shared content"
               desc={data.publishedPosts.length > 0 ? `${data.publishedPosts.length} post${data.publishedPosts.length > 1 ? "s" : ""} live on social` : "No posts published yet"}
               action={
-                <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-500">
+                <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[12px] font-bold uppercase tracking-wide text-emerald-500">
                   <Send className="h-2.5 w-2.5" /> {data.publishedPosts.length}
                 </div>
               }
@@ -964,7 +1006,7 @@ export function DashboardView() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[12px] font-semibold">{p.title || "Untitled post"}</div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted-foreground">
                         <NameAvatar name={p.authorName} color={p.authorColor ?? "blue"} className="h-3.5 w-3.5 text-[6px]" />
                         <span className="truncate">{p.authorName}</span>
                         <span>·</span>
@@ -976,31 +1018,27 @@ export function DashboardView() {
                             <PlatformBadge key={i} platform={pl} size={12} />
                           ))}
                           {p.platforms.length > 4 && (
-                            <span className="ml-1 text-[9px] text-muted-foreground">+{p.platforms.length - 4}</span>
+                            <span className="ml-1 text-[11px] text-muted-foreground">+{p.platforms.length - 4}</span>
                           )}
                         </div>
                       )}
                     </div>
                     {p.engagement > 0 && (
-                      <div className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold text-primary">
+                      <div className="flex shrink-0 items-center gap-0.5 text-[12px] font-semibold text-primary">
                         <TrendingUp className="h-3 w-3" /> {fmt(p.engagement)}
                       </div>
                     )}
                   </button>
                 ))
               ) : (
-                <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-muted text-muted-foreground">
-                    <Send className="h-4 w-4" />
-                  </div>
-                  <div className="text-[12px] font-semibold">Nothing published yet</div>
-                  <button
-                    onClick={() => setView("composer")}
-                    className="rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
-                  >
-                    Open composer
-                  </button>
-                </div>
+                <EmptyState
+                  icon={Send}
+                  title="Nothing published yet"
+                  description="Posts you publish will appear here"
+                  actionLabel="Open composer"
+                  onAction={() => setView("composer")}
+                  className="py-6"
+                />
               )}
             </div>
           </GlassCard>
@@ -1010,7 +1048,7 @@ export function DashboardView() {
               title="Failed posts"
               desc={data.failedPosts.length > 0 ? `${data.failedPosts.length} need republishing` : "All publishes succeeded"}
               action={
-                <div className="flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-500">
+                <div className="flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[12px] font-bold uppercase tracking-wide text-rose-500">
                   <XCircle className="h-2.5 w-2.5" /> {data.failedPosts.length}
                 </div>
               }
@@ -1049,7 +1087,7 @@ export function DashboardView() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[12px] font-semibold">{p.title || "Untitled post"}</div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted-foreground">
                         <NameAvatar name={p.authorName} color={p.authorColor ?? "blue"} className="h-3.5 w-3.5 text-[6px]" />
                         <span className="truncate">{p.authorName}</span>
                         <span>·</span>
@@ -1061,12 +1099,12 @@ export function DashboardView() {
                             <PlatformBadge key={i} platform={pl} size={12} />
                           ))}
                           {p.platforms.length > 4 && (
-                            <span className="ml-1 text-[9px] text-muted-foreground">+{p.platforms.length - 4}</span>
+                            <span className="ml-1 text-[11px] text-muted-foreground">+{p.platforms.length - 4}</span>
                           )}
                         </div>
                       )}
                     </div>
-                    <div className="hidden shrink-0 items-center gap-0.5 text-[10px] font-semibold text-rose-500 opacity-0 transition group-hover:opacity-100 sm:flex">
+                    <div className="hidden shrink-0 items-center gap-0.5 text-[12px] font-semibold text-rose-500 opacity-0 transition group-hover:opacity-100 sm:flex">
                       Retry <ChevronRight className="h-3 w-3" />
                     </div>
                   </button>
@@ -1077,7 +1115,7 @@ export function DashboardView() {
                     <CheckCircle2 className="h-4 w-4" />
                   </div>
                   <div className="text-[12px] font-semibold">No failed posts</div>
-                  <div className="text-[11px] text-muted-foreground">All your publishes succeeded</div>
+                  <div className="text-[13px] text-muted-foreground">All your publishes succeeded</div>
                 </div>
               )}
             </div>
@@ -1093,7 +1131,7 @@ export function DashboardView() {
             title="Tasks"
             desc={data.taskSummary.total > 0 ? `${data.taskSummary.done}/${data.taskSummary.total} done · ${data.taskSummary.overdue} overdue` : "No tasks yet"}
             action={
-              <button onClick={() => setView("tasks")} className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline">
+              <button onClick={() => setView("tasks")} className="flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline">
                 All tasks <ArrowUpRight className="h-3 w-3" />
               </button>
             }
@@ -1110,7 +1148,7 @@ export function DashboardView() {
                 <div className="num-display text-sm font-bold" style={{ color: s.color }}>
                   {s.value}
                 </div>
-                <div className="label-caps mt-0.5 text-[8px] text-muted-foreground">{s.label}</div>
+                <div className="label-caps mt-0.5 text-[10px] text-muted-foreground">{s.label}</div>
               </div>
             ))}
           </div>
@@ -1127,7 +1165,7 @@ export function DashboardView() {
                   >
                     <span
                       className={cn(
-                        "grid h-4 w-4 shrink-0 place-items-center rounded-full text-[8px] font-bold text-white",
+                        "grid h-4 w-4 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white",
                         t.status === "done"
                           ? "bg-emerald-500"
                           : t.status === "blocked"
@@ -1145,7 +1183,7 @@ export function DashboardView() {
                         <Clock className="h-2.5 w-2.5" />
                       )}
                     </span>
-                    <span className={cn("min-w-0 flex-1 truncate text-[11px] font-medium", t.status === "done" && "line-through opacity-60")}>
+                    <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", t.status === "done" && "line-through opacity-60")}>
                       {t.title}
                     </span>
                     {isOverdue && (
@@ -1164,7 +1202,7 @@ export function DashboardView() {
             title="Content workflow"
             desc="Posts → Drafts → Scheduled → Published → Shared"
             action={
-              <button onClick={() => setView("calendar")} className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline">
+              <button onClick={() => setView("calendar")} className="flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline">
                 Calendar <ArrowUpRight className="h-3 w-3" />
               </button>
             }
@@ -1267,7 +1305,7 @@ function ContentWorkflow({
       {/* Sample posts per stage — show up to 4 recent posts with thumbnails */}
       {allPosts.length > 0 && (
         <div className="space-y-1.5">
-          <div className="label-caps text-[9px] text-muted-foreground">Recent posts</div>
+          <div className="label-caps text-[11px] text-muted-foreground">Recent posts</div>
           {allPosts.slice(0, 4).map((post: any) => {
             const statusMeta: Record<string, { label: string; color: string }> = {
               draft: { label: "Draft", color: "#AF52DE" },
@@ -1298,14 +1336,14 @@ function ContentWorkflow({
                 </div>
                 {/* Title + author */}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[11px] font-semibold">{post.title}</div>
-                  <div className="truncate text-[9px] text-muted-foreground">
+                  <div className="truncate text-[13px] font-semibold">{post.title}</div>
+                  <div className="truncate text-[11px] text-muted-foreground">
                     {post.authorName} · {status.label}
                   </div>
                 </div>
                 {/* Status badge */}
                 <span
-                  className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold"
+                  className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
                   style={{ background: `${status.color}14`, color: status.color }}
                 >
                   {status.label}
@@ -1319,7 +1357,7 @@ function ContentWorkflow({
       {/* Published + shared breakdown — shows which platforms each post was shared to */}
       {publishedPosts.length > 0 && (
         <div className="space-y-1.5">
-          <div className="label-caps text-[9px] text-muted-foreground">Published + shared across platforms</div>
+          <div className="label-caps text-[11px] text-muted-foreground">Published + shared across platforms</div>
           {publishedPosts.slice(0, 3).map((post: any) => (
             <div
               key={post.id}
@@ -1335,17 +1373,17 @@ function ContentWorkflow({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[11px] font-semibold">{post.title}</div>
+                <div className="truncate text-[13px] font-semibold">{post.title}</div>
                 <div className="mt-0.5 flex items-center gap-1">
                   {(post.platforms ?? []).map((p: any, i: number) => (
                     <PlatformBadge key={i} platform={p} size={16} />
                   ))}
                   {(post.platforms?.length ?? 0) === 0 && (
-                    <span className="text-[9px] text-muted-foreground">No platforms</span>
+                    <span className="text-[11px] text-muted-foreground">No platforms</span>
                   )}
                 </div>
               </div>
-              <span className="shrink-0 text-[9px] font-bold text-emerald-600">
+              <span className="shrink-0 text-[11px] font-bold text-emerald-600">
                 {post.platforms?.length ?? 0} shares
               </span>
             </div>
@@ -1354,7 +1392,7 @@ function ContentWorkflow({
       )}
 
       {/* Total summary */}
-      <div className="flex items-center justify-between rounded-lg bg-muted/30 px-2.5 py-1.5 text-[11px]">
+      <div className="flex items-center justify-between rounded-lg bg-muted/30 px-2.5 py-1.5 text-[13px]">
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Layers className="h-3 w-3" /> Total content
         </div>

@@ -105,13 +105,13 @@ export function MetricRow({ metrics, className }: { metrics: Metric[]; className
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-1.5">
-              <span className="num-display text-base font-bold leading-none tabular-nums sm:text-lg">
+              <span className="num-display text-lg font-bold leading-none tabular-nums sm:text-xl">
                 {typeof m.value === "number" ? m.value.toLocaleString() : m.value}
               </span>
               {m.delta !== undefined && m.delta !== 0 && (
                 <span
                   className={cn(
-                    "text-[10px] font-semibold tabular-nums",
+                    "text-[12px] font-semibold tabular-nums",
                     m.delta >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                   )}
                 >
@@ -119,7 +119,7 @@ export function MetricRow({ metrics, className }: { metrics: Metric[]; className
                 </span>
               )}
             </div>
-            <div className="label-caps mt-1 truncate text-[9px] text-muted-foreground sm:text-[10px]">{m.label}</div>
+            <div className="label-caps mt-1 truncate text-[11px] text-muted-foreground sm:text-[12px]">{m.label}</div>
           </div>
           {m.spark && m.spark.length > 1 && (
             <Sparkline data={m.spark} color={m.color ?? "var(--primary)"} width={36} height={18} />
@@ -284,7 +284,7 @@ export function DeltaBadge({ delta, className }: { delta?: number; className?: s
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[12px] font-semibold tabular-nums",
         up ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/10 text-rose-600 dark:text-rose-400",
         className
       )}
@@ -317,7 +317,7 @@ export function Pill({
     violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
   };
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold", colors[color], className)}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold", colors[color], className)}>
       {children}
     </span>
   );
@@ -361,10 +361,10 @@ export function NavCard({
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-xs font-bold">{title}</div>
-        {desc && <div className="truncate text-[10px] text-muted-foreground">{desc}</div>}
+        {desc && <div className="truncate text-[12px] text-muted-foreground">{desc}</div>}
       </div>
       {count !== undefined && (
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[12px] font-bold tabular-nums text-muted-foreground">
           {count}
         </span>
       )}

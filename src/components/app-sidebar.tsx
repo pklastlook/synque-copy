@@ -44,6 +44,8 @@ import {
   Star,
   Shield,
   BookOpen,
+  Database,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNav } from "@/lib/store";
@@ -940,19 +942,34 @@ function SettingsGroup({
 // Owner Group — expandable with sub-items (owner-only)
 // ============================================================================
 
+// Owner Panel sub-items — grouped visually into 3 categories.
+// Order matches OWNER_SECTIONS in views/owner.tsx so the sidebar and the
+// mobile dropdown stay in sync. A small label is inserted at the start of
+// each new group inside the rendering loop (look for `prev?.category`).
 const OWNER_SUBITEMS = [
-  { id: "customers", label: "Customers", icon: Users, accent: "oklch(0.55 0.2 255)" },
-  { id: "users", label: "Users", icon: CircleUserRound, accent: "oklch(0.62 0.22 300)" },
-  { id: "overview", label: "Overview", icon: Briefcase, accent: "oklch(0.72 0.18 75)" },
-  { id: "subscriptions", label: "Subscriptions", icon: CreditCard, accent: "oklch(0.68 0.22 145)" },
-  { id: "invoices", label: "Invoices", icon: FileText, accent: "oklch(0.72 0.18 75)" },
-  { id: "quotations", label: "Quotations", icon: FileSignature, accent: "oklch(0.7 0.2 25)" },
-  { id: "devices", label: "Devices", icon: Smartphone, accent: "oklch(0.62 0.22 300)" },
-  { id: "apikeys", label: "API Keys", icon: Lock, accent: "oklch(0.72 0.18 75)" },
-  { id: "bank", label: "Bank Accounts", icon: Landmark, accent: "oklch(0.68 0.22 145)" },
-  { id: "finance", label: "Finance", icon: DollarSign, accent: "oklch(0.55 0.2 255)" },
-  { id: "reports", label: "Reports", icon: BarChart3, accent: "oklch(0.7 0.2 25)" },
+  // ---- Dashboard group ----
+  { id: "overview",       label: "Overview",        icon: Briefcase,       accent: "oklch(0.72 0.18 75)",  category: "dashboard" },
+  { id: "reports",        label: "Reports",           icon: BarChart3,       accent: "oklch(0.7 0.2 25)",    category: "dashboard" },
+  { id: "finance",        label: "Finance",           icon: DollarSign,      accent: "oklch(0.55 0.2 255)",  category: "dashboard" },
+  // ---- Clients group ----
+  { id: "customers",      label: "Clients",           icon: Users,           accent: "oklch(0.55 0.2 255)",  category: "clients" },
+  { id: "subscriptions",  label: "Subscriptions",    icon: CreditCard,      accent: "oklch(0.68 0.22 145)", category: "clients" },
+  { id: "invoices",       label: "Invoices",           icon: FileText,        accent: "oklch(0.72 0.18 75)",  category: "clients" },
+  { id: "quotations",     label: "Quotations",         icon: FileSignature,   accent: "oklch(0.7 0.2 25)",    category: "clients" },
+  { id: "users",          label: "Client Users",      icon: CircleUserRound, accent: "oklch(0.62 0.22 300)", category: "clients" },
+  // ---- System group ----
+  { id: "databases",      label: "Databases",         icon: Database,        accent: "oklch(0.62 0.22 300)", category: "system" },
+  { id: "devices",        label: "Devices",            icon: Smartphone,      accent: "oklch(0.62 0.22 300)", category: "system" },
+  { id: "apikeys",        label: "API Keys",            icon: Lock,            accent: "oklch(0.72 0.18 75)",  category: "system" },
+  { id: "bank",           label: "Bank Accounts",       icon: Landmark,        accent: "oklch(0.68 0.22 145)", category: "system" },
+  { id: "activity",       label: "Activity Log",       icon: Activity,        accent: "oklch(0.7 0.2 25)",    category: "system" },
 ] as const;
+
+const OWNER_GROUP_LABELS: Record<string, { label: string; accent: string }> = {
+  dashboard: { label: "Dashboard", accent: "oklch(0.72 0.18 75)" },
+  clients:   { label: "Clients",   accent: "oklch(0.55 0.2 255)" },
+  system:    { label: "System",    accent: "oklch(0.62 0.22 300)" },
+};
 
 function OwnerGroup({
   active,
@@ -1009,42 +1026,58 @@ function OwnerGroup({
 
       <div
         className="crystal-in overflow-hidden transition-all duration-300"
-        style={{ maxHeight: expanded ? "640px" : "0px", opacity: expanded ? 1 : 0 }}
+        style={{ maxHeight: expanded ? "820px" : "0px", opacity: expanded ? 1 : 0 }}
       >
         <div className="space-y-0.5 pl-3 pt-1">
-          {OWNER_SUBITEMS.map((item) => {
+          {OWNER_SUBITEMS.map((item, idx) => {
             const Icon = item.icon;
             const isActive = active && currentTab === item.id;
+            const prev = OWNER_SUBITEMS[idx - 1];
+            const showGroupHeader = !prev || (prev as { category: string }).category !== item.category;
+            const meta = OWNER_GROUP_LABELS[item.category];
             return (
-              <ListRow
-                key={item.id}
-                onClick={() => { setTab(item.id); onNavigate?.(); }}
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "group relative w-full rounded-lg border-b-0 border-l-0 px-3 py-1.5 gap-2.5 text-xs font-medium transition-all",
-                  isActive
-                    ? "font-semibold text-primary hover:bg-transparent"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              <React.Fragment key={item.id}>
+                {showGroupHeader && meta && (
+                  <div
+                    className="flex items-center gap-1.5 px-2 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70"
+                    aria-hidden
+                  >
+                    <span
+                      className="h-1 w-1 rounded-full"
+                      style={{ background: meta.accent }}
+                    />
+                    {meta.label}
+                  </div>
                 )}
-              >
-                {isActive && (
-                  <span
-                    className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full"
-                    style={{ background: item.accent }}
+                <ListRow
+                  onClick={() => { setTab(item.id); onNavigate?.(); }}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "group relative w-full rounded-lg border-b-0 border-l-0 px-3 py-1.5 gap-2.5 text-xs font-medium transition-all",
+                    isActive
+                      ? "font-semibold text-primary hover:bg-transparent"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  )}
+                >
+                  {isActive && (
+                    <span
+                      className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full"
+                      style={{ background: item.accent }}
+                    />
+                  )}
+                  {isActive && (
+                    <span
+                      className="absolute inset-0 rounded-lg"
+                      style={{ background: item.accent, opacity: 0.10 }}
+                    />
+                  )}
+                  <Icon
+                    className="relative h-3.5 w-3.5 shrink-0 transition-transform group-hover:scale-110"
+                    style={{ color: item.accent }}
                   />
-                )}
-                {isActive && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{ background: item.accent, opacity: 0.10 }}
-                  />
-                )}
-                <Icon
-                  className="relative h-3.5 w-3.5 shrink-0 transition-transform group-hover:scale-110"
-                  style={{ color: item.accent }}
-                />
-                <span className="relative flex-1 min-w-0 truncate">{item.label}</span>
-              </ListRow>
+                  <span className="relative flex-1 min-w-0 truncate">{item.label}</span>
+                </ListRow>
+              </React.Fragment>
             );
           })}
         </div>

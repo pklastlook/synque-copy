@@ -13759,3 +13759,110 @@ batch invoice generation, payment history, and audit logging.
 
 `bun run lint` exits 0 with only pre-existing warnings in unrelated
 files. Dev server was NOT started per task rules.
+
+---
+Task ID: UX-IMPROVE
+Agent: subagent
+Task: 5 UX improvements — grouped tabs, font sizes, empty states, onboarding, step wizard
+
+Work Log:
+1. **Grouped Owner Panel tabs** — Reordered `OWNER_SECTIONS` in
+   `src/components/views/owner.tsx` (and `OWNER_SUBITEMS` in
+   `src/components/app-sidebar.tsx`) into 3 visual groups: Dashboard
+   (Overview, Reports, Finance), Clients (Clients, Subscriptions,
+   Invoices, Quotations, Client Users), System (Databases, Devices, API
+   Keys, Bank Accounts, Activity Log). Added `category` field to each
+   section and `OWNER_CATEGORY_META` / `OWNER_GROUP_LABELS` constants.
+   Mobile dropdown now renders non-clickable group headers between
+   sections. Sidebar Owner group renders a small uppercase label +
+   accent dot at the start of each group; maxHeight bumped 640→820px so
+   all 13 items + 3 headers fit. Added `Database` + `Activity` to the
+   sidebar's lucide-react import block.
+
+2. **Increased font sizes**:
+   - `src/app/globals.css` — base `body` font-size 13px; `.label-caps`
+     0.625rem → 0.6875rem (11px); documented KPI minimum of 18px on
+     `.num-display`.
+   - `src/components/glass/dense-ui.tsx` — `MetricRow` value
+     `text-base → text-lg` (and `sm:text-lg → sm:text-xl`); delta
+     `text-[10px] → text-[12px]`; label `text-[9px] → text-[11px]`,
+     `sm:text-[10px] → sm:text-[12px]`. DeltaBadge / Pill / NavCard
+     labels also bumped `text-[10px] → text-[12px]`.
+   - `src/components/views/owner.tsx` — bulk-replaced all
+     `text-[8/9/10/11px]` patterns one step up (final counts: 17×
+     text-[11px], 120× text-[12px], 90× text-[13px]).
+   - `src/components/views/dashboard.tsx` — same bulk replace (4×
+     text-[8px] → text-[10px], 20× text-[9px] → text-[11px], 17×
+     text-[10px] → text-[12px], 23× text-[11px] → text-[13px]).
+
+3. **EmptyState component** — New file
+   `src/components/glass/empty-state.tsx` exporting a reusable
+   `<EmptyState icon title description? actionLabel? onAction? />` with
+   accessible `role="status"`. Replaced 7 bespoke empty blocks in
+   `owner.tsx` (Clients, Invoices, Quotations, Devices, Subscriptions,
+   API Keys, Bank Accounts) and 2 in `dashboard.tsx` (No posts yet,
+   Nothing published yet) — all now have a consistent icon tile +
+   title + description + primary CTA button.
+
+4. **OnboardingChecklist** — New file
+   `src/components/glass/onboarding-checklist.tsx` exporting a
+   dismissible `<OnboardingChecklist steps onNavigate />`. Renders a
+   glass card at the top of the dashboard with a 0/4 progress bar and 4
+   clickable step rows (Connect a social account, Create your first
+   post, Invite a team member, Set up billing). Each step's `done` flag
+   is derived in `DashboardView` from `data.kpis.accounts > 0`,
+   `data.kpis.postsCreated.value > 0`, `data.topContributors.length > 1`,
+   and a `useApi("/api/subscriptions")` probe. Clicking an incomplete
+   step navigates to the corresponding view (`accounts`, `composer`,
+   `team`, `owner`). Dismiss persists to `localStorage` under
+   `socialflow-onboarding-dismissed-v1`; SSR-safe hydration gate
+   prevents first-paint mismatch. Auto-hides when all 4 are complete.
+
+5. **3-step Subscription wizard** — Refactored
+   `SubscriptionsTab.renderFormFields` (a single 13-field form) into
+   `renderStep1` (Plan: client, plan, custom amount, billing cycle,
+   currency), `renderStep2` (Pricing: discount, tax, live totals,
+   notes), `renderStep3` (Access: module access, status, dates, final
+   submit). Added `StepIndicator` inline component (1 ● 2 ● 3 with
+   current step highlighted in primary, completed in emerald). Added
+   `step` state + `setStep` resets in `openCreate`/`openEdit`. Both
+   create + edit dialogs now render `StepIndicator` above the form and
+   Next/Back/Create-or-Save buttons in the footer; on step 3 the
+   primary button becomes "Create subscription" / "Save changes". The
+   full submit logic (auto-invoice on create, trial→active invoice
+   auto-generation) is unchanged.
+
+Verification:
+- `cd /home/z/my-project && bun run lint` → **0 errors, 7 warnings**
+  (all pre-existing `@next/next/no-location-assign-relative-destination`
+  warnings in unrelated files: `landing-page.tsx` ×3,
+  `landing-shared.tsx` ×1, `accounts.tsx` ×2, `settings.tsx` ×1 — none
+  in the 5 files this task touched). Exit code 0.
+- `bunx tsc --noEmit` shows 2 pre-existing errors in unrelated files
+  (`src/app/api/oauth/callback/[platform]/route.ts`,
+  `src/lib/sync-platforms.ts`) — none in any file touched by this task.
+- Dev server NOT started (per task rules). No Prisma schema changes —
+  `prisma db push` not needed.
+
+Stage Summary:
+All 5 UX improvements landed cleanly without regressing existing
+functionality. The Owner Panel now visually groups its 13 sections
+into Dashboard / Clients / System clusters (in both the sidebar and
+the mobile dropdown). Body text is 13px minimum everywhere, KPI
+numbers are 18px+ with denser labels at 11px+. 9 bespoke empty-state
+blocks across owner + dashboard are now consistent EmptyState
+components with icon tiles + actionable CTAs. The dashboard greets new
+users with a dismissible 4-step onboarding checklist (persisted in
+localStorage, auto-hides when complete). The SubscriptionsTab
+create/edit dialog is now a 3-step Plan → Pricing → Access wizard
+with a step indicator and contextual Next/Back/Save buttons. Lint
+exits 0 with only pre-existing warnings in unrelated files.
+
+Files touched: 5 modified + 2 created = 7 total.
+- `src/app/globals.css` (modified)
+- `src/components/glass/dense-ui.tsx` (modified)
+- `src/components/views/owner.tsx` (modified)
+- `src/components/views/dashboard.tsx` (modified)
+- `src/components/app-sidebar.tsx` (modified)
+- `src/components/glass/empty-state.tsx` (created)
+- `src/components/glass/onboarding-checklist.tsx` (created)
