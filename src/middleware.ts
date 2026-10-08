@@ -40,6 +40,15 @@ const PUBLIC_ROUTES = [
   "/api/auth/demo",
   "/api/oauth/callback",
   "/api/whatsapp/webhook",
+  // Vercel Cron Job — automated scheduled publishing (P1-CRON).
+  // Authenticated via a CRON_SECRET bearer token (server-to-server), NOT JWT.
+  // The route handler verifies the secret itself; here we just bypass the JWT
+  // check so Vercel's scheduler can hit it without a user session.
+  "/api/cron/publish-scheduled",
+  // Stripe webhook — invoked by Stripe (no JWT). Auth is enforced by the
+  // Stripe webhook signature (STRIPE_WEBHOOK_SECRET) inside the handler
+  // (src/app/api/stripe/webhook/route.ts).
+  "/api/stripe/webhook",
   // WebAuthn authenticate routes are public (login without password)
   "/api/webauthn/authenticate",
   "/api/webauthn/authenticate/options",

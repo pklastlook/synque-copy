@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 import { computeBillingTotals } from "@/lib/billing";
 import { audit } from "@/lib/audit";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -233,6 +234,40 @@ export async function POST(req: NextRequest) {
       updatedSubscription,
     },
   });
+
+  // ===== Notify the tenant's users — "Payment of ${amount} received" =====
+  // Fires only for completed payments; pending/failed/refunded payments
+  // do not notify. Best-effort — failures never break the request.
+  if (status === "completed") {
+    try {
+      const tenantUsers = await db.user.findMany({
+        where: { customerId },
+        select: { id: true },
+      });
+      const formattedAmount = amount.toLocaleString(undefined, {
+        style: "currency",
+        currency,
+      });
+      await Promise.all(
+        tenantUsers.map((u) =>
+          createNotification({
+            userId: u.id,
+            type: "payment_received",
+            title: "Payment received",
+            message: `Payment of ${formattedAmount} received`,
+            actionView: "owner",
+            actionId: payment.id,
+            sendEmail: true,
+          })
+        )
+      );
+    } catch (e) {
+      console.error(
+        "[api/payments POST] notification failed:",
+        e instanceof Error ? e.message : String(e)
+      );
+    }
+  }
 
   return NextResponse.json({
     ok: true,

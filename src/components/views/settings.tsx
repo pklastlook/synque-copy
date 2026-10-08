@@ -2150,6 +2150,20 @@ function NotificationsSection() {
   const [system, setSystem] = React.useState<Record<string, boolean>>(stored.system ?? {
     accountWarning: true, mailQuota: true, security: true,
   });
+
+  // ===== Event alerts — these toggles mirror the in-app notification types
+  // created by the createNotification() server helper. Stored locally
+  // (no DB) per the task spec; the bell component can read these to filter
+  // which notification types surface in the dropdown. Defaults to all-on. =====
+  const [events, setEvents] = React.useState<Record<string, boolean>>(stored.events ?? {
+    comment_received: true,   // New comments
+    trial_expiring: true,     // Trial expiring
+    payment_received: true,   // Payment received
+    post_published: true,     // Post published
+    post_failed: true,        // Post failed
+    team_invite: true,        // Team invites
+  });
+
   const [quietStart, setQuietStart] = React.useState(stored.quietStart ?? "22:00");
   const [quietEnd, setQuietEnd] = React.useState(stored.quietEnd ?? "07:00");
   const [digest, setDigest] = React.useState(stored.digest ?? "instant");
@@ -2162,7 +2176,7 @@ function NotificationsSection() {
   };
 
   const save = () => {
-    const prefs = { engagement, workflow, reports, system, quietStart, quietEnd, digest };
+    const prefs = { engagement, workflow, reports, system, events, quietStart, quietEnd, digest };
     localStorage.setItem("socialflow-notif-prefs", JSON.stringify(prefs));
     toast.success("Notification preferences saved");
   };
@@ -2180,6 +2194,18 @@ function NotificationsSection() {
       />
 
       <div className="grid gap-5 lg:grid-cols-2">
+        {/* Event alerts — the 6 notification types from the createNotification() helper.
+            These are the canonical in-app notification types. Defaults to all-on
+            so the user sees every bell alert until they explicitly opt out. */}
+        <NotificationGroup title="Event alerts" desc="In-app notification types">
+          <ToggleRow label="New comments" desc="A reply is sent or a comment is received." checked={events.comment_received} onChange={flip(setEvents, "comment_received")} />
+          <ToggleRow label="Trial expiring" desc="Trial is ending soon — upgrade to keep access." checked={events.trial_expiring} onChange={flip(setEvents, "trial_expiring")} />
+          <ToggleRow label="Payment received" desc="A client payment is recorded successfully." checked={events.payment_received} onChange={flip(setEvents, "payment_received")} />
+          <ToggleRow label="Post published" desc="A post goes live on a connected platform." checked={events.post_published} onChange={flip(setEvents, "post_published")} />
+          <ToggleRow label="Post failed" desc="A publish attempt fails or is rejected." checked={events.post_failed} onChange={flip(setEvents, "post_failed")} />
+          <ToggleRow label="Team invites" desc="A teammate invites you to a workspace." checked={events.team_invite} onChange={flip(setEvents, "team_invite")} />
+        </NotificationGroup>
+
         <NotificationGroup title="Engagement" desc="Audience interactions">
           <ToggleRow label="New comment" desc="Someone comments on your post." checked={engagement.newComment} onChange={flip(setEngagement, "newComment")} />
           <ToggleRow label="Mentions" desc="You're tagged in a comment or post." checked={engagement.mention} onChange={flip(setEngagement, "mention")} />

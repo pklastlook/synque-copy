@@ -103,7 +103,8 @@ export const ModelName = {
   VPNSession: 'VPNSession',
   WebAuthnCredential: 'WebAuthnCredential',
   WebauthnChallenge: 'WebauthnChallenge',
-  AuditLog: 'AuditLog'
+  AuditLog: 'AuditLog',
+  Notification: 'Notification'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -246,7 +247,9 @@ export const PostVariantScalarFieldEnum = {
   reach: 'reach',
   impressions: 'impressions',
   saves: 'saves',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  retryCount: 'retryCount',
+  lastError: 'lastError'
 } as const
 
 export type PostVariantScalarFieldEnum = (typeof PostVariantScalarFieldEnum)[keyof typeof PostVariantScalarFieldEnum]
@@ -759,6 +762,8 @@ export const PaymentScalarFieldEnum = {
   status: 'status',
   transactionId: 'transactionId',
   bankAccountId: 'bankAccountId',
+  stripePaymentIntentId: 'stripePaymentIntentId',
+  stripeSessionId: 'stripeSessionId',
   createdAt: 'createdAt'
 } as const
 
@@ -1043,6 +1048,21 @@ export const AuditLogScalarFieldEnum = {
 } as const
 
 export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
+
+
+export const NotificationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  title: 'title',
+  message: 'message',
+  read: 'read',
+  actionView: 'actionView',
+  actionId: 'actionId',
+  createdAt: 'createdAt'
+} as const
+
+export type NotificationScalarFieldEnum = (typeof NotificationScalarFieldEnum)[keyof typeof NotificationScalarFieldEnum]
 
 
 export const SortOrder = {

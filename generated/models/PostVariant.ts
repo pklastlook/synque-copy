@@ -33,6 +33,7 @@ export type PostVariantAvgAggregateOutputType = {
   reach: number | null
   impressions: number | null
   saves: number | null
+  retryCount: number | null
 }
 
 export type PostVariantSumAggregateOutputType = {
@@ -42,6 +43,7 @@ export type PostVariantSumAggregateOutputType = {
   reach: number | null
   impressions: number | null
   saves: number | null
+  retryCount: number | null
 }
 
 export type PostVariantMinAggregateOutputType = {
@@ -59,6 +61,8 @@ export type PostVariantMinAggregateOutputType = {
   impressions: number | null
   saves: number | null
   createdAt: Date | null
+  retryCount: number | null
+  lastError: string | null
 }
 
 export type PostVariantMaxAggregateOutputType = {
@@ -76,6 +80,8 @@ export type PostVariantMaxAggregateOutputType = {
   impressions: number | null
   saves: number | null
   createdAt: Date | null
+  retryCount: number | null
+  lastError: string | null
 }
 
 export type PostVariantCountAggregateOutputType = {
@@ -93,6 +99,8 @@ export type PostVariantCountAggregateOutputType = {
   impressions: number
   saves: number
   createdAt: number
+  retryCount: number
+  lastError: number
   _all: number
 }
 
@@ -104,6 +112,7 @@ export type PostVariantAvgAggregateInputType = {
   reach?: true
   impressions?: true
   saves?: true
+  retryCount?: true
 }
 
 export type PostVariantSumAggregateInputType = {
@@ -113,6 +122,7 @@ export type PostVariantSumAggregateInputType = {
   reach?: true
   impressions?: true
   saves?: true
+  retryCount?: true
 }
 
 export type PostVariantMinAggregateInputType = {
@@ -130,6 +140,8 @@ export type PostVariantMinAggregateInputType = {
   impressions?: true
   saves?: true
   createdAt?: true
+  retryCount?: true
+  lastError?: true
 }
 
 export type PostVariantMaxAggregateInputType = {
@@ -147,6 +159,8 @@ export type PostVariantMaxAggregateInputType = {
   impressions?: true
   saves?: true
   createdAt?: true
+  retryCount?: true
+  lastError?: true
 }
 
 export type PostVariantCountAggregateInputType = {
@@ -164,6 +178,8 @@ export type PostVariantCountAggregateInputType = {
   impressions?: true
   saves?: true
   createdAt?: true
+  retryCount?: true
+  lastError?: true
   _all?: true
 }
 
@@ -268,6 +284,8 @@ export type PostVariantGroupByOutputType = {
   impressions: number
   saves: number
   createdAt: Date
+  retryCount: number
+  lastError: string | null
   _count: PostVariantCountAggregateOutputType | null
   _avg: PostVariantAvgAggregateOutputType | null
   _sum: PostVariantSumAggregateOutputType | null
@@ -308,6 +326,8 @@ export type PostVariantWhereInput = {
   impressions?: Prisma.IntFilter<"PostVariant"> | number
   saves?: Prisma.IntFilter<"PostVariant"> | number
   createdAt?: Prisma.DateTimeFilter<"PostVariant"> | Date | string
+  retryCount?: Prisma.IntFilter<"PostVariant"> | number
+  lastError?: Prisma.StringNullableFilter<"PostVariant"> | string | null
   post?: Prisma.XOR<Prisma.PostScalarRelationFilter, Prisma.PostWhereInput>
   account?: Prisma.XOR<Prisma.AccountScalarRelationFilter, Prisma.AccountWhereInput>
 }
@@ -327,6 +347,8 @@ export type PostVariantOrderByWithRelationInput = {
   impressions?: Prisma.SortOrder
   saves?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  retryCount?: Prisma.SortOrder
+  lastError?: Prisma.SortOrderInput | Prisma.SortOrder
   post?: Prisma.PostOrderByWithRelationInput
   account?: Prisma.AccountOrderByWithRelationInput
 }
@@ -349,6 +371,8 @@ export type PostVariantWhereUniqueInput = Prisma.AtLeast<{
   impressions?: Prisma.IntFilter<"PostVariant"> | number
   saves?: Prisma.IntFilter<"PostVariant"> | number
   createdAt?: Prisma.DateTimeFilter<"PostVariant"> | Date | string
+  retryCount?: Prisma.IntFilter<"PostVariant"> | number
+  lastError?: Prisma.StringNullableFilter<"PostVariant"> | string | null
   post?: Prisma.XOR<Prisma.PostScalarRelationFilter, Prisma.PostWhereInput>
   account?: Prisma.XOR<Prisma.AccountScalarRelationFilter, Prisma.AccountWhereInput>
 }, "id">
@@ -368,6 +392,8 @@ export type PostVariantOrderByWithAggregationInput = {
   impressions?: Prisma.SortOrder
   saves?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  retryCount?: Prisma.SortOrder
+  lastError?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.PostVariantCountOrderByAggregateInput
   _avg?: Prisma.PostVariantAvgOrderByAggregateInput
   _max?: Prisma.PostVariantMaxOrderByAggregateInput
@@ -393,6 +419,8 @@ export type PostVariantScalarWhereWithAggregatesInput = {
   impressions?: Prisma.IntWithAggregatesFilter<"PostVariant"> | number
   saves?: Prisma.IntWithAggregatesFilter<"PostVariant"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"PostVariant"> | Date | string
+  retryCount?: Prisma.IntWithAggregatesFilter<"PostVariant"> | number
+  lastError?: Prisma.StringNullableWithAggregatesFilter<"PostVariant"> | string | null
 }
 
 export type PostVariantCreateInput = {
@@ -408,6 +436,8 @@ export type PostVariantCreateInput = {
   impressions?: number
   saves?: number
   createdAt?: Date | string
+  retryCount?: number
+  lastError?: string | null
   post: Prisma.PostCreateNestedOneWithoutVariantsInput
   account: Prisma.AccountCreateNestedOneWithoutVariantsInput
 }
@@ -427,6 +457,8 @@ export type PostVariantUncheckedCreateInput = {
   impressions?: number
   saves?: number
   createdAt?: Date | string
+  retryCount?: number
+  lastError?: string | null
 }
 
 export type PostVariantUpdateInput = {
@@ -442,6 +474,8 @@ export type PostVariantUpdateInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   post?: Prisma.PostUpdateOneRequiredWithoutVariantsNestedInput
   account?: Prisma.AccountUpdateOneRequiredWithoutVariantsNestedInput
 }
@@ -461,6 +495,8 @@ export type PostVariantUncheckedUpdateInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantCreateManyInput = {
@@ -478,6 +514,8 @@ export type PostVariantCreateManyInput = {
   impressions?: number
   saves?: number
   createdAt?: Date | string
+  retryCount?: number
+  lastError?: string | null
 }
 
 export type PostVariantUpdateManyMutationInput = {
@@ -493,6 +531,8 @@ export type PostVariantUpdateManyMutationInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantUncheckedUpdateManyInput = {
@@ -510,6 +550,8 @@ export type PostVariantUncheckedUpdateManyInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantListRelationFilter = {
@@ -537,6 +579,8 @@ export type PostVariantCountOrderByAggregateInput = {
   impressions?: Prisma.SortOrder
   saves?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  retryCount?: Prisma.SortOrder
+  lastError?: Prisma.SortOrder
 }
 
 export type PostVariantAvgOrderByAggregateInput = {
@@ -546,6 +590,7 @@ export type PostVariantAvgOrderByAggregateInput = {
   reach?: Prisma.SortOrder
   impressions?: Prisma.SortOrder
   saves?: Prisma.SortOrder
+  retryCount?: Prisma.SortOrder
 }
 
 export type PostVariantMaxOrderByAggregateInput = {
@@ -563,6 +608,8 @@ export type PostVariantMaxOrderByAggregateInput = {
   impressions?: Prisma.SortOrder
   saves?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  retryCount?: Prisma.SortOrder
+  lastError?: Prisma.SortOrder
 }
 
 export type PostVariantMinOrderByAggregateInput = {
@@ -580,6 +627,8 @@ export type PostVariantMinOrderByAggregateInput = {
   impressions?: Prisma.SortOrder
   saves?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  retryCount?: Prisma.SortOrder
+  lastError?: Prisma.SortOrder
 }
 
 export type PostVariantSumOrderByAggregateInput = {
@@ -589,6 +638,7 @@ export type PostVariantSumOrderByAggregateInput = {
   reach?: Prisma.SortOrder
   impressions?: Prisma.SortOrder
   saves?: Prisma.SortOrder
+  retryCount?: Prisma.SortOrder
 }
 
 export type PostVariantCreateNestedManyWithoutAccountInput = {
@@ -688,6 +738,8 @@ export type PostVariantCreateWithoutAccountInput = {
   impressions?: number
   saves?: number
   createdAt?: Date | string
+  retryCount?: number
+  lastError?: string | null
   post: Prisma.PostCreateNestedOneWithoutVariantsInput
 }
 
@@ -705,6 +757,8 @@ export type PostVariantUncheckedCreateWithoutAccountInput = {
   impressions?: number
   saves?: number
   createdAt?: Date | string
+  retryCount?: number
+  lastError?: string | null
 }
 
 export type PostVariantCreateOrConnectWithoutAccountInput = {
@@ -751,6 +805,8 @@ export type PostVariantScalarWhereInput = {
   impressions?: Prisma.IntFilter<"PostVariant"> | number
   saves?: Prisma.IntFilter<"PostVariant"> | number
   createdAt?: Prisma.DateTimeFilter<"PostVariant"> | Date | string
+  retryCount?: Prisma.IntFilter<"PostVariant"> | number
+  lastError?: Prisma.StringNullableFilter<"PostVariant"> | string | null
 }
 
 export type PostVariantCreateWithoutPostInput = {
@@ -766,6 +822,8 @@ export type PostVariantCreateWithoutPostInput = {
   impressions?: number
   saves?: number
   createdAt?: Date | string
+  retryCount?: number
+  lastError?: string | null
   account: Prisma.AccountCreateNestedOneWithoutVariantsInput
 }
 
@@ -783,6 +841,8 @@ export type PostVariantUncheckedCreateWithoutPostInput = {
   impressions?: number
   saves?: number
   createdAt?: Date | string
+  retryCount?: number
+  lastError?: string | null
 }
 
 export type PostVariantCreateOrConnectWithoutPostInput = {
@@ -825,6 +885,8 @@ export type PostVariantCreateManyAccountInput = {
   impressions?: number
   saves?: number
   createdAt?: Date | string
+  retryCount?: number
+  lastError?: string | null
 }
 
 export type PostVariantUpdateWithoutAccountInput = {
@@ -840,6 +902,8 @@ export type PostVariantUpdateWithoutAccountInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   post?: Prisma.PostUpdateOneRequiredWithoutVariantsNestedInput
 }
 
@@ -857,6 +921,8 @@ export type PostVariantUncheckedUpdateWithoutAccountInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantUncheckedUpdateManyWithoutAccountInput = {
@@ -873,6 +939,8 @@ export type PostVariantUncheckedUpdateManyWithoutAccountInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantCreateManyPostInput = {
@@ -889,6 +957,8 @@ export type PostVariantCreateManyPostInput = {
   impressions?: number
   saves?: number
   createdAt?: Date | string
+  retryCount?: number
+  lastError?: string | null
 }
 
 export type PostVariantUpdateWithoutPostInput = {
@@ -904,6 +974,8 @@ export type PostVariantUpdateWithoutPostInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   account?: Prisma.AccountUpdateOneRequiredWithoutVariantsNestedInput
 }
 
@@ -921,6 +993,8 @@ export type PostVariantUncheckedUpdateWithoutPostInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantUncheckedUpdateManyWithoutPostInput = {
@@ -937,6 +1011,8 @@ export type PostVariantUncheckedUpdateManyWithoutPostInput = {
   impressions?: Prisma.IntFieldUpdateOperationsInput | number
   saves?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  retryCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -956,6 +1032,8 @@ export type PostVariantSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   impressions?: boolean
   saves?: boolean
   createdAt?: boolean
+  retryCount?: boolean
+  lastError?: boolean
   post?: boolean | Prisma.PostDefaultArgs<ExtArgs>
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["postVariant"]>
@@ -975,6 +1053,8 @@ export type PostVariantSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   impressions?: boolean
   saves?: boolean
   createdAt?: boolean
+  retryCount?: boolean
+  lastError?: boolean
   post?: boolean | Prisma.PostDefaultArgs<ExtArgs>
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["postVariant"]>
@@ -994,6 +1074,8 @@ export type PostVariantSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   impressions?: boolean
   saves?: boolean
   createdAt?: boolean
+  retryCount?: boolean
+  lastError?: boolean
   post?: boolean | Prisma.PostDefaultArgs<ExtArgs>
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["postVariant"]>
@@ -1013,9 +1095,11 @@ export type PostVariantSelectScalar = {
   impressions?: boolean
   saves?: boolean
   createdAt?: boolean
+  retryCount?: boolean
+  lastError?: boolean
 }
 
-export type PostVariantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "postId" | "accountId" | "content" | "hashtags" | "status" | "publishedAt" | "likes" | "comments" | "shares" | "reach" | "impressions" | "saves" | "createdAt", ExtArgs["result"]["postVariant"]>
+export type PostVariantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "postId" | "accountId" | "content" | "hashtags" | "status" | "publishedAt" | "likes" | "comments" | "shares" | "reach" | "impressions" | "saves" | "createdAt" | "retryCount" | "lastError", ExtArgs["result"]["postVariant"]>
 export type PostVariantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   post?: boolean | Prisma.PostDefaultArgs<ExtArgs>
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
@@ -1050,6 +1134,8 @@ export type $PostVariantPayload<ExtArgs extends runtime.Types.Extensions.Interna
     impressions: number
     saves: number
     createdAt: Date
+    retryCount: number
+    lastError: string | null
   }, ExtArgs["result"]["postVariant"]>
   composites: {}
 }
@@ -1489,6 +1575,8 @@ export interface PostVariantFieldRefs {
   readonly impressions: Prisma.FieldRef<"PostVariant", 'Int'>
   readonly saves: Prisma.FieldRef<"PostVariant", 'Int'>
   readonly createdAt: Prisma.FieldRef<"PostVariant", 'DateTime'>
+  readonly retryCount: Prisma.FieldRef<"PostVariant", 'Int'>
+  readonly lastError: Prisma.FieldRef<"PostVariant", 'String'>
 }
     
 

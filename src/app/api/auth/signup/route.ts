@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { issueSession, setAuthCookie } from "@/lib/auth-session";
 import { provisionTenantDatabase } from "@/lib/tenant-provision";
 import { sendVerificationEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -242,6 +243,37 @@ export async function POST(req: NextRequest) {
 
     // === 5. Issue the session (JWT + Session row + cookie) ===
     const { token, userPublic } = await issueSession({ user, req });
+
+    // === 5b. Welcome + trial-expiring notifications (best-effort) ===
+    // Welcome notification fires immediately on signup so the bell shows
+    // a red badge the first time the user lands in the app. The trial
+    // expiring notification ("Your trial expires in 3 days") is also
+    // staged here for demo purposes — in production a daily scheduler
+    // would fire it when the trial is within 3 days of expiry. Both
+    // calls are wrapped in try/catch so a notification failure can
+    // never block the signup flow.
+    try {
+      await createNotification({
+        userId: user.id,
+        type: "trial_expiring",
+        title: "Welcome to SYNQUE!",
+        message: "Welcome to SYNQUE! Your 15-day trial has started.",
+        actionView: "guide",
+        actionId: null,
+        sendEmail: true,
+      });
+
+      await createNotification({
+        userId: user.id,
+        type: "trial_expiring",
+        title: "Your trial expires in 3 days",
+        message: "Your SYNQUE trial expires in 3 days. Add a payment method to keep your workspace live.",
+        actionView: "settings",
+        actionId: null,
+      });
+    } catch (e) {
+      console.error("[auth/signup] welcome/trial notification failed (non-fatal):", e instanceof Error ? e.message : String(e));
+    }
 
     // Auto-send a verification email — best-effort
     let verifySent = false;

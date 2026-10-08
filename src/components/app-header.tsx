@@ -18,6 +18,7 @@ import { PlatformBadge } from "@/components/glass/platform-badge";
 import { Pill, SectionHeader } from "@/components/glass/dense-ui";
 import { GlobalSearch } from "@/components/glass/global-search";
 import { Breadcrumbs, type Crumb } from "@/components/glass/breadcrumbs";
+import { NotificationBell } from "@/components/glass/notification-bell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,6 +136,11 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           <Search className="h-[18px] w-[18px]" />
         </button>
 
+        {/* Notification bell — placed next to the search icon so it's
+            always visible (mobile + desktop). Polls /api/notifications
+            every 60s for the unread count, shows a red badge when > 0. */}
+        <NotificationBell />
+
         {/* Quick compose button — hidden on mobile (use FAB or menu). */}
         <button
           onClick={() => setView("composer")}
@@ -181,9 +187,6 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
         >
           <HelpCircle className="h-[18px] w-[18px]" />
         </button>
-
-        {/* Notification bell — always visible */}
-        <NotificationsBell onNavigate={() => setView("inbox")} />
 
         {/* Theme toggle — visible on all screens (mobile + desktop) */}
         <button
@@ -379,92 +382,5 @@ function ConnectionStatus() {
         <span className="tabular-nums">{now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span>
       </div>
     </div>
-  );
-}
-
-// ============ Notifications Bell — real unread comments + failed posts ============
-function NotificationsBell({ onNavigate }: { onNavigate: () => void }) {
-  const { data: inbox } = useApi<{ id: string; author: string; text: string; platform: string; handle: string; sentiment: string }[]>("/api/inbox?filter=unread");
-  const { data: dashboard } = useApi<{ kpis: { failed: number; pendingInbox: number } } | null>("/api/dashboard");
-  const unread = inbox ?? [];
-  const failedPosts = dashboard?.kpis?.failed ?? 0;
-  const totalAlerts = unread.length + failedPosts;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10]" aria-label="Notifications">
-          <Bell className="h-[18px] w-[18px]" />
-          {totalAlerts > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#FF3B30] px-1 text-[9px] font-bold text-white ring-2 ring-white dark:ring-[#2C2C2E]">
-              {totalAlerts > 9 ? "9+" : totalAlerts}
-            </span>
-          )}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        {/* Header — dense-ui SectionHeader with Pill action showing alert count.
-            SectionHeader is wrapped in DropdownMenuLabel (p-0) to inherit Radix semantics
-            while still rendering SectionHeader's flex layout. */}
-        <DropdownMenuLabel className="p-0">
-          <SectionHeader
-            title="Notifications"
-            action={totalAlerts > 0 ? <Pill color="blue">{totalAlerts} new</Pill> : undefined}
-            className="mb-0 px-2 py-1.5"
-          />
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-
-        {/* Failed posts alert */}
-        {failedPosts > 0 && (
-          <>
-            <DropdownMenuItem className="flex items-start gap-2.5 py-2.5 cursor-pointer" onClick={onNavigate}>
-              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-rose-500/15 text-rose-500">
-                <Zap className="h-3.5 w-3.5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium">{failedPosts} failed publish {failedPosts > 1 ? "attempts" : "attempt"}</div>
-                <div className="text-[11px] text-muted-foreground">Check the Composer to retry</div>
-              </div>
-              {/* Count Pill — dense-ui replacement for the bare red dot.
-                  Shows the actual failure count for scannability. */}
-              <Pill color="rose" className="mt-0.5 shrink-0">{failedPosts}</Pill>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
-
-        {/* Unread comments */}
-        {unread.length > 0 ? (
-          unread.slice(0, 6).map((c) => (
-            <DropdownMenuItem key={c.id} className="flex items-start gap-2.5 py-2.5 cursor-pointer" onClick={onNavigate}>
-              <div className={cn(
-                "grid h-7 w-7 shrink-0 place-items-center rounded-lg",
-                c.sentiment === "positive" ? "bg-emerald-500/15 text-emerald-500" :
-                c.sentiment === "negative" ? "bg-rose-500/15 text-rose-500" :
-                "bg-blue-500/15 text-blue-500"
-              )}>
-                <MessageCircle className="h-3.5 w-3.5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium">{c.author}</div>
-                <div className="truncate text-[11px] text-muted-foreground">{c.text}</div>
-                <div className="text-[10px] text-muted-foreground/60 mt-0.5">{c.handle}</div>
-              </div>
-              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-            </DropdownMenuItem>
-          ))
-        ) : (
-          <div className="py-6 text-center text-xs text-muted-foreground">
-            <CheckCircle2 className="mx-auto mb-2 h-6 w-6 text-emerald-500" />
-            All caught up — no unread notifications
-          </div>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="justify-center text-xs font-medium text-[#0071E3] cursor-pointer dark:text-[#0A84FF]" onClick={onNavigate}>
-          View all in inbox
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }

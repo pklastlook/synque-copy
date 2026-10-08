@@ -2,9 +2,18 @@
   "buildCommand": "next build --webpack",
   "framework": "nextjs",
   "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/publish-scheduled",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "functions": {
     "src/app/api/whatsapp/webhook/route.ts": {
       "maxDuration": 30
+    },
+    "src/app/api/cron/publish-scheduled/route.ts": {
+      "maxDuration": 60
     }
   }
 }

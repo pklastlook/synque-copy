@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-guard";
 import { decryptPlatformCredential } from "@/lib/platform-credential-crypto";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,20 @@ export async function POST(
       description: `replied to ${comment.author} on ${platform}${postedToPlatform ? "" : " (saved locally)"}`,
     },
   }).catch((e) => console.error("[api]", e));
+
+  // Notify the account owner that a reply was sent (covers the case where
+  // a teammate replies on the owner's behalf — the owner gets an in-app
+  // bell alert pointing them back to the Inbox). Best-effort.
+  if (ownerId && ownerId !== user!.userId) {
+    await createNotification({
+      userId: ownerId,
+      type: "comment_received",
+      title: "New reply sent",
+      message: `New reply sent to @${comment.author}`,
+      actionView: "inbox",
+      actionId: comment.id,
+    });
+  }
 
   if (postedToPlatform) {
     return NextResponse.json({

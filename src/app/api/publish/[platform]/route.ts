@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { TwitterApi } from "twitter-api-v2";
 import { requireAuth } from "@/lib/auth-guard";
 import { decryptPlatformCredential } from "@/lib/platform-credential-crypto";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +30,17 @@ if (!SCHEDULER_API_KEY) {
  * (for the scheduler mini-service to publish scheduled posts automatically).
  *
  * Currently supported:
- *   - twitter: Posts a tweet via Twitter API v2
+ *   - twitter:   Posts a tweet via Twitter API v2 (OAuth 2.0 user token or OAuth 1.0a)
+ *   - instagram: 2-step Graph API v19.0 flow (create container → media_publish)
+ *   - linkedin:  ugcPosts API v2 (text + image upload via registerUpload)
+ *   - facebook:  Graph API v19.0 — /photos (image) or /feed (text-only)
+ *   - tiktok:    Content Posting API v2 — video/init with PULL_FROM_URL
+ *   - youtube:   Data API v3 multipart upload (video only)
+ *   - threads:   Graph API v19.0 2-step flow (container → publish)
  *
- * Other platforms (instagram, linkedin, facebook) return a clear error
- * directing the user to add credentials. Their posting routes can be
- * added following the same pattern once API credentials are configured.
+ * Tokens: every platform uses `cred.oauth2UserToken ?? cred.accessToken`
+ * (OAuth 2.0 user-context token from "Login with X" is preferred; the
+ * manually-entered accessToken in Settings is the fallback).
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
   // Check for scheduler internal key first
@@ -225,6 +232,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
             },
           }).catch((e) => console.error("[api]", e));
 
+          // Notify the publisher in-app — "Your post was published on X".
+          await createNotification({
+            userId,
+            type: "post_published",
+            title: "Post published on X",
+            message: `Your post was published on X (Twitter).`,
+            actionView: "analytics",
+            actionId: tweetJson.data.id,
+          });
+
           return NextResponse.json({
             ok: true,
             tweetId: tweetJson.data.id,
@@ -270,6 +287,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
             },
           }).catch((e) => console.error("[api]", e));
 
+          await createNotification({
+            userId,
+            type: "post_published",
+            title: "Post published on X",
+            message: `Your post was published on X (Twitter).`,
+            actionView: "analytics",
+            actionId: tweet.data.id,
+          });
+
           return NextResponse.json({
             ok: true,
             tweetId: tweet.data.id,
@@ -300,14 +326,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
     }
   }
 
-  // === Instagram posting (Graph API) ===
+  // === Instagram posting (Graph API v19.0) ===
+  // Instagram requires a 2-step publishing flow:
+  //   1) POST /{ig-business-account-id}/media         → create container (returns creation_id)
+  //   2) POST /{ig-business-account-id}/media_publish  → publish container (returns media_id)
+  // The pageId column stores the IG Business Account ID. The token is the
+  // Graph API user token (prefer the OAuth 2.0 user-context token; fall back
+  // to the manually-entered accessToken).
   if (platform === "instagram") {
-    // Instagram requires: POST /{ig-user-id}/media (create container)
-    // then POST /{ig-user-id}/media_publish (publish)
-    // Both need a valid access token + image URL
-    if (!cred.pageId || !cred.accessToken) {
+    const igToken = cred.oauth2UserToken ?? cred.accessToken;
+    if (!igToken || !cred.pageId) {
       return NextResponse.json({
-        error: "Instagram posting requires IG Business Account ID and a Graph API access token with instagram_content_publish permission.",
+        error: "Instagram posting requires an IG Business Account ID and a Graph API access token with instagram_content_publish permission.",
       }, { status: 400 });
     }
 
@@ -316,13 +346,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
     if (!mediaUrlToPublish) {
       return NextResponse.json({
         error: "Instagram posts require an image. Attach media in the Composer before publishing.",
-        manualUrl: "https://www.instagram.com/",
       }, { status: 400 });
     }
 
     try {
       // Step 1: Create media container
-      const mediaRes = await fetch(
+      const createRes = await fetch(
         `https://graph.facebook.com/v19.0/${cred.pageId}/media`,
         {
           method: "POST",
@@ -330,33 +359,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           body: JSON.stringify({
             image_url: mediaUrlToPublish,
             caption: content,
-            access_token: cred.accessToken,
+            access_token: igToken,
           }),
         }
       );
-      const mediaJson = await mediaRes.json();
-
-      if (!mediaRes.ok) {
+      const createJson = await createRes.json();
+      if (!createJson.id) {
+        const errMsg = createJson.error?.message ?? `HTTP ${createRes.status}`;
         return NextResponse.json({
-          error: `Instagram API error: ${mediaJson.error?.message ?? "Failed to create media"}`,
-        }, { status: 500 });
+          error: `Instagram create container failed: ${errMsg}`,
+        }, { status: 502 });
       }
 
       // Step 2: Publish the media container
-      const pubRes = await fetch(
+      const publishRes = await fetch(
         `https://graph.facebook.com/v19.0/${cred.pageId}/media_publish`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            creation_id: mediaJson.id,
-            access_token: cred.accessToken,
+            creation_id: createJson.id,
+            access_token: igToken,
           }),
         }
       );
-      const pubJson = await pubRes.json();
-
-      if (pubRes.ok) {
+      const publishJson = await publishRes.json();
+      if (publishJson.id) {
         await db.account.update({
           where: { id: accountId },
           data: { postsCount: { increment: 1 } },
@@ -365,39 +393,123 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           data: {
             userId,
             type: "post_published",
-            description: `published to Instagram: "${content.slice(0, 50)}…"`,
+            description: `published to Instagram: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
           },
         }).catch((e) => console.error("[api]", e));
 
+        await createNotification({
+          userId,
+          type: "post_published",
+          title: "Post published on Instagram",
+          message: `Your post was published on Instagram.`,
+          actionView: "analytics",
+          actionId: publishJson.id,
+        });
+
         return NextResponse.json({
           ok: true,
-          mediaId: pubJson.id,
+          published: true,
+          platform: "instagram",
+          postId: publishJson.id,
+          url: `https://www.instagram.com/p/${publishJson.id}/`,
           message: "Instagram post published successfully!",
         });
       }
 
+      const errMsg = publishJson.error?.message ?? `HTTP ${publishRes.status}`;
       return NextResponse.json({
-        error: `Instagram publish failed: ${pubJson.error?.message ?? "Unknown error"}`,
-      }, { status: 500 });
+        error: `Instagram publish failed: ${errMsg}`,
+      }, { status: 502 });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Instagram API error";
       return NextResponse.json({ error: message }, { status: 500 });
     }
   }
 
-  // === LinkedIn posting ===
+  // === LinkedIn posting (UGC Posts API v2) ===
+  // POST https://api.linkedin.com/v2/ugcPosts with author + lifecycleState +
+  // specificContent.shareCommentary. For media posts, an image must first be
+  // uploaded via the /v2/assets?action=registerUpload flow to get a media URN,
+  // then referenced in specificContent.shareMediaCategory = "IMAGE".
   if (platform === "linkedin") {
-    if (!cred.profileId || !cred.accessToken) {
+    const liToken = cred.oauth2UserToken ?? cred.accessToken;
+    if (!liToken || !cred.profileId) {
       return NextResponse.json({
-        error: "LinkedIn posting requires a Member URN and access token with w_member_social scope.",
+        error: "LinkedIn posting requires a Member URN (profileId) and access token with w_member_social scope.",
       }, { status: 400 });
     }
 
     try {
+      const hasImage = !!post?.mediaUrl;
+      let media: Array<{ status: string; media: string }> = [];
+      let shareMediaCategory = "NONE";
+
+      if (hasImage) {
+        // 1) Register the upload — returns an upload URL + digitalmediaAsset URN.
+        // 2) Fetch the image bytes from mediaUrl and PUT them to the upload URL.
+        // 3) Reference the asset URN in the ugcPosts call below.
+        try {
+          const registerRes = await fetch(
+            "https://api.linkedin.com/v2/assets?action=registerUpload",
+            {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${liToken}`,
+                "Content-Type": "application/json",
+                "X-Restli-Protocol-Version": "2.0.0",
+              },
+              body: JSON.stringify({
+                registerUploadRequest: {
+                  recipes: ["urn:li:digitalmediaRecipe:feedshare-image"],
+                  owner: cred.profileId,
+                  serviceRelationships: [
+                    {
+                      relationshipType: "OWNER",
+                      identifier: "urn:li:userGeneratedContent",
+                    },
+                  ],
+                },
+              }),
+            }
+          );
+          const registerJson = await registerRes.json();
+          const assetUrn: string | undefined = registerJson?.value?.asset;
+          const uploadUrl: string | undefined =
+            registerJson?.value?.uploadMechanism?.["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]?.uploadUrl;
+
+          if (assetUrn && uploadUrl) {
+            const imgRes = await fetch(post!.mediaUrl!);
+            if (imgRes.ok) {
+              const imgBuf = Buffer.from(await imgRes.arrayBuffer());
+              const putRes = await fetch(uploadUrl, {
+                method: "PUT",
+                headers: {
+                  "Content-Type": imgRes.headers.get("content-type") ?? "application/octet-stream",
+                },
+                body: imgBuf,
+              });
+              if (putRes.ok) {
+                media = [{ status: "READY", media: assetUrn }];
+                shareMediaCategory = "IMAGE";
+              } else {
+                console.error("[publish/linkedin] asset PUT failed:", putRes.status);
+              }
+            } else {
+              console.error("[publish/linkedin] could not fetch image bytes:", imgRes.status);
+            }
+          } else {
+            console.error("[publish/linkedin] registerUpload missing asset/uploadUrl");
+          }
+        } catch (mediaErr) {
+          // Non-fatal — fall through to text-only post below.
+          console.error("[publish/linkedin] media upload failed, posting text-only:", mediaErr);
+        }
+      }
+
       const res = await fetch("https://api.linkedin.com/v2/ugcPosts", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${cred.accessToken}`,
+          "Authorization": `Bearer ${liToken}`,
           "Content-Type": "application/json",
           "X-Restli-Protocol-Version": "2.0.0",
         },
@@ -407,7 +519,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           specificContent: {
             "com.linkedin.ugc.ShareContent": {
               shareCommentary: { text: content },
-              shareMediaCategory: "NONE",
+              shareMediaCategory,
+              ...(media.length > 0 ? { media } : {}),
             },
           },
           visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
@@ -415,7 +528,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
       });
       const json = await res.json();
 
-      if (res.ok) {
+      if (res.ok && json.id) {
         await db.account.update({
           where: { id: accountId },
           data: { postsCount: { increment: 1 } },
@@ -424,49 +537,194 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           data: {
             userId,
             type: "post_published",
-            description: `published to LinkedIn: "${content.slice(0, 50)}…"`,
+            description: `published to LinkedIn: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
           },
         }).catch((e) => console.error("[api]", e));
 
+        await createNotification({
+          userId,
+          type: "post_published",
+          title: "Post published on LinkedIn",
+          message: `Your post was published on LinkedIn.`,
+          actionView: "analytics",
+          actionId: json.id,
+        });
+
         return NextResponse.json({
           ok: true,
+          published: true,
+          platform: "linkedin",
           postId: json.id,
+          url: `https://www.linkedin.com/feed/update/${json.id}/`,
           message: "LinkedIn post published successfully!",
         });
       }
 
+      const errMsg = json.message ?? json.error?.message ?? `HTTP ${res.status}`;
       return NextResponse.json({
-        error: `LinkedIn API error: ${json.message ?? "Unknown error"}`,
-      }, { status: 500 });
+        error: `LinkedIn API error: ${errMsg}`,
+      }, { status: 502 });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "LinkedIn API error";
       return NextResponse.json({ error: message }, { status: 500 });
     }
   }
 
-  // === Facebook posting ===
+  // === Facebook posting (Graph API v19.0) ===
+  // Photo post:  POST /{page-id}/photos with url + caption + access_token
+  // Text post:   POST /{page-id}/feed   with message + access_token
   if (platform === "facebook") {
-    if (!cred.pageId || !cred.accessToken) {
+    const fbToken = cred.oauth2UserToken ?? cred.accessToken;
+    if (!fbToken || !cred.pageId) {
       return NextResponse.json({
         error: "Facebook posting requires a Page ID and Page Access Token with pages_manage_posts permission.",
       }, { status: 400 });
     }
 
-    try {
-      const res = await fetch(
-        `https://graph.facebook.com/v19.0/${cred.pageId}/feed`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: content,
-            access_token: cred.accessToken,
-          }),
-        }
-      );
-      const json = await res.json();
+    const hasImage = !!post?.mediaUrl;
 
-      if (res.ok) {
+    try {
+      let postId: string;
+      let postUrl: string;
+
+      if (hasImage) {
+        // Photo post
+        const photoRes = await fetch(
+          `https://graph.facebook.com/v19.0/${cred.pageId}/photos`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: post!.mediaUrl,
+              caption: content,
+              access_token: fbToken,
+            }),
+          }
+        );
+        const photoJson = await photoRes.json();
+        if (!photoJson.id) {
+          const errMsg = photoJson.error?.message ?? `HTTP ${photoRes.status}`;
+          return NextResponse.json({
+            error: `Facebook photo upload failed: ${errMsg}`,
+          }, { status: 502 });
+        }
+        // The /photos endpoint returns the photo ID; the post_id field
+        // (when present) is the actual story ID for the timeline post.
+        postId = photoJson.post_id ?? photoJson.id;
+        postUrl = `https://www.facebook.com/${cred.pageId}/photos/${photoJson.id}`;
+      } else {
+        // Text-only feed post
+        const feedRes = await fetch(
+          `https://graph.facebook.com/v19.0/${cred.pageId}/feed`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: content,
+              access_token: fbToken,
+            }),
+          }
+        );
+        const feedJson = await feedRes.json();
+        if (!feedJson.id) {
+          const errMsg = feedJson.error?.message ?? `HTTP ${feedRes.status}`;
+          return NextResponse.json({
+            error: `Facebook feed post failed: ${errMsg}`,
+          }, { status: 502 });
+        }
+        // feedJson.id is formatted as "{pageId}_{postId}" — extract the
+        // trailing slug for a canonical permalink.
+        postId = feedJson.id;
+        const slug = feedJson.id.split("_").pop() ?? feedJson.id;
+        postUrl = `https://www.facebook.com/${cred.pageId}/posts/${slug}`;
+      }
+
+      await db.account.update({
+        where: { id: accountId },
+        data: { postsCount: { increment: 1 } },
+      });
+      await db.activity.create({
+        data: {
+          userId,
+          type: "post_published",
+          description: `published to Facebook: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
+        },
+      }).catch((e) => console.error("[api]", e));
+
+      await createNotification({
+        userId,
+        type: "post_published",
+        title: "Post published on Facebook",
+        message: `Your post was published on Facebook.`,
+        actionView: "analytics",
+        actionId: postId,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        published: true,
+        platform: "facebook",
+        postId,
+        url: postUrl,
+        message: "Facebook post published successfully!",
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Facebook API error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
+  // === TikTok posting (Content Posting API v2) ===
+  // Flow: POST /v2/post/publish/video/init/ with source=PULL_FROM_URL.
+  // TikTok fetches the video from the provided URL itself — this is the
+  // complete publish flow (no separate upload step needed on our side).
+  // For text-only posts (no video), TikTok has no API — we return the
+  // manual upload URL so the user can finish the post on tiktok.com.
+  if (platform === "tiktok") {
+    const tkToken = cred.oauth2UserToken ?? cred.accessToken;
+    if (!tkToken || !cred.pageId) {
+      return NextResponse.json({
+        error: "TikTok posting requires OAuth login. Go to Accounts → Connect account → TikTok → Login with TikTok.",
+      }, { status: 400 });
+    }
+
+    const videoUrl = post?.mediaUrl;
+
+    if (!videoUrl) {
+      // TikTok doesn't have a text-only post API. Without a video we can't
+      // initialize an upload — return the manual upload URL so the user
+      // can finish the post on tiktok.com.
+      return NextResponse.json({
+        ok: false,
+        published: false,
+        platform: "tiktok",
+        error: "TikTok requires a video to post. Attach a video in the Composer, or post manually at tiktok.com/upload.",
+        manualUrl: "https://www.tiktok.com/upload",
+        savedContent: content,
+      }, { status: 200 });
+    }
+
+    try {
+      const initRes = await fetch("https://open.tiktokapis.com/v2/post/publish/video/init/", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${tkToken}`,
+          "Content-Type": "application/json; charset=UTF-8",
+        },
+        body: JSON.stringify({
+          post_info: {
+            title: content.slice(0, 150) || "Posted via SYNQUE",
+            privacy_level: "PUBLIC_TO_EVERYONE",
+          },
+          source_info: {
+            source: "PULL_FROM_URL",
+            video_url: videoUrl,
+          },
+        }),
+      });
+      const initJson = await initRes.json();
+
+      if (initRes.ok && initJson.data?.publish_id) {
         await db.account.update({
           where: { id: accountId },
           data: { postsCount: { increment: 1 } },
@@ -475,77 +733,48 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           data: {
             userId,
             type: "post_published",
-            description: `published to Facebook: "${content.slice(0, 50)}…"`,
+            description: `published a TikTok video: "${content.slice(0, 50)}${content.length > 50 ? "…" : ""}"`,
           },
         }).catch((e) => console.error("[api]", e));
 
+        await createNotification({
+          userId,
+          type: "post_published",
+          title: "Post published on TikTok",
+          message: `Your video was published on TikTok. It may take a few minutes to appear on your profile.`,
+          actionView: "analytics",
+          actionId: initJson.data.publish_id,
+        });
+
         return NextResponse.json({
           ok: true,
-          postId: json.id,
-          message: "Facebook post published successfully!",
+          published: true,
+          platform: "tiktok",
+          postId: initJson.data.publish_id,
+          url: "https://www.tiktok.com/",
+          message: "TikTok video published successfully! It may take a few minutes to appear on your profile.",
         });
       }
 
-      return NextResponse.json({
-        error: `Facebook API error: ${json.error?.message ?? "Unknown error"}`,
-      }, { status: 500 });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Facebook API error";
-      return NextResponse.json({ error: message }, { status: 500 });
-    }
-  }
-
-  // === TIKTOK posting ===
-  if (platform === "tiktok") {
-    if (!cred.accessToken || !cred.pageId) {
-      return NextResponse.json({
-        error: "TikTok posting requires OAuth login. Go to Accounts → Connect account → TikTok → Login with TikTok.",
-      }, { status: 400 });
-    }
-
-    try {
-      // TikTok Content Posting API — requires a video upload first
-      // For text-only posts, TikTok doesn't have a simple text post API.
-      // We use the direct post endpoint with a video URL.
-      // If no media is attached, we'll save the post and show a "post manually" message.
-      if (!account.avatar) {
+      // If the init call returned an upload URL (FILE_UPLOAD source flow),
+      // surface it so the user can complete the upload manually.
+      if (initJson.data?.upload_url) {
         return NextResponse.json({
-          error: "TikTok requires a video to post. Attach a video in the Composer, or post manually at tiktok.com/upload.",
+          ok: false,
+          published: false,
+          platform: "tiktok",
+          uploadUrl: initJson.data.upload_url,
           manualUrl: "https://www.tiktok.com/upload",
+          message: "TikTok video upload initialized. Complete the upload using the provided upload URL.",
         }, { status: 200 });
       }
 
-      // Initialize upload
-      const initRes = await fetch("https://open.tiktokapis.com/v2/post/publish/video/init/", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${cred.accessToken}`,
-          "Content-Type": "application/json; charset=UTF-8",
-        },
-        body: JSON.stringify({
-          post_info: { title: content.slice(0, 150), privacy_level: "PUBLIC_TO_EVERYONE" },
-          source_info: { source: "PULL_FROM_URL", video_url: account.avatar },
-        }),
-      });
-      const initJson = await initRes.json();
-
-      if (initRes.ok && initJson.data?.publish_id) {
-        await db.account.update({ where: { id: accountId }, data: { postsCount: { increment: 1 } } });
-        await db.activity.create({
-          data: { userId, type: "post_published", description: `published a TikTok video: "${content.slice(0, 50)}…"` },
-        }).catch((e) => console.error("[api]", e));
-
-        return NextResponse.json({
-          ok: true,
-          postId: initJson.data.publish_id,
-          message: "TikTok video published successfully!",
-        });
-      }
-
+      const errMsg = initJson?.error?.message ?? `HTTP ${initRes.status}`;
       return NextResponse.json({
-        error: `TikTok posting requires a video file. Attach a video in the Composer or post manually at tiktok.com/upload.`,
+        error: `TikTok publish failed: ${errMsg}`,
         manualUrl: "https://www.tiktok.com/upload",
-      }, { status: 200 });
+        savedContent: content,
+      }, { status: 502 });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "TikTok API error";
       return NextResponse.json({ error: message }, { status: 500 });
@@ -637,6 +866,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
           },
         }).catch(() => {});
 
+        await createNotification({
+          userId,
+          type: "post_published",
+          title: "Post published on YouTube",
+          message: `Your video "${metadata.snippet.title}" was uploaded to YouTube.`,
+          actionView: "analytics",
+          actionId: uploadJson.id,
+        });
+
         return NextResponse.json({
           ok: true,
           published: true,
@@ -717,6 +955,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
         }, { status: 502 });
       }
 
+      await createNotification({
+        userId,
+        type: "post_published",
+        title: "Post published on Threads",
+        message: `Your post was published on Threads.`,
+        actionView: "analytics",
+        actionId: publishJson.id,
+      });
+
       return NextResponse.json({
         ok: true,
         platform: "threads",
@@ -731,6 +978,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
 
   // === Unsupported platform ===
   return NextResponse.json({
-    error: `Platform '${platform}' is not yet supported for real posting. Supported: twitter, instagram, linkedin, facebook, threads.`,
+    error: `Platform '${platform}' is not yet supported for real posting. Supported: twitter, instagram, linkedin, facebook, tiktok, youtube, threads.`,
   }, { status: 501 });
 }

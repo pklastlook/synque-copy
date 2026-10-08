@@ -55,6 +55,7 @@ model User {
   receivedMessages    ChatMessage[]     @relation("ChatReceiver")
   vpnSessions         VPNSession[]
   webauthnCredentials  WebAuthnCredential[]
+  notifications        Notification[]
 }
 
 model Account {
@@ -179,6 +180,14 @@ model PostVariant {
   impressions Int       @default(0)
   saves       Int       @default(0)
   createdAt   DateTime  @default(now())
+  // P1-CRON — retry counter for automated scheduled publishing.
+  // When the Vercel Cron publish-scheduled job fails to publish a variant
+  // (e.g. platform API hiccup, transient rate-limit), it keeps the variant
+  // in `scheduled` status and increments retryCount. After 3 failed attempts
+  // the variant is marked `failed` so the user is notified instead of the
+  // job silently retrying forever.
+  retryCount  Int       @default(0)
+  lastError   String?   // last publish error message (cleared on success)
 
   @@index([accountId])
   @@index([postId])
@@ -738,12 +747,25 @@ model Payment {
   status          String   @default("pending") // pending | completed | failed | refunded
   transactionId   String?
   bankAccountId   String?
+  // ===== Stripe integration =====
+  // Stripe PaymentIntent ID (pi_xxx) — set when a PaymentIntent is created
+  // via /api/stripe/create-payment-intent. The webhook updates the row to
+  // status="completed" when Stripe fires `payment_intent.succeeded`.
+  stripePaymentIntentId String?
+  // Stripe Checkout Session ID (cs_test_xxx / cs_live_xxx) — set when a
+  // Checkout Session is created via /api/stripe/create-checkout-session.
+  // Lets the success-redirect page reconcile the Stripe session back to a
+  // Payment row if Stripe fires `checkout.session.completed` before our
+  // webhook handler runs.
+  stripeSessionId      String?
   createdAt       DateTime @default(now())
 
   customer        Customer @relation(fields: [customerId], references: [id])
 
   @@index([customerId])
   @@index([subscriptionId])
+  @@index([stripePaymentIntentId])
+  @@index([stripeSessionId])
 }
 
 // ===== Workspace Settings (one row per workspace, keyed by owner) =====
@@ -1067,5 +1089,35 @@ model AuditLog {
 
   @@index([actorId])
   @@index([action])
+  @@index([createdAt])
+}
+
+// ===== Notification =====
+// Per-user in-app notification. Written by the `createNotification()` helper
+// in src/lib/notifications.ts (best-effort: failures never break the request).
+// Read by GET /api/notifications, marked as read by PATCH /api/notifications,
+// deleted by DELETE /api/notifications/[id].
+//
+// `type` is one of:
+//   comment_received | trial_expiring | payment_received | team_invite |
+//   post_published   | post_failed    | approval_requested
+//
+// `actionView` is a ViewId string the bell can navigate to when the
+// notification is clicked (e.g. "inbox", "owner", "composer").
+// `actionId` is the related entity ID (post ID, invoice ID, etc.).
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // comment_received | trial_expiring | payment_received | team_invite | post_published | post_failed | approval_requested
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  actionView  String?  // which view to navigate to when clicked
+  actionId    String?  // ID of the related entity (post ID, invoice ID, etc.)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
   @@index([createdAt])
 }

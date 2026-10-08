@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth, getTenantScope, tenantWhere } from "@/lib/auth-guard";
 import { computeBillingTotals } from "@/lib/billing";
 import { audit } from "@/lib/audit";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -145,6 +146,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       total,
     },
   });
+
+  // Notify every user in the client's tenant that the invoice was generated.
+  // The customer (tenant) gets a "Invoice {number} generated — ${total}"
+  // bell alert pointing back to the Owner → Invoices panel.
+  try {
+    const tenantUsers = await db.user.findMany({
+      where: { customerId: customer.id },
+      select: { id: true },
+    });
+    const formattedTotal = total.toLocaleString(undefined, {
+      style: "currency",
+      currency: sub.currency ?? "USD",
+    });
+    await Promise.all(
+      tenantUsers.map((u) =>
+        createNotification({
+          userId: u.id,
+          type: "payment_received",
+          title: `Invoice ${number} generated`,
+          message: `Invoice ${number} generated — ${formattedTotal}`,
+          actionView: "owner",
+          actionId: invoice.id,
+        })
+      )
+    );
+  } catch (e) {
+    console.error(
+      "[api/subscriptions/generate-invoice] notification failed:",
+      e instanceof Error ? e.message : String(e)
+    );
+  }
 
   return NextResponse.json({
     ok: true,

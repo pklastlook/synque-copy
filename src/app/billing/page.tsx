@@ -15,7 +15,6 @@ import {
   Calendar,
   Star,
   TrendingUp,
-  AlertTriangle,
 } from "lucide-react";
 import { LandingNav, LandingFooter, LandingBg } from "@/components/landing-shared";
 import { useAuth } from "@/lib/auth-store";
@@ -23,8 +22,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -137,12 +134,43 @@ function money(n: number, currency = "USD") {
   }
 }
 
-function detectCardBrand(num: string): "visa" | "mastercard" | "amex" | "unknown" {
-  const digits = num.replace(/\s/g, "");
-  if (/^4/.test(digits)) return "visa";
-  if (/^(5[1-5]|2[2-7])/.test(digits)) return "mastercard";
-  if (/^3[47]/.test(digits)) return "amex";
-  return "unknown";
+// ============================================================================
+// Stripe Checkout redirect helper
+// ============================================================================
+
+/**
+ * Create a Stripe Checkout Session for the selected plan, then redirect the
+ * browser to the Stripe-hosted payment page. On success the browser returns
+ * to `/billing?success=true&session_id={CHECKOUT_SESSION_ID}`; on cancel to
+ * `/billing?canceled=true`. The Stripe webhook (PUBLIC, signature-verified)
+ * flips the matching Payment row to `status="completed"` and activates the
+ * subscription.
+ */
+async function startStripeCheckout(opts: {
+  token: string | null;
+  planName: string;
+  amount: number;
+  currency?: string;
+}): Promise<void> {
+  const res = await fetch("/api/stripe/create-checkout-session", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
+    },
+    body: JSON.stringify({
+      planName: opts.planName,
+      amount: opts.amount,
+      currency: opts.currency ?? "USD",
+    }),
+  });
+  const json = (await res.json()) as { ok?: boolean; url?: string; error?: string };
+  if (!res.ok || !json.ok || !json.url) {
+    throw new Error(json.error ?? "Failed to start Stripe Checkout");
+  }
+  // Full-page redirect to Stripe Checkout. The browser returns to
+  // `/billing?success=true&session_id=xxx` (or `?canceled=true`) afterwards.
+  window.location.href = json.url;
 }
 
 function statusTone(status: string): { className: string; dot: string } {
@@ -204,6 +232,52 @@ export default function BillingPage() {
     })();
     return () => { cancelled = true; };
   }, [isAuthenticated, token]);
+
+  // ===== Stripe Checkout return handler — fires once on mount when the URL
+  //       carries `?success=true` or `?canceled=true`. Stripe redirects the
+  //       browser back here after the user completes (or abandons) Checkout.
+  //       The webhook has usually already updated the Payment row by the time
+  //       the browser lands, so we just toast + reload the data. =====
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get("success");
+    const canceled = params.get("canceled");
+    const sessionId = params.get("session_id");
+    if (success === "true") {
+      toast.success("Payment successful!", {
+        description: sessionId
+          ? `Stripe session ${sessionId.slice(-12)} processed — your subscription is now active.`
+          : "Your subscription is now active. A paid invoice has been generated.",
+        duration: 6000,
+      });
+      // Strip the query params so a refresh doesn't re-toast.
+      window.history.replaceState({}, "", "/billing");
+      // Force a fresh fetch of subscriptions + payments.
+      setLoading(true);
+      (async () => {
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        try {
+          const [subRes, payRes] = await Promise.all([
+            fetch("/api/subscriptions", { headers }),
+            fetch("/api/payments", { headers }),
+          ]);
+          const subJson = subRes.ok ? await subRes.json() : [];
+          const payJson = payRes.ok ? await payRes.json() : [];
+          setSubs(Array.isArray(subJson) ? subJson : []);
+          setPayments(Array.isArray(payJson) ? payJson : []);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    } else if (canceled === "true") {
+      toast.info("Checkout canceled", {
+        description: "Your card was not charged. You can retry anytime.",
+        duration: 5000,
+      });
+      window.history.replaceState({}, "", "/billing");
+    }
+  }, [token]);
 
   // ===== Resolve the caller's active subscription (prefer active, then trial). =====
   const activeSub =
@@ -396,40 +470,21 @@ export default function BillingPage() {
             <div>
               <div className="font-semibold text-foreground">Payments are secure</div>
               <p className="mt-0.5">
-                Card details are tokenised at submission and never stored on our servers. Payments
-                are processed over HTTPS and your card&apos;s last 4 digits + brand are recorded
-                against your account for reconciliation only.
+                Card details are collected directly by Stripe on their
+                PCI-DSS-compliant checkout page — they never touch our servers.
+                Payments are processed over HTTPS, your card&apos;s last 4 digits +
+                brand are recorded against your account for reconciliation, and a
+                paid invoice is generated automatically on success.
               </p>
             </div>
           </div>
         </section>
       </main>
 
-      {/* ===== Payment dialog ===== */}
-      <PaymentDialog
+      {/* ===== Stripe Checkout dialog ===== */}
+      <CheckoutDialog
         plan={payForPlan}
         onClose={() => setPayForPlan(null)}
-        onSuccess={() => {
-          // Re-fetch subscriptions + payments after a successful payment so
-          // the "Current plan" card + payment history update instantly.
-          setPayForPlan(null);
-          setLoading(true);
-          (async () => {
-            const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-            try {
-              const [subRes, payRes] = await Promise.all([
-                fetch("/api/subscriptions", { headers }),
-                fetch("/api/payments", { headers }),
-              ]);
-              const subJson = subRes.ok ? await subRes.json() : [];
-              const payJson = payRes.ok ? await payRes.json() : [];
-              setSubs(Array.isArray(subJson) ? subJson : []);
-              setPayments(Array.isArray(payJson) ? payJson : []);
-            } finally {
-              setLoading(false);
-            }
-          })();
-        }}
       />
 
       <LandingFooter />
@@ -617,116 +672,46 @@ function PaymentHistory({ payments }: { payments: PaymentRecord[] }) {
 }
 
 // ============================================================================
-// Payment dialog — collects card details and POSTs to /api/payments.
+// Checkout dialog — confirms the plan + amount, then redirects to the
+// Stripe-hosted Checkout page (no card details ever touch our server).
 // ============================================================================
 
-function PaymentDialog({
+function CheckoutDialog({
   plan,
   onClose,
-  onSuccess,
 }: {
   plan: PlanTemplate | null;
   onClose: () => void;
-  onSuccess: () => void;
 }) {
   const { token } = useAuth();
-  const [cardName, setCardName] = React.useState("");
-  const [cardNumber, setCardNumber] = React.useState("");
-  const [expiry, setExpiry] = React.useState("");
-  const [cvc, setCvc] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [success, setSuccess] = React.useState(false);
 
-  // ===== Reset state whenever the dialog opens for a new plan. =====
+  // ===== Reset busy state whenever the dialog opens for a new plan. =====
   React.useEffect(() => {
-    if (plan) {
-      setCardName("");
-      setCardNumber("");
-      setExpiry("");
-      setCvc("");
-      setBusy(false);
-      setSuccess(false);
-    }
+    if (plan) setBusy(false);
   }, [plan]);
 
-  // ===== Format the card number into groups of 4 as the user types. =====
-  const onCardNumberChange = (raw: string) => {
-    const digits = raw.replace(/\D/g, "").slice(0, 16);
-    const grouped = digits.replace(/(.{4})/g, "$1 ").trim();
-    setCardNumber(grouped);
-  };
-
-  // ===== Format the expiry as MM / YY. =====
-  const onExpiryChange = (raw: string) => {
-    const digits = raw.replace(/\D/g, "").slice(0, 4);
-    if (digits.length <= 2) {
-      setExpiry(digits);
-    } else {
-      setExpiry(`${digits.slice(0, 2)} / ${digits.slice(2)}`);
-    }
-  };
-
-  // ===== CVC: digits only, max 4 (Amex) / 3 (others). =====
-  const onCvcChange = (raw: string) => {
-    setCvc(raw.replace(/\D/g, "").slice(0, 4));
-  };
-
-  const cardBrand = detectCardBrand(cardNumber);
-  const cardLast4 = cardNumber.replace(/\s/g, "").slice(-4);
   const amount = plan?.price ?? 0;
-
-  const valid =
-    cardName.trim().length >= 3 &&
-    cardNumber.replace(/\s/g, "").length >= 13 &&
-    expiry.replace(/\D/g, "").length === 4 &&
-    cvc.length >= 3;
 
   const submit = async () => {
     if (!plan) return;
-    if (!valid) {
-      toast.error("Please complete all card fields");
+    if (plan.price === null) {
+      toast.error("Enterprise plans require a custom quote — contact sales.");
       return;
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/payments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          amount,
-          currency: "USD",
-          method: "card",
-          cardLast4,
-          cardBrand: cardBrand === "unknown" ? null : cardBrand,
-          status: "completed",
-          transactionId: `txn_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-        }),
+      await startStripeCheckout({
+        token,
+        planName: plan.name,
+        amount: plan.price,
+        currency: "USD",
       });
-      const json = (await res.json()) as {
-        ok?: boolean;
-        error?: string;
-        id?: string;
-        invoiceNumber?: string;
-        updatedSubscription?: boolean;
-      };
-      if (!res.ok || !json.ok) {
-        throw new Error(json.error ?? "Payment failed");
-      }
-      setSuccess(true);
-      toast.success("Payment successful!", {
-        description: `${money(amount)} charged to •••• ${cardLast4}.${json.invoiceNumber ? ` Invoice ${json.invoiceNumber} generated.` : ""}`,
-        duration: 6000,
-      });
-      // Brief delay so the user sees the success state before the dialog closes.
-      setTimeout(() => {
-        onSuccess();
-      }, 1200);
+      // Browser is now redirecting to Stripe Checkout — no further action.
+      // The dialog stays open with `busy=true` so the spinner keeps spinning
+      // until the redirect lands. If the redirect fails, the catch block fires.
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Payment failed");
-    } finally {
+      toast.error(e instanceof Error ? e.message : "Failed to start Stripe Checkout");
       setBusy(false);
     }
   };
@@ -743,130 +728,60 @@ function PaymentDialog({
           </DialogTitle>
           <DialogDescription>
             {plan.price !== null
-              ? `You'll be charged ${money(plan.price)} now. Your subscription will be activated immediately and a paid invoice will be generated.`
+              ? `You'll be charged ${money(plan.price)} via Stripe Checkout. Your subscription will be activated immediately after the payment succeeds and a paid invoice will be generated.`
               : "Enterprise plans require a custom quote — contact sales."}
           </DialogDescription>
         </DialogHeader>
 
-        {success ? (
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-              <Check className="h-7 w-7" />
+        <div className="space-y-3 py-1">
+          {/* ===== Plan + price summary ===== */}
+          <div className="flex items-center justify-between rounded-xl border border-border/40 bg-muted/30 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2">
+              <div
+                className="grid h-7 w-7 place-items-center rounded-lg"
+                style={{ background: `${plan.accent}18`, color: plan.accent }}
+              >
+                <CreditCard className="h-3.5 w-3.5" />
+              </div>
+              <span className="font-semibold">{plan.name} plan</span>
             </div>
-            <div className="text-base font-semibold">Payment complete</div>
-            <p className="max-w-xs text-xs text-muted-foreground">
-              Your subscription is now active. A paid invoice has been generated and credited to the
-              owner&apos;s bank account.
-            </p>
+            <div className="text-right">
+              <div className="num-display text-base font-bold tabular-nums">{money(plan.price ?? 0)}</div>
+              <div className="text-[9px] text-muted-foreground">one-time</div>
+            </div>
           </div>
-        ) : (
-          <div className="space-y-3 py-1">
-            {/* ===== Plan + price summary ===== */}
-            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-muted/30 px-3 py-2 text-xs">
-              <div className="flex items-center gap-2">
-                <div
-                  className="grid h-7 w-7 place-items-center rounded-lg"
-                  style={{ background: `${plan.accent}18`, color: plan.accent }}
-                >
-                  <CreditCard className="h-3.5 w-3.5" />
-                </div>
-                <span className="font-semibold">{plan.name} plan</span>
-              </div>
-              <div className="text-right">
-                <div className="num-display text-base font-bold tabular-nums">{money(plan.price ?? 0)}</div>
-                <div className="text-[9px] text-muted-foreground">one-time</div>
-              </div>
-            </div>
 
-            {/* ===== Card details form ===== */}
-            <div>
-              <Label className="text-xs">Name on card</Label>
-              <Input
-                value={cardName}
-                onChange={(e) => setCardName(e.target.value)}
-                placeholder="John Smith"
-                className="mt-1.5"
-                autoComplete="cc-name"
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Card number</Label>
-              <div className="relative mt-1.5">
-                <Input
-                  value={cardNumber}
-                  onChange={(e) => onCardNumberChange(e.target.value)}
-                  placeholder="4242 4242 4242 4242"
-                  className="pr-16 font-mono"
-                  inputMode="numeric"
-                  autoComplete="cc-number"
-                />
-                {cardBrand !== "unknown" && cardNumber.replace(/\s/g, "").length >= 4 && (
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">
-                    {cardBrand}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Expiry</Label>
-                <Input
-                  value={expiry}
-                  onChange={(e) => onExpiryChange(e.target.value)}
-                  placeholder="MM / YY"
-                  className="mt-1.5 font-mono"
-                  inputMode="numeric"
-                  autoComplete="cc-exp"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">CVC</Label>
-                <Input
-                  value={cvc}
-                  onChange={(e) => onCvcChange(e.target.value)}
-                  placeholder="123"
-                  className="mt-1.5 font-mono"
-                  inputMode="numeric"
-                  autoComplete="cc-csc"
-                />
-              </div>
-            </div>
+          {/* ===== Plan features recap ===== */}
+          <ul className="space-y-1.5 text-xs">
+            {plan.features.slice(0, 4).map((f) => (
+              <li key={f} className="flex items-center gap-1.5">
+                <Check className="h-3 w-3 shrink-0 text-emerald-500" />
+                {f}
+              </li>
+            ))}
+          </ul>
 
-            {/* ===== Security reassurance ===== */}
-            <div className="flex items-start gap-2 rounded-xl bg-emerald-500/5 p-2.5 text-[11px] text-muted-foreground">
-              <Lock className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />
-              <span>
-                This is a sandbox payment — no real card is charged. Your card&apos;s last 4 digits
-                + brand are recorded against your account for reconciliation.
-              </span>
-            </div>
-
-            {/* ===== Validation hint ===== */}
-            {!valid && (cardName || cardNumber || expiry || cvc) && (
-              <div className="flex items-start gap-2 rounded-xl bg-amber-500/5 p-2.5 text-[11px] text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                <span>Complete all fields with valid card details before submitting.</span>
-              </div>
-            )}
+          {/* ===== Stripe security reassurance ===== */}
+          <div className="flex items-start gap-2 rounded-xl bg-emerald-500/5 p-2.5 text-[11px] text-muted-foreground">
+            <Lock className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />
+            <span>
+              You&apos;ll be redirected to Stripe&apos;s PCI-DSS-compliant checkout
+              page to enter your card details. We never see or store your card
+              number — Stripe tokenises it and notifies us once payment succeeds.
+            </span>
           </div>
-        )}
+        </div>
 
         <DialogFooter>
-          {success ? (
-            <Button onClick={onSuccess} className="liquid-pill">Done</Button>
-          ) : (
-            <>
-              <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-              <Button
-                onClick={submit}
-                disabled={busy || !valid}
-                className="liquid-pill flex items-center gap-1.5"
-              >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                {busy ? "Processing…" : `Pay ${money(plan.price ?? 0)}`}
-              </Button>
-            </>
-          )}
+          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button
+            onClick={submit}
+            disabled={busy}
+            className="liquid-pill flex items-center gap-1.5"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+            {busy ? "Redirecting…" : `Pay ${money(amount)} with Stripe`}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
