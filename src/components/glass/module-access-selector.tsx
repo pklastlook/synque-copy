@@ -37,11 +37,14 @@ interface ModuleAccessSelectorProps {
 }
 
 export function ModuleAccessSelector({
-  permissions,
+  permissions: rawPermissions,
   onChange,
   disabled = false,
   compact = false,
 }: ModuleAccessSelectorProps) {
+  // Safety: ensure permissions is always a string[] even if the parent
+  // passes undefined (e.g. during form state transitions)
+  const permissions = rawPermissions ?? ["*"];
   const all = isAllModules(permissions);
 
   function toggleModule(id: ModuleId) {
