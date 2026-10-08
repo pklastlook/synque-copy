@@ -45,6 +45,7 @@ import { PLATFORMS, PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-store";
+import { useWebSocket } from "@/lib/use-websocket";
 import type { Comment } from "@/lib/types";
 
 /* ============================================================
@@ -620,6 +621,7 @@ function ConversationRow({
   isSelected,
   isCheckboxShown,
   isChecked,
+  isNew,
   onPick,
   onToggleCheck,
   onToggleRead,
@@ -635,6 +637,9 @@ function ConversationRow({
   isSelected: boolean;
   isCheckboxShown: boolean;
   isChecked: boolean;
+  /** True when this comment arrived via a live `inbox:new` socket event
+   *  in the last 30s — renders a subtle "New" badge that fades out. */
+  isNew?: boolean;
   onPick: () => void;
   onToggleCheck: () => void;
   onToggleRead: () => void;
@@ -653,7 +658,10 @@ function ConversationRow({
     <div
       className={cn(
         "group relative flex cursor-pointer items-center gap-2.5 border-b border-border/30 px-3 py-2.5 transition-colors hover:bg-muted/40",
-        isSelected && "bg-primary/5 border-l-2 border-l-primary"
+        isSelected && "bg-primary/5 border-l-2 border-l-primary",
+        // Live-arrived rows get a brief highlight pulse so the user notices
+        // them even when they weren't looking at the inbox.
+        isNew && "bg-blue-500/[0.04]"
       )}
       onClick={onPick}
     >
@@ -709,6 +717,17 @@ function ConversationRow({
         </p>
         <div className="mt-1 flex items-center gap-1.5">
           <span className="truncate text-[10px] text-muted-foreground">@{c.handle}</span>
+          {/* Live "New" badge — shown for ~30s after a comment arrives via
+              the `inbox:new` socket event. Subtle pill so it doesn't shout
+              but is still visible in the periphery. */}
+          {isNew && (
+            <span
+              className="inline-flex items-center gap-0.5 rounded-full bg-blue-500/15 px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400"
+              title="Just arrived"
+            >
+              New
+            </span>
+          )}
           {c.assigneeName && (
             <Pill color="blue" className="ml-auto">
               {c.assigneeName}
@@ -1242,6 +1261,7 @@ export function InboxView() {
 
   // Current user — for "Mine" filter, mention detection, delete permissions.
   const currentUserName = useAuth((s) => s.user?.name ?? null);
+  const { socket } = useWebSocket();
 
   // Server-side "unread" filter preserves the original URL behaviour.
   const url = filter === "unread" ? "/api/inbox?filter=unread" : "/api/inbox";
@@ -1251,7 +1271,111 @@ export function InboxView() {
   const { data: team } = useApi<TeamMemberLite[]>(assignOpenFor ? "/api/team" : null);
   const members = team ?? [];
 
-  const all = data ?? [];
+  // ─── Real-time overlay (P2-WEBSOCKET) ────────────────────────────────────
+  // `liveComments` holds comments delivered via the `inbox:new` socket event
+  // that are NOT yet in the polled `data` list. De-duped by id in the
+  // `all` memo so we never render a comment twice. Live comments are
+  // PREPENDED (newest-first sort), matching the default "Newest" sort.
+  const [liveComments, setLiveComments] = React.useState<InboxComment[]>([]);
+  // ids of recently-arrived live comments — drives the subtle "New" badge.
+  // Each id auto-clears after 30s OR when the user clicks the row.
+  const [newIds, setNewIds] = React.useState<Set<string>>(new Set());
+  const newIdTimers = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const markLiveSeen = React.useCallback((id: string) => {
+    setNewIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    const t = newIdTimers.current.get(id);
+    if (t) {
+      clearTimeout(t);
+      newIdTimers.current.delete(id);
+    }
+  }, []);
+
+  // Listen for `inbox:new` — payload is a single InboxComment (or a
+  // wrapper `{ comment: InboxComment }` for forward-compat with the
+  // chat-service's `/broadcast` webhook). When received:
+  //   1. Prepend to `liveComments`
+  //   2. Add the id to `newIds` (renders the "New" badge)
+  //   3. Auto-clear the badge after 30s if the user doesn't click it.
+  React.useEffect(() => {
+    if (!socket) return;
+    const onNew = (payload: unknown) => {
+      const comment =
+        (payload as { comment?: InboxComment })?.comment ??
+        (payload as InboxComment);
+      if (!comment || typeof comment !== "object" || !comment.id) return;
+      // Defensive: coerce types so a malformed payload can't crash the UI.
+      // Only fields on InboxComment are populated — anything else is dropped.
+      const safe = {
+        id: String(comment.id),
+        accountId: comment.accountId ?? "",
+        platform: (comment.platform as PlatformId) ?? "instagram",
+        handle: String(comment.handle ?? ""),
+        author: String(comment.author ?? "Unknown"),
+        authorAvatar: comment.authorAvatar ?? null,
+        text: String(comment.text ?? ""),
+        type: (comment.type as Comment["type"]) ?? "comment",
+        sentiment: (comment.sentiment as Comment["sentiment"]) ?? "neutral",
+        replied: !!comment.replied,
+        assigneeName: comment.assigneeName ?? null,
+        createdAt: String(comment.createdAt ?? new Date().toISOString()),
+        // InboxComment extension — best-effort, the API may or may not return these.
+        repliedAt: (comment as { repliedAt?: string | null }).repliedAt ?? null,
+        replyText: (comment as { replyText?: string | null }).replyText ?? null,
+      } as InboxComment;
+      setLiveComments((prev) => {
+        if (prev.some((c) => c.id === safe.id)) return prev;
+        return [safe, ...prev];
+      });
+      setNewIds((prev) => {
+        const next = new Set(prev);
+        next.add(safe.id);
+        return next;
+      });
+      // Auto-clear the "New" badge after 30s — if the user hasn't engaged
+      // by then, the badge has done its job (caught their eye) and can fade.
+      const existing = newIdTimers.current.get(safe.id);
+      if (existing) clearTimeout(existing);
+      const t = setTimeout(() => markLiveSeen(safe.id), 30_000);
+      newIdTimers.current.set(safe.id, t);
+    };
+    socket.on("inbox:new", onNew);
+    return () => {
+      socket.off("inbox:new", onNew);
+      // Clear any pending auto-clear timers on unmount.
+      for (const t of newIdTimers.current.values()) clearTimeout(t);
+      newIdTimers.current.clear();
+    };
+  }, [socket, markLiveSeen]);
+
+  // When the polled `data` changes, prune any live comments that have been
+  // absorbed into the canonical list — keeps the overlay from growing
+  // unbounded over a long session.
+  React.useEffect(() => {
+    if (!data) return;
+    const polledIds = new Set(data.map((c) => c.id));
+    setLiveComments((prev) => {
+      const filtered = prev.filter((c) => !polledIds.has(c.id));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+    // Don't auto-clear `newIds` here — the badge should persist briefly
+    // even after the poll catches up, so the user notices the new item.
+  }, [data]);
+
+  const all = React.useMemo(() => {
+    const polled = data ?? [];
+    const seen = new Set(polled.map((c) => c.id));
+    const fresh = liveComments.filter((c) => !seen.has(c.id));
+    // Newest-first by createdAt (the default sort). If the user has picked
+    // a different sort, the `visible` memo below re-sorts the union — so
+    // prepending here is just for the default case + for the de-dupe.
+    return [...fresh, ...polled];
+  }, [data, liveComments]);
 
   // Platform counts (pre-filter — shows the universe of platforms).
   const platformCounts = React.useMemo(() => {
@@ -1382,6 +1506,8 @@ export function InboxView() {
     setMobileShowDetail(true);
     setAssignOpenFor(null);
     setEmojiOpenFor(null);
+    // Clear the "New" badge — the user has now seen it.
+    markLiveSeen(c.id);
   };
 
   const backToList = () => setMobileShowDetail(false);
@@ -1815,6 +1941,7 @@ export function InboxView() {
                   const isCheckboxShown = anyChecked;
                   const canDelete =
                     !c.assigneeName || c.assigneeName === currentUserName;
+                  const isNew = newIds.has(c.id);
                   return (
                     <div key={c.id} className="relative">
                       <ConversationRow
@@ -1822,6 +1949,7 @@ export function InboxView() {
                         isSelected={isSelected}
                         isCheckboxShown={isCheckboxShown}
                         isChecked={checkedIds.has(c.id)}
+                        isNew={isNew}
                         onPick={() => selectRow(c)}
                         onToggleCheck={() => toggleCheck(c.id)}
                         onToggleRead={() => markReplied(c, !c.replied)}

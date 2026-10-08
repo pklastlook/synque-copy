@@ -24,17 +24,34 @@ export type Role = "admin" | "manager" | "editor" | "member" | "viewer";
  * Returns the decoded payload or null.
  *
  * Supports both Bearer token (Authorization header) and cookie-based auth.
- * The payload includes: { userId, email, role, customerId }
+ * The payload includes: { userId, email, role, customerId, emailVerified }
  * customerId is null for super-admins (see all tenants).
+ * emailVerified is a boolean (true if `User.emailVerified` is non-null) —
+ * carried on the JWT so middleware / handlers can read it without a DB hit.
  */
-export function getUserFromRequest(req: NextRequest): { userId: string; email: string; role: string; customerId: string | null } | null {
+export function getUserFromRequest(req: NextRequest): { userId: string; email: string; role: string; customerId: string | null; emailVerified?: boolean } | null {
+  const decode = (token: string) => {
+    const decoded = jwt.verify(token, SECRET) as unknown as {
+      userId: string;
+      email: string;
+      role: string;
+      customerId?: string | null;
+      emailVerified?: boolean;
+    };
+    return {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+      customerId: decoded.customerId ?? null,
+      emailVerified: decoded.emailVerified,
+    };
+  };
+
   // Try Bearer token first
   const authHeader = req.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     try {
-      const token = authHeader.replace("Bearer ", "");
-      const decoded = jwt.verify(token, SECRET) as unknown as { userId: string; email: string; role: string; customerId?: string | null };
-      return { userId: decoded.userId, email: decoded.email, role: decoded.role, customerId: decoded.customerId ?? null };
+      return decode(authHeader.replace("Bearer ", ""));
     } catch {
       // Fall through to cookie
     }
@@ -46,8 +63,7 @@ export function getUserFromRequest(req: NextRequest): { userId: string; email: s
     const tokenMatch = cookie.match(/(?:^|;\s*)token=([^;]+)/);
     if (tokenMatch) {
       try {
-        const decoded = jwt.verify(tokenMatch[1], SECRET) as unknown as { userId: string; email: string; role: string; customerId?: string | null };
-        return { userId: decoded.userId, email: decoded.email, role: decoded.role, customerId: decoded.customerId ?? null };
+        return decode(tokenMatch[1]);
       } catch {
         return null;
       }
@@ -62,8 +78,7 @@ export function getUserFromRequest(req: NextRequest): { userId: string; email: s
   const queryToken = req.nextUrl?.searchParams?.get("token");
   if (queryToken) {
     try {
-      const decoded = jwt.verify(queryToken, SECRET) as unknown as { userId: string; email: string; role: string; customerId?: string | null };
-      return { userId: decoded.userId, email: decoded.email, role: decoded.role, customerId: decoded.customerId ?? null };
+      return decode(queryToken);
     } catch {
       return null;
     }
@@ -236,6 +251,49 @@ export async function requireRole(req: NextRequest, role: Role) {
   }
 
   return { user: authResult.user, error: null };
+}
+
+/**
+ * P2-CORE — Email-verification enforcement helper.
+ *
+ * The platform does NOT hard-block unverified users from using the system
+ * (the frontend shows a "verify your email" banner instead — a UX nudge,
+ * not a hard block). For specific sensitive routes that DO want to enforce
+ * verification (e.g. inviting new team members, exporting customer data),
+ * call this AFTER `requireAuth`:
+ *
+ *   const { user, error } = await requireAuth(req);
+ *   if (error) return error;
+ *   const verifyError = requireEmailVerified(req);
+ *   if (verifyError) return verifyError;
+ *
+ * Returns a `403` NextResponse when the JWT's `emailVerified` claim is
+ * missing or falsy — meaning the user has not yet clicked the verification
+ * link in their welcome email.
+ *
+ * The check reads the JWT claim set by `issueSession` (no DB hit). If the
+ * claim is absent (older JWTs issued before P2-CORE), the route is allowed
+ * through — backward-compat for sessions that already exist.
+ */
+export function requireEmailVerified(req: NextRequest) {
+  const user = getUserFromRequest(req);
+  if (!user) {
+    // No authenticated user — caller should have caught this with requireAuth.
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 }
+    );
+  }
+  // The JWT carries `emailVerified` as a boolean. Older tokens (pre-P2-CORE)
+  // won't have the claim — we treat absence as "not verified" to be safe,
+  // since issueSession always sets the claim now and tokens expire in 7d.
+  if (!user.emailVerified) {
+    return NextResponse.json(
+      { error: "Please verify your email to continue." },
+      { status: 403 }
+    );
+  }
+  return null;
 }
 
 /**

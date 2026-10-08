@@ -351,6 +351,18 @@ export function ComposerView() {
   const [cropAspect, setCropAspect] = React.useState("1:1");
   const [previewAccountId, setPreviewAccountId] = React.useState<string>("");
   const [aiAssistantOpen, setAiAssistantOpen] = React.useState(false);
+  // P2-CORE — AI usage snapshot for the quota indicator + generate-button gate.
+  // Fetched on mount from /api/ai/usage and refreshed after each successful
+  // generate() / aiImprove() call (also updated inline from the `usage`
+  // field echoed back by /api/ai/generate + /api/ai/chat).
+  const [aiUsage, setAiUsage] = React.useState<{
+    used: number;
+    limit: number;
+    remaining: number;
+    plan: string;
+    resetsAt: string;
+    limited: boolean;
+  } | null>(null);
   // New modern state
   const [collapsed, setCollapsed] = React.useState<Set<SectionId>>(new Set());
   const [accountFilter, setAccountFilter] = React.useState<"all" | "verified" | "top">("all");
@@ -513,6 +525,33 @@ export function ComposerView() {
     return () => window.removeEventListener("keydown", onKey);
   }, [state, selectedAccounts, publishing, editingPostId]);
 
+  // P2-CORE — fetch the AI usage snapshot on mount so the indicator + the
+  // generate button's disabled state are correct on first render.
+  const refreshAiUsage = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/ai/usage", { credentials: "include" });
+      if (!res.ok) return;
+      const json = (await res.json()) as {
+        used: number;
+        limit: number;
+        remaining: number;
+        plan: string;
+        resetsAt: string;
+        limited: boolean;
+      };
+      setAiUsage(json);
+    } catch {
+      /* best-effort — UI falls back to "no usage data" */
+    }
+  }, []);
+  React.useEffect(() => {
+    refreshAiUsage();
+  }, [refreshAiUsage]);
+
+  // Whether the user has hit their plan's AI quota (drives the disabled
+  // state of the Generate button + the Upgrade CTA).
+  const aiLimited = aiUsage?.limited === true;
+
   /* ----------------------------------------------------------
      Actions
      ---------------------------------------------------------- */
@@ -605,6 +644,15 @@ export function ComposerView() {
       toast.error("Your session is loading — please try again in a moment");
       return;
     }
+    // P2-CORE — block AI generation when the user has hit their plan quota.
+    // The server enforces this too (returns 429), but the client-side check
+    // avoids a wasted round-trip + lets us show the Upgrade CTA immediately.
+    if (aiLimited) {
+      toast.error(
+        "AI generation limit reached. Upgrade your plan for unlimited generations.",
+      );
+      return;
+    }
     setGenerating(true);
     const targets = selectedAccounts.map((a) => ({
       accountId: a.id,
@@ -627,6 +675,20 @@ export function ComposerView() {
         }),
       });
       const json = await res.json().catch(() => ({}));
+      // P2-CORE — the server echoes the post-increment usage snapshot. If
+      // present, update the indicator immediately so the user sees the
+      // count tick up without a separate /api/ai/usage round-trip.
+      if (json.usage) setAiUsage(json.usage);
+      // If the server returned 429 (limit hit between client check + server
+      // check), update the indicator + surface the error.
+      if (res.status === 429) {
+        setAiUsage(json.usage ?? null);
+        toast.error(
+          json.error ?? "AI generation limit reached. Upgrade your plan for unlimited generations.",
+        );
+        setGenerating(false);
+        return;
+      }
       const incoming = json.variants ?? json.fallback?.variants;
       if (incoming && typeof incoming === "object") {
         const normalized: Record<string, Variant> = {};
@@ -672,6 +734,14 @@ export function ComposerView() {
       toast.error("Write something to improve first");
       return;
     }
+    // P2-CORE — block AI improve when the user has hit their quota (same
+    // check as generate() — the chat endpoint enforces it server-side too).
+    if (aiLimited) {
+      toast.error(
+        "AI generation limit reached. Upgrade your plan for unlimited generations.",
+      );
+      return;
+    }
     setImproving(true);
     try {
       const res = await fetch("/api/ai/chat", {
@@ -690,6 +760,16 @@ export function ComposerView() {
         }),
       });
       const json = await res.json().catch(() => ({}));
+      // P2-CORE — server echoes the post-increment usage snapshot.
+      if (json.usage) setAiUsage(json.usage);
+      if (res.status === 429) {
+        setAiUsage(json.usage ?? null);
+        toast.error(
+          json.error ?? "AI generation limit reached. Upgrade your plan for unlimited generations.",
+        );
+        setImproving(false);
+        return;
+      }
       if (json.suggestions && Array.isArray(json.suggestions) && json.suggestions.length > 0) {
         update({ caption: json.suggestions[0] });
         toast.success("Caption improved");
@@ -1773,6 +1853,108 @@ export function ComposerView() {
                     {t.title}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* P2-CORE — AI usage indicator + generate / improve buttons.
+                Shows the user's monthly quota ("AI: 47/100 used this month")
+                and disables the Generate button when the limit is hit,
+                surfacing an "Upgrade to Growth for unlimited" CTA instead. */}
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-muted/40 p-2.5">
+              <div className="flex items-center gap-2 text-[11px]">
+                <div
+                  className={cn(
+                    "grid h-6 w-6 place-items-center rounded-lg",
+                    aiLimited
+                      ? "bg-rose-500/15 text-rose-500"
+                      : "bg-primary/15 text-primary"
+                  )}
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                </div>
+                <div className="leading-tight">
+                  {aiUsage ? (
+                    aiUsage.limit === -1 ? (
+                      <>
+                        <div className="font-bold text-foreground">
+                          AI: unlimited
+                        </div>
+                        <div className="text-[10px] text-muted-foreground capitalize">
+                          {aiUsage.plan} plan · {aiUsage.used} used this month
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-bold text-foreground">
+                          AI: {aiUsage.used}/{aiUsage.limit} used this month
+                        </div>
+                        <div className="text-[10px] text-muted-foreground capitalize">
+                          {aiUsage.plan} plan · resets{" "}
+                          {new Date(aiUsage.resetsAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </div>
+                      </>
+                    )
+                  ) : (
+                    <div className="font-medium text-muted-foreground">
+                      Loading AI usage…
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                {/* Limit-reached CTA — replaces the generate button. */}
+                {aiLimited && (
+                  <a
+                    href="/billing"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-emerald-600"
+                    title="Upgrade your plan"
+                  >
+                    <Crown className="h-3.5 w-3.5" />
+                    Upgrade to Growth for unlimited
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => aiImprove()}
+                  disabled={
+                    improving ||
+                    aiLimited ||
+                    !state.caption.trim() ||
+                    selectedAccounts.length === 0
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border/50 bg-background/60 px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Rewrite the current caption with AI"
+                >
+                  {improving ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5" />
+                  )}
+                  Improve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => generate()}
+                  disabled={
+                    generating ||
+                    aiLimited ||
+                    !state.caption.trim() ||
+                    selectedAccounts.length === 0
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Generate platform-native variants with AI"
+                >
+                  {generating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  Generate variants
+                </button>
               </div>
             </div>
 

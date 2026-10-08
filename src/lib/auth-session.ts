@@ -68,7 +68,16 @@ export async function issueSession(opts: {
   const { user, req } = opts;
 
   const token = jwt.sign(
-    { userId: user.id, email: user.email, role: user.role, customerId: user.customerId },
+    {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      customerId: user.customerId,
+      // P2-CORE — carry emailVerified on the JWT so middleware + handlers
+      // can branch on verification status without a DB hit. Boolean (true
+      // iff `User.emailVerified` is non-null).
+      emailVerified: !!user.emailVerified,
+    },
     JWT_SECRET,
     { expiresIn: "7d" }
   );

@@ -581,14 +581,6 @@ export type AccountUncheckedUpdateManyWithoutOwnerNestedInput = {
   deleteMany?: Prisma.AccountScalarWhereInput | Prisma.AccountScalarWhereInput[]
 }
 
-export type IntFieldUpdateOperationsInput = {
-  set?: number
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
-}
-
 export type AccountCreateNestedOneWithoutHealthInput = {
   create?: Prisma.XOR<Prisma.AccountCreateWithoutHealthInput, Prisma.AccountUncheckedCreateWithoutHealthInput>
   connectOrCreate?: Prisma.AccountCreateOrConnectWithoutHealthInput

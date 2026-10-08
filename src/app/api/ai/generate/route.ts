@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth-guard";
+import { checkAndIncrementAiUsage } from "@/lib/ai-usage";
 import { chatWithFallback, type LLMMessage } from "@/lib/llm";
 import { PLATFORMS } from "@/lib/platforms";
 
@@ -12,7 +14,22 @@ interface Target {
 }
 
 export async function POST(req: NextRequest) {
-  const { caption, tone, targets, mediaHint, userId } = (await req.json()) as {
+  // P2-CORE — require auth so we can attribute the AI usage to a real user
+  // and enforce their plan's monthly quota.
+  const { user, error } = await requireAuth(req);
+  if (error) return error;
+
+  // Quota check — also resets the 30-day window if stale + increments the
+  // counter for this call. Returns 429 if the user is over their plan's cap.
+  const quota = await checkAndIncrementAiUsage(user!);
+  if (!quota.ok) {
+    return NextResponse.json(
+      { error: quota.message, usage: quota.snapshot },
+      { status: quota.status ?? 429 }
+    );
+  }
+
+  const { caption, tone, targets, mediaHint } = (await req.json()) as {
     caption: string;
     tone: string;
     targets: Target[];
@@ -33,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   const system = `You are an expert social media copywriter for a brand's dissemination team. You write platform-native captions that match each platform's tone, format conventions, and length limits. You adapt ONE core message into distinct, platform-optimized variants — never just copy-paste. You use relevant hashtags sparingly and appropriately per platform.`;
 
-  const user = `Core message / brief:
+  const userMsg = `Core message / brief:
 """
 ${caption}
 """
@@ -66,14 +83,14 @@ The "index" MUST match the destination number above, in order. Include exactly o
   try {
     const llmMessages: LLMMessage[] = [
       { role: "system", content: system },
-      { role: "user", content: user },
+      { role: "user", content: userMsg },
     ];
     const result = await chatWithFallback(llmMessages);
     raw = result.content;
   } catch (err) {
     console.error("[ai/generate] All LLM providers failed:", err instanceof Error ? err.message : String(err));
     return NextResponse.json(
-      { error: "AI request failed", fallback: fallback(caption, targets) },
+      { error: "AI request failed", fallback: fallback(caption, targets), usage: quota.snapshot },
       { status: 200 }
     );
   }
@@ -121,7 +138,7 @@ The "index" MUST match the destination number above, in order. Include exactly o
   const filled = Object.keys(variantsByAccount).length;
   if (filled === 0) {
     return NextResponse.json(
-      { error: "AI returned malformed output", fallback: fallback(caption, targets) },
+      { error: "AI returned malformed output", fallback: fallback(caption, targets), usage: quota.snapshot },
       { status: 200 }
     );
   }
@@ -135,11 +152,11 @@ The "index" MUST match the destination number above, in order. Include exactly o
 
   // log activity (only if we have a real userId from the session — never
   // hardcode one. Activity logging is non-critical so failures are swallowed.)
-  if (userId) {
+  if (user!.userId) {
     try {
       await db.activity.create({
         data: {
-          userId,
+          userId: user!.userId,
           type: "ai_generated",
           description: `generated ${targets.length} platform-specific captions for “${caption.slice(0, 40)}…”`,
         },
@@ -149,7 +166,9 @@ The "index" MUST match the destination number above, in order. Include exactly o
     }
   }
 
-  return NextResponse.json({ variants: variantsByAccount });
+  // Echo the post-quota snapshot so the client can update its usage indicator
+  // without a separate /api/ai/usage round-trip.
+  return NextResponse.json({ variants: variantsByAccount, usage: quota.snapshot });
 }
 
 function fallback(caption: string, targets: Target[]) {

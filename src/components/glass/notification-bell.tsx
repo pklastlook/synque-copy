@@ -5,9 +5,15 @@
  * the user's most recent in-app notifications.
  *
  * Behaviour:
- *   - Polls `/api/notifications?unread=true` every 60s for the unread count
- *     (lightweight — single integer in the response). The badge updates
- *     without opening the panel.
+ *   - PRIMARY (real-time): subscribes to the `notification:new` socket
+ *     event from the chat-service. When a new notification arrives, the
+ *     badge increments and the item is prepended to the dropdown list
+ *     immediately — no polling lag.
+ *   - FALLBACK (polling): fetches `/api/notifications?unread=true` every
+ *     5 minutes (300s) AND on window focus. This catches notifications
+ *     that arrived while the WS was disconnected (mobile background,
+ *     corporate proxy, etc.). Previously polled every 60s — now that WS
+ *     is the primary path, the polling cadence is relaxed.
  *   - When the panel is opened, fetches the full recent list via
  *     `/api/notifications?limit=20`.
  *   - Each notification row has an icon (varies by type), title, message,
@@ -38,6 +44,7 @@ import {
 import { useNav } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/hooks";
+import { useWebSocket } from "@/lib/use-websocket";
 import { Pill, SectionHeader } from "@/components/glass/dense-ui";
 import {
   DropdownMenu,
@@ -160,8 +167,16 @@ export function NotificationBell() {
   const [open, setOpen] = React.useState(false);
   const [markingAll, setMarkingAll] = React.useState(false);
 
-  // ---- Poll for unread count every 60s (and once on mount) ----
-  // Lightweight: GET /api/notifications?unread=true returns just an integer.
+  // Real-time socket subscription — receives `notification:new` events
+  // pushed by the chat-service. The socket is shared with the rest of the
+  // app via the `useWebSocket` singleton.
+  const { socket } = useWebSocket();
+
+  // ---- Poll for unread count every 5 minutes (and once on mount) ----
+  // PRIMARY path is the WS event — this poll is the FALLBACK that catches
+  // notifications which arrived while the socket was disconnected (mobile
+  // background, corporate proxy, service restart). Reduced from 60s to
+  // 5min now that WS is the primary delivery channel.
   // Failures are silent — the bell just shows 0 unread if the API is down.
   const refreshUnreadCount = React.useCallback(async () => {
     try {
@@ -174,7 +189,7 @@ export function NotificationBell() {
 
   React.useEffect(() => {
     refreshUnreadCount();
-    const id = setInterval(refreshUnreadCount, 60_000); // 60 seconds
+    const id = setInterval(refreshUnreadCount, 5 * 60_000); // 5 minutes
     // Re-poll when the tab regains focus (covers the case where the user
     // was away for a while — they get fresh notifications on return).
     const onFocus = () => refreshUnreadCount();
@@ -184,6 +199,51 @@ export function NotificationBell() {
       window.removeEventListener("focus", onFocus);
     };
   }, [refreshUnreadCount]);
+
+  // ---- Real-time: listen for `notification:new` via the shared socket ----
+  // When a notification arrives, increment the badge immediately AND, if
+  // the panel has already been opened (items !== null), prepend the item
+  // so the user sees it the next time they open the panel. If the panel
+  // hasn't been opened yet, we leave `items` as null — the next open will
+  // fetch the canonical list which already includes the new notification.
+  React.useEffect(() => {
+    if (!socket) return;
+    const onNew = (payload: unknown) => {
+      // Payload is either a NotificationItem or { notification: NotificationItem }.
+      const n =
+        (payload as { notification?: NotificationItem })?.notification ??
+        (payload as NotificationItem);
+      if (!n || typeof n !== "object" || !n.id) return;
+
+      const safe: NotificationItem = {
+        id: String(n.id),
+        type: typeof n.type === "string" ? n.type : "unknown",
+        title: String(n.title ?? "New notification"),
+        message: String(n.message ?? ""),
+        read: !!n.read,
+        actionView: n.actionView ?? null,
+        actionId: n.actionId ?? null,
+        createdAt: n.createdAt ?? new Date().toISOString(),
+      };
+
+      // Increment the unread badge (unless this notification is already read).
+      setUnreadCount((c) => c + (safe.read ? 0 : 1));
+
+      // Prepend to the dropdown list IF the user has already opened it at
+      // least once — otherwise the next `open` will fetch the canonical
+      // list (which will include this notification).
+      setItems((prev) => {
+        if (prev === null) return prev;
+        // De-dupe by id — the poll may have already picked it up.
+        if (prev.some((x) => x.id === safe.id)) return prev;
+        return [safe, ...prev];
+      });
+    };
+    socket.on("notification:new", onNew);
+    return () => {
+      socket.off("notification:new", onNew);
+    };
+  }, [socket]);
 
   // ---- Fetch the full notification list when the panel opens ----
   const refreshList = React.useCallback(async () => {
@@ -424,7 +484,7 @@ export function NotificationBell() {
                 {unreadCount} unread
               </Pill>
               <span className="text-[10px] text-muted-foreground/70">
-                Updates every 60s
+                Live · fallback every 5m
               </span>
             </div>
           </>

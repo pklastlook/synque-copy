@@ -97,7 +97,12 @@ export async function sendVerificationEmail(opts: {
     },
   });
 
-  const verifyUrl = buildAppUrl(opts.req, `?verify=${token}`);
+  // P2-CORE — point the email link to the GET handler on
+  // /api/auth/verify-email?token=xxx, which verifies the token + redirects
+  // to /?verified=true. Earlier this built `?verify=xxx` on the home page,
+  // but the AppShell never read that query — the new GET handler closes
+  // the loop with a redirect that the AppShell can surface as a toast.
+  const verifyUrl = buildAppUrl(opts.req, `api/auth/verify-email?token=${token}`);
   const { sent } = await sendEmail({
     to: normalizedEmail,
     subject: "Verify your SYNQUE email",

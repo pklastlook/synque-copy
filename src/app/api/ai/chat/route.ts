@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth-guard";
+import { checkAndIncrementAiUsage } from "@/lib/ai-usage";
 import { chatWithFallback, type LLMMessage } from "@/lib/llm";
 
 export const dynamic = "force-dynamic";
@@ -12,9 +14,11 @@ export const dynamic = "force-dynamic";
  *   platforms?: string[]    — which platforms they're targeting
  *   currentCaption?: string — what's already in the textbox (so AI has context)
  *
- * Returns: { reply: string, suggestions?: string[] }
+ * Returns: { reply: string, suggestions?: string[], usage?: AiUsageSnapshot }
  *   - reply: the assistant's conversational reply
  *   - suggestions: 0-3 concrete caption drafts the user can click to apply
+ *   - usage: post-increment AI usage snapshot (so the Composer UI can update
+ *     the quota indicator without a separate /api/ai/usage round-trip)
  *
  * The AI is instructed to:
  *   - Be conversational and helpful (ask clarifying questions when brief is vague)
@@ -22,6 +26,18 @@ export const dynamic = "force-dynamic";
  *   - Respect the chosen tone + platform conventions
  */
 export async function POST(req: NextRequest) {
+  // P2-CORE — require auth + enforce the user's plan quota before generating.
+  const { user, error } = await requireAuth(req);
+  if (error) return error;
+
+  const quota = await checkAndIncrementAiUsage(user!);
+  if (!quota.ok) {
+    return NextResponse.json(
+      { error: quota.message, usage: quota.snapshot },
+      { status: quota.status ?? 429 }
+    );
+  }
+
   const body = await req.json();
   const {
     messages = [],
@@ -160,5 +176,7 @@ If the user is just chatting or asking a question (NOT requesting a caption), sk
   suggestions.length = 0;
   suggestions.push(...filtered);
 
-  return NextResponse.json({ reply, suggestions });
+  // P2-CORE — echo the post-increment usage snapshot so the Composer UI can
+  // update its quota indicator without a separate /api/ai/usage round-trip.
+  return NextResponse.json({ reply, suggestions, usage: quota.snapshot });
 }

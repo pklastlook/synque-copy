@@ -40,6 +40,12 @@ model User {
   totpSecret     String?    // TOTP secret for 2FA (base32 encoded)
   pendingTotpSecret String? // staged TOTP secret during 2FA setup — committed to totpSecret only after the user verifies a code from their authenticator
   twoFactorEnabled Boolean  @default(false) // whether 2FA is required on login
+  // P2-CORE — AI usage tracking per user (monthly quota enforcement).
+  // `aiUsageCount` increments on every AI generate/chat call;
+  // `aiUsageResetAt` is the start of the current 30-day cycle. When the
+  // cycle elapses, the helper resets the count to 0 and bumps `aiUsageResetAt`.
+  aiUsageCount   Int      @default(0)
+  aiUsageResetAt DateTime @default(now())
   // Sessions + login history
   sessions       Session[]
 

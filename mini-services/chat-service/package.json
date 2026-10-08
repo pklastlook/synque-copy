@@ -1,0 +1,16 @@
+{
+  "name": "chat-service",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun --hot index.ts",
+    "build": "echo 'No build step — bun runs TS directly'"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io": "^4.8.4"
+  }
+}

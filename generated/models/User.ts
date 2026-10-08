@@ -20,8 +20,18 @@ export type UserModel = runtime.Types.Result.DefaultSelection<Prisma.$UserPayloa
 
 export type AggregateUser = {
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
+}
+
+export type UserAvgAggregateOutputType = {
+  aiUsageCount: number | null
+}
+
+export type UserSumAggregateOutputType = {
+  aiUsageCount: number | null
 }
 
 export type UserMinAggregateOutputType = {
@@ -49,6 +59,8 @@ export type UserMinAggregateOutputType = {
   totpSecret: string | null
   pendingTotpSecret: string | null
   twoFactorEnabled: boolean | null
+  aiUsageCount: number | null
+  aiUsageResetAt: Date | null
 }
 
 export type UserMaxAggregateOutputType = {
@@ -76,6 +88,8 @@ export type UserMaxAggregateOutputType = {
   totpSecret: string | null
   pendingTotpSecret: string | null
   twoFactorEnabled: boolean | null
+  aiUsageCount: number | null
+  aiUsageResetAt: Date | null
 }
 
 export type UserCountAggregateOutputType = {
@@ -103,9 +117,19 @@ export type UserCountAggregateOutputType = {
   totpSecret: number
   pendingTotpSecret: number
   twoFactorEnabled: number
+  aiUsageCount: number
+  aiUsageResetAt: number
   _all: number
 }
 
+
+export type UserAvgAggregateInputType = {
+  aiUsageCount?: true
+}
+
+export type UserSumAggregateInputType = {
+  aiUsageCount?: true
+}
 
 export type UserMinAggregateInputType = {
   id?: true
@@ -132,6 +156,8 @@ export type UserMinAggregateInputType = {
   totpSecret?: true
   pendingTotpSecret?: true
   twoFactorEnabled?: true
+  aiUsageCount?: true
+  aiUsageResetAt?: true
 }
 
 export type UserMaxAggregateInputType = {
@@ -159,6 +185,8 @@ export type UserMaxAggregateInputType = {
   totpSecret?: true
   pendingTotpSecret?: true
   twoFactorEnabled?: true
+  aiUsageCount?: true
+  aiUsageResetAt?: true
 }
 
 export type UserCountAggregateInputType = {
@@ -186,6 +214,8 @@ export type UserCountAggregateInputType = {
   totpSecret?: true
   pendingTotpSecret?: true
   twoFactorEnabled?: true
+  aiUsageCount?: true
+  aiUsageResetAt?: true
   _all?: true
 }
 
@@ -227,6 +257,18 @@ export type UserAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: UserAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: UserSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: UserMinAggregateInputType
@@ -257,6 +299,8 @@ export type UserGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
   take?: number
   skip?: number
   _count?: UserCountAggregateInputType | true
+  _avg?: UserAvgAggregateInputType
+  _sum?: UserSumAggregateInputType
   _min?: UserMinAggregateInputType
   _max?: UserMaxAggregateInputType
 }
@@ -286,7 +330,11 @@ export type UserGroupByOutputType = {
   totpSecret: string | null
   pendingTotpSecret: string | null
   twoFactorEnabled: boolean
+  aiUsageCount: number
+  aiUsageResetAt: Date
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
 }
@@ -334,6 +382,8 @@ export type UserWhereInput = {
   totpSecret?: Prisma.StringNullableFilter<"User"> | string | null
   pendingTotpSecret?: Prisma.StringNullableFilter<"User"> | string | null
   twoFactorEnabled?: Prisma.BoolFilter<"User"> | boolean
+  aiUsageCount?: Prisma.IntFilter<"User"> | number
+  aiUsageResetAt?: Prisma.DateTimeFilter<"User"> | Date | string
   sessions?: Prisma.SessionListRelationFilter
   accounts?: Prisma.AccountListRelationFilter
   posts?: Prisma.PostListRelationFilter
@@ -375,6 +425,8 @@ export type UserOrderByWithRelationInput = {
   totpSecret?: Prisma.SortOrderInput | Prisma.SortOrder
   pendingTotpSecret?: Prisma.SortOrderInput | Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
+  aiUsageCount?: Prisma.SortOrder
+  aiUsageResetAt?: Prisma.SortOrder
   sessions?: Prisma.SessionOrderByRelationAggregateInput
   accounts?: Prisma.AccountOrderByRelationAggregateInput
   posts?: Prisma.PostOrderByRelationAggregateInput
@@ -419,6 +471,8 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   totpSecret?: Prisma.StringNullableFilter<"User"> | string | null
   pendingTotpSecret?: Prisma.StringNullableFilter<"User"> | string | null
   twoFactorEnabled?: Prisma.BoolFilter<"User"> | boolean
+  aiUsageCount?: Prisma.IntFilter<"User"> | number
+  aiUsageResetAt?: Prisma.DateTimeFilter<"User"> | Date | string
   sessions?: Prisma.SessionListRelationFilter
   accounts?: Prisma.AccountListRelationFilter
   posts?: Prisma.PostListRelationFilter
@@ -460,9 +514,13 @@ export type UserOrderByWithAggregationInput = {
   totpSecret?: Prisma.SortOrderInput | Prisma.SortOrder
   pendingTotpSecret?: Prisma.SortOrderInput | Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
+  aiUsageCount?: Prisma.SortOrder
+  aiUsageResetAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
+  _avg?: Prisma.UserAvgOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
+  _sum?: Prisma.UserSumOrderByAggregateInput
 }
 
 export type UserScalarWhereWithAggregatesInput = {
@@ -493,6 +551,8 @@ export type UserScalarWhereWithAggregatesInput = {
   totpSecret?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   pendingTotpSecret?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   twoFactorEnabled?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
+  aiUsageCount?: Prisma.IntWithAggregatesFilter<"User"> | number
+  aiUsageResetAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
 
 export type UserCreateInput = {
@@ -520,6 +580,8 @@ export type UserCreateInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -561,6 +623,8 @@ export type UserUncheckedCreateInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -602,6 +666,8 @@ export type UserUpdateInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -643,6 +709,8 @@ export type UserUncheckedUpdateInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -684,6 +752,8 @@ export type UserCreateManyInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
 }
 
 export type UserUpdateManyMutationInput = {
@@ -711,6 +781,8 @@ export type UserUpdateManyMutationInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type UserUncheckedUpdateManyInput = {
@@ -738,6 +810,8 @@ export type UserUncheckedUpdateManyInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type UserCountOrderByAggregateInput = {
@@ -765,6 +839,12 @@ export type UserCountOrderByAggregateInput = {
   totpSecret?: Prisma.SortOrder
   pendingTotpSecret?: Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
+  aiUsageCount?: Prisma.SortOrder
+  aiUsageResetAt?: Prisma.SortOrder
+}
+
+export type UserAvgOrderByAggregateInput = {
+  aiUsageCount?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
@@ -792,6 +872,8 @@ export type UserMaxOrderByAggregateInput = {
   totpSecret?: Prisma.SortOrder
   pendingTotpSecret?: Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
+  aiUsageCount?: Prisma.SortOrder
+  aiUsageResetAt?: Prisma.SortOrder
 }
 
 export type UserMinOrderByAggregateInput = {
@@ -819,6 +901,12 @@ export type UserMinOrderByAggregateInput = {
   totpSecret?: Prisma.SortOrder
   pendingTotpSecret?: Prisma.SortOrder
   twoFactorEnabled?: Prisma.SortOrder
+  aiUsageCount?: Prisma.SortOrder
+  aiUsageResetAt?: Prisma.SortOrder
+}
+
+export type UserSumOrderByAggregateInput = {
+  aiUsageCount?: Prisma.SortOrder
 }
 
 export type UserScalarRelationFilter = {
@@ -849,6 +937,14 @@ export type DateTimeFieldUpdateOperationsInput = {
 
 export type BoolFieldUpdateOperationsInput = {
   set?: boolean
+}
+
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
 }
 
 export type UserCreateNestedOneWithoutAccountsInput = {
@@ -1080,6 +1176,8 @@ export type UserCreateWithoutAccountsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -1120,6 +1218,8 @@ export type UserUncheckedCreateWithoutAccountsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -1176,6 +1276,8 @@ export type UserUpdateWithoutAccountsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -1216,6 +1318,8 @@ export type UserUncheckedUpdateWithoutAccountsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -1256,6 +1360,8 @@ export type UserCreateWithoutPostsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -1296,6 +1402,8 @@ export type UserUncheckedCreateWithoutPostsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -1352,6 +1460,8 @@ export type UserUpdateWithoutPostsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -1392,6 +1502,8 @@ export type UserUncheckedUpdateWithoutPostsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -1432,6 +1544,8 @@ export type UserCreateWithoutAssignedCommentsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -1472,6 +1586,8 @@ export type UserUncheckedCreateWithoutAssignedCommentsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -1528,6 +1644,8 @@ export type UserUpdateWithoutAssignedCommentsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -1568,6 +1686,8 @@ export type UserUncheckedUpdateWithoutAssignedCommentsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -1608,6 +1728,8 @@ export type UserCreateWithoutActivitiesInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -1648,6 +1770,8 @@ export type UserUncheckedCreateWithoutActivitiesInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -1704,6 +1828,8 @@ export type UserUpdateWithoutActivitiesInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -1744,6 +1870,8 @@ export type UserUncheckedUpdateWithoutActivitiesInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -1784,6 +1912,8 @@ export type UserCreateWithoutSavedWhatsAppMsgsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -1824,6 +1954,8 @@ export type UserUncheckedCreateWithoutSavedWhatsAppMsgsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -1880,6 +2012,8 @@ export type UserUpdateWithoutSavedWhatsAppMsgsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -1920,6 +2054,8 @@ export type UserUncheckedUpdateWithoutSavedWhatsAppMsgsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -1960,6 +2096,8 @@ export type UserCreateWithoutSentMessagesInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -2000,6 +2138,8 @@ export type UserUncheckedCreateWithoutSentMessagesInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -2045,6 +2185,8 @@ export type UserCreateWithoutReceivedMessagesInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -2085,6 +2227,8 @@ export type UserUncheckedCreateWithoutReceivedMessagesInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -2141,6 +2285,8 @@ export type UserUpdateWithoutSentMessagesInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -2181,6 +2327,8 @@ export type UserUncheckedUpdateWithoutSentMessagesInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -2232,6 +2380,8 @@ export type UserUpdateWithoutReceivedMessagesInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -2272,6 +2422,8 @@ export type UserUncheckedUpdateWithoutReceivedMessagesInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -2312,6 +2464,8 @@ export type UserCreateWithoutMailboxesInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -2352,6 +2506,8 @@ export type UserUncheckedCreateWithoutMailboxesInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -2408,6 +2564,8 @@ export type UserUpdateWithoutMailboxesInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -2448,6 +2606,8 @@ export type UserUncheckedUpdateWithoutMailboxesInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -2488,6 +2648,8 @@ export type UserCreateWithoutWorkspaceInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -2528,6 +2690,8 @@ export type UserUncheckedCreateWithoutWorkspaceInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -2584,6 +2748,8 @@ export type UserUpdateWithoutWorkspaceInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -2624,6 +2790,8 @@ export type UserUncheckedUpdateWithoutWorkspaceInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -2664,6 +2832,8 @@ export type UserCreateWithoutPlatformCredentialsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -2704,6 +2874,8 @@ export type UserUncheckedCreateWithoutPlatformCredentialsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -2760,6 +2932,8 @@ export type UserUpdateWithoutPlatformCredentialsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -2800,6 +2974,8 @@ export type UserUncheckedUpdateWithoutPlatformCredentialsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -2840,6 +3016,8 @@ export type UserCreateWithoutSessionsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityCreateNestedManyWithoutUserInput
@@ -2880,6 +3058,8 @@ export type UserUncheckedCreateWithoutSessionsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
   activities?: Prisma.ActivityUncheckedCreateNestedManyWithoutUserInput
@@ -2936,6 +3116,8 @@ export type UserUpdateWithoutSessionsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUpdateManyWithoutUserNestedInput
@@ -2976,6 +3158,8 @@ export type UserUncheckedUpdateWithoutSessionsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
   activities?: Prisma.ActivityUncheckedUpdateManyWithoutUserNestedInput
@@ -3016,6 +3200,8 @@ export type UserCreateWithoutVpnSessionsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -3056,6 +3242,8 @@ export type UserUncheckedCreateWithoutVpnSessionsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -3112,6 +3300,8 @@ export type UserUpdateWithoutVpnSessionsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -3152,6 +3342,8 @@ export type UserUncheckedUpdateWithoutVpnSessionsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -3192,6 +3384,8 @@ export type UserCreateWithoutWebauthnCredentialsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -3232,6 +3426,8 @@ export type UserUncheckedCreateWithoutWebauthnCredentialsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -3288,6 +3484,8 @@ export type UserUpdateWithoutWebauthnCredentialsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -3328,6 +3526,8 @@ export type UserUncheckedUpdateWithoutWebauthnCredentialsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -3368,6 +3568,8 @@ export type UserCreateWithoutNotificationsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
@@ -3408,6 +3610,8 @@ export type UserUncheckedCreateWithoutNotificationsInput = {
   totpSecret?: string | null
   pendingTotpSecret?: string | null
   twoFactorEnabled?: boolean
+  aiUsageCount?: number
+  aiUsageResetAt?: Date | string
   sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
   accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutOwnerInput
   posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
@@ -3464,6 +3668,8 @@ export type UserUpdateWithoutNotificationsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
@@ -3504,6 +3710,8 @@ export type UserUncheckedUpdateWithoutNotificationsInput = {
   totpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   pendingTotpSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   twoFactorEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  aiUsageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  aiUsageResetAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
   accounts?: Prisma.AccountUncheckedUpdateManyWithoutOwnerNestedInput
   posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
@@ -3683,6 +3891,8 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   totpSecret?: boolean
   pendingTotpSecret?: boolean
   twoFactorEnabled?: boolean
+  aiUsageCount?: boolean
+  aiUsageResetAt?: boolean
   sessions?: boolean | Prisma.User$sessionsArgs<ExtArgs>
   accounts?: boolean | Prisma.User$accountsArgs<ExtArgs>
   posts?: boolean | Prisma.User$postsArgs<ExtArgs>
@@ -3725,6 +3935,8 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   totpSecret?: boolean
   pendingTotpSecret?: boolean
   twoFactorEnabled?: boolean
+  aiUsageCount?: boolean
+  aiUsageResetAt?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -3752,6 +3964,8 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   totpSecret?: boolean
   pendingTotpSecret?: boolean
   twoFactorEnabled?: boolean
+  aiUsageCount?: boolean
+  aiUsageResetAt?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectScalar = {
@@ -3779,9 +3993,11 @@ export type UserSelectScalar = {
   totpSecret?: boolean
   pendingTotpSecret?: boolean
   twoFactorEnabled?: boolean
+  aiUsageCount?: boolean
+  aiUsageResetAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "password" | "avatar" | "role" | "title" | "department" | "color" | "permissions" | "status" | "lastActive" | "createdAt" | "bio" | "timezone" | "language" | "gender" | "birthDate" | "phone" | "customerId" | "emailVerified" | "totpSecret" | "pendingTotpSecret" | "twoFactorEnabled", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "password" | "avatar" | "role" | "title" | "department" | "color" | "permissions" | "status" | "lastActive" | "createdAt" | "bio" | "timezone" | "language" | "gender" | "birthDate" | "phone" | "customerId" | "emailVerified" | "totpSecret" | "pendingTotpSecret" | "twoFactorEnabled" | "aiUsageCount" | "aiUsageResetAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   sessions?: boolean | Prisma.User$sessionsArgs<ExtArgs>
   accounts?: boolean | Prisma.User$accountsArgs<ExtArgs>
@@ -3845,6 +4061,8 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     totpSecret: string | null
     pendingTotpSecret: string | null
     twoFactorEnabled: boolean
+    aiUsageCount: number
+    aiUsageResetAt: Date
   }, ExtArgs["result"]["user"]>
   composites: {}
 }
@@ -4306,6 +4524,8 @@ export interface UserFieldRefs {
   readonly totpSecret: Prisma.FieldRef<"User", 'String'>
   readonly pendingTotpSecret: Prisma.FieldRef<"User", 'String'>
   readonly twoFactorEnabled: Prisma.FieldRef<"User", 'Boolean'>
+  readonly aiUsageCount: Prisma.FieldRef<"User", 'Int'>
+  readonly aiUsageResetAt: Prisma.FieldRef<"User", 'DateTime'>
 }
     
 

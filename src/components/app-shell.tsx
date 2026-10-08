@@ -27,6 +27,7 @@ import { OwnerView } from "@/components/views/owner";
 import { TeamPerformanceView } from "@/components/views/team-performance";
 import { AIAssistantPanel } from "@/components/ai-assistant";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { VerifyEmailBanner } from "@/components/verify-email-banner";
 import { OrganizationView } from "@/components/views/organization";
 import { ApprovalsView } from "@/components/views/approvals";
 import { AccountSafetyView } from "@/components/views/account-safety";
@@ -240,6 +241,7 @@ export function AppShell() {
 
         {/* Main content area */}
         <div className="flex min-w-0 flex-1 flex-col lg:ml-[272px]">
+          <VerifyEmailBanner />
           <AppHeader onMenu={() => setMobileOpen(true)} />
           <main id="main" ref={mainRef} className="scroll-liquid flex-1 overflow-y-auto overflow-x-hidden">
             <div

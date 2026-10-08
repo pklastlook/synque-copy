@@ -14555,3 +14555,92 @@ Files touched: 5 modified + 4 created = 9 total.
   with email on completed payments)
 - `src/app/api/auth/signup/route.ts` (modified — fires welcome +
   trial-expires-in-3-days notifications)
+
+---
+
+## Task ID: P2-WEBSOCKET — Real-time WebSocket for chat + inbox + notifications
+
+**Agent**: subagent (senior backend developer)
+**Status**: ✅ Complete
+
+### Work Log
+
+1. **Read context** — worklog.md, existing `mini-services/whatsapp-service/index.ts` (mini-service pattern), `examples/websocket/{server.ts,frontend.tsx}` (socket.io pattern), `src/components/views/{chat,inbox}.tsx`, `src/components/glass/notification-bell.tsx`, `src/lib/{auth-session,auth-guard,auth-store,hooks}.ts`, `src/app/api/chat/route.ts`, `src/app/api/inbox/route.ts`, `Caddyfile`, `.env.example`, `package.json`.
+
+2. **Installed deps** — `bun add socket.io socket.io-client` (root); `bun install` in `mini-services/chat-service/` (separate package: `socket.io@4.8.4`, `jsonwebtoken@9.0.3`, `dotenv@16.4.0`).
+
+3. **Created `mini-services/chat-service/index.ts`** — Socket.io server on port 3006 (loopback-only, `path: "/"`, CORS scoped to `APP_URL`). JWT-verified handshake (`auth.token` field, signature verified with `JWT_SECRET`). Auto-joins every authenticated socket to `tenant:<customerId>` (or `tenant:admin` for super-admins) + `user:<userId>`. Handles `join:room`, `chat:message`, `chat:typing`, `chat:stop_typing` events. Validates room names against the session (`canJoinRoom`) — sockets can only join their own tenant/DM rooms. Exposes internal HTTP webhook `POST /broadcast` (Bearer MINI_SERVICE_KEY) for the main Next.js app to fan out `inbox:new` / `notification:new` events server-side. `GET /health` (no auth) + `GET /sessions` (debug). Broadcasts use `socket.to(room).emit(...)` (sender-exclusion) so the sender doesn't get an echo of their own message.
+
+4. **Updated `Caddyfile`** — added `@port_3006` matcher + `handle` block for the new chat-service, mirroring the existing 3000/3002/3003/3004/3005 entries (loopback-only reverse_proxy with standard headers). Preserved the fail-closed wildcard `@blocked_port` matcher for SSRF protection.
+
+5. **Created `src/lib/use-websocket.ts`** — `useWebSocket()` React hook returning `{ socket, isConnected }`. Module-level singleton socket (ref-counted across consumers) so a single tab uses one connection. Pulls JWT from `localStorage["socialflow-auth"]` and passes as `auth.token`. Auto-reconnects with exponential backoff. Re-checks token on window focus (handles login/logout in another tab). Exports `dmRoom(a, b)`, `tenantRoom(customerId)`, `userRoom(userId)` helpers. Connects via `io("/?XTransformPort=3006", ...)` per the gateway rules.
+
+6. **Updated `src/components/views/chat.tsx`** — wired the socket into the existing chat view:
+   - `liveMessages` overlay appended to polled `data.messages` (de-duped by id, sorted by `createdAt`).
+   - After POST /api/chat succeeds, emits `chat:message` with `{ room, message }` so other clients in the room receive the broadcast instantly. Room = `tenant:<customerId>` (group) or `dm:<a>:<b>` (DM).
+   - Listens for `chat:message` events; appends to `liveMessages` and recomputes `isMine` defensively.
+   - Typing indicator: input emits `chat:typing` (throttled to one event per 2s) and `chat:stop_typing` on send / 3s of silence. Listens for both events and renders a "X is typing..." bubble with animated dots. Auto-prunes typing entries after 4s to cover dropped `chat:stop_typing` events.
+   - 8s polling RETAINED as a fallback. Subtle "Live updates paused — falling back to 8s polling" notice above the composer when WS is disconnected.
+
+7. **Updated `src/components/views/inbox.tsx`** — wired the socket into the inbox view:
+   - `liveComments` overlay PREPENDED to polled `data` (de-duped by id).
+   - Listens for `inbox:new` events; on arrival, prepends the comment to `liveComments`, marks the id as "new", and schedules a 30s auto-clear of the badge. Defensive type coercion on the payload (handles both raw `InboxComment` and `{ comment: InboxComment }` wrapper).
+   - `ConversationRow` gained an `isNew` prop — renders a blue "New" pill + a faint `bg-blue-500/[0.04]` row tint for the first 30s after arrival. Clicking a row clears its badge (`markLiveSeen`).
+
+8. **Updated `src/components/glass/notification-bell.tsx`** — wired the socket into the notification bell:
+   - Listens for `notification:new` events — on arrival, increments the unread badge immediately AND prepends the item to the dropdown list (only if the panel has already been opened; otherwise the next open fetches the canonical list which includes the new notification). Defensive type coercion on the payload.
+   - Polling fallback cadence changed from 60s → **5 minutes** (now that WS is the primary path). Window-focus re-poll retained.
+   - Footer label changed from "Updates every 60s" → "Live · fallback every 5m".
+
+9. **Lint + typecheck** — `bun run lint`: 0 errors, 8 pre-existing warnings in unrelated files. `bunx tsc --noEmit`: 0 errors in any touched file. No new warnings or errors introduced.
+
+10. **Smoke test** — started chat-service briefly with test env vars to confirm it boots cleanly on port 3006 with the expected log lines.
+
+### Stage Summary
+
+Real-time WebSocket infrastructure is now in place:
+
+- **Backend**: a new `chat-service` mini-service (Socket.io, port 3006, JWT-verified, room-scoped) handles all real-time fan-out. It exposes both a client-facing socket channel (for chat/typing events) AND an internal HTTP webhook (for server-originated inbox/notification broadcasts).
+- **Frontend**: a singleton `useWebSocket()` hook shares one connection per tab. Three consumers wired: `chat.tsx` (live messages + typing indicator), `inbox.tsx` (live prepend + "New" badge), `notification-bell.tsx` (live badge increment + 5-min polling fallback).
+- **Resilience**: every WS-dependent feature keeps its existing HTTP polling as a fallback. Chat keeps 8s polling; notification bell keeps 5-min polling; inbox keeps the existing manual + on-mount reload path. The UI explicitly surfaces WS-disconnection state to the user (e.g. the "Live updates paused" notice in the chat composer).
+- **Security**: JWT-verified handshake, room-name authorization (sockets can only join their own tenant/DM rooms), SSRF-protected gateway (Caddy allowlist extended for port 3006), and an allow-listed `/broadcast` webhook event set.
+
+The system is ready for the main Next.js app to start emitting `inbox:new` / `notification:new` events via the chat-service's `/broadcast` webhook when new comments or notifications are created — that wiring is a separate, future task (the listener side is already in place).
+
+---
+Task ID: P2-CORE
+Agent: subagent
+Task: Email verification + approval workflow + AI usage tracking
+
+Work Log:
+
+### Feature 1 — Email Verification Enforcement (UX nudge, not hard block)
+- prisma/schema.prisma: added aiUsageCount + aiUsageResetAt to User model (also used by Feature 3). Validated with `npx prisma validate`.
+- src/lib/auth-guard.ts: getUserFromRequest now decodes emailVerified?: boolean from the JWT; added requireEmailVerified(req) helper that returns a 403 NextResponse when the JWT's emailVerified claim is falsy. Documented as opt-in for sensitive routes — the platform does NOT hard-block unverified users.
+- src/lib/auth-session.ts: issueSession signs { userId, email, role, customerId, emailVerified } into the JWT.
+- src/app/api/auth/resend-verification/route.ts (new): POST handler that regenerates a verification token + re-sends the email for the authenticated user (uses requireAuth). Surfaces verifyUrl for dev when no mail server.
+- src/app/api/auth/verify-email/route.ts: added GET ?token=xxx that verifies the token, sets user.emailVerified + status="active" in a single transaction, marks the token used, and redirects to /?verified=true (or /?verified=false&error=... on failure). Backward-compatible with the existing POST + /verify-email/confirm JSON endpoint.
+- src/lib/email.ts: sendVerificationEmail now builds the link as /api/auth/verify-email?token=xxx (instead of ?verify=xxx which the AppShell never read).
+- src/components/verify-email-banner.tsx (new): dismissible amber banner at the top of AppShell when user.emailVerified is null. "Resend verification email" button + reads ?verified=true|false from the URL on mount + refreshes the user object.
+- src/components/app-shell.tsx: mounts <VerifyEmailBanner /> above <AppHeader />.
+
+### Feature 2 — Approval Workflow Automation
+- src/app/api/posts/route.ts POST: editor/member posts auto-set status="pending_approval" (variants stay "draft" until approved). Admin/manager keep the existing publish/schedule behavior. A sendForApproval=true body flag overrides the role check.
+- src/app/api/approvals/[id]/approve/route.ts (new): role-gated POST that flips the Post + variants to "published" in a $transaction, fires /api/publish/[platform] per variant (best-effort), creates author + approver notifications, marks Approval approved + resolvedAt.
+- src/app/api/approvals/[id]/reject/route.ts (new): role-gated POST with body { reason?: string } that flips the Post + variants back to "draft" so the author can resubmit, marks Approval rejected + resolvedAt, stores the reason in the comment field, creates an author notification with the reason.
+- src/components/views/approvals.tsx: added approveRequest(id) + rejectRequest(id, reason) helpers that POST to the new dedicated endpoints. confirmAction(comment) now dispatches to these for approve/reject; "changes" still uses the legacy PATCH. Added a pending-count amber pill to the SectionHeader (via the action prop) — "N pending approval(s)" with a Clock icon.
+
+### Feature 3 — AI Usage Tracking + Plan Enforcement
+- prisma/schema.prisma: User gained aiUsageCount Int @default(0) + aiUsageResetAt DateTime @default(now()).
+- src/lib/ai-usage.ts (new): STARTER_MONTHLY_LIMIT=100, UNLIMITED=-1. resolvePlan(user) — super-admin → "admin" (unlimited); otherwise looks up the most recent active Subscription's plan, falling back to Customer.plan. getAiUsage(user) — reads aiUsageCount + aiUsageResetAt; if the 30-day window has elapsed, resets aiUsageCount to 0 + bumps aiUsageResetAt (atomic UPDATE). checkAndIncrementAiUsage(user) — runs getAiUsage first, returns { ok:false, status:429, message } if used >= limit; otherwise atomically increments aiUsageCount.
+- src/app/api/ai/generate/route.ts: added requireAuth + checkAndIncrementAiUsage. Returns 429 with { error, usage } when over quota. Echoes the post-increment usage snapshot on every response (and on fallback paths).
+- src/app/api/ai/chat/route.ts: same requireAuth + checkAndIncrementAiUsage wiring. Echoes usage on the success response.
+- src/app/api/ai/usage/route.ts (new): GET returning { used, limit, remaining, plan, resetsAt, limited }. Triggers the lazy 30-day reset on read.
+- src/components/views/composer.tsx: new aiUsage state + refreshAiUsage on mount. Derived aiLimited flag gates the generate/improve buttons (also gated server-side via 429). New visible AI toolbar between the Brief section and per-account content boxes showing "AI: 47/100 used this month" + plan + reset date, a "Generate variants" primary button, an "Improve" secondary button, and a green "Upgrade to Growth for unlimited" CTA (links to /billing) when aiLimited.
+
+Stage Summary: All 3 features implemented end-to-end. Email verification: signup → email link → /api/auth/verify-email?token=xxx GET → emailVerified=now() + redirect → AppShell banner auto-dismisses + toast. Unverified users see a dismissible amber banner — no hard block (requireEmailVerified available opt-in). Approval workflow: editor/member posts auto-route to pending_approval; new /api/approvals/[id]/approve + /reject endpoints flip the Post + variants + trigger publish flow + create notifications; ApprovalsView shows pending-count pill + routes Approve/Reject through the new endpoints. AI usage tracking: every /api/ai/generate + /api/ai/chat call requires auth + checks + increments the per-user monthly quota (Starter=100, others unlimited); /api/ai/usage exposes the snapshot; Composer renders an "AI: X/Y used this month" indicator with Upgrade CTA + disabled Generate button when limit is hit.
+
+Validation: `npx prisma validate` → valid; `npx prisma generate` → client regenerated (so new fields type-check); `bun run lint` → 0 errors, 7 pre-existing warnings (none in P2-CORE files); `npx tsc --noEmit` → 2 pre-existing errors (oauth/callback/refreshToken, sync-platforms.ts null assignment — files I did NOT touch). All P2-CORE code is type-clean. Main agent must run `prisma db push` to materialize the new aiUsageCount/aiUsageResetAt columns.
+
+Files created: src/lib/ai-usage.ts, src/components/verify-email-banner.tsx, src/app/api/auth/resend-verification/route.ts, src/app/api/approvals/[id]/approve/route.ts, src/app/api/approvals/[id]/reject/route.ts, src/app/api/ai/usage/route.ts
+Files modified: prisma/schema.prisma, src/lib/auth-guard.ts, src/lib/auth-session.ts, src/lib/email.ts, src/app/api/auth/verify-email/route.ts, src/app/api/posts/route.ts, src/app/api/ai/generate/route.ts, src/app/api/ai/chat/route.ts, src/components/app-shell.tsx, src/components/views/approvals.tsx, src/components/views/composer.tsx

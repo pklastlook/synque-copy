@@ -2352,11 +2352,114 @@ export function ApprovalsView() {
   async function confirmAction(comment: string) {
     if (!actionTarget) return;
     const { approval, kind } = actionTarget;
-    const ok = await patchApproval(approval.id, ACTION_META[kind].status, comment);
-    if (ok) {
-      toast.success(`${ACTION_META[kind].toastVerb} successfully`);
+    // P2-CORE — route approve / reject through the new dedicated endpoints
+    // that also flip the linked Post's status + trigger the publish flow +
+    // create author/approver notifications. The "changes" kind still goes
+    // through PATCH (it doesn't publish or reject — just asks the author
+    // to revise).
+    if (kind === "approve") {
+      const ok = await approveRequest(approval.id);
+      if (ok) {
+        toast.success(`${ACTION_META[kind].toastVerb} successfully`);
+      }
+    } else if (kind === "reject") {
+      const ok = await rejectRequest(approval.id, comment);
+      if (ok) {
+        toast.success(`${ACTION_META[kind].toastVerb} successfully`);
+      }
+    } else {
+      // "changes" — fall back to the legacy PATCH.
+      const ok = await patchApproval(approval.id, ACTION_META[kind].status, comment);
+      if (ok) {
+        toast.success(`${ACTION_META[kind].toastVerb} successfully`);
+      }
     }
     setActionTarget(null);
+  }
+
+  /**
+   * P2-CORE — POST /api/approvals/[id]/approve
+   *
+   * Calls the dedicated approve endpoint that flips the linked Post +
+   * variants to "published", triggers /api/publish/[platform] for each
+   * variant, and creates author + approver notifications.
+   *
+   * Returns true on success. Surfaces a toast on failure.
+   */
+  async function approveRequest(id: string): Promise<boolean> {
+    setActingId(id);
+    const token = getToken();
+    try {
+      const res = await fetch(`/api/approvals/${id}/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        publishedVariants?: number;
+      };
+      if (!res.ok || !json.ok) {
+        toast.error(json.error ?? "Failed to approve");
+        return false;
+      }
+      if (typeof json.publishedVariants === "number" && json.publishedVariants > 0) {
+        toast.success(
+          `Published to ${json.publishedVariants} account${json.publishedVariants === 1 ? "" : "s"}`,
+          { description: "The post is now live." },
+        );
+      }
+      reload();
+      return true;
+    } catch {
+      toast.error("Network error");
+      return false;
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  /**
+   * P2-CORE — POST /api/approvals/[id]/reject
+   *
+   * Calls the dedicated reject endpoint that flips the linked Post back to
+   * "draft" (so the author can edit + resubmit) + creates an author
+   * notification with the rejection reason.
+   *
+   * Returns true on success. Surfaces a toast on failure.
+   */
+  async function rejectRequest(id: string, reason: string): Promise<boolean> {
+    setActingId(id);
+    const token = getToken();
+    try {
+      const res = await fetch(`/api/approvals/${id}/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ reason: reason || undefined }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        reason?: string | null;
+      };
+      if (!res.ok || !json.ok) {
+        toast.error(json.error ?? "Failed to reject");
+        return false;
+      }
+      reload();
+      return true;
+    } catch {
+      toast.error("Network error");
+      return false;
+    } finally {
+      setActingId(null);
+    }
   }
 
   async function confirmBulk(comment: string, assigneeId: string | null) {
@@ -2496,6 +2599,20 @@ export function ApprovalsView() {
         title="Content Approvals"
         icon={ListChecks}
         desc="Approval workflow: draft → pending → approved / rejected → publish"
+        action={
+          // P2-CORE — pending count badge in the header so reviewers can
+          // see at a glance how many approvals are waiting on them.
+          (() => {
+            const pendingCount = allApprovals.filter((a) => a.status === "pending").length;
+            if (pendingCount === 0) return null;
+            return (
+              <Pill color="amber">
+                <Clock className="h-2.5 w-2.5" />
+                {pendingCount} pending{pendingCount === 1 ? "" : " approvals"}
+              </Pill>
+            );
+          })()
+        }
       />
 
       {/* KPIs */}

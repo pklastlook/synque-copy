@@ -4529,7 +4529,9 @@ export const UserScalarFieldEnum = {
   emailVerified: 'emailVerified',
   totpSecret: 'totpSecret',
   pendingTotpSecret: 'pendingTotpSecret',
-  twoFactorEnabled: 'twoFactorEnabled'
+  twoFactorEnabled: 'twoFactorEnabled',
+  aiUsageCount: 'aiUsageCount',
+  aiUsageResetAt: 'aiUsageResetAt'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]

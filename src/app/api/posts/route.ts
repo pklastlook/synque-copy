@@ -82,6 +82,34 @@ export async function POST(req: NextRequest) {
   // cross-tenant bucket). Mirrors the P1-2-b pattern in /api/team POST.
   const postCustomerId = scope.isSuperAdmin ? null : scope.customerId;
 
+  // P2-CORE — Approval workflow automation.
+  // Editors and members can NOT publish directly — their posts are auto-
+  // routed to "pending_approval" so a manager / admin must approve before
+  // they go live. Admins and managers keep the existing behavior (publish
+  // immediately or schedule).
+  //
+  // The `sendForApproval` flag from the Composer takes precedence — if the
+  // user explicitly asked for approval (regardless of role), honor it.
+  const isApproverRole =
+    user!.role === "admin" || user!.role === "manager";
+  const forcedApproval = body.sendForApproval === true;
+  const requiresApproval = forcedApproval || !isApproverRole;
+
+  // Status logic — three branches:
+  //   1. requiresApproval  → "pending_approval" (regardless of schedule)
+  //   2. scheduledAt set   → "scheduled" (approver roles only)
+  //   3. else              → "published" (approver roles only)
+  const postStatus = requiresApproval
+    ? "pending_approval"
+    : scheduledAt
+    ? "scheduled"
+    : "published";
+
+  // Variants inherit the same status EXCEPT pending_approval ones — for
+  // pending posts the variants stay "draft" until the approval flow
+  // flips them to "published" (POST /api/approvals/[id]/approve).
+  const variantStatus = requiresApproval ? "draft" : postStatus;
+
   const post = await db.post.create({
     data: {
       title,
@@ -89,7 +117,7 @@ export async function POST(req: NextRequest) {
       mediaUrl: mediaUrl ?? null,
       mediaType: "image",
       tone: tone ?? "professional",
-      status: scheduledAt ? "scheduled" : "published",
+      status: postStatus,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       authorId,
       customerId: postCustomerId,
@@ -98,8 +126,11 @@ export async function POST(req: NextRequest) {
           accountId: aid,
           content: variants[aid]?.content ?? caption,
           hashtags: variants[aid]?.hashtags ?? null,
-          status: scheduledAt ? "scheduled" : "published",
-          publishedAt: scheduledAt ? null : new Date(),
+          status: variantStatus,
+          // Only set publishedAt for actually-published variants —
+          // scheduled / pending variants leave it null.
+          publishedAt:
+            variantStatus === "published" ? new Date() : null,
         })),
       },
     },
@@ -109,10 +140,18 @@ export async function POST(req: NextRequest) {
   await db.activity.create({
     data: {
       userId: authorId,
-      type: scheduledAt ? "post_scheduled" : "post_published",
-      description: `${scheduledAt ? "scheduled" : "published"} “${title}” to ${accountIds.length} accounts`,
+      type:
+        postStatus === "pending_approval"
+          ? "post_pending_approval"
+          : scheduledAt
+          ? "post_scheduled"
+          : "post_published",
+      description:
+        postStatus === "pending_approval"
+          ? `submitted “${title}” for approval to ${accountIds.length} accounts`
+          : `${scheduledAt ? "scheduled" : "published"} “${title}” to ${accountIds.length} accounts`,
     },
   });
 
-  return NextResponse.json({ id: post.id, ok: true });
+  return NextResponse.json({ id: post.id, ok: true, status: postStatus });
 }
