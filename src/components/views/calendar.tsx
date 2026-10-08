@@ -33,11 +33,13 @@ import {
   Plus,
   RefreshCw,
   RotateCw,
+  Sparkles,
   Trash2,
+  Upload,
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useApi } from "@/lib/hooks";
+import { useApi, fmt } from "@/lib/hooks";
 import { GlassCard } from "@/components/glass/glass-card";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { NameAvatar } from "@/components/glass/name-avatar";
@@ -58,6 +60,7 @@ import type { Post } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogClose,
@@ -1371,6 +1374,17 @@ export function CalendarView() {
         onNewPost={() => openComposer()}
       />
 
+      {/* P3-FEATURES — Calendar automation toolbar */}
+      <CalendarAutomationToolbar
+        onReload={reload}
+        onSmartSchedule={(slot) => {
+          // Smart Schedule hands the recommended slot to the composer as
+          // a seed string. The composer parses ISO timestamps in its
+          // openComposer(seed) entry point.
+          openComposer(slot);
+        }}
+      />
+
       <HelpText module="calendar">
         <strong className="text-foreground">Calendar</strong> shows your scheduled
         and published posts. Drag a post to reschedule, click to inspect, or use
@@ -1747,6 +1761,512 @@ export function CalendarView() {
       />
     </div>
   );
+}
+
+/* ============================================================
+   P3-FEATURES — Calendar automation toolbar + dialogs
+   Three automation entry points live here so the calendar view stays
+   uncluttered:
+     1. Smart Schedule  — fetches /api/analytics/best-time, shows a
+                          modal with the top 7 next-day slots, click to
+                          open the composer pre-seeded with that slot.
+     2. Auto-fill       — POST /api/posts/auto-fill, creates drafts for
+                          every empty day in the next week.
+     3. Bulk Upload     — opens a CSV upload modal, parses the file
+                          client-side, POSTs the rows to
+                          /api/posts/bulk-import with a progress bar.
+   ============================================================ */
+
+interface BestHour {
+  hour: number;
+  posts: number;
+  avgEngagement: number;
+  totalEngagement: number;
+}
+interface BestTimeResponse {
+  bestHours: BestHour[];
+}
+
+function CalendarAutomationToolbar({
+  onReload,
+  onSmartSchedule,
+}: {
+  onReload: (opts?: { silent?: boolean }) => void;
+  onSmartSchedule: (seedIso: string) => void;
+}) {
+  const [smartOpen, setSmartOpen] = React.useState(false);
+  const [bulkOpen, setBulkOpen] = React.useState(false);
+  const [autoFilling, setAutoFilling] = React.useState(false);
+
+  const handleAutoFill = async () => {
+    setAutoFilling(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch("/api/posts/auto-fill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ days: 7 }),
+      });
+      const json = (await res.json()) as { ok?: boolean; created?: number; error?: string };
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? `Request failed (${res.status})`);
+      }
+      const created = json.created ?? 0;
+      if (created === 0) {
+        toast.info("Nothing to fill", {
+          description: "Every day this week already has a post scheduled.",
+        });
+      } else {
+        toast.success(`${created} draft post${created === 1 ? "" : "s"} created for empty slots this week`, {
+          description: "Review and publish each draft from the calendar.",
+        });
+        onReload({ silent: true });
+      }
+    } catch (e) {
+      toast.error("Auto-fill failed", {
+        description: e instanceof Error ? e.message : "Network error",
+      });
+    } finally {
+      setAutoFilling(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="glass-strong glass-sheen flex flex-wrap items-center gap-1.5 rounded-xl px-3 py-2 sm:gap-2 sm:px-4 sm:py-2.5">
+        <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-bold leading-tight sm:text-xs">Calendar automation</div>
+          <div className="text-[8px] leading-tight text-muted-foreground sm:text-[9px]">
+            AI-suggested slots · auto-fill empty days · bulk CSV import
+          </div>
+        </div>
+        <button
+          onClick={() => setSmartOpen(true)}
+          className="flex items-center gap-1.5 rounded-lg border border-border/40 bg-background/60 px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition hover:bg-primary/10 hover:text-primary sm:px-3"
+          title="AI-suggested posting schedule"
+        >
+          <CalendarClock className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Smart Schedule</span>
+          <span className="sm:hidden">Smart</span>
+        </button>
+        <button
+          onClick={handleAutoFill}
+          disabled={autoFilling}
+          className="flex items-center gap-1.5 rounded-lg border border-border/40 bg-background/60 px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition hover:bg-emerald-500/10 hover:text-emerald-600 disabled:opacity-50 sm:px-3"
+          title="Auto-create drafts for empty days"
+        >
+          {autoFilling ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+          <span className="hidden sm:inline">Auto-fill</span>
+        </button>
+        <button
+          onClick={() => setBulkOpen(true)}
+          className="flex items-center gap-1.5 rounded-lg border border-border/40 bg-background/60 px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition hover:bg-primary/10 hover:text-primary sm:px-3"
+          title="Bulk import posts from CSV"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Bulk Upload</span>
+          <span className="sm:hidden">CSV</span>
+        </button>
+      </div>
+
+      <SmartScheduleDialog
+        open={smartOpen}
+        onOpenChange={setSmartOpen}
+        onPickSlot={(iso) => {
+          setSmartOpen(false);
+          onSmartSchedule(iso);
+        }}
+      />
+
+      <BulkUploadDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        onImported={(count) => {
+          setBulkOpen(false);
+          if (count > 0) {
+            onReload({ silent: true });
+          }
+        }}
+      />
+    </>
+  );
+}
+
+function SmartScheduleDialog({
+  open,
+  onOpenChange,
+  onPickSlot,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onPickSlot: (iso: string) => void;
+}) {
+  const [loading, setLoading] = React.useState(false);
+  const [bestHours, setBestHours] = React.useState<BestHour[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Fetch best-time data when the dialog opens.
+  React.useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    setError(null);
+    const token = getAuthToken();
+    fetch("/api/analytics/best-time?days=90", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`Request failed (${r.status})`);
+        const json = (await r.json()) as BestTimeResponse;
+        setBestHours(json.bestHours ?? []);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Network error"))
+      .finally(() => setLoading(false));
+  }, [open]);
+
+  // Take the top 3 peak hours (by avg engagement, with posts > 0) and
+  // schedule one slot per day for the next 7 days at those hours.
+  const slots = React.useMemo(() => {
+    const ranked = bestHours
+      .filter((h) => h.posts > 0)
+      .sort((a, b) => b.avgEngagement - a.avgEngagement)
+      .slice(0, 3);
+    if (ranked.length === 0) return [];
+    const out: { date: Date; hour: number; avgEngagement: number; posts: number }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 1; i <= 7; i++) {
+      const d = new Date(today.getTime() + i * 86400000);
+      const hour = ranked[(i - 1) % ranked.length];
+      d.setHours(hour.hour, 0, 0, 0);
+      out.push({ date: d, hour: hour.hour, avgEngagement: hour.avgEngagement, posts: hour.posts });
+    }
+    return out;
+  }, [bestHours]);
+
+  const totalPosts = bestHours.reduce((s, h) => s + h.posts, 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Smart Schedule — next 7 days
+          </DialogTitle>
+          <DialogDescription>
+            AI-suggested optimal posting slots based on your historical engagement.
+            Click a slot to compose a post for that time.
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-10">
+            <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            <span className="text-[11px] text-muted-foreground">Analyzing your engagement data…</span>
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-[12px] text-rose-600">
+            {error}
+          </div>
+        ) : totalPosts === 0 ? (
+          <div className="rounded-xl border border-border/40 bg-muted/30 p-4 text-center text-[12px] text-muted-foreground">
+            No published posts in the last 90 days — publish some content first
+            and the smart schedule will surface your peak engagement windows.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <CalendarClock className="h-3.5 w-3.5" />
+              Top slots based on{" "}
+              <span className="font-semibold text-foreground">{totalPosts} published posts</span>{" "}
+              in the last 90 days.
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {slots.map((s) => (
+                <button
+                  key={s.date.toISOString()}
+                  onClick={() => onPickSlot(s.date.toISOString())}
+                  className="group flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-background/60 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-bold">
+                      {format(s.date, "EEE, MMM d")}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {format(s.date, "HH:mm")} · avg {fmt(s.avgEngagement)} engagement
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-semibold text-primary opacity-0 transition group-hover:opacity-100">
+                    <Plus className="h-3 w-3" /> Compose
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkUploadDialog({
+  open,
+  onOpenChange,
+  onImported,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onImported: (count: number) => void;
+}) {
+  const [csvText, setCsvText] = React.useState("");
+  const [parsing, setParsing] = React.useState(false);
+  const [importing, setImporting] = React.useState(false);
+  const [progress, setProgress] = React.useState(0);
+  const [imported, setImported] = React.useState<number | null>(null);
+  const [failed, setFailed] = React.useState<{ row: number; error: string }[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const reset = () => {
+    setCsvText("");
+    setProgress(0);
+    setImported(null);
+    setFailed([]);
+    setError(null);
+  };
+
+  React.useEffect(() => {
+    if (!open) reset();
+  }, [open]);
+
+  const handleFile = async (file: File) => {
+    setParsing(true);
+    setError(null);
+    try {
+      const text = await file.text();
+      setCsvText(text);
+    } catch {
+      setError("Could not read file");
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleImport = async () => {
+    setImporting(true);
+    setProgress(0);
+    setError(null);
+    setImported(null);
+    setFailed([]);
+    try {
+      // Parse CSV: title, caption, platform, scheduledAt
+      // Simple parser — handles quoted fields with embedded commas.
+      const rows = parseCsv(csvText);
+      if (rows.length === 0) {
+        setError("CSV has no data rows");
+        return;
+      }
+      // Validate header
+      const header = rows[0].map((h) => h.trim().toLowerCase());
+      const idx = {
+        title: header.indexOf("title"),
+        caption: header.indexOf("caption"),
+        platform: header.indexOf("platform"),
+        scheduledAt: header.indexOf("scheduledat"),
+      };
+      if (idx.title < 0 || idx.caption < 0 || idx.platform < 0) {
+        setError("CSV header must include: title, caption, platform, scheduledAt");
+        return;
+      }
+      const payload = rows.slice(1).map((r) => ({
+        title: r[idx.title] ?? "",
+        caption: r[idx.caption] ?? "",
+        platform: (r[idx.platform] ?? "").toLowerCase(),
+        scheduledAt: idx.scheduledAt >= 0 ? r[idx.scheduledAt] ?? "" : "",
+      }));
+      setProgress(20);
+      const token = getAuthToken();
+      const res = await fetch("/api/posts/bulk-import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ rows: payload }),
+      });
+      setProgress(80);
+      const json = (await res.json()) as {
+        ok?: boolean;
+        imported?: number;
+        failed?: { row: number; error: string }[];
+        error?: string;
+      };
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? `Import failed (${res.status})`);
+      }
+      setProgress(100);
+      setImported(json.imported ?? 0);
+      setFailed(json.failed ?? []);
+      toast.success(`Imported ${json.imported ?? 0} posts successfully`, {
+        description:
+          (json.failed?.length ?? 0) > 0
+            ? `${json.failed?.length} row${(json.failed?.length ?? 0) === 1 ? "" : "s"} failed — see details below`
+            : undefined,
+      });
+      onImported(json.imported ?? 0);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-4 w-4 text-primary" />
+            Bulk upload posts from CSV
+          </DialogTitle>
+          <DialogDescription>
+            CSV columns: <code className="rounded bg-muted/40 px-1 py-0.5 text-[10px]">title, caption, platform, scheduledAt</code>.
+            Each row becomes a scheduled post (or a draft if scheduledAt is blank).
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 bg-muted/30 px-4 py-8 text-center transition hover:border-primary/40 hover:bg-primary/5">
+            <Upload className="h-6 w-6 text-muted-foreground" />
+            <span className="text-[12px] font-medium">
+              {parsing ? "Reading…" : "Click to choose a CSV file"}
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              Or paste CSV text in the box below
+            </span>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="sr-only"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+              }}
+            />
+          </label>
+
+          <textarea
+            value={csvText}
+            onChange={(e) => setCsvText(e.target.value)}
+            placeholder={"title,caption,platform,scheduledAt\nMorning tip,Start your day with intention,instagram,2025-04-01T09:00:00"}
+            rows={5}
+            className="w-full resize-y rounded-xl border border-border/40 bg-background/60 p-3 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+
+          {(importing || progress > 0) && (
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-[11px] text-rose-600">
+              {error}
+            </div>
+          )}
+
+          {imported !== null && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-[11px]">
+              <div className="font-semibold text-emerald-700 dark:text-emerald-400">
+                Imported {imported} posts successfully
+              </div>
+              {failed.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {failed.length} row(s) failed:
+                  </div>
+                  <div className="max-h-32 overflow-y-auto scroll-liquid">
+                    {failed.map((f, i) => (
+                      <div key={i} className="text-[10px] text-rose-600">
+                        Row {f.row}: {f.error}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => onOpenChange(false)}
+              className="rounded-lg border border-border/40 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted/40"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleImport}
+              disabled={!csvText.trim() || importing}
+              className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+            >
+              {importing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+              {importing ? "Importing…" : "Import posts"}
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Minimal CSV parser — handles quoted fields with embedded commas + quotes. */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += c;
+      }
+    } else {
+      if (c === '"') {
+        inQuotes = true;
+      } else if (c === ",") {
+        row.push(cell);
+        cell = "";
+      } else if (c === "\n" || c === "\r") {
+        // Handle \r\n
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(cell);
+        cell = "";
+        if (row.length > 1 || row[0] !== "") rows.push(row);
+        row = [];
+      } else {
+        cell += c;
+      }
+    }
+  }
+  if (cell !== "" || row.length > 0) {
+    row.push(cell);
+    if (row.length > 1 || row[0] !== "") rows.push(row);
+  }
+  return rows;
 }
 
 /* ============================================================

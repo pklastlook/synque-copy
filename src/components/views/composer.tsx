@@ -70,12 +70,21 @@ import type { Post } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { SectionHeader, Pill } from "@/components/glass/dense-ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 /* ============================================================
    Types
@@ -370,6 +379,8 @@ export function ComposerView() {
   const [emojiCategory, setEmojiCategory] = React.useState("Popular");
   const [hashtagSuggestOpen, setHashtagSuggestOpen] = React.useState(false);
   const [templatesOpen, setTemplatesOpen] = React.useState(false);
+  // P3-FEATURES — Content Series dialog open state.
+  const [seriesOpen, setSeriesOpen] = React.useState(false);
   const [previewDevice, setPreviewDevice] = React.useState<DeviceMode>("phone");
   const [previewTheme, setPreviewTheme] = React.useState<PreviewTheme>("light");
   const [copiedVariant, setCopiedVariant] = React.useState<string | null>(null);
@@ -1237,6 +1248,7 @@ export function ComposerView() {
         onSaveDraft={saveDraftOnly}
         savingDraft={savingDraft}
         onTemplates={() => setTemplatesOpen(true)}
+        onCreateSeries={() => setSeriesOpen(true)}
       />
 
       {/* Editing / republish banner */}
@@ -2389,6 +2401,14 @@ export function ComposerView() {
         onOpenChange={setTemplatesOpen}
         onApply={applyTemplate}
       />
+
+      {/* P3-FEATURES — Content Series dialog */}
+      <SeriesDialog
+        open={seriesOpen}
+        onOpenChange={setSeriesOpen}
+        caption={state.caption}
+        defaultPlatform={selectedAccounts[0]?.platform}
+      />
     </div>
   );
 }
@@ -2405,6 +2425,7 @@ function ProgressToolbar({
   onSaveDraft,
   savingDraft,
   onTemplates,
+  onCreateSeries,
 }: {
   completion: number;
   editing: boolean;
@@ -2414,6 +2435,7 @@ function ProgressToolbar({
   onSaveDraft: () => void;
   savingDraft: boolean;
   onTemplates: () => void;
+  onCreateSeries: () => void;
 }) {
   const mode = sendForApproval ? "Approval" : scheduleEnabled ? "Scheduled" : editing ? "Republish" : "Compose";
   const modeColor = sendForApproval
@@ -2466,6 +2488,14 @@ function ProgressToolbar({
 
       {/* Quick actions */}
       <div className="flex shrink-0 items-center gap-1">
+        <button
+          onClick={onCreateSeries}
+          className="hidden items-center gap-1 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-primary/10 hover:text-primary sm:flex"
+          title="Create a recurring content series"
+        >
+          <CalendarClock className="h-3 w-3" />
+          <span className="hidden md:inline">Series</span>
+        </button>
         <button
           onClick={onTemplates}
           className="hidden items-center gap-1 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:flex"
@@ -3449,6 +3479,243 @@ function TemplatesDialog({
               Close
             </button>
           </DialogClose>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================================================
+   P3-FEATURES — SeriesDialog
+   Creates a recurring content series: N occurrences spaced daily or
+   weekly, each with AI-generated distinct variant content.
+   ============================================================ */
+function SeriesDialog({
+  open,
+  onOpenChange,
+  caption,
+  defaultPlatform,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  caption: string;
+  defaultPlatform?: PlatformId;
+}) {
+  const [title, setTitle] = React.useState("");
+  const [platform, setPlatform] = React.useState<PlatformId>(defaultPlatform ?? "instagram");
+  const [frequency, setFrequency] = React.useState<"daily" | "weekly">("weekly");
+  const [duration, setDuration] = React.useState<4 | 8 | 12>(4);
+  const [startDate, setStartDate] = React.useState(() => {
+    // Default to tomorrow at 10am local time.
+    const d = new Date(Date.now() + 86400000);
+    d.setHours(10, 0, 0, 0);
+    // toISOString returns UTC; for the input[type=datetime-local] we want
+    // the local-time slice.
+    const tzOffsetMs = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+  });
+  const [creating, setCreating] = React.useState(false);
+  const [result, setResult] = React.useState<{ created: number } | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  // Reset state when the dialog opens.
+  React.useEffect(() => {
+    if (open) {
+      setResult(null);
+      setError(null);
+      setPlatform(defaultPlatform ?? "instagram");
+    }
+  }, [open, defaultPlatform]);
+
+  // Compute the total number of posts that will be created.
+  const totalPosts = frequency === "daily" ? duration * 7 : duration;
+
+  const handleCreate = async () => {
+    if (!caption.trim()) {
+      setError("Write a base caption in the composer first — the series uses it as the template.");
+      return;
+    }
+    setCreating(true);
+    setError(null);
+    setResult(null);
+    try {
+      const token = (() => {
+        try {
+          return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null;
+        } catch {
+          return null;
+        }
+      })();
+      // Convert the local datetime-local value to an ISO string.
+      const isoStart = new Date(startDate).toISOString();
+      if (Number.isNaN(new Date(isoStart).getTime())) {
+        setError("Invalid start date");
+        return;
+      }
+      const res = await fetch("/api/posts/series", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          caption,
+          title: title.trim() || "Series",
+          platform,
+          frequency,
+          duration,
+          startDate: isoStart,
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; created?: number; error?: string };
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? `Request failed (${res.status})`);
+      }
+      setResult({ created: json.created ?? 0 });
+      toast.success(`Series created — ${json.created ?? 0} posts scheduled`, {
+        description: `Each occurrence has AI-generated distinct content based on your base caption.`,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="glass-strong max-w-lg" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            Create content series
+          </DialogTitle>
+          <DialogDescription>
+            Auto-generate a recurring series of scheduled posts. Each occurrence
+            gets slightly different AI-generated content based on your base caption.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div>
+            <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Series name (optional)
+            </Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Morning Tips"
+              className="h-9 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Platform
+              </Label>
+              <Select value={platform} onValueChange={(v) => setPlatform(v as PlatformId)}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(PLATFORMS).map((p) => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs">
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Frequency
+              </Label>
+              <Select value={frequency} onValueChange={(v) => setFrequency(v as "daily" | "weekly")}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly" className="text-xs">Weekly</SelectItem>
+                  <SelectItem value="daily" className="text-xs">Daily</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Duration (weeks)
+              </Label>
+              <Select value={String(duration)} onValueChange={(v) => setDuration(Number(v) as 4 | 8 | 12)}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="4" className="text-xs">4 weeks</SelectItem>
+                  <SelectItem value="8" className="text-xs">8 weeks</SelectItem>
+                  <SelectItem value="12" className="text-xs">12 weeks</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                First occurrence
+              </Label>
+              <Input
+                type="datetime-local"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+            <span className="font-semibold text-foreground">{totalPosts} posts</span> will be created
+            {" "}— each scheduled at the same hour-of-day, spaced{" "}
+            <span className="font-semibold text-foreground">{frequency}</span> apart.
+          </div>
+
+          {/* Base caption preview */}
+          {caption && (
+            <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Base caption (will be varied per occurrence)
+              </div>
+              <div className="line-clamp-3 text-[11px] leading-snug">{caption}</div>
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-[11px] text-rose-600">
+              {error}
+            </div>
+          )}
+
+          {result && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-[11px] text-emerald-700 dark:text-emerald-400">
+              ✓ {result.created} posts created. View them in the Calendar.
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <DialogClose asChild>
+              <button
+                className="rounded-lg border border-border/40 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted/40"
+              >
+                {result ? "Close" : "Cancel"}
+              </button>
+            </DialogClose>
+            {!result && (
+              <button
+                onClick={handleCreate}
+                disabled={creating || !caption.trim()}
+                className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+              >
+                {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                {creating ? "Creating…" : `Create ${totalPosts} posts`}
+              </button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -637,6 +637,24 @@ export function ReportsView() {
         </div>
         <div className="flex items-center gap-1.5 sm:ml-auto">
           <button
+            onClick={() => {
+              const token = getToken();
+              if (!token) {
+                toast.error("Sign in again to export analytics");
+                return;
+              }
+              window.open(
+                `/api/export/analytics?days=${encodeURIComponent(days)}&token=${encodeURIComponent(token)}`,
+                "_blank"
+              );
+            }}
+            title="Export analytics CSV"
+            className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
+          >
+            <Download className="h-3 w-3" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
+          <button
             onClick={saveCurrentReport}
             disabled={savingReport}
             className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
@@ -1654,6 +1672,25 @@ function PostsPerformanceContent({ data, chartMetric, setChartMetric }: {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
+            <button
+              onClick={() => {
+                let token: string | null = null;
+                try {
+                  token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null;
+                } catch {
+                  token = null;
+                }
+                if (!token) {
+                  toast.error("Sign in again to export posts");
+                  return;
+                }
+                window.open(`/api/export/posts?token=${encodeURIComponent(token)}`, "_blank");
+              }}
+              title="Export posts as CSV"
+              className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[11px] font-semibold text-primary transition hover:bg-primary/20"
+            >
+              <Download className="h-3 w-3" /> <span className="hidden sm:inline">Export CSV</span>
+            </button>
           </div>
         </div>
 

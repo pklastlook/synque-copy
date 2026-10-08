@@ -17,6 +17,7 @@ import {
   PolarAngleAxis,
   RadialBar,
   RadialBarChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -56,6 +57,7 @@ import {
   Filter,
   X,
   Type,
+  Clock,
   type LucideIcon,
 } from "lucide-react";
 import { startOfWeek, format, parseISO, isSameDay, subDays } from "date-fns";
@@ -898,6 +900,7 @@ export function AnalyticsView() {
             perAccount={filteredData.perAccount}
             accountSpark={accountFollowerSpark}
             days={days}
+            postsByDay={filteredData.series.map((s) => ({ date: s.date, posts: s.posts }))}
           />
         </TabsContent>
 
@@ -932,6 +935,9 @@ export function AnalyticsView() {
         totals={totals}
         avgEngagementRate={avgEngagementRate}
       />
+
+      {/* P3-FEATURES — Advanced analytics: best time, sentiment trend, hashtag performance */}
+      <AdvancedAnalyticsCard days={days} />
 
       {/* Top performing content */}
       <TopContentSection
@@ -2352,16 +2358,48 @@ function GrowthTab({
   perAccount,
   accountSpark,
   days,
+  postsByDay,
 }: {
   followerSeries: { date: string; followers: number }[];
   perAccount: PerAccount[];
   accountSpark: (a: PerAccount) => number[];
   days: number;
+  postsByDay?: { date: string; posts: number }[];
 }) {
   const totalFollowers = perAccount.reduce((s, a) => s + a.followers, 0);
   const netChange =
     (followerSeries[followerSeries.length - 1]?.followers ?? 0) -
     (followerSeries[0]?.followers ?? 0);
+
+  // P3-FEATURES — Follower Growth Attribution.
+  // When follower growth spikes on a given day, mark that date with an
+  // annotation. A "spike" is defined as: day-over-day delta >= 1.5× the
+  // average delta (and >0). We then cross-reference the postsByDay map
+  // to surface which published posts are likely responsible for the
+  // growth.
+  const annotations = React.useMemo(() => {
+    if (!postsByDay || followerSeries.length < 3) return [];
+    const postsMap = new Map(postsByDay.map((p) => [p.date, p.posts]));
+    const deltas = followerSeries.map((s, i) =>
+      i === 0 ? 0 : s.followers - followerSeries[i - 1].followers
+    );
+    const positiveDeltas = deltas.filter((d) => d > 0);
+    const avgDelta =
+      positiveDeltas.length > 0
+        ? positiveDeltas.reduce((a, b) => a + b, 0) / positiveDeltas.length
+        : 0;
+    if (avgDelta <= 0) return [];
+    const threshold = avgDelta * 1.5;
+    return followerSeries
+      .map((s, i) => ({ ...s, delta: deltas[i] }))
+      .filter((s) => s.delta >= threshold && s.delta > 0)
+      .map((s) => ({
+        date: s.date,
+        delta: s.delta,
+        posts: postsMap.get(s.date) ?? 0,
+      }))
+      .slice(-6); // cap at 6 annotations to avoid clutter
+  }, [postsByDay, followerSeries]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -2369,6 +2407,13 @@ function GrowthTab({
         <SectionHeader
           title="Follower growth"
           desc={`Cumulative audience over the last ${days} days`}
+          action={
+            annotations.length > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <Flame className="h-3 w-3" /> {annotations.length} growth spike{annotations.length === 1 ? "" : "s"}
+              </span>
+            ) : undefined
+          }
         />
         <div className="h-[240px] w-full md:h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -2408,6 +2453,25 @@ function GrowthTab({
                 fill="url(#gFollowers)"
                 activeDot={{ r: 4 }}
               />
+              {/* Follower-growth attribution annotations — rendered as
+                  vertical reference lines on dates where the day-over-day
+                  follower delta crossed the 1.5× average threshold. */}
+              {annotations.map((a) => (
+                <ReferenceLine
+                  key={a.date}
+                  x={a.date}
+                  stroke="oklch(0.7 0.2 25)"
+                  strokeDasharray="3 3"
+                  strokeWidth={1.5}
+                  label={{
+                    value: `+${fmt(a.delta)}`,
+                    position: "top",
+                    fill: "oklch(0.55 0.2 25)",
+                    fontSize: 9,
+                    fontWeight: 700,
+                  }}
+                />
+              ))}
               {followerSeries.length > 14 && (
                 <Brush
                   dataKey="date"
@@ -2421,6 +2485,33 @@ function GrowthTab({
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        {/* Attribution list — surfaces the dates of the growth spikes
+            with the number of posts published that day. */}
+        {annotations.length > 0 && (
+          <div className="mt-3 rounded-xl bg-muted/40 px-3 py-2">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <Flame className="h-3 w-3 text-rose-500" />
+              Follower growth attribution
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {annotations.map((a) => (
+                <div
+                  key={a.date}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/60 px-2 py-1 text-[10px]"
+                  title={`${a.posts} post${a.posts === 1 ? "" : "s"} published on ${a.date}`}
+                >
+                  <span className="font-semibold tabular-nums">{dateFmt(a.date)}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    +{fmt(a.delta)}
+                  </span>
+                  <span className="text-muted-foreground">
+                    · {a.posts} post{a.posts === 1 ? "" : "s"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="mt-3 flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs">
           <span className="text-muted-foreground">Net change</span>
           <span className={cn("font-semibold tabular-nums", netChange >= 0 ? "text-emerald-500" : "text-rose-500")}>
@@ -3228,6 +3319,361 @@ function AIInsightsCard({ days, accountId }: { days: number; accountId: string }
             Click the button above to analyze your real performance data and get
             personalized recommendations for growth, posting strategy, and content optimization.
           </p>
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+/* ============================================================
+   P3-FEATURES — AdvancedAnalyticsCard
+   Renders three advanced charts in one stacked card:
+     1. Best Time to Post      (24-bar hourly bar chart)
+     2. Sentiment Trend        (stacked area chart, 30 days)
+     3. Hashtag Performance    (horizontal bar chart, top 20)
+   Each chart fetches its own data so the card stays modular.
+   ============================================================ */
+interface BestHour {
+  hour: number;
+  posts: number;
+  avgEngagement: number;
+  totalEngagement: number;
+}
+interface BestTimeResponse {
+  bestHours: BestHour[];
+}
+interface SentimentSeries {
+  positive: { date: string; count: number }[];
+  negative: { date: string; count: number }[];
+  neutral: { date: string; count: number }[];
+}
+interface HashtagStat {
+  tag: string;
+  posts: number;
+  engagement: number;
+  reach: number;
+  impressions: number;
+}
+interface HashtagResponse {
+  hashtags: HashtagStat[];
+}
+
+const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => `${h.toString().padStart(2, "0")}:00`);
+
+function AdvancedAnalyticsCard({ days }: { days: number }) {
+  return (
+    <GlassCard className="crystal-in relative overflow-hidden p-5 animate-rise">
+      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.6_0.2_305)]/15 blur-3xl" />
+      <SectionHeader
+        title="Advanced analytics"
+        desc="Best time to post · Sentiment trend · Hashtag performance"
+        icon={Sparkles}
+      />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <BestTimeToPostChart days={days} />
+        <HashtagPerformanceChart days={days} />
+      </div>
+      <SentimentTrendChart days={days} />
+    </GlassCard>
+  );
+}
+
+function BestTimeToPostChart({ days }: { days: number }) {
+  const { data, loading } = useApi<BestTimeResponse>(`/api/analytics/best-time?days=${days}`);
+  const bestHours = data?.bestHours ?? [];
+  const max = Math.max(1, ...bestHours.map((h) => h.avgEngagement));
+  const bestHour = bestHours.reduce<BestHour | null>(
+    (best, h) => (!best || h.avgEngagement > best.avgEngagement ? h : best),
+    null
+  );
+  const totalPosts = bestHours.reduce((s, h) => s + h.posts, 0);
+
+  return (
+    <GlassCard className="p-4">
+      <SectionHeader
+        title="Best time to post"
+        desc={`Avg engagement per hour, last ${days}d`}
+        icon={Clock}
+        action={
+          bestHour && bestHour.posts > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+              <Flame className="h-3 w-3" /> Peak: {HOUR_LABELS[bestHour.hour]}
+            </span>
+          ) : undefined
+        }
+        className="mb-2"
+      />
+      {loading ? (
+        <div className="flex h-[200px] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : totalPosts === 0 ? (
+        <div className="flex h-[200px] items-center justify-center text-center text-[11px] text-muted-foreground">
+          No published posts in the last {days} days.<br />
+          Publish content to see best-time insights.
+        </div>
+      ) : (
+        <div className="h-[200px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={bestHours} margin={{ left: -20, right: 4, top: 8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis
+                dataKey="hour"
+                tickFormatter={(h: number) => `${h}h`}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                interval={0}
+              />
+              <YAxis
+                tickFormatter={(v) => fmt(Number(v))}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={40}
+              />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                labelFormatter={(h: number) => `Hour ${HOUR_LABELS[h]}`}
+                formatter={(v: number, name: string) => [
+                  name === "avgEngagement" ? fmt(v) : String(v),
+                  name === "avgEngagement" ? "Avg engagement" : name,
+                ]}
+              />
+              <Bar
+                dataKey="avgEngagement"
+                radius={[2, 2, 0, 0]}
+                maxBarSize={18}
+              >
+                {bestHours.map((h) => {
+                  const intensity = h.avgEngagement / max;
+                  const isPeak = h.avgEngagement === max && h.posts > 0;
+                  const fill = isPeak
+                    ? "oklch(0.55 0.2 25)"
+                    : intensity > 0.66
+                    ? "var(--primary)"
+                    : intensity > 0.33
+                    ? "oklch(0.7 0.18 165)"
+                    : "var(--muted)";
+                  return <Cell key={h.hour} fill={fill} />;
+                })}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+function SentimentTrendChart({ days }: { days: number }) {
+  // The sentiment-trend API already pins to 30 days internally, but we
+  // still pass `days` so the URL differs across analytics windows.
+  const { data, loading } = useApi<SentimentSeries | null>(
+    `/api/analytics/sentiment-trend?days=${Math.min(30, days)}`
+  );
+
+  const series = React.useMemo(() => {
+    if (!data) return [];
+    const map = new Map<string, { date: string; positive: number; negative: number; neutral: number }>();
+    for (const p of data.positive) {
+      const row = map.get(p.date) ?? { date: p.date, positive: 0, negative: 0, neutral: 0 };
+      row.positive = p.count;
+      map.set(p.date, row);
+    }
+    for (const n of data.negative) {
+      const row = map.get(n.date) ?? { date: n.date, positive: 0, negative: 0, neutral: 0 };
+      row.negative = n.count;
+      map.set(n.date, row);
+    }
+    for (const u of data.neutral) {
+      const row = map.get(u.date) ?? { date: u.date, positive: 0, negative: 0, neutral: 0 };
+      row.neutral = u.count;
+      map.set(u.date, row);
+    }
+    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [data]);
+
+  const totalPositive = series.reduce((s, d) => s + d.positive, 0);
+  const totalNegative = series.reduce((s, d) => s + d.negative, 0);
+  const totalNeutral = series.reduce((s, d) => s + d.neutral, 0);
+  const totalMentions = totalPositive + totalNegative + totalNeutral;
+
+  return (
+    <GlassCard className="p-4">
+      <SectionHeader
+        title="Sentiment trend"
+        desc={`Positive / neutral / negative over ${Math.min(30, days)} days`}
+        icon={Heart}
+        action={
+          totalMentions > 0 ? (
+            <span className="text-[11px] text-muted-foreground">
+              {totalMentions.toLocaleString()} mentions ·{" "}
+              <span className="text-emerald-600 dark:text-emerald-400">{totalPositive}+ </span>
+              <span className="text-rose-500">{totalNegative}-</span>
+            </span>
+          ) : undefined
+        }
+        className="mb-2"
+      />
+      {loading ? (
+        <div className="flex h-[220px] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : series.length === 0 ? (
+        <div className="flex h-[220px] items-center justify-center text-center text-[11px] text-muted-foreground">
+          No comments or mentions in the last {Math.min(30, days)} days.
+        </div>
+      ) : (
+        <div className="h-[220px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={series} margin={{ left: -20, right: 4, top: 8, bottom: 0 }}>
+              <defs>
+                <linearGradient id="sentPositive" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="oklch(0.7 0.18 145)" stopOpacity={0.55} />
+                  <stop offset="100%" stopColor="oklch(0.7 0.18 145)" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="sentNeutral" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--muted-foreground)" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="var(--muted-foreground)" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="sentNegative" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="oklch(0.65 0.2 25)" stopOpacity={0.55} />
+                  <stop offset="100%" stopColor="oklch(0.65 0.2 25)" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickFormatter={dateFmt}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                interval={Math.max(0, Math.floor(series.length / 6))}
+              />
+              <YAxis
+                tickFormatter={(v) => fmt(Number(v))}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={36}
+              />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                labelFormatter={dateTooltipFmt}
+              />
+              <Legend
+                wrapperStyle={{ fontSize: 10 }}
+                iconType="circle"
+                iconSize={8}
+              />
+              <Area
+                type="monotone"
+                dataKey="positive"
+                stackId="1"
+                stroke="oklch(0.55 0.18 145)"
+                strokeWidth={1.5}
+                fill="url(#sentPositive)"
+              />
+              <Area
+                type="monotone"
+                dataKey="neutral"
+                stackId="1"
+                stroke="var(--muted-foreground)"
+                strokeWidth={1.5}
+                fill="url(#sentNeutral)"
+              />
+              <Area
+                type="monotone"
+                dataKey="negative"
+                stackId="1"
+                stroke="oklch(0.55 0.2 25)"
+                strokeWidth={1.5}
+                fill="url(#sentNegative)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+function HashtagPerformanceChart({ days }: { days: number }) {
+  const { data, loading } = useApi<HashtagResponse>(`/api/analytics/hashtag-performance?days=${days}`);
+  const hashtags = (data?.hashtags ?? []).slice(0, 12); // top 12 fits the chart height
+  const max = Math.max(1, ...hashtags.map((h) => h.engagement));
+
+  return (
+    <GlassCard className="p-4">
+      <SectionHeader
+        title="Hashtag performance"
+        desc={`Top hashtags by engagement, last ${days}d`}
+        icon={Type}
+        className="mb-2"
+      />
+      {loading ? (
+        <div className="flex h-[200px] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : hashtags.length === 0 ? (
+        <div className="flex h-[200px] items-center justify-center text-center text-[11px] text-muted-foreground">
+          No hashtags tracked yet. Add hashtags to your post variants to see performance.
+        </div>
+      ) : (
+        <div className="h-[200px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={hashtags}
+              layout="vertical"
+              margin={{ left: 8, right: 16, top: 4, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+              <XAxis
+                type="number"
+                tickFormatter={(v) => fmt(Number(v))}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="tag"
+                tick={{ fontSize: 10, fill: "var(--foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={90}
+              />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                formatter={(v: number, _name: string, props: { payload?: HashtagStat }) => {
+                  const p = props.payload;
+                  return [
+                    `${fmt(v)} engagement${p ? ` · ${p.posts} posts · ${fmt(p.reach)} reach` : ""}`,
+                    `#${p?.tag ?? ""}`,
+                  ] as [string, string];
+                }}
+              />
+              <Bar
+                dataKey="engagement"
+                radius={[0, 3, 3, 0]}
+                maxBarSize={16}
+              >
+                {hashtags.map((h, i) => {
+                  const intensity = h.engagement / max;
+                  const fill =
+                    i === 0
+                      ? "oklch(0.55 0.2 25)"
+                      : intensity > 0.66
+                      ? "var(--primary)"
+                      : intensity > 0.33
+                      ? "oklch(0.7 0.18 165)"
+                      : "var(--muted-foreground)";
+                  return <Cell key={h.tag} fill={fill} />;
+                })}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       )}
     </GlassCard>

@@ -1508,12 +1508,31 @@ function ClientsTab() {
           desc="Manage client records, plans & license assignments"
           icon={Users}
           action={
-            <button
-              onClick={openCreate}
-              className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold"
-            >
-              <Plus className="h-4 w-4" /> Add Client
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  try {
+                    const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null;
+                    if (!token) {
+                      toast.error("Sign in again to export clients");
+                      return;
+                    }
+                    window.open(`/api/export/clients?token=${encodeURIComponent(token)}`, "_blank");
+                  } catch {
+                    toast.error("Sign in again to export clients");
+                  }
+                }}
+                className="liquid-pill flex items-center gap-2 rounded-2xl border border-border/60 bg-background/60 px-4 py-2 text-sm font-semibold"
+              >
+                <Download className="h-4 w-4" /> Export CSV
+              </button>
+              <button
+                onClick={openCreate}
+                className="liquid-pill glow-ring flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold"
+              >
+                <Plus className="h-4 w-4" /> Add Client
+              </button>
+            </div>
           }
         />
 
