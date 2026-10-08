@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   Search, Bell, Moon, Sun, Menu, Command, LogOut, Settings, User,
-  ChevronDown, MessageCircle, CheckCircle2, PenLine, Inbox as InboxIcon,
+  MessageCircle, CheckCircle2, PenLine, Inbox as InboxIcon,
   Calendar, BarChart3, Users, AtSign, Megaphone, Radio, Hash, Crosshair,
   FileBarChart, Link2, Mail, MessageCircle as WhatsAppIcon, Globe, Zap,
   Activity, Clock, Wifi, WifiOff, HelpCircle, type LucideIcon,
@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PlatformBadge } from "@/components/glass/platform-badge";
 import { Pill, SectionHeader } from "@/components/glass/dense-ui";
+import { GlobalSearch } from "@/components/glass/global-search";
+import { Breadcrumbs, type Crumb } from "@/components/glass/breadcrumbs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,9 +26,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
 import type { ViewId } from "@/lib/types";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -66,27 +65,6 @@ const ROLE_BADGE: Record<string, { label: string; pill: "blue" | "violet" | "gre
   viewer: { label: "Viewer", pill: "neutral" },
 };
 
-const COMMAND_ITEMS: { id: ViewId; label: string; icon: LucideIcon; group: string }[] = [
-  { id: "dashboard", label: "Dashboard", icon: BarChart3, group: "Overview" },
-  { id: "composer", label: "Composer", icon: PenLine, group: "Overview" },
-  { id: "calendar", label: "Calendar", icon: Calendar, group: "Overview" },
-  { id: "inbox", label: "Inbox", icon: InboxIcon, group: "Overview" },
-  { id: "whatsapp", label: "WhatsApp", icon: WhatsAppIcon, group: "Overview" },
-  { id: "team-performance", label: "Performance", icon: Activity, group: "Overview" },
-  { id: "campaigns", label: "Campaigns", icon: Megaphone, group: "Content" },
-  { id: "hashtags", label: "Hashtags", icon: Hash, group: "Content" },
-  { id: "linkbio", label: "Link in Bio", icon: Link2, group: "Content" },
-  { id: "listening", label: "Listening", icon: Radio, group: "Insights" },
-  { id: "competitors", label: "Competitors", icon: Crosshair, group: "Insights" },
-  { id: "analytics", label: "Analytics", icon: BarChart3, group: "Insights" },
-  { id: "reports", label: "Reports", icon: FileBarChart, group: "Insights" },
-  { id: "accounts", label: "Accounts", icon: AtSign, group: "Workspace" },
-  { id: "team", label: "Team", icon: Users, group: "Workspace" },
-  { id: "mail", label: "Mail Server", icon: Mail, group: "Workspace" },
-  { id: "settings", label: "Settings", icon: Settings, group: "Workspace" },
-  { id: "guide", label: "Guide", icon: HelpCircle, group: "Workspace" },
-];
-
 export function AppHeader({ onMenu }: { onMenu: () => void }) {
   const { view, adminMode, setAdminMode, setView } = useNav();
   const { resolvedTheme, setTheme } = useTheme();
@@ -96,7 +74,7 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
   React.useEffect(() => setMounted(true), []);
   const t = TITLES[view] ?? { title: "SYNQUE", subtitle: "" };
 
-  // ⌘K shortcut to open command palette
+  // ⌘K shortcut to open the global search palette
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -109,6 +87,12 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
   }, []);
 
   const roleBadge = ROLE_BADGE[user?.role ?? "member"] ?? ROLE_BADGE.member;
+
+  // Breadcrumb trail — derived from the current view. Each branch carries
+  // its parent context so the user always knows where they are in the app
+  // hierarchy. Single-root views (Dashboard, Composer) suppress the trail
+  // automatically via <Breadcrumbs hideOnShallowMobile />.
+  const crumbs = crumbsFor(view);
 
   return (
     <header className="sticky top-0 z-30 px-2 pt-2 sm:px-5 sm:pt-3 lg:px-6">
@@ -128,7 +112,8 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           <p className="hidden truncate text-[11px] text-muted-foreground lg:block">{t.subtitle}</p>
         </div>
 
-        {/* Search — opens command palette. Hidden on mobile (use menu instead). */}
+        {/* Search — opens the global command palette. Hidden on desktop xl-;
+            on smaller screens a dedicated icon button is rendered below. */}
         <button
           onClick={() => setCmdOpen(true)}
           className="hidden items-center gap-2 rounded-lg border border-black/[0.06] bg-[#F5F5F7] px-2.5 py-1.5 text-sm text-[#86868B] transition hover:bg-[#E8E8ED] dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-[#98989D] dark:hover:bg-white/[0.10] xl:flex"
@@ -138,6 +123,16 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
           <kbd className="ml-3 flex items-center gap-0.5 rounded bg-black/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-[#86868B] dark:bg-white/[0.08] dark:text-[#98989D]">
             <Command className="h-3 w-3" />K
           </kbd>
+        </button>
+
+        {/* Search icon — visible on mobile/tablet so ⌘K is reachable without a keyboard. */}
+        <button
+          onClick={() => setCmdOpen(true)}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5F5F7] text-[#1D1D1F] transition hover:bg-[#E8E8ED] dark:bg-white/[0.06] dark:text-[#F5F5F7] dark:hover:bg-white/[0.10] xl:hidden"
+          aria-label="Open search"
+          title="Search"
+        >
+          <Search className="h-[18px] w-[18px]" />
         </button>
 
         {/* Quick compose button — hidden on mobile (use FAB or menu). */}
@@ -250,6 +245,9 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
             <DropdownMenuItem className="cursor-pointer sm:hidden" onClick={() => setView("composer")}>
               <PenLine className="mr-2 h-4 w-4" /> Compose
             </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer sm:hidden" onClick={() => setCmdOpen(true)}>
+              <Search className="mr-2 h-4 w-4" /> Search
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer text-rose-500 focus:text-rose-500" onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" /> Log out
@@ -258,91 +256,89 @@ export function AppHeader({ onMenu }: { onMenu: () => void }) {
         </DropdownMenu>
       </div>
 
-      {/* Command palette dialog */}
-      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} onNavigate={(v) => setView(v)} />
+      {/* Breadcrumbs — sits below the topbar so the user always sees where
+          they are in the app hierarchy. Hidden on shallow single-root views
+          (Dashboard, Composer, etc.) on mobile, but rendered on lg+ whenever
+          there's a meaningful parent. */}
+      {crumbs.length > 0 && (
+        <div className="mx-auto mt-1.5 w-full max-w-[1340px] px-2 sm:px-4">
+          <Breadcrumbs items={crumbs} />
+        </div>
+      )}
+
+      {/* Global search palette (⌘K) — searches modules, clients, and posts. */}
+      <GlobalSearch open={cmdOpen} onOpenChange={setCmdOpen} onNavigate={(v) => setView(v)} />
     </header>
   );
 }
 
-// ============ Command Palette — ⌘K search + navigate ============
-function CommandPalette({
-  open, onOpenChange, onNavigate,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onNavigate: (view: ViewId) => void;
-}) {
-  const [query, setQuery] = React.useState("");
-
-  const filtered = React.useMemo(() => {
-    if (!query.trim()) return COMMAND_ITEMS;
-    const q = query.toLowerCase();
-    return COMMAND_ITEMS.filter((item) => item.label.toLowerCase().includes(q));
-  }, [query]);
-
-  const grouped = React.useMemo(() => {
-    const groups: Record<string, typeof COMMAND_ITEMS> = {};
-    for (const item of filtered) {
-      if (!groups[item.group]) groups[item.group] = [];
-      groups[item.group].push(item);
-    }
-    return groups;
-  }, [filtered]);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 overflow-hidden">
-        <DialogHeader className="sr-only">
-          <DialogTitle>Search and navigate</DialogTitle>
-        </DialogHeader>
-        <div className="flex items-center gap-2 border-b border-border/40 px-4 py-3">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <input
-            autoFocus
-            type="text"
-            placeholder="Search modules, pages..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          />
-          <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">ESC</kbd>
-        </div>
-        <div className="max-h-[400px] overflow-y-auto scroll-liquid p-2">
-          {Object.keys(grouped).length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              No results for "{query}"
-            </div>
-          ) : (
-            Object.entries(grouped).map(([group, items]) => (
-              <div key={group} className="mb-2">
-                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{group}</div>
-                {items.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onNavigate(item.id);
-                      onOpenChange(false);
-                      setQuery("");
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-muted/60"
-                  >
-                    <item.icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1">{item.label}</span>
-                    <ChevronDown className="h-3 w-3 -rotate-90 text-muted-foreground/40" />
-                  </button>
-                ))}
-              </div>
-            ))
-          )}
-        </div>
-        <div className="border-t border-border/40 px-4 py-2 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Command className="h-3 w-3" />K to open · ESC to close · Type to search
-          </span>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+// ============ Breadcrumb map ============
+// Maps a ViewId → ordered list of crumbs (parent → child). The final crumb
+// is always the current page (no `view` so it renders non-clickable).
+// Returns `[]` for top-level views with no parent context (Dashboard, etc.).
+function crumbsFor(view: ViewId): Crumb[] {
+  switch (view) {
+    case "dashboard":
+      return [{ label: "Dashboard" }];
+    case "composer":
+      return [{ label: "Workspace" }, { label: "Composer" }];
+    case "calendar":
+      return [{ label: "Workspace" }, { label: "Calendar" }];
+    case "inbox":
+      return [{ label: "Workspace" }, { label: "Inbox" }];
+    case "analytics":
+      return [{ label: "Insights" }, { label: "Analytics" }];
+    case "reports":
+      return [{ label: "Insights" }, { label: "Reports" }];
+    case "listening":
+      return [{ label: "Insights" }, { label: "Listening" }];
+    case "competitors":
+      return [{ label: "Insights" }, { label: "Competitors" }];
+    case "accounts":
+      return [{ label: "Workspace" }, { label: "Accounts" }];
+    case "team":
+      return [{ label: "Workspace" }, { label: "Team" }];
+    case "team-performance":
+      return [{ label: "Workspace" }, { label: "Team" }, { label: "Performance" }];
+    case "settings":
+      return [{ label: "Workspace" }, { label: "Settings" }];
+    case "campaigns":
+      return [{ label: "Content" }, { label: "Campaigns" }];
+    case "hashtags":
+      return [{ label: "Content" }, { label: "Hashtags" }];
+    case "linkbio":
+      return [{ label: "Content" }, { label: "Link in Bio" }];
+    case "media":
+      return [{ label: "Workspace" }, { label: "Media Library" }];
+    case "mail":
+      return [{ label: "Workspace" }, { label: "Mail Server" }];
+    case "whatsapp":
+      return [{ label: "Workspace" }, { label: "WhatsApp Inbox" }];
+    case "chat":
+      return [{ label: "Workspace" }, { label: "Team Chat" }];
+    case "tasks":
+      return [{ label: "Workspace" }, { label: "Tasks" }];
+    case "admin":
+      return [{ label: "Workspace" }, { label: "Admin Panel" }];
+    case "owner":
+      return [{ label: "Workspace" }, { label: "Owner Panel" }];
+    case "guide":
+      return [{ label: "Workspace" }, { label: "Guide" }];
+    case "organization":
+      return [{ label: "Workspace" }, { label: "Organization" }];
+    case "utm":
+      return [{ label: "Content" }, { label: "UTM Builder" }];
+    case "approvals":
+      return [{ label: "Content" }, { label: "Approvals" }];
+    case "influencers":
+      return [{ label: "Insights" }, { label: "Influencers" }];
+    case "account-safety":
+      return [{ label: "Workspace" }, { label: "Account Safety" }];
+    case "vpn":
+      return [{ label: "Workspace" }, { label: "VPN" }];
+    default:
+      return [];
+  }
 }
 
 // ============ Connection Status — WhatsApp + scheduler indicators ============

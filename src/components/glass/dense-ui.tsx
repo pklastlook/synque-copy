@@ -99,7 +99,7 @@ export function MetricRow({ metrics, className }: { metrics: Metric[]; className
           role="listitem"
           aria-label={`${m.label}: ${typeof m.value === "number" ? m.value.toLocaleString() : m.value}${m.delta !== undefined && m.delta !== 0 ? ` (${m.delta >= 0 ? "+" : ""}${m.delta}%)` : ""}`}
           className={cn(
-            "flex shrink-0 items-center gap-2 rounded-lg bg-muted/20 px-3 py-2.5 sm:min-w-[140px] sm:flex-1 sm:gap-3 sm:rounded-none sm:px-4",
+            "flex min-h-[44px] shrink-0 items-center gap-2 rounded-lg bg-muted/20 px-3 py-2.5 sm:min-w-[140px] sm:flex-1 sm:gap-3 sm:rounded-none sm:px-4",
             i < metrics.length - 1 && "sm:border-r sm:border-border/40"
           )}
         >
@@ -262,7 +262,7 @@ export function ListRow({
     <div
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 border-b border-border/30 px-3 py-2.5 transition-colors",
+        "flex min-h-[44px] items-center gap-3 border-b border-border/30 px-3 py-2.5 transition-colors",
         onClick && "cursor-pointer hover:bg-muted/40",
         active && "bg-primary/5 border-l-2 border-l-primary",
         className

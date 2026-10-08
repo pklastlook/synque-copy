@@ -66,6 +66,32 @@
 :root {
   --radius: 0.5rem; /* 8px — buttons, inputs, list rows. Cards use 12px via rounded-xl. */
 
+  /* ============================================================================
+     SEMANTIC COLOR PALETTE — Single Source of Truth
+     ----------------------------------------------------------------------------
+     Use these CSS variables everywhere instead of raw hex values / arbitrary
+     oklch() calls so theme updates stay consistent across the whole app.
+     Semantic colors map 1:1 with --success/--warning/--destructive/--info
+     already declared above but provide shorter, intent-based aliases that
+     read clearly in component markup ("var(--color-success)"). */
+  --color-success: oklch(0.7 0.2 145);
+  --color-warning: oklch(0.82 0.14 85);
+  --color-danger: oklch(0.55 0.22 25);
+  --color-info: oklch(0.62 0.2 255);
+  --color-primary: oklch(0.55 0.2 255);
+  --color-accent: oklch(0.72 0.18 75);
+
+  /* Platform brand colors — exact RGB hex values per each platform's
+     brand guidelines. Use these instead of magic hex literals in
+     chart cells, badges, and platform-dot indicators. */
+  --color-instagram: #E1306C;
+  --color-facebook: #1877F2;
+  --color-twitter: #1DA1F2;
+  --color-linkedin: #0A66C2;
+  --color-tiktok: #000000;
+  --color-youtube: #FF0000;
+  --color-threads: #65676B;
+
   /* Canvas — slightly darker off-white #F0F0F2 so white cards pop more.
      Was 0.94 — too close to card (1.0), only 0.06 difference. */
   --background: oklch(0.91 0.004 280);
@@ -227,6 +253,63 @@
   h1, h2 {
     letter-spacing: -0.022em;
   }
+
+  /* ============================================================================
+     Touch accessibility — all interactive elements must be at least 36px on
+     desktop and 44×44px on touch devices (iOS HIG + WCAG 2.1 SC 2.5.5).
+     The .compact utility opts out for genuinely tight contexts (icon-only
+     buttons in dense tables, inline pill toggles, etc.).
+     ============================================================================ */
+  button,
+  [role="button"],
+  a[role="button"] {
+    min-height: 36px;
+  }
+  @media (pointer: coarse) {
+    button:not(.compact):not([class~="compact"]),
+    [role="button"]:not(.compact):not([class~="compact"]) {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+}
+
+/* ============================================================================
+   Dark mode contrast improvements
+   ----------------------------------------------------------------------------
+   Earlier dark palette had --muted-foreground at 64.9% lightness which was
+   too dim on dark slate cards. Bumping to ~70% keeps secondary text legible
+   per WCAG AA on the #161920 card surfaces we use. The toggle-track rule
+   ensures switch controls stay visible in dark mode (default border was 0%
+   alpha which made toggles look like they were floating). */
+@media (prefers-color-scheme: dark) {
+  .toggle-track {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Slightly raise muted backgrounds so chips/pills stay visible on dark cards. */
+  .bg-muted\/40 {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Improve text contrast on dark backgrounds — was 64.9% L, too dim on
+     #161920 card surfaces. Bumping to ~70% L passes WCAG AA on dark cards. */
+  .text-muted-foreground {
+    color: hsl(240 5% 70%);
+  }
+}
+
+/* Class-based dark mode (next-themes .dark on <html>) — same contrast fixes
+   so the bumped muted-foreground applies when the user explicitly chooses
+   dark mode regardless of their OS preference. */
+.dark .toggle-track {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.dark .bg-muted\/40 {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.dark .text-muted-foreground {
+  color: hsl(240 5% 70%);
 }
 
 /* Smooth momentum touch scrolling on all horizontally scrollable containers.

@@ -67,8 +67,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
+import { userFriendlyError } from "@/lib/user-errors";
 import { MetricRow, SectionHeader } from "@/components/glass/dense-ui";
 import { EmptyState } from "@/components/glass/empty-state";
+import {
+  MetricRowSkeleton, AccountCardSkeleton, SkeletonCard,
+} from "@/components/glass/skeleton-card";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { ModuleAccessSelector } from "@/components/glass/module-access-selector";
 import { describePermissions, isAllModules, defaultPermissionsForRole } from "@/lib/module-permissions";
@@ -711,7 +715,7 @@ function LineItemsEditor({
                 <button
                   type="button"
                   onClick={() => removeRow(i)}
-                  className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500"
+                  className="compact grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500"
                   aria-label="Remove line"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -892,9 +896,11 @@ function OverviewTab() {
 
   if (loading || !data) {
     return (
-      <div className="grid gap-4 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => <div key={i} className="shimmer h-28 rounded-2xl" />)}
-        <div className="shimmer col-span-full h-64 rounded-3xl" />
+      <div className="space-y-4">
+        <MetricRowSkeleton count={4} />
+        <SkeletonCard className="rounded-3xl" header={false}>
+          <div className="shimmer h-48 w-full rounded-lg" />
+        </SkeletonCard>
       </div>
     );
   }
@@ -1302,7 +1308,7 @@ function ClientsTab() {
       setOpen(false);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -1316,7 +1322,7 @@ function ClientsTab() {
       toast.success("Client deleted");
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -1326,7 +1332,7 @@ function ClientsTab() {
       toast.success(`${c.name} is now ${status}`);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -1355,7 +1361,7 @@ function ClientsTab() {
       }
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Provisioning failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setProvisioningId(null);
     }
@@ -1514,7 +1520,15 @@ function ClientsTab() {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="shimmer h-20 rounded-2xl" />
+              <SkeletonCard key={i} header={false} className="rounded-2xl p-3">
+                <div className="flex items-center gap-3">
+                  <div className="shimmer h-10 w-10 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="shimmer h-3 w-32 rounded" />
+                    <div className="shimmer h-3 w-24 rounded" />
+                  </div>
+                </div>
+              </SkeletonCard>
             ))}
           </div>
         ) : customers.length === 0 ? (
@@ -1576,7 +1590,7 @@ function ClientsTab() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
-                        className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                        className="compact grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-muted"
                         aria-label="Actions"
                       >
                         <MoreVertical className="h-4 w-4" />
@@ -2167,7 +2181,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
       toast.success("New serial key generated");
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -2181,7 +2195,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
       toast.success("Key revoked");
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -2192,7 +2206,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
       toast.success("Key deleted");
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -2210,7 +2224,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
       setAssignCustomer("");
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -2251,7 +2265,15 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="shimmer h-14 rounded-2xl" />
+              <SkeletonCard key={i} header={false} className="rounded-2xl p-3">
+                <div className="flex items-center gap-3">
+                  <div className="shimmer h-8 w-8 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="shimmer h-3 w-40 rounded" />
+                    <div className="shimmer h-3 w-24 rounded" />
+                  </div>
+                </div>
+              </SkeletonCard>
             ))}
           </div>
         ) : keys.length === 0 ? (
@@ -2319,7 +2341,7 @@ function SerialKeysTab({ customers }: { customers: Customer[] }) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                      className="compact grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-muted"
                       aria-label="Actions"
                     >
                       <MoreVertical className="h-4 w-4" />
@@ -2837,7 +2859,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
       setForm(EMPTY_DOC);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -2849,7 +2871,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
       toast.success(`Invoice ${inv.number} → ${status}`);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -2860,7 +2882,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
       toast.success("Invoice deleted");
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -2877,7 +2899,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
       toast.success("Invoice regenerated with updated subscription details");
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -2949,7 +2971,16 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="shimmer h-12 rounded-xl" />
+              <SkeletonCard key={i} header={false} className="rounded-xl p-3">
+                <div className="flex items-center gap-3">
+                  <div className="shimmer h-8 w-8 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="shimmer h-3 w-32 rounded" />
+                    <div className="shimmer h-3 w-24 rounded" />
+                  </div>
+                  <div className="shimmer h-6 w-12 shrink-0 rounded-full" />
+                </div>
+              </SkeletonCard>
             ))}
           </div>
         ) : invoices.length === 0 ? (
@@ -3040,7 +3071,7 @@ function InvoicesTab({ customers }: { customers: Customer[] }) {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
-                            className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                            className="compact grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-muted"
                             aria-label={`Actions for ${inv.number}`}
                           >
                             <MoreVertical className="h-4 w-4" />
@@ -3447,7 +3478,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
       setForm(EMPTY_DOC);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -3459,7 +3490,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
       toast.success(`Quotation ${q.number} → ${status}`);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -3490,7 +3521,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
       });
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to convert");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -3501,7 +3532,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
       toast.success("Quotation deleted");
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -3547,7 +3578,16 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="shimmer h-12 rounded-xl" />
+              <SkeletonCard key={i} header={false} className="rounded-xl p-3">
+                <div className="flex items-center gap-3">
+                  <div className="shimmer h-8 w-8 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="shimmer h-3 w-32 rounded" />
+                    <div className="shimmer h-3 w-24 rounded" />
+                  </div>
+                  <div className="shimmer h-6 w-12 shrink-0 rounded-full" />
+                </div>
+              </SkeletonCard>
             ))}
           </div>
         ) : quotations.length === 0 ? (
@@ -3603,7 +3643,7 @@ function QuotationsTab({ customers }: { customers: Customer[] }) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                      className="compact grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-muted"
                       aria-label="Actions"
                     >
                       <MoreVertical className="h-4 w-4" />
@@ -3975,7 +4015,7 @@ function BankAccountsTab() {
       setOpen(false);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -3988,7 +4028,7 @@ function BankAccountsTab() {
       toast.success("Bank account deleted");
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -3998,7 +4038,7 @@ function BankAccountsTab() {
       toast.success(`${a.bankName} set as default`);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -4022,7 +4062,7 @@ function BankAccountsTab() {
         {loading ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="shimmer h-40 rounded-2xl" />
+              <AccountCardSkeleton key={i} />
             ))}
           </div>
         ) : accounts.length === 0 ? (
@@ -4065,7 +4105,7 @@ function BankAccountsTab() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
-                        className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                        className="compact grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-muted"
                         aria-label="Actions"
                       >
                         <MoreVertical className="h-4 w-4" />
@@ -4283,15 +4323,26 @@ function ReportsTab() {
   if (!customers || !keys || !invoices) {
     return (
       <div className="space-y-4">
-        <div className="shimmer h-32 rounded-3xl" />
+        <SkeletonCard className="rounded-3xl" header={false}>
+          <div className="shimmer h-24 w-full rounded-lg" />
+        </SkeletonCard>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="shimmer h-28 rounded-3xl" />
+            <SkeletonCard key={i} header={false} className="rounded-3xl">
+              <div className="space-y-2">
+                <div className="shimmer h-4 w-12 rounded" />
+                <div className="shimmer h-3 w-16 rounded" />
+              </div>
+            </SkeletonCard>
           ))}
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="shimmer h-72 rounded-3xl" />
-          <div className="shimmer h-72 rounded-3xl" />
+          <SkeletonCard className="rounded-3xl" header={false}>
+            <div className="shimmer h-48 w-full rounded-lg" />
+          </SkeletonCard>
+          <SkeletonCard className="rounded-3xl" header={false}>
+            <div className="shimmer h-48 w-full rounded-lg" />
+          </SkeletonCard>
         </div>
       </div>
     );
@@ -5279,7 +5330,7 @@ function DevicesTab() {
   // Issue OWNER-FIXES #3B: per-device loading state for the active/blocked toggle.
   const [togglingId, setTogglingId] = React.useState<string | null>(null);
 
-  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  if (loading) return <SkeletonCard className="rounded-3xl" header={false}><div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="shimmer h-12 w-full rounded-lg" />))}</div></SkeletonCard>;
   const devices = data ?? [];
   const keys = keysData ?? [];
   // Unused serial keys — available for the Register Device dropdown.
@@ -5311,7 +5362,7 @@ function DevicesTab() {
       setForm({ deviceName: "", serialKeyId: "", ipAddress: "", location: "" });
       setAddOpen(false); reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -5323,7 +5374,7 @@ function DevicesTab() {
       await api("PATCH", `/api/devices/${id}`, { status });
       toast.success(`${name} → ${status}`); reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setTogglingId(null);
     }
@@ -5369,7 +5420,7 @@ function DevicesTab() {
       if (!res.ok || json.error) throw new Error(json.error ?? "Failed");
       setActivity(json.activity ?? []);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load activity");
+      toast.error(userFriendlyError(e));
     } finally {
       setActivityLoading(false);
     }
@@ -5702,7 +5753,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
   // whenever a dialog opens (see openCreate / openEdit).
   const [step, setStep] = React.useState<1 | 2 | 3>(1);
 
-  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  if (loading) return <SkeletonCard className="rounded-3xl" header={false}><div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="shimmer h-12 w-full rounded-lg" />))}</div></SkeletonCard>;
   const subs = data ?? [];
   const allInvoices = invoicesData ?? [];
 
@@ -5829,7 +5880,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
       }
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -5879,7 +5930,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
       }
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to renew subscription");
+      toast.error(userFriendlyError(e));
     } finally {
       setGeneratingId(null);
     }
@@ -5903,7 +5954,7 @@ function SubscriptionsTab({ customers }: { customers: Customer[] }) {
         });
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to generate invoice");
+      toast.error(userFriendlyError(e));
     } finally {
       setGeneratingId(null);
     }
@@ -6603,7 +6654,7 @@ function ApiKeysTab() {
   const [newKey, setNewKey] = React.useState<string | null>(null);
   const [generating, setGenerating] = React.useState(false);
 
-  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  if (loading) return <SkeletonCard className="rounded-3xl" header={false}><div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="shimmer h-12 w-full rounded-lg" />))}</div></SkeletonCard>;
   const keys = data ?? [];
 
   const generate = async () => {
@@ -6715,7 +6766,7 @@ function FinanceTab() {
   const { data: analytics } = useApi<FinanceAnalytics | null>("/api/finance/analytics");
   const [batchBusy, setBatchBusy] = React.useState(false);
 
-  if (loading || !data) return <div className="shimmer h-64 rounded-3xl" />;
+  if (loading || !data) return <SkeletonCard className="rounded-3xl" header={false}><div className="space-y-3"><div className="shimmer h-32 w-full rounded-lg" /><div className="grid grid-cols-3 gap-2">{Array.from({ length: 3 }).map((_, i) => (<div key={i} className="shimmer h-20 rounded-lg" />))}</div></div></SkeletonCard>;
 
   const subMetrics = analytics?.subscriptionMetrics;
   const mrr = subMetrics?.mrr ?? data.monthlyRevenue ?? 0;
@@ -6737,7 +6788,7 @@ function FinanceTab() {
         duration: 6000,
       });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Batch generation failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setBatchBusy(false);
     }
@@ -6749,7 +6800,7 @@ function FinanceTab() {
       await api("PATCH", `/api/invoices/${inv.id}`, { status: "paid" });
       toast.success(`${inv.number} marked as paid`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -7027,7 +7078,7 @@ function ClientUsersTab() {
   );
   const [busy, setBusy] = React.useState(false);
 
-  if (loading) return <div className="shimmer h-64 rounded-3xl" />;
+  if (loading) return <SkeletonCard className="rounded-3xl" header={false}><div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => (<div key={i} className="shimmer h-12 w-full rounded-lg" />))}</div></SkeletonCard>;
   const users = data ?? [];
 
   const createLogin = async () => {
@@ -7061,7 +7112,7 @@ function ClientUsersTab() {
       setLoginOpen(false);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to create user — email may already exist");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -7088,7 +7139,7 @@ function ClientUsersTab() {
       setEditUser(null);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -7101,7 +7152,7 @@ function ClientUsersTab() {
       toast.success(`${name} removed`);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to remove user");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -7111,7 +7162,7 @@ function ClientUsersTab() {
       toast.success(`${name} suspended`);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -7121,7 +7172,7 @@ function ClientUsersTab() {
       toast.success(`${name} reactivated`);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     }
   };
 
@@ -7212,7 +7263,7 @@ function ClientUsersTab() {
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted" aria-label="Actions">
+                  <button className="compact grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-muted" aria-label="Actions">
                     <MoreVertical className="h-4 w-4" />
                   </button>
                 </DropdownMenuTrigger>
@@ -7459,7 +7510,7 @@ function DatabasesTab() {
       toast.success(`${row.dbName} is now ${status}`);
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusyId(null);
     }
@@ -7472,7 +7523,7 @@ function DatabasesTab() {
       await api("POST", `/api/tenant-databases/${row.id}`);
       toast.success("Schema re-pushed", { description: `${row.dbName} tables are in sync.` });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Schema push failed");
+      toast.error(userFriendlyError(e));
     } finally {
       setBusyId(null);
     }
@@ -7518,7 +7569,16 @@ function DatabasesTab() {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="shimmer h-16 rounded-2xl" />
+              <SkeletonCard key={i} header={false} className="rounded-2xl p-3">
+                <div className="flex items-center gap-3">
+                  <div className="shimmer h-8 w-8 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="shimmer h-3 w-32 rounded" />
+                    <div className="shimmer h-3 w-24 rounded" />
+                  </div>
+                  <div className="shimmer h-6 w-16 shrink-0 rounded-full" />
+                </div>
+              </SkeletonCard>
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -7620,7 +7680,7 @@ function DatabasesTab() {
                             onClick={() => repush(row)}
                             disabled={busyId === row.id}
                             title="Re-push Prisma schema"
-                            className="grid h-7 w-7 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-50"
+                            className="compact grid h-9 w-9 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-50"
                           >
                             {busyId === row.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -7633,7 +7693,7 @@ function DatabasesTab() {
                               onClick={() => setStatus(row, "suspended")}
                               disabled={busyId === row.id}
                               title="Suspend database"
-                              className="grid h-7 w-7 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:border-rose-500/40 hover:text-rose-500 disabled:opacity-50"
+                              className="compact grid h-9 w-9 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:border-rose-500/40 hover:text-rose-500 disabled:opacity-50"
                             >
                               <Pause className="h-3.5 w-3.5" />
                             </button>
@@ -7642,7 +7702,7 @@ function DatabasesTab() {
                               onClick={() => setStatus(row, "active")}
                               disabled={busyId === row.id}
                               title="Activate database"
-                              className="grid h-7 w-7 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:border-emerald-500/40 hover:text-emerald-500 disabled:opacity-50"
+                              className="compact grid h-9 w-9 place-items-center rounded-md border border-border/40 text-muted-foreground transition hover:border-emerald-500/40 hover:text-emerald-500 disabled:opacity-50"
                             >
                               <Play className="h-3.5 w-3.5" />
                             </button>
@@ -7766,7 +7826,16 @@ function ActivityLogTab() {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="shimmer h-14 rounded-2xl" />
+              <SkeletonCard key={i} header={false} className="rounded-2xl p-3">
+                <div className="flex items-center gap-3">
+                  <div className="shimmer h-8 w-8 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="shimmer h-3 w-40 rounded" />
+                    <div className="shimmer h-3 w-24 rounded" />
+                  </div>
+                  <div className="shimmer h-3 w-12 shrink-0 rounded" />
+                </div>
+              </SkeletonCard>
             ))}
           </div>
         ) : logs.length === 0 ? (

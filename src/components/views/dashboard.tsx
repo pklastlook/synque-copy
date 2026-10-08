@@ -31,6 +31,9 @@ import {
 } from "@/components/glass/dense-ui";
 import { EmptyState } from "@/components/glass/empty-state";
 import { OnboardingChecklist, type OnboardingStep } from "@/components/glass/onboarding-checklist";
+import {
+  MetricRowSkeleton, AccountCardSkeleton, SkeletonCard,
+} from "@/components/glass/skeleton-card";
 
 // ============ Types ============
 
@@ -737,7 +740,15 @@ export function DashboardView() {
           >
             {/* Hierarchical chart layout: top = trend (area), bottom = two side-by-side (bar + donut) */}
             <div className="space-y-3">
-              {/* Top: Trend area chart (same metric as before but with comparison line) */}
+              {/* Top: Trend area chart (same metric as before but with comparison line).
+                  Click anywhere on the chart → navigate to Analytics for deep-dive. */}
+              <button
+                type="button"
+                onClick={() => setView("analytics")}
+                aria-label="Open Analytics"
+                title="Click to open Analytics"
+                className="block w-full text-left"
+              >
               <div className="h-[160px] w-full sm:h-[180px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={data.series} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
@@ -773,15 +784,25 @@ export function DashboardView() {
                       isAnimationActive
                       animationBegin={200}
                       animationDuration={1200}
+                      cursor="pointer"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+              </button>
 
               {/* Bottom: Two diverse charts side by side */}
               <div className="grid gap-3 sm:grid-cols-2">
-                {/* Left: Bar chart — daily engagement breakdown */}
-                <div className="rounded-xl border border-border/30 bg-muted/10 p-3">
+                {/* Left: Bar chart — daily engagement breakdown.
+                    Click a day → open Calendar (so the user can drill into
+                    what was published that day). */}
+                <button
+                  type="button"
+                  onClick={() => setView("calendar")}
+                  aria-label="Open Calendar"
+                  title="Click a day to open Calendar"
+                  className="block rounded-xl border border-border/30 bg-muted/10 p-3 text-left"
+                >
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-[12px] font-bold uppercase tracking-wide text-muted-foreground">Engagement by day</span>
                     <span className="text-[11px] text-muted-foreground">Likes + Comments + Shares</span>
@@ -802,15 +823,31 @@ export function DashboardView() {
                           labelFormatter={(d) => new Date(d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                           formatter={(v: number) => fmt(v)}
                         />
-                        <Bar dataKey="comments" stackId="eng" fill="oklch(0.7 0.2 25)" radius={[0, 0, 0, 0]} isAnimationActive animationDuration={600} />
-                        <Bar dataKey="published" stackId="eng" fill="oklch(0.68 0.2 145)" radius={[0, 0, 0, 0]} isAnimationActive animationDuration={800} />
-                        <Bar dataKey="postsCreated" stackId="eng" fill="oklch(0.74 0.18 165)" radius={[3, 3, 0, 0]} isAnimationActive animationDuration={1000} />
+                        <Bar dataKey="comments" stackId="eng" fill="oklch(0.7 0.2 25)" radius={[0, 0, 0, 0]} isAnimationActive animationDuration={600} cursor="pointer" />
+                        <Bar dataKey="published" stackId="eng" fill="oklch(0.68 0.2 145)" radius={[0, 0, 0, 0]} isAnimationActive animationDuration={800} cursor="pointer" />
+                        <Bar
+                          dataKey="postsCreated"
+                          stackId="eng"
+                          fill="oklch(0.74 0.18 165)"
+                          radius={[3, 3, 0, 0]}
+                          isAnimationActive
+                          animationDuration={1000}
+                          cursor="pointer"
+                          onClick={(payload: { date?: string } | undefined) => {
+                            // Click a bar → navigate to Calendar (the user
+                            // wants to see what was published that day).
+                            void payload;
+                            setView("calendar");
+                          }}
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                </div>
+                </button>
 
-                {/* Right: Platform distribution donut */}
+                {/* Right: Platform distribution donut.
+                    Click a slice → open Accounts so the user can drill
+                    into the accounts on that platform. */}
                 <div className="rounded-xl border border-border/30 bg-muted/10 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-[12px] font-bold uppercase tracking-wide text-muted-foreground">Platform mix</span>
@@ -822,21 +859,28 @@ export function DashboardView() {
                         <PieChart>
                           <Pie
                             data={[
-                              { name: "Instagram", value: data.kpis.today.platformBreakdown["instagram"] ?? 1, fill: "#E1306C" },
-                              { name: "Facebook", value: data.kpis.today.platformBreakdown["facebook"] ?? 1, fill: "#1877F2" },
-                              { name: "X/Twitter", value: data.kpis.today.platformBreakdown["x"] ?? 1, fill: "#1DA1F2" },
-                              { name: "LinkedIn", value: data.kpis.today.platformBreakdown["linkedin"] ?? 1, fill: "#0A66C2" },
-                              { name: "TikTok", value: data.kpis.today.platformBreakdown["tiktok"] ?? 0, fill: "#000000" },
-                              { name: "YouTube", value: data.kpis.today.platformBreakdown["youtube"] ?? 0, fill: "#FF0000" },
-                              { name: "Threads", value: data.kpis.today.platformBreakdown["threads"] ?? 0, fill: "#65676B" },
+                              { name: "Instagram", value: data.kpis.today.platformBreakdown["instagram"] ?? 1, fill: "#E1306C", platform: "instagram" },
+                              { name: "Facebook", value: data.kpis.today.platformBreakdown["facebook"] ?? 1, fill: "#1877F2", platform: "facebook" },
+                              { name: "X/Twitter", value: data.kpis.today.platformBreakdown["x"] ?? 1, fill: "#1DA1F2", platform: "x" },
+                              { name: "LinkedIn", value: data.kpis.today.platformBreakdown["linkedin"] ?? 1, fill: "#0A66C2", platform: "linkedin" },
+                              { name: "TikTok", value: data.kpis.today.platformBreakdown["tiktok"] ?? 0, fill: "#000000", platform: "tiktok" },
+                              { name: "YouTube", value: data.kpis.today.platformBreakdown["youtube"] ?? 0, fill: "#FF0000", platform: "youtube" },
+                              { name: "Threads", value: data.kpis.today.platformBreakdown["threads"] ?? 0, fill: "#65676B", platform: "threads" },
                             ].filter((d) => d.value > 0)}
                             dataKey="value"
+                            nameKey="name"
                             cx="50%"
                             cy="50%"
                             innerRadius={28}
                             outerRadius={45}
                             isAnimationActive
                             animationDuration={800}
+                            onClick={(payload: { platform?: string } | undefined) => {
+                              // Slice click → Accounts tab so the user can
+                              // see the connected profiles on that platform.
+                              void payload;
+                              setView("accounts");
+                            }}
                           >
                             {[
                               "#E1306C", "#1877F2", "#1DA1F2", "#0A66C2",
@@ -851,14 +895,19 @@ export function DashboardView() {
                     </div>
                     <div className="flex-1 space-y-1">
                       {Object.entries(data.kpis.today.platformBreakdown).filter(([_, v]) => v > 0).map(([platform, count]) => (
-                        <div key={platform} className="flex items-center gap-2 text-[12px]">
+                        <button
+                          key={platform}
+                          onClick={() => setView("accounts")}
+                          className="flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-[12px] transition hover:bg-muted/60"
+                          title={`View ${platform} accounts`}
+                        >
                           <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: {
                             instagram: "#E1306C", facebook: "#1877F2", x: "#1DA1F2",
                             linkedin: "#0A66C2", tiktok: "#000", youtube: "#FF0000", threads: "#65676B",
                           }[platform] ?? "#888" }} />
                           <span className="capitalize text-muted-foreground">{platform}</span>
                           <span className="ml-auto font-bold tabular-nums">{count}</span>
-                        </div>
+                        </button>
                       ))}
                       {Object.keys(data.kpis.today.platformBreakdown).length === 0 && (
                         <div className="text-[12px] text-muted-foreground">No platform data yet</div>
@@ -1405,8 +1454,8 @@ function ContentWorkflow({
 // ============ Skeleton — matches the new bento layout ============
 function DashboardSkeleton() {
   return (
-    <div className="space-y-4">
-      {/* Hero header */}
+    <div className="space-y-4" role="status" aria-label="Loading dashboard">
+      {/* Hero header — avatar circle + greeting lines + side actions */}
       <div className="flex items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-3">
           <div className="shimmer h-11 w-11 rounded-full" />
@@ -1422,26 +1471,98 @@ function DashboardSkeleton() {
         </div>
       </div>
 
-      {/* MetricRow skeleton */}
-      <div className="shimmer h-14 rounded-xl" />
+      {/* MetricRow skeleton — mirrors the real 6-metric row */}
+      <MetricRowSkeleton count={6} />
 
-      {/* BentoGrid skeleton — 4 cols × 2 rows */}
+      {/* BentoGrid skeleton — 4 cols × 2 rows of layout-matching tiles */}
       <div className="grid auto-rows-[minmax(150px,auto)] grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <div className="shimmer rounded-xl sm:col-span-2 sm:row-span-2" />
-        <div className="shimmer rounded-xl sm:col-span-1 sm:row-span-2" />
-        <div className="shimmer rounded-xl" />
-        <div className="shimmer rounded-xl" />
+        {/* Hero tile (2×2) — big number + members list */}
+        <SkeletonCard className="rounded-xl sm:col-span-2 sm:row-span-2">
+          <div className="space-y-3">
+            <div className="shimmer h-10 w-32 rounded" />
+            <div className="shimmer h-3 w-48 rounded" />
+            <div className="space-y-2 pt-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-lg border border-border/30 p-2">
+                  <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="shimmer h-2.5 w-24 rounded" />
+                    <div className="shimmer h-1.5 w-full rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </SkeletonCard>
+        {/* Activity tile (1×2) — list rows */}
+        <SkeletonCard className="rounded-xl sm:col-span-1 sm:row-span-2">
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="shimmer h-7 w-7 shrink-0 rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="shimmer h-2.5 w-full rounded" />
+                  <div className="shimmer h-2.5 w-2/3 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </SkeletonCard>
+        {/* Quick stats tile */}
+        <SkeletonCard className="rounded-xl">
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="shimmer h-3.5 w-3.5 shrink-0 rounded" />
+                <div className="shimmer h-3 flex-1 rounded" />
+                <div className="shimmer h-5 w-8 shrink-0 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </SkeletonCard>
+        {/* Team pulse tile */}
+        <SkeletonCard className="rounded-xl">
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="shimmer h-7 w-7 rounded-full" />
+              ))}
+            </div>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="shimmer h-2.5 w-24 rounded" />
+                <div className="shimmer h-1.5 w-full rounded" />
+              </div>
+            ))}
+          </div>
+        </SkeletonCard>
         {/* Chart tile — full width row */}
-        <div className="shimmer h-[260px] rounded-xl sm:col-span-3 lg:col-span-4" />
+        <SkeletonCard className="h-[260px] rounded-xl sm:col-span-3 lg:col-span-4" header={false}>
+          <div className="shimmer h-[180px] w-full rounded-lg" />
+        </SkeletonCard>
       </div>
 
-      {/* Secondary sections skeleton */}
+      {/* Secondary sections skeleton — Recent posts + Shared/Failed */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className="shimmer h-[200px] rounded-xl" />
-        <div className="shimmer h-[200px] rounded-xl" />
+        {Array.from({ length: 2 }).map((_, i) => (
+          <SkeletonCard key={i} className="rounded-xl">
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, j) => (
+                <div key={j} className="flex items-center gap-3 rounded-xl border border-border/40 bg-muted/20 p-2">
+                  <div className="shimmer h-10 w-10 shrink-0 rounded-lg" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="shimmer h-3 w-32 rounded" />
+                    <div className="shimmer h-3 w-24 rounded" />
+                  </div>
+                  <div className="shimmer h-5 w-12 shrink-0 rounded-full" />
+                </div>
+              ))}
+            </div>
+          </SkeletonCard>
+        ))}
       </div>
 
-      {/* Quick actions row skeleton */}
+      {/* Quick actions row skeleton — horizontal NavCards */}
       <div className="space-y-2">
         <div className="shimmer h-4 w-32 rounded" />
         <div className="flex gap-2 overflow-hidden pb-2">
