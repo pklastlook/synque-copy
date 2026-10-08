@@ -95,6 +95,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Webhook,
 } from "lucide-react";
 import { NameAvatar } from "@/components/glass/name-avatar";
 import { PlatformBadge } from "@/components/glass/platform-badge";
@@ -3352,6 +3353,493 @@ function IntegrationsSection() {
         </DialogContent>
       </Dialog>
     </section>
+  );
+}
+
+// ===== Webhooks panel — outbound HMAC-signed event delivery =====
+interface WebhookRow {
+  id: string;
+  label: string;
+  url: string;
+  events: string[];
+  secret: string;
+  active: boolean;
+  customerId: string | null;
+  createdAt: string;
+}
+
+const WEBHOOK_EVENT_OPTIONS = [
+  { value: "post.published", label: "post.published", desc: "Fires when a post is published to any platform" },
+  { value: "comment.received", label: "comment.received", desc: "Fires when a comment is replied to" },
+  { value: "payment.completed", label: "payment.completed", desc: "Fires when a completed payment is recorded" },
+] as const;
+
+function WebhooksSection() {
+  const { data, reload, loading } = useApi<WebhookRow[]>("/api/webhooks");
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<WebhookRow | null>(null);
+  const [revealedSecret, setRevealedSecret] = React.useState<string | null>(null);
+
+  function getToken(): string | null {
+    try { return JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null; }
+    catch { return null; }
+  }
+
+  async function toggleActive(w: WebhookRow, next: boolean) {
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/webhooks/${w.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ active: next }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(next ? "Webhook activated" : "Webhook paused");
+      reload();
+    } catch {
+      toast.error("Could not update webhook");
+    }
+  }
+
+  async function deleteWebhook(w: WebhookRow) {
+    if (!confirm(`Delete webhook "${w.label}"? This cannot be undone.`)) return;
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/webhooks/${w.id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("Webhook deleted");
+      reload();
+    } catch {
+      toast.error("Could not delete webhook");
+    }
+  }
+
+  async function copySecret(secret: string) {
+    try {
+      await navigator.clipboard?.writeText(secret);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Clipboard not available");
+    }
+  }
+
+  const rows = data ?? [];
+
+  return (
+    <section className="glass rounded-xl crystal-in p-5">
+      <SectionHeader
+        title="Webhooks"
+        desc="Receive HMAC-signed POST notifications when posts publish, comments arrive, or payments complete."
+        icon={Webhook}
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => reload()}
+              disabled={loading}
+              className="flex items-center gap-1.5 rounded-lg border border-border/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted/40"
+            >
+              <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+              Refresh
+            </button>
+            <button
+              onClick={() => setAddOpen(true)}
+              className="liquid-pill flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-semibold"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add webhook
+            </button>
+          </div>
+        }
+      />
+
+      {/* Quick explainer */}
+      <div className="mb-4 rounded-xl border border-border/40 bg-muted/20 p-3 text-xs text-muted-foreground">
+        <p>
+          <strong className="text-foreground">How it works.</strong> When a subscribed event fires,
+          SYNQUE POSTs a JSON payload to your URL with two headers:
+        </p>
+        <ul className="mt-1.5 ml-4 list-disc space-y-0.5">
+          <li>
+            <code className="rounded bg-muted/60 px-1 py-0.5 text-[10px]">X-Synque-Signature: sha256=&lt;hmac&gt;</code> —
+            HMAC-SHA256 of the body using your webhook secret.
+          </li>
+          <li>
+            <code className="rounded bg-muted/60 px-1 py-0.5 text-[10px]">X-Synque-Event: &lt;event-name&gt;</code> —
+            the event that fired (e.g. <code>post.published</code>).
+          </li>
+        </ul>
+        <p className="mt-2">
+          The signing secret is shown ONCE on creation — copy it immediately. Lost secrets require
+          deleting + re-creating the webhook.
+        </p>
+      </div>
+
+      {/* List */}
+      {rows.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border/50 px-4 py-12 text-center">
+          <Webhook className="mx-auto h-8 w-8 text-muted-foreground/40" />
+          <p className="mt-2 text-sm font-semibold">No webhooks configured</p>
+          <p className="text-xs text-muted-foreground">Add a webhook endpoint to start receiving events.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((w) => (
+            <div
+              key={w.id}
+              className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 bg-muted/20 p-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold">{w.label}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[9px] font-bold uppercase",
+                      w.active ? "bg-emerald-500/15 text-emerald-500" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {w.active ? "Active" : "Paused"}
+                  </span>
+                </div>
+                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{w.url}</div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                  {w.events.map((e) => (
+                    <span
+                      key={e}
+                      className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary"
+                    >
+                      {e}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="hidden flex-col items-end text-right sm:flex">
+                  <code className="text-[10px] text-muted-foreground">{w.secret}</code>
+                  <span className="text-[9px] text-muted-foreground">secret (masked)</span>
+                </div>
+                <Switch checked={w.active} onCheckedChange={(v) => toggleActive(w, v)} />
+                <button
+                  onClick={() => setEditing(w)}
+                  className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  aria-label="Edit webhook"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => deleteWebhook(w)}
+                  className="grid h-7 w-7 place-items-center rounded-lg text-rose-500 transition hover:bg-rose-500/10"
+                  aria-label="Delete webhook"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="rounded-3xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add webhook endpoint</DialogTitle>
+            <DialogDescription>
+              We&apos;ll POST a signed payload to this URL whenever one of the selected events fires.
+            </DialogDescription>
+          </DialogHeader>
+          <AddWebhookForm
+            onCancel={() => setAddOpen(false)}
+            onDone={(newSecret) => {
+              setAddOpen(false);
+              setRevealedSecret(newSecret);
+              reload();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="rounded-3xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit webhook</DialogTitle>
+            <DialogDescription>
+              Update the label, URL, or subscribed events.
+            </DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <EditWebhookForm
+              webhook={editing}
+              onCancel={() => setEditing(null)}
+              onDone={() => {
+                setEditing(null);
+                reload();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reveal-secret dialog — shown after creating a new webhook */}
+      <Dialog open={!!revealedSecret} onOpenChange={(o) => !o && setRevealedSecret(null)}>
+        <DialogContent className="rounded-3xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save your signing secret</DialogTitle>
+            <DialogDescription>
+              This is the only time the full secret will be shown. Copy it now — you won&apos;t be
+              able to see it again.
+            </DialogDescription>
+          </DialogHeader>
+          {revealedSecret && (
+            <div className="space-y-3 py-2">
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+                <code className="break-all text-[11px] font-mono">{revealedSecret}</code>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setRevealedSecret(null)}>
+                  Close
+                </Button>
+                <button
+                  onClick={() => copySecret(revealedSecret)}
+                  className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy secret
+                </button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </section>
+  );
+}
+
+function AddWebhookForm({ onCancel, onDone }: { onCancel: () => void; onDone: (fullSecret: string) => void }) {
+  const [label, setLabel] = React.useState("");
+  const [url, setUrl] = React.useState("");
+  const [events, setEvents] = React.useState<string[]>(["post.published"]);
+  const [busy, setBusy] = React.useState(false);
+
+  function toggleEvent(e: string) {
+    setEvents((prev) => (prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]));
+  }
+
+  async function submit() {
+    if (!url.trim() || events.length === 0) {
+      toast.error("URL and at least one event are required");
+      return;
+    }
+    setBusy(true);
+    try {
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null;
+      const res = await fetch("/api/webhooks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          url: url.trim(),
+          label: label.trim() || undefined,
+          events,
+          active: true,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.secret) {
+        toast.success("Webhook created");
+        onDone(json.secret as string);
+      } else {
+        toast.error(json.error ?? "Failed to create webhook");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4 py-2">
+      <div className="space-y-2">
+        <Label htmlFor="wh-url">Endpoint URL</Label>
+        <Input
+          id="wh-url"
+          placeholder="https://example.com/hooks/synque"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="wh-label">Label (optional)</Label>
+        <Input
+          id="wh-label"
+          placeholder="e.g. CRM sync"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Events</Label>
+        <div className="space-y-1.5">
+          {WEBHOOK_EVENT_OPTIONS.map((opt) => {
+            const checked = events.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => toggleEvent(opt.value)}
+                className={cn(
+                  "flex w-full items-start gap-2 rounded-xl border p-2 text-left transition",
+                  checked
+                    ? "border-primary/40 bg-primary/5"
+                    : "border-border/60 bg-muted/20 hover:bg-muted/40",
+                )}
+              >
+                <span
+                  className={cn(
+                    "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-[5px] border",
+                    checked ? "border-primary bg-primary text-primary-foreground" : "border-border",
+                  )}
+                >
+                  {checked && <Check className="h-3 w-3" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold">{opt.label}</div>
+                  <div className="text-[10px] text-muted-foreground">{opt.desc}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>
+          Cancel
+        </Button>
+        <button
+          onClick={submit}
+          disabled={busy}
+          className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+        >
+          <Plus className="h-4 w-4" />
+          {busy ? "Creating…" : "Create webhook"}
+        </button>
+      </DialogFooter>
+    </div>
+  );
+}
+
+function EditWebhookForm({
+  webhook,
+  onCancel,
+  onDone,
+}: {
+  webhook: WebhookRow;
+  onCancel: () => void;
+  onDone: () => void;
+}) {
+  const [label, setLabel] = React.useState(webhook.label);
+  const [url, setUrl] = React.useState(webhook.url);
+  const [events, setEvents] = React.useState<string[]>(webhook.events);
+  const [busy, setBusy] = React.useState(false);
+
+  function toggleEvent(e: string) {
+    setEvents((prev) => (prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]));
+  }
+
+  async function submit() {
+    setBusy(true);
+    try {
+      const token = JSON.parse(localStorage.getItem("socialflow-auth") ?? "{}")?.state?.token ?? null;
+      const res = await fetch(`/api/webhooks/${webhook.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          label: label.trim() || undefined,
+          url: url.trim() || undefined,
+          events,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string })?.error ?? "Failed");
+      }
+      toast.success("Webhook updated");
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update webhook");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4 py-2">
+      <div className="space-y-2">
+        <Label htmlFor="wh-edit-label">Label</Label>
+        <Input id="wh-edit-label" value={label} onChange={(e) => setLabel(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="wh-edit-url">Endpoint URL</Label>
+        <Input id="wh-edit-url" value={url} onChange={(e) => setUrl(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label>Events</Label>
+        <div className="space-y-1.5">
+          {WEBHOOK_EVENT_OPTIONS.map((opt) => {
+            const checked = events.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => toggleEvent(opt.value)}
+                className={cn(
+                  "flex w-full items-start gap-2 rounded-xl border p-2 text-left transition",
+                  checked
+                    ? "border-primary/40 bg-primary/5"
+                    : "border-border/60 bg-muted/20 hover:bg-muted/40",
+                )}
+              >
+                <span
+                  className={cn(
+                    "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-[5px] border",
+                    checked ? "border-primary bg-primary text-primary-foreground" : "border-border",
+                  )}
+                >
+                  {checked && <Check className="h-3 w-3" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold">{opt.label}</div>
+                  <div className="text-[10px] text-muted-foreground">{opt.desc}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>
+          Cancel
+        </Button>
+        <button
+          onClick={submit}
+          disabled={busy}
+          className="liquid-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+        >
+          <Save className="h-4 w-4" />
+          {busy ? "Saving…" : "Save changes"}
+        </button>
+      </DialogFooter>
+    </div>
   );
 }
 

@@ -33,6 +33,7 @@ export type SubscriptionAvgAggregateOutputType = {
   taxRate: number | null
   taxAmount: number | null
   totalAmount: number | null
+  dunningAttempt: number | null
 }
 
 export type SubscriptionSumAggregateOutputType = {
@@ -42,6 +43,7 @@ export type SubscriptionSumAggregateOutputType = {
   taxRate: number | null
   taxAmount: number | null
   totalAmount: number | null
+  dunningAttempt: number | null
 }
 
 export type SubscriptionMinAggregateOutputType = {
@@ -63,6 +65,11 @@ export type SubscriptionMinAggregateOutputType = {
   billingCycle: string | null
   notes: string | null
   createdAt: Date | null
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  stripeStatus: string | null
+  stripeCurrentPeriodEnd: Date | null
+  dunningAttempt: number | null
 }
 
 export type SubscriptionMaxAggregateOutputType = {
@@ -84,6 +91,11 @@ export type SubscriptionMaxAggregateOutputType = {
   billingCycle: string | null
   notes: string | null
   createdAt: Date | null
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  stripeStatus: string | null
+  stripeCurrentPeriodEnd: Date | null
+  dunningAttempt: number | null
 }
 
 export type SubscriptionCountAggregateOutputType = {
@@ -105,6 +117,11 @@ export type SubscriptionCountAggregateOutputType = {
   billingCycle: number
   notes: number
   createdAt: number
+  stripeCustomerId: number
+  stripeSubscriptionId: number
+  stripeStatus: number
+  stripeCurrentPeriodEnd: number
+  dunningAttempt: number
   _all: number
 }
 
@@ -116,6 +133,7 @@ export type SubscriptionAvgAggregateInputType = {
   taxRate?: true
   taxAmount?: true
   totalAmount?: true
+  dunningAttempt?: true
 }
 
 export type SubscriptionSumAggregateInputType = {
@@ -125,6 +143,7 @@ export type SubscriptionSumAggregateInputType = {
   taxRate?: true
   taxAmount?: true
   totalAmount?: true
+  dunningAttempt?: true
 }
 
 export type SubscriptionMinAggregateInputType = {
@@ -146,6 +165,11 @@ export type SubscriptionMinAggregateInputType = {
   billingCycle?: true
   notes?: true
   createdAt?: true
+  stripeCustomerId?: true
+  stripeSubscriptionId?: true
+  stripeStatus?: true
+  stripeCurrentPeriodEnd?: true
+  dunningAttempt?: true
 }
 
 export type SubscriptionMaxAggregateInputType = {
@@ -167,6 +191,11 @@ export type SubscriptionMaxAggregateInputType = {
   billingCycle?: true
   notes?: true
   createdAt?: true
+  stripeCustomerId?: true
+  stripeSubscriptionId?: true
+  stripeStatus?: true
+  stripeCurrentPeriodEnd?: true
+  dunningAttempt?: true
 }
 
 export type SubscriptionCountAggregateInputType = {
@@ -188,6 +217,11 @@ export type SubscriptionCountAggregateInputType = {
   billingCycle?: true
   notes?: true
   createdAt?: true
+  stripeCustomerId?: true
+  stripeSubscriptionId?: true
+  stripeStatus?: true
+  stripeCurrentPeriodEnd?: true
+  dunningAttempt?: true
   _all?: true
 }
 
@@ -296,6 +330,11 @@ export type SubscriptionGroupByOutputType = {
   billingCycle: string | null
   notes: string | null
   createdAt: Date
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  stripeStatus: string | null
+  stripeCurrentPeriodEnd: Date | null
+  dunningAttempt: number
   _count: SubscriptionCountAggregateOutputType | null
   _avg: SubscriptionAvgAggregateOutputType | null
   _sum: SubscriptionSumAggregateOutputType | null
@@ -340,6 +379,11 @@ export type SubscriptionWhereInput = {
   billingCycle?: Prisma.StringNullableFilter<"Subscription"> | string | null
   notes?: Prisma.StringNullableFilter<"Subscription"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Subscription"> | Date | string
+  stripeCustomerId?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  stripeSubscriptionId?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  stripeStatus?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  stripeCurrentPeriodEnd?: Prisma.DateTimeNullableFilter<"Subscription"> | Date | string | null
+  dunningAttempt?: Prisma.IntFilter<"Subscription"> | number
   customer?: Prisma.XOR<Prisma.CustomerScalarRelationFilter, Prisma.CustomerWhereInput>
 }
 
@@ -362,6 +406,11 @@ export type SubscriptionOrderByWithRelationInput = {
   billingCycle?: Prisma.SortOrderInput | Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrderInput | Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  stripeStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  stripeCurrentPeriodEnd?: Prisma.SortOrderInput | Prisma.SortOrder
+  dunningAttempt?: Prisma.SortOrder
   customer?: Prisma.CustomerOrderByWithRelationInput
 }
 
@@ -387,6 +436,11 @@ export type SubscriptionWhereUniqueInput = Prisma.AtLeast<{
   billingCycle?: Prisma.StringNullableFilter<"Subscription"> | string | null
   notes?: Prisma.StringNullableFilter<"Subscription"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Subscription"> | Date | string
+  stripeCustomerId?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  stripeSubscriptionId?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  stripeStatus?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  stripeCurrentPeriodEnd?: Prisma.DateTimeNullableFilter<"Subscription"> | Date | string | null
+  dunningAttempt?: Prisma.IntFilter<"Subscription"> | number
   customer?: Prisma.XOR<Prisma.CustomerScalarRelationFilter, Prisma.CustomerWhereInput>
 }, "id">
 
@@ -409,6 +463,11 @@ export type SubscriptionOrderByWithAggregationInput = {
   billingCycle?: Prisma.SortOrderInput | Prisma.SortOrder
   notes?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrderInput | Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  stripeStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  stripeCurrentPeriodEnd?: Prisma.SortOrderInput | Prisma.SortOrder
+  dunningAttempt?: Prisma.SortOrder
   _count?: Prisma.SubscriptionCountOrderByAggregateInput
   _avg?: Prisma.SubscriptionAvgOrderByAggregateInput
   _max?: Prisma.SubscriptionMaxOrderByAggregateInput
@@ -438,6 +497,11 @@ export type SubscriptionScalarWhereWithAggregatesInput = {
   billingCycle?: Prisma.StringNullableWithAggregatesFilter<"Subscription"> | string | null
   notes?: Prisma.StringNullableWithAggregatesFilter<"Subscription"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Subscription"> | Date | string
+  stripeCustomerId?: Prisma.StringNullableWithAggregatesFilter<"Subscription"> | string | null
+  stripeSubscriptionId?: Prisma.StringNullableWithAggregatesFilter<"Subscription"> | string | null
+  stripeStatus?: Prisma.StringNullableWithAggregatesFilter<"Subscription"> | string | null
+  stripeCurrentPeriodEnd?: Prisma.DateTimeNullableWithAggregatesFilter<"Subscription"> | Date | string | null
+  dunningAttempt?: Prisma.IntWithAggregatesFilter<"Subscription"> | number
 }
 
 export type SubscriptionCreateInput = {
@@ -458,6 +522,11 @@ export type SubscriptionCreateInput = {
   billingCycle?: string | null
   notes?: string | null
   createdAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  stripeStatus?: string | null
+  stripeCurrentPeriodEnd?: Date | string | null
+  dunningAttempt?: number
   customer: Prisma.CustomerCreateNestedOneWithoutSubscriptionsInput
 }
 
@@ -480,6 +549,11 @@ export type SubscriptionUncheckedCreateInput = {
   billingCycle?: string | null
   notes?: string | null
   createdAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  stripeStatus?: string | null
+  stripeCurrentPeriodEnd?: Date | string | null
+  dunningAttempt?: number
 }
 
 export type SubscriptionUpdateInput = {
@@ -500,6 +574,11 @@ export type SubscriptionUpdateInput = {
   billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeCurrentPeriodEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  dunningAttempt?: Prisma.IntFieldUpdateOperationsInput | number
   customer?: Prisma.CustomerUpdateOneRequiredWithoutSubscriptionsNestedInput
 }
 
@@ -522,6 +601,11 @@ export type SubscriptionUncheckedUpdateInput = {
   billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeCurrentPeriodEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  dunningAttempt?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type SubscriptionCreateManyInput = {
@@ -543,6 +627,11 @@ export type SubscriptionCreateManyInput = {
   billingCycle?: string | null
   notes?: string | null
   createdAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  stripeStatus?: string | null
+  stripeCurrentPeriodEnd?: Date | string | null
+  dunningAttempt?: number
 }
 
 export type SubscriptionUpdateManyMutationInput = {
@@ -563,6 +652,11 @@ export type SubscriptionUpdateManyMutationInput = {
   billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeCurrentPeriodEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  dunningAttempt?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type SubscriptionUncheckedUpdateManyInput = {
@@ -584,6 +678,11 @@ export type SubscriptionUncheckedUpdateManyInput = {
   billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeCurrentPeriodEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  dunningAttempt?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type SubscriptionListRelationFilter = {
@@ -615,6 +714,11 @@ export type SubscriptionCountOrderByAggregateInput = {
   billingCycle?: Prisma.SortOrder
   notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrder
+  stripeStatus?: Prisma.SortOrder
+  stripeCurrentPeriodEnd?: Prisma.SortOrder
+  dunningAttempt?: Prisma.SortOrder
 }
 
 export type SubscriptionAvgOrderByAggregateInput = {
@@ -624,6 +728,7 @@ export type SubscriptionAvgOrderByAggregateInput = {
   taxRate?: Prisma.SortOrder
   taxAmount?: Prisma.SortOrder
   totalAmount?: Prisma.SortOrder
+  dunningAttempt?: Prisma.SortOrder
 }
 
 export type SubscriptionMaxOrderByAggregateInput = {
@@ -645,6 +750,11 @@ export type SubscriptionMaxOrderByAggregateInput = {
   billingCycle?: Prisma.SortOrder
   notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrder
+  stripeStatus?: Prisma.SortOrder
+  stripeCurrentPeriodEnd?: Prisma.SortOrder
+  dunningAttempt?: Prisma.SortOrder
 }
 
 export type SubscriptionMinOrderByAggregateInput = {
@@ -666,6 +776,11 @@ export type SubscriptionMinOrderByAggregateInput = {
   billingCycle?: Prisma.SortOrder
   notes?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  stripeCustomerId?: Prisma.SortOrder
+  stripeSubscriptionId?: Prisma.SortOrder
+  stripeStatus?: Prisma.SortOrder
+  stripeCurrentPeriodEnd?: Prisma.SortOrder
+  dunningAttempt?: Prisma.SortOrder
 }
 
 export type SubscriptionSumOrderByAggregateInput = {
@@ -675,6 +790,7 @@ export type SubscriptionSumOrderByAggregateInput = {
   taxRate?: Prisma.SortOrder
   taxAmount?: Prisma.SortOrder
   totalAmount?: Prisma.SortOrder
+  dunningAttempt?: Prisma.SortOrder
 }
 
 export type SubscriptionCreateNestedManyWithoutCustomerInput = {
@@ -737,6 +853,11 @@ export type SubscriptionCreateWithoutCustomerInput = {
   billingCycle?: string | null
   notes?: string | null
   createdAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  stripeStatus?: string | null
+  stripeCurrentPeriodEnd?: Date | string | null
+  dunningAttempt?: number
 }
 
 export type SubscriptionUncheckedCreateWithoutCustomerInput = {
@@ -757,6 +878,11 @@ export type SubscriptionUncheckedCreateWithoutCustomerInput = {
   billingCycle?: string | null
   notes?: string | null
   createdAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  stripeStatus?: string | null
+  stripeCurrentPeriodEnd?: Date | string | null
+  dunningAttempt?: number
 }
 
 export type SubscriptionCreateOrConnectWithoutCustomerInput = {
@@ -807,6 +933,11 @@ export type SubscriptionScalarWhereInput = {
   billingCycle?: Prisma.StringNullableFilter<"Subscription"> | string | null
   notes?: Prisma.StringNullableFilter<"Subscription"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Subscription"> | Date | string
+  stripeCustomerId?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  stripeSubscriptionId?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  stripeStatus?: Prisma.StringNullableFilter<"Subscription"> | string | null
+  stripeCurrentPeriodEnd?: Prisma.DateTimeNullableFilter<"Subscription"> | Date | string | null
+  dunningAttempt?: Prisma.IntFilter<"Subscription"> | number
 }
 
 export type SubscriptionCreateManyCustomerInput = {
@@ -827,6 +958,11 @@ export type SubscriptionCreateManyCustomerInput = {
   billingCycle?: string | null
   notes?: string | null
   createdAt?: Date | string
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  stripeStatus?: string | null
+  stripeCurrentPeriodEnd?: Date | string | null
+  dunningAttempt?: number
 }
 
 export type SubscriptionUpdateWithoutCustomerInput = {
@@ -847,6 +983,11 @@ export type SubscriptionUpdateWithoutCustomerInput = {
   billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeCurrentPeriodEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  dunningAttempt?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type SubscriptionUncheckedUpdateWithoutCustomerInput = {
@@ -867,6 +1008,11 @@ export type SubscriptionUncheckedUpdateWithoutCustomerInput = {
   billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeCurrentPeriodEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  dunningAttempt?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type SubscriptionUncheckedUpdateManyWithoutCustomerInput = {
@@ -887,6 +1033,11 @@ export type SubscriptionUncheckedUpdateManyWithoutCustomerInput = {
   billingCycle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stripeCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeSubscriptionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeStatus?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  stripeCurrentPeriodEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  dunningAttempt?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 
@@ -910,6 +1061,11 @@ export type SubscriptionSelect<ExtArgs extends runtime.Types.Extensions.Internal
   billingCycle?: boolean
   notes?: boolean
   createdAt?: boolean
+  stripeCustomerId?: boolean
+  stripeSubscriptionId?: boolean
+  stripeStatus?: boolean
+  stripeCurrentPeriodEnd?: boolean
+  dunningAttempt?: boolean
   customer?: boolean | Prisma.CustomerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["subscription"]>
 
@@ -932,6 +1088,11 @@ export type SubscriptionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   billingCycle?: boolean
   notes?: boolean
   createdAt?: boolean
+  stripeCustomerId?: boolean
+  stripeSubscriptionId?: boolean
+  stripeStatus?: boolean
+  stripeCurrentPeriodEnd?: boolean
+  dunningAttempt?: boolean
   customer?: boolean | Prisma.CustomerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["subscription"]>
 
@@ -954,6 +1115,11 @@ export type SubscriptionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   billingCycle?: boolean
   notes?: boolean
   createdAt?: boolean
+  stripeCustomerId?: boolean
+  stripeSubscriptionId?: boolean
+  stripeStatus?: boolean
+  stripeCurrentPeriodEnd?: boolean
+  dunningAttempt?: boolean
   customer?: boolean | Prisma.CustomerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["subscription"]>
 
@@ -976,9 +1142,14 @@ export type SubscriptionSelectScalar = {
   billingCycle?: boolean
   notes?: boolean
   createdAt?: boolean
+  stripeCustomerId?: boolean
+  stripeSubscriptionId?: boolean
+  stripeStatus?: boolean
+  stripeCurrentPeriodEnd?: boolean
+  dunningAttempt?: boolean
 }
 
-export type SubscriptionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "customerId" | "plan" | "status" | "startDate" | "endDate" | "trialEnds" | "amount" | "currency" | "discountType" | "discountValue" | "discountAmount" | "taxRate" | "taxAmount" | "totalAmount" | "billingCycle" | "notes" | "createdAt", ExtArgs["result"]["subscription"]>
+export type SubscriptionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "customerId" | "plan" | "status" | "startDate" | "endDate" | "trialEnds" | "amount" | "currency" | "discountType" | "discountValue" | "discountAmount" | "taxRate" | "taxAmount" | "totalAmount" | "billingCycle" | "notes" | "createdAt" | "stripeCustomerId" | "stripeSubscriptionId" | "stripeStatus" | "stripeCurrentPeriodEnd" | "dunningAttempt", ExtArgs["result"]["subscription"]>
 export type SubscriptionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   customer?: boolean | Prisma.CustomerDefaultArgs<ExtArgs>
 }
@@ -1013,6 +1184,11 @@ export type $SubscriptionPayload<ExtArgs extends runtime.Types.Extensions.Intern
     billingCycle: string | null
     notes: string | null
     createdAt: Date
+    stripeCustomerId: string | null
+    stripeSubscriptionId: string | null
+    stripeStatus: string | null
+    stripeCurrentPeriodEnd: Date | null
+    dunningAttempt: number
   }, ExtArgs["result"]["subscription"]>
   composites: {}
 }
@@ -1455,6 +1631,11 @@ export interface SubscriptionFieldRefs {
   readonly billingCycle: Prisma.FieldRef<"Subscription", 'String'>
   readonly notes: Prisma.FieldRef<"Subscription", 'String'>
   readonly createdAt: Prisma.FieldRef<"Subscription", 'DateTime'>
+  readonly stripeCustomerId: Prisma.FieldRef<"Subscription", 'String'>
+  readonly stripeSubscriptionId: Prisma.FieldRef<"Subscription", 'String'>
+  readonly stripeStatus: Prisma.FieldRef<"Subscription", 'String'>
+  readonly stripeCurrentPeriodEnd: Prisma.FieldRef<"Subscription", 'DateTime'>
+  readonly dunningAttempt: Prisma.FieldRef<"Subscription", 'Int'>
 }
     
 

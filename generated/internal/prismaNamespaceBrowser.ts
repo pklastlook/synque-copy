@@ -69,6 +69,7 @@ export const ModelName = {
   HashtagGroup: 'HashtagGroup',
   Competitor: 'Competitor',
   CompetitorSnapshot: 'CompetitorSnapshot',
+  CompetitorPost: 'CompetitorPost',
   Report: 'Report',
   LinkInBio: 'LinkInBio',
   WhatsAppMessage: 'WhatsAppMessage',
@@ -104,7 +105,8 @@ export const ModelName = {
   WebAuthnCredential: 'WebAuthnCredential',
   WebauthnChallenge: 'WebauthnChallenge',
   AuditLog: 'AuditLog',
-  Notification: 'Notification'
+  Notification: 'Notification',
+  Webhook: 'Webhook'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -251,7 +253,8 @@ export const PostVariantScalarFieldEnum = {
   saves: 'saves',
   createdAt: 'createdAt',
   retryCount: 'retryCount',
-  lastError: 'lastError'
+  lastError: 'lastError',
+  abTestGroupId: 'abTestGroupId'
 } as const
 
 export type PostVariantScalarFieldEnum = (typeof PostVariantScalarFieldEnum)[keyof typeof PostVariantScalarFieldEnum]
@@ -335,6 +338,8 @@ export const MediaAssetScalarFieldEnum = {
   folder: 'folder',
   uploadedById: 'uploadedById',
   customerId: 'customerId',
+  hash: 'hash',
+  altText: 'altText',
   createdAt: 'createdAt'
 } as const
 
@@ -459,6 +464,25 @@ export const CompetitorSnapshotScalarFieldEnum = {
 } as const
 
 export type CompetitorSnapshotScalarFieldEnum = (typeof CompetitorSnapshotScalarFieldEnum)[keyof typeof CompetitorSnapshotScalarFieldEnum]
+
+
+export const CompetitorPostScalarFieldEnum = {
+  id: 'id',
+  competitorId: 'competitorId',
+  externalId: 'externalId',
+  text: 'text',
+  mediaUrl: 'mediaUrl',
+  likes: 'likes',
+  comments: 'comments',
+  shares: 'shares',
+  reach: 'reach',
+  sentiment: 'sentiment',
+  topics: 'topics',
+  postedAt: 'postedAt',
+  syncedAt: 'syncedAt'
+} as const
+
+export type CompetitorPostScalarFieldEnum = (typeof CompetitorPostScalarFieldEnum)[keyof typeof CompetitorPostScalarFieldEnum]
 
 
 export const ReportScalarFieldEnum = {
@@ -616,6 +640,7 @@ export const CustomerScalarFieldEnum = {
   country: 'country',
   status: 'status',
   plan: 'plan',
+  branding: 'branding',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -745,7 +770,12 @@ export const SubscriptionScalarFieldEnum = {
   totalAmount: 'totalAmount',
   billingCycle: 'billingCycle',
   notes: 'notes',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  stripeCustomerId: 'stripeCustomerId',
+  stripeSubscriptionId: 'stripeSubscriptionId',
+  stripeStatus: 'stripeStatus',
+  stripeCurrentPeriodEnd: 'stripeCurrentPeriodEnd',
+  dunningAttempt: 'dunningAttempt'
 } as const
 
 export type SubscriptionScalarFieldEnum = (typeof SubscriptionScalarFieldEnum)[keyof typeof SubscriptionScalarFieldEnum]
@@ -1065,6 +1095,21 @@ export const NotificationScalarFieldEnum = {
 } as const
 
 export type NotificationScalarFieldEnum = (typeof NotificationScalarFieldEnum)[keyof typeof NotificationScalarFieldEnum]
+
+
+export const WebhookScalarFieldEnum = {
+  id: 'id',
+  customerId: 'customerId',
+  label: 'label',
+  url: 'url',
+  events: 'events',
+  secret: 'secret',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WebhookScalarFieldEnum = (typeof WebhookScalarFieldEnum)[keyof typeof WebhookScalarFieldEnum]
 
 
 export const SortOrder = {

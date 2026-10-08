@@ -1,0 +1,136 @@
+# docker-compose.yml — REMAINING-4
+#
+# Orchestrates the 5 mini-services + the main Next.js app.
+#
+# Usage:
+#   docker compose up --build
+#
+# Notes:
+#   - Each service builds from its own Dockerfile (oven/bun:1 base).
+#   - All services share the same network so they can reach each other by
+#     service name (e.g. the main app calls http://scheduler-service:3003).
+#   - The main app exposes port 3000; mini-services expose their own ports
+#     for direct debugging.
+#   - Env vars are read from the host .env (env_file). Override per-service
+#     in the `environment:` block when the var name differs.
+#
+# Services NOT included here:
+#   - PostgreSQL / Redis — the project uses Neon serverless Postgres
+#     (DATABASE_URL env var) so no local DB container is required.
+
+services:
+  # ─── Main Next.js app ──────────────────────────────────────────────
+  app:
+    container_name: prism-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=${DATABASE_URL}
+      - DIRECT_URL=${DIRECT_URL:-${DATABASE_URL}}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-${JWT_SECRET}}
+      # Mini-service base URLs — point the main app at the docker-compose
+      # service hostnames so it can reach them inside the network.
+      - SCHEDULER_SERVICE_URL=http://scheduler-service:3003
+      - AI_SERVICE_URL=http://ai-service:3004
+      - ZAI_PROXY_URL=http://zai-proxy:3005
+      - CHAT_SERVICE_URL=http://chat-service:3006
+      - WHATSAPP_SERVICE_URL=http://whatsapp-service:3002
+    depends_on:
+      - scheduler-service
+      - ai-service
+      - zai-proxy
+      - chat-service
+      - whatsapp-service
+    restart: unless-stopped
+
+  # ─── Mini-services ─────────────────────────────────────────────────
+  whatsapp-service:
+    container_name: prism-whatsapp
+    build:
+      context: ./mini-services/whatsapp-service
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    env_file:
+      - .env
+    environment:
+      - PORT=3002
+    restart: unless-stopped
+
+  scheduler-service:
+    container_name: prism-scheduler
+    build:
+      context: ./mini-services/scheduler-service
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    env_file:
+      - .env
+    environment:
+      - PORT=3003
+      - DATABASE_URL=${DATABASE_URL}
+      - DIRECT_URL=${DIRECT_URL:-${DATABASE_URL}}
+      - SCHEDULER_API_KEY=${SCHEDULER_API_KEY}
+    restart: unless-stopped
+
+  ai-service:
+    container_name: prism-ai
+    build:
+      context: ./mini-services/ai-service
+      dockerfile: Dockerfile
+    ports:
+      - "3004:3004"
+    env_file:
+      - .env
+    environment:
+      - PORT=3004
+      - ZAI_API_KEY=${ZAI_API_KEY}
+      - ZAI_CHAT_ID=${ZAI_CHAT_ID}
+      - ZAI_TOKEN=${ZAI_TOKEN}
+      - ZAI_USER_ID=${ZAI_USER_ID}
+      - MINI_SERVICE_KEY=${MINI_SERVICE_KEY}
+    restart: unless-stopped
+
+  zai-proxy:
+    container_name: prism-zai-proxy
+    build:
+      context: ./mini-services/zai-proxy
+      dockerfile: Dockerfile
+    ports:
+      - "3005:3005"
+    env_file:
+      - .env
+    environment:
+      - PORT=3005
+      - ZAI_BASE_URL=${ZAI_BASE_URL:-https://internal-api.z.ai/v1}
+      - ZAI_API_KEY=${ZAI_API_KEY}
+      - ZAI_CHAT_ID=${ZAI_CHAT_ID}
+      - ZAI_TOKEN=${ZAI_TOKEN}
+      - ZAI_USER_ID=${ZAI_USER_ID}
+      - MINI_SERVICE_KEY=${MINI_SERVICE_KEY}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+    restart: unless-stopped
+
+  chat-service:
+    container_name: prism-chat
+    build:
+      context: ./mini-services/chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "3006:3006"
+    env_file:
+      - .env
+    environment:
+      - PORT=3006
+      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=${DATABASE_URL}
+      - MINI_SERVICE_KEY=${MINI_SERVICE_KEY}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+    restart: unless-stopped

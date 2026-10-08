@@ -1,13 +1,7 @@
-FROM node:20
-
+FROM oven/bun:1
 WORKDIR /app
-
-COPY package.json ./
-RUN npm install --production
-
-COPY index.js ./
-
-ENV PORT=3004
+COPY package.json bun.lock ./
+RUN bun install --production
+COPY . .
 EXPOSE 3004
-
-CMD ["node", "index.js"]
+CMD ["bun", "run", "index.js"]

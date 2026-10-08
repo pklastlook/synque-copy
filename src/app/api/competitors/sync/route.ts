@@ -9,27 +9,26 @@ export const maxDuration = 60; // Batch sync across competitors can be slow
 /**
  * POST /api/competitors/sync
  *
- * Fetches REAL follower counts, engagement rates, and posting frequency
- * for tracked competitors from the underlying social platform APIs.
+ * Fetches REAL follower counts, engagement rates, posting frequency, AND
+ * recent posts for tracked competitors from the underlying social platform
+ * APIs. Stores posts as CompetitorPost rows for the deep-analysis endpoint.
  *
  * Body: { competitorId?: string }
  *   - If competitorId is provided, sync only that competitor
  *   - If omitted, sync ALL competitors with status="tracking"
  *
  * For each competitor:
- *   1. Resolve a connected PlatformCredential for the competitor's platform
- *      (prefers the authenticated user's credentials, falls back to any
- *       connected credential for that platform).
- *   2. Call the platform's public metrics API:
- *        - X/Twitter   → api.twitter.com/2/users/by/username/{handle}
- *        - Instagram   → graph.facebook.com/v19.0/{ig_business_id}
- *        - Facebook    → graph.facebook.com/v19.0/{page_id}
- *        - LinkedIn    → api.linkedin.com/v2/organizations/{id}
- *   3. Update the Competitor record (followers, engagementRate, postingFreq).
- *   4. Create a CompetitorSnapshot row with the current date + real values.
+ *   1. Resolve a connected PlatformCredential for the competitor's platform.
+ *   2. Call the platform's public metrics API to refresh follower count,
+ *      engagement rate, and posting frequency. Update the Competitor record
+ *      + create a CompetitorSnapshot for the day.
+ *   3. Fetch the competitor's ~20 most-recent posts (text + engagement +
+ *      timestamp). Upsert them as CompetitorPost rows keyed on
+ *      `(competitorId, externalId)`. (Posts already stored are skipped
+ *      via upsert's `update: {}` no-op.)
  *
  * Returns:
- *   { ok, synced: [...], errors: [...], total, updated }
+ *   { ok, synced: [...], errors: [...], total, updated, postsStored }
  */
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth(req);
@@ -54,6 +53,7 @@ export async function POST(req: NextRequest) {
         : ["No competitors with status=tracking found"],
       total: 0,
       updated: 0,
+      postsStored: 0,
     });
   }
 
@@ -62,8 +62,10 @@ export async function POST(req: NextRequest) {
     platform: string;
     followers: number;
     snapshots: number;
+    postsStored: number;
   }[] = [];
   const errors: string[] = [];
+  let totalPostsStored = 0;
 
   for (const competitor of competitors) {
     const label = `Competitor ${competitor.name}`;
@@ -72,9 +74,6 @@ export async function POST(req: NextRequest) {
       const handle = cleanHandle(competitor.handle);
 
       // Resolve a connected PlatformCredential for this platform.
-      // Prefer the authenticated user's credentials; fall back to any.
-      // Sensitive fields (accessToken, bearerToken, oauth2UserToken, ...)
-      // are stored AES-256-GCM-encrypted at rest — decrypt before using.
       let credRow = await db.platformCredential.findFirst({
         where: { userId: user!.userId, platform, connected: true },
       });
@@ -123,11 +122,70 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // === Fetch + store recent posts for deep analysis ===
+      // Best-effort — failures here don't fail the sync.
+      let postsStored = 0;
+      try {
+        const posts = await fetchPlatformPosts(platform, handle, cred);
+        if (posts.length > 0) {
+          for (const p of posts) {
+            try {
+              // Upsert keyed on (competitorId, externalId) so re-syncing
+              // the same post doesn't create duplicates. We update the
+              // engagement metrics on every sync (in case they grew since
+              // last fetch) but leave the sentiment/topics fields alone
+              // — they're written by the /analyze endpoint.
+              await db.competitorPost.upsert({
+                where: {
+                  competitorId_externalId: {
+                    competitorId: competitor.id,
+                    externalId: p.externalId,
+                  },
+                },
+                create: {
+                  competitorId: competitor.id,
+                  externalId: p.externalId,
+                  text: p.text.slice(0, 4000),
+                  mediaUrl: p.mediaUrl ?? null,
+                  likes: p.likes,
+                  comments: p.comments,
+                  shares: p.shares,
+                  reach: p.reach,
+                  postedAt: new Date(p.postedAt),
+                },
+                update: {
+                  // Refresh engagement metrics on every sync.
+                  likes: p.likes,
+                  comments: p.comments,
+                  shares: p.shares,
+                  reach: p.reach,
+                  syncedAt: new Date(),
+                },
+              });
+              postsStored++;
+            } catch (e) {
+              // Skip this post if upsert fails (bad data, etc.) — best-effort.
+              console.warn(
+                `[competitors/sync] upsert post ${p.externalId} failed:`,
+                e instanceof Error ? e.message : String(e),
+              );
+            }
+          }
+          totalPostsStored += postsStored;
+        }
+      } catch (e) {
+        console.warn(
+          `[competitors/sync] post fetch failed for ${competitor.name}:`,
+          e instanceof Error ? e.message : String(e),
+        );
+      }
+
       synced.push({
         name: updated.name,
         platform: updated.platform,
         followers: updated.followers,
         snapshots: 1,
+        postsStored,
       });
     } catch (err) {
       errors.push(
@@ -142,6 +200,7 @@ export async function POST(req: NextRequest) {
     errors,
     total: competitors.length,
     updated: synced.length,
+    postsStored: totalPostsStored,
   });
 }
 
@@ -154,6 +213,17 @@ interface PlatformStats {
   engagementRate: number; // percentage (0–100)
   posts: number;
   postingFreq: number; // posts in last 7 days
+}
+
+export interface FetchedPost {
+  externalId: string;
+  text: string;
+  mediaUrl?: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  reach: number;
+  postedAt: string; // ISO timestamp
 }
 
 interface CredentialLike {
@@ -226,17 +296,11 @@ async function fetchPlatformStats(
 
 /**
  * Fetch real follower / engagement / post counts from Twitter API v2.
- * GET https://api.twitter.com/2/users/by/username/{handle}
- *   → data.public_metrics.{followers_count, following_count, tweet_count}
- * Then fetch the user's recent tweets (max 20) to compute engagement rate
- * (avg of like+reply+retweet+quote per tweet, divided by followers).
  */
 async function fetchTwitterStats(
   handle: string,
   cred: CredentialLike
 ): Promise<PlatformStats | null> {
-  // Prefer the OAuth 2.0 user-context token, then OAuth 1.0a access token,
-  // then the app-only Bearer token.
   const token = cred.oauth2UserToken ?? cred.accessToken ?? cred.bearerToken;
   if (!token || !handle) return null;
 
@@ -260,8 +324,6 @@ async function fetchTwitterStats(
     const tweetCount = metrics.tweet_count ?? 0;
     const twitterUserId = data.id;
 
-    // Try to fetch recent tweets for engagement rate + posting frequency.
-    // Failures here are non-fatal — we still return the follower/tweet counts.
     let engagementRate = 0;
     let postingFreq = 0;
     try {
@@ -320,11 +382,6 @@ async function fetchTwitterStats(
 
 /**
  * Fetch real follower / media / engagement counts from the Instagram Graph API.
- * GET https://graph.facebook.com/v19.0/{ig_business_id}
- *     ?fields=followers_count,media_count&access_token={token}
- *
- * The IG Business ID is stored on PlatformCredential.pageId. Engagement rate is
- * computed from the most recent ~20 media items' like_count + comments_count.
  */
 async function fetchInstagramStats(
   handle: string,
@@ -352,7 +409,6 @@ async function fetchInstagramStats(
     const followers = profileJson.followers_count ?? 0;
     const mediaCount = profileJson.media_count ?? 0;
 
-    // Fetch recent media for engagement + posting frequency.
     let engagementRate = 0;
     let postingFreq = 0;
     try {
@@ -401,12 +457,6 @@ async function fetchInstagramStats(
 
 /**
  * Fetch real fan_count + post engagement from the Facebook Graph API.
- * GET https://graph.facebook.com/v19.0/{page_id}
- *     ?fields=fan_count,posts.limit(20){created_time,likes.summary(true),comments.summary(true)}
- *     &access_token={token}
- *
- * Engagement rate is computed from avg (likes + comments) per post divided by
- * the page's fan_count.
  */
 async function fetchFacebookStats(
   handle: string,
@@ -466,19 +516,12 @@ async function fetchFacebookStats(
 
 /**
  * Fetch real followerCount from the LinkedIn Organizations API.
- * GET https://api.linkedin.com/v2/organizations/{id}?fields=followerCount
- *
- * NOTE: LinkedIn v2 only exposes the follower count for organizations you
- * manage. Post counts / engagement require the Marketing API and an
- * organization URN — limited by available scopes. We return zeros for those
- * when the call cannot be completed.
  */
 async function fetchLinkedInStats(
   handle: string,
   cred: CredentialLike
 ): Promise<PlatformStats | null> {
   const token = cred.accessToken;
-  // profileId stores a LinkedIn URN — for org sync we use it as the org ID.
   const orgId = cred.profileId;
   if (!token || !orgId) return null;
 
@@ -501,8 +544,6 @@ async function fetchLinkedInStats(
     const orgJson = await orgRes.json();
     const followers = orgJson.followerCount ?? 0;
 
-    // LinkedIn v2 doesn't expose post count via this endpoint without the
-    // Marketing API + an organization URN — leave as zero for now.
     return {
       followers,
       engagementRate: 0,
@@ -515,5 +556,170 @@ async function fetchLinkedInStats(
       err instanceof Error ? err.message : String(err)
     );
     return null;
+  }
+}
+
+// ============================================================================
+// Platform-specific POST fetchers (for deep analysis storage)
+// ============================================================================
+
+async function fetchPlatformPosts(
+  platform: string,
+  handle: string,
+  cred: CredentialLike
+): Promise<FetchedPost[]> {
+  switch (platform) {
+    case "twitter":
+      return fetchTwitterPosts(handle, cred);
+    case "instagram":
+      return fetchInstagramPosts(handle, cred);
+    case "facebook":
+      return fetchFacebookPosts(handle, cred);
+    case "linkedin":
+      return []; // LinkedIn v2 doesn't expose post text via this endpoint.
+    default:
+      return [];
+  }
+}
+
+/**
+ * Fetch recent tweets (text + engagement) for a competitor from Twitter API v2.
+ */
+async function fetchTwitterPosts(
+  handle: string,
+  cred: CredentialLike
+): Promise<FetchedPost[]> {
+  const token = cred.oauth2UserToken ?? cred.accessToken ?? cred.bearerToken;
+  if (!token || !handle) return [];
+
+  try {
+    // Resolve the user ID first
+    const userRes = await fetch(
+      `https://api.twitter.com/2/users/by/username/${handle}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!userRes.ok) return [];
+    const userJson = await userRes.json();
+    const userId = userJson?.data?.id;
+    if (!userId) return [];
+
+    const tweetsRes = await fetch(
+      `https://api.twitter.com/2/users/${userId}/tweets?` +
+        new URLSearchParams({
+          max_results: "20",
+          "tweet.fields": "public_metrics,created_at",
+          exclude: "retweets",
+        }).toString(),
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!tweetsRes.ok) return [];
+
+    const tweetsJson = await tweetsRes.json();
+    const tweets: any[] = tweetsJson.data ?? [];
+    return tweets.map((t) => {
+      const m = t.public_metrics ?? {};
+      return {
+        externalId: t.id,
+        text: t.text ?? "",
+        likes: m.like_count ?? 0,
+        comments: m.reply_count ?? 0,
+        shares: (m.retweet_count ?? 0) + (m.quote_count ?? 0),
+        reach: 0, // Twitter v2 doesn't expose impression count without a paid tier
+        postedAt: t.created_at,
+      };
+    });
+  } catch (err) {
+    console.warn(
+      `[competitors/sync] Twitter posts fetch failed:`,
+      err instanceof Error ? err.message : String(err)
+    );
+    return [];
+  }
+}
+
+/**
+ * Fetch recent media (text + engagement) for a competitor from the IG Graph API.
+ */
+async function fetchInstagramPosts(
+  handle: string,
+  cred: CredentialLike
+): Promise<FetchedPost[]> {
+  const token = cred.accessToken;
+  const igBusinessId = cred.pageId;
+  if (!token || !igBusinessId) return [];
+
+  try {
+    const mediaRes = await fetch(
+      `https://graph.facebook.com/v19.0/${igBusinessId}/media?` +
+        new URLSearchParams({
+          fields: "id,caption,like_count,comments_count,timestamp,media_url,permalink",
+          limit: "20",
+          access_token: token,
+        }).toString()
+    );
+    if (!mediaRes.ok) return [];
+
+    const mediaJson = await mediaRes.json();
+    const media: any[] = mediaJson.data ?? [];
+    return media.map((m) => ({
+      externalId: m.id,
+      text: m.caption ?? "",
+      mediaUrl: m.media_url ?? m.permalink ?? null,
+      likes: m.like_count ?? 0,
+      comments: m.comments_count ?? 0,
+      shares: 0,
+      reach: 0,
+      postedAt: m.timestamp,
+    }));
+  } catch (err) {
+    console.warn(
+      `[competitors/sync] Instagram posts fetch failed:`,
+      err instanceof Error ? err.message : String(err)
+    );
+    return [];
+  }
+}
+
+/**
+ * Fetch recent posts (text + engagement) for a competitor from the FB Graph API.
+ */
+async function fetchFacebookPosts(
+  handle: string,
+  cred: CredentialLike
+): Promise<FetchedPost[]> {
+  const token = cred.accessToken;
+  const pageId = cred.pageId;
+  if (!token || !pageId) return [];
+
+  try {
+    const postsRes = await fetch(
+      `https://graph.facebook.com/v19.0/${pageId}/posts?` +
+        new URLSearchParams({
+          fields:
+            "id,message,created_time,likes.limit(1).summary(true),comments.limit(1).summary(true),permalink",
+          limit: "20",
+          access_token: token,
+        }).toString()
+    );
+    if (!postsRes.ok) return [];
+
+    const postsJson = await postsRes.json();
+    const posts: any[] = postsJson.data ?? [];
+    return posts.map((p) => ({
+      externalId: p.id,
+      text: p.message ?? "",
+      mediaUrl: p.permalink ?? null,
+      likes: p.likes?.summary?.total_count ?? 0,
+      comments: p.comments?.summary?.total_count ?? 0,
+      shares: 0,
+      reach: 0,
+      postedAt: p.created_time,
+    }));
+  } catch (err) {
+    console.warn(
+      `[competitors/sync] Facebook posts fetch failed:`,
+      err instanceof Error ? err.message : String(err)
+    );
+    return [];
   }
 }

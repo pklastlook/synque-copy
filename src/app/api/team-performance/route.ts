@@ -105,6 +105,74 @@ export async function GET() {
       (a) => a.userId === u.id && new Date(a.createdAt) > sevenDaysAgoDate
     ).length;
 
+    // === NEW METRICS (P3 — Team Performance Analytics) ===
+
+    // Avg engagement per published post — likes + 2*comments + 3*shares
+    // (weighted to reflect true reach). Sums over the user's published
+    // PostVariants. Falls back to 0 when no posts are published.
+    const uPublishedVariants = uVariants.filter((v) => v.status === "published");
+    const uEngagementTotal = uPublishedVariants.reduce(
+      (sum, v) => sum + (v.likes ?? 0) + (v.comments ?? 0) * 2 + (v.shares ?? 0) * 3,
+      0,
+    );
+    const avgEngagementPerPost = uPublishedVariants.length > 0
+      ? Number((uEngagementTotal / uPublishedVariants.length).toFixed(1))
+      : 0;
+
+    // Avg response time (minutes) — mean of (repliedAt - createdAt) across
+    // replied comments on the user's accounts. Null when no replies.
+    let avgResponseTimeMin = 0;
+    const repliedWithTimes = uRepliedComments.filter((c) => c.repliedAt);
+    if (repliedWithTimes.length > 0) {
+      const totalMinutes = repliedWithTimes.reduce((sum, c) => {
+        const ms = new Date(c.repliedAt as unknown as Date).getTime() - new Date(c.createdAt).getTime();
+        return sum + Math.max(0, ms / (1000 * 60));
+      }, 0);
+      avgResponseTimeMin = Number((totalMinutes / repliedWithTimes.length).toFixed(1));
+    }
+
+    // Active days — distinct calendar days in the last 30 days where the
+    // user has at least one activity row. Falls back to 0 when no activity.
+    const thirtyDaysAgoDate = new Date(now - 30 * day);
+    const userActivityDays = new Set<string>();
+    for (const a of activities) {
+      if (a.userId !== u.id) continue;
+      if (new Date(a.createdAt) < thirtyDaysAgoDate) continue;
+      userActivityDays.add(a.createdAt.toISOString().slice(0, 10));
+    }
+    // Also count days where the user created a post (in case Activity rows
+    // are sparse — this gives credit for actual content output).
+    for (const p of uPosts) {
+      if (new Date(p.createdAt) < thirtyDaysAgoDate) continue;
+      userActivityDays.add(p.createdAt.toISOString().slice(0, 10));
+    }
+    const activeDays = userActivityDays.size;
+
+    // Activity score — weighted combination of:
+    //   40% productivity (posts created + published bonus)
+    //   25% responsiveness (comments replied + reply-rate bonus)
+    //   20% task completion
+    //   15% consistency (active days out of 30)
+    // All sub-scores are 0-100; the final score is the weighted sum, clamped 0-100.
+    const productivityScore = Math.min(100, Math.round(
+      Math.min(uPosts.length * 4, 50) +
+      Math.min(publishedPosts * 5, 50),
+    ));
+    const responsivenessScore = Math.min(100, Math.round(
+      Math.min(commentsReplied * 8, 50) +
+      (commentsReceived > 0 ? (memberReplyRate / 100) * 50 : 0),
+    ));
+    const taskScore = uTasks.length > 0
+      ? Math.round((uDoneTasks.length / uTasks.length) * 100)
+      : 0;
+    const consistencyScore = Math.round((activeDays / 30) * 100);
+    const activityScore = Math.round(
+      productivityScore * 0.4 +
+      responsivenessScore * 0.25 +
+      taskScore * 0.2 +
+      consistencyScore * 0.15,
+    );
+
     return {
       id: u.id,
       name: u.name,
@@ -135,6 +203,17 @@ export async function GET() {
         completedTasks: uDoneTasks.length,
         taskCompletionRate: uTasks.length > 0 ? Math.round((uDoneTasks.length / uTasks.length) * 100) : 0,
         recentActivity,
+        // NEW P3 metrics
+        avgEngagementPerPost,
+        avgResponseTimeMin,
+        activeDays,
+        activityScore,
+        activityScoreBreakdown: {
+          productivity: productivityScore,
+          responsiveness: responsivenessScore,
+          tasks: taskScore,
+          consistency: consistencyScore,
+        },
       },
       platforms: Object.entries(platformContent).map(([platform, data]) => ({ platform, ...data })),
     };

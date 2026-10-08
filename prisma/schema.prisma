@@ -195,10 +195,18 @@ model PostVariant {
   retryCount  Int       @default(0)
   lastError   String?   // last publish error message (cleared on success)
 
+  // REMAINING-4 — A/B testing for content.
+  // When set, this variant belongs to an A/B test group identified by the
+  // shared cuid. Two to four variants of the SAME post can be grouped so
+  // the analytics dashboard can compare engagement side-by-side and pick a
+  // winner. Null = not part of any test (the common case).
+  abTestGroupId String?
+
   @@index([accountId])
   @@index([postId])
   @@index([status])
   @@index([publishedAt])
+  @@index([abTestGroupId])
 }
 
 model Comment {
@@ -292,7 +300,18 @@ model MediaAsset {
   // Multi-tenant: links this asset to a specific Customer (organisation).
   // null = belongs to super-admin (visible across tenants).
   customerId  String?
+  // REMAINING-4 — perceptual hash (xxHash of the compressed bytes) used for
+  // duplicate detection. When a new upload produces the same hash as an
+  // existing asset in the same tenant, the upload route skips the write and
+  // returns the existing asset instead of storing a second copy.
+  hash        String?
+  // REMAINING-4 — AI-generated alt text (best-effort, may be null if the
+  // vision provider was unavailable at upload time).
+  altText     String?
   createdAt   DateTime @default(now())
+
+  @@index([customerId])
+  @@index([hash])
 }
 
 // ===== Social Listening / Brand Monitoring =====
@@ -410,6 +429,7 @@ model Competitor {
   customerId String?
 
   snapshots  CompetitorSnapshot[]
+  posts      CompetitorPost[]
 
   @@index([customerId])
 }
@@ -422,6 +442,39 @@ model CompetitorSnapshot {
   followers    Int
   engagement   Float
   posts        Int
+}
+
+// ===== Competitor Post (synced from their social profile for deep analysis) =====
+model CompetitorPost {
+  id            String   @id @default(cuid())
+  competitorId  String
+  competitor    Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  // The platform's own ID for this post (so we can upsert without dupes).
+  externalId    String
+  // The post's text content (caption / tweet / etc.). Used for sentiment
+  // analysis + content-gap detection.
+  text          String
+  // Optional media URL (image / video preview) for the post.
+  mediaUrl      String?
+  // Engagement metrics pulled from the platform's API.
+  likes         Int      @default(0)
+  comments      Int      @default(0)
+  shares        Int      @default(0)
+  reach         Int      @default(0)
+  // Sentiment label assigned by the sentiment classifier (positive | neutral | negative).
+  // Null when the post hasn't been classified yet.
+  sentiment     String?
+  // Topics extracted from the post (comma-separated, lowercase).
+  // Used for content-gap detection.
+  topics        String?
+  // When the post was published on the platform.
+  postedAt      DateTime
+  // When we synced this row.
+  syncedAt      DateTime @default(now())
+
+  @@unique([competitorId, externalId])
+  @@index([competitorId])
+  @@index([postedAt])
 }
 
 // ===== Custom Reports =====
@@ -599,6 +652,11 @@ model Customer {
   country     String?
   status      String   @default("active") // active | suspended | trial
   plan        String   @default("starter") // starter | growth | enterprise
+  // REMAINING-2 — White-label / custom branding.
+  // JSON string: { logo?: string, primaryColor?: string, secondaryColor?: string, customDomain?: string }
+  // Empty/null = fall back to default SYNQUE branding (see src/lib/branding.ts).
+  // Stored as a String (not Json) for compatibility with PGlite + broad DB support.
+  branding    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -731,6 +789,33 @@ model Subscription {
   billingCycle    String?  // "monthly" | "quarterly" | "yearly"
   notes           String?  // admin notes
   createdAt       DateTime @default(now())
+  // ===== Stripe recurring billing =====
+  // Stripe Customer object ID (cus_xxx) — set when a Stripe Customer is
+  // created (or reused) on the first subscription purchase. Lets us reuse
+  // the same Stripe Customer across subscription cycles + access the Stripe
+  // Customer Portal for "Manage billing" / card updates.
+  stripeCustomerId       String?
+  // Stripe Subscription object ID (sub_xxx) — set when a recurring
+  // Subscription is created via /api/stripe/create-subscription. The
+  // Stripe webhook (`invoice.paid` / `invoice.payment_failed`) updates
+  // the Subscription row in our DB when Stripe charges the recurring
+  // payment on each renewal date.
+  stripeSubscriptionId   String?
+  // Stripe subscription status — mirrors Stripe's own status field:
+  // "trialing" | "active" | "past_due" | "canceled" | "incomplete" | …
+  // Useful for surfacing "Auto-renew: ON" vs "past_due" on the /billing page
+  // without an extra Stripe API round-trip.
+  stripeStatus           String?
+  // Stripe subscription's current_period_end (in ms since epoch) — set
+  // from the webhook so the /billing page can show "Next charge: Nov 6"
+  // without a Stripe API call on every page load.
+  stripeCurrentPeriodEnd DateTime?
+  // ===== Dunning / payment-failure tracking =====
+  // Tracks how many Stripe renewal attempts have failed for this
+  // subscription. Bumped by handlePaymentFailure() on each
+  // `invoice.payment_failed` webhook event. At attempt 3 the
+  // subscription is cancelled (see src/lib/dunning.ts).
+  dunningAttempt         Int      @default(0)
 
   @@index([customerId])
 }
@@ -1126,4 +1211,37 @@ model Notification {
 
   @@index([userId, read])
   @@index([createdAt])
+}
+
+// ===== Webhook (outbound, customer-scoped, HMAC-signed event delivery) =====
+// Tenants register one or more webhook endpoints. When a subscribed event
+// fires (post.published, comment.received, payment.completed), the system
+// POSTs a JSON payload to each URL with an HMAC-SHA256 signature header
+// (X-Synque-Signature) computed over the body using the webhook's `secret`.
+// Best-effort — failures are logged but never break the originating request.
+//
+// `events` is stored as a JSON-encoded string array (e.g.
+// '["post.published","comment.received"]') since Prisma's SQLite primitive
+// list type is not supported with the postgres provider in this stack.
+model Webhook {
+  id          String   @id @default(cuid())
+  // Tenant this webhook belongs to (null = super-admin / global).
+  customerId  String?
+  // Human-readable label so admins can tell webhooks apart in the UI.
+  label       String
+  // The HTTPS endpoint to POST event payloads to.
+  url         String
+  // JSON-encoded string array of event names this webhook subscribes to.
+  events      String
+  // HMAC-SHA256 secret shared between SYNQUE and the receiver. Used to
+  // sign each delivery so the receiver can verify authenticity. Generated
+  // by the API on creation (randomBytes); never echoed back in full on GET.
+  secret      String
+  // Soft toggle — paused webhooks are skipped on delivery.
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([active])
 }

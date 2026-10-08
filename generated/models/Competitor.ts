@@ -293,6 +293,7 @@ export type CompetitorWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Competitor"> | Date | string
   customerId?: Prisma.StringNullableFilter<"Competitor"> | string | null
   snapshots?: Prisma.CompetitorSnapshotListRelationFilter
+  posts?: Prisma.CompetitorPostListRelationFilter
 }
 
 export type CompetitorOrderByWithRelationInput = {
@@ -310,6 +311,7 @@ export type CompetitorOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   snapshots?: Prisma.CompetitorSnapshotOrderByRelationAggregateInput
+  posts?: Prisma.CompetitorPostOrderByRelationAggregateInput
 }
 
 export type CompetitorWhereUniqueInput = Prisma.AtLeast<{
@@ -330,6 +332,7 @@ export type CompetitorWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Competitor"> | Date | string
   customerId?: Prisma.StringNullableFilter<"Competitor"> | string | null
   snapshots?: Prisma.CompetitorSnapshotListRelationFilter
+  posts?: Prisma.CompetitorPostListRelationFilter
 }, "id">
 
 export type CompetitorOrderByWithAggregationInput = {
@@ -387,6 +390,7 @@ export type CompetitorCreateInput = {
   createdAt?: Date | string
   customerId?: string | null
   snapshots?: Prisma.CompetitorSnapshotCreateNestedManyWithoutCompetitorInput
+  posts?: Prisma.CompetitorPostCreateNestedManyWithoutCompetitorInput
 }
 
 export type CompetitorUncheckedCreateInput = {
@@ -404,6 +408,7 @@ export type CompetitorUncheckedCreateInput = {
   createdAt?: Date | string
   customerId?: string | null
   snapshots?: Prisma.CompetitorSnapshotUncheckedCreateNestedManyWithoutCompetitorInput
+  posts?: Prisma.CompetitorPostUncheckedCreateNestedManyWithoutCompetitorInput
 }
 
 export type CompetitorUpdateInput = {
@@ -421,6 +426,7 @@ export type CompetitorUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   snapshots?: Prisma.CompetitorSnapshotUpdateManyWithoutCompetitorNestedInput
+  posts?: Prisma.CompetitorPostUpdateManyWithoutCompetitorNestedInput
 }
 
 export type CompetitorUncheckedUpdateInput = {
@@ -438,6 +444,7 @@ export type CompetitorUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   snapshots?: Prisma.CompetitorSnapshotUncheckedUpdateManyWithoutCompetitorNestedInput
+  posts?: Prisma.CompetitorPostUncheckedUpdateManyWithoutCompetitorNestedInput
 }
 
 export type CompetitorCreateManyInput = {
@@ -569,6 +576,20 @@ export type CompetitorUpdateOneRequiredWithoutSnapshotsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.CompetitorUpdateToOneWithWhereWithoutSnapshotsInput, Prisma.CompetitorUpdateWithoutSnapshotsInput>, Prisma.CompetitorUncheckedUpdateWithoutSnapshotsInput>
 }
 
+export type CompetitorCreateNestedOneWithoutPostsInput = {
+  create?: Prisma.XOR<Prisma.CompetitorCreateWithoutPostsInput, Prisma.CompetitorUncheckedCreateWithoutPostsInput>
+  connectOrCreate?: Prisma.CompetitorCreateOrConnectWithoutPostsInput
+  connect?: Prisma.CompetitorWhereUniqueInput
+}
+
+export type CompetitorUpdateOneRequiredWithoutPostsNestedInput = {
+  create?: Prisma.XOR<Prisma.CompetitorCreateWithoutPostsInput, Prisma.CompetitorUncheckedCreateWithoutPostsInput>
+  connectOrCreate?: Prisma.CompetitorCreateOrConnectWithoutPostsInput
+  upsert?: Prisma.CompetitorUpsertWithoutPostsInput
+  connect?: Prisma.CompetitorWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CompetitorUpdateToOneWithWhereWithoutPostsInput, Prisma.CompetitorUpdateWithoutPostsInput>, Prisma.CompetitorUncheckedUpdateWithoutPostsInput>
+}
+
 export type CompetitorCreateWithoutSnapshotsInput = {
   id?: string
   name: string
@@ -583,6 +604,7 @@ export type CompetitorCreateWithoutSnapshotsInput = {
   notes?: string | null
   createdAt?: Date | string
   customerId?: string | null
+  posts?: Prisma.CompetitorPostCreateNestedManyWithoutCompetitorInput
 }
 
 export type CompetitorUncheckedCreateWithoutSnapshotsInput = {
@@ -599,6 +621,7 @@ export type CompetitorUncheckedCreateWithoutSnapshotsInput = {
   notes?: string | null
   createdAt?: Date | string
   customerId?: string | null
+  posts?: Prisma.CompetitorPostUncheckedCreateNestedManyWithoutCompetitorInput
 }
 
 export type CompetitorCreateOrConnectWithoutSnapshotsInput = {
@@ -631,6 +654,7 @@ export type CompetitorUpdateWithoutSnapshotsInput = {
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posts?: Prisma.CompetitorPostUpdateManyWithoutCompetitorNestedInput
 }
 
 export type CompetitorUncheckedUpdateWithoutSnapshotsInput = {
@@ -647,6 +671,91 @@ export type CompetitorUncheckedUpdateWithoutSnapshotsInput = {
   notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  posts?: Prisma.CompetitorPostUncheckedUpdateManyWithoutCompetitorNestedInput
+}
+
+export type CompetitorCreateWithoutPostsInput = {
+  id?: string
+  name: string
+  handle: string
+  platform: string
+  avatar?: string | null
+  followers?: number
+  engagementRate?: number
+  growthRate?: number
+  postingFreq?: number
+  status?: string
+  notes?: string | null
+  createdAt?: Date | string
+  customerId?: string | null
+  snapshots?: Prisma.CompetitorSnapshotCreateNestedManyWithoutCompetitorInput
+}
+
+export type CompetitorUncheckedCreateWithoutPostsInput = {
+  id?: string
+  name: string
+  handle: string
+  platform: string
+  avatar?: string | null
+  followers?: number
+  engagementRate?: number
+  growthRate?: number
+  postingFreq?: number
+  status?: string
+  notes?: string | null
+  createdAt?: Date | string
+  customerId?: string | null
+  snapshots?: Prisma.CompetitorSnapshotUncheckedCreateNestedManyWithoutCompetitorInput
+}
+
+export type CompetitorCreateOrConnectWithoutPostsInput = {
+  where: Prisma.CompetitorWhereUniqueInput
+  create: Prisma.XOR<Prisma.CompetitorCreateWithoutPostsInput, Prisma.CompetitorUncheckedCreateWithoutPostsInput>
+}
+
+export type CompetitorUpsertWithoutPostsInput = {
+  update: Prisma.XOR<Prisma.CompetitorUpdateWithoutPostsInput, Prisma.CompetitorUncheckedUpdateWithoutPostsInput>
+  create: Prisma.XOR<Prisma.CompetitorCreateWithoutPostsInput, Prisma.CompetitorUncheckedCreateWithoutPostsInput>
+  where?: Prisma.CompetitorWhereInput
+}
+
+export type CompetitorUpdateToOneWithWhereWithoutPostsInput = {
+  where?: Prisma.CompetitorWhereInput
+  data: Prisma.XOR<Prisma.CompetitorUpdateWithoutPostsInput, Prisma.CompetitorUncheckedUpdateWithoutPostsInput>
+}
+
+export type CompetitorUpdateWithoutPostsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  handle?: Prisma.StringFieldUpdateOperationsInput | string
+  platform?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  followers?: Prisma.IntFieldUpdateOperationsInput | number
+  engagementRate?: Prisma.FloatFieldUpdateOperationsInput | number
+  growthRate?: Prisma.FloatFieldUpdateOperationsInput | number
+  postingFreq?: Prisma.FloatFieldUpdateOperationsInput | number
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  snapshots?: Prisma.CompetitorSnapshotUpdateManyWithoutCompetitorNestedInput
+}
+
+export type CompetitorUncheckedUpdateWithoutPostsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  handle?: Prisma.StringFieldUpdateOperationsInput | string
+  platform?: Prisma.StringFieldUpdateOperationsInput | string
+  avatar?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  followers?: Prisma.IntFieldUpdateOperationsInput | number
+  engagementRate?: Prisma.FloatFieldUpdateOperationsInput | number
+  growthRate?: Prisma.FloatFieldUpdateOperationsInput | number
+  postingFreq?: Prisma.FloatFieldUpdateOperationsInput | number
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  snapshots?: Prisma.CompetitorSnapshotUncheckedUpdateManyWithoutCompetitorNestedInput
 }
 
 
@@ -656,10 +765,12 @@ export type CompetitorUncheckedUpdateWithoutSnapshotsInput = {
 
 export type CompetitorCountOutputType = {
   snapshots: number
+  posts: number
 }
 
 export type CompetitorCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   snapshots?: boolean | CompetitorCountOutputTypeCountSnapshotsArgs
+  posts?: boolean | CompetitorCountOutputTypeCountPostsArgs
 }
 
 /**
@@ -679,6 +790,13 @@ export type CompetitorCountOutputTypeCountSnapshotsArgs<ExtArgs extends runtime.
   where?: Prisma.CompetitorSnapshotWhereInput
 }
 
+/**
+ * CompetitorCountOutputType without action
+ */
+export type CompetitorCountOutputTypeCountPostsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CompetitorPostWhereInput
+}
+
 
 export type CompetitorSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -695,6 +813,7 @@ export type CompetitorSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   createdAt?: boolean
   customerId?: boolean
   snapshots?: boolean | Prisma.Competitor$snapshotsArgs<ExtArgs>
+  posts?: boolean | Prisma.Competitor$postsArgs<ExtArgs>
   _count?: boolean | Prisma.CompetitorCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["competitor"]>
 
@@ -749,6 +868,7 @@ export type CompetitorSelectScalar = {
 export type CompetitorOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "handle" | "platform" | "avatar" | "followers" | "engagementRate" | "growthRate" | "postingFreq" | "status" | "notes" | "createdAt" | "customerId", ExtArgs["result"]["competitor"]>
 export type CompetitorInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   snapshots?: boolean | Prisma.Competitor$snapshotsArgs<ExtArgs>
+  posts?: boolean | Prisma.Competitor$postsArgs<ExtArgs>
   _count?: boolean | Prisma.CompetitorCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type CompetitorIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -758,6 +878,7 @@ export type $CompetitorPayload<ExtArgs extends runtime.Types.Extensions.Internal
   name: "Competitor"
   objects: {
     snapshots: Prisma.$CompetitorSnapshotPayload<ExtArgs>[]
+    posts: Prisma.$CompetitorPostPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1168,6 +1289,7 @@ readonly fields: CompetitorFieldRefs;
 export interface Prisma__CompetitorClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   snapshots<T extends Prisma.Competitor$snapshotsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Competitor$snapshotsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CompetitorSnapshotPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  posts<T extends Prisma.Competitor$postsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Competitor$postsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CompetitorPostPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1624,6 +1746,30 @@ export type Competitor$snapshotsArgs<ExtArgs extends runtime.Types.Extensions.In
   take?: number
   skip?: number
   distinct?: Prisma.CompetitorSnapshotScalarFieldEnum | Prisma.CompetitorSnapshotScalarFieldEnum[]
+}
+
+/**
+ * Competitor.posts
+ */
+export type Competitor$postsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CompetitorPost
+   */
+  select?: Prisma.CompetitorPostSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CompetitorPost
+   */
+  omit?: Prisma.CompetitorPostOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CompetitorPostInclude<ExtArgs> | null
+  where?: Prisma.CompetitorPostWhereInput
+  orderBy?: Prisma.CompetitorPostOrderByWithRelationInput | Prisma.CompetitorPostOrderByWithRelationInput[]
+  cursor?: Prisma.CompetitorPostWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CompetitorPostScalarFieldEnum | Prisma.CompetitorPostScalarFieldEnum[]
 }
 
 /**

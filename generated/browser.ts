@@ -108,6 +108,11 @@ export type Competitor = Prisma.CompetitorModel
  */
 export type CompetitorSnapshot = Prisma.CompetitorSnapshotModel
 /**
+ * Model CompetitorPost
+ * 
+ */
+export type CompetitorPost = Prisma.CompetitorPostModel
+/**
  * Model Report
  * 
  */
@@ -287,3 +292,8 @@ export type AuditLog = Prisma.AuditLogModel
  * 
  */
 export type Notification = Prisma.NotificationModel
+/**
+ * Model Webhook
+ * 
+ */
+export type Webhook = Prisma.WebhookModel

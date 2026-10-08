@@ -56,6 +56,7 @@ import {
   GraduationCap,
   Briefcase,
   GripVertical,
+  FlaskConical,
   type LucideIcon,
 } from "lucide-react";
 import { useApi, fmt, timeAgo } from "@/lib/hooks";
@@ -381,6 +382,8 @@ export function ComposerView() {
   const [templatesOpen, setTemplatesOpen] = React.useState(false);
   // P3-FEATURES — Content Series dialog open state.
   const [seriesOpen, setSeriesOpen] = React.useState(false);
+  // REMAINING-4 — A/B Test dialog open state.
+  const [abTestOpen, setAbTestOpen] = React.useState(false);
   const [previewDevice, setPreviewDevice] = React.useState<DeviceMode>("phone");
   const [previewTheme, setPreviewTheme] = React.useState<PreviewTheme>("light");
   const [copiedVariant, setCopiedVariant] = React.useState<string | null>(null);
@@ -799,14 +802,14 @@ export function ComposerView() {
     }
   }
 
-  async function saveDraftOnly() {
+  async function saveDraftOnly(): Promise<string | null> {
     if (!user) {
       toast.error("Your session is loading — please try again in a moment");
-      return;
+      return null;
     }
     if (!state.caption.trim()) {
       toast.error("Write a caption first");
-      return;
+      return null;
     }
     setSavingDraft(true);
     try {
@@ -833,17 +836,52 @@ export function ComposerView() {
       });
       if (!res.ok) {
         toast.error("Failed to save draft");
-        return;
+        return null;
       }
+      const json = (await res.json()) as { id?: string; ok?: boolean };
       toast.success("Draft saved", {
         description: "Find it later in the Drafts panel above.",
       });
       reloadDrafts();
+      return json.id ?? null;
     } catch {
       toast.error("Network error");
+      return null;
     } finally {
       setSavingDraft(false);
     }
+  }
+
+  /**
+   * REMAINING-4 — open the A/B Test dialog.
+   *
+   * If a post is already being edited, we open the dialog directly —
+   * the dialog fetches the post's variants from /api/posts and lets
+   * the user pick 2–4 to group.
+   *
+   * If no post has been saved yet, we first save the current composer
+   * state as a draft (so the variants exist as PostVariant rows) and
+   * then open the dialog against that new post.
+   */
+  async function openABTestDialog() {
+    if (!user) {
+      toast.error("Your session is loading — please try again in a moment");
+      return;
+    }
+    if (selectedAccounts.length < 2) {
+      toast.error("Select at least 2 accounts to create an A/B test");
+      return;
+    }
+    const variantCount = Object.keys(state.variants).length;
+    if (variantCount < 2) {
+      toast.error("Generate variants for at least 2 accounts first");
+      return;
+    }
+    if (!editingPostId) {
+      const newId = await saveDraftOnly();
+      if (newId) setEditingPostId(newId);
+    }
+    setAbTestOpen(true);
   }
 
   function resetAll() {
@@ -1249,6 +1287,8 @@ export function ComposerView() {
         savingDraft={savingDraft}
         onTemplates={() => setTemplatesOpen(true)}
         onCreateSeries={() => setSeriesOpen(true)}
+        onCreateABTest={openABTestDialog}
+        abTestEnabled={selectedAccounts.length >= 2 && Object.keys(state.variants).length >= 2}
       />
 
       {/* Editing / republish banner */}
@@ -2409,6 +2449,13 @@ export function ComposerView() {
         caption={state.caption}
         defaultPlatform={selectedAccounts[0]?.platform}
       />
+
+      {/* REMAINING-4 — A/B Test dialog */}
+      <ABTestDialog
+        open={abTestOpen}
+        onOpenChange={setAbTestOpen}
+        postId={editingPostId}
+      />
     </div>
   );
 }
@@ -2426,6 +2473,8 @@ function ProgressToolbar({
   savingDraft,
   onTemplates,
   onCreateSeries,
+  onCreateABTest,
+  abTestEnabled,
 }: {
   completion: number;
   editing: boolean;
@@ -2436,6 +2485,8 @@ function ProgressToolbar({
   savingDraft: boolean;
   onTemplates: () => void;
   onCreateSeries: () => void;
+  onCreateABTest: () => void;
+  abTestEnabled: boolean;
 }) {
   const mode = sendForApproval ? "Approval" : scheduleEnabled ? "Scheduled" : editing ? "Republish" : "Compose";
   const modeColor = sendForApproval
@@ -2488,6 +2539,15 @@ function ProgressToolbar({
 
       {/* Quick actions */}
       <div className="flex shrink-0 items-center gap-1">
+        <button
+          onClick={onCreateABTest}
+          disabled={!abTestEnabled}
+          className="hidden items-center gap-1 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-primary/10 hover:text-primary disabled:opacity-40 sm:flex"
+          title="Group 2–4 variants into an A/B test"
+        >
+          <FlaskConical className="h-3 w-3" />
+          <span className="hidden md:inline">A/B Test</span>
+        </button>
         <button
           onClick={onCreateSeries}
           className="hidden items-center gap-1 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-primary/10 hover:text-primary sm:flex"
@@ -3713,6 +3773,270 @@ function SeriesDialog({
               >
                 {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                 {creating ? "Creating…" : `Create ${totalPosts} posts`}
+              </button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================================================
+   REMAINING-4 — ABTestDialog
+   Lets the user pick 2–4 variants of the current post and group them
+   into an A/B test by POSTing to /api/ab-tests. The variants are
+   fetched fresh from /api/posts so the dialog sees the latest state
+   (including any post-publish engagement metrics).
+   ============================================================ */
+interface ABTestVariant {
+  id: string;
+  accountId: string;
+  platform: PlatformId;
+  handle: string;
+  content: string;
+  status: string;
+  publishedAt: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  reach: number;
+  impressions: number;
+}
+
+function ABTestDialog({
+  open,
+  onOpenChange,
+  postId,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  postId: string | null;
+}) {
+  const [variants, setVariants] = React.useState<ABTestVariant[]>([]);
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [loading, setLoading] = React.useState(false);
+  const [creating, setCreating] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [created, setCreated] = React.useState<{ count: number; groupId: string } | null>(null);
+
+  // Re-fetch the post's variants every time the dialog opens.
+  React.useEffect(() => {
+    if (!open || !postId) return;
+    setLoading(true);
+    setError(null);
+    setCreated(null);
+    setSelected(new Set());
+    (async () => {
+      try {
+        const res = await fetch("/api/posts");
+        if (!res.ok) throw new Error("Failed to load posts");
+        const all = (await res.json()) as Array<{
+          id: string;
+          variants: Array<{
+            id: string;
+            accountId: string;
+            platform: PlatformId;
+            handle: string;
+            content: string;
+            status: string;
+            publishedAt: string | null;
+            likes: number;
+            comments: number;
+            shares: number;
+            saves: number;
+            reach: number;
+            impressions: number;
+          }>;
+        }>;
+        const found = all.find((p) => p.id === postId);
+        setVariants(found?.variants ?? []);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Network error");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [open, postId]);
+
+  function toggleVariant(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        if (next.size >= 4) {
+          toast.error("An A/B test can have at most 4 variants");
+          return prev;
+        }
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  const canCreate = selected.size >= 2 && selected.size <= 4 && !creating;
+
+  async function handleCreate() {
+    if (!postId) return;
+    if (selected.size < 2 || selected.size > 4) {
+      setError("Select between 2 and 4 variants");
+      return;
+    }
+    setCreating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/ab-tests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId,
+          variantIds: Array.from(selected),
+        }),
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        group?: { id: string; variantCount: number };
+        error?: string;
+      };
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? `Request failed (${res.status})`);
+      }
+      setCreated({
+        count: json.group?.variantCount ?? selected.size,
+        groupId: json.group?.id ?? "",
+      });
+      toast.success(`A/B test created — ${json.group?.variantCount ?? selected.size} variants grouped`, {
+        description: "Compare engagement in Analytics → A/B Tests.",
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="glass-strong max-w-lg" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FlaskConical className="h-4 w-4 text-primary" />
+            Create A/B test
+          </DialogTitle>
+          <DialogDescription>
+            Pick 2–4 variants of this post to group into an A/B test. Each
+            variant publishes to its own account; analytics compares
+            engagement side-by-side and surfaces a winner.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          {loading ? (
+            <div className="flex h-24 items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : variants.length === 0 ? (
+            <div className="rounded-xl border border-border/40 bg-muted/30 p-4 text-center text-[11px] text-muted-foreground">
+              No variants on this post yet. Add 2+ destination accounts and generate content first.
+            </div>
+          ) : (
+            <div className="max-h-72 space-y-1.5 overflow-y-auto scroll-liquid pr-1">
+              {variants.map((v) => {
+                const checked = selected.has(v.id);
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => toggleVariant(v.id)}
+                    className={cn(
+                      "flex w-full items-start gap-2 rounded-lg border p-2 text-left transition",
+                      checked
+                        ? "border-primary/60 bg-primary/10"
+                        : "border-border/40 bg-muted/30 hover:bg-muted/60",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded border",
+                        checked ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40",
+                      )}
+                    >
+                      {checked && <CheckCircle2 className="h-3 w-3" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold">
+                        <PlatformBadge platform={v.platform} size={16} />
+                        <span className="truncate">@{v.handle}</span>
+                        <span className="ml-auto rounded bg-muted/60 px-1 py-0 text-[8px] uppercase tracking-wide text-muted-foreground">
+                          {v.status}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
+                        {v.content || "(empty)"}
+                      </div>
+                      {v.status === "published" && (
+                        <div className="mt-1 flex flex-wrap gap-1 text-[8px] text-muted-foreground">
+                          <span className="rounded bg-muted/60 px-1 py-0">❤ {v.likes}</span>
+                          <span className="rounded bg-muted/60 px-1 py-0">💬 {v.comments}</span>
+                          <span className="rounded bg-muted/60 px-1 py-0">↗ {v.shares}</span>
+                          <span className="rounded bg-muted/60 px-1 py-0">👁 {v.impressions}</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Selected count + helper text */}
+          {variants.length > 0 && !created && (
+            <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-[11px]">
+              <span className="text-muted-foreground">
+                Select <span className="font-semibold text-foreground">2–4</span> variants
+              </span>
+              <span className={cn("font-semibold", selected.size >= 2 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                {selected.size} selected
+              </span>
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-[11px] text-rose-600">
+              {error}
+            </div>
+          )}
+
+          {created && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-[11px] text-emerald-700 dark:text-emerald-400">
+              ✓ A/B test created — {created.count} variants grouped.
+              {" "}
+              <button
+                onClick={() => onOpenChange(false)}
+                className="underline underline-offset-2 hover:text-emerald-800 dark:hover:text-emerald-300"
+              >
+                View in Analytics →
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <DialogClose asChild>
+              <button
+                className="rounded-lg border border-border/40 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-muted/40"
+              >
+                {created ? "Close" : "Cancel"}
+              </button>
+            </DialogClose>
+            {!created && (
+              <button
+                onClick={handleCreate}
+                disabled={!canCreate}
+                className="liquid-pill flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+              >
+                {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <FlaskConical className="h-3 w-3" />}
+                {creating ? "Creating…" : "Create A/B test"}
               </button>
             )}
           </div>

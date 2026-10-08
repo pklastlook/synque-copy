@@ -9,6 +9,12 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Bar,
+  BarChart,
+  Cell,
+  Pie,
+  PieChart,
+  Legend,
 } from "recharts";
 import {
   Users,
@@ -22,6 +28,14 @@ import {
   ExternalLink,
   StickyNote,
   RefreshCw,
+  Microscope,
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  Lightbulb,
+  Heart,
+  MessageCircle,
+  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApi, fmt } from "@/lib/hooks";
@@ -59,6 +73,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   MetricRow,
   HeroChart,
@@ -108,6 +130,51 @@ interface AccountInfo {
   followers: number;
 }
 
+// ============================================================================
+// Deep analysis types — mirrors the response from POST /api/competitors/[id]/analyze
+// ============================================================================
+
+interface AnalyzedPost {
+  id: string;
+  externalId: string;
+  text: string;
+  mediaUrl: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  sentiment: string | null;
+  postedAt: string;
+  engagementScore?: number;
+}
+
+interface CompetitorAnalysis {
+  posts: AnalyzedPost[];
+  sentimentBreakdown: { positive: number; neutral: number; negative: number };
+  contentGaps: { topic: string; competitorPosts: number; yourPosts: number }[];
+  shareOfVoice: number;
+  topPosts: AnalyzedPost[];
+  meta?: {
+    competitorId: string;
+    competitorName: string;
+    platform: string;
+    handle: string;
+    followers: number;
+    postsAnalyzed: number;
+    yourEngagement: number;
+    competitorEngagement: number;
+  };
+  // Attached client-side for the dialog header (not from the API response).
+  competitor?: {
+    id: string;
+    name: string;
+    handle: string;
+    platform: PlatformId;
+    avatar: string | null;
+    followers: number;
+    engagementRate: number;
+  };
+}
+
 const LINE_COLORS = [
   "var(--primary)",
   "oklch(0.74 0.18 165)",
@@ -148,6 +215,8 @@ export function CompetitorsView() {
   const [addOpen, setAddOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Competitor | null>(null);
   const [syncing, setSyncing] = React.useState(false);
+  const [analyzingId, setAnalyzingId] = React.useState<string | null>(null);
+  const [analysis, setAnalysis] = React.useState<CompetitorAnalysis | null>(null);
 
   function getToken(): string | null {
     try {
@@ -186,9 +255,12 @@ export function CompetitorsView() {
         errors: string[];
         total: number;
         updated: number;
+        postsStored?: number;
       };
       toast.success(
-        `Synced ${json.updated} of ${json.total} competitors`,
+        `Synced ${json.updated} of ${json.total} competitors${
+          json.postsStored ? ` · ${json.postsStored} posts stored` : ""
+        }`,
         { id: toastId }
       );
       if (json.errors && json.errors.length > 0) {
@@ -205,6 +277,52 @@ export function CompetitorsView() {
       );
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleAnalyze(c: Competitor) {
+    if (analyzingId) return;
+    setAnalyzingId(c.id);
+    setAnalysis(null);
+    const toastId = toast.loading(`Analyzing ${c.name}…`);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/competitors/${c.id}/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(
+          (err as { error?: string })?.error ?? `HTTP ${res.status}`
+        );
+      }
+      const json = (await res.json()) as CompetitorAnalysis & { meta?: { competitorId: string; competitorName: string; platform: string; handle: string; followers: number; postsAnalyzed: number; yourEngagement: number; competitorEngagement: number } };
+      // Attach the competitor identity for the dialog header.
+      json.competitor = {
+        id: c.id,
+        name: c.name,
+        handle: c.handle,
+        platform: c.platform,
+        avatar: c.avatar,
+        followers: c.followers,
+        engagementRate: c.engagementRate,
+      };
+      setAnalysis(json);
+      toast.success(
+        `Analysis ready — ${json.meta?.postsAnalyzed ?? json.posts.length} posts analyzed`,
+        { id: toastId }
+      );
+    } catch (err) {
+      toast.error(
+        `Analysis failed: ${err instanceof Error ? err.message : String(err)}`,
+        { id: toastId }
+      );
+    } finally {
+      setAnalyzingId(null);
     }
   }
 
@@ -677,6 +795,17 @@ export function CompetitorsView() {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onSelect={() => handleAnalyze(c)}
+                      disabled={!!analyzingId}
+                    >
+                      {analyzingId === c.id ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Microscope className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      {analyzingId === c.id ? "Analyzing…" : "Deep analyze"}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setEditing(c)}>
                       <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
                     </DropdownMenuItem>
@@ -728,6 +857,12 @@ export function CompetitorsView() {
           setEditing(null);
           reload();
         }}
+      />
+
+      <AnalysisDialog
+        analysis={analysis}
+        analyzingId={analyzingId}
+        onClose={() => setAnalysis(null)}
       />
     </div>
   );
@@ -1071,6 +1206,376 @@ function CompetitorsSkeleton() {
       <div className="shimmer h-[320px] rounded-xl" />
       <div className="shimmer h-24 rounded-xl" />
       <div className="shimmer h-64 rounded-xl" />
+    </div>
+  );
+}
+
+// ============================================================================
+// Deep Analysis dialog — renders sentiment pie + share-of-voice bar +
+// content gap table + top posts list. Triggered from the row dropdown.
+// ============================================================================
+
+const SENTIMENT_COLORS: Record<string, string> = {
+  positive: "oklch(0.74 0.18 165)",
+  neutral: "oklch(0.7 0.04 250)",
+  negative: "oklch(0.65 0.22 25)",
+};
+
+function AnalysisDialog({
+  analysis,
+  analyzingId,
+  onClose,
+}: {
+  analysis: CompetitorAnalysis | null;
+  analyzingId: string | null;
+  onClose: () => void;
+}) {
+  const open = !!analysis;
+  const meta = analysis?.meta;
+  const comp = analysis?.competitor;
+
+  // Pie chart data for sentiment breakdown.
+  const sentimentData = analysis
+    ? [
+        { name: "Positive", value: analysis.sentimentBreakdown.positive, color: SENTIMENT_COLORS.positive },
+        { name: "Neutral", value: analysis.sentimentBreakdown.neutral, color: SENTIMENT_COLORS.neutral },
+        { name: "Negative", value: analysis.sentimentBreakdown.negative, color: SENTIMENT_COLORS.negative },
+      ].filter((d) => d.value > 0)
+    : [];
+
+  // Bar chart data for share-of-voice.
+  const sovData = analysis
+    ? [
+        { name: comp?.name ?? "Competitor", engagement: meta?.competitorEngagement ?? 0, fill: "oklch(0.65 0.22 25)" },
+        { name: "You", engagement: meta?.yourEngagement ?? 0, fill: "oklch(0.74 0.18 165)" },
+      ]
+    : [];
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto rounded-3xl sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Microscope className="h-5 w-5 text-primary" />
+            Deep analysis
+            {comp && (
+              <span className="ml-2 flex items-center gap-2">
+                <PlatformBadge platform={comp.platform} size={22} />
+                <span className="truncate text-sm font-semibold">{comp.name}</span>
+                <span className="text-xs text-muted-foreground">@{comp.handle}</span>
+              </span>
+            )}
+          </DialogTitle>
+          <DialogDescription>
+            {meta
+              ? `${meta.postsAnalyzed} recent posts analyzed · ${meta.followers.toLocaleString()} followers`
+              : "Sentiment, content gaps, and share-of-voice vs your accounts."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {!analysis && (
+          <div className="grid place-items-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="mt-3 text-xs text-muted-foreground">
+              {analyzingId ? "Running sentiment analysis…" : "Loading…"}
+            </p>
+          </div>
+        )}
+
+        {analysis && (
+          <div className="space-y-4">
+            {/* Top KPI strip */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <KpiTile
+                label="Posts analyzed"
+                value={meta?.postsAnalyzed ?? analysis.posts.length}
+                accent="var(--primary)"
+              />
+              <KpiTile
+                label="Share-of-voice"
+                value={`${Math.round(analysis.shareOfVoice * 100)}%`}
+                hint={analysis.shareOfVoice >= 0.5 ? "they lead" : "you lead"}
+                accent={analysis.shareOfVoice >= 0.5 ? "oklch(0.65 0.22 25)" : "oklch(0.74 0.18 165)"}
+              />
+              <KpiTile
+                label="Positive"
+                value={analysis.sentimentBreakdown.positive}
+                accent={SENTIMENT_COLORS.positive}
+              />
+              <KpiTile
+                label="Content gaps"
+                value={analysis.contentGaps.length}
+                accent="oklch(0.78 0.18 75)"
+              />
+            </div>
+
+            {/* Two-column charts: sentiment pie + share-of-voice bar */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Sentiment breakdown pie */}
+              <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Sentiment breakdown
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {analysis.posts.length} posts
+                  </span>
+                </div>
+                {sentimentData.length === 0 ? (
+                  <div className="grid h-[180px] place-items-center text-xs text-muted-foreground">
+                    No sentiment data
+                  </div>
+                ) : (
+                  <div className="h-[180px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={sentimentData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={60}
+                          innerRadius={32}
+                          isAnimationActive={false}
+                        >
+                          {sentimentData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            background: "var(--popover)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 12,
+                            fontSize: 11,
+                          }}
+                        />
+                        <Legend
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: 10 }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Share-of-voice bar */}
+              <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Share-of-voice
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    weighted engagement
+                  </span>
+                </div>
+                <div className="h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={sovData}
+                      layout="vertical"
+                      margin={{ left: 12, right: 12, top: 8, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => fmt(Number(v))}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={84}
+                      />
+                      <Tooltip
+                        cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                        contentStyle={{
+                          background: "var(--popover)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 12,
+                          fontSize: 11,
+                        }}
+                        formatter={(v: number) => [fmt(Number(v)), "Engagement"]}
+                      />
+                      <Bar dataKey="engagement" radius={[6, 6, 6, 6]} isAnimationActive={false}>
+                        {sovData.map((entry, i) => (
+                          <Cell key={i} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>
+                    Competitor:{" "}
+                    <span className="font-bold tabular-nums">
+                      {fmt(meta?.competitorEngagement ?? 0)}
+                    </span>
+                  </span>
+                  <span>
+                    You:{" "}
+                    <span className="font-bold tabular-nums">
+                      {fmt(meta?.yourEngagement ?? 0)}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Content gaps table */}
+            <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                <Lightbulb className="h-3 w-3 text-amber-500" />
+                Content gaps — topics they cover that you don&apos;t
+              </div>
+              {analysis.contentGaps.length === 0 ? (
+                <div className="py-4 text-center text-xs text-muted-foreground">
+                  No content gaps detected — your topic coverage matches the competitor&apos;s.
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-border/30">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border/40 bg-muted/30">
+                        <TableHead className="h-8 text-[10px] uppercase text-muted-foreground">Topic</TableHead>
+                        <TableHead className="h-8 text-right text-[10px] uppercase text-muted-foreground">Competitor posts</TableHead>
+                        <TableHead className="h-8 text-right text-[10px] uppercase text-muted-foreground">Your posts</TableHead>
+                        <TableHead className="h-8 text-right text-[10px] uppercase text-muted-foreground">Gap</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {analysis.contentGaps.map((g) => (
+                        <TableRow key={g.topic} className="border-border/30">
+                          <TableCell className="py-2 text-xs font-semibold">
+                            #{g.topic}
+                          </TableCell>
+                          <TableCell className="py-2 text-right text-xs font-bold tabular-nums">
+                            {g.competitorPosts}
+                          </TableCell>
+                          <TableCell className="py-2 text-right text-xs tabular-nums text-muted-foreground">
+                            {g.yourPosts}
+                          </TableCell>
+                          <TableCell className="py-2 text-right">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-500">
+                              <TrendingDown className="h-2.5 w-2.5" />
+                              {g.competitorPosts} post{g.competitorPosts === 1 ? "" : "s"}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+
+            {/* Top performing posts */}
+            <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
+              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                Top performing posts
+              </div>
+              {analysis.topPosts.length === 0 ? (
+                <div className="py-4 text-center text-xs text-muted-foreground">
+                  No posts stored — run &quot;Sync now&quot; to fetch the competitor&apos;s recent posts.
+                </div>
+              ) : (
+                <div className="scroll-liquid max-h-[280px] space-y-2 overflow-y-auto pr-1">
+                  {analysis.topPosts.map((p, i) => (
+                    <div
+                      key={p.id}
+                      className="flex items-start gap-3 rounded-xl border border-border/40 bg-background/60 p-3"
+                    >
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-primary/10 text-[10px] font-bold text-primary">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-xs leading-relaxed text-foreground">
+                          {p.text || "(no caption)"}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                          {p.sentiment && (
+                            <span
+                              className="rounded-md px-1.5 py-0.5 font-semibold capitalize"
+                              style={{
+                                background: `${SENTIMENT_COLORS[p.sentiment] ?? "var(--muted)"}20`,
+                                color: SENTIMENT_COLORS[p.sentiment] ?? "var(--muted-foreground)",
+                              }}
+                            >
+                              {p.sentiment}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-0.5">
+                            <Heart className="h-2.5 w-2.5" />
+                            {fmt(p.likes)}
+                          </span>
+                          <span className="flex items-center gap-0.5">
+                            <MessageCircle className="h-2.5 w-2.5" />
+                            {fmt(p.comments)}
+                          </span>
+                          <span className="flex items-center gap-0.5">
+                            <Share2 className="h-2.5 w-2.5" />
+                            {fmt(p.shares)}
+                          </span>
+                          <span className="ml-auto">
+                            {new Date(p.postedAt).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function KpiTile({
+  label,
+  value,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  hint?: string;
+  accent: string;
+}) {
+  return (
+    <div
+      className="rounded-xl border p-3"
+      style={{ borderColor: `${accent}30`, background: `${accent}08` }}
+    >
+      <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className="num-display mt-1 text-lg font-bold tabular-nums"
+        style={{ color: accent }}
+      >
+        {typeof value === "number" ? fmt(value) : value}
+      </div>
+      {hint && <div className="text-[9px] text-muted-foreground">{hint}</div>}
     </div>
   );
 }

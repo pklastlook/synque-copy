@@ -2,6 +2,16 @@
 
 import * as React from "react";
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   FileText, Send, Clock, MessageCircle, CheckCircle2,
   Sparkles, Trophy, Crown, Activity, Layers,
   Reply, Hash, FileEdit, XCircle, Flame,
@@ -27,6 +37,13 @@ import {
 
 // ============ Types (UNCHANGED — preserve every data field) ============
 
+interface ActivityScoreBreakdown {
+  productivity: number;
+  responsiveness: number;
+  tasks: number;
+  consistency: number;
+}
+
 interface MemberMetrics {
   accounts: number; postsCreated: number; publishedPosts: number;
   scheduledPosts: number; draftPosts: number; failedPosts: number;
@@ -34,6 +51,12 @@ interface MemberMetrics {
   replyRate: number; positiveComments: number; neutralComments: number; negativeComments: number;
   weeklyCadence: number; monthlyCadence: number;
   tasksAssigned: number; completedTasks: number; taskCompletionRate: number; recentActivity: number;
+  // P3 — Team Performance Analytics new metrics
+  avgEngagementPerPost: number;
+  avgResponseTimeMin: number;
+  activeDays: number;
+  activityScore: number;
+  activityScoreBreakdown: ActivityScoreBreakdown;
 }
 interface Member {
   id: string; name: string; email: string; avatar: string | null; role: string;
@@ -196,6 +219,11 @@ export function TeamPerformanceView() {
       {/* 2. Leaderboard table — the star */}
       <LeaderboardSection data={data} kanbanData={kanbanData} />
 
+      {/* 2b. Best performer highlight + per-member cards + comparison chart (P3) */}
+      <BestPerformerSection data={data} />
+      <MemberCardsSection data={data} />
+      <PostsComparisonChart data={data} />
+
       {/* 3. Posts pipeline — 4 pills + posts-by-platform + sentiment/types/heatmap */}
       <PipelineSection
         pipeline={data.pipeline}
@@ -239,6 +267,7 @@ type LeaderboardSortKey =
   | "comments"
   | "replyRate"
   | "engagement"
+  | "activity"
   | "name";
 
 function LeaderboardSection({
@@ -248,7 +277,7 @@ function LeaderboardSection({
   data: TeamPerformanceData;
   kanbanData: PostsKanbanData | null;
 }) {
-  const [sortKey, setSortKey] = React.useState<LeaderboardSortKey>("posts");
+  const [sortKey, setSortKey] = React.useState<LeaderboardSortKey>("activity");
   const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
   const [expandedRow, setExpandedRow] = React.useState<string | null>(null);
 
@@ -281,6 +310,7 @@ function LeaderboardSection({
       else if (sortKey === "replyRate") cmp = a.metrics.replyRate - b.metrics.replyRate;
       else if (sortKey === "engagement")
         cmp = (engagementByMember[a.name] ?? 0) - (engagementByMember[b.name] ?? 0);
+      else if (sortKey === "activity") cmp = (a.metrics.activityScore ?? 0) - (b.metrics.activityScore ?? 0);
       else cmp = a.name.localeCompare(b.name);
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -296,7 +326,7 @@ function LeaderboardSection({
         action={<Pill color="amber">{sortedMembers.length} members</Pill>}
       />
       <div className="overflow-x-auto">
-        <Table className="min-w-[860px]" aria-label="Team leaderboard — members ranked by content activity">
+        <Table className="min-w-[920px]" aria-label="Team leaderboard — members ranked by content activity">
           <TableHeader>
             <TableRow className="border-border/40">
               <TableHead scope="col" className="h-9 w-12 text-[10px] uppercase tracking-wide text-muted-foreground">Rank</TableHead>
@@ -325,13 +355,16 @@ function LeaderboardSection({
               <TableHead scope="col" className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
                 <SortButton label="Engagement" active={sortKey === "engagement"} dir={sortDir} onClick={() => toggleSort("engagement")} />
               </TableHead>
+              <TableHead scope="col" className="h-9 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
+                <SortButton label="Score" active={sortKey === "activity"} dir={sortDir} onClick={() => toggleSort("activity")} />
+              </TableHead>
               <TableHead scope="col" className="h-9 text-[10px] uppercase tracking-wide text-muted-foreground">7-day trend</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedMembers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-8 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={10} className="py-8 text-center text-xs text-muted-foreground">
                   No team members yet.
                 </TableCell>
               </TableRow>
@@ -403,6 +436,27 @@ function LeaderboardSection({
                       <TableCell className="py-2.5 text-right text-xs font-bold tabular-nums">
                         {fmt(engagement)}
                       </TableCell>
+                      <TableCell className="py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted/50">
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${Math.max(2, Math.min(100, m.metrics.activityScore ?? 0))}%`,
+                                background:
+                                  (m.metrics.activityScore ?? 0) >= 70
+                                    ? "oklch(0.74 0.18 165)"
+                                    : (m.metrics.activityScore ?? 0) >= 40
+                                    ? "oklch(0.78 0.18 75)"
+                                    : "oklch(0.65 0.22 25)",
+                              }}
+                            />
+                          </div>
+                          <span className="w-7 text-right text-xs font-bold tabular-nums">
+                            {m.metrics.activityScore ?? 0}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell className="py-2.5">
                         <Sparkline
                           data={memberSparkline(m)}
@@ -414,7 +468,7 @@ function LeaderboardSection({
                     </TableRow>
                     {isOpen && (
                       <TableRow className="border-border/30 bg-muted/20">
-                        <TableCell colSpan={9} className="p-4">
+                        <TableCell colSpan={10} className="p-4">
                           <MemberExpandedDetails member={m} engagement={engagement} />
                         </TableCell>
                       </TableRow>
@@ -594,6 +648,71 @@ function MemberExpandedDetails({ member, engagement }: { member: Member; engagem
           </div>
         )}
       </div>
+
+      {/* P3 — Activity score breakdown + new metrics */}
+      <div className="rounded-xl bg-muted/30 p-3 sm:col-span-2 lg:col-span-4">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            Activity score breakdown
+          </span>
+          <span className="text-sm font-bold tabular-nums">
+            {m.activityScore ?? 0}
+            <span className="text-[9px] text-muted-foreground">/100</span>
+          </span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <ScoreBar label="Productivity" value={m.activityScoreBreakdown?.productivity ?? 0} weight="40%" accent="oklch(0.62 0.22 255)" />
+          <ScoreBar label="Responsiveness" value={m.activityScoreBreakdown?.responsiveness ?? 0} weight="25%" accent="oklch(0.7 0.2 25)" />
+          <ScoreBar label="Tasks" value={m.activityScoreBreakdown?.tasks ?? 0} weight="20%" accent="oklch(0.66 0.22 305)" />
+          <ScoreBar label="Consistency" value={m.activityScoreBreakdown?.consistency ?? 0} weight="15%" accent="oklch(0.78 0.18 75)" />
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-2 text-[10px]">
+          <div className="rounded-md bg-background/60 p-2">
+            <div className="text-muted-foreground">Avg engagement</div>
+            <div className="font-bold tabular-nums">{fmt(m.avgEngagementPerPost ?? 0)}</div>
+          </div>
+          <div className="rounded-md bg-background/60 p-2">
+            <div className="text-muted-foreground">Avg response</div>
+            <div className="font-bold tabular-nums">
+              {(m.avgResponseTimeMin ?? 0) > 0 ? `${fmt(m.avgResponseTimeMin)}m` : "—"}
+            </div>
+          </div>
+          <div className="rounded-md bg-background/60 p-2">
+            <div className="text-muted-foreground">Active days</div>
+            <div className="font-bold tabular-nums">{m.activeDays ?? 0}<span className="text-[9px] text-muted-foreground">/30</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScoreBar({
+  label,
+  value,
+  weight,
+  accent,
+}: {
+  label: string;
+  value: number;
+  weight: string;
+  accent: string;
+}) {
+  return (
+    <div className="rounded-md bg-background/60 p-2">
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-bold tabular-nums" style={{ color: accent }}>
+          {value}
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted/50">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${Math.max(2, Math.min(100, value))}%`, background: accent }}
+        />
+      </div>
+      <div className="mt-0.5 text-[9px] text-muted-foreground">weight {weight}</div>
     </div>
   );
 }
@@ -991,6 +1110,327 @@ function TopContributorsSection({ data }: { data: TeamPerformanceData }) {
             </div>
           </div>
         ))}
+      </div>
+    </GlassCard>
+  );
+}
+
+// ============ P3 — Best Performer highlight card ============
+
+function BestPerformerSection({ data }: { data: TeamPerformanceData }) {
+  if (data.members.length === 0) return null;
+
+  // Pick the member with the highest activity score (ties broken by posts published).
+  const best = [...data.members].sort((a, b) => {
+    const scoreDiff = (b.metrics.activityScore ?? 0) - (a.metrics.activityScore ?? 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    return b.metrics.publishedPosts - a.metrics.publishedPosts;
+  })[0];
+
+  const score = best.metrics.activityScore ?? 0;
+  const scoreColor =
+    score >= 70
+      ? "oklch(0.74 0.18 165)"
+      : score >= 40
+      ? "oklch(0.78 0.18 75)"
+      : "oklch(0.65 0.22 25)";
+
+  return (
+    <GlassCard className="crystal-in relative overflow-hidden p-4" style={{ animationDelay: "0.15s" }}>
+      {/* Decorative gold glow */}
+      <div
+        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-20 blur-3xl"
+        style={{ background: scoreColor }}
+        aria-hidden="true"
+      />
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <NameAvatar
+              name={best.name}
+              color={best.color ?? "amber"}
+              src={best.avatar}
+              className="h-14 w-14 text-base"
+            />
+            <span
+              className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full text-xs"
+              style={{ background: scoreColor, color: "white" }}
+              aria-label={`Activity score ${score}`}
+            >
+              <Crown className="h-3 w-3" />
+            </span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-amber-500">
+                <Sparkles className="mr-1 inline h-3 w-3" />
+                Best performer this period
+              </span>
+            </div>
+            <div className="mt-0.5 text-lg font-bold">{best.name}</div>
+            <div className="text-[11px] text-muted-foreground">
+              {best.title ?? best.role}
+              {best.department ? ` · ${best.department}` : ""}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
+          <BestStat label="Activity score" value={`${score}`} suffix="/100" accent={scoreColor} />
+          <BestStat label="Posts created" value={`${best.metrics.postsCreated}`} accent="oklch(0.62 0.22 255)" />
+          <BestStat label="Published" value={`${best.metrics.publishedPosts}`} accent="oklch(0.74 0.18 165)" />
+          <BestStat
+            label="Avg response"
+            value={best.metrics.avgResponseTimeMin > 0 ? `${fmt(best.metrics.avgResponseTimeMin)}m` : "—"}
+            accent="oklch(0.7 0.2 25)"
+          />
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+function BestStat({
+  label,
+  value,
+  suffix,
+  accent,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+  accent: string;
+}) {
+  return (
+    <div
+      className="rounded-xl border p-2"
+      style={{ borderColor: `${accent}30`, background: `${accent}08` }}
+    >
+      <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="num-display mt-0.5 text-base font-bold tabular-nums" style={{ color: accent }}>
+        {value}
+        {suffix && <span className="text-[10px] text-muted-foreground">{suffix}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ============ P3 — Per-member cards grid ============
+
+function MemberCardsSection({ data }: { data: TeamPerformanceData }) {
+  if (data.members.length === 0) return null;
+
+  // Sorted by activity score (descending) — mirrors the leaderboard default.
+  const sorted = [...data.members].sort(
+    (a, b) => (b.metrics.activityScore ?? 0) - (a.metrics.activityScore ?? 0),
+  );
+
+  return (
+    <GlassCard className="crystal-in p-4" style={{ animationDelay: "0.18s" }}>
+      <SectionHeader
+        icon={Activity}
+        title="Member cards"
+        desc="Per-member snapshot — posts, engagement, response time, tasks, and activity score"
+        action={<Pill color="blue">{sorted.length} members</Pill>}
+      />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {sorted.map((m, i) => {
+          const score = m.metrics.activityScore ?? 0;
+          const scoreColor =
+            score >= 70
+              ? "oklch(0.74 0.18 165)"
+              : score >= 40
+              ? "oklch(0.78 0.18 75)"
+              : "oklch(0.65 0.22 25)";
+          return (
+            <div
+              key={m.id}
+              className="crystal-in glass rounded-2xl border border-border/40 p-3"
+              style={{ animationDelay: `${0.03 * i}s` }}
+            >
+              {/* Header: avatar + name + role */}
+              <div className="flex items-center gap-2">
+                <NameAvatar
+                  name={m.name}
+                  color={m.color ?? "blue"}
+                  src={m.avatar}
+                  className="h-8 w-8 text-[11px]"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-xs font-bold">{m.name}</span>
+                    {m.role === "admin" && (
+                      <span className="rounded-md bg-primary/15 px-1 py-0.5 text-[8px] font-bold uppercase text-primary">
+                        Admin
+                      </span>
+                    )}
+                  </div>
+                  <div className="truncate text-[10px] text-muted-foreground">
+                    {m.title ?? m.role}
+                    {m.department ? ` · ${m.department}` : ""}
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold tabular-nums" style={{ color: scoreColor }}>
+                  #{i + 1}
+                </span>
+              </div>
+
+              {/* Stats grid */}
+              <div className="mt-3 grid grid-cols-3 gap-1.5 text-center text-[10px]">
+                <div className="rounded-md bg-muted/30 p-1.5">
+                  <div className="num-display text-sm font-bold tabular-nums">
+                    {m.metrics.postsCreated}
+                  </div>
+                  <div className="text-[8px] uppercase text-muted-foreground">Posts</div>
+                </div>
+                <div className="rounded-md bg-muted/30 p-1.5">
+                  <div className="num-display text-sm font-bold tabular-nums text-emerald-500">
+                    {m.metrics.publishedPosts}
+                  </div>
+                  <div className="text-[8px] uppercase text-muted-foreground">Published</div>
+                </div>
+                <div className="rounded-md bg-muted/30 p-1.5">
+                  <div className="num-display text-sm font-bold tabular-nums">
+                    {fmt(m.metrics.avgEngagementPerPost ?? 0)}
+                  </div>
+                  <div className="text-[8px] uppercase text-muted-foreground">Eng/post</div>
+                </div>
+              </div>
+
+              {/* Response time + tasks */}
+              <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Clock className="h-2.5 w-2.5" />
+                  {m.metrics.avgResponseTimeMin > 0
+                    ? `${fmt(m.metrics.avgResponseTimeMin)}m avg`
+                    : "no replies"}
+                </span>
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 className="h-2.5 w-2.5" />
+                  {m.metrics.completedTasks}/{m.metrics.tasksAssigned} tasks
+                </span>
+              </div>
+
+              {/* Activity score bar */}
+              <div className="mt-2">
+                <div className="mb-0.5 flex items-center justify-between text-[9px]">
+                  <span className="text-muted-foreground">Activity score</span>
+                  <span className="font-bold tabular-nums" style={{ color: scoreColor }}>
+                    {score}
+                    <span className="text-muted-foreground">/100</span>
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted/50">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.max(2, Math.min(100, score))}%`, background: scoreColor }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </GlassCard>
+  );
+}
+
+// ============ P3 — Posts by member comparison bar chart ============
+
+function PostsComparisonChart({ data }: { data: TeamPerformanceData }) {
+  if (data.members.length === 0) return null;
+
+  // Build chart data — one row per member with created + published counts.
+  const chartData = [...data.members]
+    .map((m) => ({
+      name: m.name.split(" ")[0], // first name only for x-axis labels
+      fullName: m.name,
+      created: m.metrics.postsCreated,
+      published: m.metrics.publishedPosts,
+    }))
+    .sort((a, b) => b.created - a.created)
+    .slice(0, 12); // top 12 by posts created
+
+  return (
+    <GlassCard className="crystal-in p-4" style={{ animationDelay: "0.20s" }}>
+      <SectionHeader
+        icon={LayoutGrid}
+        title="Posts by member"
+        desc="Created vs published — sorted by total posts created"
+      />
+      {chartData.length === 0 ? (
+        <div className="grid place-items-center py-8 text-xs text-muted-foreground">
+          No posts created yet.
+        </div>
+      ) : (
+        <div className="h-[260px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ left: -16, right: 12, top: 8, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                interval={0}
+                angle={chartData.length > 6 ? -25 : 0}
+                textAnchor={chartData.length > 6 ? "end" : "middle"}
+                height={chartData.length > 6 ? 48 : 24}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={32}
+                allowDecimals={false}
+              />
+              <Tooltip
+                cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                contentStyle={{
+                  background: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  fontSize: 11,
+                  boxShadow: "0 8px 32px -8px rgba(0,0,0,0.2)",
+                }}
+                labelFormatter={(_label, payload) => {
+                  const item = payload?.[0]?.payload as { fullName?: string } | undefined;
+                  return item?.fullName ?? _label;
+                }}
+              />
+              <Bar
+                dataKey="created"
+                fill="var(--primary)"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+                name="Created"
+              />
+              <Bar
+                dataKey="published"
+                fill="oklch(0.74 0.18 165)"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+                name="Published"
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      {/* Legend */}
+      <div className="mt-2 flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--primary)" }} />
+          Created
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "oklch(0.74 0.18 165)" }} />
+          Published
+        </span>
       </div>
     </GlassCard>
   );

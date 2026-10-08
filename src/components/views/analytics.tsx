@@ -58,6 +58,9 @@ import {
   X,
   Type,
   Clock,
+  FlaskConical,
+  Trophy,
+  Crown,
   type LucideIcon,
 } from "lucide-react";
 import { startOfWeek, format, parseISO, isSameDay, subDays } from "date-fns";
@@ -938,6 +941,9 @@ export function AnalyticsView() {
 
       {/* P3-FEATURES — Advanced analytics: best time, sentiment trend, hashtag performance */}
       <AdvancedAnalyticsCard days={days} />
+
+      {/* REMAINING-4 — A/B Tests comparison card */}
+      <ABTestsCard />
 
       {/* Top performing content */}
       <TopContentSection
@@ -3677,6 +3683,280 @@ function HashtagPerformanceChart({ days }: { days: number }) {
         </div>
       )}
     </GlassCard>
+  );
+}
+
+/* ============================================================
+   REMAINING-4 — ABTestsCard
+   Lists active A/B test groups (variants sharing an abTestGroupId),
+   shows an engagement comparison bar chart per group, flags the
+   winner (highest engagement among published variants), and lets
+   the user either stop the test (DELETE) or "use winner" — set the
+   winning variant's content as the post's default caption.
+   ============================================================ */
+interface ABTestVariantSummary {
+  variantId: string;
+  accountId: string;
+  platform: PlatformId;
+  handle: string;
+  content: string;
+  status: string;
+  publishedAt: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  reach: number;
+  impressions: number;
+  engagement: number;
+}
+interface ABTestGroup {
+  id: string;
+  postId: string;
+  postTitle: string;
+  variantCount: number;
+  publishedCount: number;
+  totalEngagement: number;
+  totalReach: number;
+  totalImpressions: number;
+  winnerVariantId: string | null;
+  createdAt: string;
+  variants: ABTestVariantSummary[];
+}
+interface ABTestsResponse {
+  groups: ABTestGroup[];
+}
+
+function ABTestsCard() {
+  const { data, loading, reload } = useApi<ABTestsResponse>("/api/ab-tests");
+  const groups = data?.groups ?? [];
+
+  return (
+    <GlassCard className="crystal-in relative overflow-hidden p-5 animate-rise">
+      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[oklch(0.65_0.2_300)]/15 blur-3xl" />
+      <SectionHeader
+        title="A/B tests"
+        desc="Compare engagement across variants of the same post"
+        icon={FlaskConical}
+        action={
+          groups.length > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+              {groups.length} active
+            </span>
+          ) : undefined
+        }
+      />
+
+      {loading ? (
+        <div className="flex h-32 items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="flex h-32 flex-col items-center justify-center text-center text-[11px] text-muted-foreground">
+          <FlaskConical className="mb-1.5 h-5 w-5 opacity-50" />
+          No A/B tests yet. Open the Composer, select 2+ accounts, and click
+          the “A/B Test” button to group variants for comparison.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {groups.map((g) => (
+            <ABTestGroupRow key={g.id} group={g} onStopped={reload} onUsedWinner={reload} />
+          ))}
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+function ABTestGroupRow({
+  group,
+  onStopped,
+  onUsedWinner,
+}: {
+  group: ABTestGroup;
+  onStopped: () => void;
+  onUsedWinner: () => void;
+}) {
+  const [stopping, setStopping] = React.useState(false);
+  const [usingWinner, setUsingWinner] = React.useState(false);
+
+  // Chart data — one bar per variant with its engagement, normalized
+  // to the max engagement in the group so the chart shows relative lift.
+  const maxEngagement = Math.max(1, ...group.variants.map((v) => v.engagement));
+  const chartData = group.variants.map((v, i) => ({
+    label: `V${i + 1}`,
+    variantId: v.variantId,
+    engagement: v.engagement,
+    pct: Math.round((v.engagement / maxEngagement) * 100),
+    isWinner: v.variantId === group.winnerVariantId,
+    isPublished: v.status === "published",
+  }));
+
+  const winner = group.variants.find((v) => v.variantId === group.winnerVariantId) ?? null;
+
+  async function handleStop() {
+    setStopping(true);
+    try {
+      const res = await fetch(`/api/ab-tests/${group.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = (await res.json()) as { error?: string };
+        toast.error(j.error ?? "Failed to stop test");
+        return;
+      }
+      toast.success("A/B test stopped", {
+        description: "Variants are preserved — only the grouping was removed.",
+      });
+      onStopped();
+    } finally {
+      setStopping(false);
+    }
+  }
+
+  async function handleUseWinner() {
+    if (!winner) return;
+    setUsingWinner(true);
+    try {
+      // Set the winning variant's content as the post's default caption.
+      const res = await fetch(`/api/posts/${group.postId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caption: winner.content }),
+      });
+      if (!res.ok) {
+        toast.error("Failed to set winner as default caption");
+        return;
+      }
+      toast.success("Winner set as default caption", {
+        description: "Future publishes of this post will use the winning variant's content.",
+      });
+      onUsedWinner();
+    } finally {
+      setUsingWinner(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+      {/* Header row */}
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-xs font-bold">{group.postTitle || "Untitled post"}</span>
+            {group.winnerVariantId && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0 text-[9px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                <Trophy className="h-2.5 w-2.5" />
+                Winner
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground">
+            {group.publishedCount}/{group.variantCount} published · {group.totalEngagement.toLocaleString()} total engagement · {timeAgo(group.createdAt)}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {winner && (
+            <button
+              onClick={handleUseWinner}
+              disabled={usingWinner}
+              className="flex items-center gap-1 rounded-lg bg-primary px-2 py-1 text-[10px] font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+              title="Set the winning variant's content as the post's default caption"
+            >
+              {usingWinner ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Crown className="h-2.5 w-2.5" />}
+              Use winner
+            </button>
+          )}
+          <button
+            onClick={handleStop}
+            disabled={stopping}
+            className="flex items-center gap-1 rounded-lg border border-border/40 px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-600 disabled:opacity-50"
+            title="Stop the test (clears the group; variants are preserved)"
+          >
+            {stopping ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <X className="h-2.5 w-2.5" />}
+            Stop
+          </button>
+        </div>
+      </div>
+
+      {/* Comparison bar chart */}
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <div className="h-[120px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ left: -16, right: 4, top: 8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                interval={0}
+              />
+              <YAxis
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={32}
+              />
+              <Tooltip
+                cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                contentStyle={{
+                  background: "var(--background)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  fontSize: 11,
+                }}
+                formatter={(_v: number, _name: string, props: { payload?: { engagement?: number; isWinner?: boolean } }) => [
+                  `${(props?.payload?.engagement ?? 0).toLocaleString()} engagement`,
+                  props?.payload?.isWinner ? "★ Winner" : "Variant",
+                ]}
+              />
+              <Bar dataKey="engagement" radius={[3, 3, 0, 0]} maxBarSize={36}>
+                {chartData.map((d) => (
+                  <Cell
+                    key={d.variantId}
+                    fill={d.isWinner
+                      ? "oklch(0.7 0.18 75)"
+                      : d.isPublished
+                      ? "var(--primary)"
+                      : "var(--muted-foreground)"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Per-variant legend table */}
+        <div className="space-y-1 text-[10px] sm:min-w-[200px]">
+          {group.variants.map((v, i) => (
+            <div
+              key={v.variantId}
+              className={cn(
+                "flex items-center gap-1.5 rounded px-1.5 py-1",
+                v.variantId === group.winnerVariantId && "bg-amber-500/10",
+              )}
+            >
+              <span className="grid h-4 w-4 shrink-0 place-items-center rounded bg-muted/60 text-[8px] font-bold">
+                {i + 1}
+              </span>
+              <PlatformBadge platform={v.platform} size={14} />
+              <span className="truncate">@{v.handle}</span>
+              <span className="ml-auto font-semibold tabular-nums">{v.engagement.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Winner caption preview */}
+      {winner && (
+        <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2">
+          <div className="mb-0.5 flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            <Trophy className="h-2.5 w-2.5" />
+            Winning caption
+          </div>
+          <div className="line-clamp-2 text-[10px] leading-snug">{winner.content}</div>
+        </div>
+      )}
+    </div>
   );
 }
 

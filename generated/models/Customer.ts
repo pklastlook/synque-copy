@@ -35,6 +35,7 @@ export type CustomerMinAggregateOutputType = {
   country: string | null
   status: string | null
   plan: string | null
+  branding: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -50,6 +51,7 @@ export type CustomerMaxAggregateOutputType = {
   country: string | null
   status: string | null
   plan: string | null
+  branding: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -65,6 +67,7 @@ export type CustomerCountAggregateOutputType = {
   country: number
   status: number
   plan: number
+  branding: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -82,6 +85,7 @@ export type CustomerMinAggregateInputType = {
   country?: true
   status?: true
   plan?: true
+  branding?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -97,6 +101,7 @@ export type CustomerMaxAggregateInputType = {
   country?: true
   status?: true
   plan?: true
+  branding?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -112,6 +117,7 @@ export type CustomerCountAggregateInputType = {
   country?: true
   status?: true
   plan?: true
+  branding?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -200,6 +206,7 @@ export type CustomerGroupByOutputType = {
   country: string | null
   status: string
   plan: string
+  branding: string | null
   createdAt: Date
   updatedAt: Date
   _count: CustomerCountAggregateOutputType | null
@@ -236,6 +243,7 @@ export type CustomerWhereInput = {
   country?: Prisma.StringNullableFilter<"Customer"> | string | null
   status?: Prisma.StringFilter<"Customer"> | string
   plan?: Prisma.StringFilter<"Customer"> | string
+  branding?: Prisma.StringNullableFilter<"Customer"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Customer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Customer"> | Date | string
   serialKey?: Prisma.XOR<Prisma.SerialKeyNullableScalarRelationFilter, Prisma.SerialKeyWhereInput> | null
@@ -256,6 +264,7 @@ export type CustomerOrderByWithRelationInput = {
   country?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   plan?: Prisma.SortOrder
+  branding?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   serialKey?: Prisma.SerialKeyOrderByWithRelationInput
@@ -279,6 +288,7 @@ export type CustomerWhereUniqueInput = Prisma.AtLeast<{
   country?: Prisma.StringNullableFilter<"Customer"> | string | null
   status?: Prisma.StringFilter<"Customer"> | string
   plan?: Prisma.StringFilter<"Customer"> | string
+  branding?: Prisma.StringNullableFilter<"Customer"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Customer"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Customer"> | Date | string
   serialKey?: Prisma.XOR<Prisma.SerialKeyNullableScalarRelationFilter, Prisma.SerialKeyWhereInput> | null
@@ -299,6 +309,7 @@ export type CustomerOrderByWithAggregationInput = {
   country?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   plan?: Prisma.SortOrder
+  branding?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.CustomerCountOrderByAggregateInput
@@ -320,6 +331,7 @@ export type CustomerScalarWhereWithAggregatesInput = {
   country?: Prisma.StringNullableWithAggregatesFilter<"Customer"> | string | null
   status?: Prisma.StringWithAggregatesFilter<"Customer"> | string
   plan?: Prisma.StringWithAggregatesFilter<"Customer"> | string
+  branding?: Prisma.StringNullableWithAggregatesFilter<"Customer"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Customer"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Customer"> | Date | string
 }
@@ -335,6 +347,7 @@ export type CustomerCreateInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyCreateNestedOneWithoutCustomerInput
@@ -355,6 +368,7 @@ export type CustomerUncheckedCreateInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyUncheckedCreateNestedOneWithoutCustomerInput
@@ -375,6 +389,7 @@ export type CustomerUpdateInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUpdateOneWithoutCustomerNestedInput
@@ -395,6 +410,7 @@ export type CustomerUncheckedUpdateInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput
@@ -415,6 +431,7 @@ export type CustomerCreateManyInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -430,6 +447,7 @@ export type CustomerUpdateManyMutationInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -445,6 +463,7 @@ export type CustomerUncheckedUpdateManyInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -460,6 +479,7 @@ export type CustomerCountOrderByAggregateInput = {
   country?: Prisma.SortOrder
   status?: Prisma.SortOrder
   plan?: Prisma.SortOrder
+  branding?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -475,6 +495,7 @@ export type CustomerMaxOrderByAggregateInput = {
   country?: Prisma.SortOrder
   status?: Prisma.SortOrder
   plan?: Prisma.SortOrder
+  branding?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -490,6 +511,7 @@ export type CustomerMinOrderByAggregateInput = {
   country?: Prisma.SortOrder
   status?: Prisma.SortOrder
   plan?: Prisma.SortOrder
+  branding?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -587,6 +609,7 @@ export type CustomerCreateWithoutSerialKeyInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   invoices?: Prisma.InvoiceCreateNestedManyWithoutCustomerInput
@@ -606,6 +629,7 @@ export type CustomerUncheckedCreateWithoutSerialKeyInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutCustomerInput
@@ -641,6 +665,7 @@ export type CustomerUpdateWithoutSerialKeyInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   invoices?: Prisma.InvoiceUpdateManyWithoutCustomerNestedInput
@@ -660,6 +685,7 @@ export type CustomerUncheckedUpdateWithoutSerialKeyInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutCustomerNestedInput
@@ -679,6 +705,7 @@ export type CustomerCreateWithoutInvoicesInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyCreateNestedOneWithoutCustomerInput
@@ -698,6 +725,7 @@ export type CustomerUncheckedCreateWithoutInvoicesInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyUncheckedCreateNestedOneWithoutCustomerInput
@@ -733,6 +761,7 @@ export type CustomerUpdateWithoutInvoicesInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUpdateOneWithoutCustomerNestedInput
@@ -752,6 +781,7 @@ export type CustomerUncheckedUpdateWithoutInvoicesInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput
@@ -771,6 +801,7 @@ export type CustomerCreateWithoutQuotationsInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyCreateNestedOneWithoutCustomerInput
@@ -790,6 +821,7 @@ export type CustomerUncheckedCreateWithoutQuotationsInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyUncheckedCreateNestedOneWithoutCustomerInput
@@ -825,6 +857,7 @@ export type CustomerUpdateWithoutQuotationsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUpdateOneWithoutCustomerNestedInput
@@ -844,6 +877,7 @@ export type CustomerUncheckedUpdateWithoutQuotationsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput
@@ -863,6 +897,7 @@ export type CustomerCreateWithoutSubscriptionsInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyCreateNestedOneWithoutCustomerInput
@@ -882,6 +917,7 @@ export type CustomerUncheckedCreateWithoutSubscriptionsInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyUncheckedCreateNestedOneWithoutCustomerInput
@@ -917,6 +953,7 @@ export type CustomerUpdateWithoutSubscriptionsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUpdateOneWithoutCustomerNestedInput
@@ -936,6 +973,7 @@ export type CustomerUncheckedUpdateWithoutSubscriptionsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput
@@ -955,6 +993,7 @@ export type CustomerCreateWithoutPaymentsInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyCreateNestedOneWithoutCustomerInput
@@ -974,6 +1013,7 @@ export type CustomerUncheckedCreateWithoutPaymentsInput = {
   country?: string | null
   status?: string
   plan?: string
+  branding?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   serialKey?: Prisma.SerialKeyUncheckedCreateNestedOneWithoutCustomerInput
@@ -1009,6 +1049,7 @@ export type CustomerUpdateWithoutPaymentsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUpdateOneWithoutCustomerNestedInput
@@ -1028,6 +1069,7 @@ export type CustomerUncheckedUpdateWithoutPaymentsInput = {
   country?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   plan?: Prisma.StringFieldUpdateOperationsInput | string
+  branding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   serialKey?: Prisma.SerialKeyUncheckedUpdateOneWithoutCustomerNestedInput
@@ -1105,6 +1147,7 @@ export type CustomerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   country?: boolean
   status?: boolean
   plan?: boolean
+  branding?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   serialKey?: boolean | Prisma.Customer$serialKeyArgs<ExtArgs>
@@ -1126,6 +1169,7 @@ export type CustomerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   country?: boolean
   status?: boolean
   plan?: boolean
+  branding?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["customer"]>
@@ -1141,6 +1185,7 @@ export type CustomerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   country?: boolean
   status?: boolean
   plan?: boolean
+  branding?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["customer"]>
@@ -1156,11 +1201,12 @@ export type CustomerSelectScalar = {
   country?: boolean
   status?: boolean
   plan?: boolean
+  branding?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CustomerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "phone" | "company" | "address" | "city" | "country" | "status" | "plan" | "createdAt" | "updatedAt", ExtArgs["result"]["customer"]>
+export type CustomerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "email" | "phone" | "company" | "address" | "city" | "country" | "status" | "plan" | "branding" | "createdAt" | "updatedAt", ExtArgs["result"]["customer"]>
 export type CustomerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   serialKey?: boolean | Prisma.Customer$serialKeyArgs<ExtArgs>
   invoices?: boolean | Prisma.Customer$invoicesArgs<ExtArgs>
@@ -1192,6 +1238,7 @@ export type $CustomerPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     country: string | null
     status: string
     plan: string
+    branding: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["customer"]>
@@ -1632,6 +1679,7 @@ export interface CustomerFieldRefs {
   readonly country: Prisma.FieldRef<"Customer", 'String'>
   readonly status: Prisma.FieldRef<"Customer", 'String'>
   readonly plan: Prisma.FieldRef<"Customer", 'String'>
+  readonly branding: Prisma.FieldRef<"Customer", 'String'>
   readonly createdAt: Prisma.FieldRef<"Customer", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Customer", 'DateTime'>
 }

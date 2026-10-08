@@ -415,6 +415,7 @@ export const ModelName = {
   HashtagGroup: 'HashtagGroup',
   Competitor: 'Competitor',
   CompetitorSnapshot: 'CompetitorSnapshot',
+  CompetitorPost: 'CompetitorPost',
   Report: 'Report',
   LinkInBio: 'LinkInBio',
   WhatsAppMessage: 'WhatsAppMessage',
@@ -450,7 +451,8 @@ export const ModelName = {
   WebAuthnCredential: 'WebAuthnCredential',
   WebauthnChallenge: 'WebauthnChallenge',
   AuditLog: 'AuditLog',
-  Notification: 'Notification'
+  Notification: 'Notification',
+  Webhook: 'Webhook'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -466,7 +468,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "payment" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken" | "influencer" | "vPNServer" | "vPNSession" | "webAuthnCredential" | "webauthnChallenge" | "auditLog" | "notification"
+    modelProps: "user" | "account" | "accountHealth" | "accountProtection" | "post" | "postVariant" | "comment" | "analyticsDaily" | "activity" | "campaign" | "mediaAsset" | "listeningQuery" | "mention" | "approval" | "task" | "hashtagGroup" | "competitor" | "competitorSnapshot" | "competitorPost" | "report" | "linkInBio" | "whatsAppMessage" | "whatsAppConnection" | "chatMessage" | "mailServer" | "mailbox" | "mailMessage" | "customer" | "serialKey" | "invoice" | "quotation" | "bankAccount" | "apiKey" | "device" | "subscription" | "payment" | "workspaceSettings" | "platformCredential" | "integration" | "tenantDatabase" | "workspace" | "workspaceShare" | "role" | "department" | "designation" | "session" | "passwordResetToken" | "emailVerificationToken" | "influencer" | "vPNServer" | "vPNSession" | "webAuthnCredential" | "webauthnChallenge" | "auditLog" | "notification" | "webhook"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1799,6 +1801,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.CompetitorSnapshotCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.CompetitorSnapshotCountAggregateOutputType> | number
+        }
+      }
+    }
+    CompetitorPost: {
+      payload: Prisma.$CompetitorPostPayload<ExtArgs>
+      fields: Prisma.CompetitorPostFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CompetitorPostFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CompetitorPostFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload>
+        }
+        findFirst: {
+          args: Prisma.CompetitorPostFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CompetitorPostFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload>
+        }
+        findMany: {
+          args: Prisma.CompetitorPostFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload>[]
+        }
+        create: {
+          args: Prisma.CompetitorPostCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload>
+        }
+        createMany: {
+          args: Prisma.CompetitorPostCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CompetitorPostCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload>[]
+        }
+        delete: {
+          args: Prisma.CompetitorPostDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload>
+        }
+        update: {
+          args: Prisma.CompetitorPostUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload>
+        }
+        deleteMany: {
+          args: Prisma.CompetitorPostDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CompetitorPostUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CompetitorPostUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload>[]
+        }
+        upsert: {
+          args: Prisma.CompetitorPostUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CompetitorPostPayload>
+        }
+        aggregate: {
+          args: Prisma.CompetitorPostAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCompetitorPost>
+        }
+        groupBy: {
+          args: Prisma.CompetitorPostGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CompetitorPostGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CompetitorPostCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CompetitorPostCountAggregateOutputType> | number
         }
       }
     }
@@ -4466,6 +4542,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Webhook: {
+      payload: Prisma.$WebhookPayload<ExtArgs>
+      fields: Prisma.WebhookFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.WebhookFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.WebhookFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload>
+        }
+        findFirst: {
+          args: Prisma.WebhookFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.WebhookFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload>
+        }
+        findMany: {
+          args: Prisma.WebhookFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload>[]
+        }
+        create: {
+          args: Prisma.WebhookCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload>
+        }
+        createMany: {
+          args: Prisma.WebhookCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.WebhookCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload>[]
+        }
+        delete: {
+          args: Prisma.WebhookDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload>
+        }
+        update: {
+          args: Prisma.WebhookUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload>
+        }
+        deleteMany: {
+          args: Prisma.WebhookDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.WebhookUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.WebhookUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload>[]
+        }
+        upsert: {
+          args: Prisma.WebhookUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebhookPayload>
+        }
+        aggregate: {
+          args: Prisma.WebhookAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateWebhook>
+        }
+        groupBy: {
+          args: Prisma.WebhookGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WebhookGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.WebhookCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WebhookCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -4633,7 +4783,8 @@ export const PostVariantScalarFieldEnum = {
   saves: 'saves',
   createdAt: 'createdAt',
   retryCount: 'retryCount',
-  lastError: 'lastError'
+  lastError: 'lastError',
+  abTestGroupId: 'abTestGroupId'
 } as const
 
 export type PostVariantScalarFieldEnum = (typeof PostVariantScalarFieldEnum)[keyof typeof PostVariantScalarFieldEnum]
@@ -4717,6 +4868,8 @@ export const MediaAssetScalarFieldEnum = {
   folder: 'folder',
   uploadedById: 'uploadedById',
   customerId: 'customerId',
+  hash: 'hash',
+  altText: 'altText',
   createdAt: 'createdAt'
 } as const
 
@@ -4841,6 +4994,25 @@ export const CompetitorSnapshotScalarFieldEnum = {
 } as const
 
 export type CompetitorSnapshotScalarFieldEnum = (typeof CompetitorSnapshotScalarFieldEnum)[keyof typeof CompetitorSnapshotScalarFieldEnum]
+
+
+export const CompetitorPostScalarFieldEnum = {
+  id: 'id',
+  competitorId: 'competitorId',
+  externalId: 'externalId',
+  text: 'text',
+  mediaUrl: 'mediaUrl',
+  likes: 'likes',
+  comments: 'comments',
+  shares: 'shares',
+  reach: 'reach',
+  sentiment: 'sentiment',
+  topics: 'topics',
+  postedAt: 'postedAt',
+  syncedAt: 'syncedAt'
+} as const
+
+export type CompetitorPostScalarFieldEnum = (typeof CompetitorPostScalarFieldEnum)[keyof typeof CompetitorPostScalarFieldEnum]
 
 
 export const ReportScalarFieldEnum = {
@@ -4998,6 +5170,7 @@ export const CustomerScalarFieldEnum = {
   country: 'country',
   status: 'status',
   plan: 'plan',
+  branding: 'branding',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -5127,7 +5300,12 @@ export const SubscriptionScalarFieldEnum = {
   totalAmount: 'totalAmount',
   billingCycle: 'billingCycle',
   notes: 'notes',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  stripeCustomerId: 'stripeCustomerId',
+  stripeSubscriptionId: 'stripeSubscriptionId',
+  stripeStatus: 'stripeStatus',
+  stripeCurrentPeriodEnd: 'stripeCurrentPeriodEnd',
+  dunningAttempt: 'dunningAttempt'
 } as const
 
 export type SubscriptionScalarFieldEnum = (typeof SubscriptionScalarFieldEnum)[keyof typeof SubscriptionScalarFieldEnum]
@@ -5449,6 +5627,21 @@ export const NotificationScalarFieldEnum = {
 export type NotificationScalarFieldEnum = (typeof NotificationScalarFieldEnum)[keyof typeof NotificationScalarFieldEnum]
 
 
+export const WebhookScalarFieldEnum = {
+  id: 'id',
+  customerId: 'customerId',
+  label: 'label',
+  url: 'url',
+  events: 'events',
+  secret: 'secret',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WebhookScalarFieldEnum = (typeof WebhookScalarFieldEnum)[keyof typeof WebhookScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -5710,6 +5903,7 @@ export type GlobalOmitConfig = {
   hashtagGroup?: Prisma.HashtagGroupOmit
   competitor?: Prisma.CompetitorOmit
   competitorSnapshot?: Prisma.CompetitorSnapshotOmit
+  competitorPost?: Prisma.CompetitorPostOmit
   report?: Prisma.ReportOmit
   linkInBio?: Prisma.LinkInBioOmit
   whatsAppMessage?: Prisma.WhatsAppMessageOmit
@@ -5746,6 +5940,7 @@ export type GlobalOmitConfig = {
   webauthnChallenge?: Prisma.WebauthnChallengeOmit
   auditLog?: Prisma.AuditLogOmit
   notification?: Prisma.NotificationOmit
+  webhook?: Prisma.WebhookOmit
 }
 
 /* Types for Logging */

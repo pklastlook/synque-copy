@@ -63,6 +63,7 @@ export type PostVariantMinAggregateOutputType = {
   createdAt: Date | null
   retryCount: number | null
   lastError: string | null
+  abTestGroupId: string | null
 }
 
 export type PostVariantMaxAggregateOutputType = {
@@ -82,6 +83,7 @@ export type PostVariantMaxAggregateOutputType = {
   createdAt: Date | null
   retryCount: number | null
   lastError: string | null
+  abTestGroupId: string | null
 }
 
 export type PostVariantCountAggregateOutputType = {
@@ -101,6 +103,7 @@ export type PostVariantCountAggregateOutputType = {
   createdAt: number
   retryCount: number
   lastError: number
+  abTestGroupId: number
   _all: number
 }
 
@@ -142,6 +145,7 @@ export type PostVariantMinAggregateInputType = {
   createdAt?: true
   retryCount?: true
   lastError?: true
+  abTestGroupId?: true
 }
 
 export type PostVariantMaxAggregateInputType = {
@@ -161,6 +165,7 @@ export type PostVariantMaxAggregateInputType = {
   createdAt?: true
   retryCount?: true
   lastError?: true
+  abTestGroupId?: true
 }
 
 export type PostVariantCountAggregateInputType = {
@@ -180,6 +185,7 @@ export type PostVariantCountAggregateInputType = {
   createdAt?: true
   retryCount?: true
   lastError?: true
+  abTestGroupId?: true
   _all?: true
 }
 
@@ -286,6 +292,7 @@ export type PostVariantGroupByOutputType = {
   createdAt: Date
   retryCount: number
   lastError: string | null
+  abTestGroupId: string | null
   _count: PostVariantCountAggregateOutputType | null
   _avg: PostVariantAvgAggregateOutputType | null
   _sum: PostVariantSumAggregateOutputType | null
@@ -328,6 +335,7 @@ export type PostVariantWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"PostVariant"> | Date | string
   retryCount?: Prisma.IntFilter<"PostVariant"> | number
   lastError?: Prisma.StringNullableFilter<"PostVariant"> | string | null
+  abTestGroupId?: Prisma.StringNullableFilter<"PostVariant"> | string | null
   post?: Prisma.XOR<Prisma.PostScalarRelationFilter, Prisma.PostWhereInput>
   account?: Prisma.XOR<Prisma.AccountScalarRelationFilter, Prisma.AccountWhereInput>
 }
@@ -349,6 +357,7 @@ export type PostVariantOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   retryCount?: Prisma.SortOrder
   lastError?: Prisma.SortOrderInput | Prisma.SortOrder
+  abTestGroupId?: Prisma.SortOrderInput | Prisma.SortOrder
   post?: Prisma.PostOrderByWithRelationInput
   account?: Prisma.AccountOrderByWithRelationInput
 }
@@ -373,6 +382,7 @@ export type PostVariantWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"PostVariant"> | Date | string
   retryCount?: Prisma.IntFilter<"PostVariant"> | number
   lastError?: Prisma.StringNullableFilter<"PostVariant"> | string | null
+  abTestGroupId?: Prisma.StringNullableFilter<"PostVariant"> | string | null
   post?: Prisma.XOR<Prisma.PostScalarRelationFilter, Prisma.PostWhereInput>
   account?: Prisma.XOR<Prisma.AccountScalarRelationFilter, Prisma.AccountWhereInput>
 }, "id">
@@ -394,6 +404,7 @@ export type PostVariantOrderByWithAggregationInput = {
   createdAt?: Prisma.SortOrder
   retryCount?: Prisma.SortOrder
   lastError?: Prisma.SortOrderInput | Prisma.SortOrder
+  abTestGroupId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.PostVariantCountOrderByAggregateInput
   _avg?: Prisma.PostVariantAvgOrderByAggregateInput
   _max?: Prisma.PostVariantMaxOrderByAggregateInput
@@ -421,6 +432,7 @@ export type PostVariantScalarWhereWithAggregatesInput = {
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"PostVariant"> | Date | string
   retryCount?: Prisma.IntWithAggregatesFilter<"PostVariant"> | number
   lastError?: Prisma.StringNullableWithAggregatesFilter<"PostVariant"> | string | null
+  abTestGroupId?: Prisma.StringNullableWithAggregatesFilter<"PostVariant"> | string | null
 }
 
 export type PostVariantCreateInput = {
@@ -438,6 +450,7 @@ export type PostVariantCreateInput = {
   createdAt?: Date | string
   retryCount?: number
   lastError?: string | null
+  abTestGroupId?: string | null
   post: Prisma.PostCreateNestedOneWithoutVariantsInput
   account: Prisma.AccountCreateNestedOneWithoutVariantsInput
 }
@@ -459,6 +472,7 @@ export type PostVariantUncheckedCreateInput = {
   createdAt?: Date | string
   retryCount?: number
   lastError?: string | null
+  abTestGroupId?: string | null
 }
 
 export type PostVariantUpdateInput = {
@@ -476,6 +490,7 @@ export type PostVariantUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   post?: Prisma.PostUpdateOneRequiredWithoutVariantsNestedInput
   account?: Prisma.AccountUpdateOneRequiredWithoutVariantsNestedInput
 }
@@ -497,6 +512,7 @@ export type PostVariantUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantCreateManyInput = {
@@ -516,6 +532,7 @@ export type PostVariantCreateManyInput = {
   createdAt?: Date | string
   retryCount?: number
   lastError?: string | null
+  abTestGroupId?: string | null
 }
 
 export type PostVariantUpdateManyMutationInput = {
@@ -533,6 +550,7 @@ export type PostVariantUpdateManyMutationInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantUncheckedUpdateManyInput = {
@@ -552,6 +570,7 @@ export type PostVariantUncheckedUpdateManyInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantListRelationFilter = {
@@ -581,6 +600,7 @@ export type PostVariantCountOrderByAggregateInput = {
   createdAt?: Prisma.SortOrder
   retryCount?: Prisma.SortOrder
   lastError?: Prisma.SortOrder
+  abTestGroupId?: Prisma.SortOrder
 }
 
 export type PostVariantAvgOrderByAggregateInput = {
@@ -610,6 +630,7 @@ export type PostVariantMaxOrderByAggregateInput = {
   createdAt?: Prisma.SortOrder
   retryCount?: Prisma.SortOrder
   lastError?: Prisma.SortOrder
+  abTestGroupId?: Prisma.SortOrder
 }
 
 export type PostVariantMinOrderByAggregateInput = {
@@ -629,6 +650,7 @@ export type PostVariantMinOrderByAggregateInput = {
   createdAt?: Prisma.SortOrder
   retryCount?: Prisma.SortOrder
   lastError?: Prisma.SortOrder
+  abTestGroupId?: Prisma.SortOrder
 }
 
 export type PostVariantSumOrderByAggregateInput = {
@@ -740,6 +762,7 @@ export type PostVariantCreateWithoutAccountInput = {
   createdAt?: Date | string
   retryCount?: number
   lastError?: string | null
+  abTestGroupId?: string | null
   post: Prisma.PostCreateNestedOneWithoutVariantsInput
 }
 
@@ -759,6 +782,7 @@ export type PostVariantUncheckedCreateWithoutAccountInput = {
   createdAt?: Date | string
   retryCount?: number
   lastError?: string | null
+  abTestGroupId?: string | null
 }
 
 export type PostVariantCreateOrConnectWithoutAccountInput = {
@@ -807,6 +831,7 @@ export type PostVariantScalarWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"PostVariant"> | Date | string
   retryCount?: Prisma.IntFilter<"PostVariant"> | number
   lastError?: Prisma.StringNullableFilter<"PostVariant"> | string | null
+  abTestGroupId?: Prisma.StringNullableFilter<"PostVariant"> | string | null
 }
 
 export type PostVariantCreateWithoutPostInput = {
@@ -824,6 +849,7 @@ export type PostVariantCreateWithoutPostInput = {
   createdAt?: Date | string
   retryCount?: number
   lastError?: string | null
+  abTestGroupId?: string | null
   account: Prisma.AccountCreateNestedOneWithoutVariantsInput
 }
 
@@ -843,6 +869,7 @@ export type PostVariantUncheckedCreateWithoutPostInput = {
   createdAt?: Date | string
   retryCount?: number
   lastError?: string | null
+  abTestGroupId?: string | null
 }
 
 export type PostVariantCreateOrConnectWithoutPostInput = {
@@ -887,6 +914,7 @@ export type PostVariantCreateManyAccountInput = {
   createdAt?: Date | string
   retryCount?: number
   lastError?: string | null
+  abTestGroupId?: string | null
 }
 
 export type PostVariantUpdateWithoutAccountInput = {
@@ -904,6 +932,7 @@ export type PostVariantUpdateWithoutAccountInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   post?: Prisma.PostUpdateOneRequiredWithoutVariantsNestedInput
 }
 
@@ -923,6 +952,7 @@ export type PostVariantUncheckedUpdateWithoutAccountInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantUncheckedUpdateManyWithoutAccountInput = {
@@ -941,6 +971,7 @@ export type PostVariantUncheckedUpdateManyWithoutAccountInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantCreateManyPostInput = {
@@ -959,6 +990,7 @@ export type PostVariantCreateManyPostInput = {
   createdAt?: Date | string
   retryCount?: number
   lastError?: string | null
+  abTestGroupId?: string | null
 }
 
 export type PostVariantUpdateWithoutPostInput = {
@@ -976,6 +1008,7 @@ export type PostVariantUpdateWithoutPostInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   account?: Prisma.AccountUpdateOneRequiredWithoutVariantsNestedInput
 }
 
@@ -995,6 +1028,7 @@ export type PostVariantUncheckedUpdateWithoutPostInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PostVariantUncheckedUpdateManyWithoutPostInput = {
@@ -1013,6 +1047,7 @@ export type PostVariantUncheckedUpdateManyWithoutPostInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   retryCount?: Prisma.IntFieldUpdateOperationsInput | number
   lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  abTestGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -1034,6 +1069,7 @@ export type PostVariantSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   createdAt?: boolean
   retryCount?: boolean
   lastError?: boolean
+  abTestGroupId?: boolean
   post?: boolean | Prisma.PostDefaultArgs<ExtArgs>
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["postVariant"]>
@@ -1055,6 +1091,7 @@ export type PostVariantSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   createdAt?: boolean
   retryCount?: boolean
   lastError?: boolean
+  abTestGroupId?: boolean
   post?: boolean | Prisma.PostDefaultArgs<ExtArgs>
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["postVariant"]>
@@ -1076,6 +1113,7 @@ export type PostVariantSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   createdAt?: boolean
   retryCount?: boolean
   lastError?: boolean
+  abTestGroupId?: boolean
   post?: boolean | Prisma.PostDefaultArgs<ExtArgs>
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["postVariant"]>
@@ -1097,9 +1135,10 @@ export type PostVariantSelectScalar = {
   createdAt?: boolean
   retryCount?: boolean
   lastError?: boolean
+  abTestGroupId?: boolean
 }
 
-export type PostVariantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "postId" | "accountId" | "content" | "hashtags" | "status" | "publishedAt" | "likes" | "comments" | "shares" | "reach" | "impressions" | "saves" | "createdAt" | "retryCount" | "lastError", ExtArgs["result"]["postVariant"]>
+export type PostVariantOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "postId" | "accountId" | "content" | "hashtags" | "status" | "publishedAt" | "likes" | "comments" | "shares" | "reach" | "impressions" | "saves" | "createdAt" | "retryCount" | "lastError" | "abTestGroupId", ExtArgs["result"]["postVariant"]>
 export type PostVariantInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   post?: boolean | Prisma.PostDefaultArgs<ExtArgs>
   account?: boolean | Prisma.AccountDefaultArgs<ExtArgs>
@@ -1136,6 +1175,7 @@ export type $PostVariantPayload<ExtArgs extends runtime.Types.Extensions.Interna
     createdAt: Date
     retryCount: number
     lastError: string | null
+    abTestGroupId: string | null
   }, ExtArgs["result"]["postVariant"]>
   composites: {}
 }
@@ -1577,6 +1617,7 @@ export interface PostVariantFieldRefs {
   readonly createdAt: Prisma.FieldRef<"PostVariant", 'DateTime'>
   readonly retryCount: Prisma.FieldRef<"PostVariant", 'Int'>
   readonly lastError: Prisma.FieldRef<"PostVariant", 'String'>
+  readonly abTestGroupId: Prisma.FieldRef<"PostVariant", 'String'>
 }
     
 
