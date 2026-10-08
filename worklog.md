@@ -14825,3 +14825,56 @@ Stage Summary: All 4 features implemented end-to-end. i18n infrastructure + 3 lo
 
 Files created: src/locales/en.json, src/locales/ar.json, src/locales/es.json, src/lib/i18n.tsx, src/lib/branding.ts, sentry.client.config.ts, sentry.server.config.ts, sentry.edge.config.ts, src/app/api/branding/route.ts, agent-ctx/REMAINING-2-subagent.md
 Files modified: prisma/schema.prisma, next.config.ts, .env, .env.example, src/lib/auth-guard.ts, src/components/app-shell.tsx, src/components/app-sidebar.tsx, src/components/views/settings.tsx, src/components/views/owner.tsx, src/app/api/customers/route.ts, src/app/api/customers/[id]/route.ts
+
+---
+Task ID: REMAINING-FINAL
+Agent: subagent
+Task: Public API + competitor analysis + team perf + A/B testing + media processing + Docker + tests
+
+Work Log:
+
+### Pre-flight inventory — 6 of 7 items already complete
+
+On entering the workspace I read the worklog (latest entry: REMAINING-2) and ran an `LS` over the project tree. Cross-referencing the task list against existing files + the REMAINING-4 agent-ctx notes showed that 6 of the 7 items in this task were already implemented end-to-end by a prior agent:
+
+1. **Public API Documentation + Webhooks** — `src/lib/webhooks.ts` (full `triggerWebhook` implementation, HMAC-SHA256 signing, parallel delivery, 10s timeout, best-effort failure handling) ✅; `Webhook` model in Prisma (id/customerId/label/url/events JSON/secret/active/createdAt/updatedAt + indexes) ✅; `/api/webhooks` route (GET list with masked secrets + POST create with random 256-bit secret) ✅; `/api/webhooks/[id]` route (GET/PATCH/DELETE) ✅. The Settings → WebhooksSection UI already consumes these endpoints. **One gap**: `src/app/api-docs/page.tsx` was using `swagger-ui-react` which is NOT in `package.json` (only present as a transitive dep in node_modules). Task explicitly said "no swagger-ui dependency, just a clean HTML page listing all API endpoints grouped by module" — needed replacement.
+
+2. **Competitor Deep Analysis** — `/api/competitors/[id]/analyze/route.ts` (POST returns `{ posts, sentimentBreakdown, contentGaps, shareOfVoice, topPosts, meta }`) ✅. Uses `classifySentimentBatch` from `@/lib/sentiment`, persists labels on `CompetitorPost.sentiment`, extracts topics via hashtag + stop-word-filtered tokenization, computes SoV as `competitorEngagement / (competitor + your engagement)`. Competitors view (`src/components/views/competitors.tsx`) has a "Deep analyze" `DropdownMenuItem` and an `AnalysisDialog` that renders the sentiment pie chart + content gap list + top posts grid + SoV KPI. ✅
+
+3. **Team Performance Analytics** — `/api/team-performance/route.ts` (GET) returns per-member metrics including `postsCreated`, `publishedPosts`, `avgEngagementPerPost`, `avgResponseTimeMin`, `tasksAssigned`, `completedTasks`, `activeDays`, and a weighted `activityScore` (40% productivity + 25% responsiveness + 20% tasks + 15% consistency). Also returns `leaderboard` (mostPostsCreated/mostPublished/mostCommentsReplied/bestReplyRate/mostActive) + 14-day trend + 90-day activity heatmap + accountHealth summaries. Team-performance view (`src/components/views/team-performance.tsx`) has `LeaderboardSection` (sortable table by activity score), `BestPerformerSection`, `MemberCardsSection` (per-member cards with score breakdown bars), and `PostsComparisonChart` (comparison bar chart). ✅
+
+4. **A/B Testing** — `abTestGroupId String?` on PostVariant in Prisma (+ `@@index([abTestGroupId])`) ✅; `/api/ab-tests` route (GET list of groups + POST create with 2–4 variant validation) ✅; `/api/ab-tests/[id]` route (GET returns per-variant engagement comparison + winner; DELETE clears the group id, preserves data) ✅. Composer has a "Create A/B Test" button in ProgressToolbar (`onCreateABTest` + `abTestEnabled` props) and an `ABTestDialog` component that lets the user multi-select variants and POSTs to `/api/ab-tests`. Analytics view renders an `ABTestsCard` with BarChart comparison + winner pill + "Use winner" + "Stop" actions. ✅
+
+5. **Media Processing** — `src/lib/media-processing.ts` with `compressImage` (sharp resize + WebP q=85, fails open on error, SVGs/GIFs returned unchanged), `generateVideoThumbnail` (sharp first-frame JPEG), `calculateImageHash` (SHA-256 of post-compression bytes), `suggestAltText` (best-effort vision LLM via `getLLMClient`) ✅; `/api/media/upload/route.ts` runs the full pipeline (compress → hash → dedupe by hash → store via storage adapter → background alt-text generation) ✅.
+
+6. **Dockerize Mini-Services** — Dockerfiles for all 5 mini-services (whatsapp:3002, scheduler:3003, ai:3004, zai-proxy:3005, chat:3006) all on `oven/bun:1` base with `bun install --production` + `bun run index.js` entrypoint ✅; `docker-compose.yml` at root orchestrates all 5 services + the main Next.js app (multi-stage Dockerfile at root), shares `.env` via `env_file`, exposes per-service ports for direct debugging, `app` container `depends_on` all 5 mini-services ✅.
+
+7. **Integration Tests** — `src/tests/{auth,signup,publish,billing}.test.ts` all exist, all use `bun:test` (`import { describe, test, expect } from "bun:test"`), all start with `/// <reference types="bun-types" />`. auth: login + wrong-password + protected route without/malformed token. signup: creates Customer + Subscription + Invoice + User + TenantDB, then verifies login works; duplicate email returns 409; missing fields returns 400 (4 variants). publish: live Twitter publish (skipped unless RUN_PUBLISH!=0), no-credentials returns 400, rate-limited returns 429. billing: create-payment-intent returns clientSecret starting with `pi_`, webhook rejects invalid Stripe-Signature with 400. ✅
+
+### Implementation — Item 1: API docs page replacement
+
+**File**: `src/app/api-docs/page.tsx` (REWRITTEN)
+
+Replaced the swagger-ui-react based page with a self-contained Next.js Client Component that needs zero external UI dependencies beyond the project's existing `useAuth` hook (`@/lib/auth-store`) + `next-themes` (both already in `package.json`).
+
+- **Static endpoint catalogue** — a typed `MODULES: Module[]` array with 22 modules covering ~95 endpoints (Auth, Posts & Composer, A/B Testing, Approvals, Accounts, Analytics, Inbox & Listening, Competitors, Team Performance, Tasks, Media Library, Webhooks, Customers & Subscriptions, Stripe Billing, AI Services, Comments, Reports, Data Export, Notifications, Calendar & Dashboard, OAuth Connections, Admin & Owner). Each row carries `{ method, path, description, auth }` where `auth ∈ { JWT, Public, Admin }`. Adding a new route is a one-line append.
+- **Glass-styled layout** — sticky translucent header (back link + endpoint count pill + "Authenticated" pill), intro card explaining JWT/Bearer auth + the user's current token (masked, with Copy button), search input + per-module dropdown filter, then a section per module. Each section has a header (module name + count + description) and a 3-column row per endpoint (method badge · path+description · auth pill). Method badges are color-coded (GET=emerald, POST=blue, PATCH/PUT=amber, DELETE=rose). Auth pills are color-coded (JWT=primary, Public=muted, Admin=amber).
+- **Filter** — the search input filters endpoints by path/description/method (case-insensitive). The dropdown filters to a single module. Both work together (search within selected module).
+- **Auth-aware navigation** — redirects unauthenticated visitors to `/login?next=/api-docs` via `useRouter().push` (not `window.location.href` — keeps the eslint rule happy). While the auth state is hydrating, a `shimmer` loader is shown.
+- **Footer** — links to the raw OpenAPI spec at `/api/docs` and mentions the `X-Synque-Signature` webhook header.
+
+The `/api/docs` route (which returns the OpenAPI spec) is left untouched — it's still useful as a machine-readable manifest. The page no longer depends on it at runtime (the catalogue is hardcoded), but the footer surfaces it for API consumers who want a JSON manifest.
+
+### Validation
+- `npx prisma validate` → "The schema at prisma/schema.prisma is valid 🚀" (no schema changes were needed — `Webhook` model + `abTestGroupId` were already present from prior REMAINING-2/REMAINING-4 work).
+- `bunx eslint src/app/api-docs/page.tsx` → 0 errors, 0 warnings on the new file.
+- `bun run lint` → **0 errors, 7 pre-existing warnings** (all `@next/next/no-location-assign-relative-destination` in landing-page.tsx ×3, landing-shared.tsx ×1, accounts.tsx ×2, settings.tsx ×1 — none in REMAINING-FINAL files). The new api-docs page uses `useRouter().push` + `router.push` for navigation, not `window.location.href`, so it adds zero new warnings.
+- `npx tsc --noEmit` → 5 pre-existing errors in files I did NOT touch (`oauth/callback/[platform]/route.ts` ×1, `stripe/create-subscription/route.ts` ×3, `sync-platforms.ts` ×1 — all carried over from prior REMAINING-1/REMAINING-2 work). 0 errors in `src/app/api-docs/page.tsx` or any file this task created/modified.
+- Dev server NOT started per task rules.
+- `prisma db push` NOT run per task rules — and not needed, since no schema changes were made in this task.
+
+Stage Summary: Of the 7 items in this task, 6 were already implemented end-to-end by prior agents (REMAINING-2 + REMAINING-4 + others — confirmed by reading the agent-ctx notes + each file's contents). The only gap was the `/api-docs` page which was using `swagger-ui-react` (not declared in `package.json`, only present as a transitive dep). Replaced it with a clean, dependency-free Client Component that renders a static catalogue of ~95 endpoints across 22 modules — grouped by module, each row showing method badge + path + description + auth-required pill. Color-coded method + auth badges, search input, per-module dropdown filter, sticky translucent header, JWT copy button, and footer link to the raw OpenAPI spec at `/api/docs`. Lint + prisma validate pass clean. No schema changes, no new dependencies, dev server not started. All 7 task items are now fully in place: API docs page (clean HTML) + webhooks (lib + model + routes); competitor deep analysis (route + dialog); team performance analytics (route + leaderboard + cards + chart); A/B testing (Prisma field + 2 routes + composer button + analytics card); media processing (lib + upload route pipeline); Docker (5 mini-service Dockerfiles + root Next.js Dockerfile + docker-compose.yml); integration tests (4 bun:test files covering auth/signup/publish/billing).
+
+Files modified: src/app/api-docs/page.tsx (rewritten — was using swagger-ui-react, now uses a static catalogue + glass UI)
+
+Files created: none (all 6 other items already existed from prior agent work — see REMAINING-2 and REMAINING-4 entries in this worklog)
