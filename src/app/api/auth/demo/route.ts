@@ -6,8 +6,9 @@ import { issueSession, setAuthCookie } from "@/lib/auth-session";
 export const dynamic = "force-dynamic";
 
 // Demo credentials — fixed so anyone can preview the product
-// Uses demo@synque.app which is the seeded demo user with rich data across all modules
-const DEMO_EMAIL = "rabia@synque.app";
+// Uses demo@synque.app which is a manager-role user in the dedicated
+// synque_demo database with rich demo data across all modules.
+const DEMO_EMAIL = "demo@synque.app";
 const DEMO_PASSWORD = "demo123456";
 
 // Read-only permission set — viewer role
