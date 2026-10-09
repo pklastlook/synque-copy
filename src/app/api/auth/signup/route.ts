@@ -236,6 +236,104 @@ export async function POST(req: NextRequest) {
           // push failed. The main DB user is the source of truth for auth.
           console.error("[auth/signup] Tenant DB user creation failed (non-fatal):", e instanceof Error ? e.message : String(e));
         });
+
+        // === 4b. Seed default workspace data in the tenant DB ===
+        // Create default Department + Designation so the workspace is
+        // immediately usable after registration.
+        try {
+          await tenantDb.department.create({
+            data: { name: "Management", color: "blue", customerId: customer.id },
+          }).catch(() => {});
+          await tenantDb.department.create({
+            data: { name: "Content", color: "teal", customerId: customer.id },
+          }).catch(() => {});
+          await tenantDb.department.create({
+            data: { name: "Community", color: "rose", customerId: customer.id },
+          }).catch(() => {});
+        } catch (e) {
+          // Non-fatal — departments are optional
+        }
+
+        // Create a default "Getting Started" task so the Tasks module
+        // isn't empty on first visit.
+        try {
+          await tenantDb.task.create({
+            data: {
+              title: "Connect your first social account",
+              description: "Go to Accounts → Connect Account to link your Instagram, Facebook, X, or other social media accounts.",
+              status: "todo",
+              priority: "high",
+              type: "task",
+              assigneeId: user.id,
+              creatorId: user.id,
+              customerId: customer.id,
+            },
+          }).catch(() => {});
+
+          await tenantDb.task.create({
+            data: {
+              title: "Create your first post with AI",
+              description: "Use the AI Composer to generate and schedule your first post across multiple platforms.",
+              status: "todo",
+              priority: "high",
+              type: "task",
+              assigneeId: user.id,
+              creatorId: user.id,
+              customerId: customer.id,
+            },
+          }).catch(() => {});
+
+          await tenantDb.task.create({
+            data: {
+              title: "Invite team members",
+              description: "Go to Settings → Team to invite colleagues to your workspace.",
+              status: "todo",
+              priority: "medium",
+              type: "task",
+              assigneeId: user.id,
+              creatorId: user.id,
+              customerId: customer.id,
+            },
+          }).catch(() => {});
+        } catch (e) {
+          // Non-fatal — tasks are optional
+        }
+
+        // Create a welcome activity so the Activity feed isn't empty.
+        try {
+          await tenantDb.activity.create({
+            data: {
+              userId: user.id,
+              type: "team_joined",
+              description: `${name} created the workspace${company ? ` "${company}"` : ""} and started a 15-day trial.`,
+              customerId: customer.id,
+            },
+          }).catch(() => {});
+        } catch (e) {
+          // Non-fatal
+        }
+
+        // Create a default Link-in-Bio page so the Link in Bio module
+        // has a starting point.
+        try {
+          await tenantDb.linkInBio.create({
+            data: {
+              slug: company ? company.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 20) : "my-links",
+              title: company ? `${company} Links` : "My Links",
+              theme: "default",
+              links: JSON.stringify([
+                { title: "Website", url: "https://" + (company ? company.toLowerCase().replace(/\s/g, "") + ".com" : "example.com") },
+              ]),
+              visits: 0,
+              clicks: 0,
+              active: true,
+              customerId: customer.id,
+            },
+          }).catch(() => {});
+        } catch (e) {
+          // Non-fatal
+        }
+
       } catch (e) {
         console.error("[auth/signup] Tenant DB user creation failed:", e instanceof Error ? e.message : String(e));
       }
